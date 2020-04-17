@@ -1,0 +1,4 @@
+#!/bin/bash
+rm -rf CMakeFiles/ CMakeCache.txt  cmake_install.cmake
+#cmake -C /edfs/users/rainli/Software/psi4_20180828/psi4/install_intel2019_mklblas_am7_20181002/share/cmake/psi4/psi4PluginCache.cmake -DCMAKE_PREFIX_PATH=/edfs/users/rainli/Software/psi4_20180828/psi4/install_intel2019_mklblas_am7_20181002 .
+cmake -C /edfs/users/deprince/edeprince3/psi4/install/master/share/cmake/psi4/psi4PluginCache.cmake -DCMAKE_PREFIX_PATH=/edfs/users/deprince/edeprince3/psi4/install/master .
