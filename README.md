@@ -2,9 +2,9 @@
 
 A code for bringing strings of creation / annihilation operators to normal order.
 
-Use cases (all with all alpha labels)
+**Use cases (all with all alpha labels)**
 
-1.  A single operator string:
+1.  A single operator string:<img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j l^{\dagger}k ">
 
 Input:
 
@@ -21,7 +21,7 @@ Output:
     //     + 1.00 IA* KA d(JALA) 
     //     - 1.00 IA* LA* JA KA 
 
-2.  a string involving a four-index tensor: here, we consider <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q^{\dagger}s r (pr|qs)">
+2.  a string involving a four-index tensor: <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q^{\dagger}s r (pr|qs)">
 
 Input:
 
@@ -41,9 +41,9 @@ Output:
     //     + 0.50 IA* PA* RA SA (PARA|JASA)
     //     - 0.50 IA* PA* QA* JA RA SA (PARA|QASA)
 
-Note that the delta functions get gobbled up in this case and the relevant indices in the four-index tensor are modified. Note also that I included a factor of 0.5 (the default value is 1.0, as you can see in the first example).
+Note that the delta functions get gobbled up in this case and the relevant indices in the four-index tensor are modified. Note also that you can modify the constant factor (0.5 here; the default value is 1.0, as you can see in the first example).
 
-3.  a string involving a two-index tensor: here, Here, we consider doing <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q h_{pq}"> 
+3.  a string involving a two-index tensor: <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q h_{pq}"> 
 
 Input: 
 
@@ -62,7 +62,7 @@ Output:
     //     + 0.50 IA* QA h(JAQA)
     //     - 0.50 IA* PA* JA QA h(PAQA)
 
-**4. Multiple terms.  Here, we consider to <img src="https://render.githubusercontent.com/render/math?math=0.5\ [ k^{\dagger} l , [ p^{\dagger}q^{\dagger}s r, j^{\dagger}i] ] (pr|qs)"> **
+4. Multiple terms: <img src="https://render.githubusercontent.com/render/math?math=0.5\ [ k^{\dagger} l , [ p^{\dagger}q^{\dagger}s r, j^{\dagger}i] ] (pr|qs)"> 
 
 Input:
 
@@ -117,5 +117,4 @@ Output:
     //     + 0.50 JA* PA* LA SA (PAKA|IASA)
     //     - 0.50 JA* PA* LA RA (PARA|IAKA)
 
-Note that all of the terms with > four operators canceled, so they don’t get 
-inted.
+Note that all of the terms with > four operators canceled, so they are not printed
