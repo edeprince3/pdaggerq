@@ -4,7 +4,7 @@ A code for bringing strings of creation / annihilation operators to normal order
 
 Use cases (all with all alpha labels)
 
-**1.  A single operator string:**
+1.  A single operator string:
 
 Input:
 
@@ -21,7 +21,7 @@ Output:
     //     + 1.00 IA* KA d(JALA) 
     //     - 1.00 IA* LA* JA KA 
 
-**2.  a string involving a four-index tensor: here, we consider <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q^{\dagger}s r (pr|qs)"> **
+2.  a string involving a four-index tensor: here, we consider <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q^{\dagger}s r (pr|qs)">
 
 Input:
 
@@ -43,7 +43,7 @@ Output:
 
 Note that the delta functions get gobbled up in this case and the relevant indices in the four-index tensor are modified. Note also that I included a factor of 0.5 (the default value is 1.0, as you can see in the first example).
 
-**3.  a string involving a two-index tensor: here, Here, we consider doing <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q h_{pq}"> **
+3.  a string involving a two-index tensor: here, Here, we consider doing <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q h_{pq}"> 
 
 Input: 
 
