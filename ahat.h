@@ -23,6 +23,8 @@ class ahat {
     std::vector<std::string> delta1;
     std::vector<std::string> delta2;
     std::vector<std::string> tensor;
+    std::vector<std::string> amplitudes1;
+    std::vector<std::string> amplitudes2;
 
     void print();
     void print_code(Options& options);

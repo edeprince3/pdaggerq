@@ -195,7 +195,7 @@ void ahat::print() {
     printf("//     ");
     printf("%c", sign > 0 ? '+' : '-');
     printf(" ");
-    printf("%4.2lf", fabs(factor));
+    printf("%7.5lf", fabs(factor));
     printf(" ");
     for (int i = 0; i < (int)symbol.size(); i++) {
         printf("%s",symbol[i].c_str());
@@ -226,6 +226,46 @@ void ahat::print() {
             printf("h(");
             for (int i = 0; i < 2; i++) {
                 printf("%s",tensor[i].c_str());
+            }
+            printf(")");
+        }
+        printf(" ");
+    }
+    // amplitudes(1)
+    if ( (int)amplitudes1.size() > 0 ) {
+        // t1
+        if ( (int)amplitudes1.size() == 2 ) {
+            printf("t1(");
+            for (int i = 0; i < 2; i++) {
+                printf("%s",amplitudes1[i].c_str());
+            }
+            printf(")");
+        }
+        // t2
+        if ( (int)amplitudes1.size() == 4 ) {
+            printf("t2(");
+            for (int i = 0; i < 4; i++) {
+                printf("%s",amplitudes1[i].c_str());
+            }
+            printf(")");
+        }
+        printf(" ");
+    }
+    // amplitudes(2)
+    if ( (int)amplitudes2.size() > 0 ) {
+        // t1
+        if ( (int)amplitudes2.size() == 2 ) {
+            printf("t1(");
+            for (int i = 0; i < 2; i++) {
+                printf("%s",amplitudes2[i].c_str());
+            }
+            printf(")");
+        }
+        // t2
+        if ( (int)amplitudes2.size() == 4 ) {
+            printf("t2(");
+            for (int i = 0; i < 4; i++) {
+                printf("%s",amplitudes2[i].c_str());
             }
             printf(")");
         }
@@ -384,15 +424,26 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
         // push current ordered operator onto running list
         ahat * newguy (new ahat());
 
+        // skip string?
         newguy->skip   = skip;
+
+        // sign
         newguy->sign   = sign;
+
+        // factor
         newguy->factor = factor;
+
+        // dagger?
         for (int j = 0; j < (int)is_dagger.size(); j++) {
             newguy->is_dagger.push_back(is_dagger[j]);
         }
+
+        // operators
         for (int j = 0; j < (int)symbol.size(); j++) {
             newguy->symbol.push_back(symbol[j]);
         }
+
+        // tensor
         for (int j = 0; j < (int)tensor.size(); j++) {
             // does tensor index show up in a delta function?
             bool skipme = false;
@@ -429,6 +480,15 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
             newguy->delta2.push_back(delta2[j]);
         }
 
+        // amplitudes
+        for (int j = 0; j < (int)amplitudes1.size(); j++) {
+            newguy->amplitudes1.push_back(amplitudes1[j]);
+        }
+        // amplitudes
+        for (int j = 0; j < (int)amplitudes2.size(); j++) {
+            newguy->amplitudes2.push_back(amplitudes2[j]);
+        }
+
         ordered.push_back(newguy);
 
         return;
@@ -441,6 +501,16 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
     for (int i = 0; i < (int)tensor.size(); i++) {
         s1->tensor.push_back(tensor[i]);
         s2->tensor.push_back(tensor[i]);
+    }
+    // amplitudes
+    for (int j = 0; j < (int)amplitudes1.size(); j++) {
+        s1->amplitudes1.push_back(amplitudes1[j]);
+        s2->amplitudes1.push_back(amplitudes1[j]);
+    }
+    // amplitudes
+    for (int j = 0; j < (int)amplitudes2.size(); j++) {
+        s1->amplitudes2.push_back(amplitudes2[j]);
+        s2->amplitudes2.push_back(amplitudes2[j]);
     }
 
     s1->skip = skip;

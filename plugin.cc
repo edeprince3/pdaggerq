@@ -57,6 +57,10 @@ int read_options(std::string name, Options& options)
         options.add("SQTENSOR",new ArrayType());
         /*- the multiplicative factor for the given string -*/
         options.add_double("SQFACTOR",1.0);
+        /*- a string of indices representing an amplitude -*/
+        options.add("SQAMPS_A",new ArrayType());
+        /*- a string of indices representing an amplitude -*/
+        options.add("SQAMPS_B",new ArrayType());
 
         /*- a string of creation/annihilation operators to rearrange -*/
         options.add("SQSTRING2",new ArrayType());
@@ -64,6 +68,10 @@ int read_options(std::string name, Options& options)
         options.add("SQTENSOR2",new ArrayType());
         /*- the multiplicative factor for the given string -*/
         options.add_double("SQFACTOR2",1.0);
+        /*- a string of indices representing an amplitude -*/
+        options.add("SQAMPS2_A",new ArrayType());
+        /*- a string of indices representing an amplitude -*/
+        options.add("SQAMPS2_B",new ArrayType());
 
         /*- a string of creation/annihilation operators to rearrange -*/
         options.add("SQSTRING3",new ArrayType());
@@ -71,6 +79,10 @@ int read_options(std::string name, Options& options)
         options.add("SQTENSOR3",new ArrayType());
         /*- the multiplicative factor for the given string -*/
         options.add_double("SQFACTOR3",1.0);
+        /*- a string of indices representing an amplitude -*/
+        options.add("SQAMPS3_A",new ArrayType());
+        /*- a string of indices representing an amplitude -*/
+        options.add("SQAMPS3_B",new ArrayType());
 
         /*- a string of creation/annihilation operators to rearrange -*/
         options.add("SQSTRING4",new ArrayType());
@@ -78,6 +90,10 @@ int read_options(std::string name, Options& options)
         options.add("SQTENSOR4",new ArrayType());
         /*- the multiplicative factor for the given string -*/
         options.add_double("SQFACTOR4",1.0);
+        /*- a string of indices representing an amplitude -*/
+        options.add("SQAMPS4_A",new ArrayType());
+        /*- a string of indices representing an amplitude -*/
+        options.add("SQAMPS4_B",new ArrayType());
     }
 
     return true;
@@ -120,6 +136,19 @@ void AddNewString(Options& options,std::vector< ahat* > &ordered,std::string str
         for (int i = 0; i < (int)options["SQTENSOR"+stringnum].size(); i++) {
             std::string me = options["SQTENSOR"+stringnum][i].to_string();
             mystring->tensor.push_back(me);
+        }
+    }
+
+    if ( options["SQAMPS"+stringnum+"_A"].has_changed() ) {
+        for (int i = 0; i < (int)options["SQAMPS"+stringnum+"_A"].size(); i++) {
+            std::string me = options["SQAMPS"+stringnum+"_A"][i].to_string();
+            mystring->amplitudes1.push_back(me);
+        }
+    }
+    if ( options["SQAMPS"+stringnum+"_B"].has_changed() ) {
+        for (int i = 0; i < (int)options["SQAMPS"+stringnum+"_B"].size(); i++) {
+            std::string me = options["SQAMPS"+stringnum+"_B"][i].to_string();
+            mystring->amplitudes2.push_back(me);
         }
     }
 
