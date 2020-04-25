@@ -48,6 +48,79 @@ ahat::ahat() {
 ahat::~ahat() {
 }
 
+void ahat::check_occ_vir() {
+
+   // OCC: I,J,K,L,M,N
+   // VIR: A,B,C,D,E,F
+   // GEN: P,Q,R,S,T,U,V,W
+
+   for (int i = 0; i < (int)delta1.size(); i++ ) {
+       bool first_is_occ = false;
+       if ( delta1[i].at(0) == 'I') {
+           first_is_occ = true;
+       }else if ( delta1[i].at(0) == 'J') {
+           first_is_occ = true;
+       }else if ( delta1[i].at(0) == 'K') {
+           first_is_occ = true;
+       }else if ( delta1[i].at(0) == 'L') {
+           first_is_occ = true;
+       }else if ( delta1[i].at(0) == 'M') {
+           first_is_occ = true;
+       }else if ( delta1[i].at(0) == 'N') {
+           first_is_occ = true;
+       }else if ( delta1[i].at(0) == 'A') {
+           first_is_occ = false;
+       }else if ( delta1[i].at(0) == 'B') {
+           first_is_occ = false;
+       }else if ( delta1[i].at(0) == 'C') {
+           first_is_occ = false;
+       }else if ( delta1[i].at(0) == 'D') {
+           first_is_occ = false;
+       }else if ( delta1[i].at(0) == 'E') {
+           first_is_occ = false;
+       }else if ( delta1[i].at(0) == 'F') {
+           first_is_occ = false;
+       }else {
+           continue;
+       }
+
+       bool second_is_occ = false;
+       if ( delta2[i].at(0) == 'I') {
+           second_is_occ = true;
+       }else if ( delta2[i].at(0) == 'J') {
+           second_is_occ = true;
+       }else if ( delta2[i].at(0) == 'K') {
+           second_is_occ = true;
+       }else if ( delta2[i].at(0) == 'L') {
+           second_is_occ = true;
+       }else if ( delta2[i].at(0) == 'M') {
+           second_is_occ = true;
+       }else if ( delta2[i].at(0) == 'N') {
+           second_is_occ = true;
+       }else if ( delta2[i].at(0) == 'A') {
+           second_is_occ = false;
+       }else if ( delta2[i].at(0) == 'B') {
+           second_is_occ = false;
+       }else if ( delta2[i].at(0) == 'C') {
+           second_is_occ = false;
+       }else if ( delta2[i].at(0) == 'D') {
+           second_is_occ = false;
+       }else if ( delta2[i].at(0) == 'E') {
+           second_is_occ = false;
+       }else if ( delta2[i].at(0) == 'F') {
+           second_is_occ = false;
+       }else {
+           continue;
+       }
+
+       if ( first_is_occ != second_is_occ ) {
+           skip = true;
+       }
+
+   }
+
+}
+
 void ahat::check_spin() {
 
     // check A/B in delta functions
@@ -397,7 +470,8 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
             // check spin in delta functions
             for (int j = 0; j < (int)delta1.size(); j++) {
                 if ( s1->delta1[j].length() != 2 ) {
-                    throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
+                    //throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
+                    break;
                 }
                 if ( s1->delta1[j].at(1) == 'A' && s1->delta2[j].at(1) == 'B' ) {
                     s1->skip = true;

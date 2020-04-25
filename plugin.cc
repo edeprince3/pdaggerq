@@ -245,6 +245,7 @@ std::shared_ptr<Wavefunction> pdaggerq(std::shared_ptr<Wavefunction> ref_wfn, Op
     consolidate(ordered,pruned);
 
     for (int i = 0; i < (int)pruned.size(); i++) {
+        //pruned[i]->check_occ_vir();
         pruned[i]->check_spin();
         pruned[i]->print();
     }

@@ -27,6 +27,7 @@ class ahat {
     void print();
     void print_code(Options& options);
     void check_spin();
+    void check_occ_vir();
     void normal_order(std::vector<ahat *> &ordered);
     void alphabetize(std::vector<ahat *> &ordered);
     void cleanup(std::vector<ahat *> &ordered);
