@@ -168,7 +168,10 @@ void AddNewString(Options& options,std::vector< ahat* > &ordered,std::string str
 
 }
 
-void consolidate(std::vector<ahat *> &in,std::vector<ahat *> &out) {
+void finalize(std::vector<ahat *> &in) { 
+//,std::vector<ahat *> &out)
+
+    std::vector< ahat* > out;
 
     bool *vanish = (bool*)malloc(in.size()*sizeof(bool));
     memset((void*)vanish,'\0',in.size()*sizeof(bool));
@@ -245,6 +248,26 @@ void consolidate(std::vector<ahat *> &in,std::vector<ahat *> &out) {
         
     }
 
+    in.clear();
+    for (int i = 0; i < (int)out.size(); i++) {
+        in.push_back(out[i]);
+
+        // check spin
+        in[i]->check_spin();
+
+        // check for occ/vir pairs in delta functions
+        //in[i]->check_occ_vir();
+
+    }
+
+    printf("\n");
+    printf("    ");
+    printf("// normal-ordered strings:\n");
+    for (int i = 0; i < (int)in.size(); i++) {
+        in[i]->print();
+    }
+    printf("\n");
+
 
 }
 
@@ -266,19 +289,7 @@ std::shared_ptr<Wavefunction> pdaggerq(std::shared_ptr<Wavefunction> ref_wfn, Op
         AddNewString(options,ordered,"4");
     }
 
-    printf("\n");
-    printf("    ");
-    printf("// normal-ordered strings:\n");
-
-    std::vector< ahat* > pruned;
-    consolidate(ordered,pruned);
-
-    for (int i = 0; i < (int)pruned.size(); i++) {
-        //pruned[i]->check_occ_vir();
-        pruned[i]->check_spin();
-        pruned[i]->print();
-    }
-    printf("\n");
+    finalize(ordered);
 
     Process::environment.globals["CURRENT ENERGY"] = 0.0;
 
