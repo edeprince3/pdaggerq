@@ -36,4 +36,5 @@ find_package(psi4 1.0 REQUIRED)
 
 add_psi4_plugin(pdaggerq 
                 ahat.cc
+                ahat_helper.cc
                 plugin.cc)
