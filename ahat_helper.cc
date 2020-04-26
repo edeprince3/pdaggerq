@@ -83,7 +83,7 @@ ahat_helper::~ahat_helper()
 {
 }
 
-void ahat_helper::add_new_string(Options& options,std::vector< ahat* > &ordered,std::string stringnum){
+void ahat_helper::add_new_string(Options& options,std::string stringnum){
 
     std::shared_ptr<ahat> mystring (new ahat());
 
@@ -146,25 +146,25 @@ void ahat_helper::add_new_string(Options& options,std::vector< ahat* > &ordered,
 
 }
 
-void ahat_helper::finalize(std::vector<ahat *> &in) { 
+void ahat_helper::finalize() { 
 //,std::vector<ahat *> &out)
     
     std::vector< ahat* > out;
             
-    bool *vanish = (bool*)malloc(in.size()*sizeof(bool));
-    memset((void*)vanish,'\0',in.size()*sizeof(bool));
-    for (int i = 0; i < (int)in.size(); i++) {
-        for (int j = i+1; j < (int)in.size(); j++) {
+    bool *vanish = (bool*)malloc(ordered.size()*sizeof(bool));
+    memset((void*)vanish,'\0',ordered.size()*sizeof(bool));
+    for (int i = 0; i < (int)ordered.size(); i++) {
+        for (int j = i+1; j < (int)ordered.size(); j++) {
         
     
             bool strings_differ = false;
     
             // check strings
-            if ( in[i]->symbol.size() == in[j]->symbol.size() ) {
-                for (int k = 0; k < (int)in[i]->symbol.size(); k++) {
+            if ( ordered[i]->symbol.size() == ordered[j]->symbol.size() ) {
+                for (int k = 0; k < (int)ordered[i]->symbol.size(); k++) {
                 
                     // strings differ?
-                    if ( in[i]->symbol[k] != in[j]->symbol[k] ) {
+                    if ( ordered[i]->symbol[k] != ordered[j]->symbol[k] ) {
                         strings_differ = true;
                     }
             
@@ -175,11 +175,11 @@ void ahat_helper::finalize(std::vector<ahat *> &in) {
             if ( strings_differ ) continue;
             
             // check deltas
-            if ( in[i]->delta1.size() == in[j]->delta1.size() ) {
-                for (int k = 0; k < (int)in[i]->delta1.size(); k++) {
+            if ( ordered[i]->delta1.size() == ordered[j]->delta1.size() ) {
+                for (int k = 0; k < (int)ordered[i]->delta1.size(); k++) {
 
                     // strings differ?
-                    if ( in[i]->delta1[k] != in[j]->delta1[k] || in[i]->delta2[k] != in[j]->delta2[k] ) {
+                    if ( ordered[i]->delta1[k] != ordered[j]->delta1[k] || ordered[i]->delta2[k] != ordered[j]->delta2[k] ) {
                         strings_differ = true;
                     }
         
@@ -190,11 +190,11 @@ void ahat_helper::finalize(std::vector<ahat *> &in) {
             if ( strings_differ ) continue;
         
             // check tensors
-            if ( in[i]->tensor.size() == in[j]->tensor.size() ) {
-                for (int k = 0; k < (int)in[i]->tensor.size(); k++) {
+            if ( ordered[i]->tensor.size() == ordered[j]->tensor.size() ) {
+                for (int k = 0; k < (int)ordered[i]->tensor.size(); k++) {
     
                     // strings differ?
-                    if ( in[i]->tensor[k] != in[j]->tensor[k] ) {
+                    if ( ordered[i]->tensor[k] != ordered[j]->tensor[k] ) {
 
                         strings_differ = true;
                     }
@@ -206,43 +206,40 @@ void ahat_helper::finalize(std::vector<ahat *> &in) {
             if ( strings_differ ) continue;
 
             // at this point, we know the strings are the same.  what about the factor?
-            int fac1 = in[i]->factor;
-            int fac2 = in[j]->factor;
+            int fac1 = ordered[i]->factor;
+            int fac2 = ordered[j]->factor;
             if ( fabs(fac1 + fac2) < 1e-8 ) {
                 vanish[i] = true;
                 vanish[j] = true;
-                //printf("these terms will cancel\n");
-                //in[i]->print();
-                //in[j]->print();
             }
 
 
         }
     }
-    for (int i = 0; i < (int)in.size(); i++) {
+    for (int i = 0; i < (int)ordered.size(); i++) {
         if ( !vanish[i] ) {
-            out.push_back(in[i]);
+            out.push_back(ordered[i]);
         }
 
     }
 
-    in.clear();
+    ordered.clear();
     for (int i = 0; i < (int)out.size(); i++) {
-        in.push_back(out[i]);
+        ordered.push_back(out[i]);
 
         // check spin
-        in[i]->check_spin();
+        ordered[i]->check_spin();
 
         // check for occ/vir pairs in delta functions
-        //in[i]->check_occ_vir();
+        ordered[i]->check_occ_vir();
 
     }
 
     printf("\n");
     printf("    ");
     printf("// normal-ordered strings:\n");
-    for (int i = 0; i < (int)in.size(); i++) {
-        in[i]->print();
+    for (int i = 0; i < (int)ordered.size(); i++) {
+        ordered[i]->print();
     }
     printf("\n");
 
