@@ -63,51 +63,59 @@ def test():
 
     ahat = pdaggerq.ahat_helper()
 
-    # [mu,T1]
+#    # [mu,T1]
+#
+#    psi4.set_options({
+#      'sqtensor': ['p','q'],
+#      'sqamps_a': ['a','i'],
+#    })
+#
+#    psi4.set_options({
+#      'sqfactor': 1.0,
+#      'sqstring': ['p*','q','a*','i'],
+#    })
+#    options = psi4.core.get_options()
+#    ahat.add_new_string(options,"")
+#
+#    #psi4.set_options({
+#    #  'sqfactor': -1.0,
+#    #  'sqstring': ['a*','i','p*','q']
+#    #})
+#    #options = psi4.core.get_options()
+#    #ahat.add_new_string(options,"")
+#
+#    ## [mu,T2]
+#
+#    #psi4.set_options({
+#    #  'sqtensor': ['p','q'],
+#    #  'sqamps_a': ['a','b','i','j'],
+#    #})
+#
+#
+#    #psi4.set_options({
+#    #  'sqfactor': 1.0,
+#    #  'sqstring': ['p*','q','a*','b*','j','i',],
+#    #})
+#    #options = psi4.core.get_options()
+#    #ahat.add_new_string(options,"")
+#
+#    #psi4.set_options({
+#    #  'sqfactor': -1.0,
+#    #  'sqstring': ['a*','b*','j','i','p*','q']
+#    #})
+#    #options = psi4.core.get_options()
+#    #ahat.add_new_string(options,"")
+#
+#    ahat.finalize()
 
-    psi4.set_options({
-      'sqtensor': ['p','q'],
-      'sqamps_a': ['a','i'],
-    })
+    # or:
 
-    psi4.set_options({
-      'sqfactor': 1.0,
-      'sqstring': ['p*','q','a*','i'],
-    })
-    options = psi4.core.get_options()
-    ahat.add_new_string(options,"")
+    ahat.set_string(['p*','q','a*','i'])
+    ahat.set_tensor(['p','q'])
+    ahat.set_amplitudes(['a','i'])
+    ahat.normal_ordered_string()
 
-    psi4.set_options({
-      'sqfactor': -1.0,
-      'sqstring': ['a*','i','p*','q']
-    })
-    options = psi4.core.get_options()
-    ahat.add_new_string(options,"")
-
-    # [mu,T2]
-
-    psi4.set_options({
-      'sqtensor': ['p','q'],
-      'sqamps_a': ['a','b','i','j'],
-    })
-
-
-    psi4.set_options({
-      'sqfactor': 1.0,
-      'sqstring': ['p*','q','a*','b*','j','i',],
-    })
-    options = psi4.core.get_options()
-    ahat.add_new_string(options,"")
-
-    psi4.set_options({
-      'sqfactor': -1.0,
-      'sqstring': ['a*','b*','j','i','p*','q']
-    })
-    options = psi4.core.get_options()
-    ahat.add_new_string(options,"")
-
-
-    ahat.finalize()
+    #ahat.finalize()
 
     
 

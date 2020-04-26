@@ -40,6 +40,7 @@
 
 
 
+#include "data.h"
 #include "ahat.h"
 #include "ahat_helper.h"
 
@@ -60,6 +61,11 @@ namespace psi { namespace pdaggerq {
 void export_ahat_helper(py::module& m) {
     py::class_<pdaggerq::ahat_helper, std::shared_ptr<pdaggerq::ahat_helper> >(m, "ahat_helper")
         .def(py::init< >())
+        .def("set_string", &ahat_helper::set_string)
+        .def("set_tensor", &ahat_helper::set_tensor)
+        .def("set_amplitudes", &ahat_helper::set_amplitudes)
+        .def("set_factor", &ahat_helper::set_factor)
+        .def("normal_ordered_string", &ahat_helper::normal_ordered_string)
         .def("add_new_string", &ahat_helper::add_new_string)
         .def("finalize", &ahat_helper::finalize);
 }
@@ -77,17 +83,109 @@ void removeStar(std::string &x)
 
 ahat_helper::ahat_helper()
 {
+
+    data = (std::shared_ptr<StringData>)(new StringData());
+
 }
 
 ahat_helper::~ahat_helper()
 {
 }
 
+    //void set_string(std::string in);
+    //void set_tensor(std::string in);
+    //void set_amplitudes(std::string in);
+    //void set_factor(double in);
+    //void add_term();
+
+void ahat_helper::set_string(std::vector<std::string> in) {
+    for (int i = 0; i < (int)in.size(); i++) {
+        data->string.push_back(in[i]);
+    }
+}
+void ahat_helper::set_tensor(std::vector<std::string> in) {
+    for (int i = 0; i < (int)in.size(); i++) {
+        data->tensor.push_back(in[i]);
+    }
+}
+void ahat_helper::set_amplitudes(std::vector<std::string> in) {
+    if ( data->amplitudes1.size() == 0 ) {
+        for (int i = 0; i < (int)in.size(); i++) {
+            data->amplitudes1.push_back(in[i]);
+        }
+    }else {
+        for (int i = 0; i < (int)in.size(); i++) {
+            data->amplitudes2.push_back(in[i]);
+        }
+    }
+}
+void ahat_helper::set_factor(double in) {
+    data->factor = in;
+}
+
+void ahat_helper::normal_ordered_string(){
+
+    std::shared_ptr<ahat> mystring (new ahat());
+
+    if ( data->factor > 0.0 ) {
+        mystring->sign = 1;
+        mystring->factor = fabs(data->factor);
+    }else {
+        mystring->sign = -1;
+        mystring->factor = fabs(data->factor);
+    }
+
+    for (int i = 0; i < (int)data->string.size(); i++) {
+        std::string me = data->string[i];
+        if ( me.find("*") != std::string::npos ) {
+            removeStar(me);
+            mystring->is_dagger.push_back(true);
+        }else {
+            mystring->is_dagger.push_back(false);
+        }
+        mystring->symbol.push_back(me);
+    }
+
+    for (int i = 0; i < (int)data->tensor.size(); i++) {
+        mystring->tensor.push_back(data->tensor[i]);
+    }
+
+    for (int i = 0; i < (int)data->amplitudes1.size(); i++) {
+        mystring->amplitudes1.push_back(data->amplitudes1[i]);
+    }
+
+    for (int i = 0; i < (int)data->amplitudes2.size(); i++) {
+        mystring->amplitudes2.push_back(data->amplitudes2[i]);
+    }
+
+    printf("\n");
+    printf("    ");
+    printf("// starting string:\n");
+    mystring->print();
+
+    // rearrange strings
+    mystring->normal_order(ordered);
+
+    // alphabetize
+    mystring->alphabetize(ordered);
+
+    // cancel terms
+    mystring->cleanup(ordered);
+
+    // reset data object
+    data.reset();
+
+    finalize();
+
+    ordered.clear();
+}
+
 void ahat_helper::add_new_string(Options& options,std::string stringnum){
 
     std::shared_ptr<ahat> mystring (new ahat());
 
-    if ( options["SQFACTOR"+stringnum].has_changed() ) {
+
+    //if ( options["SQFACTOR"+stringnum].has_changed() ) {
         if ( options.get_double("SQFACTOR"+stringnum) > 0.0 ) {
             mystring->sign = 1;
             mystring->factor = fabs(options.get_double("SQFACTOR"+stringnum));
@@ -95,9 +193,9 @@ void ahat_helper::add_new_string(Options& options,std::string stringnum){
             mystring->sign = -1;
             mystring->factor = fabs(options.get_double("SQFACTOR"+stringnum));
         }
-    }
+    //}
 
-    if ( options["SQSTRING"+stringnum].has_changed() ) {
+    //if ( options["SQSTRING"+stringnum].has_changed() ) {
         for (int i = 0; i < (int)options["SQSTRING"+stringnum].size(); i++) {
             std::string me = options["SQSTRING"+stringnum][i].to_string();
             if ( me.find("*") != std::string::npos ) {
@@ -108,27 +206,27 @@ void ahat_helper::add_new_string(Options& options,std::string stringnum){
             }
             mystring->symbol.push_back(me);
         }
-    }
+    //}
 
-    if ( options["SQTENSOR"+stringnum].has_changed() ) {
+    //if ( options["SQTENSOR"+stringnum].has_changed() ) {
         for (int i = 0; i < (int)options["SQTENSOR"+stringnum].size(); i++) {
             std::string me = options["SQTENSOR"+stringnum][i].to_string();
             mystring->tensor.push_back(me);
         }
-    }
+    //}
 
-    if ( options["SQAMPS"+stringnum+"_A"].has_changed() ) {
+    //if ( options["SQAMPS"+stringnum+"_A"].has_changed() ) {
         for (int i = 0; i < (int)options["SQAMPS"+stringnum+"_A"].size(); i++) {
             std::string me = options["SQAMPS"+stringnum+"_A"][i].to_string();
             mystring->amplitudes1.push_back(me);
         }
-    }
-    if ( options["SQAMPS"+stringnum+"_B"].has_changed() ) {
+    //}
+    //if ( options["SQAMPS"+stringnum+"_B"].has_changed() ) {
         for (int i = 0; i < (int)options["SQAMPS"+stringnum+"_B"].size(); i++) {
             std::string me = options["SQAMPS"+stringnum+"_B"][i].to_string();
             mystring->amplitudes2.push_back(me);
         }
-    }
+    //}
 
     printf("\n");
     printf("    ");
@@ -146,8 +244,7 @@ void ahat_helper::add_new_string(Options& options,std::string stringnum){
 
 }
 
-void ahat_helper::finalize() { 
-//,std::vector<ahat *> &out)
+void ahat_helper::finalize() {
     
     std::vector< ahat* > out;
             
