@@ -1,44 +1,11 @@
-/*
- *@BEGIN LICENSE
- *
- * pdaggerq, a plugin to:
- *
- * Psi4: an open-source quantum chemistry software package
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- * Copyright (c) 2014, The Florida State University. All rights reserved.
- * 
- *@END LICENSE
- *
- */
-
 #ifndef _python_api2_h_
 #define _python_api2_h_
 
+#include<memory>
+#include<vector>
 #include<iostream>
 #include<string>
 #include<algorithm>
-
-#include "psi4/psi4-dec.h"
-#include "psi4/liboptions/liboptions.h"
-#include "psi4/libmints/wavefunction.h"
-#include "psi4/libpsio/psio.hpp"
-#include <psi4/libpsi4util/process.h>
-
-
 
 #include "data.h"
 #include "ahat.h"
@@ -48,15 +15,10 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-#include "psi4/libpsi4util/process.h"
-#include "psi4/libmints/wavefunction.h"
-
-using namespace psi;
-
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-namespace psi { namespace pdaggerq {
+namespace pdaggerq {
 
 void export_ahat_helper(py::module& m) {
     py::class_<pdaggerq::ahat_helper, std::shared_ptr<pdaggerq::ahat_helper> >(m, "ahat_helper")
@@ -65,9 +27,7 @@ void export_ahat_helper(py::module& m) {
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_amplitudes", &ahat_helper::set_amplitudes)
         .def("set_factor", &ahat_helper::set_factor)
-        .def("normal_ordered_string", &ahat_helper::normal_ordered_string)
-        .def("add_new_string", &ahat_helper::add_new_string)
-        .def("finalize", &ahat_helper::finalize);
+        .def("normal_ordered_string", &ahat_helper::normal_ordered_string);
 }
 
 PYBIND11_MODULE(pdaggerq, m) {
@@ -180,70 +140,6 @@ void ahat_helper::normal_ordered_string(){
     ordered.clear();
 }
 
-void ahat_helper::add_new_string(Options& options,std::string stringnum){
-
-    std::shared_ptr<ahat> mystring (new ahat());
-
-
-    //if ( options["SQFACTOR"+stringnum].has_changed() ) {
-        if ( options.get_double("SQFACTOR"+stringnum) > 0.0 ) {
-            mystring->sign = 1;
-            mystring->factor = fabs(options.get_double("SQFACTOR"+stringnum));
-        }else {
-            mystring->sign = -1;
-            mystring->factor = fabs(options.get_double("SQFACTOR"+stringnum));
-        }
-    //}
-
-    //if ( options["SQSTRING"+stringnum].has_changed() ) {
-        for (int i = 0; i < (int)options["SQSTRING"+stringnum].size(); i++) {
-            std::string me = options["SQSTRING"+stringnum][i].to_string();
-            if ( me.find("*") != std::string::npos ) {
-                removeStar(me);
-                mystring->is_dagger.push_back(true);
-            }else {
-                mystring->is_dagger.push_back(false);
-            }
-            mystring->symbol.push_back(me);
-        }
-    //}
-
-    //if ( options["SQTENSOR"+stringnum].has_changed() ) {
-        for (int i = 0; i < (int)options["SQTENSOR"+stringnum].size(); i++) {
-            std::string me = options["SQTENSOR"+stringnum][i].to_string();
-            mystring->tensor.push_back(me);
-        }
-    //}
-
-    //if ( options["SQAMPS"+stringnum+"_A"].has_changed() ) {
-        for (int i = 0; i < (int)options["SQAMPS"+stringnum+"_A"].size(); i++) {
-            std::string me = options["SQAMPS"+stringnum+"_A"][i].to_string();
-            mystring->amplitudes1.push_back(me);
-        }
-    //}
-    //if ( options["SQAMPS"+stringnum+"_B"].has_changed() ) {
-        for (int i = 0; i < (int)options["SQAMPS"+stringnum+"_B"].size(); i++) {
-            std::string me = options["SQAMPS"+stringnum+"_B"][i].to_string();
-            mystring->amplitudes2.push_back(me);
-        }
-    //}
-
-    printf("\n");
-    printf("    ");
-    printf("// starting string:\n");
-    mystring->print();
-
-    // rearrange strings
-    mystring->normal_order(ordered);
-
-    // alphabetize
-    mystring->alphabetize(ordered);
-
-    // cancel terms
-    mystring->cleanup(ordered);
-
-}
-
 void ahat_helper::finalize() {
     
     std::vector< ahat* > out;
@@ -343,6 +239,6 @@ void ahat_helper::finalize() {
 }
 
 
-}} // End namespaces
+} // End namespaces
 
 #endif

@@ -4,18 +4,19 @@
 #include "ahat.h"
 #include "data.h"
 
-namespace psi{ namespace pdaggerq {
+namespace pdaggerq {
 
 class ahat_helper {
 
   private:
 
     std::vector< ahat* > ordered;
-
-  public:
+    void finalize();
 
     // strings, tensors, etc.
     std::shared_ptr<StringData> data;
+
+  public:
 
     ahat_helper();
     ~ahat_helper();
@@ -26,11 +27,8 @@ class ahat_helper {
     void set_factor(double in);
     void normal_ordered_string();
 
-    void add_new_string(Options& options,std::string stringnum);
-    void finalize();
-
 };
 
-}}
+}
 
 #endif

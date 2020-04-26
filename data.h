@@ -1,7 +1,7 @@
 #ifndef DATA_H
 #define DATA_H
 
-namespace psi{ namespace pdaggerq {
+namespace pdaggerq {
 
 class StringData {
 
@@ -23,6 +23,6 @@ class StringData {
 
 };
 
-}}
+}
 
 #endif

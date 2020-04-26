@@ -103,25 +103,6 @@ int read_options(std::string name, Options& options)
 extern "C" PSI_API
 std::shared_ptr<Wavefunction> pdaggerq(std::shared_ptr<Wavefunction> ref_wfn, Options& options)
 {
-    //std::vector< ahat* > ordered;
-
-    std::shared_ptr<ahat_helper> helper (new ahat_helper());
-
-    if ( options["SQSTRING"].has_changed() ) {
-        helper->add_new_string(options,"");
-    }
-    if ( options["SQSTRING2"].has_changed() ) {
-        helper->add_new_string(options,"2");
-    }
-    if ( options["SQSTRING3"].has_changed() ) {
-        helper->add_new_string(options,"3");
-    }
-    if ( options["SQSTRING4"].has_changed() ) {
-        helper->add_new_string(options,"4");
-    }
-
-    helper->finalize();
-
     Process::environment.globals["CURRENT ENERGY"] = 0.0;
 
     return ref_wfn;

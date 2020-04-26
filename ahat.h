@@ -1,7 +1,7 @@
 #ifndef SQE_H
 #define SQE_H
 
-namespace psi{ namespace pdaggerq {
+namespace pdaggerq {
 
 class ahat {
 
@@ -27,7 +27,6 @@ class ahat {
     std::vector<std::string> amplitudes2;
 
     void print();
-    void print_code(Options& options);
     void check_spin();
     void check_occ_vir();
     void normal_order(std::vector<ahat *> &ordered);
@@ -36,6 +35,6 @@ class ahat {
 
 };
 
-}}
+}
 
 #endif
