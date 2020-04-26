@@ -27,7 +27,8 @@ void export_ahat_helper(py::module& m) {
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_amplitudes", &ahat_helper::set_amplitudes)
         .def("set_factor", &ahat_helper::set_factor)
-        .def("normal_ordered_string", &ahat_helper::normal_ordered_string);
+        .def("bring_to_normal_order", &ahat_helper::bring_to_normal_order)
+        .def("add_new_string", &ahat_helper::add_new_string);
 }
 
 PYBIND11_MODULE(pdaggerq, m) {
@@ -83,7 +84,7 @@ void ahat_helper::set_factor(double in) {
     data->factor = in;
 }
 
-void ahat_helper::normal_ordered_string(){
+void ahat_helper::add_new_string(){
 
     std::shared_ptr<ahat> mystring (new ahat());
 
@@ -134,13 +135,11 @@ void ahat_helper::normal_ordered_string(){
 
     // reset data object
     data.reset();
+    data = (std::shared_ptr<StringData>)(new StringData());
 
-    finalize();
-
-    ordered.clear();
 }
 
-void ahat_helper::finalize() {
+void ahat_helper::bring_to_normal_order() {
     
     std::vector< ahat* > out;
             
@@ -236,6 +235,7 @@ void ahat_helper::finalize() {
     }
     printf("\n");
 
+    ordered.clear();
 }
 
 

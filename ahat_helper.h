@@ -11,7 +11,6 @@ class ahat_helper {
   private:
 
     std::vector< ahat* > ordered;
-    void finalize();
 
     // strings, tensors, etc.
     std::shared_ptr<StringData> data;
@@ -25,7 +24,8 @@ class ahat_helper {
     void set_tensor(std::vector<std::string> in);
     void set_amplitudes(std::vector<std::string> in);
     void set_factor(double in);
-    void normal_ordered_string();
+    void add_new_string();
+    void bring_to_normal_order();
 
 };
 
