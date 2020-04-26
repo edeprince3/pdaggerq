@@ -48,7 +48,7 @@ namespace psi{ namespace pdaggerq {
 extern "C" PSI_API
 int read_options(std::string name, Options& options)
 {
-    if (name == "AHAT"|| options.read_globals()) {
+    if (name == "PDAGGERQ"|| options.read_globals()) {
         /*- print code? -*/
         options.add_bool("PRINT_CODE", false);
 

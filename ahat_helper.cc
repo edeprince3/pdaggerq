@@ -58,8 +58,8 @@ using namespace pybind11::literals;
 namespace psi { namespace pdaggerq {
 
 void export_ahat_helper(py::module& m) {
-    py::class_<pdaggerq::ahat_helper, std::shared_ptr<pdaggerq::ahat_helper> >(m, "ahat")
-        .def(py::init<>())
+    py::class_<pdaggerq::ahat_helper, std::shared_ptr<pdaggerq::ahat_helper> >(m, "ahat_helper")
+        .def(py::init< >())
         .def("add_new_string", &ahat_helper::add_new_string)
         .def("finalize", &ahat_helper::finalize);
 }

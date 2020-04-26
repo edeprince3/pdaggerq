@@ -33,6 +33,8 @@ import psi4.driver.p4util as p4util
 from psi4.driver.procrouting import proc_util
 from psi4.driver.procrouting import proc
 
+import pdaggerq
+
 def run_pdaggerq(name, **kwargs):
     r"""Function encoding sequence of PSI module and plugin calls so that
     pdaggerq can be called via :py:func:`~driver.energy`. For post-scf plugins.
@@ -57,6 +59,55 @@ def run_pdaggerq(name, **kwargs):
 psi4.driver.procedures['energy']['pdaggerq'] = run_pdaggerq
 
 
-def exampleFN():
-    # Your Python code goes here
-    pass
+def test():
+
+    ahat = pdaggerq.ahat_helper()
+
+    # [mu,T1]
+
+    psi4.set_options({
+      'sqtensor': ['p','q'],
+      'sqamps_a': ['a','i'],
+    })
+
+    psi4.set_options({
+      'sqfactor': 1.0,
+      'sqstring': ['p*','q','a*','i'],
+    })
+    options = psi4.core.get_options()
+    ahat.add_new_string(options,"")
+
+    psi4.set_options({
+      'sqfactor': -1.0,
+      'sqstring': ['a*','i','p*','q']
+    })
+    options = psi4.core.get_options()
+    ahat.add_new_string(options,"")
+
+    # [mu,T2]
+
+    psi4.set_options({
+      'sqtensor': ['p','q'],
+      'sqamps_a': ['a','b','i','j'],
+    })
+
+
+    psi4.set_options({
+      'sqfactor': 1.0,
+      'sqstring': ['p*','q','a*','b*','j','i',],
+    })
+    options = psi4.core.get_options()
+    ahat.add_new_string(options,"")
+
+    psi4.set_options({
+      'sqfactor': -1.0,
+      'sqstring': ['a*','b*','j','i','p*','q']
+    })
+    options = psi4.core.get_options()
+    ahat.add_new_string(options,"")
+
+
+    ahat.finalize()
+
+    
+
