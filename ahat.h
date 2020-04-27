@@ -16,15 +16,19 @@ class ahat {
 
     bool skip     = false;
     int sign      = 1;
-    double factor = 1.0;
 
     std::vector<std::string> symbol;
     std::vector<bool> is_dagger;
     std::vector<std::string> delta1;
     std::vector<std::string> delta2;
+
+    // these should probably be replaced with StringData 
+    double factor = 1.0;
     std::vector<std::string> tensor;
     std::vector<std::string> amplitudes1;
     std::vector<std::string> amplitudes2;
+    std::vector<std::string> amplitudes3;
+    std::vector<std::string> amplitudes4;
 
     void print();
     void check_spin();

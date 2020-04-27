@@ -239,6 +239,44 @@ void ahat::print() {
             printf(")");
         }
     }
+    // amplitudes(3)
+    if ( (int)amplitudes3.size() > 0 ) {
+        // t1
+        if ( (int)amplitudes3.size() == 2 ) {
+            printf("t1(");
+            for (int i = 0; i < 2; i++) {
+                printf("%s",amplitudes3[i].c_str());
+            }
+            printf(")");
+        }
+        // t2
+        if ( (int)amplitudes3.size() == 4 ) {
+            printf("t2(");
+            for (int i = 0; i < 4; i++) {
+                printf("%s",amplitudes3[i].c_str());
+            }
+            printf(")");
+        }
+    }
+    // amplitudes(4)
+    if ( (int)amplitudes4.size() > 0 ) {
+        // t1
+        if ( (int)amplitudes4.size() == 2 ) {
+            printf("t1(");
+            for (int i = 0; i < 2; i++) {
+                printf("%s",amplitudes4[i].c_str());
+            }
+            printf(")");
+        }
+        // t2
+        if ( (int)amplitudes4.size() == 4 ) {
+            printf("t2(");
+            for (int i = 0; i < 4; i++) {
+                printf("%s",amplitudes4[i].c_str());
+            }
+            printf(")");
+        }
+    }
     printf("\n");
 }
 
@@ -457,6 +495,14 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
         for (int j = 0; j < (int)amplitudes2.size(); j++) {
             newguy->amplitudes2.push_back(amplitudes2[j]);
         }
+        // amplitudes
+        for (int j = 0; j < (int)amplitudes3.size(); j++) {
+            newguy->amplitudes3.push_back(amplitudes3[j]);
+        }
+        // amplitudes
+        for (int j = 0; j < (int)amplitudes4.size(); j++) {
+            newguy->amplitudes4.push_back(amplitudes4[j]);
+        }
 
         ordered.push_back(newguy);
 
@@ -480,6 +526,16 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
     for (int j = 0; j < (int)amplitudes2.size(); j++) {
         s1->amplitudes2.push_back(amplitudes2[j]);
         s2->amplitudes2.push_back(amplitudes2[j]);
+    }
+    // amplitudes
+    for (int j = 0; j < (int)amplitudes3.size(); j++) {
+        s1->amplitudes3.push_back(amplitudes3[j]);
+        s2->amplitudes3.push_back(amplitudes3[j]);
+    }
+    // amplitudes
+    for (int j = 0; j < (int)amplitudes4.size(); j++) {
+        s1->amplitudes4.push_back(amplitudes4[j]);
+        s2->amplitudes4.push_back(amplitudes4[j]);
     }
 
     s1->skip = skip;
