@@ -4,7 +4,7 @@ A code for bringing strings of creation / annihilation operators to normal order
 
 **Notes**
 
-1. We follow the usual convention for labeling orbitals: i, j, k, l, m, and n represent occupied orbitals; a, b, c, d, e, and f represent virtual orbitals; and p, q, r, and s (and any other label not included in the occupied or virtua sets) represent general orbital labels. Delta functions involving occupied / virtual combinations will be set to zero.
+1. We follow the usual convention for labeling orbitals: i, j, k, l, m, and n represent occupied orbitals; a, b, c, d, e, and f represent virtual orbitals; and p, q, r, and s (and any other label not included in the occupied or virtual sets) represent general orbital labels. Delta functions involving occupied / virtual combinations will be set to zero.
 
 2. Orbital labels refer to spin orbitals. Spin labels may be included by adding "A" or "B" to an orbital label, but this is not necessary. Note that these spin labels must be capitalized in the current version of the code. Delta functions involving alpha / beta combinations will be set to zero.
 
