@@ -19,6 +19,11 @@ class ahat {
     bool skip     = false;
     int sign      = 1;
 
+    std::vector<std::string> used_labels;
+
+    void shallow_copy(void * copy_me);
+    void copy(void * copy_me);
+
     std::vector<std::string> symbol;
     std::vector<bool> is_dagger;
     std::vector<std::string> delta1;

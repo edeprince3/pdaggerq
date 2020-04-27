@@ -425,6 +425,94 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
 }
 
+// copy all data, except symbols and daggers
+void ahat::shallow_copy(void * copy_me) { 
+
+    ahat * in = reinterpret_cast<ahat * >(copy_me);
+
+    // skip string?
+    skip   = in->skip;
+    
+    // sign
+    sign   = in->sign;
+    
+    // factor
+    data->factor = in->data->factor;
+    
+    // data->tensor
+    for (int j = 0; j < (int)in->data->tensor.size(); j++) {
+        // does data->tensor index show up in a delta function?
+        bool skipme = false;
+        for (int k = 0; k < (int)in->delta1.size(); k++) {
+            if ( in->data->tensor[j] == in->delta1[k] ) {
+                data->tensor.push_back(in->delta2[k]);
+                skipme = true;
+                break;
+            }
+            if ( in->data->tensor[j] == in->delta2[k] ) {
+                data->tensor.push_back(in->delta1[k]);
+                skipme = true;
+                break;
+            }
+        }
+        if ( skipme ) continue;
+        data->tensor.push_back(in->data->tensor[j]);
+    }
+    for (int j = 0; j < (int)in->delta1.size(); j++) {
+        bool skipme = false;
+        for (int k = 0; k < (int)in->data->tensor.size(); k++) {
+            if ( in->data->tensor[k] == in->delta1[j] ) {
+                skipme = true;
+                break;
+            }
+            if ( in->data->tensor[k] == in->delta2[j] ) {
+                skipme = true;
+                break;
+            }
+        }
+        if ( skipme ) continue;
+    
+        delta1.push_back(in->delta1[j]);
+        delta2.push_back(in->delta2[j]);
+    }
+    
+    // amplitudes
+    for (int j = 0; j < (int)in->data->amplitudes1.size(); j++) {
+        data->amplitudes1.push_back(in->data->amplitudes1[j]);
+    }
+    // amplitudes
+    for (int j = 0; j < (int)in->data->amplitudes2.size(); j++) {
+        data->amplitudes2.push_back(in->data->amplitudes2[j]);
+    }
+    // amplitudes
+    for (int j = 0; j < (int)in->data->amplitudes3.size(); j++) {
+        data->amplitudes3.push_back(in->data->amplitudes3[j]);
+    }
+    // amplitudes
+    for (int j = 0; j < (int)in->data->amplitudes4.size(); j++) {
+        data->amplitudes4.push_back(in->data->amplitudes4[j]);
+    }
+}
+
+// copy all data, including symbols and daggers
+void ahat::copy(void * copy_me) { 
+
+    shallow_copy(copy_me);
+
+    ahat * in = reinterpret_cast<ahat * >(copy_me);
+
+    // dagger?
+    for (int j = 0; j < (int)in->is_dagger.size(); j++) {
+        is_dagger.push_back(in->is_dagger[j]);
+    }
+    
+    // operators
+    for (int j = 0; j < (int)in->symbol.size(); j++) {
+        symbol.push_back(in->symbol[j]);
+    }
+    
+}
+
 void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
     if ( skip ) return;
 
@@ -433,78 +521,7 @@ void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
         // push current ordered operator onto running list
         std::shared_ptr<ahat> newguy (new ahat());
 
-        // skip string?
-        newguy->skip   = skip;
-
-        // sign
-        newguy->sign   = sign;
-
-        // factor
-        newguy->data->factor = data->factor;
-
-        // dagger?
-        for (int j = 0; j < (int)is_dagger.size(); j++) {
-            newguy->is_dagger.push_back(is_dagger[j]);
-        }
-
-        // operators
-        for (int j = 0; j < (int)symbol.size(); j++) {
-            newguy->symbol.push_back(symbol[j]);
-        }
-
-        // data->tensor
-        for (int j = 0; j < (int)data->tensor.size(); j++) {
-            // does data->tensor index show up in a delta function?
-            bool skipme = false;
-            for (int k = 0; k < (int)delta1.size(); k++) {
-                if ( data->tensor[j] == delta1[k] ) {
-                    newguy->data->tensor.push_back(delta2[k]);
-                    skipme = true;
-                    break;
-                }
-                if ( data->tensor[j] == delta2[k] ) {
-                    newguy->data->tensor.push_back(delta1[k]);
-                    skipme = true;
-                    break;
-                }
-            }
-            if ( skipme ) continue;
-            newguy->data->tensor.push_back(data->tensor[j]);
-        }
-        for (int j = 0; j < (int)delta1.size(); j++) {
-            bool skipme = false;
-            for (int k = 0; k < (int)data->tensor.size(); k++) {
-                if ( data->tensor[k] == delta1[j] ) {
-                    skipme = true;
-                    break;
-                }
-                if ( data->tensor[k] == delta2[j] ) {
-                    skipme = true;
-                    break;
-                }
-            }
-            if ( skipme ) continue;
-
-            newguy->delta1.push_back(delta1[j]);
-            newguy->delta2.push_back(delta2[j]);
-        }
-
-        // amplitudes
-        for (int j = 0; j < (int)data->amplitudes1.size(); j++) {
-            newguy->data->amplitudes1.push_back(data->amplitudes1[j]);
-        }
-        // amplitudes
-        for (int j = 0; j < (int)data->amplitudes2.size(); j++) {
-            newguy->data->amplitudes2.push_back(data->amplitudes2[j]);
-        }
-        // amplitudes
-        for (int j = 0; j < (int)data->amplitudes3.size(); j++) {
-            newguy->data->amplitudes3.push_back(data->amplitudes3[j]);
-        }
-        // amplitudes
-        for (int j = 0; j < (int)data->amplitudes4.size(); j++) {
-            newguy->data->amplitudes4.push_back(data->amplitudes4[j]);
-        }
+        newguy->copy((void*)this);
 
         ordered.push_back(newguy);
 
@@ -515,48 +532,11 @@ void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
     std::shared_ptr<ahat> s1 ( new ahat() );
     std::shared_ptr<ahat> s2 ( new ahat() );
 
-    for (int i = 0; i < (int)data->tensor.size(); i++) {
-        s1->data->tensor.push_back(data->tensor[i]);
-        s2->data->tensor.push_back(data->tensor[i]);
-    }
-    // amplitudes
-    for (int j = 0; j < (int)data->amplitudes1.size(); j++) {
-        s1->data->amplitudes1.push_back(data->amplitudes1[j]);
-        s2->data->amplitudes1.push_back(data->amplitudes1[j]);
-    }
-    // amplitudes
-    for (int j = 0; j < (int)data->amplitudes2.size(); j++) {
-        s1->data->amplitudes2.push_back(data->amplitudes2[j]);
-        s2->data->amplitudes2.push_back(data->amplitudes2[j]);
-    }
-    // amplitudes
-    for (int j = 0; j < (int)data->amplitudes3.size(); j++) {
-        s1->data->amplitudes3.push_back(data->amplitudes3[j]);
-        s2->data->amplitudes3.push_back(data->amplitudes3[j]);
-    }
-    // amplitudes
-    for (int j = 0; j < (int)data->amplitudes4.size(); j++) {
-        s1->data->amplitudes4.push_back(data->amplitudes4[j]);
-        s2->data->amplitudes4.push_back(data->amplitudes4[j]);
-    }
+    // copy data common to both new strings
+    s1->shallow_copy((void*)this);
+    s2->shallow_copy((void*)this);
 
-    s1->skip = skip;
-    s2->skip = skip;
-
-    s1->sign = sign;
-    s2->sign = sign;
-
-    s1->data->factor = data->factor;
-    s2->data->factor = data->factor;
-
-    for (int i = 0; i < (int)delta1.size(); i++) {
-        s1->delta1.push_back(delta1[i]);
-        s2->delta1.push_back(delta1[i]);
-
-        s1->delta2.push_back(delta2[i]);
-        s2->delta2.push_back(delta2[i]);
-    }
-
+    // rearrange operators
     for (int i = 0; i < (int)symbol.size()-1; i++) {
 
         if ( !is_dagger[i] && is_dagger[i+1] ) {
