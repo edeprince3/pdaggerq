@@ -1,6 +1,8 @@
 #ifndef SQE_H
 #define SQE_H
 
+#include "data.h"
+
 namespace pdaggerq {
 
 class ahat {
@@ -22,20 +24,14 @@ class ahat {
     std::vector<std::string> delta1;
     std::vector<std::string> delta2;
 
-    // these should probably be replaced with StringData 
-    double factor = 1.0;
-    std::vector<std::string> tensor;
-    std::vector<std::string> amplitudes1;
-    std::vector<std::string> amplitudes2;
-    std::vector<std::string> amplitudes3;
-    std::vector<std::string> amplitudes4;
+    std::shared_ptr<StringData> data;
 
     void print();
     void check_spin();
     void check_occ_vir();
-    void normal_order(std::vector<ahat *> &ordered);
-    void alphabetize(std::vector<ahat *> &ordered);
-    void cleanup(std::vector<ahat *> &ordered);
+    void normal_order(std::vector<std::shared_ptr<ahat> > &ordered);
+    void alphabetize(std::vector<std::shared_ptr<ahat> > &ordered);
+    void cleanup(std::vector<std::shared_ptr<ahat> > &ordered);
 
 };
 

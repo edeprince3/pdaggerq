@@ -85,10 +85,10 @@ void ahat_helper::add_new_string(){
 
     if ( data->factor > 0.0 ) {
         mystring->sign = 1;
-        mystring->factor = fabs(data->factor);
+        mystring->data->factor = fabs(data->factor);
     }else {
         mystring->sign = -1;
-        mystring->factor = fabs(data->factor);
+        mystring->data->factor = fabs(data->factor);
     }
 
     for (int i = 0; i < (int)data->string.size(); i++) {
@@ -103,15 +103,15 @@ void ahat_helper::add_new_string(){
     }
 
     for (int i = 0; i < (int)data->tensor.size(); i++) {
-        mystring->tensor.push_back(data->tensor[i]);
+        mystring->data->tensor.push_back(data->tensor[i]);
     }
 
     for (int i = 0; i < (int)data->amplitudes1.size(); i++) {
-        mystring->amplitudes1.push_back(data->amplitudes1[i]);
+        mystring->data->amplitudes1.push_back(data->amplitudes1[i]);
     }
 
     for (int i = 0; i < (int)data->amplitudes2.size(); i++) {
-        mystring->amplitudes2.push_back(data->amplitudes2[i]);
+        mystring->data->amplitudes2.push_back(data->amplitudes2[i]);
     }
 
     printf("\n");
@@ -136,7 +136,7 @@ void ahat_helper::add_new_string(){
 
 void ahat_helper::bring_to_normal_order() {
     
-    std::vector< ahat* > out;
+    std::vector< std::shared_ptr<ahat> > out;
             
     bool *vanish = (bool*)malloc(ordered.size()*sizeof(bool));
     memset((void*)vanish,'\0',ordered.size()*sizeof(bool));
@@ -177,11 +177,11 @@ void ahat_helper::bring_to_normal_order() {
             if ( strings_differ ) continue;
         
             // check tensors
-            if ( ordered[i]->tensor.size() == ordered[j]->tensor.size() ) {
-                for (int k = 0; k < (int)ordered[i]->tensor.size(); k++) {
+            if ( ordered[i]->data->tensor.size() == ordered[j]->data->tensor.size() ) {
+                for (int k = 0; k < (int)ordered[i]->data->tensor.size(); k++) {
     
                     // strings differ?
-                    if ( ordered[i]->tensor[k] != ordered[j]->tensor[k] ) {
+                    if ( ordered[i]->data->tensor[k] != ordered[j]->data->tensor[k] ) {
 
                         strings_differ = true;
                     }
@@ -193,8 +193,8 @@ void ahat_helper::bring_to_normal_order() {
             if ( strings_differ ) continue;
 
             // at this point, we know the strings are the same.  what about the factor?
-            double fac1 = ordered[i]->factor;
-            double fac2 = ordered[j]->factor;
+            double fac1 = ordered[i]->data->factor;
+            double fac2 = ordered[j]->data->factor;
             if ( fabs(fac1 + fac2) < 1e-12 ) {
                 vanish[i] = true;
                 vanish[j] = true;

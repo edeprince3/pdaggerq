@@ -10,7 +10,7 @@ class ahat_helper {
 
   private:
 
-    std::vector< ahat* > ordered;
+    std::vector< std::shared_ptr<ahat> > ordered;
 
     // strings, tensors, etc.
     std::shared_ptr<StringData> data;

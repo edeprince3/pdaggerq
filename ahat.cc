@@ -12,6 +12,8 @@ namespace pdaggerq {
 ahat::ahat() {
 
   skip = false;
+  data = (std::shared_ptr<StringData>)(new StringData());
+
 
 }
 ahat::~ahat() {
@@ -105,15 +107,15 @@ void ahat::check_spin() {
         }
     }
 
-    // check A/B in two-index tensors
-    if ( (int)tensor.size() == 2 ) {
-        if ( tensor[0].length() == 2 ) {
-            if ( tensor[1].length() == 2 ) {
+    // check A/B in two-index data->tensors
+    if ( (int)data->tensor.size() == 2 ) {
+        if ( data->tensor[0].length() == 2 ) {
+            if ( data->tensor[1].length() == 2 ) {
 
-                if ( tensor[0].at(1) == 'A' && tensor[1].at(1) == 'B' ) {
+                if ( data->tensor[0].at(1) == 'A' && data->tensor[1].at(1) == 'B' ) {
                     skip = true;
                     return;
-                }else if ( tensor[0].at(1) == 'B' && tensor[1].at(1) == 'A' ) {
+                }else if ( data->tensor[0].at(1) == 'B' && data->tensor[1].at(1) == 'A' ) {
                     skip = true;
                     return;
                 }
@@ -122,16 +124,16 @@ void ahat::check_spin() {
         }
     }
 
-    // check A/B in four-index tensors
-    if ( (int)tensor.size() == 4 ) {
+    // check A/B in four-index data->tensors
+    if ( (int)data->tensor.size() == 4 ) {
         // check bra
-        if ( tensor[0].length() == 2 ) {
-            if ( tensor[1].length() == 2 ) {
+        if ( data->tensor[0].length() == 2 ) {
+            if ( data->tensor[1].length() == 2 ) {
 
-                if ( tensor[0].at(1) == 'A' && tensor[1].at(1) == 'B' ) {
+                if ( data->tensor[0].at(1) == 'A' && data->tensor[1].at(1) == 'B' ) {
                     skip = true;
                     return;
-                }else if ( tensor[0].at(1) == 'B' && tensor[1].at(1) == 'A' ) {
+                }else if ( data->tensor[0].at(1) == 'B' && data->tensor[1].at(1) == 'A' ) {
                     skip = true;
                     return;
                 }
@@ -139,13 +141,13 @@ void ahat::check_spin() {
             }
         }
         // check ket
-        if ( tensor[2].length() == 2 ) {
-            if ( tensor[3].length() == 2 ) {
+        if ( data->tensor[2].length() == 2 ) {
+            if ( data->tensor[3].length() == 2 ) {
 
-                if ( tensor[2].at(1) == 'A' && tensor[3].at(1) == 'B' ) {
+                if ( data->tensor[2].at(1) == 'A' && data->tensor[3].at(1) == 'B' ) {
                     skip = true;
                     return;
-                }else if ( tensor[2].at(1) == 'B' && tensor[3].at(1) == 'A' ) {
+                }else if ( data->tensor[2].at(1) == 'B' && data->tensor[3].at(1) == 'A' ) {
                     skip = true;
                     return;
                 }
@@ -164,7 +166,7 @@ void ahat::print() {
     printf("//     ");
     printf("%c", sign > 0 ? '+' : '-');
     printf(" ");
-    printf("%7.5lf", fabs(factor));
+    printf("%7.5lf", fabs(data->factor));
     printf(" ");
     for (int i = 0; i < (int)symbol.size(); i++) {
         printf("%s",symbol[i].c_str());
@@ -177,102 +179,102 @@ void ahat::print() {
         printf("d(%s%s)",delta1[i].c_str(),delta2[i].c_str());
         printf(" ");
     }
-    if ( (int)tensor.size() > 0 ) {
+    if ( (int)data->tensor.size() > 0 ) {
         // two-electron integrals
-        if ( (int)tensor.size() == 4 ) {
+        if ( (int)data->tensor.size() == 4 ) {
             printf("(");
             for (int i = 0; i < 2; i++) {
-                printf("%s",tensor[i].c_str());
+                printf("%s",data->tensor[i].c_str());
             }
             printf("|");
             for (int i = 2; i < 4; i++) {
-                printf("%s",tensor[i].c_str());
+                printf("%s",data->tensor[i].c_str());
             }
             printf(")");
         }
         // one-electron integrals
-        if ( (int)tensor.size() == 2 ) {
+        if ( (int)data->tensor.size() == 2 ) {
             printf("h(");
             for (int i = 0; i < 2; i++) {
-                printf("%s",tensor[i].c_str());
+                printf("%s",data->tensor[i].c_str());
             }
             printf(")");
         }
         printf(" ");
     }
     // amplitudes(1)
-    if ( (int)amplitudes1.size() > 0 ) {
+    if ( (int)data->amplitudes1.size() > 0 ) {
         // t1
-        if ( (int)amplitudes1.size() == 2 ) {
+        if ( (int)data->amplitudes1.size() == 2 ) {
             printf("t1(");
             for (int i = 0; i < 2; i++) {
-                printf("%s",amplitudes1[i].c_str());
+                printf("%s",data->amplitudes1[i].c_str());
             }
             printf(")");
         }
         // t2
-        if ( (int)amplitudes1.size() == 4 ) {
+        if ( (int)data->amplitudes1.size() == 4 ) {
             printf("t2(");
             for (int i = 0; i < 4; i++) {
-                printf("%s",amplitudes1[i].c_str());
+                printf("%s",data->amplitudes1[i].c_str());
             }
             printf(")");
         }
         printf(" ");
     }
     // amplitudes(2)
-    if ( (int)amplitudes2.size() > 0 ) {
+    if ( (int)data->amplitudes2.size() > 0 ) {
         // t1
-        if ( (int)amplitudes2.size() == 2 ) {
+        if ( (int)data->amplitudes2.size() == 2 ) {
             printf("t1(");
             for (int i = 0; i < 2; i++) {
-                printf("%s",amplitudes2[i].c_str());
+                printf("%s",data->amplitudes2[i].c_str());
             }
             printf(")");
         }
         // t2
-        if ( (int)amplitudes2.size() == 4 ) {
+        if ( (int)data->amplitudes2.size() == 4 ) {
             printf("t2(");
             for (int i = 0; i < 4; i++) {
-                printf("%s",amplitudes2[i].c_str());
+                printf("%s",data->amplitudes2[i].c_str());
             }
             printf(")");
         }
     }
     // amplitudes(3)
-    if ( (int)amplitudes3.size() > 0 ) {
+    if ( (int)data->amplitudes3.size() > 0 ) {
         // t1
-        if ( (int)amplitudes3.size() == 2 ) {
+        if ( (int)data->amplitudes3.size() == 2 ) {
             printf("t1(");
             for (int i = 0; i < 2; i++) {
-                printf("%s",amplitudes3[i].c_str());
+                printf("%s",data->amplitudes3[i].c_str());
             }
             printf(")");
         }
         // t2
-        if ( (int)amplitudes3.size() == 4 ) {
+        if ( (int)data->amplitudes3.size() == 4 ) {
             printf("t2(");
             for (int i = 0; i < 4; i++) {
-                printf("%s",amplitudes3[i].c_str());
+                printf("%s",data->amplitudes3[i].c_str());
             }
             printf(")");
         }
     }
     // amplitudes(4)
-    if ( (int)amplitudes4.size() > 0 ) {
+    if ( (int)data->amplitudes4.size() > 0 ) {
         // t1
-        if ( (int)amplitudes4.size() == 2 ) {
+        if ( (int)data->amplitudes4.size() == 2 ) {
             printf("t1(");
             for (int i = 0; i < 2; i++) {
-                printf("%s",amplitudes4[i].c_str());
+                printf("%s",data->amplitudes4[i].c_str());
             }
             printf(")");
         }
         // t2
-        if ( (int)amplitudes4.size() == 4 ) {
+        if ( (int)data->amplitudes4.size() == 4 ) {
             printf("t2(");
             for (int i = 0; i < 4; i++) {
-                printf("%s",amplitudes4[i].c_str());
+                printf("%s",data->amplitudes4[i].c_str());
             }
             printf(")");
         }
@@ -296,7 +298,7 @@ bool ahat::is_normal_order() {
 // in order to compare strings, the creation and annihilation 
 // operators should be ordered in some consistent way.
 // alphabetically seems reasonable enough
-void ahat::alphabetize(std::vector<ahat *> &ordered) {
+void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 
     // alphabetize string
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -363,14 +365,14 @@ void ahat::alphabetize(std::vector<ahat *> &ordered) {
 
 // once strings are alphabetized, we can compare them
 // and remove terms that cancel
-void ahat::cleanup(std::vector<ahat *> &ordered) {
+void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
             
             // same factor
-            if ( ordered[i]->factor == ordered[j]->factor ) {
+            if ( ordered[i]->data->factor == ordered[j]->data->factor ) {
 
                 // opposite sign
                 if ( ordered[i]->sign == -ordered[j]->sign ) {
@@ -384,15 +386,15 @@ void ahat::cleanup(std::vector<ahat *> &ordered) {
                             }
                         }
                         if ( nsame_s == ordered[i]->symbol.size() ) {
-                            // same tensor
-                            if ( ordered[i]->tensor.size() == ordered[j]->tensor.size() ) {
+                            // same data->tensor
+                            if ( ordered[i]->data->tensor.size() == ordered[j]->data->tensor.size() ) {
                                 int nsame_t = 0;
-                                for (int k = 0; k < (int)tensor.size(); k++) {
-                                    if ( ordered[i]->tensor[k] == ordered[j]->tensor[k] ) {
+                                for (int k = 0; k < (int)data->tensor.size(); k++) {
+                                    if ( ordered[i]->data->tensor[k] == ordered[j]->data->tensor[k] ) {
                                         nsame_t++;
                                     }
                                 }
-                                if ( nsame_t == ordered[i]->tensor.size() ) {
+                                if ( nsame_t == ordered[i]->data->tensor.size() ) {
                                     // same delta functions (recall these aren't sorted in any way)
                                     int nsame_d = 0;
                                     for (int k = 0; k < (int)ordered[i]->delta1.size(); k++) {
@@ -423,13 +425,13 @@ void ahat::cleanup(std::vector<ahat *> &ordered) {
 
 }
 
-void ahat::normal_order(std::vector<ahat *> &ordered) {
+void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
     if ( skip ) return;
 
     if ( is_normal_order() ) {
 
         // push current ordered operator onto running list
-        ahat * newguy (new ahat());
+        std::shared_ptr<ahat> newguy (new ahat());
 
         // skip string?
         newguy->skip   = skip;
@@ -438,7 +440,7 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
         newguy->sign   = sign;
 
         // factor
-        newguy->factor = factor;
+        newguy->data->factor = data->factor;
 
         // dagger?
         for (int j = 0; j < (int)is_dagger.size(); j++) {
@@ -450,33 +452,33 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
             newguy->symbol.push_back(symbol[j]);
         }
 
-        // tensor
-        for (int j = 0; j < (int)tensor.size(); j++) {
-            // does tensor index show up in a delta function?
+        // data->tensor
+        for (int j = 0; j < (int)data->tensor.size(); j++) {
+            // does data->tensor index show up in a delta function?
             bool skipme = false;
             for (int k = 0; k < (int)delta1.size(); k++) {
-                if ( tensor[j] == delta1[k] ) {
-                    newguy->tensor.push_back(delta2[k]);
+                if ( data->tensor[j] == delta1[k] ) {
+                    newguy->data->tensor.push_back(delta2[k]);
                     skipme = true;
                     break;
                 }
-                if ( tensor[j] == delta2[k] ) {
-                    newguy->tensor.push_back(delta1[k]);
+                if ( data->tensor[j] == delta2[k] ) {
+                    newguy->data->tensor.push_back(delta1[k]);
                     skipme = true;
                     break;
                 }
             }
             if ( skipme ) continue;
-            newguy->tensor.push_back(tensor[j]);
+            newguy->data->tensor.push_back(data->tensor[j]);
         }
         for (int j = 0; j < (int)delta1.size(); j++) {
             bool skipme = false;
-            for (int k = 0; k < (int)tensor.size(); k++) {
-                if ( tensor[k] == delta1[j] ) {
+            for (int k = 0; k < (int)data->tensor.size(); k++) {
+                if ( data->tensor[k] == delta1[j] ) {
                     skipme = true;
                     break;
                 }
-                if ( tensor[k] == delta2[j] ) {
+                if ( data->tensor[k] == delta2[j] ) {
                     skipme = true;
                     break;
                 }
@@ -488,20 +490,20 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
         }
 
         // amplitudes
-        for (int j = 0; j < (int)amplitudes1.size(); j++) {
-            newguy->amplitudes1.push_back(amplitudes1[j]);
+        for (int j = 0; j < (int)data->amplitudes1.size(); j++) {
+            newguy->data->amplitudes1.push_back(data->amplitudes1[j]);
         }
         // amplitudes
-        for (int j = 0; j < (int)amplitudes2.size(); j++) {
-            newguy->amplitudes2.push_back(amplitudes2[j]);
+        for (int j = 0; j < (int)data->amplitudes2.size(); j++) {
+            newguy->data->amplitudes2.push_back(data->amplitudes2[j]);
         }
         // amplitudes
-        for (int j = 0; j < (int)amplitudes3.size(); j++) {
-            newguy->amplitudes3.push_back(amplitudes3[j]);
+        for (int j = 0; j < (int)data->amplitudes3.size(); j++) {
+            newguy->data->amplitudes3.push_back(data->amplitudes3[j]);
         }
         // amplitudes
-        for (int j = 0; j < (int)amplitudes4.size(); j++) {
-            newguy->amplitudes4.push_back(amplitudes4[j]);
+        for (int j = 0; j < (int)data->amplitudes4.size(); j++) {
+            newguy->data->amplitudes4.push_back(data->amplitudes4[j]);
         }
 
         ordered.push_back(newguy);
@@ -513,29 +515,29 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
     std::shared_ptr<ahat> s1 ( new ahat() );
     std::shared_ptr<ahat> s2 ( new ahat() );
 
-    for (int i = 0; i < (int)tensor.size(); i++) {
-        s1->tensor.push_back(tensor[i]);
-        s2->tensor.push_back(tensor[i]);
+    for (int i = 0; i < (int)data->tensor.size(); i++) {
+        s1->data->tensor.push_back(data->tensor[i]);
+        s2->data->tensor.push_back(data->tensor[i]);
     }
     // amplitudes
-    for (int j = 0; j < (int)amplitudes1.size(); j++) {
-        s1->amplitudes1.push_back(amplitudes1[j]);
-        s2->amplitudes1.push_back(amplitudes1[j]);
+    for (int j = 0; j < (int)data->amplitudes1.size(); j++) {
+        s1->data->amplitudes1.push_back(data->amplitudes1[j]);
+        s2->data->amplitudes1.push_back(data->amplitudes1[j]);
     }
     // amplitudes
-    for (int j = 0; j < (int)amplitudes2.size(); j++) {
-        s1->amplitudes2.push_back(amplitudes2[j]);
-        s2->amplitudes2.push_back(amplitudes2[j]);
+    for (int j = 0; j < (int)data->amplitudes2.size(); j++) {
+        s1->data->amplitudes2.push_back(data->amplitudes2[j]);
+        s2->data->amplitudes2.push_back(data->amplitudes2[j]);
     }
     // amplitudes
-    for (int j = 0; j < (int)amplitudes3.size(); j++) {
-        s1->amplitudes3.push_back(amplitudes3[j]);
-        s2->amplitudes3.push_back(amplitudes3[j]);
+    for (int j = 0; j < (int)data->amplitudes3.size(); j++) {
+        s1->data->amplitudes3.push_back(data->amplitudes3[j]);
+        s2->data->amplitudes3.push_back(data->amplitudes3[j]);
     }
     // amplitudes
-    for (int j = 0; j < (int)amplitudes4.size(); j++) {
-        s1->amplitudes4.push_back(amplitudes4[j]);
-        s2->amplitudes4.push_back(amplitudes4[j]);
+    for (int j = 0; j < (int)data->amplitudes4.size(); j++) {
+        s1->data->amplitudes4.push_back(data->amplitudes4[j]);
+        s2->data->amplitudes4.push_back(data->amplitudes4[j]);
     }
 
     s1->skip = skip;
@@ -544,8 +546,8 @@ void ahat::normal_order(std::vector<ahat *> &ordered) {
     s1->sign = sign;
     s2->sign = sign;
 
-    s1->factor = factor;
-    s2->factor = factor;
+    s1->data->factor = data->factor;
+    s2->data->factor = data->factor;
 
     for (int i = 0; i < (int)delta1.size(); i++) {
         s1->delta1.push_back(delta1[i]);
