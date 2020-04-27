@@ -2,119 +2,94 @@
 
 A code for bringing strings of creation / annihilation operators to normal order.
 
-**Use cases (all with all alpha labels)**
+**Notes**
 
-1.  A single operator string:<img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j l^{\dagger}k ">
+1. We follow the usual convention for labeling orbitals: i, j, k, l, m, and n represent occupied orbitals; a, b, c, d, e, and f represent virtual orbitals; and p, q, r, and s (and any other label not included in the occupied or virtua sets) represent general orbital labels. Delta functions involving occupied / virtual combinations will be set to zero.
 
-Input:
+2. Orbital labels refer to spin orbitals. Spin labels may be included by adding "A" or "B" to an orbital label, but this is not necessary. Note that these spin labels must be capitalized in the current version of the code. Delta functions involving alpha / beta combinations will be set to zero.
 
-    set sqstring  [ia*,ja,la*,ka]
+3. Strings are defined in Python using the ahat_helper class, which has the following functions:
 
-    energy('pdaggerq')
+    set_string (required): set the string of creation and annihiliation operators
+    
+        set_string(['p*','q','a*','i'])
+        
+    set tensor (optional): define a one- or two-body tensor to accompany the string
+    
+        set_tensor(['p','q'])
+        
+    set amplitudes (optional): define t1 or t2 amplitudes to accompany the string. Note that up to four sets of amplitudes can be added to a given string.
 
-Output:
+        set_tensor(['a','i'])
+        
+    set_factor (optional): define a numerical factor to accompany the string. The default value is 1.0.
+    
+        set_factor(0.5)
 
-    // starting string:
-    //     + 1.00 IA* JA LA* KA 
+    add_new_string (required): add string to list of strings to be brought to normal order
+    
+        add_new_string()
+        
+    bring_to_normal_order (required): bring all strings to normal order, consolidate/cancel terms, and zero any delta functions that involve occupied / virtual or alpha / beta combinations.
+    
+        bring_to_normal_order()
 
-    // normal-ordered strings:
-    //     + 1.00 IA* KA d(JALA) 
-    //     - 1.00 IA* LA* JA KA 
+**Usage**
 
-2.  a string involving a four-index tensor: <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q^{\dagger}s r (pr|qs)">
+The following code evaluates the commutator 0.5 [[h, T1], T1], where h is a one-body operator
 
-Input:
+Python:
 
-    set sqfactor  0.5
-    set sqtensor  [pa,ra,qa,sa]
-    set sqstring  [ia*,ja,pa*,qa*,sa,ra]
+    import pdaggerq
+    
+    ahat = pdaggerq.ahat_helper()
 
-    energy('pdaggerq')
+    ahat.set_string(['p*','q','a*','i','c*','k'])
+    ahat.set_tensor(['p','q'])
+    ahat.set_amplitudes(['a','i'])
+    ahat.set_amplitudes(['c','k'])
+    ahat.set_factor(0.5)
+    ahat.add_new_string()
 
-Output:
+    ahat.set_string(['a*','i','p*','q','c*','k'])
+    ahat.set_tensor(['p','q'])
+    ahat.set_amplitudes(['a','i'])
+    ahat.set_amplitudes(['c','k'])
+    ahat.set_factor(-0.5)
+    ahat.add_new_string()
 
-    // starting string:
-    //     + 0.50 IA* JA PA* QA* SA RA (PARA|QASA)
+    ahat.set_string(['c*','k','p*','q','a*','i'])
+    ahat.set_tensor(['p','q'])
+    ahat.set_amplitudes(['a','i'])
+    ahat.set_amplitudes(['c','k'])
+    ahat.set_factor(-0.5)
+    ahat.add_new_string()
 
-    // normal-ordered strings:
-    //     - 0.50 IA* QA* RA SA (JARA|QASA)
-    //     + 0.50 IA* PA* RA SA (PARA|JASA)
-    //     - 0.50 IA* PA* QA* JA RA SA (PARA|QASA)
+    ahat.set_string(['c*','k','a*','i','p*','q'])
+    ahat.set_tensor(['p','q'])
+    ahat.set_amplitudes(['a','i'])
+    ahat.set_amplitudes(['c','k'])
+    ahat.set_factor(0.5)
+    ahat.add_new_string()
 
-Note that the delta functions get gobbled up in this case and the relevant indices in the four-index tensor are modified. Note also that you can modify the constant factor (0.5 here; the default value is 1.0, as you can see in the first example).
-
-3.  a string involving a two-index tensor: <img src="https://render.githubusercontent.com/render/math?math=0.5\ i^{\dagger}j p^{\dagger}q h_{pq}"> 
-
-Input: 
-
-    set sqfactor  0.5
-    set sqtensor  [pa,qa]
-    set sqstring  [ia*,ja,pa*,qa]
-
-energy('pdaggerq')
-
-Output:
-
-    // starting string:
-    //     + 0.50 IA* JA PA* QA h(PAQA)
-
-    // normal-ordered strings:
-    //     + 0.50 IA* QA h(JAQA)
-    //     - 0.50 IA* PA* JA QA h(PAQA)
-
-4. Multiple terms: <img src="https://render.githubusercontent.com/render/math?math=0.5\ [ k^{\dagger} l , [ p^{\dagger}q^{\dagger}s r, j^{\dagger}i] ] (pr|qs)"> 
-
-Input:
-
-    set sqfactor  0.5
-    set sqtensor  [pa,ra,qa,sa]
-    set sqstring  [ka*,la,pa*,qa*,sa,ra,ja*,ia]
-
-    set sqfactor2 -0.5
-    set sqtensor2 [pa,ra,qa,sa]
-    set sqstring2 [ka*,la,ja*,ia,pa*,qa*,sa,ra]
-
-    set sqfactor3 -0.5
-    set sqtensor3 [pa,ra,qa,sa]
-    set sqstring3 [pa*,qa*,sa,ra,ja*,ia,ka*,la]
-
-    set sqfactor4 0.5
-    set sqtensor4 [pa,ra,qa,sa]
-    set sqstring4 [ja*,ia,pa*,qa*,sa,ra,ka*,la]
-
-    energy('pdaggerq')
+    ahat.bring_to_normal_order()
 
 Output:
 
+   // starting string:
+    //     + 0.50000 p* q a* i c* k h(pq) t1(ai) t1(ck)
 
     // starting string:
-    //     + 0.50 KA* LA PA* QA* SA RA JA* IA (PARA|QASA)
+    //     - 0.50000 a* i p* q c* k h(pq) t1(ai) t1(ck)
 
     // starting string:
-    //     - 0.50 KA* LA JA* IA PA* QA* SA RA (PARA|QASA)
+    //     - 0.50000 c* k p* q a* i h(pq) t1(ai) t1(ck)
 
     // starting string:
-    //     - 0.50 PA* QA* SA RA JA* IA KA* LA (PARA|QASA)
-
-    // starting string:
-    //     + 0.50 JA* IA PA* QA* SA RA KA* LA (PARA|QASA)
+    //     + 0.50000 c* k a* i p* q h(pq) t1(ai) t1(ck)
 
     // normal-ordered strings:
-    //     - 0.50 KA* QA* IA SA (LAJA|QASA)
-    //     + 0.50 KA* QA* IA RA (LARA|QAJA)
-    //     + 0.50 KA* PA* IA SA (PAJA|LASA)
-    //     - 0.50 KA* PA* IA RA (PARA|LAJA)
-    //     + 0.50 KA* QA* RA SA d(JALA) (IARA|QASA)
-    //     - 0.50 KA* PA* RA SA d(JALA) (PARA|IASA)
-    //     + 0.50 JA* KA* RA SA (IARA|LASA)
-    //     - 0.50 JA* KA* RA SA (LARA|IASA)
-    //     + 0.50 PA* QA* LA SA d(IAKA) (PAJA|QASA)
-    //     + 0.50 PA* QA* IA LA (PAJA|QAKA)
-    //     - 0.50 PA* QA* LA RA d(IAKA) (PARA|QAJA)
-    //     - 0.50 PA* QA* IA LA (PAKA|QAJA)
-    //     - 0.50 JA* QA* LA SA (IAKA|QASA)
-    //     + 0.50 JA* QA* LA RA (IARA|QAKA)
-    //     + 0.50 JA* PA* LA SA (PAKA|IASA)
-    //     - 0.50 JA* PA* LA RA (PARA|IAKA)
+    //     - 0.50000 a* k h(ic) t1(ai) t1(ck)
+    //     - 0.50000 c* i h(ka) t1(ai) t1(ck)
 
-Note that all of the terms with > four operators canceled, so they are not printed
+
