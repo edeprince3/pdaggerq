@@ -11,11 +11,10 @@ class StringData {
   public:
 
     StringData(){
-        factor = 1.0;
     };
     ~StringData(){};
 
-    double factor;
+    double factor = 1.0;
     std::vector<std::string> string;
     std::vector<std::string> tensor;
     std::vector<std::string> amplitudes1;

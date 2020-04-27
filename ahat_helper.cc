@@ -53,12 +53,6 @@ ahat_helper::~ahat_helper()
 {
 }
 
-    //void set_string(std::string in);
-    //void set_tensor(std::string in);
-    //void set_amplitudes(std::string in);
-    //void set_factor(double in);
-    //void add_term();
-
 void ahat_helper::set_string(std::vector<std::string> in) {
     for (int i = 0; i < (int)in.size(); i++) {
         data->string.push_back(in[i]);
@@ -80,6 +74,7 @@ void ahat_helper::set_amplitudes(std::vector<std::string> in) {
         }
     }
 }
+
 void ahat_helper::set_factor(double in) {
     data->factor = in;
 }
@@ -198,9 +193,9 @@ void ahat_helper::bring_to_normal_order() {
             if ( strings_differ ) continue;
 
             // at this point, we know the strings are the same.  what about the factor?
-            int fac1 = ordered[i]->factor;
-            int fac2 = ordered[j]->factor;
-            if ( fabs(fac1 + fac2) < 1e-8 ) {
+            double fac1 = ordered[i]->factor;
+            double fac2 = ordered[j]->factor;
+            if ( fabs(fac1 + fac2) < 1e-12 ) {
                 vanish[i] = true;
                 vanish[j] = true;
             }

@@ -10,6 +10,9 @@
 namespace pdaggerq {
 
 ahat::ahat() {
+
+  skip = false;
+
 }
 ahat::~ahat() {
 }
