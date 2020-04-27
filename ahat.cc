@@ -22,58 +22,58 @@ void ahat::check_occ_vir() {
 
    for (int i = 0; i < (int)delta1.size(); i++ ) {
        bool first_is_occ = false;
-       if ( delta1[i].at(0) == 'I') {
+       if ( delta1[i].at(0) == 'I' || delta1[i].at(0) == 'i') {
            first_is_occ = true;
-       }else if ( delta1[i].at(0) == 'J') {
+       }else if ( delta1[i].at(0) == 'J' || delta1[i].at(0) == 'j') {
            first_is_occ = true;
-       }else if ( delta1[i].at(0) == 'K') {
+       }else if ( delta1[i].at(0) == 'K' || delta1[i].at(0) == 'k') {
            first_is_occ = true;
-       }else if ( delta1[i].at(0) == 'L') {
+       }else if ( delta1[i].at(0) == 'L' || delta1[i].at(0) == 'l') {
            first_is_occ = true;
-       }else if ( delta1[i].at(0) == 'M') {
+       }else if ( delta1[i].at(0) == 'M' || delta1[i].at(0) == 'm') {
            first_is_occ = true;
-       }else if ( delta1[i].at(0) == 'N') {
+       }else if ( delta1[i].at(0) == 'N' || delta1[i].at(0) == 'n') {
            first_is_occ = true;
-       }else if ( delta1[i].at(0) == 'A') {
+       }else if ( delta1[i].at(0) == 'A' || delta1[i].at(0) == 'a') {
            first_is_occ = false;
-       }else if ( delta1[i].at(0) == 'B') {
+       }else if ( delta1[i].at(0) == 'B' || delta1[i].at(0) == 'b') {
            first_is_occ = false;
-       }else if ( delta1[i].at(0) == 'C') {
+       }else if ( delta1[i].at(0) == 'C' || delta1[i].at(0) == 'c') {
            first_is_occ = false;
-       }else if ( delta1[i].at(0) == 'D') {
+       }else if ( delta1[i].at(0) == 'D' || delta1[i].at(0) == 'd') {
            first_is_occ = false;
-       }else if ( delta1[i].at(0) == 'E') {
+       }else if ( delta1[i].at(0) == 'E' || delta1[i].at(0) == 'e') {
            first_is_occ = false;
-       }else if ( delta1[i].at(0) == 'F') {
+       }else if ( delta1[i].at(0) == 'F' || delta1[i].at(0) == 'f') {
            first_is_occ = false;
        }else {
            continue;
        }
 
        bool second_is_occ = false;
-       if ( delta2[i].at(0) == 'I') {
+       if ( delta2[i].at(0) == 'I' || delta2[i].at(0) == 'i') {
            second_is_occ = true;
-       }else if ( delta2[i].at(0) == 'J') {
+       }else if ( delta2[i].at(0) == 'J' || delta2[i].at(0) == 'j') {
            second_is_occ = true;
-       }else if ( delta2[i].at(0) == 'K') {
+       }else if ( delta2[i].at(0) == 'K' || delta2[i].at(0) == 'k') {
            second_is_occ = true;
-       }else if ( delta2[i].at(0) == 'L') {
+       }else if ( delta2[i].at(0) == 'L' || delta2[i].at(0) == 'l') {
            second_is_occ = true;
-       }else if ( delta2[i].at(0) == 'M') {
+       }else if ( delta2[i].at(0) == 'M' || delta2[i].at(0) == 'm') {
            second_is_occ = true;
-       }else if ( delta2[i].at(0) == 'N') {
+       }else if ( delta2[i].at(0) == 'N' || delta2[i].at(0) == 'n') {
            second_is_occ = true;
-       }else if ( delta2[i].at(0) == 'A') {
+       }else if ( delta2[i].at(0) == 'A' || delta2[i].at(0) == 'a') {
            second_is_occ = false;
-       }else if ( delta2[i].at(0) == 'B') {
+       }else if ( delta2[i].at(0) == 'B' || delta2[i].at(0) == 'b') {
            second_is_occ = false;
-       }else if ( delta2[i].at(0) == 'C') {
+       }else if ( delta2[i].at(0) == 'C' || delta2[i].at(0) == 'c') {
            second_is_occ = false;
-       }else if ( delta2[i].at(0) == 'D') {
+       }else if ( delta2[i].at(0) == 'D' || delta2[i].at(0) == 'd') {
            second_is_occ = false;
-       }else if ( delta2[i].at(0) == 'E') {
+       }else if ( delta2[i].at(0) == 'E' || delta2[i].at(0) == 'e') {
            second_is_occ = false;
-       }else if ( delta2[i].at(0) == 'F') {
+       }else if ( delta2[i].at(0) == 'F' || delta2[i].at(0) == 'f') {
            second_is_occ = false;
        }else {
            continue;
