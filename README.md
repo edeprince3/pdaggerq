@@ -76,7 +76,7 @@ Python:
 
 Output:
 
-   // starting string:
+    // starting string:
     //     + 0.50000 p* q a* i c* k h(pq) t1(ai) t1(ck)
 
     // starting string:
