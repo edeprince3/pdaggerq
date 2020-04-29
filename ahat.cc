@@ -313,10 +313,9 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 }
 
 // once strings are alphabetized, we can compare them
-// and remove terms that cancel.
+// and remove terms that cancel. 
 
-// there are several problems here.
-// 1 is it possible for 
+// NOTE AMPLITUDES AREN'T BEING CONSIDERED
 void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -355,13 +354,45 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
                 for (int l = 0; l < (int)ordered[j]->delta1.size(); l++) {
                     if ( ordered[i]->delta1[k] == ordered[j]->delta1[l] && ordered[i]->delta2[k] == ordered[j]->delta2[l] ) {
                         nsame_d++;
+                        break;
                     }else if ( ordered[i]->delta2[k] == ordered[j]->delta1[l] && ordered[i]->delta1[k] == ordered[j]->delta2[l] ) {
                         nsame_d++;
+                        break;
                     }
                 }
             }
             if ( nsame_d != (int)ordered[i]->delta1.size() ) continue;
 
+            // amplitudes, which can be complicated since they aren't sorted
+
+            // same number of amplitudes?
+            if ( ordered[i]->data->amplitudes.size() != ordered[j]->data->amplitudes.size() ) continue;
+         
+            int nsame_amps = 0;
+            for (int ii = 0; ii < (int)ordered[i]->data->amplitudes.size(); ii++) {
+                for (int jj = 0; jj < (int)ordered[j]->data->amplitudes.size(); jj++) {
+
+                    // t1 vs t2?
+                    if ( ordered[i]->data->amplitudes[ii].size() != ordered[j]->data->amplitudes[jj].size() ) continue;
+
+                    // indices?
+                    int nsame_idx = 0;
+                    for (int iii = 0; iii < (int)ordered[i]->data->amplitudes[ii].size(); iii++) {
+                        for (int jjj = 0; jjj < (int)ordered[j]->data->amplitudes[jj].size(); jjj++) {
+                            if ( ordered[i]->data->amplitudes[ii][iii] == ordered[j]->data->amplitudes[jj][jjj] ) {
+                                nsame_idx++;
+                                break;
+                            }
+                        }
+                    }
+                    // if all indices are the same, the amplitudes must be the same
+                    if ( nsame_idx == (int)ordered[i]->data->amplitudes[ii].size() ) {
+                        nsame_amps++;
+                        break;
+                    }
+                }
+            }
+            if ( nsame_amps != (int)ordered[i]->data->amplitudes.size() ) continue;
 
             // well, i guess they cancel
             ordered[i]->skip = true;
