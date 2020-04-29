@@ -5,6 +5,7 @@
 #include<vector>
 #include<iostream>
 #include<string>
+#include <cctype>
 #include<algorithm>
 
 #include "data.h"
@@ -28,7 +29,8 @@ void export_ahat_helper(py::module& m) {
         .def("set_amplitudes", &ahat_helper::set_amplitudes)
         .def("set_factor", &ahat_helper::set_factor)
         .def("bring_to_normal_order", &ahat_helper::bring_to_normal_order)
-        .def("add_new_string", &ahat_helper::add_new_string);
+        .def("add_new_string", &ahat_helper::add_new_string)
+        .def("set_new_string", &ahat_helper::set_new_string);
 }
 
 PYBIND11_MODULE(pdaggerq, m) {
@@ -42,6 +44,17 @@ void removeStar(std::string &x)
   x.erase(it, std::end(x));
 }
 
+void removeParentheses(std::string &x)
+{ 
+  auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '(');});
+  x.erase(it, std::end(x));
+
+  it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == ')');});
+  x.erase(it, std::end(x));
+
+}
+
+
 ahat_helper::ahat_helper()
 {
 
@@ -51,6 +64,66 @@ ahat_helper::ahat_helper()
 
 ahat_helper::~ahat_helper()
 {
+}
+
+void ahat_helper::set_new_string(double factor, std::vector<std::string>  in){
+
+
+    set_factor(factor);
+
+    std::vector<std::string> tmp_string;
+
+    for (int i = 0; i < (int)in.size(); i++) {
+        // lowercase
+        std::transform(in[i].begin(), in[i].end(), in[i].begin(), [](unsigned char c){ return std::tolower(c); });
+
+        // remove parentheses
+        removeParentheses(in[i]);
+
+        if ( in[i].substr(0,1) == "h" ) {
+
+            std::string tmp = in[i].substr(1,2);
+            tmp_string.push_back(tmp.substr(0,1)+"*");
+            tmp_string.push_back(tmp.substr(1,1));
+            set_tensor({tmp.substr(0,1), tmp.substr(1,1)});
+
+        }else if ( in[i].substr(0,1) == "t" ){
+
+            if ( in[i].substr(1,1) == "1" ){
+
+                std::string tmp = in[i].substr(2,2);
+                tmp_string.push_back(tmp.substr(0,1)+"*");
+                tmp_string.push_back(tmp.substr(1,1));
+                set_amplitudes({tmp.substr(0,1), tmp.substr(1,1)});
+
+            }else if ( in[i].substr(1,1) == "2" ){
+
+                std::string tmp = in[i].substr(2,4);
+                tmp_string.push_back(tmp.substr(0,1)+"*");
+                tmp_string.push_back(tmp.substr(1,1)+"*");
+                tmp_string.push_back(tmp.substr(3,1));
+                tmp_string.push_back(tmp.substr(2,1));
+                set_amplitudes({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
+
+            }else {
+                printf("\n");
+                printf("    error: only t1 or t2 amplitudes are supported\n");
+                printf("\n");
+                exit(1);
+            }
+        }else {
+                printf("\n");
+                printf("    error: undefined string\n");
+                printf("\n");
+                exit(1);
+        }
+        
+    }
+
+    set_string(tmp_string);
+
+    add_new_string();
+
 }
 
 void ahat_helper::set_string(std::vector<std::string> in) {

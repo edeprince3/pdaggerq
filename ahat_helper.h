@@ -25,6 +25,7 @@ class ahat_helper {
     void set_amplitudes(std::vector<std::string> in);
     void set_factor(double in);
     void add_new_string();
+    void set_new_string(double factor, std::vector<std::string> in);
     void bring_to_normal_order();
 
 };
