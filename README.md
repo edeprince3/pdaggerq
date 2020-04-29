@@ -58,9 +58,13 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         clear()
         
-    set_operator_product: set strings corresponding to a product of operators. currently supported operators include general one-body operators ('h(pq)'), singles amplitudes ('t1(ai)'), and doubles amplitudes ('t2(abij)').
+    add_operator_product: set strings corresponding to a product of operators. Currently supported operators include general one-body operators ('h(pq)'), singles amplitudes ('t1(ai)'), and doubles amplitudes ('t2(abij)'). Note that the factor of 1/4 associated with t2 will be handled internally.
     
         set_operator_product( 0.5, ['h(pq)','t1(ai)','t1(ck)'])
+        
+    add_commutator: set strings corresponding to a commutator of two operators. If one of the operators is t2, note that the factor of 1/4 associated with this operator will be handled internally.
+    
+        add_commutator(1.0, ['h(pq)','t2(abij)'])
      
 **Usage**
 
@@ -129,10 +133,10 @@ Python:
     
     ahat = pdaggerq.ahat_helper()
 
-    ahat.set_operator_product( 0.5, ['h(pq)','t1(ai)','t1(ck)'])
-    ahat.set_operator_product(-0.5, ['t1(ai)','h(pq)','t1(ck)'])
-    ahat.set_operator_product(-0.5, ['t1(ck)','h(pq)','t1(ai)'])
-    ahat.set_operator_product( 0.5, ['t1(ck)','t1(ai)','h(pq)'])
+    ahat.add_operator_product( 0.5, ['h(pq)','t1(ai)','t1(ck)'])
+    ahat.add_operator_product(-0.5, ['t1(ai)','h(pq)','t1(ck)'])
+    ahat.add_operator_product(-0.5, ['t1(ck)','h(pq)','t1(ai)'])
+    ahat.add_operator_product( 0.5, ['t1(ck)','t1(ai)','h(pq)'])
 
     ahat.simplify()
     ahat.print()
