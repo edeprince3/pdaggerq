@@ -44,6 +44,12 @@ class ahat_helper {
     /// add double commutator involving three operators
     void add_double_commutator(double factor, std::vector<std::string> in);
 
+    /// add triple commutator involving four operators
+    void add_triple_commutator(double factor, std::vector<std::string> in);
+
+    /// add quadruple commutator involving five operators
+    void add_quadruple_commutator(double factor, std::vector<std::string> in);
+
     /// cancel terms, if possible
     void simplify();
 

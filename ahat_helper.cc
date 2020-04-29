@@ -32,6 +32,8 @@ void export_ahat_helper(py::module& m) {
         .def("add_operator_product", &ahat_helper::add_operator_product)
         .def("add_commutator", &ahat_helper::add_commutator)
         .def("add_double_commutator", &ahat_helper::add_double_commutator)
+        .def("add_triple_commutator", &ahat_helper::add_triple_commutator)
+        .def("add_quadruple_commutator", &ahat_helper::add_quadruple_commutator)
         .def("simplify", &ahat_helper::simplify)
         .def("clear", &ahat_helper::clear)
         .def("print", &ahat_helper::print)
@@ -99,6 +101,54 @@ void ahat_helper::add_double_commutator(double factor, std::vector<std::string> 
     add_operator_product(-factor, {in[1], in[0], in[2]} );
     add_operator_product(-factor, {in[2], in[0], in[1]} );
     add_operator_product( factor, {in[2], in[1], in[0]} );
+
+}
+
+void ahat_helper::add_triple_commutator(double factor, std::vector<std::string>  in) {
+
+    if ( in.size() != 4 ) {
+        printf("\n");
+        printf("    error: triple commutator can only involve four operators\n");
+        printf("\n");
+        exit(1);
+    }
+
+    add_operator_product( factor, {in[0], in[1], in[2], in[3]} );
+    add_operator_product(-factor, {in[1], in[0], in[2], in[3]} );
+    add_operator_product(-factor, {in[2], in[0], in[1], in[3]} );
+    add_operator_product( factor, {in[2], in[1], in[0], in[3]} );
+    add_operator_product(-factor, {in[3], in[0], in[1], in[2]} );
+    add_operator_product( factor, {in[3], in[1], in[0], in[2]} );
+    add_operator_product( factor, {in[3], in[2], in[0], in[1]} );
+    add_operator_product(-factor, {in[3], in[2], in[1], in[0]} );
+
+}
+
+void ahat_helper::add_quadruple_commutator(double factor, std::vector<std::string>  in) {
+
+    if ( in.size() != 5 ) {
+        printf("\n");
+        printf("    error: quadruple commutator can only involve five operators\n");
+        printf("\n");
+        exit(1);
+    }
+
+    add_operator_product( factor, {in[0], in[1], in[2], in[3], in[4]} );
+    add_operator_product(-factor, {in[1], in[0], in[2], in[3], in[4]} );
+    add_operator_product(-factor, {in[2], in[0], in[1], in[3], in[4]} );
+    add_operator_product( factor, {in[2], in[1], in[0], in[3], in[4]} );
+    add_operator_product(-factor, {in[3], in[0], in[1], in[2], in[4]} );
+    add_operator_product( factor, {in[3], in[1], in[0], in[2], in[4]} );
+    add_operator_product( factor, {in[3], in[2], in[0], in[1], in[4]} );
+    add_operator_product(-factor, {in[3], in[2], in[1], in[0], in[4]} );
+    add_operator_product(-factor, {in[4], in[0], in[1], in[2], in[3]} );
+    add_operator_product( factor, {in[4], in[1], in[0], in[2], in[3]} );
+    add_operator_product( factor, {in[4], in[2], in[0], in[1], in[3]} );
+    add_operator_product(-factor, {in[4], in[2], in[1], in[0], in[3]} );
+    add_operator_product( factor, {in[4], in[3], in[0], in[1], in[2]} );
+    add_operator_product(-factor, {in[4], in[3], in[1], in[0], in[2]} );
+    add_operator_product(-factor, {in[4], in[3], in[2], in[0], in[1]} );
+    add_operator_product( factor, {in[4], in[3], in[2], in[1], in[0]} );
 
 }
 
