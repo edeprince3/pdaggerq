@@ -10,23 +10,31 @@ A code for bringing strings of creation / annihilation operators to normal order
 
 3. Strings are defined in Python using the ahat_helper class, which has the following functions:
 
-    set_string: set the string of creation and annihiliation operators
+    set_string: set the string of creation and annihiliation operators.
     
         set_string(['p*','q','a*','i'])
         
-    set tensor: define a one- or two-body tensor to accompany the string
+    set tensor: define a one- or two-body tensor to accompany the string.
     
         set_tensor(['p','q'])
         
-    set amplitudes: define t1 or t2 amplitudes to accompany the string. Note that up to four sets of amplitudes can be added to a given string.
+        or
+        
+        set_tensor(['p','q','r','s'])
+        
+    set amplitudes: define t1 or t2 amplitudes to accompany the string. Note that an arbitrary number of amplitudes can be set.
 
-        set_tensor(['a','i'])
+        set_amplitudes(['a','i'])
+        
+        or 
+        
+        set_amplitudes(['a','b','i','j'])
         
     set_factor: define a numerical factor to accompany the string. The default value is 1.0.
     
         set_factor(0.5)
 
-    add_new_string: bring string to normal order and add to existing list of strings
+    add_new_string: bring string to normal order and add to existing list of strings.
     
         add_new_string()
         
@@ -34,19 +42,19 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         simplify()
         
-    print: print current list of strings
+    print: print current list of strings.
         
         print()
 
-    print_one_body: print strings involving only one-body operators
+    print_one_body: print strings involving only one-body operators.
     
         print_one_body()
         
-    print_two_body: print strings involving only two-body operators
+    print_two_body: print strings involving only two-body operators.
     
         print_two_body()
         
-    set_operator_product: set strings corresponding to a product of operators. currently supported operators include general one-body operators ('h(pq)'), singles amplitudes ('t1(ai)'), and doubles amplitudes ('t2(abij)')
+    set_operator_product: set strings corresponding to a product of operators. currently supported operators include general one-body operators ('h(pq)'), singles amplitudes ('t1(ai)'), and doubles amplitudes ('t2(abij)').
     
         set_operator_product( 0.5, ['h(pq)','t1(ai)','t1(ck)'])
      
