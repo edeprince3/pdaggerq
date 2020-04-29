@@ -14,7 +14,7 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         set_string(['p*','q','a*','i'])
         
-    set tensor: define a one- or two-body tensor to accompany the string.
+    set tensor: define a one- or two-body tensor to accompany the string. Note that only one tensor can accompany the string.
     
         set_tensor(['p','q'])
         
@@ -53,6 +53,10 @@ A code for bringing strings of creation / annihilation operators to normal order
     print_two_body: print strings involving only two-body operators.
     
         print_two_body()
+        
+    clear: clear the current set of strings
+    
+        clear()
         
     set_operator_product: set strings corresponding to a product of operators. currently supported operators include general one-body operators ('h(pq)'), singles amplitudes ('t1(ai)'), and doubles amplitudes ('t2(abij)').
     
