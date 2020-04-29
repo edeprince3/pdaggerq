@@ -313,60 +313,62 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 }
 
 // once strings are alphabetized, we can compare them
-// and remove terms that cancel
+// and remove terms that cancel.
+
+// there are several problems here.
+// 1 is it possible for 
 void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
-            
-            // same factor
-            if ( ordered[i]->data->factor == ordered[j]->data->factor ) {
 
-                // opposite sign
-                if ( ordered[i]->sign == -ordered[j]->sign ) {
+            // are factors same?
+            if ( ordered[i]->data->factor != ordered[j]->data->factor ) continue;
 
-                    // same normal-ordered operator
-                    if ( ordered[i]->symbol.size() == ordered[j]->symbol.size() ) {
-                        int nsame_s = 0;
-                        for (int k = 0; k < (int)ordered[i]->symbol.size(); k++) {
-                            if ( ordered[i]->symbol[k] == ordered[j]->symbol[k] ) {
-                                nsame_s++;
-                            }
-                        }
-                        if ( nsame_s == ordered[i]->symbol.size() ) {
-                            // same data->tensor
-                            if ( ordered[i]->data->tensor.size() == ordered[j]->data->tensor.size() ) {
-                                int nsame_t = 0;
-                                for (int k = 0; k < (int)data->tensor.size(); k++) {
-                                    if ( ordered[i]->data->tensor[k] == ordered[j]->data->tensor[k] ) {
-                                        nsame_t++;
-                                    }
-                                }
-                                if ( nsame_t == ordered[i]->data->tensor.size() ) {
-                                    // same delta functions (recall these aren't sorted in any way)
-                                    int nsame_d = 0;
-                                    for (int k = 0; k < (int)ordered[i]->delta1.size(); k++) {
-                                        for (int l = 0; l < (int)ordered[j]->delta1.size(); l++) {
-                                            if ( ordered[i]->delta1[k] == ordered[j]->delta1[l] && ordered[i]->delta2[k] == ordered[j]->delta2[l] ) {
-                                                nsame_d++;
-                                            }else if ( ordered[i]->delta2[k] == ordered[j]->delta1[l] && ordered[i]->delta1[k] == ordered[j]->delta2[l] ) {
-                                                nsame_d++;
-                                            }
-                                        }
-                                    }
-                                    if ( nsame_d == (int)ordered[i]->delta1.size() ) {
-                                        ordered[i]->skip = true;
-                                        ordered[j]->skip = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
+            // are signs opposite?
+            if ( ordered[i]->sign == ordered[j]->sign ) continue;
 
+            // are strings same?
+            if ( ordered[i]->symbol.size() != ordered[j]->symbol.size() ) continue;
+            int nsame_s = 0;
+            for (int k = 0; k < (int)ordered[i]->symbol.size(); k++) {
+                if ( ordered[i]->symbol[k] == ordered[j]->symbol[k] ) {
+                    nsame_s++;
                 }
-
             }
+            if ( nsame_s != ordered[i]->symbol.size() ) continue;
+
+            // are tensors same?
+            if ( ordered[i]->data->tensor.size() != ordered[j]->data->tensor.size() ) continue;
+            int nsame_t = 0;
+            for (int k = 0; k < (int)data->tensor.size(); k++) {
+                if ( ordered[i]->data->tensor[k] == ordered[j]->data->tensor[k] ) {
+                    nsame_t++;
+                }
+            }
+            if ( nsame_t != ordered[i]->data->tensor.size() ) continue;
+
+            // same delta functions (recall these aren't sorted in any way)
+            int nsame_d = 0;
+            for (int k = 0; k < (int)ordered[i]->delta1.size(); k++) {
+                for (int l = 0; l < (int)ordered[j]->delta1.size(); l++) {
+                    if ( ordered[i]->delta1[k] == ordered[j]->delta1[l] && ordered[i]->delta2[k] == ordered[j]->delta2[l] ) {
+                        nsame_d++;
+                    }else if ( ordered[i]->delta2[k] == ordered[j]->delta1[l] && ordered[i]->delta1[k] == ordered[j]->delta2[l] ) {
+                        nsame_d++;
+                    }
+                }
+            }
+            if ( nsame_d != (int)ordered[i]->delta1.size() ) continue;
+
+
+            // well, i guess they cancel
+            ordered[i]->skip = true;
+            ordered[j]->skip = true;
+
+            // break j so we don't cancel any other terms j with i
+            break;
             
         }
 
