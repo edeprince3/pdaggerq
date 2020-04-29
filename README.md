@@ -65,10 +65,14 @@ A code for bringing strings of creation / annihilation operators to normal order
     add_commutator: set strings corresponding to a commutator of two operators. If one of the operators is t2, note that the factor of 1/4 associated with this operator will be handled internally.
     
         add_commutator(1.0, ['h(pq)','t2(abij)'])
-     
+  
+    add_double_commutator: set strings corresponding to a double commutator involving three operators. If any of the operators are t2, note that the factors of 1/4 will be handled internally.
+    
+        add_double_commutator(0.5, ['h(pq)','t2(abij)','t1(ck)'])
+        
 **Usage**
 
-The following code evaluates the commutator 0.5 [[h, T1], T1], where h is a one-body operator
+The following code evaluates the double commutator 0.5 [[h, T1], T1], where h is a one-body operator
 
 Python:
 
@@ -125,7 +129,7 @@ Output:
     //     - 0.50000 a* k h(ic) t1(ai) t1(ck)
     //     - 0.50000 c* i h(ka) t1(ai) t1(ck)
 
-The same output can be generated using the set_operator_product function:
+The same output can be generated using the add_operator_product function:
 
 Python:
 
@@ -137,6 +141,19 @@ Python:
     ahat.add_operator_product(-0.5, ['t1(ai)','h(pq)','t1(ck)'])
     ahat.add_operator_product(-0.5, ['t1(ck)','h(pq)','t1(ai)'])
     ahat.add_operator_product( 0.5, ['t1(ck)','t1(ai)','h(pq)'])
+
+    ahat.simplify()
+    ahat.print()
+
+The same output can be generated using the add_double_commutator function:
+
+Python:
+
+    import pdaggerq
+    
+    ahat = pdaggerq.ahat_helper()
+
+    ahat.add_double_commutator( 0.5, ['h(pq)','t1(ai)','t1(ck)'])
 
     ahat.simplify()
     ahat.print()
