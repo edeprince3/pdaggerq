@@ -202,81 +202,30 @@ void ahat::print() {
         }
         printf(" ");
     }
-    // amplitudes(1)
-    if ( (int)data->amplitudes1.size() > 0 ) {
-        // t1
-        if ( (int)data->amplitudes1.size() == 2 ) {
-            printf("t1(");
-            for (int i = 0; i < 2; i++) {
-                printf("%s",data->amplitudes1[i].c_str());
-            }
-            printf(")");
-        }
-        // t2
-        if ( (int)data->amplitudes1.size() == 4 ) {
-            printf("t2(");
-            for (int i = 0; i < 4; i++) {
-                printf("%s",data->amplitudes1[i].c_str());
-            }
-            printf(")");
-        }
-        printf(" ");
-    }
-    // amplitudes(2)
-    if ( (int)data->amplitudes2.size() > 0 ) {
-        // t1
-        if ( (int)data->amplitudes2.size() == 2 ) {
-            printf("t1(");
-            for (int i = 0; i < 2; i++) {
-                printf("%s",data->amplitudes2[i].c_str());
-            }
-            printf(")");
-        }
-        // t2
-        if ( (int)data->amplitudes2.size() == 4 ) {
-            printf("t2(");
-            for (int i = 0; i < 4; i++) {
-                printf("%s",data->amplitudes2[i].c_str());
-            }
-            printf(")");
-        }
-    }
-    // amplitudes(3)
-    if ( (int)data->amplitudes3.size() > 0 ) {
-        // t1
-        if ( (int)data->amplitudes3.size() == 2 ) {
-            printf("t1(");
-            for (int i = 0; i < 2; i++) {
-                printf("%s",data->amplitudes3[i].c_str());
-            }
-            printf(")");
-        }
-        // t2
-        if ( (int)data->amplitudes3.size() == 4 ) {
-            printf("t2(");
-            for (int i = 0; i < 4; i++) {
-                printf("%s",data->amplitudes3[i].c_str());
-            }
-            printf(")");
-        }
-    }
-    // amplitudes(4)
-    if ( (int)data->amplitudes4.size() > 0 ) {
-        // t1
-        if ( (int)data->amplitudes4.size() == 2 ) {
-            printf("t1(");
-            for (int i = 0; i < 2; i++) {
-                printf("%s",data->amplitudes4[i].c_str());
-            }
-            printf(")");
-        }
-        // t2
-        if ( (int)data->amplitudes4.size() == 4 ) {
-            printf("t2(");
-            for (int i = 0; i < 4; i++) {
-                printf("%s",data->amplitudes4[i].c_str());
-            }
-            printf(")");
+
+    // amplitudes
+    if ( (int)data->amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->amplitudes.size(); i++) {
+           
+            if ( (int)data->amplitudes[i].size() > 0 ) {
+                // t1
+                if ( (int)data->amplitudes[i].size() == 2 ) {
+                    printf("t1(");
+                    for (int j = 0; j < 2; j++) {
+                        printf("%s",data->amplitudes[i][j].c_str());
+                    }
+                    printf(")");
+                }
+                // t2
+                if ( (int)data->amplitudes[i].size() == 4 ) {
+                    printf("t2(");
+                    for (int j = 0; j < 4; j++) {
+                        printf("%s",data->amplitudes[i][j].c_str());
+                    }
+                    printf(")");
+                }
+                printf(" ");
+            } 
         }
     }
     printf("\n");
@@ -475,23 +424,16 @@ void ahat::shallow_copy(void * copy_me) {
         delta1.push_back(in->delta1[j]);
         delta2.push_back(in->delta2[j]);
     }
-    
+
     // amplitudes
-    for (int j = 0; j < (int)in->data->amplitudes1.size(); j++) {
-        data->amplitudes1.push_back(in->data->amplitudes1[j]);
+    for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in->data->amplitudes[i].size(); j++) {
+            tmp.push_back(in->data->amplitudes[i][j]);
+        }
+        data->amplitudes.push_back(tmp);
     }
-    // amplitudes
-    for (int j = 0; j < (int)in->data->amplitudes2.size(); j++) {
-        data->amplitudes2.push_back(in->data->amplitudes2[j]);
-    }
-    // amplitudes
-    for (int j = 0; j < (int)in->data->amplitudes3.size(); j++) {
-        data->amplitudes3.push_back(in->data->amplitudes3[j]);
-    }
-    // amplitudes
-    for (int j = 0; j < (int)in->data->amplitudes4.size(); j++) {
-        data->amplitudes4.push_back(in->data->amplitudes4[j]);
-    }
+
 }
 
 // copy all data, including symbols and daggers

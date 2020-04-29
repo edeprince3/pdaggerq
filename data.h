@@ -17,10 +17,7 @@ class StringData {
     double factor = 1.0;
     std::vector<std::string> string;
     std::vector<std::string> tensor;
-    std::vector<std::string> amplitudes1;
-    std::vector<std::string> amplitudes2;
-    std::vector<std::string> amplitudes3;
-    std::vector<std::string> amplitudes4;
+    std::vector<std::vector<std::string> > amplitudes;
 
 };
 

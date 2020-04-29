@@ -64,15 +64,11 @@ void ahat_helper::set_tensor(std::vector<std::string> in) {
     }
 }
 void ahat_helper::set_amplitudes(std::vector<std::string> in) {
-    if ( data->amplitudes1.size() == 0 ) {
-        for (int i = 0; i < (int)in.size(); i++) {
-            data->amplitudes1.push_back(in[i]);
-        }
-    }else {
-        for (int i = 0; i < (int)in.size(); i++) {
-            data->amplitudes2.push_back(in[i]);
-        }
+    std::vector<std::string> tmp;
+    for (int i = 0; i < (int)in.size(); i++) {
+        tmp.push_back(in[i]);
     }
+    data->amplitudes.push_back(tmp);
 }
 
 void ahat_helper::set_factor(double in) {
@@ -106,12 +102,12 @@ void ahat_helper::add_new_string(){
         mystring->data->tensor.push_back(data->tensor[i]);
     }
 
-    for (int i = 0; i < (int)data->amplitudes1.size(); i++) {
-        mystring->data->amplitudes1.push_back(data->amplitudes1[i]);
-    }
-
-    for (int i = 0; i < (int)data->amplitudes2.size(); i++) {
-        mystring->data->amplitudes2.push_back(data->amplitudes2[i]);
+    for (int i = 0; i < (int)data->amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)data->amplitudes[i].size(); j++) {
+            tmp.push_back(data->amplitudes[i][j]);
+        }
+        mystring->data->amplitudes.push_back(tmp);
     }
 
     printf("\n");
