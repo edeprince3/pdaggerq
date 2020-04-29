@@ -76,7 +76,7 @@ A code for bringing strings of creation / annihilation operators to normal order
         
     add_quadruple_commutator: set strings corresponding to a quadruple commutator involving five operators. If any of the operators are t2, note that the factors of 1/4 will be handled internally.
     
-        add_triple_commutator(0.0417, ['h(pq)','t2(abij)','t1(ck)', 't1(dl)', 't1(em)'])
+        add_quadruple_commutator(0.0417, ['h(pq)','t2(abij)','t1(ck)', 't1(dl)', 't1(em)'])
         
 **Usage**
 
