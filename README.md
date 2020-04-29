@@ -131,8 +131,6 @@ Output:
 
 The same output can be generated using the add_operator_product function:
 
-Python:
-
     import pdaggerq
     
     ahat = pdaggerq.ahat_helper()
@@ -145,9 +143,7 @@ Python:
     ahat.simplify()
     ahat.print()
 
-The same output can be generated using the add_double_commutator function:
-
-Python:
+or the add_double_commutator function:
 
     import pdaggerq
     
