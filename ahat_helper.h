@@ -20,13 +20,38 @@ class ahat_helper {
     ahat_helper();
     ~ahat_helper();
 
+    /// set a string of creation / annihilation operators
     void set_string(std::vector<std::string> in);
+
+    /// set labels for a one- or two-body tensor
     void set_tensor(std::vector<std::string> in);
+
+    /// set labels for t1 or t2 amplitudes
     void set_amplitudes(std::vector<std::string> in);
+
+    /// set a numerical factor
     void set_factor(double in);
+
+    /// add new completed string / tensor / amplitudes / factor
     void add_new_string();
-    void set_new_string(double factor, std::vector<std::string> in);
-    void bring_to_normal_order();
+
+    /// add new complete string as a product of operators (i.e., {'h(pq)','t1(ai)'} )
+    void set_operator_product(double factor, std::vector<std::string> in);
+
+    /// cancel terms, if possible
+    void simplify();
+
+    /// clear strings
+    void clear();
+
+    /// print strings
+    void print();
+
+    /// print one-body strings
+    void print_one_body();
+
+    /// print two-body strings
+    void print_two_body();
 
 };
 

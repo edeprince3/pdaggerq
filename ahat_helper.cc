@@ -28,9 +28,13 @@ void export_ahat_helper(py::module& m) {
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_amplitudes", &ahat_helper::set_amplitudes)
         .def("set_factor", &ahat_helper::set_factor)
-        .def("bring_to_normal_order", &ahat_helper::bring_to_normal_order)
         .def("add_new_string", &ahat_helper::add_new_string)
-        .def("set_new_string", &ahat_helper::set_new_string);
+        .def("set_operator_product", &ahat_helper::set_operator_product)
+        .def("simplify", &ahat_helper::simplify)
+        .def("clear", &ahat_helper::clear)
+        .def("print", &ahat_helper::print)
+        .def("print_one_body", &ahat_helper::print_one_body)
+        .def("print_two_body", &ahat_helper::print_two_body);
 }
 
 PYBIND11_MODULE(pdaggerq, m) {
@@ -66,8 +70,7 @@ ahat_helper::~ahat_helper()
 {
 }
 
-void ahat_helper::set_new_string(double factor, std::vector<std::string>  in){
-
+void ahat_helper::set_operator_product(double factor, std::vector<std::string>  in){
 
     set_factor(factor);
 
@@ -203,7 +206,7 @@ void ahat_helper::add_new_string(){
 
 }
 
-void ahat_helper::bring_to_normal_order() {
+void ahat_helper::simplify() {
     
     std::vector< std::shared_ptr<ahat> > out;
             
@@ -291,6 +294,45 @@ void ahat_helper::bring_to_normal_order() {
 
     }
 
+    //printf("\n");
+    //printf("    ");
+    //printf("// normal-ordered strings:\n");
+    //for (int i = 0; i < (int)ordered.size(); i++) {
+    //    ordered[i]->print();
+    //}
+    //printf("\n");
+
+    //ordered.clear();
+}
+
+void ahat_helper::print_two_body() {
+
+    printf("\n");
+    printf("    ");
+    printf("// two-body strings::\n");
+    for (int i = 0; i < (int)ordered.size(); i++) {
+        if ( ordered[i]->symbol.size() != 4 ) continue;
+        ordered[i]->print();
+    }
+    printf("\n");
+
+}
+
+void ahat_helper::print_one_body() {
+
+    printf("\n");
+    printf("    ");
+    printf("// one-body strings::\n");
+    for (int i = 0; i < (int)ordered.size(); i++) {
+        if ( ordered[i]->symbol.size() != 2 ) continue;
+        ordered[i]->print();
+    }
+    printf("\n");
+
+}
+
+void ahat_helper::print() {
+
     printf("\n");
     printf("    ");
     printf("// normal-ordered strings:\n");
@@ -299,7 +341,12 @@ void ahat_helper::bring_to_normal_order() {
     }
     printf("\n");
 
+}
+
+void ahat_helper::clear() {
+
     ordered.clear();
+
 }
 
 

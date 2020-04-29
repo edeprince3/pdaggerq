@@ -1,5 +1,6 @@
 import pdaggerq
 
+
 ahat = pdaggerq.ahat_helper()
 
 # [h,T1]
@@ -148,5 +149,5 @@ ahat.set_amplitudes(['c','d','k','l'])
 ahat.set_factor(0.03125)
 ahat.add_new_string()
 
-
-ahat.bring_to_normal_order()
+ahat.simplify()
+ahat.print()
