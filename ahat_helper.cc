@@ -31,6 +31,7 @@ void export_ahat_helper(py::module& m) {
         .def("add_new_string", &ahat_helper::add_new_string)
         .def("add_operator_product", &ahat_helper::add_operator_product)
         .def("add_commutator", &ahat_helper::add_commutator)
+        .def("add_double_commutator", &ahat_helper::add_double_commutator)
         .def("simplify", &ahat_helper::simplify)
         .def("clear", &ahat_helper::clear)
         .def("print", &ahat_helper::print)
@@ -82,6 +83,22 @@ void ahat_helper::add_commutator(double factor, std::vector<std::string>  in) {
 
     add_operator_product( factor, {in[0], in[1]} );
     add_operator_product(-factor, {in[1], in[0]} );
+
+}
+
+void ahat_helper::add_double_commutator(double factor, std::vector<std::string>  in) {
+
+    if ( in.size() != 3 ) {
+        printf("\n");
+        printf("    error: double commutator can only involve three operators\n");
+        printf("\n");
+        exit(1);
+    }
+
+    add_operator_product( factor, {in[0], in[1], in[2]} );
+    add_operator_product(-factor, {in[1], in[0], in[2]} );
+    add_operator_product(-factor, {in[2], in[0], in[1]} );
+    add_operator_product( factor, {in[2], in[1], in[0]} );
 
 }
 

@@ -151,4 +151,11 @@ ahat.set_factor(0.03125)
 ahat.add_new_string()
 
 ahat.simplify()
+
 ahat.print()
+
+ahat.print_one_body()
+
+ahat.print_two_body()
+
+ahat.clear()
