@@ -10,30 +10,58 @@ A code for bringing strings of creation / annihilation operators to normal order
 
 3. Strings are defined in Python using the ahat_helper class, which has the following functions:
 
-    set_string (required): set the string of creation and annihiliation operators
+    set_string: set the string of creation and annihiliation operators.
     
         set_string(['p*','q','a*','i'])
         
-    set tensor (optional): define a one- or two-body tensor to accompany the string
+    set tensor: define a one- or two-body tensor to accompany the string. Note that only one tensor can accompany the string.
     
         set_tensor(['p','q'])
         
-    set amplitudes (optional): define t1 or t2 amplitudes to accompany the string. Note that up to four sets of amplitudes can be added to a given string.
-
-        set_tensor(['a','i'])
+        or
         
-    set_factor (optional): define a numerical factor to accompany the string. The default value is 1.0.
+        set_tensor(['p','q','r','s'])
+        
+    set amplitudes: define t1 or t2 amplitudes to accompany the string. Note that an arbitrary number of amplitudes can be set.
+
+        set_amplitudes(['a','i'])
+        
+        or 
+        
+        set_amplitudes(['a','b','i','j'])
+        
+    set_factor: define a numerical factor to accompany the string. The default value is 1.0.
     
         set_factor(0.5)
 
-    add_new_string (required): add string to list of strings to be brought to normal order
+    add_new_string: bring string to normal order and add to existing list of strings.
     
         add_new_string()
         
-    bring_to_normal_order (required): bring all strings to normal order, consolidate/cancel terms, and zero any delta functions that involve occupied / virtual or alpha / beta combinations.
+    simplify: consolidate/cancel terms and zero any delta functions that involve occupied / virtual or alpha / beta combinations.
     
-        bring_to_normal_order()
+        simplify()
+        
+    print: print current list of strings.
+        
+        print()
 
+    print_one_body: print strings involving only one-body operators.
+    
+        print_one_body()
+        
+    print_two_body: print strings involving only two-body operators.
+    
+        print_two_body()
+        
+    clear: clear the current set of strings
+    
+        clear()
+        
+    set_operator_product: set strings corresponding to a product of operators. currently supported operators include general one-body operators ('h(pq)'), singles amplitudes ('t1(ai)'), and doubles amplitudes ('t2(abij)').
+    
+        set_operator_product( 0.5, ['h(pq)','t1(ai)','t1(ck)'])
+     
 **Usage**
 
 The following code evaluates the commutator 0.5 [[h, T1], T1], where h is a one-body operator
@@ -72,7 +100,8 @@ Python:
     ahat.set_factor(0.5)
     ahat.add_new_string()
 
-    ahat.bring_to_normal_order()
+    ahat.simplify()
+    ahat.print()
 
 Output:
 
@@ -92,4 +121,18 @@ Output:
     //     - 0.50000 a* k h(ic) t1(ai) t1(ck)
     //     - 0.50000 c* i h(ka) t1(ai) t1(ck)
 
+The same output can be generated using the set_operator_product function:
 
+Python:
+
+    import pdaggerq
+    
+    ahat = pdaggerq.ahat_helper()
+
+    ahat.set_operator_product( 0.5, ['h(pq)','t1(ai)','t1(ck)'])
+    ahat.set_operator_product(-0.5, ['t1(ai)','h(pq)','t1(ck)'])
+    ahat.set_operator_product(-0.5, ['t1(ck)','h(pq)','t1(ai)'])
+    ahat.set_operator_product( 0.5, ['t1(ck)','t1(ai)','h(pq)'])
+
+    ahat.simplify()
+    ahat.print()
