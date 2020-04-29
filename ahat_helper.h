@@ -36,7 +36,10 @@ class ahat_helper {
     void add_new_string();
 
     /// add new complete string as a product of operators (i.e., {'h(pq)','t1(ai)'} )
-    void set_operator_product(double factor, std::vector<std::string> in);
+    void add_operator_product(double factor, std::vector<std::string> in);
+
+    /// add commutator of operators
+    void add_commutator(double factor, std::vector<std::string> in);
 
     /// cancel terms, if possible
     void simplify();

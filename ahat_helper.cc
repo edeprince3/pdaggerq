@@ -29,7 +29,8 @@ void export_ahat_helper(py::module& m) {
         .def("set_amplitudes", &ahat_helper::set_amplitudes)
         .def("set_factor", &ahat_helper::set_factor)
         .def("add_new_string", &ahat_helper::add_new_string)
-        .def("set_operator_product", &ahat_helper::set_operator_product)
+        .def("add_operator_product", &ahat_helper::add_operator_product)
+        .def("add_commutator", &ahat_helper::add_commutator)
         .def("simplify", &ahat_helper::simplify)
         .def("clear", &ahat_helper::clear)
         .def("print", &ahat_helper::print)
@@ -70,9 +71,21 @@ ahat_helper::~ahat_helper()
 {
 }
 
-void ahat_helper::set_operator_product(double factor, std::vector<std::string>  in){
+void ahat_helper::add_commutator(double factor, std::vector<std::string>  in) {
 
-    set_factor(factor);
+    if ( in.size() != 2 ) {
+        printf("\n");
+        printf("    error: commutator can only involve two operators\n");
+        printf("\n");
+        exit(1);
+    }
+
+    add_operator_product( factor, {in[0], in[1]} );
+    add_operator_product(-factor, {in[1], in[0]} );
+
+}
+
+void ahat_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
     std::vector<std::string> tmp_string;
 
@@ -101,6 +114,8 @@ void ahat_helper::set_operator_product(double factor, std::vector<std::string>  
 
             }else if ( in[i].substr(1,1) == "2" ){
 
+                factor *= 0.25;
+
                 std::string tmp = in[i].substr(2,4);
                 tmp_string.push_back(tmp.substr(0,1)+"*");
                 tmp_string.push_back(tmp.substr(1,1)+"*");
@@ -122,6 +137,8 @@ void ahat_helper::set_operator_product(double factor, std::vector<std::string>  
         }
         
     }
+
+    set_factor(factor);
 
     set_string(tmp_string);
 

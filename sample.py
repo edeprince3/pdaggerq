@@ -21,12 +21,13 @@ ahat.add_new_string()
 ahat.set_string(['p*','q','a*','b*','j','i'])
 ahat.set_tensor(['p','q'])
 ahat.set_amplitudes(['a','b','i','j'])
+ahat.set_factor(0.25)
 ahat.add_new_string()
 
 ahat.set_string(['a*','b*','j','i','p*','q'])
 ahat.set_tensor(['p','q'])
 ahat.set_amplitudes(['a','b','i','j'])
-ahat.set_factor(-1.0)
+ahat.set_factor(-0.25)
 ahat.add_new_string()
 
 # [[h,T1],T1]
