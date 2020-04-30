@@ -11,6 +11,8 @@ class ahat {
 
     bool is_normal_order();
 
+    bool is_occ(char idx);
+    bool is_vir(char idx);
 
   public:
 
