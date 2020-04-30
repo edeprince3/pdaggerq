@@ -10,8 +10,7 @@ class StringData {
 
   public:
 
-    StringData(){
-    };
+    StringData(){};
     ~StringData(){};
 
     double factor = 1.0;

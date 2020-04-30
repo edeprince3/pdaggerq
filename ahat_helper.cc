@@ -163,12 +163,37 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         // remove parentheses
         removeParentheses(in[i]);
 
-        if ( in[i].substr(0,1) == "h" ) {
+        if ( in[i].substr(0,1) == "h" ) { // one-electron operator
+
+            //if ( in[i].size() != 3 ) {
+            //    prinf("\n");
+            //    prinf("    error: a one-body tensor should have two indices\n");
+            //    prinf("\n");
+            //    exit(1);
+            //}
 
             std::string tmp = in[i].substr(1,2);
             tmp_string.push_back(tmp.substr(0,1)+"*");
             tmp_string.push_back(tmp.substr(1,1));
             set_tensor({tmp.substr(0,1), tmp.substr(1,1)});
+
+        }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
+
+            //if ( in[i].size() != 4 ) {
+            //    prinf("\n");
+            //    prinf("    error: a one-body tensor should have two indices\n");
+            //    prinf("\n");
+            //    exit(1);
+            //}
+
+            factor *= 0.5;
+
+            std::string tmp = in[i].substr(1,4);
+            tmp_string.push_back(tmp.substr(0,1)+"*");
+            tmp_string.push_back(tmp.substr(2,1)+"*");
+            tmp_string.push_back(tmp.substr(3,1));
+            tmp_string.push_back(tmp.substr(1,1));
+            set_tensor({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
 
         }else if ( in[i].substr(0,1) == "t" ){
 
@@ -298,7 +323,6 @@ void ahat_helper::simplify() {
     memset((void*)vanish,'\0',ordered.size()*sizeof(bool));
     for (int i = 0; i < (int)ordered.size(); i++) {
         for (int j = i+1; j < (int)ordered.size(); j++) {
-        
     
             bool strings_differ = false;
     

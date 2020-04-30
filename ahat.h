@@ -11,6 +11,7 @@ class ahat {
 
     bool is_normal_order();
 
+
   public:
 
     ahat();

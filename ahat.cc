@@ -14,7 +14,6 @@ ahat::ahat() {
   skip = false;
   data = (std::shared_ptr<StringData>)(new StringData());
 
-
 }
 ahat::~ahat() {
 }
@@ -182,11 +181,11 @@ void ahat::print() {
     if ( (int)data->tensor.size() > 0 ) {
         // two-electron integrals
         if ( (int)data->tensor.size() == 4 ) {
-            printf("(");
+            printf("g(");
             for (int i = 0; i < 2; i++) {
                 printf("%s",data->tensor[i].c_str());
             }
-            printf("|");
+            //printf("|");
             for (int i = 2; i < 4; i++) {
                 printf("%s",data->tensor[i].c_str());
             }
