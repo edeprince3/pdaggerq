@@ -70,6 +70,14 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         add_double_commutator(0.5, ['h(pq)','t2(abij)','t1(ck)'])
         
+    add_triple_commutator: set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, note that the factors of 1/4 will be handled internally.
+    
+        add_triple_commutator(0.1667, ['h(pq)','t2(abij)','t1(ck)', 't1(dl)'])
+        
+    add_quadruple_commutator: set strings corresponding to a quadruple commutator involving five operators. If any of the operators are t2, note that the factors of 1/4 will be handled internally.
+    
+        add_quadruple_commutator(0.0417, ['h(pq)','t2(abij)','t1(ck)', 't1(dl)', 't1(em)'])
+        
 **Usage**
 
 The following code evaluates the double commutator 0.5 [[h, T1], T1], where h is a one-body operator
