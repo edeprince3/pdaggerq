@@ -660,15 +660,8 @@ void ahat_helper::simplify() {
 
     std::shared_ptr<ahat> mystring (new ahat(vacuum));
 
-    mystring->cleanup(ordered);
-    
-    std::vector< std::shared_ptr<ahat> > out;
-            
-    bool *vanish = (bool*)malloc(ordered.size()*sizeof(bool));
-    memset((void*)vanish,'\0',ordered.size()*sizeof(bool));
-
     // eliminate strings based on delta functions and use delta functions to alter tensor / amplitude labels
-    for (int i = 0; i < (int)out.size(); i++) {
+    for (int i = 0; i < (int)ordered.size(); i++) {
 
         // check spin
         ordered[i]->check_spin();
@@ -680,91 +673,9 @@ void ahat_helper::simplify() {
         ordered[i]->gobble_deltas();
     }
 
-    /*for (int i = 0; i < (int)ordered.size(); i++) {
-        for (int j = i+1; j < (int)ordered.size(); j++) {
+    // try to cancel similar terms
+    mystring->cleanup(ordered);
     
-            bool strings_differ = false;
-    
-            // check strings
-            if ( ordered[i]->symbol.size() == ordered[j]->symbol.size() ) {
-                for (int k = 0; k < (int)ordered[i]->symbol.size(); k++) {
-                
-                    // strings differ?
-                    if ( ordered[i]->symbol[k] != ordered[j]->symbol[k] ) {
-                        strings_differ = true;
-                    }
-            
-                }
-            }else {
-                strings_differ = true;
-            }
-            if ( strings_differ ) continue;
-            
-            // check deltas
-            if ( ordered[i]->delta1.size() == ordered[j]->delta1.size() ) {
-                for (int k = 0; k < (int)ordered[i]->delta1.size(); k++) {
-
-                    // strings differ?
-                    if ( ordered[i]->delta1[k] != ordered[j]->delta1[k] || ordered[i]->delta2[k] != ordered[j]->delta2[k] ) {
-                        strings_differ = true;
-                    }
-        
-                }
-            }else {
-                strings_differ = true;
-            }
-            if ( strings_differ ) continue;
-        
-            // check tensors
-            if ( ordered[i]->data->tensor.size() == ordered[j]->data->tensor.size() ) {
-                for (int k = 0; k < (int)ordered[i]->data->tensor.size(); k++) {
-    
-                    // strings differ?
-                    if ( ordered[i]->data->tensor[k] != ordered[j]->data->tensor[k] ) {
-
-                        strings_differ = true;
-                    }
-
-                }
-            }else {
-                strings_differ = true;
-            }
-            if ( strings_differ ) continue;
-
-            // at this point, we know the strings are the same.  what about the factor?
-            double fac1 = ordered[i]->data->factor;
-            double fac2 = ordered[j]->data->factor;
-            if ( fabs(fac1 + fac2) < 1e-12 ) {
-                vanish[i] = true;
-                vanish[j] = true;
-            }
-
-
-        }
-    }*/
-
-    for (int i = 0; i < (int)ordered.size(); i++) {
-        if ( !vanish[i] ) {
-            out.push_back(ordered[i]);
-        }
-
-    }
-
-    ordered.clear();
-    for (int i = 0; i < (int)out.size(); i++) {
-        ordered.push_back(out[i]);
-    }
-
-
-    //printf("\n");
-    //printf("    ");
-    //printf("// normal-ordered strings:\n");
-    //for (int i = 0; i < (int)ordered.size(); i++) {
-    //    ordered[i]->print();
-    //}
-    //printf("\n");
-
-    //ordered.clear();
 }
 
 void ahat_helper::print_two_body() {
