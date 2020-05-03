@@ -24,6 +24,7 @@ namespace pdaggerq {
 void export_ahat_helper(py::module& m) {
     py::class_<pdaggerq::ahat_helper, std::shared_ptr<pdaggerq::ahat_helper> >(m, "ahat_helper")
         .def(py::init< std::string >())
+        .def("set_bra", &ahat_helper::set_bra)
         .def("set_string", &ahat_helper::set_string)
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_amplitudes", &ahat_helper::set_amplitudes)
@@ -73,14 +74,40 @@ ahat_helper::ahat_helper(std::string vacuum_type)
         vacuum = "TRUE";
     }else if ( vacuum_type == "FERMI" || vacuum_type == "fermi" ) {
         vacuum = "FERMI";
+    }else {
+        printf("\n");
+        printf("    error: invalid vacuum type (%s)\n",vacuum_type.c_str());
+        printf("\n");
+        exit(1);
     }
 
     data = (std::shared_ptr<StringData>)(new StringData());
+
+    bra = "VACUUM";
 
 }
 
 ahat_helper::~ahat_helper()
 {
+}
+
+void ahat_helper::set_bra(std::string bra_type){
+
+    if ( bra_type == "" ) {
+        bra = "VACUUM";
+    }else if ( bra_type == "SINGLES" || bra_type == "singles" ) {
+        bra = "SINGLES";
+    }else if ( bra_type == "FERMI" || bra_type == "doubles" ) {
+        bra = "DOUBLES";
+    }else if ( bra_type == "VACUUM" || bra_type == "vacuum" ) {
+        bra = "VACUUM";
+    }else {
+        printf("\n");
+        printf("    error: invalid bra type (%s)\n",bra_type.c_str());
+        printf("\n");
+        exit(1);
+    }
+
 }
 
 void ahat_helper::add_commutator(double factor, std::vector<std::string>  in) {
@@ -165,15 +192,22 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
     std::vector<std::string> tmp_string;
 
-    // for singles equations: <me| = <0|m*e
-    //tmp_string.push_back("m*");
-    //tmp_string.push_back("e");
+    if ( bra == "SINGLES" ) {
 
-    // for doubles equations: <mnef| = <0|m*n*fe
-    //tmp_string.push_back("m*");
-    //tmp_string.push_back("n*");
-    //tmp_string.push_back("f");
-    //tmp_string.push_back("e");
+        // for singles equations: <me| = <0|m*e
+        tmp_string.push_back("m*");
+        tmp_string.push_back("e");
+
+    }else if ( bra == "DOUBLES" ) {
+
+        // for doubles equations: <mnef| = <0|m*n*fe
+        tmp_string.push_back("m*");
+        tmp_string.push_back("n*");
+        tmp_string.push_back("f");
+        tmp_string.push_back("e");
+
+    }
+
 
     for (int i = 0; i < (int)in.size(); i++) {
         // lowercase indices

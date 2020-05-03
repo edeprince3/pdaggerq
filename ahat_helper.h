@@ -18,10 +18,16 @@ class ahat_helper {
     /// vacuum (fermi or true)
     std::string vacuum;
 
+    /// bra (vacuum, singles, or doubles)
+    std::string bra;
+
   public:
 
     ahat_helper(std::string vacuum_type);
     ~ahat_helper();
+
+    /// when bringing to normal order, does the bra involve any operators?
+    void set_bra(std::string ket_type);
 
     /// set a string of creation / annihilation operators
     void set_string(std::vector<std::string> in);
