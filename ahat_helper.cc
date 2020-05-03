@@ -23,7 +23,7 @@ namespace pdaggerq {
 
 void export_ahat_helper(py::module& m) {
     py::class_<pdaggerq::ahat_helper, std::shared_ptr<pdaggerq::ahat_helper> >(m, "ahat_helper")
-        .def(py::init< >())
+        .def(py::init< std::string >())
         .def("set_string", &ahat_helper::set_string)
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_amplitudes", &ahat_helper::set_amplitudes)
@@ -37,6 +37,7 @@ void export_ahat_helper(py::module& m) {
         .def("simplify", &ahat_helper::simplify)
         .def("clear", &ahat_helper::clear)
         .def("print", &ahat_helper::print)
+        .def("print_fully_contracted", &ahat_helper::print_fully_contracted)
         .def("print_one_body", &ahat_helper::print_one_body)
         .def("print_two_body", &ahat_helper::print_two_body);
 }
@@ -63,8 +64,16 @@ void removeParentheses(std::string &x)
 }
 
 
-ahat_helper::ahat_helper()
+ahat_helper::ahat_helper(std::string vacuum_type)
 {
+
+    if ( vacuum_type == "" ) {
+        vacuum = "TRUE";
+    }else if ( vacuum_type == "TRUE" || vacuum_type == "true" ) {
+        vacuum = "TRUE";
+    }else if ( vacuum_type == "FERMI" || vacuum_type == "fermi" ) {
+        vacuum = "FERMI";
+    }
 
     data = (std::shared_ptr<StringData>)(new StringData());
 
@@ -156,8 +165,18 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
     std::vector<std::string> tmp_string;
 
+    // for singles equations: <me| = <0|m*e
+    tmp_string.push_back("m*");
+    tmp_string.push_back("e");
+
+    // for doubles equations: <mnef| = <0|m*n*fe
+    //tmp_string.push_back("m*");
+    //tmp_string.push_back("n*");
+    //tmp_string.push_back("f");
+    //tmp_string.push_back("e");
+
     for (int i = 0; i < (int)in.size(); i++) {
-        // lowercase
+        // lowercase indices
         std::transform(in[i].begin(), in[i].end(), in[i].begin(), [](unsigned char c){ return std::tolower(c); });
 
         // remove parentheses
@@ -165,26 +184,12 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         if ( in[i].substr(0,1) == "h" ) { // one-electron operator
 
-            //if ( in[i].size() != 3 ) {
-            //    prinf("\n");
-            //    prinf("    error: a one-body tensor should have two indices\n");
-            //    prinf("\n");
-            //    exit(1);
-            //}
-
             std::string tmp = in[i].substr(1,2);
             tmp_string.push_back(tmp.substr(0,1)+"*");
             tmp_string.push_back(tmp.substr(1,1));
             set_tensor({tmp.substr(0,1), tmp.substr(1,1)});
 
         }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
-
-            //if ( in[i].size() != 4 ) {
-            //    prinf("\n");
-            //    prinf("    error: a one-body tensor should have two indices\n");
-            //    prinf("\n");
-            //    exit(1);
-            //}
 
             factor *= 0.5;
 
@@ -260,9 +265,9 @@ void ahat_helper::set_factor(double in) {
     data->factor = in;
 }
 
-void ahat_helper::add_new_string(){
+void ahat_helper::add_new_string_true_vacuum(){
 
-    std::shared_ptr<ahat> mystring (new ahat());
+    std::shared_ptr<ahat> mystring (new ahat(vacuum));
 
     if ( data->factor > 0.0 ) {
         mystring->sign = 1;
@@ -315,12 +320,355 @@ void ahat_helper::add_new_string(){
 
 }
 
+void ahat_helper::add_new_string() {
+
+    if ( vacuum == "TRUE" ) {
+        add_new_string_true_vacuum();
+    }else {
+        add_new_string_fermi_vacuum();
+    }
+
+}
+
+void ahat_helper::add_new_string_fermi_vacuum(){
+
+
+    std::vector<std::shared_ptr<ahat> > mystrings;
+    mystrings.push_back( (std::shared_ptr<ahat>)(new ahat(vacuum)) );
+
+    // if normal order is defined with respect to the fermi vacuum, we must
+    // check here if the input string contains any general-index operators
+    // (h, g). If it does, then the string must be split to account explicitly
+    // for sums over 
+    int n_gen_idx = 0;
+    for (int i = 0; i < (int)data->string.size(); i++) {
+        std::string me = data->string[i];
+         
+        if ( !mystrings[0]->is_vir(me.at(0)) && !mystrings[0]->is_occ(me.at(0)) ) {
+            n_gen_idx++;
+        }
+
+    }
+    //printf("number of general indices: %5i\n",n_gen_idx);
+    // need number of strings to be square of number of general indices 
+    if ( n_gen_idx > 0 ) {
+        mystrings.clear();
+        for (int i = 0; i < n_gen_idx * n_gen_idx; i++) {
+            mystrings.push_back( (std::shared_ptr<ahat>)(new ahat(vacuum)) );
+        }
+    }
+
+    // TODO: this function only works correctly if you go through the
+    // add_operator_product function (or some function that calls that one
+    // one). should generalize so set_tensor, etc. can be used directly.
+
+    if ( n_gen_idx == 0 ) {
+        n_gen_idx = 1;
+    }
+
+    for (int string_num = 0; string_num < n_gen_idx * n_gen_idx; string_num++) {
+
+        // factors:
+        if ( data->factor > 0.0 ) {
+            mystrings[string_num]->sign = 1;
+            mystrings[string_num]->data->factor = fabs(data->factor);
+        }else {
+            mystrings[string_num]->sign = -1;
+            mystrings[string_num]->data->factor = fabs(data->factor);
+        }
+
+        int my_gen_idx = 0;
+        for (int i = 0; i < (int)data->string.size(); i++) {
+            std::string me = data->string[i];
+
+            // fermi vacuum 
+            if ( mystrings[string_num]->is_vir(me.at(0)) ) {
+                if (me.find("*") != std::string::npos ){
+                    mystrings[string_num]->is_dagger.push_back(true);
+                    mystrings[string_num]->is_dagger_fermi.push_back(true);
+                    removeStar(me);
+                }else {
+                    mystrings[string_num]->is_dagger.push_back(false);
+                    mystrings[string_num]->is_dagger_fermi.push_back(false);
+                }
+                mystrings[string_num]->symbol.push_back(me);
+            }else if ( mystrings[string_num]->is_occ(me.at(0)) ) {
+                if (me.find("*") != std::string::npos ){
+                    removeStar(me);
+                    mystrings[string_num]->is_dagger.push_back(true);
+                    mystrings[string_num]->is_dagger_fermi.push_back(false);
+                }else {
+                    mystrings[string_num]->is_dagger.push_back(false);
+                    mystrings[string_num]->is_dagger_fermi.push_back(true);
+                }
+                mystrings[string_num]->symbol.push_back(me);
+            }else {
+
+                //two-index tensor
+                // 00, 01, 10, 11
+                if ( n_gen_idx == 2 ) {
+                    if ( my_gen_idx == 0 ) {
+                        if ( string_num == 0 || string_num == 1 ) {
+                            // first index occ
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("o");
+                            mystrings[string_num]->symbol.push_back("o");
+                        }else {
+                            // first index vir
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }else {
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger.push_back(false);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("w");
+                            mystrings[string_num]->symbol.push_back("w");
+                        }
+                    }else {
+                        if ( string_num == 0 || string_num == 2 ) {
+                            // second index occ
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("t");
+                            mystrings[string_num]->symbol.push_back("t");
+                        }else {
+                            // second index vir
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("x");
+                            mystrings[string_num]->symbol.push_back("x");
+                        }
+                    }
+                }
+
+                //four-index tensor
+
+                // managing these labels is so very confusing:
+                // p*q*sr (pr|qs) -> o*t*uv (ov|tu), etc.
+                // p*q*sr (pr|qs) -> w*x*yz (wz|xy), etc.
+
+                if ( n_gen_idx == 4 ) {
+                    if ( my_gen_idx == 0 ) {
+                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
+                        if ( string_num == 0 || 
+                             string_num == 1 ||
+                             string_num == 2 ||
+                             string_num == 3 ||
+                             string_num == 4 ||
+                             string_num == 5 ||
+                             string_num == 6 ||
+                             string_num == 7 ) {
+
+                            // first index occ
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("o");
+                            mystrings[string_num]->symbol.push_back("o");
+                        }else {
+                            // first index vir
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("w");
+                            mystrings[string_num]->symbol.push_back("w");
+                        }
+                    }else if ( my_gen_idx == 1 ) {
+                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
+                        if ( string_num ==  0 || 
+                             string_num ==  1 ||
+                             string_num ==  2 ||
+                             string_num ==  3 ||
+                             string_num ==  8 ||
+                             string_num ==  9 ||
+                             string_num == 10 ||
+                             string_num == 11 ) {
+                            // second index occ
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("v");
+                            mystrings[string_num]->symbol.push_back("v");
+                        }else {
+                            // second index vir
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("z");
+                            mystrings[string_num]->symbol.push_back("z");
+                        }
+                    }else if ( my_gen_idx == 2 ) {
+                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
+                        if ( string_num ==  0 || 
+                             string_num ==  1 ||
+                             string_num ==  4 ||
+                             string_num ==  5 ||
+                             string_num ==  8 ||
+                             string_num ==  9 ||
+                             string_num == 12 ||
+                             string_num == 13 ) {
+                            // third index occ
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("t");
+                            mystrings[string_num]->symbol.push_back("t");
+                        }else {
+                            // third index vir
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("x");
+                            mystrings[string_num]->symbol.push_back("x");
+                        }
+                    }else {
+                        if ( string_num ==  0 || 
+                             string_num ==  2 ||
+                             string_num ==  4 ||
+                             string_num ==  6 ||
+                             string_num ==  8 ||
+                             string_num == 10 ||
+                             string_num == 12 ||
+                             string_num == 14 ) {
+                            // fourth index occ
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("u");
+                            mystrings[string_num]->symbol.push_back("u");
+                        }else {
+                            // fourth index vir
+                            if ( me.find("*") != std::string::npos ) {
+                                mystrings[string_num]->is_dagger.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                            }else {
+                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                            }
+                            mystrings[string_num]->data->tensor.push_back("y");
+                            mystrings[string_num]->symbol.push_back("y");
+                        }
+                    }
+                }
+
+                my_gen_idx++;
+            }
+
+        }
+
+        for (int i = 0; i < (int)data->amplitudes.size(); i++) {
+            std::vector<std::string> tmp;
+            for (int j = 0; j < (int)data->amplitudes[i].size(); j++) {
+                tmp.push_back(data->amplitudes[i][j]);
+            }
+            mystrings[string_num]->data->amplitudes.push_back(tmp);
+        }
+
+        // now, string is complete, but labels in four-index tensors need to be reordered p*q*sr(pq|sr) -> (pr|qs)
+        if ( (int)mystrings[string_num]->data->tensor.size() == 4 ) {
+
+            std::vector<std::string> tmp;
+            tmp.push_back(mystrings[string_num]->data->tensor[0]);
+            tmp.push_back(mystrings[string_num]->data->tensor[3]);
+            tmp.push_back(mystrings[string_num]->data->tensor[1]);
+            tmp.push_back(mystrings[string_num]->data->tensor[2]);
+
+            mystrings[string_num]->data->tensor.clear();
+            mystrings[string_num]->data->tensor.push_back(tmp[0]);
+            mystrings[string_num]->data->tensor.push_back(tmp[1]);
+            mystrings[string_num]->data->tensor.push_back(tmp[2]);
+            mystrings[string_num]->data->tensor.push_back(tmp[3]);
+
+        }
+
+        printf("\n");
+        printf("    ");
+        printf("// starting string:\n");
+        mystrings[string_num]->print();
+
+        // rearrange strings
+        mystrings[string_num]->normal_order(ordered);
+
+    }
+
+    //for (int n_ordered = 0; n_ordered < (int)ordered.size(); n_ordered++) {
+    //    ordered[n_ordered]->check_occ_vir();
+    //}
+
+    // TODO: this only seems to work with normal ordering relative to the true vacuum
+    // alphabetize
+    //mystring->alphabetize(ordered);
+
+    // TODO: moved cleanup to final simplify function?
+    // cancel terms. i think the work is actually done on "ordered" so only need to call once 
+    //mystrings[0]->cleanup(ordered);
+
+    // reset data object
+    data.reset();
+    data = (std::shared_ptr<StringData>)(new StringData());
+ 
+}
+
 void ahat_helper::simplify() {
+
+    std::shared_ptr<ahat> mystring (new ahat(vacuum));
+
+    mystring->cleanup(ordered);
     
     std::vector< std::shared_ptr<ahat> > out;
             
     bool *vanish = (bool*)malloc(ordered.size()*sizeof(bool));
     memset((void*)vanish,'\0',ordered.size()*sizeof(bool));
+
+/*
     for (int i = 0; i < (int)ordered.size(); i++) {
         for (int j = i+1; j < (int)ordered.size(); j++) {
     
@@ -382,7 +730,8 @@ void ahat_helper::simplify() {
 
 
         }
-    }
+    }*/
+
     for (int i = 0; i < (int)ordered.size(); i++) {
         if ( !vanish[i] ) {
             out.push_back(ordered[i]);
@@ -426,6 +775,19 @@ void ahat_helper::print_two_body() {
 
 }
 
+void ahat_helper::print_fully_contracted() {
+
+    printf("\n");
+    printf("    ");
+    printf("// fully-contracted strings::\n");
+    for (int i = 0; i < (int)ordered.size(); i++) {
+        if ( ordered[i]->symbol.size() != 0 ) continue;
+        ordered[i]->print();
+    }
+    printf("\n");
+
+}
+
 void ahat_helper::print_one_body() {
 
     printf("\n");
@@ -443,7 +805,7 @@ void ahat_helper::print() {
 
     printf("\n");
     printf("    ");
-    printf("// normal-ordered strings:\n");
+    printf("// normal-ordered strings (relative to the true vacuum):\n");
     for (int i = 0; i < (int)ordered.size(); i++) {
         ordered[i]->print();
     }

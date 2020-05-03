@@ -9,12 +9,14 @@
 
 namespace pdaggerq {
 
-ahat::ahat() {
+ahat::ahat(std::string vacuum_type) {
 
+  vacuum = vacuum_type;
   skip = false;
   data = (std::shared_ptr<StringData>)(new StringData());
 
 }
+
 ahat::~ahat() {
 }
 
@@ -31,9 +33,18 @@ bool ahat::is_occ(char idx) {
         return true;
     }else if ( idx == 'N' || idx == 'n') {
         return true;
+    }else if ( idx == 'O' || idx == 'o') {
+        return true;
+    }else if ( idx == 'T' || idx == 't') {
+        return true;
+    }else if ( idx == 'U' || idx == 'u') {
+        return true;
+    }else if ( idx == 'V' || idx == 'v') {
+        return true;
     }
     return false;
 }
+
 bool ahat::is_vir(char idx) {
     if ( idx == 'A' || idx == 'a') {
         return true;
@@ -46,6 +57,14 @@ bool ahat::is_vir(char idx) {
     }else if ( idx == 'E' || idx == 'e') {
         return true;
     }else if ( idx == 'F' || idx == 'f') {
+        return true;
+    }else if ( idx == 'W' || idx == 'w') {
+        return true;
+    }else if ( idx == 'X' || idx == 'x') {
+        return true;
+    }else if ( idx == 'Y' || idx == 'y') {
+        return true;
+    }else if ( idx == 'Z' || idx == 'z') {
         return true;
     }
     return false;
@@ -228,9 +247,17 @@ bool ahat::is_normal_order() {
     // don't bother bringing to normal order if we're going to skip this string
     if (skip) return true;
 
-    for (int i = 0; i < (int)symbol.size()-1; i++) {
-        if ( !is_dagger[i] && is_dagger[i+1] ) {
-            return false;
+    if ( vacuum == "TRUE" ) {
+        for (int i = 0; i < (int)symbol.size()-1; i++) {
+            if ( !is_dagger[i] && is_dagger[i+1] ) {
+                return false;
+            }
+        }
+    }else {
+        for (int i = 0; i < (int)symbol.size()-1; i++) {
+            if ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] ) {
+                return false;
+            }
         }
     }
     return true;
@@ -307,12 +334,22 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 // once strings are alphabetized, we can compare them
 // and remove terms that cancel. 
 
-// NOTE AMPLITUDES AREN'T BEING CONSIDERED
 void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
+
+    // for normal order relative to fermi vacuum, i doubt anyone will care 
+    // about terms that aren't fully contracted. so, skip those because this
+    // function is time consuming
 
     for (int i = 0; i < (int)ordered.size(); i++) {
 
+        if ( ordered[i]->symbol.size() != 0 ) continue;
+
+        if ( ordered[i]->skip ) continue;
         for (int j = i+1; j < (int)ordered.size(); j++) {
+
+            if ( ordered[j]->symbol.size() != 0 ) continue;
+
+            if ( ordered[j]->skip ) continue;
 
             // are factors same?
             if ( ordered[i]->data->factor != ordered[j]->data->factor ) continue;
@@ -329,11 +366,10 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
                 }
             }
             if ( nsame_s != ordered[i]->symbol.size() ) continue;
-
             // are tensors same?
             if ( ordered[i]->data->tensor.size() != ordered[j]->data->tensor.size() ) continue;
             int nsame_t = 0;
-            for (int k = 0; k < (int)data->tensor.size(); k++) {
+            for (int k = 0; k < (int)ordered[i]->data->tensor.size(); k++) {
                 if ( ordered[i]->data->tensor[k] == ordered[j]->data->tensor[k] ) {
                     nsame_t++;
                 }
@@ -346,10 +382,10 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
                 for (int l = 0; l < (int)ordered[j]->delta1.size(); l++) {
                     if ( ordered[i]->delta1[k] == ordered[j]->delta1[l] && ordered[i]->delta2[k] == ordered[j]->delta2[l] ) {
                         nsame_d++;
-                        break;
+                        //break;
                     }else if ( ordered[i]->delta2[k] == ordered[j]->delta1[l] && ordered[i]->delta1[k] == ordered[j]->delta2[l] ) {
                         nsame_d++;
-                        break;
+                        //break;
                     }
                 }
             }
@@ -399,7 +435,10 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
 }
 
-// copy all data, except symbols and daggers
+// copy all data, except symbols and daggers. also, for some reason, this
+// function is where i've chosen to eliminate labels that appear in delta
+// functions.
+
 void ahat::shallow_copy(void * copy_me) { 
 
     ahat * in = reinterpret_cast<ahat * >(copy_me);
@@ -412,10 +451,15 @@ void ahat::shallow_copy(void * copy_me) {
     
     // factor
     data->factor = in->data->factor;
-    
+
+    // temporary delta functions
+    std::vector<std::string> tmp_delta1;
+    std::vector<std::string> tmp_delta2;
+
     // data->tensor
     for (int j = 0; j < (int)in->data->tensor.size(); j++) {
-        // does data->tensor index show up in a delta function?
+
+        // does data->tensor index show up in a delta function? 
         bool skipme = false;
         for (int k = 0; k < (int)in->delta1.size(); k++) {
             if ( in->data->tensor[j] == in->delta1[k] ) {
@@ -430,6 +474,7 @@ void ahat::shallow_copy(void * copy_me) {
             }
         }
         if ( skipme ) continue;
+
         data->tensor.push_back(in->data->tensor[j]);
     }
     for (int j = 0; j < (int)in->delta1.size(); j++) {
@@ -446,17 +491,94 @@ void ahat::shallow_copy(void * copy_me) {
         }
         if ( skipme ) continue;
     
-        delta1.push_back(in->delta1[j]);
-        delta2.push_back(in->delta2[j]);
+        tmp_delta1.push_back(in->delta1[j]);
+        tmp_delta2.push_back(in->delta2[j]);
     }
+
+    // TODO: take care of amplitudes whose indices show up in delta functions
 
     // amplitudes
     for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
         std::vector<std::string> tmp;
         for (int j = 0; j < (int)in->data->amplitudes[i].size(); j++) {
+
+            // does data->amplitude index show up in a delta function?
+            bool skipme = false;
+            for (int k = 0; k < (int)tmp_delta1.size(); k++) {
+                if ( in->data->amplitudes[i][j] == tmp_delta1[k] ) {
+                    tmp.push_back(tmp_delta2[k]);
+                    skipme = true;
+                    break;
+                }
+                if ( in->data->amplitudes[i][j] == tmp_delta2[k] ) {
+                    tmp.push_back(tmp_delta1[k]);
+                    skipme = true;
+                    break;
+                }
+            }
+            if ( skipme ) continue;
+
             tmp.push_back(in->data->amplitudes[i][j]);
         }
         data->amplitudes.push_back(tmp);
+
+        // now, remove delta functions from list that were gobbled up above
+        std::vector<std::string> tmp2_delta1;
+        std::vector<std::string> tmp2_delta2;
+
+        for (int k = 0; k < (int)tmp_delta1.size(); k++) {
+            bool skipme = false;
+            for (int l = 0; l < (int)in->data->amplitudes[i].size(); l++) {
+                if ( in->data->amplitudes[i][l] == tmp_delta1[k] ) {
+                    skipme = true;
+                    break;
+                }
+                if ( in->data->amplitudes[i][l] == tmp_delta2[k] ) {
+                    skipme = true;
+                    break;
+                }
+            }
+            if ( skipme ) continue;
+        
+            tmp2_delta1.push_back(tmp_delta1[k]);
+            tmp2_delta2.push_back(tmp_delta2[k]);
+        }
+
+        tmp_delta1.clear();
+        tmp_delta2.clear();
+        for (int k = 0; k < (int)tmp2_delta1.size(); k++) {
+            tmp_delta1.push_back(tmp2_delta1[k]);
+            tmp_delta2.push_back(tmp2_delta2[k]);
+        }
+
+    }
+
+    //// amplitudes
+    //for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
+    //    std::vector<std::string> tmp;
+    //    for (int j = 0; j < (int)in->data->amplitudes[i].size(); j++) {
+    //        tmp.push_back(in->data->amplitudes[i][j]);
+    //    }
+    //    data->amplitudes.push_back(tmp);
+    //}
+
+    for (int j = 0; j < (int)tmp_delta1.size(); j++) {
+
+        //bool skipme = false;
+        //for (int k = 0; k < (int)in->data->tensor.size(); k++) {
+        //    if ( in->data->tensor[k] == in->delta1[j] ) {
+        //        skipme = true;
+        //        break;
+        //    }
+        //    if ( in->data->tensor[k] == in->delta2[j] ) {
+        //        skipme = true;
+        //        break;
+        //    }
+        //}
+        //if ( skipme ) continue;
+    
+        delta1.push_back(tmp_delta1[j]);
+        delta2.push_back(tmp_delta2[j]);
     }
 
 }
@@ -472,7 +594,14 @@ void ahat::copy(void * copy_me) {
     for (int j = 0; j < (int)in->is_dagger.size(); j++) {
         is_dagger.push_back(in->is_dagger[j]);
     }
-    
+
+    // dagger (relative to fermi vacuum)?
+    if ( vacuum == "FERMI" ) {
+        for (int j = 0; j < (int)in->is_dagger_fermi.size(); j++) {
+            is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
+        }
+    }
+
     // operators
     for (int j = 0; j < (int)in->symbol.size(); j++) {
         symbol.push_back(in->symbol[j]);
@@ -480,13 +609,13 @@ void ahat::copy(void * copy_me) {
     
 }
 
-void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
+void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
     if ( skip ) return;
 
     if ( is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<ahat> newguy (new ahat());
+        std::shared_ptr<ahat> newguy (new ahat(vacuum));
 
         newguy->copy((void*)this);
 
@@ -496,8 +625,8 @@ void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
     }
 
     // new strings
-    std::shared_ptr<ahat> s1 ( new ahat() );
-    std::shared_ptr<ahat> s2 ( new ahat() );
+    std::shared_ptr<ahat> s1 ( new ahat(vacuum) );
+    std::shared_ptr<ahat> s2 ( new ahat(vacuum) );
 
     // copy data common to both new strings
     s1->shallow_copy((void*)this);
@@ -506,7 +635,9 @@ void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
     // rearrange operators
     for (int i = 0; i < (int)symbol.size()-1; i++) {
 
-        if ( !is_dagger[i] && is_dagger[i+1] ) {
+        bool swap = ( !is_dagger[i] && is_dagger[i+1] );
+
+        if ( swap ) {
 
             s1->delta1.push_back(symbol[i]);
             s1->delta2.push_back(symbol[i+1]);
@@ -552,10 +683,146 @@ void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
         }
     }
 
-    s1->normal_order(ordered);
-    s2->normal_order(ordered);
+    s1->normal_order_true_vacuum(ordered);
+    s2->normal_order_true_vacuum(ordered);
 
 }
+
+void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
+    if ( skip ) return;
+
+    if ( is_normal_order() ) {
+
+        // push current ordered operator onto running list
+        std::shared_ptr<ahat> newguy (new ahat(vacuum));
+
+        newguy->copy((void*)this);
+
+        ordered.push_back(newguy);
+
+        return;
+    }
+
+    // new strings
+    std::shared_ptr<ahat> s1 ( new ahat(vacuum) );
+    std::shared_ptr<ahat> s2 ( new ahat(vacuum) );
+
+    // copy data common to both new strings
+    s1->shallow_copy((void*)this);
+    s2->shallow_copy((void*)this);
+
+    // rearrange operators
+
+    int n_new_strings = 0;
+
+    for (int i = 0; i < (int)symbol.size()-1; i++) {
+
+        bool swap = ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] );
+
+        // four cases: **, --, *-, -*
+        // **, --: change sign, swap labels
+        // *-, -*: standard swap
+
+        bool daggers_differ = ( is_dagger[i] != is_dagger[i+1] );
+
+        if ( swap && daggers_differ ) {
+
+            // we're going to have two new strings
+            n_new_strings = 2;
+
+            s1->delta1.push_back(symbol[i]);
+            s1->delta2.push_back(symbol[i+1]);
+
+            // check spin in delta functions
+            for (int j = 0; j < (int)delta1.size(); j++) {
+                if ( s1->delta1[j].length() != 2 ) {
+                    //throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
+                    break;
+                }
+                if ( s1->delta1[j].at(1) == 'A' && s1->delta2[j].at(1) == 'B' ) {
+                    s1->skip = true;
+                }else if ( s1->delta1[j].at(1) == 'B' && s1->delta2[j].at(1) == 'A' ) {
+                    s1->skip = true;
+                }
+            }
+
+            s2->sign = -s2->sign;
+            s2->symbol.push_back(symbol[i+1]);
+            s2->symbol.push_back(symbol[i]);
+            s2->is_dagger.push_back(is_dagger[i+1]);
+            s2->is_dagger.push_back(is_dagger[i]);
+            s2->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
+            s2->is_dagger_fermi.push_back(is_dagger_fermi[i]);
+
+            for (int j = i+2; j < (int)symbol.size(); j++) {
+
+                s1->symbol.push_back(symbol[j]);
+                s2->symbol.push_back(symbol[j]);
+
+                s1->is_dagger.push_back(is_dagger[j]);
+                s2->is_dagger.push_back(is_dagger[j]);
+
+                s1->is_dagger_fermi.push_back(is_dagger_fermi[j]);
+                s2->is_dagger_fermi.push_back(is_dagger_fermi[j]);
+
+            }
+            break;
+
+        }else if ( swap && !daggers_differ )  {
+
+            // we're only going to have one new string, with a different sign
+            n_new_strings = 1;
+
+            s1->sign = -s1->sign;
+            s1->symbol.push_back(symbol[i+1]);
+            s1->symbol.push_back(symbol[i]);
+            s1->is_dagger.push_back(is_dagger[i+1]);
+            s1->is_dagger.push_back(is_dagger[i]);
+            s1->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
+            s1->is_dagger_fermi.push_back(is_dagger_fermi[i]);
+
+            for (int j = i+2; j < (int)symbol.size(); j++) {
+
+                s1->symbol.push_back(symbol[j]);
+
+                s1->is_dagger.push_back(is_dagger[j]);
+
+                s1->is_dagger_fermi.push_back(is_dagger_fermi[j]);
+
+            }
+            break;
+
+        }else {
+
+            s1->symbol.push_back(symbol[i]);
+            s2->symbol.push_back(symbol[i]);
+
+            s1->is_dagger.push_back(is_dagger[i]);
+            s2->is_dagger.push_back(is_dagger[i]);
+
+            s1->is_dagger_fermi.push_back(is_dagger_fermi[i]);
+            s2->is_dagger_fermi.push_back(is_dagger_fermi[i]);
+
+        }
+    }
+
+    if ( n_new_strings == 1 ) {
+        s1->normal_order_fermi_vacuum(ordered);
+    }else if ( n_new_strings == 2 ) {
+        s1->normal_order_fermi_vacuum(ordered);
+        s2->normal_order_fermi_vacuum(ordered);
+    }
+
+}
+
+void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
+    if ( vacuum == "TRUE" ) {
+        normal_order_true_vacuum(ordered);
+    }else {
+        normal_order_fermi_vacuum(ordered);
+    }
+}
+
 
 } // End namespaces
 

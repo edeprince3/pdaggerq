@@ -11,24 +11,22 @@ class ahat {
 
     bool is_normal_order();
 
-    bool is_occ(char idx);
-    bool is_vir(char idx);
-
   public:
 
-    ahat();
+    ahat(std::string vacuum_type);
     ~ahat();
+
+    std::string vacuum;
 
     bool skip     = false;
     int sign      = 1;
-
-    std::vector<std::string> used_labels;
 
     void shallow_copy(void * copy_me);
     void copy(void * copy_me);
 
     std::vector<std::string> symbol;
     std::vector<bool> is_dagger;
+    std::vector<bool> is_dagger_fermi;
     std::vector<std::string> delta1;
     std::vector<std::string> delta2;
 
@@ -37,10 +35,16 @@ class ahat {
     void print();
     void check_spin();
     void check_occ_vir();
+
     void normal_order(std::vector<std::shared_ptr<ahat> > &ordered);
+    void normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
+    void normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
+
     void alphabetize(std::vector<std::shared_ptr<ahat> > &ordered);
     void cleanup(std::vector<std::shared_ptr<ahat> > &ordered);
 
+    bool is_occ(char idx);
+    bool is_vir(char idx);
 };
 
 }

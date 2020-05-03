@@ -12,12 +12,15 @@ class ahat_helper {
 
     std::vector< std::shared_ptr<ahat> > ordered;
 
-    // strings, tensors, etc.
+    /// strings, tensors, etc.
     std::shared_ptr<StringData> data;
+
+    /// vacuum (fermi or true)
+    std::string vacuum;
 
   public:
 
-    ahat_helper();
+    ahat_helper(std::string vacuum_type);
     ~ahat_helper();
 
     /// set a string of creation / annihilation operators
@@ -34,6 +37,12 @@ class ahat_helper {
 
     /// add new completed string / tensor / amplitudes / factor
     void add_new_string();
+
+    /// add new completed string / tensor / amplitudes / factor (assuming normal order is definied relative to the true vacuum
+    void add_new_string_true_vacuum();
+
+    /// add new completed string / tensor / amplitudes / factor (assuming normal order is definied relative to the fermi vacuum
+    void add_new_string_fermi_vacuum();
 
     /// add new complete string as a product of operators (i.e., {'h(pq)','t1(ai)'} )
     void add_operator_product(double factor, std::vector<std::string> in);
@@ -58,6 +67,9 @@ class ahat_helper {
 
     /// print strings
     void print();
+
+    /// print fully-contracted strings
+    void print_fully_contracted();
 
     /// print one-body strings
     void print_one_body();
