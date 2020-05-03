@@ -336,18 +336,23 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 
 void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
-    // for normal order relative to fermi vacuum, i doubt anyone will care 
-    // about terms that aren't fully contracted. so, skip those because this
-    // function is time consuming
-
     for (int i = 0; i < (int)ordered.size(); i++) {
 
-        if ( ordered[i]->symbol.size() != 0 ) continue;
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
+        // about terms that aren't fully contracted. so, skip those because this
+        // function is time consuming
+
+        if ( vacuum == "FERMI" && ordered[i]->symbol.size() != 0 ) continue;
 
         if ( ordered[i]->skip ) continue;
+
         for (int j = i+1; j < (int)ordered.size(); j++) {
 
-            if ( ordered[j]->symbol.size() != 0 ) continue;
+            // for normal order relative to fermi vacuum, i doubt anyone will care 
+            // about terms that aren't fully contracted. so, skip those because this
+            // function is time consuming
+
+            if ( vacuum == "FERMI" && ordered[j]->symbol.size() != 0 ) continue;
 
             if ( ordered[j]->skip ) continue;
 
@@ -497,8 +502,10 @@ void ahat::shallow_copy(void * copy_me) {
 
     // TODO: take care of amplitudes whose indices show up in delta functions
 
+// TODO something is very wrong here
+
     // amplitudes
-    for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
+    /*for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
         std::vector<std::string> tmp;
         for (int j = 0; j < (int)in->data->amplitudes[i].size(); j++) {
 
@@ -551,16 +558,16 @@ void ahat::shallow_copy(void * copy_me) {
             tmp_delta2.push_back(tmp2_delta2[k]);
         }
 
-    }
+    }*/
 
-    //// amplitudes
-    //for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
-    //    std::vector<std::string> tmp;
-    //    for (int j = 0; j < (int)in->data->amplitudes[i].size(); j++) {
-    //        tmp.push_back(in->data->amplitudes[i][j]);
-    //    }
-    //    data->amplitudes.push_back(tmp);
-    //}
+    // amplitudes
+    for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in->data->amplitudes[i].size(); j++) {
+            tmp.push_back(in->data->amplitudes[i][j]);
+        }
+        data->amplitudes.push_back(tmp);
+    }
 
     for (int j = 0; j < (int)tmp_delta1.size(); j++) {
 

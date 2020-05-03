@@ -332,7 +332,6 @@ void ahat_helper::add_new_string() {
 
 void ahat_helper::add_new_string_fermi_vacuum(){
 
-
     std::vector<std::shared_ptr<ahat> > mystrings;
     mystrings.push_back( (std::shared_ptr<ahat>)(new ahat(vacuum)) );
 

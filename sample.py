@@ -1,7 +1,7 @@
 import pdaggerq
 
 
-ahat = pdaggerq.ahat_helper("")
+ahat = pdaggerq.ahat_helper("true")
 
 # [h,T1]
 
