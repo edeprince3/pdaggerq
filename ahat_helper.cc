@@ -166,8 +166,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
     std::vector<std::string> tmp_string;
 
     // for singles equations: <me| = <0|m*e
-    tmp_string.push_back("m*");
-    tmp_string.push_back("e");
+    //tmp_string.push_back("m*");
+    //tmp_string.push_back("e");
 
     // for doubles equations: <mnef| = <0|m*n*fe
     //tmp_string.push_back("m*");
@@ -667,6 +667,19 @@ void ahat_helper::simplify() {
     bool *vanish = (bool*)malloc(ordered.size()*sizeof(bool));
     memset((void*)vanish,'\0',ordered.size()*sizeof(bool));
 
+    // eliminate strings based on delta functions and use delta functions to alter tensor / amplitude labels
+    for (int i = 0; i < (int)out.size(); i++) {
+
+        // check spin
+        ordered[i]->check_spin();
+
+        // check for occ/vir pairs in delta functions
+        ordered[i]->check_occ_vir();
+
+        // apply delta functions
+        ordered[i]->gobble_deltas();
+    }
+
     /*for (int i = 0; i < (int)ordered.size(); i++) {
         for (int j = i+1; j < (int)ordered.size(); j++) {
     
@@ -740,15 +753,6 @@ void ahat_helper::simplify() {
     ordered.clear();
     for (int i = 0; i < (int)out.size(); i++) {
         ordered.push_back(out[i]);
-
-        // check spin
-        ordered[i]->check_spin();
-
-        // check for occ/vir pairs in delta functions
-        ordered[i]->check_occ_vir();
-
-        // apply delta functions
-        ordered[i]->gobble_deltas();
     }
 
 
