@@ -500,6 +500,9 @@ void ahat::shallow_copy(void * copy_me) {
         tmp_delta2.push_back(in->delta2[j]);
     }
 
+    // apply delta functions
+    //in->gobble_deltas();
+
     // TODO: take care of amplitudes whose indices show up in delta functions
 
 // TODO something is very wrong here
@@ -587,6 +590,76 @@ void ahat::shallow_copy(void * copy_me) {
         delta1.push_back(tmp_delta1[j]);
         delta2.push_back(tmp_delta2[j]);
     }
+
+}
+
+void ahat::gobble_deltas() {
+
+    // amplitudes
+    std::vector<std::vector<std::string>> tmp_amplitudes;
+    for (int i = 0; i < (int)data->amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)data->amplitudes[i].size(); j++) {
+
+            // does data->amplitude index show up in a delta function?
+            bool skipme = false;
+            for (int k = 0; k < (int)delta1.size(); k++) {
+                if ( data->amplitudes[i][j] == delta1[k] ) {
+                    tmp.push_back(delta2[k]);
+                    skipme = true;
+                    break;
+                }
+                if ( data->amplitudes[i][j] == delta2[k] ) {
+                    tmp.push_back(delta1[k]);
+                    skipme = true;
+                    break;
+                }
+            }
+            if ( skipme ) continue;
+
+            tmp.push_back(data->amplitudes[i][j]);
+        }
+        tmp_amplitudes.push_back(tmp);
+
+        // now, remove delta functions from list that were gobbled up above
+        std::vector<std::string> tmp_delta1;
+        std::vector<std::string> tmp_delta2;
+
+        for (int k = 0; k < (int)delta1.size(); k++) {
+            bool skipme = false;
+            for (int l = 0; l < (int)data->amplitudes[i].size(); l++) {
+                if ( data->amplitudes[i][l] == delta1[k] ) {
+                    skipme = true;
+                    break;
+                }
+                if ( data->amplitudes[i][l] == delta2[k] ) {
+                    skipme = true;
+                    break;
+                }
+            }
+            if ( skipme ) continue;
+        
+            tmp_delta1.push_back(delta1[k]);
+            tmp_delta2.push_back(delta2[k]);
+        }
+
+        // update deltas
+        delta1.clear();
+        delta2.clear();
+        for (int k = 0; k < (int)tmp_delta1.size(); k++) {
+            delta1.push_back(tmp_delta1[k]);
+            delta2.push_back(tmp_delta2[k]);
+        }
+
+
+    }
+
+    // update amplitudes
+    data->amplitudes.clear();
+    for (int i = 0; i < (int)tmp_amplitudes.size(); i++) {
+        data->amplitudes.push_back(tmp_amplitudes[i]);
+    }
+    
 
 }
 

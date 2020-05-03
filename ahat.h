@@ -35,6 +35,7 @@ class ahat {
     void print();
     void check_spin();
     void check_occ_vir();
+    void gobble_deltas();
 
     void normal_order(std::vector<std::shared_ptr<ahat> > &ordered);
     void normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
