@@ -166,8 +166,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
     std::vector<std::string> tmp_string;
 
     // for singles equations: <me| = <0|m*e
-    tmp_string.push_back("m*");
-    tmp_string.push_back("e");
+    //tmp_string.push_back("m*");
+    //tmp_string.push_back("e");
 
     // for doubles equations: <mnef| = <0|m*n*fe
     //tmp_string.push_back("m*");
