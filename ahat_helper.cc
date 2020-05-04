@@ -705,6 +705,11 @@ void ahat_helper::simplify() {
 
         // apply delta functions
         ordered[i]->gobble_deltas();
+
+        // replace any funny labels that were added with conventional ones (fermi vacumm only)
+        if ( vacuum == "FERMI" ) {
+            ordered[i]->use_conventional_labels();
+        }
     }
 
     // try to cancel similar terms

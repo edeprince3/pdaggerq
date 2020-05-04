@@ -544,6 +544,56 @@ void ahat::replace_index_in_amplitudes(std::string old_idx, std::string new_idx)
 
 }
 
+// find and replace any funny labels in tensors with conventional ones. i.e., t -> i ,w -> a
+void ahat::use_conventional_labels() {
+
+    // occupied first:
+    std::vector<std::string> occ_in{"o","t","u","v"};
+    std::vector<std::string> occ_out{"i","j","k","l"};
+
+    for (int i = 0; i < (int)occ_in.size(); i++) {
+
+        if ( index_in_tensor(occ_in[i]) ) {
+
+            for (int j = 0; j < (int)occ_out.size(); j++) {
+
+                if ( !index_in_tensor(occ_out[j]) ) {
+
+                    replace_index_in_tensor(occ_in[i],occ_out[j]);
+                    replace_index_in_tensor(occ_in[i],occ_out[j]);
+                    replace_index_in_tensor(occ_in[i],occ_out[j]);
+                    replace_index_in_tensor(occ_in[i],occ_out[j]);
+                    break;
+                }
+            }
+        }
+    }
+
+    // now virtual
+    std::vector<std::string> vir_in{"w","x","y","z"};
+    std::vector<std::string> vir_out{"a","b","c","d"};
+
+    for (int i = 0; i < (int)vir_in.size(); i++) {
+
+        if ( index_in_tensor(vir_in[i]) ) {
+
+            for (int j = 0; j < (int)vir_out.size(); j++) {
+
+                if ( !index_in_tensor(vir_out[j]) ) {
+
+                    replace_index_in_tensor(vir_in[i],vir_out[j]);
+                    replace_index_in_tensor(vir_in[i],vir_out[j]);
+                    replace_index_in_tensor(vir_in[i],vir_out[j]);
+                    replace_index_in_tensor(vir_in[i],vir_out[j]);
+                    break;
+                }
+            }
+        }
+    }
+
+
+}
+
 void ahat::gobble_deltas() {
 
     std::vector<std::string> tmp_delta1;
