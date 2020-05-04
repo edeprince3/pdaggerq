@@ -760,7 +760,7 @@ void ahat_helper::print() {
 
     printf("\n");
     printf("    ");
-    printf("// normal-ordered strings (relative to the true vacuum):\n");
+    printf("// normal-ordered strings:\n");
     for (int i = 0; i < (int)ordered.size(); i++) {
         ordered[i]->print();
     }
