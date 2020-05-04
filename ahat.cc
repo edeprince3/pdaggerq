@@ -173,6 +173,20 @@ void ahat::check_spin() {
 
 void ahat::print() {
     if ( skip ) return;
+
+    if ( vacuum == "FERMI" && (int)symbol.size() > 0 ) {
+        // check if stings should be zero or not
+        bool is_dagger_right = is_dagger_fermi[(int)symbol.size() - 1];
+        bool is_dagger_left  = is_dagger_fermi[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            //return;
+        }
+    }
+
+    //for (int i = 0; i < (int)symbol.size(); i++) {
+    //    printf("%5i\n",(int)is_dagger_fermi[i]);
+    //}
+
     printf("    ");
     printf("//     ");
     printf("%c", sign > 0 ? '+' : '-');
@@ -440,9 +454,7 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
 }
 
-// copy all data, except symbols and daggers. also, for some reason, this
-// function is where i've chosen to eliminate labels that appear in delta
-// functions.
+// copy all data, except symbols and daggers. 
 
 void ahat::shallow_copy(void * copy_me) { 
 
@@ -462,106 +474,15 @@ void ahat::shallow_copy(void * copy_me) {
     std::vector<std::string> tmp_delta2;
 
     // data->tensor
-    for (int j = 0; j < (int)in->data->tensor.size(); j++) {
-
-        // does data->tensor index show up in a delta function? 
-        bool skipme = false;
-        for (int k = 0; k < (int)in->delta1.size(); k++) {
-            if ( in->data->tensor[j] == in->delta1[k] ) {
-                data->tensor.push_back(in->delta2[k]);
-                skipme = true;
-                break;
-            }
-            if ( in->data->tensor[j] == in->delta2[k] ) {
-                data->tensor.push_back(in->delta1[k]);
-                skipme = true;
-                break;
-            }
-        }
-        if ( skipme ) continue;
-
-        data->tensor.push_back(in->data->tensor[j]);
-    }
-    for (int j = 0; j < (int)in->delta1.size(); j++) {
-        bool skipme = false;
-        for (int k = 0; k < (int)in->data->tensor.size(); k++) {
-            if ( in->data->tensor[k] == in->delta1[j] ) {
-                skipme = true;
-                break;
-            }
-            if ( in->data->tensor[k] == in->delta2[j] ) {
-                skipme = true;
-                break;
-            }
-        }
-        if ( skipme ) continue;
-    
-        tmp_delta1.push_back(in->delta1[j]);
-        tmp_delta2.push_back(in->delta2[j]);
+    for (int i = 0; i < (int)in->data->tensor.size(); i++) {
+        data->tensor.push_back(in->data->tensor[i]);
     }
 
-    // apply delta functions
-    //in->gobble_deltas();
-
-    // TODO: take care of amplitudes whose indices show up in delta functions
-
-// TODO something is very wrong here
-
-    // amplitudes
-    /*for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in->data->amplitudes[i].size(); j++) {
-
-            // does data->amplitude index show up in a delta function?
-            bool skipme = false;
-            for (int k = 0; k < (int)tmp_delta1.size(); k++) {
-                if ( in->data->amplitudes[i][j] == tmp_delta1[k] ) {
-                    tmp.push_back(tmp_delta2[k]);
-                    skipme = true;
-                    break;
-                }
-                if ( in->data->amplitudes[i][j] == tmp_delta2[k] ) {
-                    tmp.push_back(tmp_delta1[k]);
-                    skipme = true;
-                    break;
-                }
-            }
-            if ( skipme ) continue;
-
-            tmp.push_back(in->data->amplitudes[i][j]);
-        }
-        data->amplitudes.push_back(tmp);
-
-        // now, remove delta functions from list that were gobbled up above
-        std::vector<std::string> tmp2_delta1;
-        std::vector<std::string> tmp2_delta2;
-
-        for (int k = 0; k < (int)tmp_delta1.size(); k++) {
-            bool skipme = false;
-            for (int l = 0; l < (int)in->data->amplitudes[i].size(); l++) {
-                if ( in->data->amplitudes[i][l] == tmp_delta1[k] ) {
-                    skipme = true;
-                    break;
-                }
-                if ( in->data->amplitudes[i][l] == tmp_delta2[k] ) {
-                    skipme = true;
-                    break;
-                }
-            }
-            if ( skipme ) continue;
-        
-            tmp2_delta1.push_back(tmp_delta1[k]);
-            tmp2_delta2.push_back(tmp_delta2[k]);
-        }
-
-        tmp_delta1.clear();
-        tmp_delta2.clear();
-        for (int k = 0; k < (int)tmp2_delta1.size(); k++) {
-            tmp_delta1.push_back(tmp2_delta1[k]);
-            tmp_delta2.push_back(tmp2_delta2[k]);
-        }
-
-    }*/
+    // delta1, delta2
+    for (int i = 0; i < (int)in->delta1.size(); i++) {
+        delta1.push_back(in->delta1[i]);
+        delta2.push_back(in->delta2[i]);
+    }
 
     // amplitudes
     for (int i = 0; i < (int)in->data->amplitudes.size(); i++) {
@@ -572,28 +493,206 @@ void ahat::shallow_copy(void * copy_me) {
         data->amplitudes.push_back(tmp);
     }
 
-    for (int j = 0; j < (int)tmp_delta1.size(); j++) {
+}
 
-        //bool skipme = false;
-        //for (int k = 0; k < (int)in->data->tensor.size(); k++) {
-        //    if ( in->data->tensor[k] == in->delta1[j] ) {
-        //        skipme = true;
-        //        break;
-        //    }
-        //    if ( in->data->tensor[k] == in->delta2[j] ) {
-        //        skipme = true;
-        //        break;
-        //    }
-        //}
-        //if ( skipme ) continue;
-    
-        delta1.push_back(tmp_delta1[j]);
-        delta2.push_back(tmp_delta2[j]);
+bool ahat::index_in_tensor(std::string idx) {
+
+    for (int i = 0; i < (int)data->tensor.size(); i++) {
+        if ( data->tensor[i] == idx ) {
+            return true;
+        }
+    }
+    return false;
+
+}
+
+bool ahat::index_in_amplitudes(std::string idx) {
+
+    for (int i = 0; i < (int)data->amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->amplitudes[i].size(); j++) {
+            if ( data->amplitudes[i][j] == idx ) {
+                return true;
+            }
+           
+        }
+    }
+    return false;
+
+}
+
+void ahat::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
+
+    for (int i = 0; i < (int)data->tensor.size(); i++) {
+        if ( data->tensor[i] == old_idx ) {
+            data->tensor[i] = new_idx;
+            return;
+        }
+    }
+
+}
+
+void ahat::replace_index_in_amplitudes(std::string old_idx, std::string new_idx) {
+
+    for (int i = 0; i < (int)data->amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->amplitudes[i].size(); j++) {
+            if ( data->amplitudes[i][j] == old_idx ) {
+                data->amplitudes[i][j] = new_idx;
+                return; 
+            }
+        }
     }
 
 }
 
 void ahat::gobble_deltas() {
+
+    std::vector<std::string> tmp_delta1;
+    std::vector<std::string> tmp_delta2;
+
+    for (int i = 0; i < (int)delta1.size(); i++) {
+
+        bool delta1_in_tensor     = index_in_tensor( delta1[i] );
+        bool delta2_in_tensor     = index_in_tensor( delta2[i] );
+        bool delta1_in_amplitudes = index_in_amplitudes( delta1[i] );
+        bool delta2_in_amplitudes = index_in_amplitudes( delta2[i] );
+
+        if ( delta1_in_tensor ) {
+
+            if ( delta2_in_tensor ) {
+
+                replace_index_in_tensor( delta1[i], delta2[i] );
+
+                continue;
+
+            }else if ( delta2_in_amplitudes) {
+
+                // replace index in tensor
+                replace_index_in_tensor( delta1[i], delta2[i] );
+
+                continue;
+
+            }else {
+
+                // index two must come from the bra, so replace index one in tensor
+                replace_index_in_tensor( delta1[i], delta2[i] );
+
+                continue;
+
+            }
+
+        }else if ( delta2_in_tensor ) {
+
+            if ( delta1_in_amplitudes) {
+
+                // replace index in tensor
+                replace_index_in_tensor( delta2[i], delta1[i] );
+
+                continue;
+
+            }else {
+
+                // index one must come from the bra, so replace index two in tensor
+                replace_index_in_tensor( delta2[i], delta1[i] );
+
+                continue;
+
+            }
+
+        }else if ( delta1_in_amplitudes ) {
+
+            if ( delta2_in_amplitudes) {
+
+                replace_index_in_amplitudes( delta1[i], delta2[i] );
+
+                continue;
+
+            }else {
+
+                // index two must come from the bra, so replace index one in amplitudes
+                replace_index_in_amplitudes( delta1[i], delta1[i] );
+
+                continue;
+
+            }
+
+        }else if ( delta2_in_amplitudes) {
+
+            // index one must come from the bra, so replace index two in amplitudes
+            replace_index_in_amplitudes( delta2[i], delta1[i] );
+
+            continue;
+
+        }
+
+        // at this point, it is safe to assume the delta function must remain
+        tmp_delta1.push_back(delta1[i]);
+        tmp_delta2.push_back(delta2[i]);
+
+    }
+
+    delta1.clear();
+    delta2.clear();
+
+    for (int i = 0; i < (int)tmp_delta1.size(); i++) {
+        delta1.push_back(tmp_delta1[i]);
+        delta2.push_back(tmp_delta2[i]);
+    }
+
+
+/*
+    std::vector<std::string> tmp_tensor;
+
+    for (int j = 0; j < (int)data->tensor.size(); j++) {
+
+        // does data->tensor index show up in a delta function? 
+        bool skipme = false;
+        for (int k = 0; k < (int)delta1.size(); k++) {
+            if ( data->tensor[j] == delta1[k] ) {
+                tmp_tensor.push_back(delta2[k]);
+                skipme = true;
+                break;
+            }
+            if ( data->tensor[j] == delta2[k] ) {
+                tmp_tensor.push_back(delta1[k]);
+                skipme = true;
+                break;
+            }
+        }
+        if ( skipme ) continue;
+
+        tmp_tensor.push_back(data->tensor[j]);
+    }
+
+    std::vector<std::string> tmp_delta1;
+    std::vector<std::string> tmp_delta2;
+    for (int j = 0; j < (int)delta1.size(); j++) {
+        bool skipme = false;
+        for (int k = 0; k < (int)data->tensor.size(); k++) {
+            if ( data->tensor[k] == delta1[j] ) {
+                skipme = true;
+                break;
+            }
+            if ( data->tensor[k] == delta2[j] ) {
+                skipme = true;
+                break;
+            }
+        }
+        if ( skipme ) continue;
+    
+        tmp_delta1.push_back(delta1[j]);
+        tmp_delta2.push_back(delta2[j]);
+    }
+
+    data->tensor.clear();
+    for (int j = 0; j < (int)tmp_tensor.size(); j++) {
+        data->tensor.push_back(tmp_tensor[j]);
+    }
+    delta1.clear();
+    delta1.clear();
+    for (int j = 0; j < (int)tmp_delta1.size(); j++) {
+        delta1.push_back(tmp_delta1[j]);
+        delta2.push_back(tmp_delta2[j]);
+    }
 
     // amplitudes
     std::vector<std::vector<std::string>> tmp_amplitudes;
@@ -659,6 +758,7 @@ void ahat::gobble_deltas() {
     for (int i = 0; i < (int)tmp_amplitudes.size(); i++) {
         data->amplitudes.push_back(tmp_amplitudes[i]);
     }
+*/
     
 
 }
@@ -670,21 +770,18 @@ void ahat::copy(void * copy_me) {
 
     ahat * in = reinterpret_cast<ahat * >(copy_me);
 
-    // dagger?
-    for (int j = 0; j < (int)in->is_dagger.size(); j++) {
-        is_dagger.push_back(in->is_dagger[j]);
-    }
-
-    // dagger (relative to fermi vacuum)?
-    if ( vacuum == "FERMI" ) {
-        for (int j = 0; j < (int)in->is_dagger_fermi.size(); j++) {
-            is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
-        }
-    }
 
     // operators
     for (int j = 0; j < (int)in->symbol.size(); j++) {
         symbol.push_back(in->symbol[j]);
+
+        // dagger?
+        is_dagger.push_back(in->is_dagger[j]);
+
+        // dagger (relative to fermi vacuum)?
+        if ( vacuum == "FERMI" ) {
+            is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
+        }
     }
     
 }
@@ -861,13 +958,24 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
             s1->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
             s1->is_dagger_fermi.push_back(is_dagger_fermi[i]);
 
+            //s2->sign = -s2->sign;
+            //s2->symbol.push_back(symbol[i+1]);
+            //s2->symbol.push_back(symbol[i]);
+            //s2->is_dagger.push_back(is_dagger[i+1]);
+            //s2->is_dagger.push_back(is_dagger[i]);
+            //s2->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
+            //s2->is_dagger_fermi.push_back(is_dagger_fermi[i]);
+
             for (int j = i+2; j < (int)symbol.size(); j++) {
 
                 s1->symbol.push_back(symbol[j]);
+                //s2->symbol.push_back(symbol[j]);
 
                 s1->is_dagger.push_back(is_dagger[j]);
+                //s2->is_dagger.push_back(is_dagger[j]);
 
                 s1->is_dagger_fermi.push_back(is_dagger_fermi[j]);
+                //s2->is_dagger_fermi.push_back(is_dagger_fermi[j]);
 
             }
             break;
@@ -885,6 +993,7 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
 
         }
     }
+
 
     if ( n_new_strings == 1 ) {
         s1->normal_order_fermi_vacuum(ordered);

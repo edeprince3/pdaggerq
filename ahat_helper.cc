@@ -513,10 +513,10 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                             // first index occ
                             if ( me.find("*") != std::string::npos ) {
                                 mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }else {
                                 mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
                             mystrings[string_num]->data->tensor.push_back("o");
                             mystrings[string_num]->symbol.push_back("o");
@@ -524,10 +524,10 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                             // first index vir
                             if ( me.find("*") != std::string::npos ) {
                                 mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }else {
                                 mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
                             mystrings[string_num]->data->tensor.push_back("w");
                             mystrings[string_num]->symbol.push_back("w");
@@ -546,10 +546,10 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                             // second index occ
                             if ( me.find("*") != std::string::npos ) {
                                 mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }else {
                                 mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
                             mystrings[string_num]->data->tensor.push_back("v");
                             mystrings[string_num]->symbol.push_back("v");
@@ -557,10 +557,10 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                             // second index vir
                             if ( me.find("*") != std::string::npos ) {
                                 mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }else {
                                 mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
                             mystrings[string_num]->data->tensor.push_back("z");
                             mystrings[string_num]->symbol.push_back("z");
@@ -579,10 +579,10 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                             // third index occ
                             if ( me.find("*") != std::string::npos ) {
                                 mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }else {
                                 mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
                             mystrings[string_num]->data->tensor.push_back("t");
                             mystrings[string_num]->symbol.push_back("t");
@@ -590,10 +590,10 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                             // third index vir
                             if ( me.find("*") != std::string::npos ) {
                                 mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }else {
                                 mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
                             mystrings[string_num]->data->tensor.push_back("x");
                             mystrings[string_num]->symbol.push_back("x");
@@ -610,10 +610,10 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                             // fourth index occ
                             if ( me.find("*") != std::string::npos ) {
                                 mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }else {
                                 mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
                             mystrings[string_num]->data->tensor.push_back("u");
                             mystrings[string_num]->symbol.push_back("u");
@@ -621,10 +621,10 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                             // fourth index vir
                             if ( me.find("*") != std::string::npos ) {
                                 mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }else {
                                 mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
                             mystrings[string_num]->data->tensor.push_back("y");
                             mystrings[string_num]->symbol.push_back("y");

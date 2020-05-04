@@ -11,6 +11,12 @@ class ahat {
 
     bool is_normal_order();
 
+    bool index_in_tensor(std::string idx);
+    bool index_in_amplitudes(std::string idx);
+
+    void replace_index_in_tensor(std::string old_idx, std::string new_idx);
+    void replace_index_in_amplitudes(std::string old_idx, std::string new_idx);
+
   public:
 
     ahat(std::string vacuum_type);
