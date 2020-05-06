@@ -269,6 +269,12 @@ bool ahat::is_normal_order() {
         }
     }else {
         for (int i = 0; i < (int)symbol.size()-1; i++) {
+            // check if stings should be zero or not
+            bool is_dagger_right = is_dagger_fermi[(int)symbol.size() - 1];
+            bool is_dagger_left  = is_dagger_fermi[0];
+            if ( !is_dagger_right || is_dagger_left ) {
+                return true;
+            }
             if ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] ) {
                 return false;
             }
