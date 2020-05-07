@@ -359,6 +359,9 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
     // cancel like terms
     for (int i = 0; i < (int)ordered.size(); i++) {
 
+// this is done below now, but i don't want to delete the code yet.
+break;
+
         // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
@@ -459,7 +462,9 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
     }
 
-    // consolidate terms that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
+    // prioritize summation labels as i > j > k > l and a > b > c > d.
+    // this means that j, k, or l should not arise in a term if i is not
+    // already present.
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         // for normal order relative to fermi vacuum, i doubt anyone will care 
@@ -470,8 +475,45 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
         if ( ordered[i]->skip ) continue;
 
-        // let's just limit ourselves to four-index tensors for now
-        if ( ordered[i]->data->tensor.size() != 4 ) continue;
+        if ( !ordered[i]->index_in_tensor("i") && !ordered[i]->index_in_amplitudes("i") ) {
+            if ( ordered[i]->index_in_tensor("j") ) {
+               ordered[i]->replace_index_in_tensor("j","i");
+               ordered[i]->replace_index_in_tensor("j","i");
+               ordered[i]->replace_index_in_tensor("j","i");
+               ordered[i]->replace_index_in_tensor("j","i");
+               ordered[i]->replace_index_in_amplitudes("j","i");
+               ordered[i]->replace_index_in_amplitudes("j","i");
+               ordered[i]->replace_index_in_amplitudes("j","i");
+               ordered[i]->replace_index_in_amplitudes("j","i");
+            }else {
+            }
+        }
+        if ( !ordered[i]->index_in_tensor("a") && !ordered[i]->index_in_tensor("a") ) {
+            if ( ordered[i]->index_in_tensor("b") ) {
+               ordered[i]->replace_index_in_tensor("b","a");
+               ordered[i]->replace_index_in_tensor("b","a");
+               ordered[i]->replace_index_in_tensor("b","a");
+               ordered[i]->replace_index_in_tensor("b","a");
+               ordered[i]->replace_index_in_amplitudes("b","a");
+               ordered[i]->replace_index_in_amplitudes("b","a");
+               ordered[i]->replace_index_in_amplitudes("b","a");
+               ordered[i]->replace_index_in_amplitudes("b","i");
+            }else {
+            }
+        }
+
+    }
+
+    // consolidate terms, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
+    for (int i = 0; i < (int)ordered.size(); i++) {
+
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
+        // about terms that aren't fully contracted. so, skip those because this
+        // function is time consuming
+
+        if ( vacuum == "FERMI" && ordered[i]->symbol.size() != 0 ) continue;
+
+        if ( ordered[i]->skip ) continue;
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
 
@@ -483,103 +525,147 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
             if ( ordered[j]->skip ) continue;
 
-            // let's just limit ourselves to four-index tensors for now
-            if ( ordered[j]->data->tensor.size() != 4 ) continue;
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            if ( !strings_same ) continue;
+
+            //printf("same tensors\n");
 
             // are factors same?
-            if ( ordered[i]->data->factor != ordered[j]->data->factor ) continue;
+            //if ( ordered[i]->data->factor != ordered[j]->data->factor ) continue;
 
             // are signs same?
-            if ( ordered[i]->sign != ordered[j]->sign ) continue;
+            //if ( ordered[i]->sign != ordered[j]->sign ) continue;
 
-            // are strings same?
-            if ( ordered[i]->symbol.size() != ordered[j]->symbol.size() ) continue;
-            int nsame_s = 0;
-            for (int k = 0; k < (int)ordered[i]->symbol.size(); k++) {
-                if ( ordered[i]->symbol[k] == ordered[j]->symbol[k] ) {
-                    nsame_s++;
-                }
-            }
-            if ( nsame_s != ordered[i]->symbol.size() ) continue;
+            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
 
-            // same delta functions (recall these aren't sorted in any way)
-            int nsame_d = 0;
-            for (int k = 0; k < (int)ordered[i]->delta1.size(); k++) {
-                for (int l = 0; l < (int)ordered[j]->delta1.size(); l++) {
-                    if ( ordered[i]->delta1[k] == ordered[j]->delta1[l] && ordered[i]->delta2[k] == ordered[j]->delta2[l] ) {
-                        nsame_d++;
-                        //break;
-                    }else if ( ordered[i]->delta2[k] == ordered[j]->delta1[l] && ordered[i]->delta1[k] == ordered[j]->delta2[l] ) {
-                        nsame_d++;
-                        //break;
-                    }
-                }
-            }
-            if ( nsame_d != (int)ordered[i]->delta1.size() ) continue;
+            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
-            // amplitudes, which can be complicated since they aren't sorted
-
-            // same number of amplitudes?
-            if ( ordered[i]->data->amplitudes.size() != ordered[j]->data->amplitudes.size() ) continue;
-         
-            int nsame_amps = 0;
-            for (int ii = 0; ii < (int)ordered[i]->data->amplitudes.size(); ii++) {
-                for (int jj = 0; jj < (int)ordered[j]->data->amplitudes.size(); jj++) {
-
-                    // t1 vs t2?
-                    if ( ordered[i]->data->amplitudes[ii].size() != ordered[j]->data->amplitudes[jj].size() ) continue;
-
-                    // indices?
-                    int nsame_idx = 0;
-                    for (int iii = 0; iii < (int)ordered[i]->data->amplitudes[ii].size(); iii++) {
-                        for (int jjj = 0; jjj < (int)ordered[j]->data->amplitudes[jj].size(); jjj++) {
-                            if ( ordered[i]->data->amplitudes[ii][iii] == ordered[j]->data->amplitudes[jj][jjj] ) {
-                                nsame_idx++;
-                                break;
-                            }
-                        }
-                    }
-                    // if all indices are the same, the amplitudes must be the same
-                    if ( nsame_idx == (int)ordered[i]->data->amplitudes[ii].size() ) {
-                        nsame_amps++;
-                        break;
-                    }
-                }
-            }
-            if ( nsame_amps != (int)ordered[i]->data->amplitudes.size() ) continue;
-
-            // are tensors same?
-            if ( ordered[i]->data->tensor.size() != ordered[j]->data->tensor.size() ) continue;
-            int nsame_t = 0;
-            for (int k = 0; k < (int)ordered[i]->data->tensor.size(); k++) {
-                if ( ordered[i]->data->tensor[k] == ordered[j]->data->tensor[k] ) {
-                    nsame_t++;
-                }
-            }
-            // if not the same, check bras againt kets
-            if ( nsame_t != ordered[i]->data->tensor.size() ) {
-
-                int nsame_t_swap = 0;
-                if ( ordered[i]->data->tensor[0] != ordered[j]->data->tensor[2] ||
-                     ordered[i]->data->tensor[1] != ordered[j]->data->tensor[3] ||
-                     ordered[i]->data->tensor[2] != ordered[j]->data->tensor[0] ||
-                     ordered[i]->data->tensor[3] != ordered[j]->data->tensor[1]) {
-                     break;
-                }
-
+            // if terms exactly cancel, do so
+            if ( fabs(combined_factor) < 1e-12 ) {
+                //printf("skipping\n");
+                ordered[i]->skip = true;
+                ordered[j]->skip = true;
+                break;
             }
 
+            // otherwise, combine terms
+
+            //printf("combining\n");
             // well, i guess the are the same term
-            ordered[i]->data->factor *= 2.0;
+            ordered[i]->data->factor = fabs(combined_factor);
+            if ( combined_factor > 0.0 ) {
+                ordered[i]->sign =  1;
+            }else {
+                ordered[i]->sign = -1;
+            }
             ordered[j]->skip = true;
 
             // break j because i'm not yet sure the best way to combine multiple terms.
-            break;
+            //break;
             
         }
 
     }
 
+}
+
+bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute) {
+
+    //printf("ok, how about these\n");
+    //ordered[i]->print();
+    //ordered[j]->print();
+
+    // are strings same?
+    if ( ordered_1->symbol.size() != ordered_2->symbol.size() ) return false;
+    int nsame_s = 0;
+    for (int k = 0; k < (int)ordered_1->symbol.size(); k++) {
+        if ( ordered_1->symbol[k] == ordered_2->symbol[k] ) {
+            nsame_s++;
+        }
+    }
+    if ( nsame_s != ordered_1->symbol.size() ) return false;
+    //printf("same strings\n");
+
+    // same delta functions (recall these aren't sorted in any way)
+    int nsame_d = 0;
+    for (int k = 0; k < (int)ordered_1->delta1.size(); k++) {
+        for (int l = 0; l < (int)ordered_2->delta1.size(); l++) {
+            if ( ordered_1->delta1[k] == ordered_2->delta1[l] && ordered_1->delta2[k] == ordered_2->delta2[l] ) {
+                nsame_d++;
+                //break;
+            }else if ( ordered_1->delta2[k] == ordered_2->delta1[l] && ordered_1->delta1[k] == ordered_2->delta2[l] ) {
+                nsame_d++;
+                //break;
+            }
+        }
+    }
+    if ( nsame_d != (int)ordered_1->delta1.size() ) return false;
+    //printf("same deltas\n");
+
+    // amplitudes, which can be complicated since they aren't sorted
+
+    // same number of amplitudes?
+    if ( ordered_1->data->amplitudes.size() != ordered_2->data->amplitudes.size() ) return false;
+    
+    int nsame_amps = 0;
+    n_permute = 0;
+    for (int ii = 0; ii < (int)ordered_1->data->amplitudes.size(); ii++) {
+        for (int jj = 0; jj < (int)ordered_2->data->amplitudes.size(); jj++) {
+
+            // t1 vs t2?
+            if ( ordered_1->data->amplitudes[ii].size() != ordered_2->data->amplitudes[jj].size() ) continue;
+
+            // indices?
+            int nsame_idx = 0;
+            for (int iii = 0; iii < (int)ordered_1->data->amplitudes[ii].size(); iii++) {
+                for (int jjj = 0; jjj < (int)ordered_2->data->amplitudes[jj].size(); jjj++) {
+                    if ( ordered_1->data->amplitudes[ii][iii] == ordered_2->data->amplitudes[jj][jjj] ) {
+                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
+                        nsame_idx++;
+                        break;
+                    }
+                }
+            }
+            // if all indices are the same, the amplitudes must be the same, but we need to be careful of permutations
+            if ( nsame_idx == (int)ordered_1->data->amplitudes[ii].size() ) {
+                nsame_amps++;
+                break;
+            }
+        }
+    }
+    if ( nsame_amps != (int)ordered_1->data->amplitudes.size() ) return false;
+
+    //printf("same amps\n");
+    //if ( (n_permute % 2) != 0 ) continue;
+
+    // are tensors same?
+    if ( ordered_1->data->tensor.size() != ordered_2->data->tensor.size() ) return false;
+    int nsame_t = 0;
+    for (int k = 0; k < (int)ordered_1->data->tensor.size(); k++) {
+        if ( ordered_1->data->tensor[k] == ordered_2->data->tensor[k] ) {
+            nsame_t++;
+        }
+    }
+    // if not the same, check bras againt kets
+    if ( nsame_t != ordered_1->data->tensor.size() ) {
+
+        // let's just limit ourselves to four-index tensors for now
+        if ( ordered_1->data->tensor.size() == 4 ) {
+
+            int nsame_t_swap = 0;
+            if ( ordered_1->data->tensor[0] != ordered_2->data->tensor[2] ||
+                 ordered_1->data->tensor[1] != ordered_2->data->tensor[3] ||
+                 ordered_1->data->tensor[2] != ordered_2->data->tensor[0] ||
+                 ordered_1->data->tensor[3] != ordered_2->data->tensor[1]) {
+                 return false;
+            }
+
+        }
+    }
+    return true;
 }
 
 // copy all data, except symbols and daggers. 
