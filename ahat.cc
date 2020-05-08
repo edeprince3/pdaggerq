@@ -351,157 +351,292 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
     }
 }
 
+
+
+    // prioritize summation labels as i > j > k > l and a > b > c > d.
+    // this means that j, k, or l should not arise in a term if i is not
+    // already present.
+
+void ahat::update_summation_labels() {
+
+    if ( vacuum == "FERMI" && symbol.size() != 0 ) return;
+
+    if ( skip ) return;
+
+    bool find_i = index_in_tensor("i") || index_in_amplitudes("i");
+    bool find_j = index_in_tensor("j") || index_in_amplitudes("j");
+    bool find_k = index_in_tensor("k") || index_in_amplitudes("k");
+    bool find_l = index_in_tensor("l") || index_in_amplitudes("l");
+
+    bool find_a = index_in_tensor("a") || index_in_amplitudes("a");
+    bool find_b = index_in_tensor("b") || index_in_amplitudes("b");
+    bool find_c = index_in_tensor("c") || index_in_amplitudes("c");
+    bool find_d = index_in_tensor("d") || index_in_amplitudes("d");
+
+    // i,j,k,l
+    if ( !find_i && find_j && find_k && find_l ) {
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+    }else if ( !find_i && find_j && find_k && !find_l ) {
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+    }else if ( !find_i && find_j && !find_k && !find_l ) {
+        replace_index_in_tensor("j","i");
+        replace_index_in_tensor("j","i");
+        replace_index_in_tensor("j","i");
+        replace_index_in_tensor("j","i");
+        replace_index_in_amplitudes("j","i");
+        replace_index_in_amplitudes("j","i");
+        replace_index_in_amplitudes("j","i");
+        replace_index_in_amplitudes("j","i");
+    }else if ( !find_i && find_j && !find_k && find_l ) {
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+    }else if ( !find_i && !find_j && find_k && find_l ) {
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+    }else if ( !find_i && !find_j && !find_k && find_l ) {
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_tensor("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+        replace_index_in_amplitudes("l","i");
+    }else if ( !find_i && !find_j && find_k && !find_l ) {
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_tensor("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+        replace_index_in_amplitudes("k","i");
+    }else if ( find_i && !find_j && find_k && find_l ) {
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+    }else if ( find_i && !find_j && !find_k && find_l ) {
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+    }else if ( find_i && !find_j && find_k && !find_l ) {
+        replace_index_in_tensor("k","j");
+        replace_index_in_tensor("k","j");
+        replace_index_in_tensor("k","j");
+        replace_index_in_tensor("k","j");
+        replace_index_in_amplitudes("k","j");
+        replace_index_in_amplitudes("k","j");
+        replace_index_in_amplitudes("k","j");
+        replace_index_in_amplitudes("k","j");
+    }else if ( find_i && !find_j && !find_k && find_l ) {
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_tensor("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+        replace_index_in_amplitudes("l","j");
+    }
+
+    // a,b,c,d
+    if ( !find_a && find_b && find_c && find_d ) {
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+    }else if ( !find_a && find_b && find_c && !find_d ) {
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+    }else if ( !find_a && find_b && !find_c && find_d ) {
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+    }else if ( !find_a && find_b && !find_c && !find_d ) {
+        replace_index_in_tensor("b","a");
+        replace_index_in_tensor("b","a");
+        replace_index_in_tensor("b","a");
+        replace_index_in_tensor("b","a");
+        replace_index_in_amplitudes("b","a");
+        replace_index_in_amplitudes("b","a");
+        replace_index_in_amplitudes("b","a");
+        replace_index_in_amplitudes("b","a");
+    }else if ( !find_a && !find_b && find_c && find_d ) {
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+    }else if ( !find_a && !find_b && !find_c && find_d ) {
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_tensor("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+        replace_index_in_amplitudes("d","a");
+    }else if ( !find_a && !find_b && find_c && !find_d ) {
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_tensor("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+        replace_index_in_amplitudes("c","a");
+    }else if ( find_a && !find_b && find_c && find_d ) {
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+    }else if ( find_a && !find_b && !find_c && find_d ) {
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+    }else if ( find_a && !find_b && find_c && !find_d ) {
+        replace_index_in_tensor("c","b");
+        replace_index_in_tensor("c","b");
+        replace_index_in_tensor("c","b");
+        replace_index_in_tensor("c","b");
+        replace_index_in_amplitudes("c","b");
+        replace_index_in_amplitudes("c","b");
+        replace_index_in_amplitudes("c","b");
+        replace_index_in_amplitudes("c","b");
+    }else if ( find_a && !find_b && !find_c && find_d ) {
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_tensor("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+        replace_index_in_amplitudes("d","b");
+    }
+
+}
+
+void ahat::swap_two_labels(std::string label1, std::string label2) {
+
+    replace_index_in_tensor(label1,"x");
+    replace_index_in_tensor(label1,"x");
+    replace_index_in_tensor(label1,"x");
+    replace_index_in_tensor(label1,"x");
+    replace_index_in_amplitudes(label1,"x");
+    replace_index_in_amplitudes(label1,"x");
+    replace_index_in_amplitudes(label1,"x");
+    replace_index_in_amplitudes(label1,"x");
+    
+    replace_index_in_tensor(label2,label1);
+    replace_index_in_tensor(label2,label1);
+    replace_index_in_tensor(label2,label1);
+    replace_index_in_tensor(label2,label1);
+    replace_index_in_amplitudes(label2,label1);
+    replace_index_in_amplitudes(label2,label1);
+    replace_index_in_amplitudes(label2,label1);
+    replace_index_in_amplitudes(label2,label1);
+    
+    replace_index_in_tensor("x",label2);
+    replace_index_in_tensor("x",label2);
+    replace_index_in_tensor("x",label2);
+    replace_index_in_tensor("x",label2);
+    replace_index_in_amplitudes("x",label2);
+    replace_index_in_amplitudes("x",label2);
+    replace_index_in_amplitudes("x",label2);
+    replace_index_in_amplitudes("x",label2);
+
+}
+
 // once strings are alphabetized, we can compare them
 // and remove terms that cancel. 
 
 void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
-    // cancel like terms
-    for (int i = 0; i < (int)ordered.size(); i++) {
-
-// this is done below now, but i don't want to delete the code yet.
-break;
-
-        // for normal order relative to fermi vacuum, i doubt anyone will care 
-        // about terms that aren't fully contracted. so, skip those because this
-        // function is time consuming
-
-        if ( vacuum == "FERMI" && ordered[i]->symbol.size() != 0 ) continue;
-
-        if ( ordered[i]->skip ) continue;
-
-        for (int j = i+1; j < (int)ordered.size(); j++) {
-
-            // for normal order relative to fermi vacuum, i doubt anyone will care 
-            // about terms that aren't fully contracted. so, skip those because this
-            // function is time consuming
-
-            if ( vacuum == "FERMI" && ordered[j]->symbol.size() != 0 ) continue;
-
-            if ( ordered[j]->skip ) continue;
-
-            // are factors same?
-            if ( ordered[i]->data->factor != ordered[j]->data->factor ) continue;
-
-            // are signs opposite?
-            if ( ordered[i]->sign == ordered[j]->sign ) continue;
-
-            // are strings same?
-            if ( ordered[i]->symbol.size() != ordered[j]->symbol.size() ) continue;
-            int nsame_s = 0;
-            for (int k = 0; k < (int)ordered[i]->symbol.size(); k++) {
-                if ( ordered[i]->symbol[k] == ordered[j]->symbol[k] ) {
-                    nsame_s++;
-                }
-            }
-            if ( nsame_s != ordered[i]->symbol.size() ) continue;
-            // are tensors same?
-            if ( ordered[i]->data->tensor.size() != ordered[j]->data->tensor.size() ) continue;
-            int nsame_t = 0;
-            for (int k = 0; k < (int)ordered[i]->data->tensor.size(); k++) {
-                if ( ordered[i]->data->tensor[k] == ordered[j]->data->tensor[k] ) {
-                    nsame_t++;
-                }
-            }
-            if ( nsame_t != ordered[i]->data->tensor.size() ) continue;
-
-            // same delta functions (recall these aren't sorted in any way)
-            int nsame_d = 0;
-            for (int k = 0; k < (int)ordered[i]->delta1.size(); k++) {
-                for (int l = 0; l < (int)ordered[j]->delta1.size(); l++) {
-                    if ( ordered[i]->delta1[k] == ordered[j]->delta1[l] && ordered[i]->delta2[k] == ordered[j]->delta2[l] ) {
-                        nsame_d++;
-                        //break;
-                    }else if ( ordered[i]->delta2[k] == ordered[j]->delta1[l] && ordered[i]->delta1[k] == ordered[j]->delta2[l] ) {
-                        nsame_d++;
-                        //break;
-                    }
-                }
-            }
-            if ( nsame_d != (int)ordered[i]->delta1.size() ) continue;
-
-            // amplitudes, which can be complicated since they aren't sorted
-
-            // same number of amplitudes?
-            if ( ordered[i]->data->amplitudes.size() != ordered[j]->data->amplitudes.size() ) continue;
-         
-            int nsame_amps = 0;
-            for (int ii = 0; ii < (int)ordered[i]->data->amplitudes.size(); ii++) {
-                for (int jj = 0; jj < (int)ordered[j]->data->amplitudes.size(); jj++) {
-
-                    // t1 vs t2?
-                    if ( ordered[i]->data->amplitudes[ii].size() != ordered[j]->data->amplitudes[jj].size() ) continue;
-
-                    // indices?
-                    int nsame_idx = 0;
-                    for (int iii = 0; iii < (int)ordered[i]->data->amplitudes[ii].size(); iii++) {
-                        for (int jjj = 0; jjj < (int)ordered[j]->data->amplitudes[jj].size(); jjj++) {
-                            if ( ordered[i]->data->amplitudes[ii][iii] == ordered[j]->data->amplitudes[jj][jjj] ) {
-                                nsame_idx++;
-                                break;
-                            }
-                        }
-                    }
-                    // if all indices are the same, the amplitudes must be the same
-                    if ( nsame_idx == (int)ordered[i]->data->amplitudes[ii].size() ) {
-                        nsame_amps++;
-                        break;
-                    }
-                }
-            }
-            if ( nsame_amps != (int)ordered[i]->data->amplitudes.size() ) continue;
-
-            // well, i guess they cancel
-            ordered[i]->skip = true;
-            ordered[j]->skip = true;
-
-            // break j so we don't cancel any other terms j with i
-            break;
-            
-        }
-
-    }
-
     // prioritize summation labels as i > j > k > l and a > b > c > d.
     // this means that j, k, or l should not arise in a term if i is not
-    // already present.
+    // already present. only do this for vacuum_type = "FERMI"
     for (int i = 0; i < (int)ordered.size(); i++) {
-
-        // for normal order relative to fermi vacuum, i doubt anyone will care 
-        // about terms that aren't fully contracted. so, skip those because this
-        // function is time consuming
-
-        if ( vacuum == "FERMI" && ordered[i]->symbol.size() != 0 ) continue;
-
-        if ( ordered[i]->skip ) continue;
-
-        if ( !ordered[i]->index_in_tensor("i") && !ordered[i]->index_in_amplitudes("i") ) {
-            if ( ordered[i]->index_in_tensor("j") ) {
-               ordered[i]->replace_index_in_tensor("j","i");
-               ordered[i]->replace_index_in_tensor("j","i");
-               ordered[i]->replace_index_in_tensor("j","i");
-               ordered[i]->replace_index_in_tensor("j","i");
-               ordered[i]->replace_index_in_amplitudes("j","i");
-               ordered[i]->replace_index_in_amplitudes("j","i");
-               ordered[i]->replace_index_in_amplitudes("j","i");
-               ordered[i]->replace_index_in_amplitudes("j","i");
-            }else {
-            }
-        }
-        if ( !ordered[i]->index_in_tensor("a") && !ordered[i]->index_in_tensor("a") ) {
-            if ( ordered[i]->index_in_tensor("b") ) {
-               ordered[i]->replace_index_in_tensor("b","a");
-               ordered[i]->replace_index_in_tensor("b","a");
-               ordered[i]->replace_index_in_tensor("b","a");
-               ordered[i]->replace_index_in_tensor("b","a");
-               ordered[i]->replace_index_in_amplitudes("b","a");
-               ordered[i]->replace_index_in_amplitudes("b","a");
-               ordered[i]->replace_index_in_amplitudes("b","a");
-               ordered[i]->replace_index_in_amplitudes("b","i");
-            }else {
-            }
-        }
-
+        if ( vacuum != "FERMI" ) continue;
+        ordered[i]->update_summation_labels();
     }
 
     // consolidate terms, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
@@ -527,6 +662,40 @@ break;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            bool find_i = ordered[j]->index_in_tensor("i") || ordered[j]->index_in_amplitudes("i");
+            bool find_j = ordered[j]->index_in_tensor("j") || ordered[j]->index_in_amplitudes("j");
+
+            bool find_a = ordered[j]->index_in_tensor("a") || ordered[j]->index_in_amplitudes("a");
+            bool find_b = ordered[j]->index_in_tensor("b") || ordered[j]->index_in_amplitudes("b");
+
+            // try swapping summation labels - only i/j, a/b swaps for now. this should be sufficient for ccsd
+            if ( !strings_same && find_i && find_j ) {
+
+                std::shared_ptr<ahat> newguy (new ahat(vacuum));
+                newguy->copy((void*)(ordered[j].get()));
+                newguy->swap_two_labels("i","j");
+                strings_same = compare_strings(ordered[i],newguy,n_permute);
+
+            }
+
+            if ( !strings_same && find_a && find_b ) {
+
+                std::shared_ptr<ahat> newguy (new ahat(vacuum));
+                newguy->copy((void*)(ordered[j].get()));
+                newguy->swap_two_labels("a","b");
+                strings_same = compare_strings(ordered[i],newguy,n_permute);
+
+            }
+
+            if ( !strings_same && find_i && find_j && find_a && find_b ) {
+
+                std::shared_ptr<ahat> newguy (new ahat(vacuum));
+                newguy->copy((void*)(ordered[j].get()));
+                newguy->swap_two_labels("i","j");
+                newguy->swap_two_labels("a","b");
+                strings_same = compare_strings(ordered[i],newguy,n_permute);
+            }
 
             if ( !strings_same ) continue;
 
@@ -573,6 +742,8 @@ break;
 }
 
 bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute) {
+
+    n_permute = 0;
 
     //printf("ok, how about these\n");
     //ordered[i]->print();

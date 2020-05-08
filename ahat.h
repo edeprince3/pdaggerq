@@ -18,6 +18,10 @@ class ahat {
     void replace_index_in_amplitudes(std::string old_idx, std::string new_idx);
 
     bool compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute);
+    void update_summation_labels();
+
+    void swap_two_labels(std::string label1, std::string label2);
+
 
   public:
 
