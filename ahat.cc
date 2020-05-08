@@ -207,15 +207,19 @@ void ahat::print() {
     if ( (int)data->tensor.size() > 0 ) {
         // two-electron integrals
         if ( (int)data->tensor.size() == 4 ) {
-            printf("g(");
+            // mulliken
+            //printf("g(");
+            // dirac
+            printf("<");
             for (int i = 0; i < 2; i++) {
                 printf("%s",data->tensor[i].c_str());
             }
-            //printf("|");
+            printf("||");
             for (int i = 2; i < 4; i++) {
                 printf("%s",data->tensor[i].c_str());
             }
-            printf(")");
+            printf(">");
+            //printf(")");
         }
         // one-electron integrals
         if ( (int)data->tensor.size() == 2 ) {
@@ -814,13 +818,15 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
 
     // are tensors same?
     if ( ordered_1->data->tensor.size() != ordered_2->data->tensor.size() ) return false;
+
     int nsame_t = 0;
     for (int k = 0; k < (int)ordered_1->data->tensor.size(); k++) {
         if ( ordered_1->data->tensor[k] == ordered_2->data->tensor[k] ) {
             nsame_t++;
         }
     }
-    // if not the same, check bras againt kets
+    // if not the same, check bras againt kets [mulliken notation: g(iajb) = (ia|jb)]
+/*
     if ( nsame_t != ordered_1->data->tensor.size() ) {
 
         // let's just limit ourselves to four-index tensors for now
@@ -836,6 +842,80 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
 
         }
     }
+*/
+
+    // if not the same, check antisymmetry <ij||kl> = -<ji||lk> = -<ij||lk> = <ji||lk>
+    if ( nsame_t != ordered_1->data->tensor.size() ) {
+
+        if ( ordered_1->data->tensor.size() == 4 ) {
+
+            nsame_t = 0;
+            if ( ordered_1->data->tensor[0] == ordered_2->data->tensor[0] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[1] == ordered_2->data->tensor[1] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[2] == ordered_2->data->tensor[3] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[3] == ordered_2->data->tensor[2] ) {
+                nsame_t++;
+            }
+            if ( nsame_t == 4 ) {
+                n_permute++;
+            }
+
+        }
+    }
+    if ( nsame_t != ordered_1->data->tensor.size() ) {
+
+        if ( ordered_1->data->tensor.size() == 4 ) {
+
+            nsame_t = 0;
+            if ( ordered_1->data->tensor[0] == ordered_2->data->tensor[1] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[1] == ordered_2->data->tensor[0] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[2] == ordered_2->data->tensor[2] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[3] == ordered_2->data->tensor[3] ) {
+                nsame_t++;
+            }
+            if ( nsame_t == 4 ) {
+                n_permute++;
+            }
+
+        }
+    }
+    if ( nsame_t != ordered_1->data->tensor.size() ) {
+
+        if ( ordered_1->data->tensor.size() == 4 ) {
+
+            nsame_t = 0;
+            if ( ordered_1->data->tensor[0] == ordered_2->data->tensor[1] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[1] == ordered_2->data->tensor[0] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[2] == ordered_2->data->tensor[3] ) {
+                nsame_t++;
+            }
+            if ( ordered_1->data->tensor[3] == ordered_2->data->tensor[2] ) {
+                nsame_t++;
+            }
+
+        }
+    }
+
+    if ( nsame_t != ordered_1->data->tensor.size() ) {
+        return false;
+    }
+
     return true;
 }
 

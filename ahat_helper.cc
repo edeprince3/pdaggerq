@@ -225,13 +225,21 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
 
-            factor *= 0.5;
 
+            // dirac notation: g(pqrs) p*q*sr
+            factor *= 0.25;
             std::string tmp = in[i].substr(1,4);
             tmp_string.push_back(tmp.substr(0,1)+"*");
-            tmp_string.push_back(tmp.substr(2,1)+"*");
+            tmp_string.push_back(tmp.substr(1,1)+"*");
             tmp_string.push_back(tmp.substr(3,1));
-            tmp_string.push_back(tmp.substr(1,1));
+            tmp_string.push_back(tmp.substr(2,1));
+
+            // mulliken notation: g(prqs) p*q*sr
+            //factor *= 0.5;
+            //tmp_string.push_back(tmp.substr(0,1)+"*");
+            //tmp_string.push_back(tmp.substr(2,1)+"*");
+            //tmp_string.push_back(tmp.substr(3,1));
+            //tmp_string.push_back(tmp.substr(1,1));
             set_tensor({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
 
         }else if ( in[i].substr(0,1) == "t" ){
@@ -648,10 +656,19 @@ void ahat_helper::add_new_string_fermi_vacuum(){
         // now, string is complete, but labels in four-index tensors need to be reordered p*q*sr(pq|sr) -> (pr|qs)
         if ( (int)mystrings[string_num]->data->tensor.size() == 4 ) {
 
+
+            // mulliken notation: g(prqs) p*q*sr
+            //std::vector<std::string> tmp;
+            //tmp.push_back(mystrings[string_num]->data->tensor[0]);
+            //tmp.push_back(mystrings[string_num]->data->tensor[3]);
+            //tmp.push_back(mystrings[string_num]->data->tensor[1]);
+            //tmp.push_back(mystrings[string_num]->data->tensor[2]);
+
+            // dirac notation: g(pqrs) p*q*sr
             std::vector<std::string> tmp;
             tmp.push_back(mystrings[string_num]->data->tensor[0]);
-            tmp.push_back(mystrings[string_num]->data->tensor[3]);
             tmp.push_back(mystrings[string_num]->data->tensor[1]);
+            tmp.push_back(mystrings[string_num]->data->tensor[3]);
             tmp.push_back(mystrings[string_num]->data->tensor[2]);
 
             mystrings[string_num]->data->tensor.clear();
