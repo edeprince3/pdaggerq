@@ -639,14 +639,3 @@ Output:
     //     + 1.00000 <i,j||a,j> t1(a,i) 
     //     + 0.25000 <i,j||a,b> t2(a,b,i,j) 
     //     + 0.50000 <i,j||a,b> t1(a,i) t1(b,j) 
-
-The same output can be generated using the add_double_commutator function:
-
-    import pdaggerq
-    
-    ahat = pdaggerq.ahat_helper("fermi")
-
-    ahat.add_double_commutator( 0.5, ['h(p,q)','t1(a,i)','t1(c,k)'])
-
-    ahat.simplify()
-    ahat.print_fully_contracted()
