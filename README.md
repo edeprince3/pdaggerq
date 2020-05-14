@@ -100,7 +100,7 @@ Note than full functionality is not yet available for manual string specificatio
         
 **Usage**
 
-The following code evaluates the energy for coupled cluster with single and double excitations. For simplities sake, I have excluded commutators that will evaluate to zero.
+The following code evaluates the energy for coupled cluster with single and double excitations. For the sake of readability, I have excluded commutators that will evaluate to zero.
 
 Python:
 
