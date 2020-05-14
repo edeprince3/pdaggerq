@@ -111,6 +111,7 @@ Python:
     ahat.set_bra("")
 
     # one-electron part: 
+    
     # h
     ahat.add_operator_product(1.0,['h(p,q)'])
 
