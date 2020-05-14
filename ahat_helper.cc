@@ -844,7 +844,7 @@ void ahat_helper::print_two_body() {
 
     printf("\n");
     printf("    ");
-    printf("// two-body strings::\n");
+    printf("// two-body strings:\n");
     for (int i = 0; i < (int)ordered.size(); i++) {
         if ( ordered[i]->symbol.size() != 4 ) continue;
         ordered[i]->print();
@@ -857,7 +857,7 @@ void ahat_helper::print_fully_contracted() {
 
     printf("\n");
     printf("    ");
-    printf("// fully-contracted strings::\n");
+    printf("// fully-contracted strings:\n");
     for (int i = 0; i < (int)ordered.size(); i++) {
         if ( ordered[i]->symbol.size() != 0 ) continue;
         ordered[i]->print();
@@ -870,7 +870,7 @@ void ahat_helper::print_one_body() {
 
     printf("\n");
     printf("    ");
-    printf("// one-body strings::\n");
+    printf("// one-body strings:\n");
     for (int i = 0; i < (int)ordered.size(); i++) {
         if ( ordered[i]->symbol.size() != 2 ) continue;
         ordered[i]->print();
