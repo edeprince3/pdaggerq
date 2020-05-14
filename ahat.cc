@@ -20,51 +20,43 @@ ahat::ahat(std::string vacuum_type) {
 ahat::~ahat() {
 }
 
-bool ahat::is_occ(char idx) {
-    if ( idx == 'I' || idx == 'i') {
+bool ahat::is_occ(std::string idx) {
+    if ( idx == "I" || idx == "i") {
         return true;
-    }else if ( idx == 'J' || idx == 'j') {
+    }else if ( idx == "J" || idx == "j") {
         return true;
-    }else if ( idx == 'K' || idx == 'k') {
+    }else if ( idx == "K" || idx == "k") {
         return true;
-    }else if ( idx == 'L' || idx == 'l') {
+    }else if ( idx == "L" || idx == "l") {
         return true;
-    }else if ( idx == 'M' || idx == 'm') {
+    }else if ( idx == "M" || idx == "m") {
         return true;
-    }else if ( idx == 'N' || idx == 'n') {
+    }else if ( idx == "N" || idx == "n") {
         return true;
-    }else if ( idx == 'O' || idx == 'o') {
+    }else if ( idx.at(0) == 'O' || idx.at(0) == 'o') {
         return true;
-    }else if ( idx == 'T' || idx == 't') {
-        return true;
-    }else if ( idx == 'U' || idx == 'u') {
-        return true;
-    }else if ( idx == 'V' || idx == 'v') {
+    }else if ( idx.at(0) == 'I' || idx.at(0) == 'i') {
         return true;
     }
     return false;
 }
 
-bool ahat::is_vir(char idx) {
-    if ( idx == 'A' || idx == 'a') {
+bool ahat::is_vir(std::string idx) {
+    if ( idx == "A" || idx == "a") {
         return true;
-    }else if ( idx == 'B' || idx == 'b') {
+    }else if ( idx == "B" || idx == "b") {
         return true;
-    }else if ( idx == 'C' || idx == 'c') {
+    }else if ( idx == "C" || idx == "c") {
         return true;
-    }else if ( idx == 'D' || idx == 'd') {
+    }else if ( idx == "D" || idx == "d") {
         return true;
-    }else if ( idx == 'E' || idx == 'e') {
+    }else if ( idx == "E" || idx == "e") {
         return true;
-    }else if ( idx == 'F' || idx == 'f') {
+    }else if ( idx == "F" || idx == "f") {
         return true;
-    }else if ( idx == 'W' || idx == 'w') {
+    }else if ( idx.at(0) == 'V' || idx.at(0) == 'v') {
         return true;
-    }else if ( idx == 'X' || idx == 'x') {
-        return true;
-    }else if ( idx == 'Y' || idx == 'y') {
-        return true;
-    }else if ( idx == 'Z' || idx == 'z') {
+    }else if ( idx.at(0) == 'A' || idx.at(0) == 'a') {
         return true;
     }
     return false;
@@ -78,18 +70,18 @@ void ahat::check_occ_vir() {
 
    for (int i = 0; i < (int)delta1.size(); i++ ) {
        bool first_is_occ = false;
-       if ( is_occ(delta1[i].at(0)) ){
+       if ( is_occ(delta1[i]) ){
            first_is_occ = true;
-       }else if ( is_vir(delta1[i].at(0)) ) {
+       }else if ( is_vir(delta1[i]) ) {
            first_is_occ = false;
        }else {
            continue;
        }
 
        bool second_is_occ = false;
-       if ( is_occ(delta2[i].at(0)) ){
+       if ( is_occ(delta2[i]) ){
            second_is_occ = true;
-       }else if ( is_vir(delta2[i].at(0)) ) {
+       }else if ( is_vir(delta2[i]) ) {
            second_is_occ = false;
        }else {
            continue;
@@ -104,6 +96,11 @@ void ahat::check_occ_vir() {
 }
 
 void ahat::check_spin() {
+
+    printf("\n");
+    printf("    error: spin is no longer supported\n");
+    printf("\n");
+    exit(1);
 
     // check A/B in delta functions
     for (int j = 0; j < (int)delta1.size(); j++) {
@@ -211,22 +208,22 @@ void ahat::print() {
             //printf("g(");
             // dirac
             printf("<");
-            for (int i = 0; i < 2; i++) {
-                printf("%s",data->tensor[i].c_str());
-            }
+            printf("%s",data->tensor[0].c_str());
+            printf(",");
+            printf("%s",data->tensor[1].c_str());
             printf("||");
-            for (int i = 2; i < 4; i++) {
-                printf("%s",data->tensor[i].c_str());
-            }
+            printf("%s",data->tensor[2].c_str());
+            printf(",");
+            printf("%s",data->tensor[3].c_str());
             printf(">");
             //printf(")");
         }
         // one-electron integrals
         if ( (int)data->tensor.size() == 2 ) {
             printf("h(");
-            for (int i = 0; i < 2; i++) {
-                printf("%s",data->tensor[i].c_str());
-            }
+            printf("%s",data->tensor[0].c_str());
+            printf(",");
+            printf("%s",data->tensor[1].c_str());
             printf(")");
         }
         printf(" ");
@@ -240,17 +237,21 @@ void ahat::print() {
                 // t1
                 if ( (int)data->amplitudes[i].size() == 2 ) {
                     printf("t1(");
-                    for (int j = 0; j < 2; j++) {
-                        printf("%s",data->amplitudes[i][j].c_str());
-                    }
+                    printf("%s",data->amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->amplitudes[i][1].c_str());
                     printf(")");
                 }
                 // t2
                 if ( (int)data->amplitudes[i].size() == 4 ) {
                     printf("t2(");
-                    for (int j = 0; j < 4; j++) {
-                        printf("%s",data->amplitudes[i][j].c_str());
-                    }
+                    printf("%s",data->amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->amplitudes[i][1].c_str());
+                    printf(",");
+                    printf("%s",data->amplitudes[i][2].c_str());
+                    printf(",");
+                    printf("%s",data->amplitudes[i][3].c_str());
                     printf(")");
                 }
                 printf(" ");
@@ -357,10 +358,131 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 
 
 
-    // prioritize summation labels as i > j > k > l and a > b > c > d.
-    // this means that j, k, or l should not arise in a term if i is not
-    // already present.
+// move all bra lables to the right-most positions in amplitudes and
+// four-index tensors. only works for four-index amplitudes (i.e., t2)
+void ahat::update_bra_labels() {
 
+    if ( vacuum == "FERMI" && symbol.size() != 0 ) return;
+
+    if ( skip ) return;
+
+    // amplitudes
+    bool find_m = index_in_amplitudes("m");
+    bool find_n = index_in_amplitudes("n");
+    bool find_e = index_in_amplitudes("e");
+    bool find_f = index_in_amplitudes("f");
+    
+    for (int i = 0; i < data->amplitudes.size(); i++) {
+
+        if ( data->amplitudes[i].size() != 4 ) continue;
+
+        if ( find_m && find_n ) {
+            // should appear as "mn"
+            if ( data->amplitudes[i][2] == "n" && data->amplitudes[i][3] == "m" ) {
+                data->amplitudes[i][2] = "m";
+                data->amplitudes[i][3] = "n";
+                sign = -sign;
+            }
+        }else if ( find_m ) {
+            // should appear as "-m"
+            if ( data->amplitudes[i][2] == "m" ) {
+                data->amplitudes[i][2] = data->amplitudes[i][3];
+                data->amplitudes[i][3] = "m";
+                sign = -sign;
+            }
+        }else if ( find_n) {
+            // should appear as "-n"
+            if ( data->amplitudes[i][2] == "n" ) {
+                data->amplitudes[i][2] = data->amplitudes[i][3];
+                data->amplitudes[i][3] = "n";
+                sign = -sign;
+            }
+        }
+
+        if ( find_e && find_f ) {
+            // should appear as "mn"
+            if ( data->amplitudes[i][0] == "f" && data->amplitudes[i][1] == "e" ) {
+                data->amplitudes[i][0] = "e";
+                data->amplitudes[i][1] = "f";
+                sign = -sign;
+            }
+        }else if ( find_e ) {
+            // should appear as "-e"
+            if ( data->amplitudes[i][0] == "e" ) {
+                data->amplitudes[i][0] = data->amplitudes[i][1];
+                data->amplitudes[i][1] = "e";
+                sign = -sign;
+            }
+        }else if ( find_f) {
+            // should appear as "-f"
+            if ( data->amplitudes[i][0] == "f" ) {
+                data->amplitudes[i][0] = data->amplitudes[i][1];
+                data->amplitudes[i][1] = "f";
+                sign = -sign;
+            }
+        }
+
+    }
+
+    // tensor
+    if ( data->tensor.size() != 4 ) return;
+
+    find_m = index_in_tensor("m");
+    find_n = index_in_tensor("n");
+    find_e = index_in_tensor("e");
+    find_f = index_in_tensor("f");
+    
+    if ( find_m && find_n ) {
+        // should appear as "mn"
+        if ( data->tensor[2] == "n" && data->tensor[3] == "m" ) {
+            data->tensor[2] = "m";
+            data->tensor[3] = "n";
+            sign = -sign;
+        }
+    }else if ( find_m ) {
+        // should appear as "-m"
+        if ( data->tensor[2] == "m" ) {
+            data->tensor[2] = data->tensor[3];
+            data->tensor[3] = "m";
+            sign = -sign;
+        }
+    }else if ( find_n) {
+        // should appear as "-n"
+        if ( data->tensor[2] == "n" ) {
+            data->tensor[2] = data->tensor[3];
+            data->tensor[3] = "n";
+            sign = -sign;
+        }
+    }
+
+    if ( find_e && find_f ) {
+        // should appear as "mn"
+        if ( data->tensor[0] == "f" && data->tensor[1] == "e" ) {
+            data->tensor[0] = "e";
+            data->tensor[1] = "f";
+            sign = -sign;
+        }
+    }else if ( find_e ) {
+        // should appear as "-e"
+        if ( data->tensor[0] == "e" ) {
+            data->tensor[0] = data->tensor[1];
+            data->tensor[1] = "e";
+            sign = -sign;
+        }
+    }else if ( find_f) {
+        // should appear as "-f"
+        if ( data->tensor[0] == "f" ) {
+            data->tensor[0] = data->tensor[1];
+            data->tensor[1] = "f";
+            sign = -sign;
+        }
+    }
+
+}
+
+// prioritize summation labels as i > j > k > l and a > b > c > d.
+// this means that j, k, or l should not arise in a term if i is not
+// already present.
 void ahat::update_summation_labels() {
 
     if ( vacuum == "FERMI" && symbol.size() != 0 ) return;
@@ -597,6 +719,99 @@ void ahat::update_summation_labels() {
         replace_index_in_amplitudes("d","b");
     }
 
+    // now, if tensors appear as <ji||xx>, swap to -<ij|xx>, <ai||xx> = -<ia|xx>, ec.
+
+    if ( data->tensor.size() == 4 ) {
+        if ( data->tensor[0] == "j" && data->tensor[1] == "i" ) {
+            data->tensor[0] = "i";
+            data->tensor[1] = "j";
+            sign = -sign;
+        }
+        if ( data->tensor[2] == "j" && data->tensor[3] == "i" ) {
+            data->tensor[2] = "i";
+            data->tensor[3] = "j";
+            sign = -sign;
+        }
+
+
+        if ( data->tensor[0] == "b" && data->tensor[1] == "a" ) {
+            data->tensor[0] = "a";
+            data->tensor[1] = "b";
+            sign = -sign;
+        }
+        if ( data->tensor[2] == "b" && data->tensor[3] == "a" ) {
+            data->tensor[2] = "a";
+            data->tensor[3] = "b";
+            sign = -sign;
+        }
+
+
+        if ( data->tensor[0] == "a" && data->tensor[1] == "i" ) {
+            data->tensor[0] = "i";
+            data->tensor[1] = "a";
+            sign = -sign;
+        }
+        if ( data->tensor[2] == "a" && data->tensor[3] == "i" ) {
+            data->tensor[2] = "i";
+            data->tensor[3] = "a";
+            sign = -sign;
+        }
+
+
+        if ( data->tensor[0] == "b" && data->tensor[1] == "i" ) {
+            data->tensor[0] = "i";
+            data->tensor[1] = "b";
+            sign = -sign;
+        }
+        if ( data->tensor[2] == "b" && data->tensor[3] == "i" ) {
+            data->tensor[2] = "i";
+            data->tensor[3] = "b";
+            sign = -sign;
+        }
+
+
+        if ( data->tensor[0] == "a" && data->tensor[1] == "j" ) {
+            data->tensor[0] = "j";
+            data->tensor[1] = "a";
+            sign = -sign;
+        }
+        if ( data->tensor[2] == "a" && data->tensor[3] == "j" ) {
+            data->tensor[2] = "j";
+            data->tensor[3] = "a";
+            sign = -sign;
+        }
+
+
+        if ( data->tensor[0] == "b" && data->tensor[1] == "j" ) {
+            data->tensor[0] = "j";
+            data->tensor[1] = "b";
+            sign = -sign;
+        }
+        if ( data->tensor[2] == "b" && data->tensor[3] == "j" ) {
+            data->tensor[2] = "j";
+            data->tensor[3] = "b";
+            sign = -sign;
+        }
+    }
+
+    update_bra_labels();
+
+    // if labels are repeated in a four-index tensor, then they should be paired: <ij||jm> -> -<ij|mj>
+    if ( data->tensor.size() == 4 ) {
+        if ( data->tensor[0] == data->tensor[3] ) {
+            std::string tmp = data->tensor[3];
+            data->tensor[3] = data->tensor[2];
+            data->tensor[2] = tmp;
+            sign = -sign;
+        }else if ( data->tensor[1] == data->tensor[2] ) {
+            std::string tmp = data->tensor[2];
+            data->tensor[2] = data->tensor[3];
+            data->tensor[3] = tmp;
+            sign = -sign;
+        }
+
+    }
+
 }
 
 void ahat::swap_two_labels(std::string label1, std::string label2) {
@@ -641,6 +856,7 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
     for (int i = 0; i < (int)ordered.size(); i++) {
         if ( vacuum != "FERMI" ) continue;
         ordered[i]->update_summation_labels();
+        //ordered[i]->update_bra_labels();
     }
 
     // consolidate terms, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
@@ -1013,7 +1229,8 @@ void ahat::replace_index_in_amplitudes(std::string old_idx, std::string new_idx)
 void ahat::use_conventional_labels() {
 
     // occupied first:
-    std::vector<std::string> occ_in{"o","t","u","v"};
+    //std::vector<std::string> occ_in{"o","t","u","v"};
+    std::vector<std::string> occ_in{"o1","o2","o3","o4"};
     std::vector<std::string> occ_out{"i","j","k","l"};
 
     for (int i = 0; i < (int)occ_in.size(); i++) {
@@ -1035,7 +1252,8 @@ void ahat::use_conventional_labels() {
     }
 
     // now virtual
-    std::vector<std::string> vir_in{"w","x","y","z"};
+    //std::vector<std::string> vir_in{"w","x","y","z"};
+    std::vector<std::string> vir_in{"v1","v2","v3","v4"};
     std::vector<std::string> vir_out{"a","b","c","d"};
 
     for (int i = 0; i < (int)vir_in.size(); i++) {
@@ -1335,17 +1553,17 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
             s1->delta2.push_back(symbol[i+1]);
 
             // check spin in delta functions
-            for (int j = 0; j < (int)delta1.size(); j++) {
-                if ( s1->delta1[j].length() != 2 ) {
-                    //throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
-                    break;
-                }
-                if ( s1->delta1[j].at(1) == 'A' && s1->delta2[j].at(1) == 'B' ) {
-                    s1->skip = true;
-                }else if ( s1->delta1[j].at(1) == 'B' && s1->delta2[j].at(1) == 'A' ) {
-                    s1->skip = true;
-                }
-            }
+            //for (int j = 0; j < (int)delta1.size(); j++) {
+            //    if ( s1->delta1[j].length() != 2 ) {
+            //        //throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
+            //        break;
+            //    }
+            //    //if ( s1->delta1[j].at(1) == 'A' && s1->delta2[j].at(1) == 'B' ) {
+            //    //    s1->skip = true;
+            //    //}else if ( s1->delta1[j].at(1) == 'B' && s1->delta2[j].at(1) == 'A' ) {
+            //    //    s1->skip = true;
+            //    //}
+            //}
 
             s2->sign = -s2->sign;
             s2->symbol.push_back(symbol[i+1]);
@@ -1426,17 +1644,17 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
             s1->delta2.push_back(symbol[i+1]);
 
             // check spin in delta functions
-            for (int j = 0; j < (int)delta1.size(); j++) {
-                if ( s1->delta1[j].length() != 2 ) {
-                    //throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
-                    break;
-                }
-                if ( s1->delta1[j].at(1) == 'A' && s1->delta2[j].at(1) == 'B' ) {
-                    s1->skip = true;
-                }else if ( s1->delta1[j].at(1) == 'B' && s1->delta2[j].at(1) == 'A' ) {
-                    s1->skip = true;
-                }
-            }
+            //for (int j = 0; j < (int)delta1.size(); j++) {
+            //    if ( s1->delta1[j].length() != 2 ) {
+            //        //throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
+            //        break;
+            //    }
+            //    //if ( s1->delta1[j].at(1) == 'A' && s1->delta2[j].at(1) == 'B' ) {
+            //    //    s1->skip = true;
+            //    //}else if ( s1->delta1[j].at(1) == 'B' && s1->delta2[j].at(1) == 'A' ) {
+            //    //    s1->skip = true;
+            //    //}
+            //}
 
             s2->sign = -s2->sign;
             s2->symbol.push_back(symbol[i+1]);

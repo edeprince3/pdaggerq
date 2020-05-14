@@ -218,21 +218,34 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         if ( in[i].substr(0,1) == "h" ) { // one-electron operator
 
-            std::string tmp = in[i].substr(1,2);
-            tmp_string.push_back(tmp.substr(0,1)+"*");
-            tmp_string.push_back(tmp.substr(1,1));
-            set_tensor({tmp.substr(0,1), tmp.substr(1,1)});
+            // find comma
+            size_t pos = in[i].find(",");
+            if ( pos == std::string::npos ) {
+                printf("\n");
+                printf("    error in tensor definition (no commas)\n");
+                printf("\n");
+                exit(1);
+            }
+            size_t len = pos - 1;
+            // index 1
+            tmp_string.push_back(in[i].substr(1,len)+"*");
+
+            // index 2
+            tmp_string.push_back(in[i].substr(pos+1));
+
+            // tensor
+            set_tensor({in[i].substr(1,len), in[i].substr(pos)});
 
         }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
 
 
             // dirac notation: g(pqrs) p*q*sr
-            factor *= 0.25;
-            std::string tmp = in[i].substr(1,4);
-            tmp_string.push_back(tmp.substr(0,1)+"*");
-            tmp_string.push_back(tmp.substr(1,1)+"*");
-            tmp_string.push_back(tmp.substr(3,1));
-            tmp_string.push_back(tmp.substr(2,1));
+            //factor *= 0.25;
+            //std::string tmp = in[i].substr(1,4);
+            //tmp_string.push_back(tmp.substr(0,1)+"*");
+            //tmp_string.push_back(tmp.substr(1,1)+"*");
+            //tmp_string.push_back(tmp.substr(3,1));
+            //tmp_string.push_back(tmp.substr(2,1));
 
             // mulliken notation: g(prqs) p*q*sr
             //factor *= 0.5;
@@ -240,27 +253,112 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             //tmp_string.push_back(tmp.substr(2,1)+"*");
             //tmp_string.push_back(tmp.substr(3,1));
             //tmp_string.push_back(tmp.substr(1,1));
-            set_tensor({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
+
+            //set_tensor({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
+
+            // count indices
+            size_t pos = 0;
+            int ncomma = 0;
+            std::vector<size_t> commas;
+            pos = in[i].find(",", pos + 1);
+            commas.push_back(pos);
+            while( pos != std::string::npos){
+                pos = in[i].find(",", pos + 1);
+                commas.push_back(pos);
+                ncomma++;
+            }
+
+            if ( ncomma != 3 ) {
+                printf("\n");
+                printf("    error in tensor definition\n");
+                printf("\n");
+                exit(1);
+            }
+
+            factor *= 0.25;
+
+
+            tmp_string.push_back(in[i].substr(1,commas[0]-1)+"*");
+            tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+            tmp_string.push_back(in[i].substr(commas[2]+1));
+            tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+            set_tensor({
+                           in[i].substr(1,commas[0]-1),
+                           in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
+                           in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
+                           in[i].substr(commas[2]+1)
+                       });
 
         }else if ( in[i].substr(0,1) == "t" ){
 
             if ( in[i].substr(1,1) == "1" ){
 
-                std::string tmp = in[i].substr(2,2);
-                tmp_string.push_back(tmp.substr(0,1)+"*");
-                tmp_string.push_back(tmp.substr(1,1));
-                set_amplitudes({tmp.substr(0,1), tmp.substr(1,1)});
+                //std::string tmp = in[i].substr(2,2);
+                //tmp_string.push_back(tmp.substr(0,1)+"*");
+                //tmp_string.push_back(tmp.substr(1,1));
+                //set_amplitudes({tmp.substr(0,1), tmp.substr(1,1)});
+
+                // find comma
+                size_t pos = in[i].find(",");
+                if ( pos == std::string::npos ) {
+                    printf("\n");
+                    printf("    error in amplitude definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+                size_t len = pos - 2; 
+
+                // index 1
+                tmp_string.push_back(in[i].substr(2,len)+"*");
+
+                // index 2
+                tmp_string.push_back(in[i].substr(pos+1));
+
+                set_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
 
             }else if ( in[i].substr(1,1) == "2" ){
 
+	        // count indices
+	        size_t pos = 0;
+	        int ncomma = 0;
+	        std::vector<size_t> commas;
+                pos = in[i].find(",", pos + 1);
+	        commas.push_back(pos);
+	        while( pos != std::string::npos){
+                    pos = in[i].find(",", pos + 1);
+	            commas.push_back(pos);
+                    ncomma++;
+	        }
+
+                if ( ncomma != 3 ) {
+                    printf("\n");
+                    printf("    error in amplitude definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+
                 factor *= 0.25;
 
-                std::string tmp = in[i].substr(2,4);
-                tmp_string.push_back(tmp.substr(0,1)+"*");
-                tmp_string.push_back(tmp.substr(1,1)+"*");
-                tmp_string.push_back(tmp.substr(3,1));
-                tmp_string.push_back(tmp.substr(2,1));
-                set_amplitudes({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
+
+                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                tmp_string.push_back(in[i].substr(commas[2]+1));
+                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+                set_amplitudes({
+                                   in[i].substr(2,commas[0]-2),
+                                   in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
+                                   in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
+                                   in[i].substr(commas[2]+1)
+                               });
+
+                //tmp_string.push_back(tmp.substr(0,1)+"*");
+                //tmp_string.push_back(tmp.substr(1,1)+"*");
+                //tmp_string.push_back(tmp.substr(3,1));
+                //tmp_string.push_back(tmp.substr(2,1));
+
+                //set_amplitudes({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
 
             }else {
                 printf("\n");
@@ -384,8 +482,12 @@ void ahat_helper::add_new_string_fermi_vacuum(){
     int n_gen_idx = 0;
     for (int i = 0; i < (int)data->string.size(); i++) {
         std::string me = data->string[i];
+        std::string me_nostar = me;
+        if (me_nostar.find("*") != std::string::npos ){
+            removeStar(me_nostar);
+        }
          
-        if ( !mystrings[0]->is_vir(me.at(0)) && !mystrings[0]->is_occ(me.at(0)) ) {
+        if ( !mystrings[0]->is_vir(me_nostar) && !mystrings[0]->is_occ(me_nostar) ) {
             n_gen_idx++;
         }
 
@@ -422,27 +524,31 @@ void ahat_helper::add_new_string_fermi_vacuum(){
         for (int i = 0; i < (int)data->string.size(); i++) {
             std::string me = data->string[i];
 
+
+            std::string me_nostar = me;
+            if (me_nostar.find("*") != std::string::npos ){
+                removeStar(me_nostar);
+            }
+
             // fermi vacuum 
-            if ( mystrings[string_num]->is_vir(me.at(0)) ) {
+            if ( mystrings[string_num]->is_vir(me_nostar) ) {
                 if (me.find("*") != std::string::npos ){
                     mystrings[string_num]->is_dagger.push_back(true);
                     mystrings[string_num]->is_dagger_fermi.push_back(true);
-                    removeStar(me);
                 }else {
                     mystrings[string_num]->is_dagger.push_back(false);
                     mystrings[string_num]->is_dagger_fermi.push_back(false);
                 }
-                mystrings[string_num]->symbol.push_back(me);
-            }else if ( mystrings[string_num]->is_occ(me.at(0)) ) {
+                mystrings[string_num]->symbol.push_back(me_nostar);
+            }else if ( mystrings[string_num]->is_occ(me_nostar) ) {
                 if (me.find("*") != std::string::npos ){
-                    removeStar(me);
                     mystrings[string_num]->is_dagger.push_back(true);
                     mystrings[string_num]->is_dagger_fermi.push_back(false);
                 }else {
                     mystrings[string_num]->is_dagger.push_back(false);
                     mystrings[string_num]->is_dagger_fermi.push_back(true);
                 }
-                mystrings[string_num]->symbol.push_back(me);
+                mystrings[string_num]->symbol.push_back(me_nostar);
             }else {
 
                 //two-index tensor
@@ -458,8 +564,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("o");
-                            mystrings[string_num]->symbol.push_back("o");
+                            mystrings[string_num]->data->tensor.push_back("o1");
+                            mystrings[string_num]->symbol.push_back("o1");
                         }else {
                             // first index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -469,8 +575,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                                 mystrings[string_num]->is_dagger.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("w");
-                            mystrings[string_num]->symbol.push_back("w");
+                            mystrings[string_num]->data->tensor.push_back("v1");
+                            mystrings[string_num]->symbol.push_back("v1");
                         }
                     }else {
                         if ( string_num == 0 || string_num == 2 ) {
@@ -482,8 +588,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("t");
-                            mystrings[string_num]->symbol.push_back("t");
+                            mystrings[string_num]->data->tensor.push_back("o2");
+                            mystrings[string_num]->symbol.push_back("o2");
                         }else {
                             // second index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -493,8 +599,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("x");
-                            mystrings[string_num]->symbol.push_back("x");
+                            mystrings[string_num]->data->tensor.push_back("v2");
+                            mystrings[string_num]->symbol.push_back("v2");
                         }
                     }
                 }
@@ -526,8 +632,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("o");
-                            mystrings[string_num]->symbol.push_back("o");
+                            mystrings[string_num]->data->tensor.push_back("o1");
+                            mystrings[string_num]->symbol.push_back("o1");
                         }else {
                             // first index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -537,8 +643,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("w");
-                            mystrings[string_num]->symbol.push_back("w");
+                            mystrings[string_num]->data->tensor.push_back("v1");
+                            mystrings[string_num]->symbol.push_back("v1");
                         }
                     }else if ( my_gen_idx == 1 ) {
                         //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -559,8 +665,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("v");
-                            mystrings[string_num]->symbol.push_back("v");
+                            mystrings[string_num]->data->tensor.push_back("o2");
+                            mystrings[string_num]->symbol.push_back("o2");
                         }else {
                             // second index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -570,8 +676,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("z");
-                            mystrings[string_num]->symbol.push_back("z");
+                            mystrings[string_num]->data->tensor.push_back("v2");
+                            mystrings[string_num]->symbol.push_back("v2");
                         }
                     }else if ( my_gen_idx == 2 ) {
                         //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -592,8 +698,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("t");
-                            mystrings[string_num]->symbol.push_back("t");
+                            mystrings[string_num]->data->tensor.push_back("o3");
+                            mystrings[string_num]->symbol.push_back("o3");
                         }else {
                             // third index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -603,8 +709,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("x");
-                            mystrings[string_num]->symbol.push_back("x");
+                            mystrings[string_num]->data->tensor.push_back("v3");
+                            mystrings[string_num]->symbol.push_back("v3");
                         }
                     }else {
                         if ( string_num ==  0 || 
@@ -623,8 +729,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("u");
-                            mystrings[string_num]->symbol.push_back("u");
+                            mystrings[string_num]->data->tensor.push_back("o4");
+                            mystrings[string_num]->symbol.push_back("o4");
                         }else {
                             // fourth index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -634,8 +740,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("y");
-                            mystrings[string_num]->symbol.push_back("y");
+                            mystrings[string_num]->data->tensor.push_back("v4");
+                            mystrings[string_num]->symbol.push_back("v4");
                         }
                     }
                 }
@@ -715,7 +821,7 @@ void ahat_helper::simplify() {
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         // check spin
-        ordered[i]->check_spin();
+        //ordered[i]->check_spin();
 
         // check for occ/vir pairs in delta functions
         ordered[i]->check_occ_vir();

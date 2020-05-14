@@ -19,6 +19,7 @@ class ahat {
 
     bool compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute);
     void update_summation_labels();
+    void update_bra_labels();
 
     void swap_two_labels(std::string label1, std::string label2);
 
@@ -57,8 +58,8 @@ class ahat {
     void alphabetize(std::vector<std::shared_ptr<ahat> > &ordered);
     void cleanup(std::vector<std::shared_ptr<ahat> > &ordered);
 
-    bool is_occ(char idx);
-    bool is_vir(char idx);
+    bool is_occ(std::string idx);
+    bool is_vir(std::string idx);
 };
 
 }
