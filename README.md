@@ -633,7 +633,7 @@ Output:
     // starting string:
     //     + 0.12500 b* j a* i v1* v2* v3 v4 <v1,v2||v4,v3> t1(b,j) t1(a,i) 
 
-    // fully-contracted strings::
+    // fully-contracted strings:
     //     + 1.00000 h(i,i) 
     //     + 1.00000 h(i,a) t1(a,i) 
     //     + 0.50000 <i,j||i,j> 
