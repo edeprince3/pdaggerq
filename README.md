@@ -29,7 +29,7 @@ Note than full functionality is not yet available for manual string specificatio
         
     add_commutator: set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
-        add_commutator(1.0, ['h(pq)','t2(abij)'])
+        add_commutator(1.0, ['h(p,q)','t2(a,b,i,j)'])
   
     add_double_commutator: set strings corresponding to a double commutator involving three operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
@@ -37,7 +37,7 @@ Note than full functionality is not yet available for manual string specificatio
         
     add_triple_commutator: set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
-        add_triple_commutator(1.0/6.0, ['h(pq)','t2(abij)','t1(ck)', 't1(dl)'])
+        add_triple_commutator(1.0/6.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)', 't1(d,l)'])
         
     add_quadruple_commutator: set strings corresponding to a quadruple commutator involving five operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
