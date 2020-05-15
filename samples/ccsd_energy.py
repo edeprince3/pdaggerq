@@ -7,6 +7,11 @@ import pdaggerq
 ahat = pdaggerq.ahat_helper("fermi")
 
 ahat.set_bra("")
+ahat.set_print_level(0)
+
+print('')
+print('    < 0 | e(-T) H e(T) | 0> :')
+print('')
 
 # one-electron part: 
 # h

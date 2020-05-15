@@ -7,6 +7,11 @@ import pdaggerq
 ahat = pdaggerq.ahat_helper("fermi")
 
 ahat.set_bra("singles")
+ahat.set_print_level(0)
+
+print('')
+print('    < 0 | m* e e(-T) H e(T) | 0> :')
+print('')
 
 # one-electron part: need only up to double commutators
 # h
