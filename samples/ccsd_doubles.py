@@ -10,7 +10,7 @@ ahat.set_bra("doubles")
 ahat.set_print_level(0)
 
 print('')
-print('    < 0 | n* m* e f e(-T) H e(T) | 0> :')
+print('    < 0 | m* n* f e e(-T) H e(T) | 0> :')
 print('')
 
 # one-electron part: need only up to double commutators
