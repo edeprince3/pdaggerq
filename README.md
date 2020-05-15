@@ -15,7 +15,7 @@ A code for bringing strings of creation / annihilation operators to normal order
         # fermi vacuum
         ahat = pdaggerq.ahat_helper("fermi")
         
-Note than full functionality is not yet available for manual string specification when normal order is defined relative to the fermi vacuum.  In this case, it is better to use the functions defined below that add complete strings in a single command.
+    Note than full functionality is not yet available for manual string specification when normal order is defined relative to the fermi vacuum.  In this case, it is better to use the functions defined below that add complete strings in a single command.
 
 2. We follow the usual convention for labeling orbitals: i, j, k, l, m, and n represent occupied orbitals and a, b, c, d, e, and f represent virtual orbitals. Additionally, any label starting with i or a will be considered occupied or virtual, respectively (e.g., i_1 or a2). All other labels are considered general labels. Delta functions involving occupied / virtual combinations will be set to zero. When normal order is defined relative to the fermi vacuum, sums involving general labels are split into sums involving occupied and virtual orbitals using internal labels o1, o2, o3, and o4 (occupied) or v1, v2, v3, and v4 (virtual). So, we recommend avoiding using these labels when specifying any other components of your strings.
 
@@ -23,7 +23,7 @@ Note than full functionality is not yet available for manual string specificatio
 
 4. Strings are defined in Python using the ahat_helper class, which has the following functions:
 
-    add_operator_product: set strings corresponding to a product of operators. Currently supported operators include general one-body operators ('h(p,q)'), antissymetrized two-body operators ('g(p,q,r,s)'), singles (de-)excitaiton amplitudes ('l1(a,i)' and 't1(a,i)'), and doubles (de-)excitation amplitudes ('l2(i,j,a,b)', 't2(a,b,i,j)'). Note that the factor of 1/4 associated with t2, l2, and g are handled internally.
+    add_operator_product: set strings corresponding to a product of operators. Currently supported operators include general one-body operators ('h(p,q)'), antisymetrized two-body operators ('g(p,q,r,s)'), singles (de-)excitation amplitudes ('l1(i,a)' and 't1(a,i)'), and doubles (de-)excitation amplitudes ('l2(i,j,a,b)' and 't2(a,b,i,j)'). Note that the factor of 1/4 associated with t2, l2, and g are handled internally.
     
         set_operator_product( 0.5, ['h(p,q)','t1(a,i)','t2(c,d,k,l)'])
         
