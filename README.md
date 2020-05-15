@@ -23,7 +23,7 @@ A code for bringing strings of creation / annihilation operators to normal order
 
 4. Strings are defined in Python using the ahat_helper class, which has the following functions:
 
-    ##### add_operator_product: 
+    #### add_operator_product: 
     
     set strings corresponding to a product of operators. 
     
@@ -56,47 +56,69 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         add_commutator(1.0, ['h(p,q)','t2(a,b,i,j)'])
   
-    add_double_commutator: set strings corresponding to a double commutator involving three operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    #### add_double_commutator: 
+    
+    set strings corresponding to a double commutator involving three operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_double_commutator(1.0/2.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)'])
         
-    add_triple_commutator: set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    #### add_triple_commutator: 
+    
+    set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_triple_commutator(1.0/6.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)', 't1(d,l)'])
         
-    add_quadruple_commutator: set strings corresponding to a quadruple commutator involving five operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    #### add_quadruple_commutator: 
+    
+    set strings corresponding to a quadruple commutator involving five operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_quadruple_commutator(1.0/24.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)', 't1(d,l)', 't1(e,m)'])
 
-    set_print_level: control the amount of output.  any value greater than the default value of 0 will cause the code to print starting strings.
+    #### set_print_level: 
+    
+    control the amount of output.  any value greater than the default value of 0 will cause the code to print starting strings.
     
         set_print_level(0)
 
-    set_bra: set a bra state to include in the operator string. possible bra states include "vacuum", "singles" (m* e), and "doubles" (n* m* e f)
+    #### set_bra: 
+    
+    set a bra state to include in the operator string. possible bra states include "vacuum", "singles" (m* e), and "doubles" (n* m* e f)
     
         set_bra("doubles")
     
-    simplify: consolidate/cancel terms and zero any delta functions that involve occupied / virtual combinations.
+    #### simplify: 
+    
+    consolidate/cancel terms and zero any delta functions that involve occupied / virtual combinations.
     
         simplify()
         
-    print: print current list of strings.
+    #### print: 
+    
+    print current list of strings.
         
         print()
 
-    print_fully_contracted: print strings involving no creation / annihilation operators
+    #### print_fully_contracted: 
+    
+    print strings involving no creation / annihilation operators
     
         print_fully_contracted()
     
-    print_one_body: print strings involving only one-body operators.
+    #### print_one_body: 
+    
+    print strings involving only one-body operators.
     
         print_one_body()
         
-    print_two_body: print strings involving only two-body operators.
+    #### print_two_body: 
+    
+    print strings involving only two-body operators.
     
         print_two_body()
         
-    clear: clear the current set of strings
+    #### clear: 
+    
+    clear the current set of strings
     
         clear()
 
