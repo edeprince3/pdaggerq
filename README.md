@@ -23,27 +23,35 @@ Note than full functionality is not yet available for manual string specificatio
 
 4. Strings are defined in Python using the ahat_helper class, which has the following functions:
 
-    add_operator_product: set strings corresponding to a product of operators. Currently supported operators include general one-body operators ('h(p,q)'), antissymetrized two-body operators ('g(p,q,r,s)'), singles amplitudes ('t1(a,i)'), and doubles amplitudes ('t2(a,b,i,j)'). Note that the factor of 1/4 associated with t2 and g are handled internally.
+    add_operator_product: set strings corresponding to a product of operators. Currently supported operators include general one-body operators ('h(p,q)'), antissymetrized two-body operators ('g(p,q,r,s)'), singles (de-)excitaiton amplitudes ('l1(a,i)' and 't1(a,i)'), and doubles (de-)excitation amplitudes ('l2(i,j,a,b)', 't2(a,b,i,j)'). Note that the factor of 1/4 associated with t2, l2, and g are handled internally.
     
         set_operator_product( 0.5, ['h(p,q)','t1(a,i)','t2(c,d,k,l)'])
         
-    add_commutator: set strings corresponding to a commutator of two operators. If one of the operators is t2 or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    add_commutator: set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_commutator(1.0, ['h(pq)','t2(abij)'])
   
-    add_double_commutator: set strings corresponding to a double commutator involving three operators. If any of the operators is t2 or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    add_double_commutator: set strings corresponding to a double commutator involving three operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_double_commutator(1.0/2.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)'])
         
-    add_triple_commutator: set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, note that the factors of 1/4 will be handled internally.
+    add_triple_commutator: set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_triple_commutator(1.0/6.0, ['h(pq)','t2(abij)','t1(ck)', 't1(dl)'])
         
-    add_quadruple_commutator: set strings corresponding to a quadruple commutator involving five operators. If any of the operators is t2 or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    add_quadruple_commutator: set strings corresponding to a quadruple commutator involving five operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_quadruple_commutator(1.0/24.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)', 't1(d,l)', 't1(e,m)'])
 
-    simplify: consolidate/cancel terms and zero any delta functions that involve occupied / virtual or alpha / beta combinations.
+    set_print_level: control the amount of output.  any value greater than the default value of 0 will cause the code to print starting strings.
+    
+        set_print_level(0)
+
+    set_bra: set a bra state to include in the operator string. possible bra states include "vacuum", "singles" (m* e), and "doubles" (n* m* e f)
+    
+        set_bra("doubles")
+    
+    simplify: consolidate/cancel terms and zero any delta functions that involve occupied / virtual combinations.
     
         simplify()
         
@@ -109,6 +117,11 @@ Python:
     ahat = pdaggerq.ahat_helper("fermi")
 
     ahat.set_bra("")
+    ahat.set_print_level(0)
+
+    print('')
+    print('    < 0 | e(-T) H e(T) | 0> :')
+    print('')
 
     # one-electron part: 
     
@@ -141,497 +154,8 @@ Python:
 
 Output:
 
-    // starting string:
-    //     + 1.00000 o1* o2 h(o1,o2) 
+    < 0 | e(-T) H e(T) | 0> :
 
-    // starting string:
-    //     + 1.00000 o1* v2 h(o1,v2) 
-
-    // starting string:
-    //     + 1.00000 v1* o2 h(v1,o2) 
-
-    // starting string:
-    //     + 1.00000 v1* v2 h(v1,v2) 
-
-    // starting string:
-    //     + 1.00000 o1* o2 a* i h(o1,o2) t1(a,i) 
-
-    // starting string:
-    //     + 1.00000 o1* v2 a* i h(o1,v2) t1(a,i) 
-
-    // starting string:
-    //     + 1.00000 v1* o2 a* i h(v1,o2) t1(a,i) 
-
-    // starting string:
-    //     + 1.00000 v1* v2 a* i h(v1,v2) t1(a,i) 
-
-    // starting string:
-    //     - 1.00000 a* i o1* o2 h(o1,o2) t1(a,i) 
-
-    // starting string:
-    //     - 1.00000 a* i o1* v2 h(o1,v2) t1(a,i) 
-
-    // starting string:
-    //     - 1.00000 a* i v1* o2 h(v1,o2) t1(a,i) 
-
-    // starting string:
-    //     - 1.00000 a* i v1* v2 h(v1,v2) t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 o1* o2 a* b* j i h(o1,o2) t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.25000 o1* v2 a* b* j i h(o1,v2) t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.25000 v1* o2 a* b* j i h(v1,o2) t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.25000 v1* v2 a* b* j i h(v1,v2) t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.25000 a* b* j i o1* o2 h(o1,o2) t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.25000 a* b* j i o1* v2 h(o1,v2) t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.25000 a* b* j i v1* o2 h(v1,o2) t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.25000 a* b* j i v1* v2 h(v1,v2) t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.25000 o1* o2* o3 o4 <o1,o2||o4,o3> 
-
-    // starting string:
-    //     + 0.25000 o1* o2* o3 v4 <o1,o2||v4,o3> 
-
-    // starting string:
-    //     + 0.25000 o1* o2* v3 o4 <o1,o2||o4,v3> 
-
-    // starting string:
-    //     + 0.25000 o1* o2* v3 v4 <o1,o2||v4,v3> 
-
-    // starting string:
-    //     + 0.25000 o1* v2* o3 o4 <o1,v2||o4,o3> 
-
-    // starting string:
-    //     + 0.25000 o1* v2* o3 v4 <o1,v2||v4,o3> 
-
-    // starting string:
-    //     + 0.25000 o1* v2* v3 o4 <o1,v2||o4,v3> 
-
-    // starting string:
-    //     + 0.25000 o1* v2* v3 v4 <o1,v2||v4,v3> 
-
-    // starting string:
-    //     + 0.25000 v1* o2* o3 o4 <v1,o2||o4,o3> 
-
-    // starting string:
-    //     + 0.25000 v1* o2* o3 v4 <v1,o2||v4,o3> 
-
-    // starting string:
-    //     + 0.25000 v1* o2* v3 o4 <v1,o2||o4,v3> 
-
-    // starting string:
-    //     + 0.25000 v1* o2* v3 v4 <v1,o2||v4,v3> 
-
-    // starting string:
-    //     + 0.25000 v1* v2* o3 o4 <v1,v2||o4,o3> 
-
-    // starting string:
-    //     + 0.25000 v1* v2* o3 v4 <v1,v2||v4,o3> 
-
-    // starting string:
-    //     + 0.25000 v1* v2* v3 o4 <v1,v2||o4,v3> 
-
-    // starting string:
-    //     + 0.25000 v1* v2* v3 v4 <v1,v2||v4,v3> 
-
-    // starting string:
-    //     + 0.25000 o1* o2* o3 o4 a* i <o1,o2||o4,o3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 o1* o2* o3 v4 a* i <o1,o2||v4,o3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 o1* o2* v3 o4 a* i <o1,o2||o4,v3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 o1* o2* v3 v4 a* i <o1,o2||v4,v3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 o1* v2* o3 o4 a* i <o1,v2||o4,o3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 o1* v2* o3 v4 a* i <o1,v2||v4,o3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 o1* v2* v3 o4 a* i <o1,v2||o4,v3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 o1* v2* v3 v4 a* i <o1,v2||v4,v3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 v1* o2* o3 o4 a* i <v1,o2||o4,o3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 v1* o2* o3 v4 a* i <v1,o2||v4,o3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 v1* o2* v3 o4 a* i <v1,o2||o4,v3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 v1* o2* v3 v4 a* i <v1,o2||v4,v3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 v1* v2* o3 o4 a* i <v1,v2||o4,o3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 v1* v2* o3 v4 a* i <v1,v2||v4,o3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 v1* v2* v3 o4 a* i <v1,v2||o4,v3> t1(a,i) 
-
-    // starting string:
-    //     + 0.25000 v1* v2* v3 v4 a* i <v1,v2||v4,v3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i o1* o2* o3 o4 <o1,o2||o4,o3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i o1* o2* o3 v4 <o1,o2||v4,o3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i o1* o2* v3 o4 <o1,o2||o4,v3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i o1* o2* v3 v4 <o1,o2||v4,v3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i o1* v2* o3 o4 <o1,v2||o4,o3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i o1* v2* o3 v4 <o1,v2||v4,o3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i o1* v2* v3 o4 <o1,v2||o4,v3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i o1* v2* v3 v4 <o1,v2||v4,v3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i v1* o2* o3 o4 <v1,o2||o4,o3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i v1* o2* o3 v4 <v1,o2||v4,o3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i v1* o2* v3 o4 <v1,o2||o4,v3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i v1* o2* v3 v4 <v1,o2||v4,v3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i v1* v2* o3 o4 <v1,v2||o4,o3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i v1* v2* o3 v4 <v1,v2||v4,o3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i v1* v2* v3 o4 <v1,v2||o4,v3> t1(a,i) 
-
-    // starting string:
-    //     - 0.25000 a* i v1* v2* v3 v4 <v1,v2||v4,v3> t1(a,i) 
-
-    // starting string:
-    //     + 0.06250 o1* o2* o3 o4 a* b* j i <o1,o2||o4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 o1* o2* o3 v4 a* b* j i <o1,o2||v4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 o1* o2* v3 o4 a* b* j i <o1,o2||o4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 o1* o2* v3 v4 a* b* j i <o1,o2||v4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 o1* v2* o3 o4 a* b* j i <o1,v2||o4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 o1* v2* o3 v4 a* b* j i <o1,v2||v4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 o1* v2* v3 o4 a* b* j i <o1,v2||o4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 o1* v2* v3 v4 a* b* j i <o1,v2||v4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 v1* o2* o3 o4 a* b* j i <v1,o2||o4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 v1* o2* o3 v4 a* b* j i <v1,o2||v4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 v1* o2* v3 o4 a* b* j i <v1,o2||o4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 v1* o2* v3 v4 a* b* j i <v1,o2||v4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 v1* v2* o3 o4 a* b* j i <v1,v2||o4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 v1* v2* o3 v4 a* b* j i <v1,v2||v4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 v1* v2* v3 o4 a* b* j i <v1,v2||o4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.06250 v1* v2* v3 v4 a* b* j i <v1,v2||v4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i o1* o2* o3 o4 <o1,o2||o4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i o1* o2* o3 v4 <o1,o2||v4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i o1* o2* v3 o4 <o1,o2||o4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i o1* o2* v3 v4 <o1,o2||v4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i o1* v2* o3 o4 <o1,v2||o4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i o1* v2* o3 v4 <o1,v2||v4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i o1* v2* v3 o4 <o1,v2||o4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i o1* v2* v3 v4 <o1,v2||v4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i v1* o2* o3 o4 <v1,o2||o4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i v1* o2* o3 v4 <v1,o2||v4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i v1* o2* v3 o4 <v1,o2||o4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i v1* o2* v3 v4 <v1,o2||v4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i v1* v2* o3 o4 <v1,v2||o4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i v1* v2* o3 v4 <v1,v2||v4,o3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i v1* v2* v3 o4 <v1,v2||o4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     - 0.06250 a* b* j i v1* v2* v3 v4 <v1,v2||v4,v3> t2(a,b,i,j) 
-
-    // starting string:
-    //     + 0.12500 o1* o2* o3 o4 a* i b* j <o1,o2||o4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 o1* o2* o3 v4 a* i b* j <o1,o2||v4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 o1* o2* v3 o4 a* i b* j <o1,o2||o4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 o1* o2* v3 v4 a* i b* j <o1,o2||v4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 o1* v2* o3 o4 a* i b* j <o1,v2||o4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 o1* v2* o3 v4 a* i b* j <o1,v2||v4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 o1* v2* v3 o4 a* i b* j <o1,v2||o4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 o1* v2* v3 v4 a* i b* j <o1,v2||v4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 v1* o2* o3 o4 a* i b* j <v1,o2||o4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 v1* o2* o3 v4 a* i b* j <v1,o2||v4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 v1* o2* v3 o4 a* i b* j <v1,o2||o4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 v1* o2* v3 v4 a* i b* j <v1,o2||v4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 v1* v2* o3 o4 a* i b* j <v1,v2||o4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 v1* v2* o3 v4 a* i b* j <v1,v2||v4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 v1* v2* v3 o4 a* i b* j <v1,v2||o4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     + 0.12500 v1* v2* v3 v4 a* i b* j <v1,v2||v4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i o1* o2* o3 o4 b* j <o1,o2||o4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i o1* o2* o3 v4 b* j <o1,o2||v4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i o1* o2* v3 o4 b* j <o1,o2||o4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i o1* o2* v3 v4 b* j <o1,o2||v4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i o1* v2* o3 o4 b* j <o1,v2||o4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i o1* v2* o3 v4 b* j <o1,v2||v4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i o1* v2* v3 o4 b* j <o1,v2||o4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i o1* v2* v3 v4 b* j <o1,v2||v4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i v1* o2* o3 o4 b* j <v1,o2||o4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i v1* o2* o3 v4 b* j <v1,o2||v4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i v1* o2* v3 o4 b* j <v1,o2||o4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i v1* o2* v3 v4 b* j <v1,o2||v4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i v1* v2* o3 o4 b* j <v1,v2||o4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i v1* v2* o3 v4 b* j <v1,v2||v4,o3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i v1* v2* v3 o4 b* j <v1,v2||o4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 a* i v1* v2* v3 v4 b* j <v1,v2||v4,v3> t1(a,i) t1(b,j) 
-
-    // starting string:
-    //     - 0.12500 b* j o1* o2* o3 o4 a* i <o1,o2||o4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j o1* o2* o3 v4 a* i <o1,o2||v4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j o1* o2* v3 o4 a* i <o1,o2||o4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j o1* o2* v3 v4 a* i <o1,o2||v4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j o1* v2* o3 o4 a* i <o1,v2||o4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j o1* v2* o3 v4 a* i <o1,v2||v4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j o1* v2* v3 o4 a* i <o1,v2||o4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j o1* v2* v3 v4 a* i <o1,v2||v4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j v1* o2* o3 o4 a* i <v1,o2||o4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j v1* o2* o3 v4 a* i <v1,o2||v4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j v1* o2* v3 o4 a* i <v1,o2||o4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j v1* o2* v3 v4 a* i <v1,o2||v4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j v1* v2* o3 o4 a* i <v1,v2||o4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j v1* v2* o3 v4 a* i <v1,v2||v4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j v1* v2* v3 o4 a* i <v1,v2||o4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     - 0.12500 b* j v1* v2* v3 v4 a* i <v1,v2||v4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i o1* o2* o3 o4 <o1,o2||o4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i o1* o2* o3 v4 <o1,o2||v4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i o1* o2* v3 o4 <o1,o2||o4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i o1* o2* v3 v4 <o1,o2||v4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i o1* v2* o3 o4 <o1,v2||o4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i o1* v2* o3 v4 <o1,v2||v4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i o1* v2* v3 o4 <o1,v2||o4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i o1* v2* v3 v4 <o1,v2||v4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i v1* o2* o3 o4 <v1,o2||o4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i v1* o2* o3 v4 <v1,o2||v4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i v1* o2* v3 o4 <v1,o2||o4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i v1* o2* v3 v4 <v1,o2||v4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i v1* v2* o3 o4 <v1,v2||o4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i v1* v2* o3 v4 <v1,v2||v4,o3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i v1* v2* v3 o4 <v1,v2||o4,v3> t1(b,j) t1(a,i) 
-
-    // starting string:
-    //     + 0.12500 b* j a* i v1* v2* v3 v4 <v1,v2||v4,v3> t1(b,j) t1(a,i) 
 
     // fully-contracted strings:
     //     + 1.00000 h(i,i) 
