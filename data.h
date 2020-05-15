@@ -17,6 +17,7 @@ class StringData {
     std::vector<std::string> string;
     std::vector<std::string> tensor;
     std::vector<std::vector<std::string> > amplitudes;
+    std::vector<std::vector<std::string> > left_amplitudes;
 
 };
 
