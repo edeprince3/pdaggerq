@@ -25,7 +25,7 @@ A code for bringing strings of creation / annihilation operators to normal order
 
     add_operator_product: set strings corresponding to a product of operators. Currently supported operators include general one-body operators ('h(p,q)'), antisymetrized two-body operators ('g(p,q,r,s)'), singles (de-)excitation amplitudes ('l1(i,a)' and 't1(a,i)'), and doubles (de-)excitation amplitudes ('l2(i,j,a,b)' and 't2(a,b,i,j)'). Note that the factor of 1/4 associated with t2, l2, and g are handled internally.
     
-        set_operator_product( 0.5, ['h(p,q)','t1(a,i)','t2(c,d,k,l)'])
+        add_operator_product( 0.5, ['h(p,q)','t1(a,i)','t2(c,d,k,l)'])
         
     add_commutator: set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
