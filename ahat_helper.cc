@@ -1,3 +1,28 @@
+//
+// pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+// Filename: ahat_helper.cc
+// Copyright (C) 2020 A. Eugene DePrince III
+//
+// Author: A. Eugene DePrince III <adeprince@fsu.edu>
+// Maintainer: DePrince group
+//
+// This file is part of the pdaggerq package.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+
 #ifndef _python_api2_h_
 #define _python_api2_h_
 
@@ -24,7 +49,9 @@ namespace pdaggerq {
 void export_ahat_helper(py::module& m) {
     py::class_<pdaggerq::ahat_helper, std::shared_ptr<pdaggerq::ahat_helper> >(m, "ahat_helper")
         .def(py::init< std::string >())
+        .def("set_print_level", &ahat_helper::set_print_level)
         .def("set_bra", &ahat_helper::set_bra)
+        .def("set_ket", &ahat_helper::set_ket)
         .def("set_string", &ahat_helper::set_string)
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_amplitudes", &ahat_helper::set_amplitudes)
@@ -85,11 +112,18 @@ ahat_helper::ahat_helper(std::string vacuum_type)
     data = (std::shared_ptr<StringData>)(new StringData());
 
     bra = "VACUUM";
+    ket = "VACUUM";
+
+    print_level = 0;
 
 }
 
 ahat_helper::~ahat_helper()
 {
+}
+
+void ahat_helper::set_print_level(int level) {
+    print_level = level;
 }
 
 void ahat_helper::set_bra(std::string bra_type){
@@ -108,7 +142,24 @@ void ahat_helper::set_bra(std::string bra_type){
         printf("\n");
         exit(1);
     }
+}
 
+void ahat_helper::set_ket(std::string ket_type){
+
+    if ( ket_type == "" ) {
+        ket = "VACUUM";
+    }else if ( ket_type == "SINGLES" || ket_type == "singles" ) {
+        ket = "SINGLES";
+    }else if ( ket_type == "FERMI" || ket_type == "doubles" ) {
+        ket = "DOUBLES";
+    }else if ( ket_type == "VACUUM" || ket_type == "vacuum" ) {
+        ket = "VACUUM";
+    }else {
+        printf("\n");
+        printf("    error: invalid ket type (%s)\n",ket_type.c_str());
+        printf("\n");
+        exit(1);
+    }
 }
 
 void ahat_helper::add_commutator(double factor, std::vector<std::string>  in) {
@@ -377,7 +428,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 size_t pos = in[i].find(",");
                 if ( pos == std::string::npos ) {
                     printf("\n");
-                    printf("    error in amplitude definition\n");
+                    printf("    error in left-hand amplitude definition\n");
                     printf("\n");
                     exit(1);
                 }
@@ -407,7 +458,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                 if ( ncomma != 3 ) {
                     printf("\n");
-                    printf("    error in amplitude definition\n");
+                    printf("    error in left-hand amplitude definition\n");
                     printf("\n");
                     exit(1);
                 }
@@ -415,11 +466,13 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 factor *= 0.25;
 
 
-                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                // jiab
                 tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                tmp_string.push_back(in[i].substr(commas[2]+1));
+                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
                 tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+                tmp_string.push_back(in[i].substr(commas[2]+1));
 
+                // ijab
                 set_left_amplitudes({
                                         in[i].substr(2,commas[0]-2),
                                         in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
@@ -429,10 +482,72 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
             }else {
                 printf("\n");
-                printf("    error: only t1 or t2 amplitudes are supported\n");
+                printf("    error: only l1 or l2 left-hand amplitudes are supported\n");
                 printf("\n");
                 exit(1);
             }
+        }else if ( in[i].substr(0,1) == "e" ){
+
+
+            //if ( in[i].substr(1,1) == "1" ){
+
+                // find comma
+                size_t pos = in[i].find(",");
+                if ( pos == std::string::npos ) {
+                    printf("\n");
+                    printf("    error in e operator definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+                size_t len = pos - 1; 
+
+                // index 1
+                tmp_string.push_back(in[i].substr(1,len)+"*");
+
+                // index 2
+                tmp_string.push_back(in[i].substr(pos+1));
+
+                //set_left_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+
+/*
+            }else if ( in[i].substr(1,1) == "2" ){
+
+	        printf("\n");
+	        printf("    error: e2 operator not yet implemented.\n");
+	        printf("\n");
+	        exit(1);
+
+	        // count indices
+	        size_t pos = 0;
+	        int ncomma = 0;
+	        std::vector<size_t> commas;
+                pos = in[i].find(",", pos + 1);
+	        commas.push_back(pos);
+	        while( pos != std::string::npos){
+                    pos = in[i].find(",", pos + 1);
+	            commas.push_back(pos);
+                    ncomma++;
+	        }
+
+                if ( ncomma != 3 ) {
+                    printf("\n");
+                    printf("    error in left-hand amplitude definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+
+                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                tmp_string.push_back(in[i].substr(commas[2]+1));
+                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+            }else {
+                printf("\n");
+                printf("    error: only e1 or e2 left-hand amplitudes are supported\n");
+                printf("\n");
+                exit(1);
+            }
+*/
         }else {
                 printf("\n");
                 printf("    error: undefined string\n");
@@ -443,6 +558,22 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
     }
 
     set_factor(factor);
+
+    if ( ket == "SINGLES" ) {
+
+        // for singles equations: |em> = e*m|0>
+        tmp_string.push_back("e*");
+        tmp_string.push_back("m");
+
+    }else if ( ket == "DOUBLES" ) {
+
+        // for doubles equations: |efmn> = e*f*mn|0>
+        tmp_string.push_back("e*");
+        tmp_string.push_back("f*");
+        tmp_string.push_back("n");
+        tmp_string.push_back("m");
+
+    }
 
     set_string(tmp_string);
 
@@ -522,10 +653,12 @@ void ahat_helper::add_new_string_true_vacuum(){
         mystring->data->left_amplitudes.push_back(tmp);
     }
 
-    printf("\n");
-    printf("    ");
-    printf("// starting string:\n");
-    mystring->print();
+    if ( print_level > 0 ) {
+        printf("\n");
+        printf("    ");
+        printf("// starting string:\n");
+        mystring->print();
+    }
 
     // rearrange strings
     mystring->normal_order(ordered);
@@ -875,10 +1008,12 @@ void ahat_helper::add_new_string_fermi_vacuum(){
 
         }
 
-        printf("\n");
-        printf("    ");
-        printf("// starting string:\n");
-        mystrings[string_num]->print();
+        if ( print_level > 0 ) {
+            printf("\n");
+            printf("    ");
+            printf("// starting string:\n");
+            mystrings[string_num]->print();
+        }
 
         // rearrange strings
         mystrings[string_num]->normal_order(ordered);

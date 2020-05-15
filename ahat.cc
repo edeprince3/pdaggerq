@@ -1,3 +1,27 @@
+//
+// pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+// Filename: ahat.cc
+// Copyright (C) 2020 A. Eugene DePrince III
+//
+// Author: A. Eugene DePrince III <adeprince@fsu.edu>
+// Maintainer: DePrince group
+//
+// This file is part of the pdaggerq package.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+
 #include<memory>
 #include<vector>
 #include<iostream>
@@ -1491,12 +1515,30 @@ void ahat::gobble_deltas() {
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
 
+    // possibilities:  1                2                 result
+    //                 tensor           tensor            replace 1 in tensor with 2
+    //                 tensor           amplitudes        replace 1 in tensor with 2
+    //                 tensor           left amplitudes   replace 1 in tensor with 2
+    //                 tensor           -                 replace 1 in tensor with 2
+    //                 amplitudes       tensor            replace 2 in tensor with 1
+    //                 left amplitudes  tensor            replace 2 in tensor with 1
+    //                 -                tensor            replace 2 in tensor with 1
+    //                 amplitudes       amplitudes        replace 1 in amplitudes with 2
+    //                 amplitudes       left amplitudes   replace 1 in amplitudes with 2
+    //                 amplitudes       -                 replace 1 in amplitudes with 2
+    //                 left amplitudes  amplitudes        replace 2 in amplitudes with 1
+    //                 -                amplitudes        replace 2 in amplitudes with 1
+    //                 left amplitudes  left amplitudes   replace 1 in left amplitudes with 2
+    //                 left amplitudes  -                 replace 1 in left amplitudes with 2
+    //                 -                left amplitudes   replace 2 in left amplitudes with 1
     for (int i = 0; i < (int)delta1.size(); i++) {
 
-        bool delta1_in_tensor     = index_in_tensor( delta1[i] );
-        bool delta2_in_tensor     = index_in_tensor( delta2[i] );
-        bool delta1_in_amplitudes = index_in_amplitudes( delta1[i] );
-        bool delta2_in_amplitudes = index_in_amplitudes( delta2[i] );
+        bool delta1_in_tensor          = index_in_tensor( delta1[i] );
+        bool delta2_in_tensor          = index_in_tensor( delta2[i] );
+        bool delta1_in_amplitudes      = index_in_amplitudes( delta1[i] );
+        bool delta2_in_amplitudes      = index_in_amplitudes( delta2[i] );
+        bool delta1_in_left_amplitudes = index_in_left_amplitudes( delta1[i] );
+        bool delta2_in_left_amplitudes = index_in_left_amplitudes( delta2[i] );
 
         if ( delta1_in_tensor ) {
 
@@ -1507,6 +1549,13 @@ void ahat::gobble_deltas() {
                 continue;
 
             }else if ( delta2_in_amplitudes) {
+
+                // replace index in tensor
+                replace_index_in_tensor( delta1[i], delta2[i] );
+
+                continue;
+
+            }else if ( delta2_in_left_amplitudes) {
 
                 // replace index in tensor
                 replace_index_in_tensor( delta1[i], delta2[i] );
@@ -1531,6 +1580,13 @@ void ahat::gobble_deltas() {
 
                 continue;
 
+            }else if ( delta1_in_left_amplitudes) {
+
+                // replace index in tensor
+                replace_index_in_tensor( delta2[i], delta1[i] );
+
+                continue;
+
             }else {
 
                 // index one must come from the bra, so replace index two in tensor
@@ -1548,10 +1604,16 @@ void ahat::gobble_deltas() {
 
                 continue;
 
+            }else if ( delta2_in_left_amplitudes) {
+
+                replace_index_in_amplitudes( delta1[i], delta2[i] );
+
+                continue;
+
             }else {
 
                 // index two must come from the bra, so replace index one in amplitudes
-                replace_index_in_amplitudes( delta1[i], delta1[i] );
+                replace_index_in_amplitudes( delta1[i], delta2[i] );
 
                 continue;
 
@@ -1559,11 +1621,40 @@ void ahat::gobble_deltas() {
 
         }else if ( delta2_in_amplitudes) {
 
-            // index one must come from the bra, so replace index two in amplitudes
-            replace_index_in_amplitudes( delta2[i], delta1[i] );
+            if ( delta1_in_left_amplitudes) {
 
-            continue;
+                replace_index_in_amplitudes( delta2[i], delta1[i] );
 
+                continue;
+
+            }else {
+
+                // index one must come from the bra, so replace index two in amplitudes
+                replace_index_in_amplitudes( delta2[i], delta1[i] );
+
+                continue;
+            }
+
+        }else if ( delta1_in_left_amplitudes ) {
+            if ( delta2_in_left_amplitudes) {
+
+                replace_index_in_left_amplitudes( delta1[i], delta2[i] );
+
+                continue;
+
+            }else {
+
+                // index two must come from the bra, so replace index one in left amplitudes
+                replace_index_in_left_amplitudes( delta1[i], delta2[i] );
+
+                continue;
+            }
+        }else if ( delta2_in_left_amplitudes ) {
+
+                // index one must come from the bra, so replace index two in left amplitudes
+                replace_index_in_left_amplitudes( delta2[i], delta1[i] );
+
+                continue;
         }
 
         // at this point, it is safe to assume the delta function must remain
@@ -1571,6 +1662,7 @@ void ahat::gobble_deltas() {
         tmp_delta2.push_back(delta2[i]);
 
     }
+
 
     delta1.clear();
     delta2.clear();
