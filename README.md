@@ -32,19 +32,24 @@ A code for bringing strings of creation / annihilation operators to normal order
     Currently supported operators include 
     
     a general one-body operator
+    
         'h(p,q)' 
     
     an antisymetrized two-body operator
+    
         'g(p,q,r,s)' 
     
     a pair of creation/annihilation operators, p*q
+    
         'e(p,q)' 
     
     singles (de-)excitation amplitudes 
+    
         'l1(i,a)'  
         't1(a,i)'
     
     doubles (de-)excitation amplitudes 
+    
         'l2(i,j,a,b)'  
         't2(a,b,i,j)' 
     
