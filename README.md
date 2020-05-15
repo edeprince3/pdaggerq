@@ -87,7 +87,7 @@ A code for bringing strings of creation / annihilation operators to normal order
 
     #### set_bra: 
     
-    set a bra state to include in the operator string. possible bra states include "vacuum", "singles" (m* e), and "doubles" (n* m* e f)
+    set a bra state to include in the operator string. possible bra states include "vacuum", "singles" (m* e), and "doubles" (m* n* f e)
     
         set_bra("doubles")
     
