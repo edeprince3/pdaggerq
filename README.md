@@ -23,11 +23,36 @@ A code for bringing strings of creation / annihilation operators to normal order
 
 4. Strings are defined in Python using the ahat_helper class, which has the following functions:
 
-    add_operator_product: set strings corresponding to a product of operators. Currently supported operators include general one-body operators ('h(p,q)'), antisymetrized two-body operators ('g(p,q,r,s)'), singles (de-)excitation amplitudes ('l1(i,a)' and 't1(a,i)'), and doubles (de-)excitation amplitudes ('l2(i,j,a,b)' and 't2(a,b,i,j)'). Note that the factor of 1/4 associated with t2, l2, and g are handled internally.
+    # add_operator_product: 
+    
+    set strings corresponding to a product of operators. 
     
         add_operator_product( 0.5, ['h(p,q)','t1(a,i)','t2(c,d,k,l)'])
-        
-    add_commutator: set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    
+    Currently supported operators include 
+    
+    a general one-body operator
+        'h(p,q)' 
+    
+    an antisymetrized two-body operator
+        'g(p,q,r,s)' 
+    
+    a pair of creation/annihilation operators, p*q
+        'e(p,q)' 
+    
+    singles (de-)excitation amplitudes 
+        'l1(i,a)'  
+        't1(a,i)'
+    
+    doubles (de-)excitation amplitudes 
+        'l2(i,j,a,b)'  
+        't2(a,b,i,j)' 
+    
+    Note that the factor of 1/4 associated with t2, l2, and g are handled internally.
+     
+    # add_commutator: 
+    
+    set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_commutator(1.0, ['h(p,q)','t2(a,b,i,j)'])
   
@@ -75,7 +100,7 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         clear()
 
-5. Strings may also be specified manually using the following commands, but some of these don't yet work correctly when normal order is defined relative to the fermi vacuum.
+5. Strings may also be specified manually using the following commands, but some of these don't yet work correctly when normal order is defined relative to the fermi vacuum. Most use cases would probably be best treated using the functions defined in the previous bullet.
 
     set_string: set the string of creation and annihiliation operators.
     
