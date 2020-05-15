@@ -91,11 +91,12 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         set_bra("doubles")
     
-        #### set_bra: 
+        
+    #### set_ket: 
     
     set a ket state to include in the operator string. possible ket states include "vacuum", "singles" (e* m), and "doubles" (e* f* n m)
     
-        set_bra("doubles")
+        set_ket("doubles")
     
     #### simplify: 
     
