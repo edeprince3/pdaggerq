@@ -23,7 +23,7 @@ A code for bringing strings of creation / annihilation operators to normal order
 
 4. Strings are defined in Python using the ahat_helper class, which has the following functions:
 
-    # add_operator_product: 
+    ##### add_operator_product: 
     
     set strings corresponding to a product of operators. 
     
@@ -50,7 +50,7 @@ A code for bringing strings of creation / annihilation operators to normal order
     
     Note that the factor of 1/4 associated with t2, l2, and g are handled internally.
      
-    # add_commutator: 
+    #### add_commutator: 
     
     set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
