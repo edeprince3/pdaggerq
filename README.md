@@ -39,43 +39,49 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         'g(p,q,r,s)' 
     
-    a pair of creation/annihilation operators, p*q
+    a pair of creation/annihilation operators, e.g., p*q
     
         'e(p,q)' 
     
-    singles (de-)excitation amplitudes 
+    singles and doubles t-amplitudes 
+    
+        't1(a,i)'
+        't2(a,b,i,j)' 
+
+    
+    singles and doubles left-hand amplitudes 
     
         'l1(i,a)'  
-        't1(a,i)'
+        'l2(i,j,a,b)'   
+        
+    singles and doubles right-hand amplitudes 
     
-    doubles (de-)excitation amplitudes 
+        'r1(a,i)'  
+        'r2(a,b,i,j)'   
     
-        'l2(i,j,a,b)'  
-        't2(a,b,i,j)' 
-    
-    Note that the factor of 1/4 associated with t2, l2, and g are handled internally.
+    Note that the factor of 1/4 associated with t2, l2, r2, and g are handled internally.
      
     #### add_commutator: 
     
-    set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, r2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_commutator(1.0, ['h(p,q)','t2(a,b,i,j)'])
   
     #### add_double_commutator: 
     
-    set strings corresponding to a double commutator involving three operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    set strings corresponding to a double commutator involving three operators. If any of the operators is t2, l2, r2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_double_commutator(1.0/2.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)'])
         
     #### add_triple_commutator: 
     
-    set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, l2, r2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_triple_commutator(1.0/6.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)', 't1(d,l)'])
         
     #### add_quadruple_commutator: 
     
-    set strings corresponding to a quadruple commutator involving five operators. If any of the operators is t2, l2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    set strings corresponding to a quadruple commutator involving five operators. If any of the operators is t2, l2, r2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
     
         add_quadruple_commutator(1.0/24.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)', 't1(d,l)', 't1(e,m)'])
 
@@ -136,11 +142,15 @@ A code for bringing strings of creation / annihilation operators to normal order
 
 5. Strings may also be specified manually using the following commands, but some of these don't yet work correctly when normal order is defined relative to the fermi vacuum. Most use cases would probably be best treated using the functions defined in the previous bullet.
 
-    set_string: set the string of creation and annihiliation operators.
+    #### set_string: 
+    
+    set the string of creation and annihiliation operators.
     
         set_string(['p*','q','a*','i'])
         
-    set tensor: define a one- or two-body tensor to accompany the string. Note that only one tensor can accompany the string.
+    #### set_tensor: 
+    
+    define a one- or two-body tensor to accompany the string. Note that only one tensor can accompany the string.
     
         set_tensor(['p','q'])
         
@@ -148,19 +158,45 @@ A code for bringing strings of creation / annihilation operators to normal order
         
         set_tensor(['p','q','r','s'])
         
-    set amplitudes: define t1 or t2 amplitudes to accompany the string. Note that an arbitrary number of amplitudes can be set.
+    #### set_t_amplitudes: 
+    
+    define t1 or t2 amplitudes to accompany the string. Note that an arbitrary number of amplitudes can be set.
 
-        set_amplitudes(['a','i'])
+        set_t_amplitudes(['a','i'])
         
         or 
         
-        set_amplitudes(['a','b','i','j'])
+        set_t_amplitudes(['a','b','i','j'])
         
-    set_factor: define a numerical factor to accompany the string. The default value is 1.0.
+    #### set_left_amplitudes: 
+    
+    define l1 or l2 amplitudes to accompany the string. 
+
+        set_left_amplitudes(['i','a'])
+        
+        or 
+        
+        set_left_amplitudes(['i','j','a','b'])
+        
+    #### set_right_amplitudes: 
+    
+    define r1 or r2 amplitudes to accompany the string. 
+
+        set_right_amplitudes(['a','i'])
+        
+        or 
+        
+        set_right_amplitudes(['a','b','i','j'])
+        
+    #### set_factor: 
+    
+    define a numerical factor to accompany the string. The default value is 1.0.
     
         set_factor(0.5)
 
-    add_new_string: bring string to normal order and add to existing list of strings.
+    #### add_new_string: 
+    
+    bring string to normal order and add to existing list of strings.
     
         add_new_string()
                 
