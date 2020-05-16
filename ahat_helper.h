@@ -77,6 +77,9 @@ class ahat_helper {
     /// set labels for l1 or l2 amplitudes
     void set_left_amplitudes(std::vector<std::string> in);
 
+    /// set labels for r1 or r2 amplitudes
+    void set_right_amplitudes(std::vector<std::string> in);
+
     /// set a numerical factor
     void set_factor(double in);
 

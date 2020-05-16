@@ -283,6 +283,36 @@ void ahat::print() {
         }
     }
 
+    // right-hand amplitudes
+    if ( (int)data->right_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
+           
+            if ( (int)data->right_amplitudes[i].size() > 0 ) {
+                // l1
+                if ( (int)data->right_amplitudes[i].size() == 2 ) {
+                    printf("l1(");
+                    printf("%s",data->right_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->right_amplitudes[i][1].c_str());
+                    printf(")");
+                }
+                // l2
+                if ( (int)data->right_amplitudes[i].size() == 4 ) {
+                    printf("l2(");
+                    printf("%s",data->right_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->right_amplitudes[i][1].c_str());
+                    printf(",");
+                    printf("%s",data->right_amplitudes[i][2].c_str());
+                    printf(",");
+                    printf("%s",data->right_amplitudes[i][3].c_str());
+                    printf(")");
+                }
+                printf(" ");
+            } 
+        }
+    }
+
     // t_amplitudes
     if ( (int)data->t_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
@@ -416,6 +446,8 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 // four-index tensors. only works for four-index amplitudes (i.e., t2)
 
 // TODO: account for left-hand amplitudes
+// TODO: account for right-hand amplitudes
+// TODO: need an update_ket_labes function?
 
 void ahat::update_bra_labels() {
 
@@ -546,330 +578,114 @@ void ahat::update_summation_labels() {
 
     if ( skip ) return;
 
-    bool find_i = index_in_tensor("i") || index_in_t_amplitudes("i") || index_in_left_amplitudes("i");
-    bool find_j = index_in_tensor("j") || index_in_t_amplitudes("j") || index_in_left_amplitudes("j");
-    bool find_k = index_in_tensor("k") || index_in_t_amplitudes("k") || index_in_left_amplitudes("k");
-    bool find_l = index_in_tensor("l") || index_in_t_amplitudes("l") || index_in_left_amplitudes("l");
+    bool find_i = index_in_tensor("i") || index_in_t_amplitudes("i") || index_in_left_amplitudes("i") || index_in_right_amplitudes("i");
+    bool find_j = index_in_tensor("j") || index_in_t_amplitudes("j") || index_in_left_amplitudes("j") || index_in_right_amplitudes("j");
+    bool find_k = index_in_tensor("k") || index_in_t_amplitudes("k") || index_in_left_amplitudes("k") || index_in_right_amplitudes("k");
+    bool find_l = index_in_tensor("l") || index_in_t_amplitudes("l") || index_in_left_amplitudes("l") || index_in_right_amplitudes("l");
 
-    bool find_a = index_in_tensor("a") || index_in_t_amplitudes("a") || index_in_left_amplitudes("a");
-    bool find_b = index_in_tensor("b") || index_in_t_amplitudes("b") || index_in_left_amplitudes("b");
-    bool find_c = index_in_tensor("c") || index_in_t_amplitudes("c") || index_in_left_amplitudes("c");
-    bool find_d = index_in_tensor("d") || index_in_t_amplitudes("d") || index_in_left_amplitudes("d");
+    bool find_a = index_in_tensor("a") || index_in_t_amplitudes("a") || index_in_left_amplitudes("a") || index_in_right_amplitudes("a");
+    bool find_b = index_in_tensor("b") || index_in_t_amplitudes("b") || index_in_left_amplitudes("b") || index_in_right_amplitudes("b");
+    bool find_c = index_in_tensor("c") || index_in_t_amplitudes("c") || index_in_left_amplitudes("c") || index_in_right_amplitudes("c");
+    bool find_d = index_in_tensor("d") || index_in_t_amplitudes("d") || index_in_left_amplitudes("d") || index_in_right_amplitudes("d");
 
     // i,j,k,l
     if ( !find_i && find_j && find_k && find_l ) {
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
+
+        replace_index_everywhere("l","i");
+
     }else if ( !find_i && find_j && find_k && !find_l ) {
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
+
+        replace_index_everywhere("k","i");
+
     }else if ( !find_i && find_j && !find_k && !find_l ) {
-        replace_index_in_tensor("j","i");
-        replace_index_in_tensor("j","i");
-        replace_index_in_tensor("j","i");
-        replace_index_in_tensor("j","i");
-        replace_index_in_t_amplitudes("j","i");
-        replace_index_in_t_amplitudes("j","i");
-        replace_index_in_t_amplitudes("j","i");
-        replace_index_in_t_amplitudes("j","i");
-        replace_index_in_left_amplitudes("j","i");
-        replace_index_in_left_amplitudes("j","i");
-        replace_index_in_left_amplitudes("j","i");
-        replace_index_in_left_amplitudes("j","i");
+
+        replace_index_everywhere("j","i");
+
     }else if ( !find_i && find_j && !find_k && find_l ) {
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
+
+        replace_index_everywhere("l","i");
+
     }else if ( !find_i && !find_j && find_k && find_l ) {
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
+
+        replace_index_everywhere("k","i");
+        replace_index_everywhere("l","j");
+
     }else if ( !find_i && !find_j && !find_k && find_l ) {
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_tensor("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_t_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
-        replace_index_in_left_amplitudes("l","i");
+
+        replace_index_everywhere("l","i");
+
     }else if ( !find_i && !find_j && find_k && !find_l ) {
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_tensor("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_t_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
-        replace_index_in_left_amplitudes("k","i");
+
+        replace_index_everywhere("k","i");
+
     }else if ( find_i && !find_j && find_k && find_l ) {
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
+
+        replace_index_everywhere("l","j");
+
     }else if ( find_i && !find_j && !find_k && find_l ) {
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
+
+        replace_index_everywhere("l","j");
+
     }else if ( find_i && !find_j && find_k && !find_l ) {
-        replace_index_in_tensor("k","j");
-        replace_index_in_tensor("k","j");
-        replace_index_in_tensor("k","j");
-        replace_index_in_tensor("k","j");
-        replace_index_in_t_amplitudes("k","j");
-        replace_index_in_t_amplitudes("k","j");
-        replace_index_in_t_amplitudes("k","j");
-        replace_index_in_t_amplitudes("k","j");
-        replace_index_in_left_amplitudes("k","j");
-        replace_index_in_left_amplitudes("k","j");
-        replace_index_in_left_amplitudes("k","j");
-        replace_index_in_left_amplitudes("k","j");
+
+        replace_index_everywhere("k","j");
+
     }else if ( find_i && !find_j && !find_k && find_l ) {
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_tensor("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_t_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
-        replace_index_in_left_amplitudes("l","j");
+
+        replace_index_everywhere("l","j");
+
     }
 
     // a,b,c,d
     if ( !find_a && find_b && find_c && find_d ) {
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
+
+        replace_index_everywhere("d","a");
+
     }else if ( !find_a && find_b && find_c && !find_d ) {
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
+
+        replace_index_everywhere("c","a");
+
     }else if ( !find_a && find_b && !find_c && find_d ) {
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
+
+        replace_index_everywhere("d","a");
+
     }else if ( !find_a && find_b && !find_c && !find_d ) {
-        replace_index_in_tensor("b","a");
-        replace_index_in_tensor("b","a");
-        replace_index_in_tensor("b","a");
-        replace_index_in_tensor("b","a");
-        replace_index_in_t_amplitudes("b","a");
-        replace_index_in_t_amplitudes("b","a");
-        replace_index_in_t_amplitudes("b","a");
-        replace_index_in_t_amplitudes("b","a");
-        replace_index_in_left_amplitudes("b","a");
-        replace_index_in_left_amplitudes("b","a");
-        replace_index_in_left_amplitudes("b","a");
-        replace_index_in_left_amplitudes("b","a");
+
+        replace_index_everywhere("b","a");
+
     }else if ( !find_a && !find_b && find_c && find_d ) {
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
+
+        replace_index_everywhere("c","a");
+        replace_index_everywhere("d","b");
+
     }else if ( !find_a && !find_b && !find_c && find_d ) {
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_tensor("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_t_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
-        replace_index_in_left_amplitudes("d","a");
+
+        replace_index_everywhere("d","a");
+
     }else if ( !find_a && !find_b && find_c && !find_d ) {
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_tensor("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_t_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
-        replace_index_in_left_amplitudes("c","a");
+
+        replace_index_everywhere("c","a");
+
     }else if ( find_a && !find_b && find_c && find_d ) {
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
+
+        replace_index_everywhere("d","b");
+
     }else if ( find_a && !find_b && !find_c && find_d ) {
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
+
+        replace_index_everywhere("d","b");
+
+    }else if ( find_a && !find_b && !find_c && find_d ) {
+
+        replace_index_everywhere("d","b");
+
     }else if ( find_a && !find_b && find_c && !find_d ) {
-        replace_index_in_tensor("c","b");
-        replace_index_in_tensor("c","b");
-        replace_index_in_tensor("c","b");
-        replace_index_in_tensor("c","b");
-        replace_index_in_t_amplitudes("c","b");
-        replace_index_in_t_amplitudes("c","b");
-        replace_index_in_t_amplitudes("c","b");
-        replace_index_in_t_amplitudes("c","b");
-        replace_index_in_left_amplitudes("c","b");
-        replace_index_in_left_amplitudes("c","b");
-        replace_index_in_left_amplitudes("c","b");
-        replace_index_in_left_amplitudes("c","b");
+
+        replace_index_everywhere("c","b");
+
     }else if ( find_a && !find_b && !find_c && find_d ) {
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_tensor("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_t_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
-        replace_index_in_left_amplitudes("d","b");
+
+        replace_index_everywhere("d","b");
+
     }
 
     // now, if tensors appear as <ji||xx>, swap to -<ij|xx>, <ai||xx> = -<ia|xx>, ec.
@@ -969,51 +785,18 @@ void ahat::update_summation_labels() {
 
 void ahat::swap_two_labels(std::string label1, std::string label2) {
 
-    replace_index_in_tensor(label1,"x");
-    replace_index_in_tensor(label1,"x");
-    replace_index_in_tensor(label1,"x");
-    replace_index_in_tensor(label1,"x");
-    replace_index_in_t_amplitudes(label1,"x");
-    replace_index_in_t_amplitudes(label1,"x");
-    replace_index_in_t_amplitudes(label1,"x");
-    replace_index_in_t_amplitudes(label1,"x");
-    replace_index_in_left_amplitudes(label1,"x");
-    replace_index_in_left_amplitudes(label1,"x");
-    replace_index_in_left_amplitudes(label1,"x");
-    replace_index_in_left_amplitudes(label1,"x");
-    
-    replace_index_in_tensor(label2,label1);
-    replace_index_in_tensor(label2,label1);
-    replace_index_in_tensor(label2,label1);
-    replace_index_in_tensor(label2,label1);
-    replace_index_in_t_amplitudes(label2,label1);
-    replace_index_in_t_amplitudes(label2,label1);
-    replace_index_in_t_amplitudes(label2,label1);
-    replace_index_in_t_amplitudes(label2,label1);
-    replace_index_in_left_amplitudes(label2,label1);
-    replace_index_in_left_amplitudes(label2,label1);
-    replace_index_in_left_amplitudes(label2,label1);
-    replace_index_in_left_amplitudes(label2,label1);
-    
-    replace_index_in_tensor("x",label2);
-    replace_index_in_tensor("x",label2);
-    replace_index_in_tensor("x",label2);
-    replace_index_in_tensor("x",label2);
-    replace_index_in_t_amplitudes("x",label2);
-    replace_index_in_t_amplitudes("x",label2);
-    replace_index_in_t_amplitudes("x",label2);
-    replace_index_in_t_amplitudes("x",label2);
-    replace_index_in_left_amplitudes("x",label2);
-    replace_index_in_left_amplitudes("x",label2);
-    replace_index_in_left_amplitudes("x",label2);
-    replace_index_in_left_amplitudes("x",label2);
+    replace_index_everywhere(label1,"x");
 
+    replace_index_everywhere(label2,label1);
+
+    replace_index_everywhere("x",label2);
 }
 
 // once strings are alphabetized, we can compare them
 // and remove terms that cancel. 
 
 // TODO: need to consider left-hand amplitudes
+// TODO: need to consider right-hand amplitudes
 void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
     // prioritize summation labels as i > j > k > l and a > b > c > d.
@@ -1229,6 +1012,42 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
     //printf("same left-hand amps\n");
     //if ( (n_permute % 2) != 0 ) continue;
 
+    // right-hand amplitudes, which can be complicated since they aren't sorted
+
+    // same number of right-hant amplitudes?
+    if ( ordered_1->data->right_amplitudes.size() != ordered_2->data->right_amplitudes.size() ) return false;
+    
+    int nsame_right_amps = 0;
+    for (int ii = 0; ii < (int)ordered_1->data->right_amplitudes.size(); ii++) {
+        for (int jj = 0; jj < (int)ordered_2->data->right_amplitudes.size(); jj++) {
+
+            // r1 vs r2?
+            if ( ordered_1->data->right_amplitudes[ii].size() != ordered_2->data->right_amplitudes[jj].size() ) continue;
+
+            // indices?
+            int nsame_idx = 0;
+            for (int iii = 0; iii < (int)ordered_1->data->right_amplitudes[ii].size(); iii++) {
+                for (int jjj = 0; jjj < (int)ordered_2->data->right_amplitudes[jj].size(); jjj++) {
+                    if ( ordered_1->data->right_amplitudes[ii][iii] == ordered_2->data->right_amplitudes[jj][jjj] ) {
+                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
+                        nsame_idx++;
+                        break;
+                    }
+                }
+            }
+            // if all indices are the same, the right-hand amplitudes must be the same, but we need to be careful of permutations
+            if ( nsame_idx == (int)ordered_1->data->right_amplitudes[ii].size() ) {
+                nsame_right_amps++;
+                break;
+            }
+        }
+    }
+    if ( nsame_right_amps != (int)ordered_1->data->right_amplitudes.size() ) return false;
+
+
+    //printf("same right-hand amps\n");
+    //if ( (n_permute % 2) != 0 ) continue;
+
     // are tensors same?
     if ( ordered_1->data->tensor.size() != ordered_2->data->tensor.size() ) return false;
 
@@ -1380,6 +1199,15 @@ void ahat::shallow_copy(void * copy_me) {
         data->left_amplitudes.push_back(tmp);
     }
 
+    // right-hand amplitudes
+    for (int i = 0; i < (int)in->data->right_amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in->data->right_amplitudes[i].size(); j++) {
+            tmp.push_back(in->data->right_amplitudes[i][j]);
+        }
+        data->right_amplitudes.push_back(tmp);
+    }
+
 }
 
 bool ahat::index_in_tensor(std::string idx) {
@@ -1421,12 +1249,36 @@ bool ahat::index_in_left_amplitudes(std::string idx) {
 
 }
 
+bool ahat::index_in_right_amplitudes(std::string idx) {
+
+    for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
+            if ( data->right_amplitudes[i][j] == idx ) {
+                return true;
+            }
+           
+        }
+    }
+    return false;
+
+}
+
+void ahat::replace_index_everywhere(std::string old_idx, std::string new_idx) {
+
+    replace_index_in_tensor(old_idx,new_idx);
+    replace_index_in_t_amplitudes(old_idx,new_idx);
+    replace_index_in_left_amplitudes(old_idx,new_idx);
+    replace_index_in_right_amplitudes(old_idx,new_idx);
+
+}
+
 void ahat::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
 
     for (int i = 0; i < (int)data->tensor.size(); i++) {
         if ( data->tensor[i] == old_idx ) {
             data->tensor[i] = new_idx;
-            return;
+            // dont' return because indices may be repeated in two-electron integrals
+            //return;
         }
     }
 
@@ -1458,6 +1310,19 @@ void ahat::replace_index_in_left_amplitudes(std::string old_idx, std::string new
 
 }
 
+void ahat::replace_index_in_right_amplitudes(std::string old_idx, std::string new_idx) {
+
+    for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
+            if ( data->right_amplitudes[i][j] == old_idx ) {
+                data->right_amplitudes[i][j] = new_idx;
+                return; 
+            }
+        }
+    }
+
+}
+
 // find and replace any funny labels in tensors with conventional ones. i.e., t -> i ,w -> a
 void ahat::use_conventional_labels() {
 
@@ -1474,9 +1339,6 @@ void ahat::use_conventional_labels() {
 
                 if ( !index_in_tensor(occ_out[j]) ) {
 
-                    replace_index_in_tensor(occ_in[i],occ_out[j]);
-                    replace_index_in_tensor(occ_in[i],occ_out[j]);
-                    replace_index_in_tensor(occ_in[i],occ_out[j]);
                     replace_index_in_tensor(occ_in[i],occ_out[j]);
                     break;
                 }
@@ -1498,9 +1360,6 @@ void ahat::use_conventional_labels() {
                 if ( !index_in_tensor(vir_out[j]) ) {
 
                     replace_index_in_tensor(vir_in[i],vir_out[j]);
-                    replace_index_in_tensor(vir_in[i],vir_out[j]);
-                    replace_index_in_tensor(vir_in[i],vir_out[j]);
-                    replace_index_in_tensor(vir_in[i],vir_out[j]);
                     break;
                 }
             }
@@ -1510,6 +1369,7 @@ void ahat::use_conventional_labels() {
 
 }
 
+// TODO: account for right-hand amplitudes
 void ahat::gobble_deltas() {
 
     std::vector<std::string> tmp_delta1;

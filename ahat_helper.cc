@@ -56,6 +56,7 @@ void export_ahat_helper(py::module& m) {
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_t_amplitudes", &ahat_helper::set_t_amplitudes)
         .def("set_left_amplitudes", &ahat_helper::set_left_amplitudes)
+        .def("set_right_amplitudes", &ahat_helper::set_right_amplitudes)
         .def("set_factor", &ahat_helper::set_factor)
         .def("add_new_string", &ahat_helper::add_new_string)
         .def("add_operator_product", &ahat_helper::add_operator_product)
@@ -419,6 +420,71 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 printf("\n");
                 exit(1);
             }
+        }else if ( in[i].substr(0,1) == "r" ){
+
+
+            if ( in[i].substr(1,1) == "1" ){
+
+                // find comma
+                size_t pos = in[i].find(",");
+                if ( pos == std::string::npos ) {
+                    printf("\n");
+                    printf("    error in right-hand amplitude definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+                size_t len = pos - 2; 
+
+                // index 1
+                tmp_string.push_back(in[i].substr(2,len)+"*");
+
+                // index 2
+                tmp_string.push_back(in[i].substr(pos+1));
+
+                set_right_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+
+            }else if ( in[i].substr(1,1) == "2" ){
+
+	        // count indices
+	        size_t pos = 0;
+	        int ncomma = 0;
+	        std::vector<size_t> commas;
+                pos = in[i].find(",", pos + 1);
+	        commas.push_back(pos);
+	        while( pos != std::string::npos){
+                    pos = in[i].find(",", pos + 1);
+	            commas.push_back(pos);
+                    ncomma++;
+	        }
+
+                if ( ncomma != 3 ) {
+                    printf("\n");
+                    printf("    error in right-hand amplitude definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+
+                factor *= 0.25;
+
+
+                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                tmp_string.push_back(in[i].substr(commas[2]+1));
+                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+                set_right_amplitudes({
+                                         in[i].substr(2,commas[0]-2),
+                                         in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
+                                         in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
+                                         in[i].substr(commas[2]+1)
+                                     });
+
+            }else {
+                printf("\n");
+                printf("    error: only r1 or r2 amplitudes are supported\n");
+                printf("\n");
+                exit(1);
+            }
         }else if ( in[i].substr(0,1) == "l" ){
 
 
@@ -605,6 +671,13 @@ void ahat_helper::set_left_amplitudes(std::vector<std::string> in) {
     }
     data->left_amplitudes.push_back(tmp);
 }
+void ahat_helper::set_right_amplitudes(std::vector<std::string> in) {
+    std::vector<std::string> tmp;
+    for (int i = 0; i < (int)in.size(); i++) {
+        tmp.push_back(in[i]);
+    }
+    data->right_amplitudes.push_back(tmp);
+}
 
 void ahat_helper::set_factor(double in) {
     data->factor = in;
@@ -651,6 +724,13 @@ void ahat_helper::add_new_string_true_vacuum(){
             tmp.push_back(data->left_amplitudes[i][j]);
         }
         mystring->data->left_amplitudes.push_back(tmp);
+    }
+    for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
+            tmp.push_back(data->right_amplitudes[i][j]);
+        }
+        mystring->data->right_amplitudes.push_back(tmp);
     }
 
     if ( print_level > 0 ) {
@@ -980,6 +1060,14 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                 tmp.push_back(data->left_amplitudes[i][j]);
             }
             mystrings[string_num]->data->left_amplitudes.push_back(tmp);
+        }
+
+        for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
+            std::vector<std::string> tmp;
+            for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
+                tmp.push_back(data->right_amplitudes[i][j]);
+            }
+            mystrings[string_num]->data->right_amplitudes.push_back(tmp);
         }
 
         // now, string is complete, but labels in four-index tensors need to be reordered p*q*sr(pq|sr) -> (pr|qs)
