@@ -35,6 +35,7 @@ class ahat {
 
     bool is_normal_order();
 
+    bool index_in_anywhere(std::string idx);
     bool index_in_tensor(std::string idx);
     bool index_in_t_amplitudes(std::string idx);
     bool index_in_left_amplitudes(std::string idx);

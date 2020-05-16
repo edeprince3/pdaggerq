@@ -288,17 +288,17 @@ void ahat::print() {
         for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
            
             if ( (int)data->right_amplitudes[i].size() > 0 ) {
-                // l1
+                // r1
                 if ( (int)data->right_amplitudes[i].size() == 2 ) {
-                    printf("l1(");
+                    printf("r1(");
                     printf("%s",data->right_amplitudes[i][0].c_str());
                     printf(",");
                     printf("%s",data->right_amplitudes[i][1].c_str());
                     printf(")");
                 }
-                // l2
+                // r2
                 if ( (int)data->right_amplitudes[i].size() == 4 ) {
-                    printf("l2(");
+                    printf("r2(");
                     printf("%s",data->right_amplitudes[i][0].c_str());
                     printf(",");
                     printf("%s",data->right_amplitudes[i][1].c_str());
@@ -578,15 +578,15 @@ void ahat::update_summation_labels() {
 
     if ( skip ) return;
 
-    bool find_i = index_in_tensor("i") || index_in_t_amplitudes("i") || index_in_left_amplitudes("i") || index_in_right_amplitudes("i");
-    bool find_j = index_in_tensor("j") || index_in_t_amplitudes("j") || index_in_left_amplitudes("j") || index_in_right_amplitudes("j");
-    bool find_k = index_in_tensor("k") || index_in_t_amplitudes("k") || index_in_left_amplitudes("k") || index_in_right_amplitudes("k");
-    bool find_l = index_in_tensor("l") || index_in_t_amplitudes("l") || index_in_left_amplitudes("l") || index_in_right_amplitudes("l");
+    bool find_i = index_in_anywhere("i");
+    bool find_j = index_in_anywhere("j");
+    bool find_k = index_in_anywhere("k");
+    bool find_l = index_in_anywhere("l");
 
-    bool find_a = index_in_tensor("a") || index_in_t_amplitudes("a") || index_in_left_amplitudes("a") || index_in_right_amplitudes("a");
-    bool find_b = index_in_tensor("b") || index_in_t_amplitudes("b") || index_in_left_amplitudes("b") || index_in_right_amplitudes("b");
-    bool find_c = index_in_tensor("c") || index_in_t_amplitudes("c") || index_in_left_amplitudes("c") || index_in_right_amplitudes("c");
-    bool find_d = index_in_tensor("d") || index_in_t_amplitudes("d") || index_in_left_amplitudes("d") || index_in_right_amplitudes("d");
+    bool find_a = index_in_anywhere("a");
+    bool find_b = index_in_anywhere("b");
+    bool find_c = index_in_anywhere("c");
+    bool find_d = index_in_anywhere("d");
 
     // i,j,k,l
     if ( !find_i && find_j && find_k && find_l ) {
@@ -786,9 +786,7 @@ void ahat::update_summation_labels() {
 void ahat::swap_two_labels(std::string label1, std::string label2) {
 
     replace_index_everywhere(label1,"x");
-
     replace_index_everywhere(label2,label1);
-
     replace_index_everywhere("x",label2);
 }
 
@@ -1210,6 +1208,22 @@ void ahat::shallow_copy(void * copy_me) {
 
 }
 
+
+bool ahat::index_in_anywhere(std::string idx) {
+
+    if ( index_in_tensor(idx) ) {
+        return true;
+    }else if ( index_in_t_amplitudes(idx) ) {
+        return true;
+    }else if ( index_in_left_amplitudes(idx) ) {
+        return true;
+    }else if ( index_in_right_amplitudes(idx) ) {
+        return true;
+    }
+    return false;
+
+}
+
 bool ahat::index_in_tensor(std::string idx) {
 
     for (int i = 0; i < (int)data->tensor.size(); i++) {
@@ -1379,26 +1393,35 @@ void ahat::gobble_deltas() {
     //                 tensor           tensor            replace 1 in tensor with 2
     //                 tensor           t_amplitudes      replace 1 in tensor with 2
     //                 tensor           left amplitudes   replace 1 in tensor with 2
+    //                 tensor           right amplitudes  replace 1 in tensor with 2
     //                 tensor           -                 replace 1 in tensor with 2
     //                 t_amplitudes     tensor            replace 2 in tensor with 1
     //                 left amplitudes  tensor            replace 2 in tensor with 1
+    //                 right amplitudes tensor            replace 2 in tensor with 1
     //                 -                tensor            replace 2 in tensor with 1
     //                 t_amplitudes     t_amplitudes      replace 1 in t_amplitudes with 2
     //                 t_amplitudes     left amplitudes   replace 1 in t_amplitudes with 2
+    //                 t_amplitudes     right amplitudes  replace 1 in t_amplitudes with 2
     //                 t_amplitudes       -               replace 1 in t_amplitudes with 2
     //                 left amplitudes  t_amplitudes      replace 2 in t_amplitudes with 1
+    //                 right amplitudes t_amplitudes      replace 2 in t_amplitudes with 1
     //                 -                t_amplitudes      replace 2 in t_amplitudes with 1
     //                 left amplitudes  left amplitudes   replace 1 in left amplitudes with 2
+    //                 left amplitudes  right amplitudes  replace 1 in left amplitudes with 2
     //                 left amplitudes  -                 replace 1 in left amplitudes with 2
+    //                 right amplitudes left amplitudes   replace 2 in left amplitudes with 1
     //                 -                left amplitudes   replace 2 in left amplitudes with 1
+
     for (int i = 0; i < (int)delta1.size(); i++) {
 
-        bool delta1_in_tensor          = index_in_tensor( delta1[i] );
-        bool delta2_in_tensor          = index_in_tensor( delta2[i] );
-        bool delta1_in_t_amplitudes      = index_in_t_amplitudes( delta1[i] );
-        bool delta2_in_t_amplitudes      = index_in_t_amplitudes( delta2[i] );
-        bool delta1_in_left_amplitudes = index_in_left_amplitudes( delta1[i] );
-        bool delta2_in_left_amplitudes = index_in_left_amplitudes( delta2[i] );
+        bool delta1_in_tensor           = index_in_tensor( delta1[i] );
+        bool delta2_in_tensor           = index_in_tensor( delta2[i] );
+        bool delta1_in_t_amplitudes     = index_in_t_amplitudes( delta1[i] );
+        bool delta2_in_t_amplitudes     = index_in_t_amplitudes( delta2[i] );
+        bool delta1_in_left_amplitudes  = index_in_left_amplitudes( delta1[i] );
+        bool delta2_in_left_amplitudes  = index_in_left_amplitudes( delta2[i] );
+        bool delta1_in_right_amplitudes = index_in_right_amplitudes( delta1[i] );
+        bool delta2_in_right_amplitudes = index_in_right_amplitudes( delta2[i] );
 
         if ( delta1_in_tensor ) {
 
@@ -1416,6 +1439,13 @@ void ahat::gobble_deltas() {
                 continue;
 
             }else if ( delta2_in_left_amplitudes) {
+
+                // replace index in tensor
+                replace_index_in_tensor( delta1[i], delta2[i] );
+
+                continue;
+
+            }else if ( delta2_in_right_amplitudes) {
 
                 // replace index in tensor
                 replace_index_in_tensor( delta1[i], delta2[i] );
@@ -1447,6 +1477,13 @@ void ahat::gobble_deltas() {
 
                 continue;
 
+            }else if ( delta1_in_right_amplitudes) {
+
+                // replace index in tensor
+                replace_index_in_tensor( delta2[i], delta1[i] );
+
+                continue;
+
             }else {
 
                 // index one must come from the bra, so replace index two in tensor
@@ -1470,6 +1507,12 @@ void ahat::gobble_deltas() {
 
                 continue;
 
+            }else if ( delta2_in_right_amplitudes) {
+
+                replace_index_in_t_amplitudes( delta1[i], delta2[i] );
+
+                continue;
+
             }else {
 
                 // index two must come from the bra, so replace index one in t_amplitudes
@@ -1487,6 +1530,12 @@ void ahat::gobble_deltas() {
 
                 continue;
 
+            }else if ( delta1_in_right_amplitudes) {
+
+                replace_index_in_t_amplitudes( delta2[i], delta1[i] );
+
+                continue;
+
             }else {
 
                 // index one must come from the bra, so replace index two in t_amplitudes
@@ -1496,7 +1545,14 @@ void ahat::gobble_deltas() {
             }
 
         }else if ( delta1_in_left_amplitudes ) {
+
             if ( delta2_in_left_amplitudes) {
+
+                replace_index_in_left_amplitudes( delta1[i], delta2[i] );
+
+                continue;
+
+            }else if ( delta2_in_right_amplitudes) {
 
                 replace_index_in_left_amplitudes( delta1[i], delta2[i] );
 
@@ -1509,12 +1565,43 @@ void ahat::gobble_deltas() {
 
                 continue;
             }
+
         }else if ( delta2_in_left_amplitudes ) {
 
+            if ( delta1_in_right_amplitudes) {
+
+                replace_index_in_left_amplitudes( delta2[i], delta1[i] );
+
+                continue;
+
+            }else {
                 // index one must come from the bra, so replace index two in left amplitudes
                 replace_index_in_left_amplitudes( delta2[i], delta1[i] );
 
                 continue;
+            }
+
+        }else if ( delta1_in_right_amplitudes ) {
+
+            if ( delta2_in_right_amplitudes) {
+
+                replace_index_in_right_amplitudes( delta1[i], delta2[i] );
+
+                continue;
+
+            }else {
+
+                // index two must come from the bra, so replace index one in right amplitudes
+                replace_index_in_right_amplitudes( delta1[i], delta2[i] );
+
+                continue;
+            }
+        }else if ( delta2_in_right_amplitudes ) {
+
+            // index one must come from the bra, so replace index two in right amplitudes
+            replace_index_in_right_amplitudes( delta2[i], delta1[i] );
+
+            continue;
         }
 
         // at this point, it is safe to assume the delta function must remain

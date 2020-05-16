@@ -531,12 +531,11 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                 factor *= 0.25;
 
-
-                // jiab
-                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                // ijba
                 tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
                 tmp_string.push_back(in[i].substr(commas[2]+1));
+                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
 
                 // ijab
                 set_left_amplitudes({
@@ -572,8 +571,6 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                 // index 2
                 tmp_string.push_back(in[i].substr(pos+1));
-
-                //set_left_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
 
 /*
             }else if ( in[i].substr(1,1) == "2" ){
