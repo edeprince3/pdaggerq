@@ -72,7 +72,7 @@ class ahat_helper {
     void set_tensor(std::vector<std::string> in);
 
     /// set labels for t1 or t2 amplitudes
-    void set_amplitudes(std::vector<std::string> in);
+    void set_t_amplitudes(std::vector<std::string> in);
 
     /// set labels for l1 or l2 amplitudes
     void set_left_amplitudes(std::vector<std::string> in);
