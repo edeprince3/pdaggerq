@@ -2,7 +2,7 @@ import sys
 sys.path.insert(0, './..')
 
 # elements of the one-electron reduced density matrix 
-# at the EOM-CCSD level of theory: D(pq) = <psi|(l0 + l1 + l2) e(-T) p*q e(T) (r0 + r1 + r2)|psi> 
+# at the EOM-CCSD level of theory: D(pq) = <0|(l0 + l1 + l2) e(-T) p*q e(T) (r0 + r1 + r2)|0> 
 
 import pdaggerq
 
@@ -15,7 +15,7 @@ left_hand_operators  = ['l0','l1(i1,a1)','l2(i1,i2,a1,a2)']
 right_hand_operators = ['r0','r1(a3,i3)','r2(a3,a4,i3,i4)']
 
 print('')
-print('    D1(m,n) = <psi|(l0 + l1 + l2) e(-T) e(m,n) e(T) (r0 + r1 + r2)|psi>')
+print('    D1(m,n) = <0|(l0 + l1 + l2) e(-T) e(m,n) e(T) (r0 + r1 + r2)|0>')
 print('')
 
 Dop = 'e(m,n)'
@@ -70,7 +70,7 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(e,f) = <psi|(l0 + l1 + l2) e(-T) e(e,f) e(T) (r0 + r1 + r2)|psi>')
+print('    D1(e,f) = <0|(l0 + l1 + l2) e(-T) e(e,f) e(T) (r0 + r1 + r2)|0>')
 print('')
 
 Dop = 'e(e,f)'
@@ -125,7 +125,7 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(m,e) = <psi|(l0 + l1 + l2) e(-T) e(m,e) e(T) (r0 + r1 + r2)|psi>')
+print('    D1(m,e) = <0|(l0 + l1 + l2) e(-T) e(m,e) e(T) (r0 + r1 + r2)|0>')
 print('')
 
 Dop = 'e(m,e)'
@@ -180,7 +180,7 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(e,m) = <psi|(l0 + l1 + l2) e(-T) e(e,m) e(T) (r0 + r1 + r2)|psi>')
+print('    D1(e,m) = <0|(l0 + l1 + l2) e(-T) e(e,m) e(T) (r0 + r1 + r2)|0>')
 print('')
 
 Dop = 'e(e,m)'
