@@ -15,9 +15,6 @@ left_hand_operators  = ['l0','l1(i1,a1)','l2(i1,i2,a1,a2)']
 right_hand_operators = ['r0','r1(a3,i3)','r2(a3,a4,i3,i4)']
 
 print('')
-print('''    (don't forget factors of l0 and r0)''')
-
-print('')
 print('    D1(m,n) = <psi|(l0 + l1 + l2) e(-T) e(m,n) e(T) (r0 + r1 + r2)|psi>')
 print('')
 
