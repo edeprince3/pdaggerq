@@ -261,8 +261,14 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
     }
 
+    bool has_l0 = false;
+    bool has_r0 = false;
 
     for (int i = 0; i < (int)in.size(); i++) {
+
+        // blank string
+        if ( in[i].size() == 0 ) continue;
+
         // lowercase indices
         std::transform(in[i].begin(), in[i].end(), in[i].begin(), [](unsigned char c){ return std::tolower(c); });
 
@@ -423,7 +429,9 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         }else if ( in[i].substr(0,1) == "r" ){
 
 
-            if ( in[i].substr(1,1) == "1" ){
+            if ( in[i].substr(1,1) == "0" ){
+                has_r0 = true;
+            }else if ( in[i].substr(1,1) == "1" ){
 
                 // find comma
                 size_t pos = in[i].find(",");
@@ -488,7 +496,9 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         }else if ( in[i].substr(0,1) == "l" ){
 
 
-            if ( in[i].substr(1,1) == "1" ){
+            if ( in[i].substr(1,1) == "0" ){
+                has_l0 = true;
+            }else if ( in[i].substr(1,1) == "1" ){
 
                 // find comma
                 size_t pos = in[i].find(",");
@@ -640,6 +650,9 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
     set_string(tmp_string);
 
+    data->has_r0 = has_r0;
+    data->has_l0 = has_l0;
+
     add_new_string();
 
 }
@@ -692,6 +705,9 @@ void ahat_helper::add_new_string_true_vacuum(){
         mystring->data->factor = fabs(data->factor);
     }
 
+    mystring->data->has_r0 = data->has_r0;
+    mystring->data->has_l0 = data->has_l0;
+
     for (int i = 0; i < (int)data->string.size(); i++) {
         std::string me = data->string[i];
         if ( me.find("*") != std::string::npos ) {
@@ -735,6 +751,7 @@ void ahat_helper::add_new_string_true_vacuum(){
         printf("    ");
         printf("// starting string:\n");
         mystring->print();
+exit(0);
     }
 
     // rearrange strings
@@ -811,6 +828,9 @@ void ahat_helper::add_new_string_fermi_vacuum(){
             mystrings[string_num]->sign = -1;
             mystrings[string_num]->data->factor = fabs(data->factor);
         }
+
+        mystrings[string_num]->data->has_r0 = data->has_r0;
+        mystrings[string_num]->data->has_l0 = data->has_l0;
 
         int my_gen_idx = 0;
         for (int i = 0; i < (int)data->string.size(); i++) {

@@ -43,6 +43,8 @@ class StringData {
     std::vector<std::vector<std::string> > t_amplitudes;
     std::vector<std::vector<std::string> > left_amplitudes;
     std::vector<std::vector<std::string> > right_amplitudes;
+    bool has_l0;
+    bool has_r0;
 
 };
 

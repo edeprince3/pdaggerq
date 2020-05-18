@@ -53,7 +53,6 @@ class ahat {
 
     void swap_two_labels(std::string label1, std::string label2);
 
-
   public:
 
     ahat(std::string vacuum_type);

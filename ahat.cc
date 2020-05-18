@@ -193,6 +193,7 @@ void ahat::check_spin() {
 }
 
 void ahat::print() {
+
     if ( skip ) return;
 
     if ( vacuum == "FERMI" && (int)symbol.size() > 0 ) {
@@ -281,6 +282,9 @@ void ahat::print() {
                 printf(" ");
             } 
         }
+    }else if ( data->has_l0 ) {
+        printf("l0");
+        printf(" ");
     }
 
     // right-hand amplitudes
@@ -311,6 +315,9 @@ void ahat::print() {
                 printf(" ");
             } 
         }
+    }else if ( data->has_r0 ) {
+        printf("r0");
+        printf(" ");
     }
 
     // t_amplitudes
@@ -1206,6 +1213,13 @@ void ahat::shallow_copy(void * copy_me) {
         data->right_amplitudes.push_back(tmp);
     }
 
+    // l0 
+    data->has_l0 = in->data->has_l0;
+
+    // r0 
+    data->has_r0 = in->data->has_r0;
+
+
 }
 
 
@@ -1751,7 +1765,6 @@ void ahat::copy(void * copy_me) {
 
     ahat * in = reinterpret_cast<ahat * >(copy_me);
 
-
     // operators
     for (int j = 0; j < (int)in->symbol.size(); j++) {
         symbol.push_back(in->symbol[j]);
@@ -1847,6 +1860,7 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
 }
 
 void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
+
     if ( skip ) return;
 
     if ( is_normal_order() ) {
@@ -1992,7 +2006,6 @@ void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
         normal_order_fermi_vacuum(ordered);
     }
 }
-
 
 } // End namespaces
 
