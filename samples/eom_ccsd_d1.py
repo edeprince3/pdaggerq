@@ -18,7 +18,6 @@ print('')
 print('    D1(m,n) = <psi|(l0 + l1 + l2) e(-T) e(m,n) e(T) (r0 + r1 + r2)|psi>')
 print('')
 
-
 Dop = 'e(m,n)'
 for L in left_hand_operators:
     for R in right_hand_operators:
@@ -69,6 +68,10 @@ for L in left_hand_operators:
 ahat.simplify()
 ahat.print_fully_contracted()
 ahat.clear()
+
+print('')
+print('    D1(e,f) = <psi|(l0 + l1 + l2) e(-T) e(e,f) e(T) (r0 + r1 + r2)|psi>')
+print('')
 
 Dop = 'e(e,f)'
 for L in left_hand_operators:
@@ -121,6 +124,10 @@ ahat.simplify()
 ahat.print_fully_contracted()
 ahat.clear()
 
+print('')
+print('    D1(m,e) = <psi|(l0 + l1 + l2) e(-T) e(m,e) e(T) (r0 + r1 + r2)|psi>')
+print('')
+
 Dop = 'e(m,e)'
 for L in left_hand_operators:
     for R in right_hand_operators:
@@ -171,6 +178,10 @@ for L in left_hand_operators:
 ahat.simplify()
 ahat.print_fully_contracted()
 ahat.clear()
+
+print('')
+print('    D1(e,m) = <psi|(l0 + l1 + l2) e(-T) e(e,m) e(T) (r0 + r1 + r2)|psi>')
+print('')
 
 Dop = 'e(e,m)'
 for L in left_hand_operators:
