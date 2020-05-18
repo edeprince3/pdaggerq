@@ -47,15 +47,16 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         't1(a,i)'
         't2(a,b,i,j)' 
-
     
-    singles and doubles left-hand amplitudes 
+    reference, singles, and doubles left-hand amplitudes 
     
+        'l0'
         'l1(i,a)'  
         'l2(i,j,a,b)'   
         
-    singles and doubles right-hand amplitudes 
+    reference, singles, and doubles right-hand amplitudes 
     
+        'r0'
         'r1(a,i)'  
         'r2(a,b,i,j)'   
     
