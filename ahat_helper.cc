@@ -751,7 +751,6 @@ void ahat_helper::add_new_string_true_vacuum(){
         printf("    ");
         printf("// starting string:\n");
         mystring->print();
-exit(0);
     }
 
     // rearrange strings
