@@ -37,13 +37,28 @@ class StringData {
     StringData(){};
     ~StringData(){};
 
+    /// factor
     double factor = 1.0;
+
+    /// list: labels for fermionic creation / annihilation operators 
     std::vector<std::string> string;
+
+    /// list: labels for 1- or 2-index tensor
     std::vector<std::string> tensor;
+
+    /// list: labels t amplitudes
     std::vector<std::vector<std::string> > t_amplitudes;
+
+    /// list: labels left-hand eom-cc amplitudes
     std::vector<std::vector<std::string> > left_amplitudes;
+
+    /// list: labels right-hand amplitudes
     std::vector<std::vector<std::string> > right_amplitudes;
+
+    /// should we account for l0 in EOM-CC?
     bool has_l0;
+
+    /// should we account for r0 in EOM-CC?
     bool has_r0;
 
 };
