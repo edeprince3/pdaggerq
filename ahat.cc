@@ -1810,6 +1810,11 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
         // copy data common to new strings
         s2a->copy((void*)s2.get());
         s2b->copy((void*)s2.get());
+
+        // ensure boson daggers are clear (they should be anyway)
+        s2a->data->is_boson_dagger.clear();
+        s2b->data->is_boson_dagger.clear();
+
         for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
 
             // swap operators?
@@ -1972,6 +1977,11 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
             // copy data common to both new strings
             s1a->copy((void*)s1.get());
             s1b->copy((void*)s1.get());
+
+            // ensure boson daggers are clear (they should be anyway)
+            s1a->data->is_boson_dagger.clear();
+            s1b->data->is_boson_dagger.clear();
+
             for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
 
                 // swap operators?
@@ -2060,6 +2070,11 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
             // copy data common to new strings
             s2a->copy((void*)s2.get());
             s2b->copy((void*)s2.get());
+
+            // ensure boson daggers are clear (they should be anyway)
+            s2a->data->is_boson_dagger.clear();
+            s2b->data->is_boson_dagger.clear();
+
             for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
 
                 // swap operators?
