@@ -55,6 +55,7 @@ void export_ahat_helper(py::module& m) {
         .def("set_string", &ahat_helper::set_string)
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_t_amplitudes", &ahat_helper::set_t_amplitudes)
+        .def("set_u_amplitudes", &ahat_helper::set_u_amplitudes)
         .def("set_left_amplitudes", &ahat_helper::set_left_amplitudes)
         .def("set_right_amplitudes", &ahat_helper::set_right_amplitudes)
         .def("set_factor", &ahat_helper::set_factor)
@@ -133,8 +134,12 @@ void ahat_helper::set_bra(std::string bra_type){
         bra = "VACUUM";
     }else if ( bra_type == "SINGLES" || bra_type == "singles" ) {
         bra = "SINGLES";
-    }else if ( bra_type == "FERMI" || bra_type == "doubles" ) {
+    }else if ( bra_type == "SINGLES_1" || bra_type == "singles_1" ) {
+        bra = "SINGLES_1";
+    }else if ( bra_type == "DOUBLES" || bra_type == "doubles" ) {
         bra = "DOUBLES";
+    }else if ( bra_type == "DOUBLES_1" || bra_type == "doubles_1" ) {
+        bra = "DOUBLES_1";
     }else if ( bra_type == "VACUUM" || bra_type == "vacuum" ) {
         bra = "VACUUM";
     }else {
@@ -151,8 +156,12 @@ void ahat_helper::set_ket(std::string ket_type){
         ket = "VACUUM";
     }else if ( ket_type == "SINGLES" || ket_type == "singles" ) {
         ket = "SINGLES";
-    }else if ( ket_type == "FERMI" || ket_type == "doubles" ) {
+    }else if ( ket_type == "SINGLES_1" || ket_type == "singles_1" ) {
+        ket = "SINGLES_1";
+    }else if ( ket_type == "DOUBLES" || ket_type == "doubles" ) {
         ket = "DOUBLES";
+    }else if ( ket_type == "DOUBLES_1" || ket_type == "doubles_1" ) {
+        ket = "DOUBLES_1";
     }else if ( ket_type == "VACUUM" || ket_type == "vacuum" ) {
         ket = "VACUUM";
     }else {
@@ -241,6 +250,8 @@ void ahat_helper::add_quadruple_commutator(double factor, std::vector<std::strin
 
 }
 
+// add a string of operators
+
 void ahat_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
     std::vector<std::string> tmp_string;
@@ -259,6 +270,23 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         tmp_string.push_back("f");
         tmp_string.push_back("e");
 
+    }else if ( bra == "SINGLES_1" ) {
+
+        // for singles equations: <me,1| = <0|m*e B
+        tmp_string.push_back("m*");
+        tmp_string.push_back("e");
+
+        data->is_boson_dagger.push_back(false);
+
+    }else if ( bra == "DOUBLES_1" ) {
+
+        // for doubles equations: <mnef,1| = <0|m*n*fe B
+        tmp_string.push_back("m*");
+        tmp_string.push_back("n*");
+        tmp_string.push_back("f");
+        tmp_string.push_back("e");
+
+        data->is_boson_dagger.push_back(false);
     }
 
     bool has_l0 = false;
@@ -293,7 +321,53 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             tmp_string.push_back(in[i].substr(pos+1));
 
             // tensor
-            set_tensor({in[i].substr(1,len), in[i].substr(pos)});
+            set_tensor({in[i].substr(1,len), in[i].substr(pos+1)},"CORE");
+
+        }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
+
+            // find comma
+            size_t pos = in[i].find(",");
+            if ( pos == std::string::npos ) {
+                printf("\n");
+                printf("    error in tensor definition (no commas)\n");
+                printf("\n");
+                exit(1);
+            }
+            size_t len = pos - 2;
+            // index 1
+            tmp_string.push_back(in[i].substr(2,len)+"*");
+
+            // index 2
+            tmp_string.push_back(in[i].substr(pos+1));
+
+            // tensor
+            set_tensor({in[i].substr(2,len), in[i].substr(pos+1)},"D+");
+
+            // boson operator
+            data->is_boson_dagger.push_back(true);
+
+        }else if ( in[i].substr(0,2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
+
+            // find comma
+            size_t pos = in[i].find(",");
+            if ( pos == std::string::npos ) {
+                printf("\n");
+                printf("    error in tensor definition (no commas)\n");
+                printf("\n");
+                exit(1);
+            }
+            size_t len = pos - 2;
+            // index 1
+            tmp_string.push_back(in[i].substr(2,len)+"*");
+
+            // index 2
+            tmp_string.push_back(in[i].substr(pos+1));
+
+            // tensor
+            set_tensor({in[i].substr(2,len), in[i].substr(pos+1)},"D-");
+
+            // boson operator
+            data->is_boson_dagger.push_back(false);
 
         }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
 
@@ -347,7 +421,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                            in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
                            in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
                            in[i].substr(commas[2]+1)
-                       });
+                       },"ERI");
 
         }else if ( in[i].substr(0,1) == "t" ){
 
@@ -413,16 +487,78 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                                    in[i].substr(commas[2]+1)
                                });
 
-                //tmp_string.push_back(tmp.substr(0,1)+"*");
-                //tmp_string.push_back(tmp.substr(1,1)+"*");
-                //tmp_string.push_back(tmp.substr(3,1));
-                //tmp_string.push_back(tmp.substr(2,1));
-
-                //set_t_amplitudes({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
-
             }else {
                 printf("\n");
                 printf("    error: only t1 or t2 amplitudes are supported\n");
+                printf("\n");
+                exit(1);
+            }
+
+        }else if ( in[i].substr(0,1) == "u" ){ // t-amplitudes + boson creator
+
+
+            if ( in[i].substr(1,1) == "1" ){
+
+                // find comma
+                size_t pos = in[i].find(",");
+                if ( pos == std::string::npos ) {
+                    printf("\n");
+                    printf("    error in amplitude definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+                size_t len = pos - 2; 
+
+                // index 1
+                tmp_string.push_back(in[i].substr(2,len)+"*");
+
+                // index 2
+                tmp_string.push_back(in[i].substr(pos+1));
+
+                set_u_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+
+                data->is_boson_dagger.push_back(true);
+
+            }else if ( in[i].substr(1,1) == "2" ){
+
+	        // count indices
+	        size_t pos = 0;
+	        int ncomma = 0;
+	        std::vector<size_t> commas;
+                pos = in[i].find(",", pos + 1);
+	        commas.push_back(pos);
+	        while( pos != std::string::npos){
+                    pos = in[i].find(",", pos + 1);
+	            commas.push_back(pos);
+                    ncomma++;
+	        }
+
+                if ( ncomma != 3 ) {
+                    printf("\n");
+                    printf("    error in amplitude definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+
+                factor *= 0.25;
+
+                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                tmp_string.push_back(in[i].substr(commas[2]+1));
+                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+                set_u_amplitudes({
+                                   in[i].substr(2,commas[0]-2),
+                                   in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
+                                   in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
+                                   in[i].substr(commas[2]+1)
+                               });
+
+                data->is_boson_dagger.push_back(true);
+
+            }else {
+                printf("\n");
+                printf("    error: only u1 or u2 amplitudes are supported\n");
                 printf("\n");
                 exit(1);
             }
@@ -638,6 +774,14 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         tmp_string.push_back("e*");
         tmp_string.push_back("m");
 
+    }else if ( ket == "SINGLES_1" ) {
+
+        // for singles equations: |em,1> = e*m B*|0>
+        tmp_string.push_back("e*");
+        tmp_string.push_back("m");
+
+        data->is_boson_dagger.push_back(true);
+
     }else if ( ket == "DOUBLES" ) {
 
         // for doubles equations: |efmn> = e*f*mn|0>
@@ -646,6 +790,15 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         tmp_string.push_back("n");
         tmp_string.push_back("m");
 
+    }else if ( ket == "DOUBLES_1" ) {
+
+        // for doubles equations: |efmn,1> = e*f*mn B*|0>
+        tmp_string.push_back("e*");
+        tmp_string.push_back("f*");
+        tmp_string.push_back("n");
+        tmp_string.push_back("m");
+
+        data->is_boson_dagger.push_back(true);
     }
 
     set_string(tmp_string);
@@ -662,11 +815,14 @@ void ahat_helper::set_string(std::vector<std::string> in) {
         data->string.push_back(in[i]);
     }
 }
-void ahat_helper::set_tensor(std::vector<std::string> in) {
+
+void ahat_helper::set_tensor(std::vector<std::string> in, std::string tensor_type) {
     for (int i = 0; i < (int)in.size(); i++) {
         data->tensor.push_back(in[i]);
     }
+    data->tensor_type = tensor_type;
 }
+
 void ahat_helper::set_t_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
@@ -674,6 +830,15 @@ void ahat_helper::set_t_amplitudes(std::vector<std::string> in) {
     }
     data->t_amplitudes.push_back(tmp);
 }
+
+void ahat_helper::set_u_amplitudes(std::vector<std::string> in) {
+    std::vector<std::string> tmp;
+    for (int i = 0; i < (int)in.size(); i++) {
+        tmp.push_back(in[i]);
+    }
+    data->u_amplitudes.push_back(tmp);
+}
+
 void ahat_helper::set_left_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
@@ -681,6 +846,7 @@ void ahat_helper::set_left_amplitudes(std::vector<std::string> in) {
     }
     data->left_amplitudes.push_back(tmp);
 }
+
 void ahat_helper::set_right_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
@@ -722,11 +888,19 @@ void ahat_helper::add_new_string_true_vacuum(){
     for (int i = 0; i < (int)data->tensor.size(); i++) {
         mystring->data->tensor.push_back(data->tensor[i]);
     }
+    mystring->data->tensor_type = data->tensor_type;
 
     for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
         for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
             tmp.push_back(data->t_amplitudes[i][j]);
+        }
+        mystring->data->t_amplitudes.push_back(tmp);
+    }
+    for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
+            tmp.push_back(data->u_amplitudes[i][j]);
         }
         mystring->data->t_amplitudes.push_back(tmp);
     }
@@ -744,6 +918,9 @@ void ahat_helper::add_new_string_true_vacuum(){
             tmp.push_back(data->right_amplitudes[i][j]);
         }
         mystring->data->right_amplitudes.push_back(tmp);
+    }
+    for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+        mystring->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
     }
 
     if ( print_level > 0 ) {
@@ -830,6 +1007,9 @@ void ahat_helper::add_new_string_fermi_vacuum(){
 
         mystrings[string_num]->data->has_r0 = data->has_r0;
         mystrings[string_num]->data->has_l0 = data->has_l0;
+
+        // tensor type
+        mystrings[string_num]->data->tensor_type = data->tensor_type;
 
         int my_gen_idx = 0;
         for (int i = 0; i < (int)data->string.size(); i++) {
@@ -1070,6 +1250,14 @@ void ahat_helper::add_new_string_fermi_vacuum(){
             mystrings[string_num]->data->t_amplitudes.push_back(tmp);
         }
 
+        for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
+            std::vector<std::string> tmp;
+            for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
+                tmp.push_back(data->u_amplitudes[i][j]);
+            }
+            mystrings[string_num]->data->u_amplitudes.push_back(tmp);
+        }
+
         for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
             std::vector<std::string> tmp;
             for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
@@ -1110,6 +1298,9 @@ void ahat_helper::add_new_string_fermi_vacuum(){
             mystrings[string_num]->data->tensor.push_back(tmp[2]);
             mystrings[string_num]->data->tensor.push_back(tmp[3]);
 
+        }
+        for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+            mystrings[string_num]->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
         }
 
         if ( print_level > 0 ) {
@@ -1189,6 +1380,7 @@ void ahat_helper::print_fully_contracted() {
     printf("// fully-contracted strings:\n");
     for (int i = 0; i < (int)ordered.size(); i++) {
         if ( ordered[i]->symbol.size() != 0 ) continue;
+        if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         ordered[i]->print();
     }
     printf("\n");

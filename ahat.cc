@@ -245,7 +245,13 @@ void ahat::print() {
         }
         // one-electron integrals
         if ( (int)data->tensor.size() == 2 ) {
-            printf("h(");
+            if ( data->tensor_type == "CORE") {
+                printf("h(");
+            }else if ( data->tensor_type == "D+") {
+                printf("d+(");
+            }else if ( data->tensor_type == "D-") {
+                printf("d-(");
+            }
             printf("%s",data->tensor[0].c_str());
             printf(",");
             printf("%s",data->tensor[1].c_str());
@@ -349,6 +355,43 @@ void ahat::print() {
             } 
         }
     }
+    // u_amplitudes
+    if ( (int)data->u_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
+           
+            if ( (int)data->u_amplitudes[i].size() > 0 ) {
+                // u1
+                if ( (int)data->u_amplitudes[i].size() == 2 ) {
+                    printf("u1(");
+                    printf("%s",data->u_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->u_amplitudes[i][1].c_str());
+                    printf(")");
+                }
+                // u2
+                if ( (int)data->u_amplitudes[i].size() == 4 ) {
+                    printf("u2(");
+                    printf("%s",data->u_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->u_amplitudes[i][1].c_str());
+                    printf(",");
+                    printf("%s",data->u_amplitudes[i][2].c_str());
+                    printf(",");
+                    printf("%s",data->u_amplitudes[i][3].c_str());
+                    printf(")");
+                }
+                printf(" ");
+            } 
+        }
+    }
+    // bosons:
+    for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+        if ( data->is_boson_dagger[i] ) {
+            printf("Q* ");
+        }else {
+            printf("Q ");
+        }
+    }
     printf("\n");
 }
 
@@ -357,6 +400,7 @@ bool ahat::is_normal_order() {
     // don't bother bringing to normal order if we're going to skip this string
     if (skip) return true;
 
+    // fermions
     if ( vacuum == "TRUE" ) {
         for (int i = 0; i < (int)symbol.size()-1; i++) {
             if ( !is_dagger[i] && is_dagger[i+1] ) {
@@ -376,7 +420,25 @@ bool ahat::is_normal_order() {
             }
         }
     }
+
+    // bosons
+    if ( !is_boson_normal_order() ) {
+        return false;
+    }
+
     return true;
+}
+
+
+bool ahat::is_boson_normal_order() {
+
+    for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+        if ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] ) {
+            return false;
+        }
+    }
+    return true;
+
 }
 
 // in order to compare strings, the creation and annihilation 
@@ -447,8 +509,6 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
     }
 }
 
-
-
 // move all bra lables to the right-most positions in t_amplitudes and
 // four-index tensors. only works for four-index amplitudes (i.e., t2)
 
@@ -514,6 +574,64 @@ void ahat::update_bra_labels() {
             if ( data->t_amplitudes[i][0] == "f" ) {
                 data->t_amplitudes[i][0] = data->t_amplitudes[i][1];
                 data->t_amplitudes[i][1] = "f";
+                sign = -sign;
+            }
+        }
+
+    }
+
+    // u_amplitudes
+    find_m = index_in_u_amplitudes("m");
+    find_n = index_in_u_amplitudes("n");
+    find_e = index_in_u_amplitudes("e");
+    find_f = index_in_u_amplitudes("f");
+    
+    for (int i = 0; i < data->u_amplitudes.size(); i++) {
+
+        if ( data->u_amplitudes[i].size() != 4 ) continue;
+
+        if ( find_m && find_n ) {
+            // should appear as "mn"
+            if ( data->u_amplitudes[i][2] == "n" && data->u_amplitudes[i][3] == "m" ) {
+                data->u_amplitudes[i][2] = "m";
+                data->u_amplitudes[i][3] = "n";
+                sign = -sign;
+            }
+        }else if ( find_m ) {
+            // should appear as "-m"
+            if ( data->u_amplitudes[i][2] == "m" ) {
+                data->u_amplitudes[i][2] = data->u_amplitudes[i][3];
+                data->u_amplitudes[i][3] = "m";
+                sign = -sign;
+            }
+        }else if ( find_n) {
+            // should appear as "-n"
+            if ( data->u_amplitudes[i][2] == "n" ) {
+                data->u_amplitudes[i][2] = data->u_amplitudes[i][3];
+                data->u_amplitudes[i][3] = "n";
+                sign = -sign;
+            }
+        }
+
+        if ( find_e && find_f ) {
+            // should appear as "mn"
+            if ( data->u_amplitudes[i][0] == "f" && data->u_amplitudes[i][1] == "e" ) {
+                data->u_amplitudes[i][0] = "e";
+                data->u_amplitudes[i][1] = "f";
+                sign = -sign;
+            }
+        }else if ( find_e ) {
+            // should appear as "-e"
+            if ( data->u_amplitudes[i][0] == "e" ) {
+                data->u_amplitudes[i][0] = data->u_amplitudes[i][1];
+                data->u_amplitudes[i][1] = "e";
+                sign = -sign;
+            }
+        }else if ( find_f) {
+            // should appear as "-f"
+            if ( data->u_amplitudes[i][0] == "f" ) {
+                data->u_amplitudes[i][0] = data->u_amplitudes[i][1];
+                data->u_amplitudes[i][1] = "f";
                 sign = -sign;
             }
         }
@@ -800,6 +918,7 @@ void ahat::swap_two_labels(std::string label1, std::string label2) {
 // once strings are alphabetized, we can compare them
 // and remove terms that cancel. 
 
+// TODO: need to consider u-amplitudes
 // TODO: need to consider left-hand amplitudes
 // TODO: need to consider right-hand amplitudes
 void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
@@ -820,7 +939,10 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
 
-        if ( vacuum == "FERMI" && ordered[i]->symbol.size() != 0 ) continue;
+        if ( vacuum == "FERMI" ) {
+            if ( ordered[i]->symbol.size() != 0 ) continue;
+            if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        }
 
         if ( ordered[i]->skip ) continue;
 
@@ -830,18 +952,21 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
             // about terms that aren't fully contracted. so, skip those because this
             // function is time consuming
 
-            if ( vacuum == "FERMI" && ordered[j]->symbol.size() != 0 ) continue;
+            if ( vacuum == "FERMI" ) {
+                if ( ordered[j]->symbol.size() != 0 ) continue;
+                if ( ordered[j]->data->is_boson_dagger.size() != 0 ) continue;
+            }
 
             if ( ordered[j]->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
-            bool find_i = ordered[j]->index_in_tensor("i") || ordered[j]->index_in_t_amplitudes("i");
-            bool find_j = ordered[j]->index_in_tensor("j") || ordered[j]->index_in_t_amplitudes("j");
-
-            bool find_a = ordered[j]->index_in_tensor("a") || ordered[j]->index_in_t_amplitudes("a");
-            bool find_b = ordered[j]->index_in_tensor("b") || ordered[j]->index_in_t_amplitudes("b");
+            bool find_i = ordered[j]->index_in_tensor("i") || ordered[j]->index_in_t_amplitudes("i") || ordered[j]->index_in_u_amplitudes("i");
+            bool find_j = ordered[j]->index_in_tensor("j") || ordered[j]->index_in_t_amplitudes("j") || ordered[j]->index_in_u_amplitudes("j");
+                                                                                                                                                 
+            bool find_a = ordered[j]->index_in_tensor("a") || ordered[j]->index_in_t_amplitudes("a") || ordered[j]->index_in_u_amplitudes("a");
+            bool find_b = ordered[j]->index_in_tensor("b") || ordered[j]->index_in_t_amplitudes("b") || ordered[j]->index_in_u_amplitudes("b");
 
             // try swapping summation labels - only i/j, a/b swaps for now. this should be sufficient for ccsd
             if ( !strings_same && find_i && find_j ) {
@@ -982,6 +1107,38 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
     }
     if ( nsame_amps != (int)ordered_1->data->t_amplitudes.size() ) return false;
 
+    // u_amplitudes, which can be complicated since they aren't sorted
+
+    // same number of u_amplitudes?
+    if ( ordered_1->data->u_amplitudes.size() != ordered_2->data->u_amplitudes.size() ) return false;
+    
+    int nsame_u_amps = 0;
+    for (int ii = 0; ii < (int)ordered_1->data->u_amplitudes.size(); ii++) {
+        for (int jj = 0; jj < (int)ordered_2->data->u_amplitudes.size(); jj++) {
+
+            // u1 vs u2?
+            if ( ordered_1->data->u_amplitudes[ii].size() != ordered_2->data->u_amplitudes[jj].size() ) continue;
+
+            // indices?
+            int nsame_idx = 0;
+            for (int iii = 0; iii < (int)ordered_1->data->u_amplitudes[ii].size(); iii++) {
+                for (int jjj = 0; jjj < (int)ordered_2->data->u_amplitudes[jj].size(); jjj++) {
+                    if ( ordered_1->data->u_amplitudes[ii][iii] == ordered_2->data->u_amplitudes[jj][jjj] ) {
+                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
+                        nsame_idx++;
+                        break;
+                    }
+                }
+            }
+            // if all indices are the same, the u_amplitudes must be the same, but we need to be careful of permutations
+            if ( nsame_idx == (int)ordered_1->data->u_amplitudes[ii].size() ) {
+                nsame_u_amps++;
+                break;
+            }
+        }
+    }
+    if ( nsame_u_amps != (int)ordered_1->data->u_amplitudes.size() ) return false;
+
     // left-hand amplitudes, which can be complicated since they aren't sorted
 
     // same number of left-hant amplitudes?
@@ -1054,7 +1211,8 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
     //if ( (n_permute % 2) != 0 ) continue;
 
     // are tensors same?
-    if ( ordered_1->data->tensor.size() != ordered_2->data->tensor.size() ) return false;
+    //if ( ordered_1->data->tensor.size() != ordered_2->data->tensor.size() ) return false;
+    if ( ordered_1->data->tensor_type != ordered_2->data->tensor_type ) return false;
 
     int nsame_t = 0;
     for (int k = 0; k < (int)ordered_1->data->tensor.size(); k++) {
@@ -1180,6 +1338,9 @@ void ahat::shallow_copy(void * copy_me) {
         data->tensor.push_back(in->data->tensor[i]);
     }
 
+    // data->tensor_type
+    data->tensor_type = in->data->tensor_type;
+
     // delta1, delta2
     for (int i = 0; i < (int)in->delta1.size(); i++) {
         delta1.push_back(in->delta1[i]);
@@ -1193,6 +1354,15 @@ void ahat::shallow_copy(void * copy_me) {
             tmp.push_back(in->data->t_amplitudes[i][j]);
         }
         data->t_amplitudes.push_back(tmp);
+    }
+
+    // u_amplitudes
+    for (int i = 0; i < (int)in->data->u_amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in->data->u_amplitudes[i].size(); j++) {
+            tmp.push_back(in->data->u_amplitudes[i][j]);
+        }
+        data->u_amplitudes.push_back(tmp);
     }
 
     // left-hand amplitudes
@@ -1219,7 +1389,6 @@ void ahat::shallow_copy(void * copy_me) {
     // r0 
     data->has_r0 = in->data->has_r0;
 
-
 }
 
 
@@ -1228,6 +1397,8 @@ bool ahat::index_in_anywhere(std::string idx) {
     if ( index_in_tensor(idx) ) {
         return true;
     }else if ( index_in_t_amplitudes(idx) ) {
+        return true;
+    }else if ( index_in_u_amplitudes(idx) ) {
         return true;
     }else if ( index_in_left_amplitudes(idx) ) {
         return true;
@@ -1254,6 +1425,20 @@ bool ahat::index_in_t_amplitudes(std::string idx) {
     for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
             if ( data->t_amplitudes[i][j] == idx ) {
+                return true;
+            }
+           
+        }
+    }
+    return false;
+
+}
+
+bool ahat::index_in_u_amplitudes(std::string idx) {
+
+    for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
+            if ( data->u_amplitudes[i][j] == idx ) {
                 return true;
             }
            
@@ -1295,6 +1480,7 @@ void ahat::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
     replace_index_in_tensor(old_idx,new_idx);
     replace_index_in_t_amplitudes(old_idx,new_idx);
+    replace_index_in_u_amplitudes(old_idx,new_idx);
     replace_index_in_left_amplitudes(old_idx,new_idx);
     replace_index_in_right_amplitudes(old_idx,new_idx);
 
@@ -1318,6 +1504,19 @@ void ahat::replace_index_in_t_amplitudes(std::string old_idx, std::string new_id
         for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
             if ( data->t_amplitudes[i][j] == old_idx ) {
                 data->t_amplitudes[i][j] = new_idx;
+                return; 
+            }
+        }
+    }
+
+}
+
+void ahat::replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx) {
+
+    for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
+            if ( data->u_amplitudes[i][j] == old_idx ) {
+                data->u_amplitudes[i][j] = new_idx;
                 return; 
             }
         }
@@ -1355,7 +1554,6 @@ void ahat::replace_index_in_right_amplitudes(std::string old_idx, std::string ne
 void ahat::use_conventional_labels() {
 
     // occupied first:
-    //std::vector<std::string> occ_in{"o","t","u","v"};
     std::vector<std::string> occ_in{"o1","o2","o3","o4"};
     std::vector<std::string> occ_out{"i","j","k","l"};
 
@@ -1375,7 +1573,6 @@ void ahat::use_conventional_labels() {
     }
 
     // now virtual
-    //std::vector<std::string> vir_in{"w","x","y","z"};
     std::vector<std::string> vir_in{"v1","v2","v3","v4"};
     std::vector<std::string> vir_out{"a","b","c","d"};
 
@@ -1393,38 +1590,12 @@ void ahat::use_conventional_labels() {
             }
         }
     }
-
-
 }
 
-// TODO: account for right-hand amplitudes
 void ahat::gobble_deltas() {
 
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
-
-    // possibilities:  1                2                 result
-    //                 tensor           tensor            replace 1 in tensor with 2
-    //                 tensor           t_amplitudes      replace 1 in tensor with 2
-    //                 tensor           left amplitudes   replace 1 in tensor with 2
-    //                 tensor           right amplitudes  replace 1 in tensor with 2
-    //                 tensor           -                 replace 1 in tensor with 2
-    //                 t_amplitudes     tensor            replace 2 in tensor with 1
-    //                 left amplitudes  tensor            replace 2 in tensor with 1
-    //                 right amplitudes tensor            replace 2 in tensor with 1
-    //                 -                tensor            replace 2 in tensor with 1
-    //                 t_amplitudes     t_amplitudes      replace 1 in t_amplitudes with 2
-    //                 t_amplitudes     left amplitudes   replace 1 in t_amplitudes with 2
-    //                 t_amplitudes     right amplitudes  replace 1 in t_amplitudes with 2
-    //                 t_amplitudes       -               replace 1 in t_amplitudes with 2
-    //                 left amplitudes  t_amplitudes      replace 2 in t_amplitudes with 1
-    //                 right amplitudes t_amplitudes      replace 2 in t_amplitudes with 1
-    //                 -                t_amplitudes      replace 2 in t_amplitudes with 1
-    //                 left amplitudes  left amplitudes   replace 1 in left amplitudes with 2
-    //                 left amplitudes  right amplitudes  replace 1 in left amplitudes with 2
-    //                 left amplitudes  -                 replace 1 in left amplitudes with 2
-    //                 right amplitudes left amplitudes   replace 2 in left amplitudes with 1
-    //                 -                left amplitudes   replace 2 in left amplitudes with 1
 
     for (int i = 0; i < (int)delta1.size(); i++) {
 
@@ -1436,185 +1607,38 @@ void ahat::gobble_deltas() {
         bool delta2_in_left_amplitudes  = index_in_left_amplitudes( delta2[i] );
         bool delta1_in_right_amplitudes = index_in_right_amplitudes( delta1[i] );
         bool delta2_in_right_amplitudes = index_in_right_amplitudes( delta2[i] );
+        bool delta1_in_u_amplitudes     = index_in_u_amplitudes( delta1[i] );
+        bool delta2_in_u_amplitudes     = index_in_u_amplitudes( delta2[i] );
 
         if ( delta1_in_tensor ) {
-
-            if ( delta2_in_tensor ) {
-
-                replace_index_in_tensor( delta1[i], delta2[i] );
-
-                continue;
-
-            }else if ( delta2_in_t_amplitudes) {
-
-                // replace index in tensor
-                replace_index_in_tensor( delta1[i], delta2[i] );
-
-                continue;
-
-            }else if ( delta2_in_left_amplitudes) {
-
-                // replace index in tensor
-                replace_index_in_tensor( delta1[i], delta2[i] );
-
-                continue;
-
-            }else if ( delta2_in_right_amplitudes) {
-
-                // replace index in tensor
-                replace_index_in_tensor( delta1[i], delta2[i] );
-
-                continue;
-
-            }else {
-
-                // index two must come from the bra, so replace index one in tensor
-                replace_index_in_tensor( delta1[i], delta2[i] );
-
-                continue;
-
-            }
-
+            replace_index_in_tensor( delta1[i], delta2[i] );
+            continue;
         }else if ( delta2_in_tensor ) {
-
-            if ( delta1_in_t_amplitudes) {
-
-                // replace index in tensor
                 replace_index_in_tensor( delta2[i], delta1[i] );
-
-                continue;
-
-            }else if ( delta1_in_left_amplitudes) {
-
-                // replace index in tensor
-                replace_index_in_tensor( delta2[i], delta1[i] );
-
-                continue;
-
-            }else if ( delta1_in_right_amplitudes) {
-
-                // replace index in tensor
-                replace_index_in_tensor( delta2[i], delta1[i] );
-
-                continue;
-
-            }else {
-
-                // index one must come from the bra, so replace index two in tensor
-                replace_index_in_tensor( delta2[i], delta1[i] );
-
-                continue;
-
-            }
-
+            continue;
         }else if ( delta1_in_t_amplitudes ) {
-
-            if ( delta2_in_t_amplitudes) {
-
-                replace_index_in_t_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-
-            }else if ( delta2_in_left_amplitudes) {
-
-                replace_index_in_t_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-
-            }else if ( delta2_in_right_amplitudes) {
-
-                replace_index_in_t_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-
-            }else {
-
-                // index two must come from the bra, so replace index one in t_amplitudes
-                replace_index_in_t_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-
-            }
-
-        }else if ( delta2_in_t_amplitudes) {
-
-            if ( delta1_in_left_amplitudes) {
-
-                replace_index_in_t_amplitudes( delta2[i], delta1[i] );
-
-                continue;
-
-            }else if ( delta1_in_right_amplitudes) {
-
-                replace_index_in_t_amplitudes( delta2[i], delta1[i] );
-
-                continue;
-
-            }else {
-
-                // index one must come from the bra, so replace index two in t_amplitudes
-                replace_index_in_t_amplitudes( delta2[i], delta1[i] );
-
-                continue;
-            }
-
+            replace_index_in_t_amplitudes( delta1[i], delta2[i] );
+            continue;
+        }else if ( delta2_in_t_amplitudes ) {
+            replace_index_in_t_amplitudes( delta2[i], delta1[i] );
+            continue;
         }else if ( delta1_in_left_amplitudes ) {
-
-            if ( delta2_in_left_amplitudes) {
-
-                replace_index_in_left_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-
-            }else if ( delta2_in_right_amplitudes) {
-
-                replace_index_in_left_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-
-            }else {
-
-                // index two must come from the bra, so replace index one in left amplitudes
-                replace_index_in_left_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-            }
-
+            replace_index_in_left_amplitudes( delta1[i], delta2[i] );
+            continue;
         }else if ( delta2_in_left_amplitudes ) {
-
-            if ( delta1_in_right_amplitudes) {
-
-                replace_index_in_left_amplitudes( delta2[i], delta1[i] );
-
-                continue;
-
-            }else {
-                // index one must come from the bra, so replace index two in left amplitudes
-                replace_index_in_left_amplitudes( delta2[i], delta1[i] );
-
-                continue;
-            }
-
+            replace_index_in_left_amplitudes( delta2[i], delta1[i] );
+            continue;
         }else if ( delta1_in_right_amplitudes ) {
-
-            if ( delta2_in_right_amplitudes) {
-
-                replace_index_in_right_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-
-            }else {
-
-                // index two must come from the bra, so replace index one in right amplitudes
-                replace_index_in_right_amplitudes( delta1[i], delta2[i] );
-
-                continue;
-            }
+            replace_index_in_right_amplitudes( delta1[i], delta2[i] );
+            continue;
         }else if ( delta2_in_right_amplitudes ) {
-
-            // index one must come from the bra, so replace index two in right amplitudes
             replace_index_in_right_amplitudes( delta2[i], delta1[i] );
-
+            continue;
+        }else if ( delta1_in_u_amplitudes ) {
+            replace_index_in_u_amplitudes( delta1[i], delta2[i] );
+            continue;
+        }else if ( delta2_in_u_amplitudes ) {
+            replace_index_in_u_amplitudes( delta2[i], delta1[i] );
             continue;
         }
 
@@ -1624,7 +1648,6 @@ void ahat::gobble_deltas() {
 
     }
 
-
     delta1.clear();
     delta2.clear();
 
@@ -1632,129 +1655,6 @@ void ahat::gobble_deltas() {
         delta1.push_back(tmp_delta1[i]);
         delta2.push_back(tmp_delta2[i]);
     }
-
-
-/*
-    std::vector<std::string> tmp_tensor;
-
-    for (int j = 0; j < (int)data->tensor.size(); j++) {
-
-        // does data->tensor index show up in a delta function? 
-        bool skipme = false;
-        for (int k = 0; k < (int)delta1.size(); k++) {
-            if ( data->tensor[j] == delta1[k] ) {
-                tmp_tensor.push_back(delta2[k]);
-                skipme = true;
-                break;
-            }
-            if ( data->tensor[j] == delta2[k] ) {
-                tmp_tensor.push_back(delta1[k]);
-                skipme = true;
-                break;
-            }
-        }
-        if ( skipme ) continue;
-
-        tmp_tensor.push_back(data->tensor[j]);
-    }
-
-    std::vector<std::string> tmp_delta1;
-    std::vector<std::string> tmp_delta2;
-    for (int j = 0; j < (int)delta1.size(); j++) {
-        bool skipme = false;
-        for (int k = 0; k < (int)data->tensor.size(); k++) {
-            if ( data->tensor[k] == delta1[j] ) {
-                skipme = true;
-                break;
-            }
-            if ( data->tensor[k] == delta2[j] ) {
-                skipme = true;
-                break;
-            }
-        }
-        if ( skipme ) continue;
-    
-        tmp_delta1.push_back(delta1[j]);
-        tmp_delta2.push_back(delta2[j]);
-    }
-
-    data->tensor.clear();
-    for (int j = 0; j < (int)tmp_tensor.size(); j++) {
-        data->tensor.push_back(tmp_tensor[j]);
-    }
-    delta1.clear();
-    delta1.clear();
-    for (int j = 0; j < (int)tmp_delta1.size(); j++) {
-        delta1.push_back(tmp_delta1[j]);
-        delta2.push_back(tmp_delta2[j]);
-    }
-
-    // t_amplitudes
-    std::vector<std::vector<std::string>> tmp_t_amplitudes;
-    for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
-
-            // does data->amplitude index show up in a delta function?
-            bool skipme = false;
-            for (int k = 0; k < (int)delta1.size(); k++) {
-                if ( data->t_amplitudes[i][j] == delta1[k] ) {
-                    tmp.push_back(delta2[k]);
-                    skipme = true;
-                    break;
-                }
-                if ( data->t_amplitudes[i][j] == delta2[k] ) {
-                    tmp.push_back(delta1[k]);
-                    skipme = true;
-                    break;
-                }
-            }
-            if ( skipme ) continue;
-
-            tmp.push_back(data->t_amplitudes[i][j]);
-        }
-        tmp_t_amplitudes.push_back(tmp);
-
-        // now, remove delta functions from list that were gobbled up above
-        std::vector<std::string> tmp_delta1;
-        std::vector<std::string> tmp_delta2;
-
-        for (int k = 0; k < (int)delta1.size(); k++) {
-            bool skipme = false;
-            for (int l = 0; l < (int)data->t_amplitudes[i].size(); l++) {
-                if ( data->t_amplitudes[i][l] == delta1[k] ) {
-                    skipme = true;
-                    break;
-                }
-                if ( data->t_amplitudes[i][l] == delta2[k] ) {
-                    skipme = true;
-                    break;
-                }
-            }
-            if ( skipme ) continue;
-        
-            tmp_delta1.push_back(delta1[k]);
-            tmp_delta2.push_back(delta2[k]);
-        }
-
-        // update deltas
-        delta1.clear();
-        delta2.clear();
-        for (int k = 0; k < (int)tmp_delta1.size(); k++) {
-            delta1.push_back(tmp_delta1[k]);
-            delta2.push_back(tmp_delta2[k]);
-        }
-
-
-    }
-
-    // update t_amplitudes
-    data->t_amplitudes.clear();
-    for (int i = 0; i < (int)tmp_t_amplitudes.size(); i++) {
-        data->t_amplitudes.push_back(tmp_t_amplitudes[i]);
-    }
-*/
-    
 
 }
 
@@ -1777,10 +1677,16 @@ void ahat::copy(void * copy_me) {
             is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
         }
     }
+
+    // boson daggers
+    for (int i = 0; i < (int)in->data->is_boson_dagger.size(); i++) {
+        data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+    }
     
 }
 
 void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
+
     if ( skip ) return;
 
     if ( is_normal_order() ) {
@@ -1813,19 +1719,6 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
             s1->delta1.push_back(symbol[i]);
             s1->delta2.push_back(symbol[i+1]);
 
-            // check spin in delta functions
-            //for (int j = 0; j < (int)delta1.size(); j++) {
-            //    if ( s1->delta1[j].length() != 2 ) {
-            //        //throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
-            //        break;
-            //    }
-            //    //if ( s1->delta1[j].at(1) == 'A' && s1->delta2[j].at(1) == 'B' ) {
-            //    //    s1->skip = true;
-            //    //}else if ( s1->delta1[j].at(1) == 'B' && s1->delta2[j].at(1) == 'A' ) {
-            //    //    s1->skip = true;
-            //    //}
-            //}
-
             s2->sign = -s2->sign;
             s2->symbol.push_back(symbol[i+1]);
             s2->symbol.push_back(symbol[i]);
@@ -1854,9 +1747,103 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
         }
     }
 
-    s1->normal_order_true_vacuum(ordered);
-    s2->normal_order_true_vacuum(ordered);
+    // now, s1 and s2 are closer to normal order in the fermion space
+    // we should more toward normal order in the boson space, too
 
+    //s1->normal_order_true_vacuum(ordered);
+    //s2->normal_order_true_vacuum(ordered);
+
+    if ( is_boson_normal_order() ) {
+
+        // copy boson daggers 
+        for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+            s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+            s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+        }
+        s1->normal_order_true_vacuum(ordered);
+        s2->normal_order_true_vacuum(ordered);
+
+    }else {
+
+        // new strings
+        std::shared_ptr<ahat> s1a ( new ahat(vacuum) );
+        std::shared_ptr<ahat> s1b ( new ahat(vacuum) );
+        std::shared_ptr<ahat> s2a ( new ahat(vacuum) );
+        std::shared_ptr<ahat> s2b ( new ahat(vacuum) );
+
+        // copy data common to new strings
+        s1a->copy((void*)s1.get());
+        s1b->copy((void*)s1.get());
+
+        // ensure boson daggers are clear (they should be anyway)
+        s1a->data->is_boson_dagger.clear();
+        s1b->data->is_boson_dagger.clear();
+
+        for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+
+            // swap operators?
+            bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
+
+            if ( swap ) {
+
+                // nothing happens to s1a. add swapped operators to s1b
+                s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
+                s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+                // push remaining operators onto s1a and s1b
+                for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+
+                    s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+
+                }
+                break;
+
+            }else {
+
+                s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+            }
+        }
+
+        // copy data common to new strings
+        s2a->copy((void*)s2.get());
+        s2b->copy((void*)s2.get());
+        for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+
+            // swap operators?
+            bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
+
+            if ( swap ) {
+
+                // nothing happens to s2a. add swapped operators to s2b
+                s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
+                s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+                // push remaining operators onto s2a and s2b
+                for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+
+                    s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+                    s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+
+                }
+                break;
+
+            }else {
+
+                s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+            }
+        }
+
+        s1a->normal_order_true_vacuum(ordered);
+        s1b->normal_order_true_vacuum(ordered);
+        s2a->normal_order_true_vacuum(ordered);
+        s2b->normal_order_true_vacuum(ordered);
+
+    }
 }
 
 void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
@@ -1905,19 +1892,6 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
             s1->delta1.push_back(symbol[i]);
             s1->delta2.push_back(symbol[i+1]);
 
-            // check spin in delta functions
-            //for (int j = 0; j < (int)delta1.size(); j++) {
-            //    if ( s1->delta1[j].length() != 2 ) {
-            //        //throw PsiException("be sure to specify spin as second character in labels",__FILE__,__LINE__);
-            //        break;
-            //    }
-            //    //if ( s1->delta1[j].at(1) == 'A' && s1->delta2[j].at(1) == 'B' ) {
-            //    //    s1->skip = true;
-            //    //}else if ( s1->delta1[j].at(1) == 'B' && s1->delta2[j].at(1) == 'A' ) {
-            //    //    s1->skip = true;
-            //    //}
-            //}
-
             s2->sign = -s2->sign;
             s2->symbol.push_back(symbol[i+1]);
             s2->symbol.push_back(symbol[i]);
@@ -1953,24 +1927,13 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
             s1->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
             s1->is_dagger_fermi.push_back(is_dagger_fermi[i]);
 
-            //s2->sign = -s2->sign;
-            //s2->symbol.push_back(symbol[i+1]);
-            //s2->symbol.push_back(symbol[i]);
-            //s2->is_dagger.push_back(is_dagger[i+1]);
-            //s2->is_dagger.push_back(is_dagger[i]);
-            //s2->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
-            //s2->is_dagger_fermi.push_back(is_dagger_fermi[i]);
-
             for (int j = i+2; j < (int)symbol.size(); j++) {
 
                 s1->symbol.push_back(symbol[j]);
-                //s2->symbol.push_back(symbol[j]);
 
                 s1->is_dagger.push_back(is_dagger[j]);
-                //s2->is_dagger.push_back(is_dagger[j]);
 
                 s1->is_dagger_fermi.push_back(is_dagger_fermi[j]);
-                //s2->is_dagger_fermi.push_back(is_dagger_fermi[j]);
 
             }
             break;
@@ -1989,13 +1952,152 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
         }
     }
 
+    // now, s1 (and s2) are closer to normal order in the fermion space
+    // we should more toward normal order in the boson space, too
 
     if ( n_new_strings == 1 ) {
-        s1->normal_order_fermi_vacuum(ordered);
+
+        if ( is_boson_normal_order() ) {
+            // copy boson daggers
+            for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+                s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+            }
+            s1->normal_order_fermi_vacuum(ordered);
+        }else {
+
+            // new strings
+            std::shared_ptr<ahat> s1a ( new ahat(vacuum) );
+            std::shared_ptr<ahat> s1b ( new ahat(vacuum) );
+
+            // copy data common to both new strings
+            s1a->copy((void*)s1.get());
+            s1b->copy((void*)s1.get());
+            for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+
+                // swap operators?
+                bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
+
+                if ( swap ) {
+
+                    // nothing happens to s1a. add swapped operators to s1b
+                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
+                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+                    // push remaining operators onto s1a and s1b
+                    for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+        
+                        s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+                        s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+        
+                    }
+                    break;
+
+                }else {
+
+                    s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+                }
+            }
+            s1a->normal_order_fermi_vacuum(ordered);
+            s1b->normal_order_fermi_vacuum(ordered);
+        }
+
     }else if ( n_new_strings == 2 ) {
-        s1->normal_order_fermi_vacuum(ordered);
-        s2->normal_order_fermi_vacuum(ordered);
+
+        if ( is_boson_normal_order() ) {
+            // copy boson daggers
+            for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+                s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+            }
+            s1->normal_order_fermi_vacuum(ordered);
+            s2->normal_order_fermi_vacuum(ordered);
+        }else {
+
+            // new strings
+            std::shared_ptr<ahat> s1a ( new ahat(vacuum) );
+            std::shared_ptr<ahat> s1b ( new ahat(vacuum) );
+            std::shared_ptr<ahat> s2a ( new ahat(vacuum) );
+            std::shared_ptr<ahat> s2b ( new ahat(vacuum) );
+
+            // copy data common to new strings
+            s1a->copy((void*)s1.get());
+            s1b->copy((void*)s1.get());
+
+            // ensure boson daggers are clear (they should be anyway)
+            s1a->data->is_boson_dagger.clear();
+            s1b->data->is_boson_dagger.clear();
+
+            for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+
+                // swap operators?
+                bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
+
+                if ( swap ) {
+
+                    // nothing happens to s1a. add swapped operators to s1b
+                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
+                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+                    // push remaining operators onto s1a and s1b
+                    for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+
+                        s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+                        s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+
+                    }
+                    break;
+
+                }else {
+
+                    s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+                }
+            }
+
+            // copy data common to new strings
+            s2a->copy((void*)s2.get());
+            s2b->copy((void*)s2.get());
+            for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+
+                // swap operators?
+                bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
+
+                if ( swap ) {
+
+                    // nothing happens to s2a. add swapped operators to s2b
+                    s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
+                    s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+                    // push remaining operators onto s2a and s2b
+                    for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+
+                        s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+                        s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
+
+                    }
+                    break;
+
+                }else {
+
+                    s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                    s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+
+                }
+            }
+
+            s1a->normal_order_fermi_vacuum(ordered);
+            s1b->normal_order_fermi_vacuum(ordered);
+            s2a->normal_order_fermi_vacuum(ordered);
+            s2b->normal_order_fermi_vacuum(ordered);
+
+
+        }
+
     }
+
 
 }
 

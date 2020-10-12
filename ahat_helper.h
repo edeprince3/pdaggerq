@@ -34,6 +34,7 @@ class ahat_helper {
 
   private:
 
+    /// list of strings of operators
     std::vector< std::shared_ptr<ahat> > ordered;
 
     /// strings, tensors, etc.
@@ -53,7 +54,10 @@ class ahat_helper {
 
   public:
 
+    /// constructor
     ahat_helper(std::string vacuum_type);
+
+    /// destructor
     ~ahat_helper();
 
     /// when bringing to normal order, does the bra involve any operators?
@@ -69,10 +73,13 @@ class ahat_helper {
     void set_string(std::vector<std::string> in);
 
     /// set labels for a one- or two-body tensor
-    void set_tensor(std::vector<std::string> in);
+    void set_tensor(std::vector<std::string> in, std::string tensor_type);
 
     /// set labels for t1 or t2 amplitudes
     void set_t_amplitudes(std::vector<std::string> in);
+
+    /// set labels for u1 or u2 amplitudes
+    void set_u_amplitudes(std::vector<std::string> in);
 
     /// set labels for l1 or l2 amplitudes
     void set_left_amplitudes(std::vector<std::string> in);

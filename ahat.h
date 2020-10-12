@@ -33,8 +33,11 @@ class ahat {
 
   private:
 
-    /// is the string in normal order?
+    /// is the entire string (fermions+bosons) in normal order?
     bool is_normal_order();
+
+    /// are bosonic operators in normal order?
+    bool is_boson_normal_order();
 
     /// is label "idx" present anywhere?
     bool index_in_anywhere(std::string idx);
@@ -44,6 +47,9 @@ class ahat {
 
     /// is label "idx" present in t-amplitudes?
     bool index_in_t_amplitudes(std::string idx);
+
+    /// is label "idx" present in u-amplitudes?
+    bool index_in_u_amplitudes(std::string idx);
 
     /// is label "idx" present in left-hand amplitudes?
     bool index_in_left_amplitudes(std::string idx);
@@ -59,6 +65,9 @@ class ahat {
 
     /// replace one label with another (in t-amplitudes)
     void replace_index_in_t_amplitudes(std::string old_idx, std::string new_idx);
+
+    /// replace one label with another (in u-amplitudes)
+    void replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx);
 
     /// replace one label with another (in left-hand amplitudes)
     void replace_index_in_left_amplitudes(std::string old_idx, std::string new_idx);
@@ -104,10 +113,10 @@ class ahat {
     /// list: symbols for fermionic creation / annihilation operators
     std::vector<std::string> symbol;
 
-    /// list: is fermionic operator creator or annihilator (relative to true vacuum)
+    /// list: is fermionic operator creator or annihilator (relative to true vacuum)?
     std::vector<bool> is_dagger;
 
-    /// list: is fermionic operator creator or annihilator (relative to fermi vacuum)
+    /// list: is fermionic operator creator or annihilator (relative to fermi vacuum)?
     std::vector<bool> is_dagger_fermi;
 
     /// list of delta functions (index 1)
@@ -116,7 +125,7 @@ class ahat {
     /// list of delta functions (index 2)
     std::vector<std::string> delta2;
 
-    /// detailed information about string (t, R, L, amplitudes, etc)
+    /// detailed information about string (t, R, L, amplitudes, bosons, etc.)
     std::shared_ptr<StringData> data;
 
     /// print string information

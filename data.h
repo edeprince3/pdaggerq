@@ -34,7 +34,10 @@ class StringData {
 
   public:
 
+    /// constructor
     StringData(){};
+
+    /// descructor
     ~StringData(){};
 
     /// factor
@@ -45,6 +48,12 @@ class StringData {
 
     /// list: labels for 1- or 2-index tensor
     std::vector<std::string> tensor;
+
+    /// tensor type (CORE, ERI, D+, D-)
+    std::string tensor_type;
+
+    /// list: labels u amplitudes
+    std::vector<std::vector<std::string> > u_amplitudes;
 
     /// list: labels t amplitudes
     std::vector<std::vector<std::string> > t_amplitudes;
@@ -60,6 +69,9 @@ class StringData {
 
     /// should we account for r0 in EOM-CC?
     bool has_r0;
+
+    /// list: is bosonic operator creator or annihilator?
+    std::vector<bool> is_boson_dagger;
 
 };
 
