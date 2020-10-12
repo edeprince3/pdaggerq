@@ -70,6 +70,12 @@ class StringData {
     /// should we account for r0 in EOM-CC?
     bool has_r0;
 
+    /// should we account for u0?
+    bool has_u0;
+
+    /// should we account for w0?
+    bool has_w0;
+
     /// list: is bosonic operator creator or annihilator?
     std::vector<bool> is_boson_dagger;
 

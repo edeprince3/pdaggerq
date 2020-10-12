@@ -142,6 +142,8 @@ void ahat_helper::set_bra(std::string bra_type){
         bra = "DOUBLES_1";
     }else if ( bra_type == "VACUUM" || bra_type == "vacuum" ) {
         bra = "VACUUM";
+    }else if ( bra_type == "VACUUM_1" || bra_type == "vacuum_1" ) {
+        bra = "VACUUM_1";
     }else {
         printf("\n");
         printf("    error: invalid bra type (%s)\n",bra_type.c_str());
@@ -164,6 +166,8 @@ void ahat_helper::set_ket(std::string ket_type){
         ket = "DOUBLES_1";
     }else if ( ket_type == "VACUUM" || ket_type == "vacuum" ) {
         ket = "VACUUM";
+    }else if ( ket_type == "VACUUM_1" || ket_type == "vacuum_1" ) {
+        ket = "VACUUM_1";
     }else {
         printf("\n");
         printf("    error: invalid ket type (%s)\n",ket_type.c_str());
@@ -287,10 +291,16 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         tmp_string.push_back("e");
 
         data->is_boson_dagger.push_back(false);
+    }else if ( bra == "VACUUM_1" ) {
+
+        data->is_boson_dagger.push_back(false);
+
     }
 
     bool has_l0 = false;
     bool has_r0 = false;
+    bool has_u0 = false;
+    bool has_w0 = false;
 
     for (int i = 0; i < (int)in.size(); i++) {
 
@@ -494,10 +504,30 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 exit(1);
             }
 
+        }else if ( in[i].substr(0,1) == "w" ){ // w0 B*B
+            if ( in[i].substr(1,1) == "0" ){
+
+                has_w0 = true;
+
+                data->is_boson_dagger.push_back(true);
+                data->is_boson_dagger.push_back(false);
+
+            }else {
+                printf("\n");
+                printf("    error: only w0 is supported\n");
+                printf("\n");
+                exit(1);
+            }
         }else if ( in[i].substr(0,1) == "u" ){ // t-amplitudes + boson creator
 
 
-            if ( in[i].substr(1,1) == "1" ){
+            if ( in[i].substr(1,1) == "0" ){
+
+                has_u0 = true;
+
+                data->is_boson_dagger.push_back(true);
+
+            }else if ( in[i].substr(1,1) == "1" ){
 
                 // find comma
                 size_t pos = in[i].find(",");
@@ -558,7 +588,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
             }else {
                 printf("\n");
-                printf("    error: only u1 or u2 amplitudes are supported\n");
+                printf("    error: only u0, u1, or u2 amplitudes are supported\n");
                 printf("\n");
                 exit(1);
             }
@@ -566,7 +596,9 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
 
             if ( in[i].substr(1,1) == "0" ){
+
                 has_r0 = true;
+
             }else if ( in[i].substr(1,1) == "1" ){
 
                 // find comma
@@ -799,12 +831,19 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         tmp_string.push_back("m");
 
         data->is_boson_dagger.push_back(true);
+
+    }else if ( ket == "VACUUM_1" ) {
+
+        data->is_boson_dagger.push_back(true);
+
     }
 
     set_string(tmp_string);
 
     data->has_r0 = has_r0;
     data->has_l0 = has_l0;
+    data->has_u0 = has_u0;
+    data->has_w0 = has_w0;
 
     add_new_string();
 
@@ -873,6 +912,8 @@ void ahat_helper::add_new_string_true_vacuum(){
 
     mystring->data->has_r0 = data->has_r0;
     mystring->data->has_l0 = data->has_l0;
+    mystring->data->has_u0 = data->has_u0;
+    mystring->data->has_w0 = data->has_w0;
 
     for (int i = 0; i < (int)data->string.size(); i++) {
         std::string me = data->string[i];
@@ -1007,6 +1048,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
 
         mystrings[string_num]->data->has_r0 = data->has_r0;
         mystrings[string_num]->data->has_l0 = data->has_l0;
+        mystrings[string_num]->data->has_u0 = data->has_u0;
+        mystrings[string_num]->data->has_w0 = data->has_w0;
 
         // tensor type
         mystrings[string_num]->data->tensor_type = data->tensor_type;

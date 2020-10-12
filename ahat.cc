@@ -355,6 +355,7 @@ void ahat::print() {
             } 
         }
     }
+
     // u_amplitudes
     if ( (int)data->u_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
@@ -383,7 +384,11 @@ void ahat::print() {
                 printf(" ");
             } 
         }
+    }else if ( data->has_u0 ) {
+        printf("u0");
+        printf(" ");
     }
+
     // bosons:
     for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
         if ( data->is_boson_dagger[i] ) {
@@ -391,6 +396,10 @@ void ahat::print() {
         }else {
             printf("Q ");
         }
+    }
+    if ( data->has_w0 ) {
+        printf("w0");
+        printf(" ");
     }
     printf("\n");
 }
@@ -1389,6 +1398,11 @@ void ahat::shallow_copy(void * copy_me) {
     // r0 
     data->has_r0 = in->data->has_r0;
 
+    // u0 
+    data->has_u0 = in->data->has_u0;
+
+    // w0 
+    data->has_w0 = in->data->has_w0;
 }
 
 
@@ -1856,7 +1870,6 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
     if ( skip ) return;
 
     if ( is_normal_order() ) {
-
         // push current ordered operator onto running list
         std::shared_ptr<ahat> newguy (new ahat(vacuum));
 
@@ -1877,7 +1890,7 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
 
     // rearrange operators
 
-    int n_new_strings = 0;
+    int n_new_strings = 1;
 
     for (int i = 0; i < (int)symbol.size()-1; i++) {
 
