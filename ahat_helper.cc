@@ -902,7 +902,7 @@ void ahat_helper::add_new_string_true_vacuum(){
         for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
             tmp.push_back(data->u_amplitudes[i][j]);
         }
-        mystring->data->t_amplitudes.push_back(tmp);
+        mystring->data->u_amplitudes.push_back(tmp);
     }
 
     for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
