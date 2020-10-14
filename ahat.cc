@@ -288,7 +288,8 @@ void ahat::print() {
                 printf(" ");
             } 
         }
-    }else if ( data->has_l0 ) {
+    }
+    if ( data->has_l0 ) {
         printf("l0");
         printf(" ");
     }
@@ -321,7 +322,8 @@ void ahat::print() {
                 printf(" ");
             } 
         }
-    }else if ( data->has_r0 ) {
+    }
+    if ( data->has_r0 ) {
         printf("r0");
         printf(" ");
     }
@@ -384,7 +386,8 @@ void ahat::print() {
                 printf(" ");
             } 
         }
-    }else if ( data->has_u0 ) {
+    }
+    if ( data->has_u0 ) {
         printf("u0");
         printf(" ");
     }
