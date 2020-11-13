@@ -76,6 +76,12 @@ class StringData {
     /// should we account for w0?
     bool has_w0;
 
+    /// should we account for terms with just b?
+    bool has_b;
+
+    /// should we account for terms with just b+?
+    bool has_b_dagger;
+
     /// list: is bosonic operator creator or annihilator?
     std::vector<bool> is_boson_dagger;
 

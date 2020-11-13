@@ -297,10 +297,12 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
     }
 
-    bool has_l0 = false;
-    bool has_r0 = false;
-    bool has_u0 = false;
-    bool has_w0 = false;
+    bool has_l0       = false;
+    bool has_r0       = false;
+    bool has_u0       = false;
+    bool has_w0       = false;
+    bool has_b        = false;
+    bool has_b_dagger = false;
 
     for (int i = 0; i < (int)in.size(); i++) {
 
@@ -518,6 +520,18 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 printf("\n");
                 exit(1);
             }
+        }else if ( in[i].substr(0,2) == "b+" ){ // B*
+
+                has_b_dagger = true;
+
+                data->is_boson_dagger.push_back(true);
+
+        }else if ( in[i].substr(0,2) == "b-" ){ // B
+
+                has_b = true;
+
+                data->is_boson_dagger.push_back(false);
+
         }else if ( in[i].substr(0,1) == "u" ){ // t-amplitudes + boson creator
 
 
@@ -840,10 +854,12 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
     set_string(tmp_string);
 
-    data->has_r0 = has_r0;
-    data->has_l0 = has_l0;
-    data->has_u0 = has_u0;
-    data->has_w0 = has_w0;
+    data->has_r0       = has_r0;
+    data->has_l0       = has_l0;
+    data->has_u0       = has_u0;
+    data->has_w0       = has_w0;
+    data->has_b        = has_b;
+    data->has_b_dagger = has_b_dagger;
 
     add_new_string();
 
@@ -910,10 +926,12 @@ void ahat_helper::add_new_string_true_vacuum(){
         mystring->data->factor = fabs(data->factor);
     }
 
-    mystring->data->has_r0 = data->has_r0;
-    mystring->data->has_l0 = data->has_l0;
-    mystring->data->has_u0 = data->has_u0;
-    mystring->data->has_w0 = data->has_w0;
+    mystring->data->has_r0       = data->has_r0;
+    mystring->data->has_l0       = data->has_l0;
+    mystring->data->has_u0       = data->has_u0;
+    mystring->data->has_w0       = data->has_w0;
+    mystring->data->has_b        = data->has_b;
+    mystring->data->has_b_dagger = data->has_b_dagger;
 
     for (int i = 0; i < (int)data->string.size(); i++) {
         std::string me = data->string[i];
@@ -1046,10 +1064,12 @@ void ahat_helper::add_new_string_fermi_vacuum(){
             mystrings[string_num]->data->factor = fabs(data->factor);
         }
 
-        mystrings[string_num]->data->has_r0 = data->has_r0;
-        mystrings[string_num]->data->has_l0 = data->has_l0;
-        mystrings[string_num]->data->has_u0 = data->has_u0;
-        mystrings[string_num]->data->has_w0 = data->has_w0;
+        mystrings[string_num]->data->has_r0       = data->has_r0;
+        mystrings[string_num]->data->has_l0       = data->has_l0;
+        mystrings[string_num]->data->has_u0       = data->has_u0;
+        mystrings[string_num]->data->has_w0       = data->has_w0;
+        mystrings[string_num]->data->has_b        = data->has_b;
+        mystrings[string_num]->data->has_b_dagger = data->has_b_dagger;
 
         // tensor type
         mystrings[string_num]->data->tensor_type = data->tensor_type;

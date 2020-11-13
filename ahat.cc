@@ -226,37 +226,56 @@ void ahat::print() {
         printf("d(%s%s)",delta1[i].c_str(),delta2[i].c_str());
         printf(" ");
     }
-    if ( (int)data->tensor.size() > 0 ) {
-        // two-electron integrals
-        if ( (int)data->tensor.size() == 4 ) {
-            // mulliken
-            //printf("g(");
-            // dirac
-            printf("<");
-            printf("%s",data->tensor[0].c_str());
-            printf(",");
-            printf("%s",data->tensor[1].c_str());
-            printf("||");
-            printf("%s",data->tensor[2].c_str());
-            printf(",");
-            printf("%s",data->tensor[3].c_str());
-            printf(">");
-            //printf(")");
+
+    // two-electron integrals
+    if ( (int)data->tensor.size() == 4 ) {
+
+        // mulliken
+        //printf("[ (");
+        //printf("%s",data->tensor[0].c_str());
+        //printf(",");
+        //printf("%s",data->tensor[2].c_str());
+        //printf("|");
+        //printf("%s",data->tensor[1].c_str());
+        //printf(",");
+        //printf("%s",data->tensor[3].c_str());
+        //printf(") - (");
+        //printf("%s",data->tensor[0].c_str());
+        //printf(",");
+        //printf("%s",data->tensor[3].c_str());
+        //printf("|");
+        //printf("%s",data->tensor[1].c_str());
+        //printf(",");
+        //printf("%s",data->tensor[2].c_str());
+        //printf(") ]");
+        //printf(" ");
+
+        // dirac
+        printf("<");
+        printf("%s",data->tensor[0].c_str());
+        printf(",");
+        printf("%s",data->tensor[1].c_str());
+        printf("||");
+        printf("%s",data->tensor[2].c_str());
+        printf(",");
+        printf("%s",data->tensor[3].c_str());
+        printf(">");
+        printf(" ");
+    }
+
+    // one-electron integrals
+    if ( (int)data->tensor.size() == 2 ) {
+        if ( data->tensor_type == "CORE") {
+            printf("h(");
+        }else if ( data->tensor_type == "D+") {
+            printf("d+(");
+        }else if ( data->tensor_type == "D-") {
+            printf("d-(");
         }
-        // one-electron integrals
-        if ( (int)data->tensor.size() == 2 ) {
-            if ( data->tensor_type == "CORE") {
-                printf("h(");
-            }else if ( data->tensor_type == "D+") {
-                printf("d+(");
-            }else if ( data->tensor_type == "D-") {
-                printf("d-(");
-            }
-            printf("%s",data->tensor[0].c_str());
-            printf(",");
-            printf("%s",data->tensor[1].c_str());
-            printf(")");
-        }
+        printf("%s",data->tensor[0].c_str());
+        printf(",");
+        printf("%s",data->tensor[1].c_str());
+        printf(")");
         printf(" ");
     }
 
@@ -402,6 +421,14 @@ void ahat::print() {
     }
     if ( data->has_w0 ) {
         printf("w0");
+        printf(" ");
+    }
+    if ( data->has_b ) {
+        printf("b-");
+        printf(" ");
+    }
+    if ( data->has_b_dagger ) {
+        printf("b+");
         printf(" ");
     }
     printf("\n");
@@ -1054,6 +1081,27 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
 bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute) {
 
+
+    // don't forget w0, u0, r0, l0, b+, b-
+    if ( ordered_1->data->has_u0 != ordered_2->data->has_u0 ) {
+        return false;
+    }
+    if ( ordered_1->data->has_w0 != ordered_2->data->has_w0 ) {
+        return false;
+    }
+    if ( ordered_1->data->has_r0 != ordered_2->data->has_r0 ) {
+        return false;
+    }
+    if ( ordered_1->data->has_l0 != ordered_2->data->has_l0 ) {
+        return false;
+    }
+    if ( ordered_1->data->has_b != ordered_2->data->has_b ) {
+        return false;
+    }
+    if ( ordered_1->data->has_b_dagger != ordered_2->data->has_b_dagger ) {
+        return false;
+    }
+
     n_permute = 0;
 
     //printf("ok, how about these\n");
@@ -1406,6 +1454,12 @@ void ahat::shallow_copy(void * copy_me) {
 
     // w0 
     data->has_w0 = in->data->has_w0;
+
+    // b 
+    data->has_b = in->data->has_b;
+
+    // b_dagger 
+    data->has_b_dagger = in->data->has_b_dagger;
 }
 
 
