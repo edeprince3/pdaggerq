@@ -1077,6 +1077,9 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
     }
 
+    // TODO: consolidate terms that differ by permutations of bra labels
+    // TODO: consolidate terms that differ by permutations of ket labels
+
 }
 
 bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute) {

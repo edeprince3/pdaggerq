@@ -65,22 +65,22 @@ class StringData {
     std::vector<std::vector<std::string> > right_amplitudes;
 
     /// should we account for l0 in EOM-CC?
-    bool has_l0;
+    bool has_l0 = false;
 
     /// should we account for r0 in EOM-CC?
-    bool has_r0;
+    bool has_r0 = false;
 
     /// should we account for u0?
-    bool has_u0;
+    bool has_u0 = false;
 
     /// should we account for w0?
-    bool has_w0;
+    bool has_w0 = false;
 
     /// should we account for terms with just b?
-    bool has_b;
+    bool has_b = false;
 
     /// should we account for terms with just b+?
-    bool has_b_dagger;
+    bool has_b_dagger = false;
 
     /// list: is bosonic operator creator or annihilator?
     std::vector<bool> is_boson_dagger;
