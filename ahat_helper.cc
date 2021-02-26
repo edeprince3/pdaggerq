@@ -746,7 +746,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         }else if ( in[i].substr(0,1) == "e" ){
 
 
-            //if ( in[i].substr(1,1) == "1" ){
+            if ( in[i].substr(1,1) == "1" ){
 
                 // find comma
                 size_t pos = in[i].find(",");
@@ -756,21 +756,20 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                     printf("\n");
                     exit(1);
                 }
-                size_t len = pos - 1; 
+                size_t len = pos - 2; 
 
                 // index 1
-                tmp_string.push_back(in[i].substr(1,len)+"*");
+                tmp_string.push_back(in[i].substr(2,len)+"*");
 
                 // index 2
                 tmp_string.push_back(in[i].substr(pos+1));
 
-/*
             }else if ( in[i].substr(1,1) == "2" ){
 
-	        printf("\n");
-	        printf("    error: e2 operator not yet implemented.\n");
-	        printf("\n");
-	        exit(1);
+	        //printf("\n");
+	        //printf("    error: e2 operator not yet implemented.\n");
+	        //printf("\n");
+	        //exit(1);
 
 	        // count indices
 	        size_t pos = 0;
@@ -793,8 +792,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                 tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
                 tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                tmp_string.push_back(in[i].substr(commas[2]+1));
                 tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+                tmp_string.push_back(in[i].substr(commas[2]+1));
 
             }else {
                 printf("\n");
@@ -802,7 +801,6 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 printf("\n");
                 exit(1);
             }
-*/
         }else {
                 printf("\n");
                 printf("    error: undefined string\n");

@@ -18,7 +18,7 @@ print('')
 print('    D1(m,n) = <0|(l0 + l1 + l2) e(-T) e(m,n) e(T) (r0 + r1 + r2)|0>')
 print('')
 
-Dop = 'e(m,n)'
+Dop = 'e1(m,n)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -73,7 +73,7 @@ print('')
 print('    D1(e,f) = <0|(l0 + l1 + l2) e(-T) e(e,f) e(T) (r0 + r1 + r2)|0>')
 print('')
 
-Dop = 'e(e,f)'
+Dop = 'e1(e,f)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -128,7 +128,7 @@ print('')
 print('    D1(m,e) = <0|(l0 + l1 + l2) e(-T) e(m,e) e(T) (r0 + r1 + r2)|0>')
 print('')
 
-Dop = 'e(m,e)'
+Dop = 'e1(m,e)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -183,7 +183,7 @@ print('')
 print('    D1(e,m) = <0|(l0 + l1 + l2) e(-T) e(e,m) e(T) (r0 + r1 + r2)|0>')
 print('')
 
-Dop = 'e(e,m)'
+Dop = 'e1(e,m)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
