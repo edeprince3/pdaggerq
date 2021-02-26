@@ -39,9 +39,13 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         'g(p,q,r,s)' 
     
-    a pair of creation/annihilation operators, e.g., p*q
+    a pair of creation/annihilation operators, i.e., p*q
     
-        'e(p,q)' 
+        'e1(p,q)' 
+        
+    a two-body transition operator, i.,e., p*q*rs
+    
+        'e2(p,q,r,s)' 
     
     singles and doubles t-amplitudes 
     
