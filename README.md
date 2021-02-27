@@ -43,7 +43,7 @@ A code for bringing strings of creation / annihilation operators to normal order
     
         'e1(p,q)' 
         
-    a two-body transition operator, i.,e., p*q*rs
+    a two-body transition operator, i.,e., p*q\*rs
     
         'e2(p,q,r,s)' 
     
