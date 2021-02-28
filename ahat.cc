@@ -1637,7 +1637,8 @@ void ahat::use_conventional_labels() {
 
             for (int j = 0; j < (int)occ_out.size(); j++) {
 
-                if ( !index_in_tensor(occ_out[j]) ) {
+                //if ( !index_in_tensor(occ_out[j]) ) 
+                if ( !index_in_anywhere(occ_out[j]) ) {
 
                     replace_index_in_tensor(occ_in[i],occ_out[j]);
                     break;
