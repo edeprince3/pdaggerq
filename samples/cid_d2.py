@@ -12,14 +12,14 @@ ahat = pdaggerq.ahat_helper("fermi")
 ahat.set_bra("vacuum")
 ahat.set_print_level(0)
 
-left_hand_operators  = ['l0','l2(i1,i2,a1,a2)']
-right_hand_operators = ['r0','r2(a3,a4,i3,i4)']
+left_hand_operators  = ['l0','l2(i,j,a,b)']
+right_hand_operators = ['r0','r2(c,d,k,l)']
 
 print('')
-print('    D2(i,j,k,l) = <0|(l0 + l2) e2(i,j,l,k) (r0 + r2)|0>')
+print('    D2(i1,i2,i3,i4) = <0|(l0 + l2) e2(i1,i2,i4,i3) (r0 + r2)|0>')
 print('')
 
-Dop = 'e2(i,j,l,k)'
+Dop = 'e2(i1,i2,i4,i3)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -31,10 +31,10 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(a,b,c,d) = <0|(l0 + l2) e(a,b,d,c) (r0 + r2)|0>')
+print('    D1(a1,a2,a3,a4) = <0|(l0 + l2) e(a1,a2,a4,a3) (r0 + r2)|0>')
 print('')
 
-Dop = 'e2(a,b,d,c)'
+Dop = 'e2(a1,a2,a4,a3)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -46,10 +46,10 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D2(i,j,a,b) = <0|(l0 + l2) e(i,j,b,a) (r0 + r2)|0>')
+print('    D2(i1,i2,a1,a2) = <0|(l0 + l2) e(i1,i2,a2,a1) (r0 + r2)|0>')
 print('')
 
-Dop = 'e2(i,j,b,a)'
+Dop = 'e2(i1,i2,a2,a1)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -61,10 +61,10 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(a,b,i,j) = <0|(l0 + l2) e(a,b,j,i) (r0 + r2)|0>')
+print('    D1(a1,a2,i1,i2) = <0|(l0 + l2) e(a1,a2,i2,i1) (r0 + r2)|0>')
 print('')
 
-Dop = 'e2(a,b,j,i)'
+Dop = 'e2(a1,a2,i2,i1)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -76,10 +76,10 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(i,a,j,b) = <0|(l0 + l2) e(i,a,b,j) (r0 + r2)|0>')
+print('    D1(i1,a1,i2,a1) = <0|(l0 + l2) e(i1,a1,a2,i2) (r0 + r2)|0>')
 print('')
 
-Dop = 'e2(i,a,b,j)'
+Dop = 'e2(i1,a1,a2,i2)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -91,10 +91,10 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(i,a,b,j) = <0|(l0 + l2) e(i,a,j,b) (r0 + r2)|0>')
+print('    D1(i1,a1,a2,i2) = <0|(l0 + l2) e(i1,a1,i2,a2) (r0 + r2)|0>')
 print('')
 
-Dop = 'e2(i,a,j,b)'
+Dop = 'e2(i1,a1,i2,a2)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 

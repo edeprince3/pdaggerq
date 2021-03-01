@@ -12,14 +12,14 @@ ahat = pdaggerq.ahat_helper("fermi")
 ahat.set_bra("vacuum")
 ahat.set_print_level(0)
 
-left_hand_operators  = ['l0','l2(i1,i2,a1,a2)']
-right_hand_operators = ['r0','r2(a3,a4,i3,i4)']
+left_hand_operators  = ['l0','l2(i,j,a,b)']
+right_hand_operators = ['r0','r2(c,d,k,l)']
 
 print('')
-print('    D1(i,j) = <0|(l0 + l2) e(i,j) (r0 + r2)|0>')
+print('    D1(i1,i2) = <0|(l0 + l2) e(i1,i2) (r0 + r2)|0>')
 print('')
 
-Dop = 'e1(i,j)'
+Dop = 'e1(i1,i2)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -31,10 +31,10 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(a,b) = <0|(l0 + l2) e(a,b) (r0 + r2)|0>')
+print('    D1(a1,a2) = <0|(l0 + l2) e(a1,a2) (r0 + r2)|0>')
 print('')
 
-Dop = 'e1(a,b)'
+Dop = 'e1(a1,a2)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -46,10 +46,10 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(i,a) = <0|(l0 + l2) e(i,a) (r0 + r2)|0>')
+print('    D1(i1,a1) = <0|(l0 + l2) e(i1,a1) (r0 + r2)|0>')
 print('')
 
-Dop = 'e1(i,a)'
+Dop = 'e1(i1,a1)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
@@ -61,10 +61,10 @@ ahat.print_fully_contracted()
 ahat.clear()
 
 print('')
-print('    D1(a,i) = <0|(l0 + l2) e(e,m) (r0 + r2)|0>')
+print('    D1(a1,i1) = <0|(l0 + l2) e(a1,i1) (r0 + r2)|0>')
 print('')
 
-Dop = 'e1(a,i)'
+Dop = 'e1(a1,i1)'
 for L in left_hand_operators:
     for R in right_hand_operators:
 
