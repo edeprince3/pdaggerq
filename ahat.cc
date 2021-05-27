@@ -449,12 +449,13 @@ std::vector<std::string> ahat::get_string() {
         }
     }
 
+    std::string tmp;
     if ( sign > 0 ) {
-        my_string.push_back("+");
+        tmp = "+";
     }else {
-        my_string.push_back("-");
+        tmp = "-";
     }
-    my_string.push_back(std::to_string(fabs(data->factor)));
+    my_string.push_back(tmp + std::to_string(fabs(data->factor)));
 
     for (int i = 0; i < (int)symbol.size(); i++) {
         std::string tmp = symbol[i];
