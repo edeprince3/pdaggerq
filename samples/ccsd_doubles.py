@@ -76,15 +76,14 @@ ahat.add_quadruple_commutator( 1.0/24.0, ['g(p,r,q,s)','t1(a,i)','t1(b,j)','t1(c
 
 ahat.simplify()
 
-ahat.print_fully_contracted()
+# print fully-contracted strings
+#ahat.print_fully_contracted()
 
-#ahat.print_one_body()
+# grab list of fully-contracted strings, then print
+residual_terms = ahat.fully_contracted_strings()
+for my_term in residual_terms:
+    print(my_term)
 
-#ahat.print_two_body()
-
-#ahat.print_one_body()
-
-#ahat.print_two_body()
 
 ahat.clear()
 

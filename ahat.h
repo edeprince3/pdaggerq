@@ -131,6 +131,9 @@ class ahat {
     /// print string information
     void print();
 
+    /// get string information
+    std::vector<std::string> get_string();
+
     /// check if string should be zero by spin symmetry (no longer supported)
     void check_spin();
 

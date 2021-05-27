@@ -223,7 +223,7 @@ void ahat::print() {
         printf(" ");
     }
     for (int i = 0; i < (int)delta1.size(); i++) {
-        printf("d(%s%s)",delta1[i].c_str(),delta2[i].c_str());
+        printf("d(%s,%s)",delta1[i].c_str(),delta2[i].c_str());
         printf(" ");
     }
 
@@ -432,6 +432,229 @@ void ahat::print() {
         printf(" ");
     }
     printf("\n");
+}
+
+std::vector<std::string> ahat::get_string() {
+
+    std::vector<std::string> my_string;
+
+    if ( skip ) return my_string;
+
+    if ( vacuum == "FERMI" && (int)symbol.size() > 0 ) {
+        // check if stings should be zero or not
+        bool is_dagger_right = is_dagger_fermi[(int)symbol.size() - 1];
+        bool is_dagger_left  = is_dagger_fermi[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            //return;
+        }
+    }
+
+    if ( sign > 0 ) {
+        my_string.push_back("+");
+    }else {
+        my_string.push_back("-");
+    }
+    my_string.push_back(std::to_string(fabs(data->factor)));
+
+    for (int i = 0; i < (int)symbol.size(); i++) {
+        std::string tmp = symbol[i];
+        if ( is_dagger[i] ) {
+            tmp += "*";
+        }
+        my_string.push_back(tmp);
+    }
+
+    for (int i = 0; i < (int)delta1.size(); i++) {
+        std::string tmp = "d(" + delta1[i] + "," + delta2[i] + ")";
+        my_string.push_back(tmp);
+    }
+
+    // two-electron integrals
+    if ( (int)data->tensor.size() == 4 ) {
+
+        // dirac
+        std::string tmp = "<"
+                        + data->tensor[0]
+                        + ","
+                        + data->tensor[1]
+                        + "||"
+                        + data->tensor[2]
+                        + ","
+                        + data->tensor[3]
+                        + ">";
+        my_string.push_back(tmp);
+    }
+
+    // one-electron integrals
+    if ( (int)data->tensor.size() == 2 ) {
+        std::string tmp;
+        if ( data->tensor_type == "CORE") {
+            tmp = "h(";
+        }else if ( data->tensor_type == "D+") {
+            tmp = "d+(";
+        }else if ( data->tensor_type == "D-") {
+            tmp = "d-(";
+        }
+        tmp += data->tensor[0]
+             + ","
+             + data->tensor[1]
+             + ")";
+        my_string.push_back(tmp);
+    }
+
+    // left-hand amplitudes
+    if ( (int)data->left_amplitudes.size() > 0 ) {
+
+        for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
+           
+            std::string tmp;
+            if ( (int)data->left_amplitudes[i].size() > 0 ) {
+                // l1
+                if ( (int)data->left_amplitudes[i].size() == 2 ) {
+                    tmp = "l1("
+                        + data->left_amplitudes[i][0]
+                        + ","
+                        + data->left_amplitudes[i][1]
+                        + ")";
+                }
+                // l2
+                if ( (int)data->left_amplitudes[i].size() == 4 ) {
+                    tmp = "l2("
+                        + data->left_amplitudes[i][0]
+                        + ","
+                        + data->left_amplitudes[i][1]
+                        + ","
+                        + data->left_amplitudes[i][2]
+                        + ","
+                        + data->left_amplitudes[i][3]
+                        + ")";
+                }
+                my_string.push_back(tmp);
+            } 
+        }
+    }
+    if ( data->has_l0 ) {
+        my_string.push_back("l0");
+    }
+
+    // right-hand amplitudes
+    if ( (int)data->right_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
+           
+            if ( (int)data->right_amplitudes[i].size() > 0 ) {
+                std::string tmp;
+                // r1
+                if ( (int)data->right_amplitudes[i].size() == 2 ) {
+                    tmp = "r1("
+                        + data->right_amplitudes[i][0]
+                        + ","
+                        + data->right_amplitudes[i][1]
+                        + ")";
+                }
+                // r2
+                if ( (int)data->right_amplitudes[i].size() == 4 ) {
+                    tmp = "r2("
+                        + data->right_amplitudes[i][0]
+                        + ","
+                        + data->right_amplitudes[i][1]
+                        + ","
+                        + data->right_amplitudes[i][2]
+                        + ","
+                        + data->right_amplitudes[i][3]
+                        + ")";
+                }
+                my_string.push_back(tmp);
+            } 
+        }
+    }
+    if ( data->has_r0 ) {
+        my_string.push_back("r0");
+    }
+
+    // t_amplitudes
+    if ( (int)data->t_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
+           
+            if ( (int)data->t_amplitudes[i].size() > 0 ) {
+                std::string tmp;
+                // t1
+                if ( (int)data->t_amplitudes[i].size() == 2 ) {
+                    tmp = "t1("
+                        + data->t_amplitudes[i][0]
+                        + ","
+                        + data->t_amplitudes[i][1]
+                        + ")";
+                }
+                // t2
+                if ( (int)data->t_amplitudes[i].size() == 4 ) {
+                    tmp = "t2("
+                        + data->t_amplitudes[i][0]
+                        + ","
+                        + data->t_amplitudes[i][1]
+                        + ","
+                        + data->t_amplitudes[i][2]
+                        + ","
+                        + data->t_amplitudes[i][3]
+                        + ")";
+                }
+                my_string.push_back(tmp);
+            } 
+        }
+    }
+
+    // u_amplitudes
+    if ( (int)data->u_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
+           
+            if ( (int)data->u_amplitudes[i].size() > 0 ) {
+                std::string tmp;
+                // u1
+                if ( (int)data->u_amplitudes[i].size() == 2 ) {
+                    tmp = "u1("
+                        + data->u_amplitudes[i][0]
+                        + ","
+                        + data->u_amplitudes[i][1]
+                        + ")";
+                }
+                // u2
+                if ( (int)data->u_amplitudes[i].size() == 4 ) {
+                    tmp = "u2("
+                        + data->u_amplitudes[i][0]
+                        + ","
+                        + data->u_amplitudes[i][1]
+                        + ","
+                        + data->u_amplitudes[i][2]
+                        + ","
+                        + data->u_amplitudes[i][3]
+                        + ")";
+                }
+                my_string.push_back(tmp);
+            } 
+        }
+    }
+    if ( data->has_u0 ) {
+        my_string.push_back("u0");
+    }
+
+    // bosons:
+    for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+        if ( data->is_boson_dagger[i] ) {
+            my_string.push_back("Q*");
+        }else {
+            my_string.push_back("Q");
+        }
+    }
+    if ( data->has_w0 ) {
+        my_string.push_back("w0");
+    }
+    if ( data->has_b ) {
+        my_string.push_back("b-");
+    }
+    if ( data->has_b_dagger ) {
+        my_string.push_back("b+");
+    }
+
+    return my_string;
 }
 
 bool ahat::is_normal_order() {

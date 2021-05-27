@@ -68,6 +68,7 @@ void export_ahat_helper(py::module& m) {
         .def("simplify", &ahat_helper::simplify)
         .def("clear", &ahat_helper::clear)
         .def("print", &ahat_helper::print)
+        .def("fully_contracted_strings", &ahat_helper::fully_contracted_strings)
         .def("print_fully_contracted", &ahat_helper::print_fully_contracted)
         .def("print_one_body", &ahat_helper::print_one_body)
         .def("print_two_body", &ahat_helper::print_two_body);
@@ -1445,6 +1446,22 @@ void ahat_helper::print_fully_contracted() {
         ordered[i]->print();
     }
     printf("\n");
+
+}
+
+std::vector<std::vector<std::string> > ahat_helper::fully_contracted_strings() {
+
+    std::vector<std::vector<std::string> > list;
+    for (int i = 0; i < (int)ordered.size(); i++) {
+        if ( ordered[i]->symbol.size() != 0 ) continue;
+        if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        std::vector<std::string> my_string = ordered[i]->get_string();
+        if ( (int)my_string.size() > 0 ) {
+            list.push_back(my_string);
+        }
+    }
+
+    return list;
 
 }
 

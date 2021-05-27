@@ -126,6 +126,9 @@ class ahat_helper {
     /// print fully-contracted strings
     void print_fully_contracted();
 
+    /// get list of fully-contracted strings
+    std::vector<std::vector<std::string> > fully_contracted_strings();
+
     /// print one-body strings
     void print_one_body();
 
