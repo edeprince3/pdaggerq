@@ -882,6 +882,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
 
+/*
             // find comma
             size_t pos = in[i].find(",");
             if ( pos == std::string::npos ) {
@@ -899,12 +900,26 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
             // tensor
             set_tensor({in[i].substr(2,len), in[i].substr(pos+1)},"D+");
+*/
+
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+
+            // index 1
+            tmp_string.push_back(idx1+"*");
+
+            // index 2
+            tmp_string.push_back(idx2);
+
+            // tensor
+            set_tensor({idx1,idx2},"D+");
 
             // boson operator
             data->is_boson_dagger.push_back(true);
 
         }else if ( in[i].substr(0,2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
 
+/*
             // find comma
             size_t pos = in[i].find(",");
             if ( pos == std::string::npos ) {
@@ -922,6 +937,19 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
             // tensor
             set_tensor({in[i].substr(2,len), in[i].substr(pos+1)},"D-");
+*/
+
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+
+            // index 1
+            tmp_string.push_back(idx1+"*");
+
+            // index 2
+            tmp_string.push_back(idx2);
+
+            // tensor
+            set_tensor({idx1,idx2},"D-");
 
             // boson operator
             data->is_boson_dagger.push_back(false);
@@ -963,6 +991,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                            in[i].substr(commas[2]+1)
                        },"ERI");
 */
+
             factor *= 0.25;
 
             std::string idx1 = "p" + std::to_string(gen_label_count++);
@@ -1014,6 +1043,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             }
 
         }else if ( in[i].substr(0,1) == "w" ){ // w0 B*B
+
             if ( in[i].substr(1,1) == "0" ){
 
                 has_w0 = true;
@@ -1027,6 +1057,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 printf("\n");
                 exit(1);
             }
+
         }else if ( in[i].substr(0,2) == "b+" ){ // B*
 
                 has_b_dagger = true;
@@ -1041,7 +1072,50 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         }else if ( in[i].substr(0,1) == "u" ){ // t-amplitudes + boson creator
 
+            if ( in[i].substr(1,1) == "0" ){
 
+                has_u0 = true;
+
+                data->is_boson_dagger.push_back(true);
+
+            }else if ( in[i].substr(1,1) == "1" ){
+
+                std::string idx1 = "a" + std::to_string(vir_label_count++);
+                std::string idx2 = "i" + std::to_string(occ_label_count++);
+
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2);
+
+                set_u_amplitudes({idx1,idx2});
+
+                data->is_boson_dagger.push_back(true);
+
+            }else if ( in[i].substr(1,1) == "2" ){
+
+                factor *= 0.25;
+
+                std::string idx1 = "a" + std::to_string(vir_label_count++);
+                std::string idx2 = "a" + std::to_string(vir_label_count++);
+                std::string idx3 = "i" + std::to_string(occ_label_count++);
+                std::string idx4 = "i" + std::to_string(occ_label_count++);
+
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2+"*");
+                tmp_string.push_back(idx3);
+                tmp_string.push_back(idx4);
+
+                set_u_amplitudes({idx1,idx2,idx4,idx3});
+
+                data->is_boson_dagger.push_back(true);
+
+            }else {
+                printf("\n");
+                printf("    error: only u0, u1, or u2 amplitudes are supported\n");
+                printf("\n");
+                exit(1);
+            }
+
+/*
             if ( in[i].substr(1,1) == "0" ){
 
                 has_u0 = true;
@@ -1072,17 +1146,17 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
             }else if ( in[i].substr(1,1) == "2" ){
 
-	        // count indices
-	        size_t pos = 0;
-	        int ncomma = 0;
-	        std::vector<size_t> commas;
-                pos = in[i].find(",", pos + 1);
-	        commas.push_back(pos);
-	        while( pos != std::string::npos){
+	            // count indices
+	            size_t pos = 0;
+	            int ncomma = 0;
+	            std::vector<size_t> commas;
                     pos = in[i].find(",", pos + 1);
 	            commas.push_back(pos);
-                    ncomma++;
-	        }
+	            while( pos != std::string::npos){
+                        pos = in[i].find(",", pos + 1);
+	                commas.push_back(pos);
+                        ncomma++;
+	            }
 
                 if ( ncomma != 3 ) {
                     printf("\n");
@@ -1113,6 +1187,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 printf("\n");
                 exit(1);
             }
+*/
+
         }else if ( in[i].substr(0,1) == "r" ){
 
 

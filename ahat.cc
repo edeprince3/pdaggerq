@@ -663,6 +663,11 @@ bool ahat::is_normal_order() {
     // don't bother bringing to normal order if we're going to skip this string
     if (skip) return true;
 
+    // bosons
+    if ( !is_boson_normal_order() ) {
+        return false;
+    }
+
     // fermions
     if ( vacuum == "TRUE" ) {
         for (int i = 0; i < (int)symbol.size()-1; i++) {
@@ -671,11 +676,13 @@ bool ahat::is_normal_order() {
             }
         }
     }else {
+
         for (int i = 0; i < (int)symbol.size()-1; i++) {
             // check if stings should be zero or not
             bool is_dagger_right = is_dagger_fermi[(int)symbol.size() - 1];
             bool is_dagger_left  = is_dagger_fermi[0];
             if ( !is_dagger_right || is_dagger_left ) {
+                skip = true;
                 return true;
             }
             if ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] ) {
@@ -684,18 +691,20 @@ bool ahat::is_normal_order() {
         }
     }
 
-    // bosons
-    if ( !is_boson_normal_order() ) {
-        return false;
-    }
-
     return true;
 }
 
 
 bool ahat::is_boson_normal_order() {
 
+    
     for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+        bool is_dagger_right = data->is_boson_dagger[(int)data->is_boson_dagger.size() - 1];
+        bool is_dagger_left  = data->is_boson_dagger[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            skip = true;
+            return true;
+        }
         if ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] ) {
             return false;
         }
