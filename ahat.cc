@@ -1852,7 +1852,9 @@ void ahat::replace_index_in_right_amplitudes(std::string old_idx, std::string ne
 void ahat::use_conventional_labels() {
 
     // occupied first:
-    std::vector<std::string> occ_in{"o1","o2","o3","o4"};
+    std::vector<std::string> occ_in{"o1","o2","o3","o4",
+                                    "i0","i1","i2","i3","i4","i5","i6","i7","i8","i9",
+                                    "i10","i11","i12","i13","i14","i15","i16","i17","i18","i19"};
     std::vector<std::string> occ_out{"i","j","k","l"};
 
     for (int i = 0; i < (int)occ_in.size(); i++) {
@@ -1864,7 +1866,8 @@ void ahat::use_conventional_labels() {
                 //if ( !index_in_tensor(occ_out[j]) ) 
                 if ( !index_in_anywhere(occ_out[j]) ) {
 
-                    replace_index_in_tensor(occ_in[i],occ_out[j]);
+                    //replace_index_in_tensor(occ_in[i],occ_out[j]);
+                    replace_index_everywhere(occ_in[i],occ_out[j]);
                     break;
                 }
             }
@@ -1872,7 +1875,9 @@ void ahat::use_conventional_labels() {
     }
 
     // now virtual
-    std::vector<std::string> vir_in{"v1","v2","v3","v4"};
+    std::vector<std::string> vir_in{"v1","v2","v3","v4",
+                                    "a0","a1","a2","a3","a4","a5","a6","a7","a8","a9",
+                                    "a10","a11","a12","a13","a14","a15","a16","a17","a18","a19"};
     std::vector<std::string> vir_out{"a","b","c","d"};
 
     for (int i = 0; i < (int)vir_in.size(); i++) {
@@ -1883,7 +1888,8 @@ void ahat::use_conventional_labels() {
 
                 if ( !index_in_tensor(vir_out[j]) ) {
 
-                    replace_index_in_tensor(vir_in[i],vir_out[j]);
+                    //replace_index_in_tensor(vir_in[i],vir_out[j]);
+                    replace_index_everywhere(vir_in[i],vir_out[j]);
                     break;
                 }
             }

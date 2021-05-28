@@ -61,6 +61,7 @@ void export_ahat_helper(py::module& m) {
         .def("set_factor", &ahat_helper::set_factor)
         .def("add_new_string", &ahat_helper::add_new_string)
         .def("add_operator_product", &ahat_helper::add_operator_product)
+        .def("add_st_operator", &ahat_helper::add_st_operator)
         .def("add_commutator", &ahat_helper::add_commutator)
         .def("add_double_commutator", &ahat_helper::add_double_commutator)
         .def("add_triple_commutator", &ahat_helper::add_triple_commutator)
@@ -191,6 +192,64 @@ void ahat_helper::add_commutator(double factor, std::vector<std::string>  in) {
 
 }
 
+void ahat_helper::add_st_operator(double factor, std::vector<std::string>  in) {
+
+    if ( in.size() == 1 ) {
+        printf("\n");
+        printf("    error: similarity transformation must invove more than one operator\n");
+        printf("\n");
+        exit(1);
+    }else if ( in.size() == 2 ) {
+
+        add_operator_product( factor, {in[0]});
+        add_commutator( factor, {in[0],in[1]});
+        add_double_commutator( 0.5 * factor, {in[0],in[1],in[1]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[1],in[1],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[1],in[1],in[1]});
+
+    }else if ( in.size() == 3 ) {
+
+        add_operator_product( factor, {in[0]});
+        add_commutator( factor, {in[0],in[1]});
+        add_commutator( factor, {in[0],in[2]});
+        add_double_commutator( 0.5 * factor, {in[0],in[1],in[1]});
+        add_double_commutator( 0.5 * factor, {in[0],in[1],in[2]});
+        add_double_commutator( 0.5 * factor, {in[0],in[2],in[1]});
+        add_double_commutator( 0.5 * factor, {in[0],in[2],in[2]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[1],in[1],in[1]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[1],in[1],in[2]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[1],in[2],in[1]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[1],in[2],in[2]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[2],in[1],in[1]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[2],in[1],in[2]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[2],in[2],in[1]});
+        add_triple_commutator( 1.0 / 6.0 * factor, {in[0],in[2],in[2],in[2]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[1],in[1],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[1],in[1],in[2]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[1],in[2],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[1],in[2],in[2]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[2],in[1],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[2],in[1],in[2]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[2],in[2],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[1],in[2],in[2],in[2]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[2],in[1],in[1],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[2],in[1],in[1],in[2]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[2],in[1],in[2],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[2],in[1],in[2],in[2]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[2],in[2],in[1],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[2],in[2],in[1],in[2]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[2],in[2],in[2],in[1]});
+        add_quadruple_commutator( 1.0 / 24.0 * factor, {in[0],in[2],in[2],in[2],in[2]});
+
+    }else {
+        printf("\n");
+        printf("    error: similarity transformation only defined for two or three operators\n");
+        printf("\n");
+        exit(1);
+    }
+
+}
+
 void ahat_helper::add_double_commutator(double factor, std::vector<std::string>  in) {
 
     if ( in.size() != 3 ) {
@@ -305,6 +364,9 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
     bool has_b        = false;
     bool has_b_dagger = false;
 
+    int occ_label_count = 0;
+    int vir_label_count = 0;
+    int gen_label_count = 0;
     for (int i = 0; i < (int)in.size(); i++) {
 
         // blank string
@@ -318,6 +380,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         if ( in[i].substr(0,1) == "h" ) { // one-electron operator
 
+/*
             // find comma
             size_t pos = in[i].find(",");
             if ( pos == std::string::npos ) {
@@ -327,6 +390,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 exit(1);
             }
             size_t len = pos - 1;
+
             // index 1
             tmp_string.push_back(in[i].substr(1,len)+"*");
 
@@ -335,6 +399,18 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
             // tensor
             set_tensor({in[i].substr(1,len), in[i].substr(pos+1)},"CORE");
+*/
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+
+            // index 1
+            tmp_string.push_back(idx1+"*");
+
+            // index 2
+            tmp_string.push_back(idx2);
+
+            // tensor
+            set_tensor({idx1,idx2},"CORE");
 
         }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
 
@@ -384,24 +460,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
 
-
-            // dirac notation: g(pqrs) p*q*sr
-            //factor *= 0.25;
-            //std::string tmp = in[i].substr(1,4);
-            //tmp_string.push_back(tmp.substr(0,1)+"*");
-            //tmp_string.push_back(tmp.substr(1,1)+"*");
-            //tmp_string.push_back(tmp.substr(3,1));
-            //tmp_string.push_back(tmp.substr(2,1));
-
-            // mulliken notation: g(prqs) p*q*sr
-            //factor *= 0.5;
-            //tmp_string.push_back(tmp.substr(0,1)+"*");
-            //tmp_string.push_back(tmp.substr(2,1)+"*");
-            //tmp_string.push_back(tmp.substr(3,1));
-            //tmp_string.push_back(tmp.substr(1,1));
-
-            //set_tensor({tmp.substr(0,1), tmp.substr(1,1), tmp.substr(2,1), tmp.substr(3,1)});
-
+/*
             // count indices
             size_t pos = 0;
             int ncomma = 0;
@@ -435,70 +494,49 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                            in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
                            in[i].substr(commas[2]+1)
                        },"ERI");
+*/
+            factor *= 0.25;
+
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+            std::string idx3 = "p" + std::to_string(gen_label_count++);
+            std::string idx4 = "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2+"*");
+            tmp_string.push_back(idx3);
+            tmp_string.push_back(idx4);
+
+            set_tensor({idx1,idx2,idx4,idx3},"ERI");
 
         }else if ( in[i].substr(0,1) == "t" ){
 
 
             if ( in[i].substr(1,1) == "1" ){
 
-                //std::string tmp = in[i].substr(2,2);
-                //tmp_string.push_back(tmp.substr(0,1)+"*");
-                //tmp_string.push_back(tmp.substr(1,1));
-                //set_t_amplitudes({tmp.substr(0,1), tmp.substr(1,1)});
+                std::string idx1 = "a" + std::to_string(vir_label_count++);
+                std::string idx2 = "i" + std::to_string(occ_label_count++);
 
-                // find comma
-                size_t pos = in[i].find(",");
-                if ( pos == std::string::npos ) {
-                    printf("\n");
-                    printf("    error in amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
-                size_t len = pos - 2; 
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2);
 
-                // index 1
-                tmp_string.push_back(in[i].substr(2,len)+"*");
-
-                // index 2
-                tmp_string.push_back(in[i].substr(pos+1));
-
-                set_t_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+                set_t_amplitudes({idx1,idx2});
 
             }else if ( in[i].substr(1,1) == "2" ){
 
-	        // count indices
-	        size_t pos = 0;
-	        int ncomma = 0;
-	        std::vector<size_t> commas;
-                pos = in[i].find(",", pos + 1);
-	        commas.push_back(pos);
-	        while( pos != std::string::npos){
-                    pos = in[i].find(",", pos + 1);
-	            commas.push_back(pos);
-                    ncomma++;
-	        }
+            factor *= 0.25;
 
-                if ( ncomma != 3 ) {
-                    printf("\n");
-                    printf("    error in amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
+            std::string idx1 = "a" + std::to_string(vir_label_count++);
+            std::string idx2 = "a" + std::to_string(vir_label_count++);
+            std::string idx3 = "i" + std::to_string(occ_label_count++);
+            std::string idx4 = "i" + std::to_string(occ_label_count++);
 
-                factor *= 0.25;
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2+"*");
+            tmp_string.push_back(idx3);
+            tmp_string.push_back(idx4);
 
-
-                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                tmp_string.push_back(in[i].substr(commas[2]+1));
-                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
-
-                set_t_amplitudes({
-                                   in[i].substr(2,commas[0]-2),
-                                   in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
-                                   in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
-                                   in[i].substr(commas[2]+1)
-                               });
+            set_t_amplitudes({idx1,idx2,idx4,idx3});
 
             }else {
                 printf("\n");

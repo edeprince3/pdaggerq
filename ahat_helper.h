@@ -102,6 +102,9 @@ class ahat_helper {
     /// add new complete string as a product of operators (i.e., {'h(pq)','t1(ai)'} )
     void add_operator_product(double factor, std::vector<std::string> in);
 
+    /// add similarity-transformed operator expansion of an operator
+    void add_st_operator(double factor, std::vector<std::string> in);
+
     /// add commutator of two operators
     void add_commutator(double factor, std::vector<std::string> in);
 
