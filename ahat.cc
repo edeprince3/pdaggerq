@@ -372,6 +372,22 @@ void ahat::print() {
                     printf("%s",data->t_amplitudes[i][3].c_str());
                     printf(")");
                 }
+                // t3
+                if ( (int)data->t_amplitudes[i].size() == 6 ) {
+                    printf("t3(");
+                    printf("%s",data->t_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->t_amplitudes[i][1].c_str());
+                    printf(",");
+                    printf("%s",data->t_amplitudes[i][2].c_str());
+                    printf(",");
+                    printf("%s",data->t_amplitudes[i][3].c_str());
+                    printf(",");
+                    printf("%s",data->t_amplitudes[i][4].c_str());
+                    printf(",");
+                    printf("%s",data->t_amplitudes[i][5].c_str());
+                    printf(")");
+                }
                 printf(" ");
             } 
         }
@@ -598,6 +614,22 @@ std::vector<std::string> ahat::get_string() {
                         + data->t_amplitudes[i][3]
                         + ")";
                 }
+                // t3
+                if ( (int)data->t_amplitudes[i].size() == 6 ) {
+                    tmp = "t3("
+                        + data->t_amplitudes[i][0]
+                        + ","
+                        + data->t_amplitudes[i][1]
+                        + ","
+                        + data->t_amplitudes[i][2]
+                        + ","
+                        + data->t_amplitudes[i][3]
+                        + ","
+                        + data->t_amplitudes[i][4]
+                        + ","
+                        + data->t_amplitudes[i][5]
+                        + ")";
+                }
                 my_string.push_back(tmp);
             } 
         }
@@ -792,6 +824,8 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 
 // move all bra lables to the right-most positions in t_amplitudes and
 // four-index tensors. only works for four-index amplitudes (i.e., t2)
+
+// TODO: t3?
 
 // TODO: account for left-hand amplitudes
 // TODO: account for right-hand amplitudes
@@ -1256,7 +1290,6 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
                 newguy->copy((void*)(ordered[j].get()));
                 newguy->swap_two_labels("i","j");
                 strings_same = compare_strings(ordered[i],newguy,n_permute);
-
             }
 
             if ( !strings_same && find_a && find_b ) {
@@ -1389,8 +1422,11 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
     for (int ii = 0; ii < (int)ordered_1->data->t_amplitudes.size(); ii++) {
         for (int jj = 0; jj < (int)ordered_2->data->t_amplitudes.size(); jj++) {
 
-            // t1 vs t2?
+            // t1 vs t2 vs t3?
             if ( ordered_1->data->t_amplitudes[ii].size() != ordered_2->data->t_amplitudes[jj].size() ) continue;
+
+            // need to carefully consider if this works for t3 (i doubt it does so just return false...)
+            if ( ordered_1->data->t_amplitudes[ii].size() == 6 ) return false;
 
             // indices?
             int nsame_idx = 0;

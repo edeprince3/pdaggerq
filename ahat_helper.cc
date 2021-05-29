@@ -142,6 +142,8 @@ void ahat_helper::set_bra(std::string bra_type){
         bra = "DOUBLES";
     }else if ( bra_type == "DOUBLES_1" || bra_type == "doubles_1" ) {
         bra = "DOUBLES_1";
+    }else if ( bra_type == "TRIPLES" || bra_type == "triples" ) {
+        bra = "TRIPLES";
     }else if ( bra_type == "VACUUM" || bra_type == "vacuum" ) {
         bra = "VACUUM";
     }else if ( bra_type == "VACUUM_1" || bra_type == "vacuum_1" ) {
@@ -802,6 +804,16 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
         tmp_string.push_back("f");
         tmp_string.push_back("e");
 
+    }else if ( bra == "TRIPLES" ) {
+
+        // for triples equations: <mnoefg| = <0|m*n*o*gfe
+        tmp_string.push_back("m*");
+        tmp_string.push_back("n*");
+        tmp_string.push_back("o*");
+        tmp_string.push_back("g");
+        tmp_string.push_back("f");
+        tmp_string.push_back("e");
+
     }else if ( bra == "SINGLES_1" ) {
 
         // for singles equations: <me,1| = <0|m*e B
@@ -1021,23 +1033,43 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
             }else if ( in[i].substr(1,1) == "2" ){
 
-            factor *= 0.25;
+                factor *= 0.25;
 
-            std::string idx1 = "a" + std::to_string(vir_label_count++);
-            std::string idx2 = "a" + std::to_string(vir_label_count++);
-            std::string idx3 = "i" + std::to_string(occ_label_count++);
-            std::string idx4 = "i" + std::to_string(occ_label_count++);
+                std::string idx1 = "a" + std::to_string(vir_label_count++);
+                std::string idx2 = "a" + std::to_string(vir_label_count++);
+                std::string idx3 = "i" + std::to_string(occ_label_count++);
+                std::string idx4 = "i" + std::to_string(occ_label_count++);
 
-            tmp_string.push_back(idx1+"*");
-            tmp_string.push_back(idx2+"*");
-            tmp_string.push_back(idx3);
-            tmp_string.push_back(idx4);
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2+"*");
+                tmp_string.push_back(idx3);
+                tmp_string.push_back(idx4);
 
-            set_t_amplitudes({idx1,idx2,idx4,idx3});
+                set_t_amplitudes({idx1,idx2,idx4,idx3});
+
+            }else if ( in[i].substr(1,1) == "3" ){
+
+                factor *= 1.0 / 36.0;
+
+                std::string idx1 = "a" + std::to_string(vir_label_count++);
+                std::string idx2 = "a" + std::to_string(vir_label_count++);
+                std::string idx3 = "a" + std::to_string(vir_label_count++);
+                std::string idx4 = "i" + std::to_string(occ_label_count++);
+                std::string idx5 = "i" + std::to_string(occ_label_count++);
+                std::string idx6 = "i" + std::to_string(occ_label_count++);
+
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2+"*");
+                tmp_string.push_back(idx3+"*");
+                tmp_string.push_back(idx4);
+                tmp_string.push_back(idx5);
+                tmp_string.push_back(idx6);
+
+                set_t_amplitudes({idx1,idx2,idx3,idx6,idx5,idx4});
 
             }else {
                 printf("\n");
-                printf("    error: only t1 or t2 amplitudes are supported\n");
+                printf("    error: only t1, t2 or t3 amplitudes are supported\n");
                 printf("\n");
                 exit(1);
             }
