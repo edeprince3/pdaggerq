@@ -161,6 +161,9 @@ class ahat {
     /// cancel terms where appropriate
     void cleanup(std::vector<std::shared_ptr<ahat> > &ordered);
 
+    /// reorder t amplitudes as t1, t2, t3
+    void reorder_t_amplitudes();
+
     /// does label correspond to occupied orbital?
     bool is_occ(std::string idx);
 

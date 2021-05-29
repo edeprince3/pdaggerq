@@ -27,6 +27,7 @@
 #include<iostream>
 #include<string>
 #include<algorithm>
+#include<cstring>
 #include <math.h>
 
 #include "ahat.h"
@@ -1234,6 +1235,74 @@ void ahat::swap_two_labels(std::string label1, std::string label2) {
     replace_index_everywhere("x",label2);
 }
 
+void ahat::reorder_t_amplitudes() {
+
+    int dim = (int)data->t_amplitudes.size();
+
+    if ( dim == 0 ) return;
+
+    bool* nope = (bool*)malloc(dim * sizeof(bool));
+    memset((void*)nope,'\0',dim * sizeof(bool));
+
+    std::vector<std::vector<std::string> > tmp;
+    // t1 first
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            if ( nope[j] ) continue;
+
+            if ( data->t_amplitudes[j].size() == 2 ) {
+                tmp.push_back(data->t_amplitudes[j]);
+                nope[j] = true;
+                break;
+            }
+        }
+
+    }
+    // now t2
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            if ( nope[j] ) continue;
+
+            if ( data->t_amplitudes[j].size() == 4 ) {
+                tmp.push_back(data->t_amplitudes[j]);
+                nope[j] = true;
+                break;
+            }
+        }
+
+    }
+    // now t3
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            if ( nope[j] ) continue;
+
+            if ( data->t_amplitudes[j].size() == 6 ) {
+                tmp.push_back(data->t_amplitudes[j]);
+                nope[j] = true;
+                break;
+            }
+        }
+
+    }
+    if ( dim != (int)tmp.size() ) { 
+        printf("\n");
+        printf("    something went very wrong in reorder_t_amplitudes()\n");
+        printf("\n");
+        exit(1);
+    }
+
+    for (int i = 0; i < dim; i++) {
+        data->t_amplitudes[i].clear();
+    }
+    data->t_amplitudes.clear();
+    for (int i = 0; i < (int)tmp.size(); i++) {
+        data->t_amplitudes.push_back(tmp[i]);
+    }
+
+    free(nope);
+    
+}
+
 // once strings are alphabetized, we can compare them
 // and remove terms that cancel. 
 
@@ -1241,6 +1310,11 @@ void ahat::swap_two_labels(std::string label1, std::string label2) {
 // TODO: need to consider left-hand amplitudes
 // TODO: need to consider right-hand amplitudes
 void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
+
+    // order amplitudes such that they're ordered t1, t2, t3
+    for (int i = 0; i < (int)ordered.size(); i++) {
+        ordered[i]->reorder_t_amplitudes();
+    }
 
     // prioritize summation labels as i > j > k > l and a > b > c > d.
     // this means that j, k, or l should not arise in a term if i is not
@@ -1251,67 +1325,79 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
         //ordered[i]->update_bra_labels();
     }
 
-    // consolidate terms, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
+    // prune list so it only contains non-skipped ones
+    std::vector< std::shared_ptr<ahat> > pruned;
     for (int i = 0; i < (int)ordered.size(); i++) {
+
+        if ( ordered[i]-> skip ) continue;
 
         // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
-
         if ( vacuum == "FERMI" ) {
             if ( ordered[i]->symbol.size() != 0 ) continue;
             if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         }
 
-        if ( ordered[i]->skip ) continue;
+        pruned.push_back(ordered[i]);
+    }
+    ordered.clear();
+    for (int i = 0; i < (int)pruned.size(); i++) {
+        ordered.push_back(pruned[i]);
+    }
+    pruned.clear();
+
+    // consolidate terms, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
+    for (int i = 0; i < (int)ordered.size(); i++) {
+
+        if ( ordered[i]-> skip ) continue;
+
+        bool find_i = ordered[i]->index_in_tensor("i") || ordered[i]->index_in_t_amplitudes("i") || ordered[i]->index_in_u_amplitudes("i");
+        bool find_j = ordered[i]->index_in_tensor("j") || ordered[i]->index_in_t_amplitudes("j") || ordered[i]->index_in_u_amplitudes("j");
+                                                                                                                                             
+        bool find_a = ordered[i]->index_in_tensor("a") || ordered[i]->index_in_t_amplitudes("a") || ordered[i]->index_in_u_amplitudes("a");
+        bool find_b = ordered[i]->index_in_tensor("b") || ordered[i]->index_in_t_amplitudes("b") || ordered[i]->index_in_u_amplitudes("b");
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
 
-            // for normal order relative to fermi vacuum, i doubt anyone will care 
-            // about terms that aren't fully contracted. so, skip those because this
-            // function is time consuming
-
-            if ( vacuum == "FERMI" ) {
-                if ( ordered[j]->symbol.size() != 0 ) continue;
-                if ( ordered[j]->data->is_boson_dagger.size() != 0 ) continue;
-            }
-
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[i]-> skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
+/*
             bool find_i = ordered[j]->index_in_tensor("i") || ordered[j]->index_in_t_amplitudes("i") || ordered[j]->index_in_u_amplitudes("i");
             bool find_j = ordered[j]->index_in_tensor("j") || ordered[j]->index_in_t_amplitudes("j") || ordered[j]->index_in_u_amplitudes("j");
                                                                                                                                                  
             bool find_a = ordered[j]->index_in_tensor("a") || ordered[j]->index_in_t_amplitudes("a") || ordered[j]->index_in_u_amplitudes("a");
             bool find_b = ordered[j]->index_in_tensor("b") || ordered[j]->index_in_t_amplitudes("b") || ordered[j]->index_in_u_amplitudes("b");
+*/
 
             // try swapping summation labels - only i/j, a/b swaps for now. this should be sufficient for ccsd
             if ( !strings_same && find_i && find_j ) {
 
                 std::shared_ptr<ahat> newguy (new ahat(vacuum));
-                newguy->copy((void*)(ordered[j].get()));
+                newguy->copy((void*)(ordered[i].get()));
                 newguy->swap_two_labels("i","j");
-                strings_same = compare_strings(ordered[i],newguy,n_permute);
+                strings_same = compare_strings(ordered[j],newguy,n_permute);
             }
 
             if ( !strings_same && find_a && find_b ) {
 
                 std::shared_ptr<ahat> newguy (new ahat(vacuum));
-                newguy->copy((void*)(ordered[j].get()));
+                newguy->copy((void*)(ordered[i].get()));
                 newguy->swap_two_labels("a","b");
-                strings_same = compare_strings(ordered[i],newguy,n_permute);
+                strings_same = compare_strings(ordered[j],newguy,n_permute);
 
             }
 
             if ( !strings_same && find_i && find_j && find_a && find_b ) {
 
                 std::shared_ptr<ahat> newguy (new ahat(vacuum));
-                newguy->copy((void*)(ordered[j].get()));
+                newguy->copy((void*)(ordered[i].get()));
                 newguy->swap_two_labels("i","j");
                 newguy->swap_two_labels("a","b");
-                strings_same = compare_strings(ordered[i],newguy,n_permute);
+                strings_same = compare_strings(ordered[j],newguy,n_permute);
             }
 
             if ( !strings_same ) continue;
