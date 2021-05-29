@@ -57,6 +57,8 @@ bool ahat::is_occ(std::string idx) {
         return true;
     }else if ( idx == "N" || idx == "n") {
         return true;
+    }else if ( idx == "N" || idx == "o") {
+        return true;
     }else if ( idx.at(0) == 'O' || idx.at(0) == 'o') {
         return true;
     }else if ( idx.at(0) == 'I' || idx.at(0) == 'i') {
@@ -77,6 +79,8 @@ bool ahat::is_vir(std::string idx) {
     }else if ( idx == "E" || idx == "e") {
         return true;
     }else if ( idx == "F" || idx == "f") {
+        return true;
+    }else if ( idx == "F" || idx == "g") {
         return true;
     }else if ( idx.at(0) == 'V' || idx.at(0) == 'v') {
         return true;
