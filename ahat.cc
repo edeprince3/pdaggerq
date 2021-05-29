@@ -676,7 +676,7 @@ bool ahat::is_normal_order() {
             bool is_dagger_right = is_dagger_fermi[(int)symbol.size() - 1];
             bool is_dagger_left  = is_dagger_fermi[0];
             if ( !is_dagger_right || is_dagger_left ) {
-                //skip = true; // added 5/28/21
+                skip = true; // added 5/28/21
                 return true;
             }
             if ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] ) {
@@ -696,16 +696,24 @@ bool ahat::is_normal_order() {
 
 bool ahat::is_boson_normal_order() {
 
+    if ( (int)data->is_boson_dagger.size() == 1 ) {
+        bool is_dagger_right = data->is_boson_dagger[0];
+        bool is_dagger_left  = data->is_boson_dagger[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            skip = true; 
+            return true;
+        }
+    }
     for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+
         // check if stings should be zero or not ... added 5/28/21
-/*
         bool is_dagger_right = data->is_boson_dagger[(int)data->is_boson_dagger.size() - 1];
         bool is_dagger_left  = data->is_boson_dagger[0];
         if ( !is_dagger_right || is_dagger_left ) {
             skip = true; 
             return true;
         }
-*/
+
         if ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] ) {
             return false;
         }
@@ -1869,7 +1877,7 @@ void ahat::use_conventional_labels() {
 
     for (int i = 0; i < (int)occ_in.size(); i++) {
 
-        if ( index_in_tensor(occ_in[i]) ) {
+        if ( index_in_anywhere(occ_in[i]) ) {
 
             for (int j = 0; j < (int)occ_out.size(); j++) {
 
@@ -1892,11 +1900,11 @@ void ahat::use_conventional_labels() {
 
     for (int i = 0; i < (int)vir_in.size(); i++) {
 
-        if ( index_in_tensor(vir_in[i]) ) {
+        if ( index_in_anywhere(vir_in[i]) ) {
 
             for (int j = 0; j < (int)vir_out.size(); j++) {
 
-                if ( !index_in_tensor(vir_out[j]) ) {
+                if ( !index_in_anywhere(vir_out[j]) ) {
 
                     //replace_index_in_tensor(vir_in[i],vir_out[j]);
                     replace_index_everywhere(vir_in[i],vir_out[j]);
@@ -2171,6 +2179,7 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
     if ( skip ) return;
 
     if ( is_normal_order() ) {
+
         // push current ordered operator onto running list
         std::shared_ptr<ahat> newguy (new ahat(vacuum));
 
@@ -2277,11 +2286,13 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
     if ( n_new_strings == 1 ) {
 
         if ( is_boson_normal_order() ) {
-            // copy boson daggers
-            for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
-                s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+            if ( !skip ) {
+                // copy boson daggers
+                for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+                    s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                }
+                s1->normal_order_fermi_vacuum(ordered);
             }
-            s1->normal_order_fermi_vacuum(ordered);
         }else {
 
             // new strings
@@ -2330,13 +2341,15 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
     }else if ( n_new_strings == 2 ) {
 
         if ( is_boson_normal_order() ) {
-            // copy boson daggers
-            for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
-                s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+            if ( !skip ) {
+                // copy boson daggers
+                for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+                    s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                    s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
+                }
+                s1->normal_order_fermi_vacuum(ordered);
+                s2->normal_order_fermi_vacuum(ordered);
             }
-            s1->normal_order_fermi_vacuum(ordered);
-            s2->normal_order_fermi_vacuum(ordered);
         }else {
 
             // new strings

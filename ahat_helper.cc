@@ -1570,6 +1570,7 @@ void ahat_helper::add_new_string_true_vacuum(){
         mystring->print();
     }
 
+    
     // rearrange strings
     mystring->normal_order(ordered);
 
@@ -1983,6 +1984,8 @@ void ahat_helper::simplify() {
 
     // eliminate strings based on delta functions and use delta functions to alter tensor / amplitude labels
     for (int i = 0; i < (int)ordered.size(); i++) {
+
+        if ( ordered[i]->skip ) continue;
 
         // check spin
         //ordered[i]->check_spin();
