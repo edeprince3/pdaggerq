@@ -1223,6 +1223,44 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         }else if ( in[i].substr(0,1) == "r" ){
 
+            if ( in[i].substr(1,1) == "0" ){
+
+                has_r0 = true;
+
+            }else if ( in[i].substr(1,1) == "1" ){
+
+                std::string idx1 = "a" + std::to_string(vir_label_count++);
+                std::string idx2 = "i" + std::to_string(occ_label_count++);
+
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2);
+
+                set_right_amplitudes({idx1,idx2});
+
+            }else if ( in[i].substr(1,1) == "2" ){
+
+                factor *= 0.25;
+
+                std::string idx1 = "a" + std::to_string(vir_label_count++);
+                std::string idx2 = "a" + std::to_string(vir_label_count++);
+                std::string idx3 = "i" + std::to_string(occ_label_count++);
+                std::string idx4 = "i" + std::to_string(occ_label_count++);
+
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2+"*");
+                tmp_string.push_back(idx3);
+                tmp_string.push_back(idx4);
+
+                set_right_amplitudes({idx1,idx2,idx4,idx3});
+
+            }else {
+                printf("\n");
+                printf("    error: only r0, r1, or r2 amplitudes are supported\n");
+                printf("\n");
+                exit(1);
+            }
+
+/*
 
             if ( in[i].substr(1,1) == "0" ){
 
@@ -1290,9 +1328,50 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 printf("\n");
                 exit(1);
             }
+
+*/
+
+
         }else if ( in[i].substr(0,1) == "l" ){
 
+            if ( in[i].substr(1,1) == "0" ){
 
+                has_l0 = true;
+
+            }else if ( in[i].substr(1,1) == "1" ){
+
+                std::string idx1 = "i" + std::to_string(occ_label_count++);
+                std::string idx2 = "a" + std::to_string(vir_label_count++);
+
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2);
+
+                set_left_amplitudes({idx1,idx2});
+
+            }else if ( in[i].substr(1,1) == "2" ){
+
+                factor *= 0.25;
+
+                std::string idx1 = "i" + std::to_string(occ_label_count++);
+                std::string idx2 = "i" + std::to_string(occ_label_count++);
+                std::string idx3 = "a" + std::to_string(vir_label_count++);
+                std::string idx4 = "a" + std::to_string(vir_label_count++);
+
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2+"*");
+                tmp_string.push_back(idx3);
+                tmp_string.push_back(idx4);
+
+                set_left_amplitudes({idx1,idx2,idx4,idx3});
+
+            }else {
+                printf("\n");
+                printf("    error: only l0, l1, or l2 amplitudes are supported\n");
+                printf("\n");
+                exit(1);
+            }
+
+/*
             if ( in[i].substr(1,1) == "0" ){
                 has_l0 = true;
             }else if ( in[i].substr(1,1) == "1" ){
@@ -1358,6 +1437,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 printf("\n");
                 exit(1);
             }
+*/
+
         }else if ( in[i].substr(0,1) == "e" ){
 
 
