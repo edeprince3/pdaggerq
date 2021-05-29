@@ -147,13 +147,13 @@ class ahat {
     void use_conventional_labels();
 
     /// bring string to normal order (relative to either vacuum)
-    void normal_order(std::vector<std::shared_ptr<ahat> > &ordered);
+    bool normal_order(std::vector<std::shared_ptr<ahat> > &ordered);
 
     /// bring string to normal order relative to fermi vacuum
-    void normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
+    bool normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
 
     /// bring string to normal order relative to true vacuum
-    void normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
+    bool normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
 
     /// alphabetize operators to simplify string comparisons
     void alphabetize(std::vector<std::shared_ptr<ahat> > &ordered);

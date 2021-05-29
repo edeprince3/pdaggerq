@@ -1685,7 +1685,31 @@ void ahat_helper::add_new_string_true_vacuum(){
 
     
     // rearrange strings
-    mystring->normal_order(ordered);
+    //mystring->normal_order(ordered);
+
+    std::vector< std::shared_ptr<ahat> > tmp;
+    tmp.push_back(mystring);
+
+    bool done_rearranging = false;
+    do {  
+        std::vector< std::shared_ptr<ahat> > list;
+        done_rearranging = true;
+        for (int i = 0; i < (int)tmp.size(); i++) {
+            bool am_i_done = tmp[i]->normal_order(list);
+            if ( !am_i_done ) done_rearranging = false;
+        }
+        tmp.clear();
+        for (int i = 0; i < (int)list.size(); i++) {
+            tmp.push_back(list[i]);
+        }
+    }while(!done_rearranging);
+
+    //ordered.clear();
+    for (int i = 0; i < (int)tmp.size(); i++) {
+        ordered.push_back(tmp[i]);
+    }
+    tmp.clear();
+
 
     // alphabetize
     mystring->alphabetize(ordered);
@@ -2069,7 +2093,29 @@ void ahat_helper::add_new_string_fermi_vacuum(){
         }
 
         // rearrange strings
-        mystrings[string_num]->normal_order(ordered);
+        //mystrings[string_num]->normal_order(ordered);
+        std::vector< std::shared_ptr<ahat> > tmp;
+        tmp.push_back(mystrings[string_num]);
+
+        bool done_rearranging = false;
+        do { 
+            std::vector< std::shared_ptr<ahat> > list;
+            done_rearranging = true;
+            for (int i = 0; i < (int)tmp.size(); i++) {
+                bool am_i_done = tmp[i]->normal_order(list);
+                if ( !am_i_done ) done_rearranging = false;
+            }
+            tmp.clear();
+            for (int i = 0; i < (int)list.size(); i++) {
+                tmp.push_back(list[i]);
+            }
+        }while(!done_rearranging);
+
+        //ordered.clear();
+        for (int i = 0; i < (int)tmp.size(); i++) {
+            ordered.push_back(tmp[i]);
+        }
+        tmp.clear();
 
     }
 

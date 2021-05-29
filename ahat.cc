@@ -2134,9 +2134,9 @@ void ahat::copy(void * copy_me) {
     
 }
 
-void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
+bool ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
 
-    if ( skip ) return;
+    if ( skip ) return true;
 
     if ( is_normal_order() ) {
 
@@ -2147,7 +2147,7 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
 
         ordered.push_back(newguy);
 
-        return;
+        return true;
     }
 
     // new strings
@@ -2199,9 +2199,6 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
     // now, s1 and s2 are closer to normal order in the fermion space
     // we should more toward normal order in the boson space, too
 
-    //s1->normal_order_true_vacuum(ordered);
-    //s2->normal_order_true_vacuum(ordered);
-
     if ( is_boson_normal_order() ) {
 
         // copy boson daggers 
@@ -2209,8 +2206,11 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
             s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
             s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
         }
-        s1->normal_order_true_vacuum(ordered);
-        s2->normal_order_true_vacuum(ordered);
+        //s1->normal_order_true_vacuum(ordered);
+        //s2->normal_order_true_vacuum(ordered);
+        ordered.push_back(s1);
+        ordered.push_back(s2);
+        return false;
 
     }else {
 
@@ -2292,17 +2292,24 @@ void ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
             }
         }
 
-        s1a->normal_order_true_vacuum(ordered);
-        s1b->normal_order_true_vacuum(ordered);
-        s2a->normal_order_true_vacuum(ordered);
-        s2b->normal_order_true_vacuum(ordered);
+        //s1a->normal_order_true_vacuum(ordered);
+        //s1b->normal_order_true_vacuum(ordered);
+        //s2a->normal_order_true_vacuum(ordered);
+        //s2b->normal_order_true_vacuum(ordered);
+        ordered.push_back(s1a);
+        ordered.push_back(s1b);
+        ordered.push_back(s2a);
+        ordered.push_back(s2b);
+        return false;
 
     }
+
+    return false;
 }
 
-void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
+bool ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
 
-    if ( skip ) return;
+    if ( skip ) return true;
 
     if ( is_normal_order() ) {
 
@@ -2313,7 +2320,7 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
 
         ordered.push_back(newguy);
 
-        return;
+        return true;
     }
 
     // new strings
@@ -2417,7 +2424,9 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
                 for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
                     s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
                 }
-                s1->normal_order_fermi_vacuum(ordered);
+                //s1->normal_order_fermi_vacuum(ordered);
+                ordered.push_back(s1);
+                return false;
             }
         }else {
 
@@ -2460,8 +2469,11 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
 
                 }
             }
-            s1a->normal_order_fermi_vacuum(ordered);
-            s1b->normal_order_fermi_vacuum(ordered);
+            //s1a->normal_order_fermi_vacuum(ordered);
+            //s1b->normal_order_fermi_vacuum(ordered);
+            ordered.push_back(s1a);
+            ordered.push_back(s1b);
+            return false;
         }
 
     }else if ( n_new_strings == 2 ) {
@@ -2473,8 +2485,11 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
                     s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
                     s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
                 }
-                s1->normal_order_fermi_vacuum(ordered);
-                s2->normal_order_fermi_vacuum(ordered);
+                //s1->normal_order_fermi_vacuum(ordered);
+                //s2->normal_order_fermi_vacuum(ordered);
+                ordered.push_back(s1);
+                ordered.push_back(s2);
+                return false;
             }
         }else {
 
@@ -2556,24 +2571,28 @@ void ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
                 }
             }
 
-            s1a->normal_order_fermi_vacuum(ordered);
-            s1b->normal_order_fermi_vacuum(ordered);
-            s2a->normal_order_fermi_vacuum(ordered);
-            s2b->normal_order_fermi_vacuum(ordered);
-
+            //s1a->normal_order_fermi_vacuum(ordered);
+            //s1b->normal_order_fermi_vacuum(ordered);
+            //s2a->normal_order_fermi_vacuum(ordered);
+            //s2b->normal_order_fermi_vacuum(ordered);
+            ordered.push_back(s1a);
+            ordered.push_back(s1b);
+            ordered.push_back(s2a);
+            ordered.push_back(s2b);
+            return false;
 
         }
 
     }
-
+    return false;
 
 }
 
-void ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
+bool ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
     if ( vacuum == "TRUE" ) {
-        normal_order_true_vacuum(ordered);
+        return normal_order_true_vacuum(ordered);
     }else {
-        normal_order_fermi_vacuum(ordered);
+        return normal_order_fermi_vacuum(ordered);
     }
 }
 
