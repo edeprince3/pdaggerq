@@ -106,16 +106,27 @@ class ahat_helper {
     void add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops);
 
     /// add commutator of two operators
-    void add_commutator(double factor, std::vector<std::string> in);
+    void add_commutator(double factor, std::vector<std::string> op0,
+                                       std::vector<std::string> op1);
 
     /// add double commutator involving three operators
-    void add_double_commutator(double factor, std::vector<std::string> in);
+    void add_double_commutator(double factor, std::vector<std::string> op0,
+                                              std::vector<std::string> op1,
+                                              std::vector<std::string> op2);
 
     /// add triple commutator involving four operators
-    void add_triple_commutator(double factor, std::vector<std::string> in);
+    void add_triple_commutator(double factor, std::vector<std::string> op0,
+                                              std::vector<std::string> op1,
+                                              std::vector<std::string> op2,
+                                              std::vector<std::string> op3);
 
     /// add quadruple commutator involving five operators
-    void add_quadruple_commutator(double factor, std::vector<std::string> in);
+    void add_quadruple_commutator(double factor, std::vector<std::string> op0,
+                                                 std::vector<std::string> op1,
+                                                 std::vector<std::string> op2,
+                                                 std::vector<std::string> op3,
+                                                 std::vector<std::string> op4);
+
 
     /// cancel terms, if possible
     void simplify();
