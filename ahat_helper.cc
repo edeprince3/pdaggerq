@@ -575,26 +575,6 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
         }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
 
-/*
-            // find comma
-            size_t pos = in[i].find(",");
-            if ( pos == std::string::npos ) {
-                printf("\n");
-                printf("    error in tensor definition (no commas)\n");
-                printf("\n");
-                exit(1);
-            }
-            size_t len = pos - 2;
-            // index 1
-            tmp_string.push_back(in[i].substr(2,len)+"*");
-
-            // index 2
-            tmp_string.push_back(in[i].substr(pos+1));
-
-            // tensor
-            set_tensor({in[i].substr(2,len), in[i].substr(pos+1)},"D+");
-*/
-
             std::string idx1 = "p" + std::to_string(gen_label_count++);
             std::string idx2 = "p" + std::to_string(gen_label_count++);
 
@@ -611,26 +591,6 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             data->is_boson_dagger.push_back(true);
 
         }else if ( in[i].substr(0,2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
-
-/*
-            // find comma
-            size_t pos = in[i].find(",");
-            if ( pos == std::string::npos ) {
-                printf("\n");
-                printf("    error in tensor definition (no commas)\n");
-                printf("\n");
-                exit(1);
-            }
-            size_t len = pos - 2;
-            // index 1
-            tmp_string.push_back(in[i].substr(2,len)+"*");
-
-            // index 2
-            tmp_string.push_back(in[i].substr(pos+1));
-
-            // tensor
-            set_tensor({in[i].substr(2,len), in[i].substr(pos+1)},"D-");
-*/
 
             std::string idx1 = "p" + std::to_string(gen_label_count++);
             std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -1178,6 +1138,9 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                 printf("\n");
                 exit(1);
             }
+
+        }else if ( in[i].substr(0,1) == "1" ) { // unit operator ... do nothing
+
         }else {
                 printf("\n");
                 printf("    error: undefined string\n");
@@ -1921,7 +1884,7 @@ void ahat_helper::clear() {
 
 }
 
-void ahat_helper::add_st_operator(double factor, std::vector<std::string>  targets, std::vector<std::string> ops) {
+void ahat_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops) {
 
     if ( ops.size() == 1 ) {
 
