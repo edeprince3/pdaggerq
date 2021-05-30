@@ -65,8 +65,8 @@ print('')
 ## [[[[g, T1], T1], T1], T1]
 #ahat.add_quadruple_commutator( 1.0/24.0, ['g','t1','t1','t1','t1'])
 
-ahat.add_st_operator(1.0,['h','t1','t2'])
-ahat.add_st_operator(1.0,['g','t1','t2'])
+ahat.add_st_operator(1.0,['h'],['t1','t2'])
+ahat.add_st_operator(1.0,['g'],['t1','t2'])
 
 ahat.simplify()
 

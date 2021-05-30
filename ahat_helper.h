@@ -103,7 +103,7 @@ class ahat_helper {
     void add_operator_product(double factor, std::vector<std::string> in);
 
     /// add similarity-transformed operator expansion of an operator
-    void add_st_operator(double factor, std::vector<std::string> in);
+    void add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops);
 
     /// add commutator of two operators
     void add_commutator(double factor, std::vector<std::string> in);
