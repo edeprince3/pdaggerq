@@ -52,6 +52,13 @@ class ahat_helper {
     /// print level
     int print_level;
 
+    /// operators to apply to the left of any operator products we add
+    std::vector<std::string> left_operators;
+
+    /// operators to apply to the right of any operator products we add
+    std::vector<std::string> right_operators;
+
+
   public:
 
     /// constructor
@@ -59,6 +66,12 @@ class ahat_helper {
 
     /// destructor
     ~ahat_helper();
+
+    /// set operators to apply to the left of any operator products we add
+    void set_left_operators(std::vector<std::string> in);
+
+    /// set operators to apply to the right of any operator products we add
+    void set_right_operators(std::vector<std::string> in);
 
     /// when bringing to normal order, does the bra involve any operators?
     void set_bra(std::string bra_type);

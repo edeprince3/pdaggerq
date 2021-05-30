@@ -58,6 +58,8 @@ void export_ahat_helper(py::module& m) {
         .def("set_u_amplitudes", &ahat_helper::set_u_amplitudes)
         .def("set_left_amplitudes", &ahat_helper::set_left_amplitudes)
         .def("set_right_amplitudes", &ahat_helper::set_right_amplitudes)
+        .def("set_left_operators", &ahat_helper::set_left_operators)
+        .def("set_right_operators", &ahat_helper::set_right_operators)
         .def("set_factor", &ahat_helper::set_factor)
         .def("add_new_string", &ahat_helper::add_new_string)
         .def("add_operator_product", &ahat_helper::add_operator_product)
@@ -128,6 +130,24 @@ ahat_helper::~ahat_helper()
 
 void ahat_helper::set_print_level(int level) {
     print_level = level;
+}
+
+void ahat_helper::set_left_operators(std::vector<std::string> in) {
+
+    left_operators.clear();
+    for (int i = 0; i < (int)in.size(); i++) {
+        left_operators.push_back(in[i]);
+    }
+
+}
+
+void ahat_helper::set_right_operators(std::vector<std::string> in) {
+
+    right_operators.clear();
+    for (int i = 0; i < (int)in.size(); i++) {
+        right_operators.push_back(in[i]);
+    }
+
 }
 
 void ahat_helper::set_bra(std::string bra_type){
@@ -469,737 +489,778 @@ void ahat_helper::add_quadruple_commutator(double factor,
 
 void ahat_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
-    std::vector<std::string> tmp_string;
-
-    if ( bra == "SINGLES" ) {
-
-        // for singles equations: <me| = <0|m*e
-        tmp_string.push_back("m*");
-        tmp_string.push_back("e");
-
-    }else if ( bra == "DOUBLES" ) {
-
-        // for doubles equations: <mnef| = <0|m*n*fe
-        tmp_string.push_back("m*");
-        tmp_string.push_back("n*");
-        tmp_string.push_back("f");
-        tmp_string.push_back("e");
-
-    }else if ( bra == "TRIPLES" ) {
-
-        // for triples equations: <mnoefg| = <0|m*n*o*gfe
-        tmp_string.push_back("m*");
-        tmp_string.push_back("n*");
-        tmp_string.push_back("o*");
-        tmp_string.push_back("g");
-        tmp_string.push_back("f");
-        tmp_string.push_back("e");
-
-    }else if ( bra == "SINGLES_1" ) {
-
-        // for singles equations: <me,1| = <0|m*e B
-        tmp_string.push_back("m*");
-        tmp_string.push_back("e");
-
-        data->is_boson_dagger.push_back(false);
-
-    }else if ( bra == "DOUBLES_1" ) {
-
-        // for doubles equations: <mnef,1| = <0|m*n*fe B
-        tmp_string.push_back("m*");
-        tmp_string.push_back("n*");
-        tmp_string.push_back("f");
-        tmp_string.push_back("e");
-
-        data->is_boson_dagger.push_back(false);
-    }else if ( bra == "VACUUM_1" ) {
-
-        data->is_boson_dagger.push_back(false);
-
+    // apply any extra operators on left or right:
+    std::vector<std::string> save;
+    for (int i = 0; i < (int)in.size(); i++) {
+        save.push_back(in[i]);
     }
 
-    bool has_l0       = false;
-    bool has_r0       = false;
-    bool has_u0       = false;
-    bool has_w0       = false;
-    bool has_b        = false;
-    bool has_b_dagger = false;
+    if ( (int)left_operators.size() == 0 ) {
+        left_operators.push_back("1");
+    }
+    if ( (int)right_operators.size() == 0 ) {
+        right_operators.push_back("1");
+    }
 
-    int occ_label_count = 0;
-    int vir_label_count = 0;
-    int gen_label_count = 0;
-    for (int i = 0; i < (int)in.size(); i++) {
+    double original_factor = factor;
 
-        // blank string
-        if ( in[i].size() == 0 ) continue;
+    for (int left = 0; left < (int)left_operators.size(); left++) {
 
-        // lowercase indices
-        std::transform(in[i].begin(), in[i].end(), in[i].begin(), [](unsigned char c){ return std::tolower(c); });
+        for (int right = 0; right < (int)right_operators.size(); right++) {
 
-        // remove parentheses
-        removeParentheses(in[i]);
+            factor = original_factor;
 
-        if ( in[i].substr(0,1) == "h" ) { // one-electron operator
+            std::vector<std::string> tmp_string;
 
-/*
-            // find comma
-            size_t pos = in[i].find(",");
-            if ( pos == std::string::npos ) {
-                printf("\n");
-                printf("    error in tensor definition (no commas)\n");
-                printf("\n");
-                exit(1);
-            }
-            size_t len = pos - 1;
+            if ( bra == "SINGLES" ) {
 
-            // index 1
-            tmp_string.push_back(in[i].substr(1,len)+"*");
+                // for singles equations: <me| = <0|m*e
+                tmp_string.push_back("m*");
+                tmp_string.push_back("e");
 
-            // index 2
-            tmp_string.push_back(in[i].substr(pos+1));
+            }else if ( bra == "DOUBLES" ) {
 
-            // tensor
-            set_tensor({in[i].substr(1,len), in[i].substr(pos+1)},"CORE");
-*/
-            std::string idx1 = "p" + std::to_string(gen_label_count++);
-            std::string idx2 = "p" + std::to_string(gen_label_count++);
+                // for doubles equations: <mnef| = <0|m*n*fe
+                tmp_string.push_back("m*");
+                tmp_string.push_back("n*");
+                tmp_string.push_back("f");
+                tmp_string.push_back("e");
 
-            // index 1
-            tmp_string.push_back(idx1+"*");
+            }else if ( bra == "TRIPLES" ) {
 
-            // index 2
-            tmp_string.push_back(idx2);
+                // for triples equations: <mnoefg| = <0|m*n*o*gfe
+                tmp_string.push_back("m*");
+                tmp_string.push_back("n*");
+                tmp_string.push_back("o*");
+                tmp_string.push_back("g");
+                tmp_string.push_back("f");
+                tmp_string.push_back("e");
 
-            // tensor
-            set_tensor({idx1,idx2},"CORE");
+            }else if ( bra == "SINGLES_1" ) {
 
-        }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
-
-            std::string idx1 = "p" + std::to_string(gen_label_count++);
-            std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-            // index 1
-            tmp_string.push_back(idx1+"*");
-
-            // index 2
-            tmp_string.push_back(idx2);
-
-            // tensor
-            set_tensor({idx1,idx2},"D+");
-
-            // boson operator
-            data->is_boson_dagger.push_back(true);
-
-        }else if ( in[i].substr(0,2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
-
-            std::string idx1 = "p" + std::to_string(gen_label_count++);
-            std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-            // index 1
-            tmp_string.push_back(idx1+"*");
-
-            // index 2
-            tmp_string.push_back(idx2);
-
-            // tensor
-            set_tensor({idx1,idx2},"D-");
-
-            // boson operator
-            data->is_boson_dagger.push_back(false);
-
-        }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
-
-/*
-            // count indices
-            size_t pos = 0;
-            int ncomma = 0;
-            std::vector<size_t> commas;
-            pos = in[i].find(",", pos + 1);
-            commas.push_back(pos);
-            while( pos != std::string::npos){
-                pos = in[i].find(",", pos + 1);
-                commas.push_back(pos);
-                ncomma++;
-            }
-
-            if ( ncomma != 3 ) {
-                printf("\n");
-                printf("    error in tensor definition\n");
-                printf("\n");
-                exit(1);
-            }
-
-            factor *= 0.25;
-
-
-            tmp_string.push_back(in[i].substr(1,commas[0]-1)+"*");
-            tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-            tmp_string.push_back(in[i].substr(commas[2]+1));
-            tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
-
-            set_tensor({
-                           in[i].substr(1,commas[0]-1),
-                           in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
-                           in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
-                           in[i].substr(commas[2]+1)
-                       },"ERI");
-*/
-
-            factor *= 0.25;
-
-            std::string idx1 = "p" + std::to_string(gen_label_count++);
-            std::string idx2 = "p" + std::to_string(gen_label_count++);
-            std::string idx3 = "p" + std::to_string(gen_label_count++);
-            std::string idx4 = "p" + std::to_string(gen_label_count++);
-
-            tmp_string.push_back(idx1+"*");
-            tmp_string.push_back(idx2+"*");
-            tmp_string.push_back(idx3);
-            tmp_string.push_back(idx4);
-
-            set_tensor({idx1,idx2,idx4,idx3},"ERI");
-
-        }else if ( in[i].substr(0,1) == "t" ){
-
-
-            if ( in[i].substr(1,1) == "1" ){
-
-                std::string idx1 = "a" + std::to_string(vir_label_count++);
-                std::string idx2 = "i" + std::to_string(occ_label_count++);
-
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2);
-
-                set_t_amplitudes({idx1,idx2});
-
-            }else if ( in[i].substr(1,1) == "2" ){
-
-                factor *= 0.25;
-
-                std::string idx1 = "a" + std::to_string(vir_label_count++);
-                std::string idx2 = "a" + std::to_string(vir_label_count++);
-                std::string idx3 = "i" + std::to_string(occ_label_count++);
-                std::string idx4 = "i" + std::to_string(occ_label_count++);
-
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2+"*");
-                tmp_string.push_back(idx3);
-                tmp_string.push_back(idx4);
-
-                set_t_amplitudes({idx1,idx2,idx4,idx3});
-
-            }else if ( in[i].substr(1,1) == "3" ){
-
-                factor *= 1.0 / 36.0;
-
-                std::string idx1 = "a" + std::to_string(vir_label_count++);
-                std::string idx2 = "a" + std::to_string(vir_label_count++);
-                std::string idx3 = "a" + std::to_string(vir_label_count++);
-                std::string idx4 = "i" + std::to_string(occ_label_count++);
-                std::string idx5 = "i" + std::to_string(occ_label_count++);
-                std::string idx6 = "i" + std::to_string(occ_label_count++);
-
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2+"*");
-                tmp_string.push_back(idx3+"*");
-                tmp_string.push_back(idx4);
-                tmp_string.push_back(idx5);
-                tmp_string.push_back(idx6);
-
-                set_t_amplitudes({idx1,idx2,idx3,idx6,idx5,idx4});
-
-            }else {
-                printf("\n");
-                printf("    error: only t1, t2 or t3 amplitudes are supported\n");
-                printf("\n");
-                exit(1);
-            }
-
-        }else if ( in[i].substr(0,1) == "w" ){ // w0 B*B
-
-            if ( in[i].substr(1,1) == "0" ){
-
-                has_w0 = true;
-
-                data->is_boson_dagger.push_back(true);
-                data->is_boson_dagger.push_back(false);
-
-            }else {
-                printf("\n");
-                printf("    error: only w0 is supported\n");
-                printf("\n");
-                exit(1);
-            }
-
-        }else if ( in[i].substr(0,2) == "b+" ){ // B*
-
-                has_b_dagger = true;
-
-                data->is_boson_dagger.push_back(true);
-
-        }else if ( in[i].substr(0,2) == "b-" ){ // B
-
-                has_b = true;
+                // for singles equations: <me,1| = <0|m*e B
+                tmp_string.push_back("m*");
+                tmp_string.push_back("e");
 
                 data->is_boson_dagger.push_back(false);
 
-        }else if ( in[i].substr(0,1) == "u" ){ // t-amplitudes + boson creator
+            }else if ( bra == "DOUBLES_1" ) {
 
-            if ( in[i].substr(1,1) == "0" ){
+                // for doubles equations: <mnef,1| = <0|m*n*fe B
+                tmp_string.push_back("m*");
+                tmp_string.push_back("n*");
+                tmp_string.push_back("f");
+                tmp_string.push_back("e");
 
-                has_u0 = true;
+                data->is_boson_dagger.push_back(false);
+            }else if ( bra == "VACUUM_1" ) {
 
-                data->is_boson_dagger.push_back(true);
+                data->is_boson_dagger.push_back(false);
 
-            }else if ( in[i].substr(1,1) == "1" ){
-
-                std::string idx1 = "a" + std::to_string(vir_label_count++);
-                std::string idx2 = "i" + std::to_string(occ_label_count++);
-
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2);
-
-                set_u_amplitudes({idx1,idx2});
-
-                data->is_boson_dagger.push_back(true);
-
-            }else if ( in[i].substr(1,1) == "2" ){
-
-                factor *= 0.25;
-
-                std::string idx1 = "a" + std::to_string(vir_label_count++);
-                std::string idx2 = "a" + std::to_string(vir_label_count++);
-                std::string idx3 = "i" + std::to_string(occ_label_count++);
-                std::string idx4 = "i" + std::to_string(occ_label_count++);
-
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2+"*");
-                tmp_string.push_back(idx3);
-                tmp_string.push_back(idx4);
-
-                set_u_amplitudes({idx1,idx2,idx4,idx3});
-
-                data->is_boson_dagger.push_back(true);
-
-            }else {
-                printf("\n");
-                printf("    error: only u0, u1, or u2 amplitudes are supported\n");
-                printf("\n");
-                exit(1);
             }
 
+            bool has_l0       = false;
+            bool has_r0       = false;
+            bool has_u0       = false;
+            bool has_w0       = false;
+            bool has_b        = false;
+            bool has_b_dagger = false;
+
+            int occ_label_count = 0;
+            int vir_label_count = 0;
+            int gen_label_count = 0;
+
+
+            // apply any extra operators on left or right:
+            std::vector<std::string> tmp;
+            tmp.push_back(left_operators[left]);
+            for (int i = 0; i < (int)save.size(); i++) {
+                tmp.push_back(save[i]);
+            }
+            tmp.push_back(right_operators[right]);
+            in.clear();
+            for (int i = 0; i < (int)tmp.size(); i++) {
+                in.push_back(tmp[i]);
+            }
+            tmp.clear();
+
+
+            for (int i = 0; i < (int)in.size(); i++) {
+
+                // blank string
+                if ( in[i].size() == 0 ) continue;
+
+                // lowercase indices
+                std::transform(in[i].begin(), in[i].end(), in[i].begin(), [](unsigned char c){ return std::tolower(c); });
+
+                // remove parentheses
+                removeParentheses(in[i]);
+
+                if ( in[i].substr(0,1) == "h" ) { // one-electron operator
+
 /*
-            if ( in[i].substr(1,1) == "0" ){
+                    // find comma
+                    size_t pos = in[i].find(",");
+                    if ( pos == std::string::npos ) {
+                        printf("\n");
+                        printf("    error in tensor definition (no commas)\n");
+                        printf("\n");
+                        exit(1);
+                    }
+                    size_t len = pos - 1;
 
-                has_u0 = true;
+                    // index 1
+                    tmp_string.push_back(in[i].substr(1,len)+"*");
 
-                data->is_boson_dagger.push_back(true);
+                    // index 2
+                    tmp_string.push_back(in[i].substr(pos+1));
 
-            }else if ( in[i].substr(1,1) == "1" ){
+                    // tensor
+                    set_tensor({in[i].substr(1,len), in[i].substr(pos+1)},"CORE");
+*/
+                    std::string idx1 = "p" + std::to_string(gen_label_count++);
+                    std::string idx2 = "p" + std::to_string(gen_label_count++);
 
-                // find comma
-                size_t pos = in[i].find(",");
-                if ( pos == std::string::npos ) {
-                    printf("\n");
-                    printf("    error in amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
-                size_t len = pos - 2; 
+                    // index 1
+                    tmp_string.push_back(idx1+"*");
 
-                // index 1
-                tmp_string.push_back(in[i].substr(2,len)+"*");
+                    // index 2
+                    tmp_string.push_back(idx2);
 
-                // index 2
-                tmp_string.push_back(in[i].substr(pos+1));
+                    // tensor
+                    set_tensor({idx1,idx2},"CORE");
 
-                set_u_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+                }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
 
-                data->is_boson_dagger.push_back(true);
+                    std::string idx1 = "p" + std::to_string(gen_label_count++);
+                    std::string idx2 = "p" + std::to_string(gen_label_count++);
 
-            }else if ( in[i].substr(1,1) == "2" ){
+                    // index 1
+                    tmp_string.push_back(idx1+"*");
 
-	            // count indices
-	            size_t pos = 0;
-	            int ncomma = 0;
-	            std::vector<size_t> commas;
+                    // index 2
+                    tmp_string.push_back(idx2);
+
+                    // tensor
+                    set_tensor({idx1,idx2},"D+");
+
+                    // boson operator
+                    data->is_boson_dagger.push_back(true);
+
+                }else if ( in[i].substr(0,2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
+
+                    std::string idx1 = "p" + std::to_string(gen_label_count++);
+                    std::string idx2 = "p" + std::to_string(gen_label_count++);
+
+                    // index 1
+                    tmp_string.push_back(idx1+"*");
+
+                    // index 2
+                    tmp_string.push_back(idx2);
+
+                    // tensor
+                    set_tensor({idx1,idx2},"D-");
+
+                    // boson operator
+                    data->is_boson_dagger.push_back(false);
+
+                }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
+
+/*
+                    // count indices
+                    size_t pos = 0;
+                    int ncomma = 0;
+                    std::vector<size_t> commas;
                     pos = in[i].find(",", pos + 1);
-	            commas.push_back(pos);
-	            while( pos != std::string::npos){
+                    commas.push_back(pos);
+                    while( pos != std::string::npos){
                         pos = in[i].find(",", pos + 1);
-	                commas.push_back(pos);
+                        commas.push_back(pos);
                         ncomma++;
-	            }
+                    }
 
-                if ( ncomma != 3 ) {
-                    printf("\n");
-                    printf("    error in amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
+                    if ( ncomma != 3 ) {
+                        printf("\n");
+                        printf("    error in tensor definition\n");
+                        printf("\n");
+                        exit(1);
+                    }
 
-                factor *= 0.25;
+                    factor *= 0.25;
 
-                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                tmp_string.push_back(in[i].substr(commas[2]+1));
-                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
 
-                set_u_amplitudes({
-                                   in[i].substr(2,commas[0]-2),
+                    tmp_string.push_back(in[i].substr(1,commas[0]-1)+"*");
+                    tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                    tmp_string.push_back(in[i].substr(commas[2]+1));
+                    tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+                    set_tensor({
+                                   in[i].substr(1,commas[0]-1),
                                    in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
                                    in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
                                    in[i].substr(commas[2]+1)
-                               });
+                               },"ERI");
+*/
+
+                    factor *= 0.25;
+
+                    std::string idx1 = "p" + std::to_string(gen_label_count++);
+                    std::string idx2 = "p" + std::to_string(gen_label_count++);
+                    std::string idx3 = "p" + std::to_string(gen_label_count++);
+                    std::string idx4 = "p" + std::to_string(gen_label_count++);
+
+                    tmp_string.push_back(idx1+"*");
+                    tmp_string.push_back(idx2+"*");
+                    tmp_string.push_back(idx3);
+                    tmp_string.push_back(idx4);
+
+                    set_tensor({idx1,idx2,idx4,idx3},"ERI");
+
+                }else if ( in[i].substr(0,1) == "t" ){
+
+
+                    if ( in[i].substr(1,1) == "1" ){
+
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2);
+
+                        set_t_amplitudes({idx1,idx2});
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                        factor *= 0.25;
+
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "a" + std::to_string(vir_label_count++);
+                        std::string idx3 = "i" + std::to_string(occ_label_count++);
+                        std::string idx4 = "i" + std::to_string(occ_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2+"*");
+                        tmp_string.push_back(idx3);
+                        tmp_string.push_back(idx4);
+
+                        set_t_amplitudes({idx1,idx2,idx4,idx3});
+
+                    }else if ( in[i].substr(1,1) == "3" ){
+
+                        factor *= 1.0 / 36.0;
+
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "a" + std::to_string(vir_label_count++);
+                        std::string idx3 = "a" + std::to_string(vir_label_count++);
+                        std::string idx4 = "i" + std::to_string(occ_label_count++);
+                        std::string idx5 = "i" + std::to_string(occ_label_count++);
+                        std::string idx6 = "i" + std::to_string(occ_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2+"*");
+                        tmp_string.push_back(idx3+"*");
+                        tmp_string.push_back(idx4);
+                        tmp_string.push_back(idx5);
+                        tmp_string.push_back(idx6);
+
+                        set_t_amplitudes({idx1,idx2,idx3,idx6,idx5,idx4});
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only t1, t2 or t3 amplitudes are supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+
+                }else if ( in[i].substr(0,1) == "w" ){ // w0 B*B
+
+                    if ( in[i].substr(1,1) == "0" ){
+
+                        has_w0 = true;
+
+                        data->is_boson_dagger.push_back(true);
+                        data->is_boson_dagger.push_back(false);
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only w0 is supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+
+                }else if ( in[i].substr(0,2) == "b+" ){ // B*
+
+                        has_b_dagger = true;
+
+                        data->is_boson_dagger.push_back(true);
+
+                }else if ( in[i].substr(0,2) == "b-" ){ // B
+
+                        has_b = true;
+
+                        data->is_boson_dagger.push_back(false);
+
+                }else if ( in[i].substr(0,1) == "u" ){ // t-amplitudes + boson creator
+
+                    if ( in[i].substr(1,1) == "0" ){
+
+                        has_u0 = true;
+
+                        data->is_boson_dagger.push_back(true);
+
+                    }else if ( in[i].substr(1,1) == "1" ){
+
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2);
+
+                        set_u_amplitudes({idx1,idx2});
+
+                        data->is_boson_dagger.push_back(true);
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                        factor *= 0.25;
+
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "a" + std::to_string(vir_label_count++);
+                        std::string idx3 = "i" + std::to_string(occ_label_count++);
+                        std::string idx4 = "i" + std::to_string(occ_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2+"*");
+                        tmp_string.push_back(idx3);
+                        tmp_string.push_back(idx4);
+
+                        set_u_amplitudes({idx1,idx2,idx4,idx3});
+
+                        data->is_boson_dagger.push_back(true);
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only u0, u1, or u2 amplitudes are supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+
+/*
+                    if ( in[i].substr(1,1) == "0" ){
+
+                        has_u0 = true;
+
+                        data->is_boson_dagger.push_back(true);
+
+                    }else if ( in[i].substr(1,1) == "1" ){
+
+                        // find comma
+                        size_t pos = in[i].find(",");
+                        if ( pos == std::string::npos ) {
+                            printf("\n");
+                            printf("    error in amplitude definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+                        size_t len = pos - 2; 
+
+                        // index 1
+                        tmp_string.push_back(in[i].substr(2,len)+"*");
+
+                        // index 2
+                        tmp_string.push_back(in[i].substr(pos+1));
+
+                        set_u_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+
+                        data->is_boson_dagger.push_back(true);
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                            // count indices
+                            size_t pos = 0;
+                            int ncomma = 0;
+                            std::vector<size_t> commas;
+                            pos = in[i].find(",", pos + 1);
+                            commas.push_back(pos);
+                            while( pos != std::string::npos){
+                                pos = in[i].find(",", pos + 1);
+                                commas.push_back(pos);
+                                ncomma++;
+                            }
+
+                        if ( ncomma != 3 ) {
+                            printf("\n");
+                            printf("    error in amplitude definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+
+                        factor *= 0.25;
+
+                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[2]+1));
+                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+                        set_u_amplitudes({
+                                           in[i].substr(2,commas[0]-2),
+                                           in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
+                                           in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
+                                           in[i].substr(commas[2]+1)
+                                       });
+
+                        data->is_boson_dagger.push_back(true);
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only u0, u1, or u2 amplitudes are supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+*/
+
+                }else if ( in[i].substr(0,1) == "r" ){
+
+                    if ( in[i].substr(1,1) == "0" ){
+
+                        has_r0 = true;
+
+                    }else if ( in[i].substr(1,1) == "1" ){
+
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2);
+
+                        set_right_amplitudes({idx1,idx2});
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                        factor *= 0.25;
+
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "a" + std::to_string(vir_label_count++);
+                        std::string idx3 = "i" + std::to_string(occ_label_count++);
+                        std::string idx4 = "i" + std::to_string(occ_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2+"*");
+                        tmp_string.push_back(idx3);
+                        tmp_string.push_back(idx4);
+
+                        set_right_amplitudes({idx1,idx2,idx4,idx3});
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only r0, r1, or r2 amplitudes are supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+
+/*
+
+                    if ( in[i].substr(1,1) == "0" ){
+
+                        has_r0 = true;
+
+                    }else if ( in[i].substr(1,1) == "1" ){
+
+                        // find comma
+                        size_t pos = in[i].find(",");
+                        if ( pos == std::string::npos ) {
+                            printf("\n");
+                            printf("    error in right-hand amplitude definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+                        size_t len = pos - 2; 
+
+                        // index 1
+                        tmp_string.push_back(in[i].substr(2,len)+"*");
+
+                        // index 2
+                        tmp_string.push_back(in[i].substr(pos+1));
+
+                        set_right_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                        // count indices
+                        size_t pos = 0;
+                        int ncomma = 0;
+                        std::vector<size_t> commas;
+                        pos = in[i].find(",", pos + 1);
+                        commas.push_back(pos);
+                        while( pos != std::string::npos){
+                            pos = in[i].find(",", pos + 1);
+                            commas.push_back(pos);
+                            ncomma++;
+                        }
+
+                        if ( ncomma != 3 ) {
+                            printf("\n");
+                            printf("    error in right-hand amplitude definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+
+                        factor *= 0.25;
+
+
+                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[2]+1));
+                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+                        set_right_amplitudes({
+                                                 in[i].substr(2,commas[0]-2),
+                                                 in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
+                                                 in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
+                                                 in[i].substr(commas[2]+1)
+                                             });
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only r1 or r2 amplitudes are supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+
+*/
+
+
+                }else if ( in[i].substr(0,1) == "l" ){
+
+                    if ( in[i].substr(1,1) == "0" ){
+
+                        has_l0 = true;
+
+                    }else if ( in[i].substr(1,1) == "1" ){
+
+                        std::string idx1 = "i" + std::to_string(occ_label_count++);
+                        std::string idx2 = "a" + std::to_string(vir_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2);
+
+                        set_left_amplitudes({idx1,idx2});
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                        factor *= 0.25;
+
+                        std::string idx1 = "i" + std::to_string(occ_label_count++);
+                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+                        std::string idx3 = "a" + std::to_string(vir_label_count++);
+                        std::string idx4 = "a" + std::to_string(vir_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2+"*");
+                        tmp_string.push_back(idx3);
+                        tmp_string.push_back(idx4);
+
+                        set_left_amplitudes({idx1,idx2,idx4,idx3});
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only l0, l1, or l2 amplitudes are supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+
+/*
+                    if ( in[i].substr(1,1) == "0" ){
+                        has_l0 = true;
+                    }else if ( in[i].substr(1,1) == "1" ){
+
+                        // find comma
+                        size_t pos = in[i].find(",");
+                        if ( pos == std::string::npos ) {
+                            printf("\n");
+                            printf("    error in left-hand amplitude definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+                        size_t len = pos - 2; 
+
+                        // index 1
+                        tmp_string.push_back(in[i].substr(2,len)+"*");
+
+                        // index 2
+                        tmp_string.push_back(in[i].substr(pos+1));
+
+                        set_left_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                        // count indices
+                        size_t pos = 0;
+                        int ncomma = 0;
+                        std::vector<size_t> commas;
+                        pos = in[i].find(",", pos + 1);
+                        commas.push_back(pos);
+                        while( pos != std::string::npos){
+                            pos = in[i].find(",", pos + 1);
+                            commas.push_back(pos);
+                            ncomma++;
+                        }
+
+                        if ( ncomma != 3 ) {
+                            printf("\n");
+                            printf("    error in left-hand amplitude definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+
+                        factor *= 0.25;
+
+                        // ijba
+                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[2]+1));
+                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+
+                        // ijab
+                        set_left_amplitudes({
+                                                in[i].substr(2,commas[0]-2),
+                                                in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
+                                                in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
+                                                in[i].substr(commas[2]+1)
+                                            });
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only l1 or l2 left-hand amplitudes are supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+*/
+
+                }else if ( in[i].substr(0,1) == "e" ){
+
+
+                    if ( in[i].substr(1,1) == "1" ){
+
+                        // find comma
+                        size_t pos = in[i].find(",");
+                        if ( pos == std::string::npos ) {
+                            printf("\n");
+                            printf("    error in e operator definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+                        size_t len = pos - 2; 
+
+                        // index 1
+                        tmp_string.push_back(in[i].substr(2,len)+"*");
+
+                        // index 2
+                        tmp_string.push_back(in[i].substr(pos+1));
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                        //printf("\n");
+                        //printf("    error: e2 operator not yet implemented.\n");
+                        //printf("\n");
+                        //exit(1);
+
+                        // count indices
+                        size_t pos = 0;
+                        int ncomma = 0;
+                        std::vector<size_t> commas;
+                        pos = in[i].find(",", pos + 1);
+                        commas.push_back(pos);
+                        while( pos != std::string::npos){
+                            pos = in[i].find(",", pos + 1);
+                            commas.push_back(pos);
+                            ncomma++;
+                        }
+
+                        if ( ncomma != 3 ) {
+                            printf("\n");
+                            printf("    error in left-hand amplitude definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+
+                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+                        tmp_string.push_back(in[i].substr(commas[2]+1));
+
+                    }else {
+                        printf("\n");
+                        printf("    error: only e1 or e2 left-hand amplitudes are supported\n");
+                        printf("\n");
+                        exit(1);
+                    }
+
+                }else if ( in[i].substr(0,1) == "1" ) { // unit operator ... do nothing
+
+                }else {
+                        printf("\n");
+                        printf("    error: undefined string\n");
+                        printf("\n");
+                        exit(1);
+                }
+                
+            }
+
+            set_factor(factor);
+
+            if ( ket == "SINGLES" ) {
+
+                // for singles equations: |em> = e*m|0>
+                tmp_string.push_back("e*");
+                tmp_string.push_back("m");
+
+            }else if ( ket == "SINGLES_1" ) {
+
+                // for singles equations: |em,1> = e*m B*|0>
+                tmp_string.push_back("e*");
+                tmp_string.push_back("m");
 
                 data->is_boson_dagger.push_back(true);
 
-            }else {
-                printf("\n");
-                printf("    error: only u0, u1, or u2 amplitudes are supported\n");
-                printf("\n");
-                exit(1);
-            }
-*/
+            }else if ( ket == "DOUBLES" ) {
 
-        }else if ( in[i].substr(0,1) == "r" ){
+                // for doubles equations: |efmn> = e*f*mn|0>
+                tmp_string.push_back("e*");
+                tmp_string.push_back("f*");
+                tmp_string.push_back("n");
+                tmp_string.push_back("m");
 
-            if ( in[i].substr(1,1) == "0" ){
+            }else if ( ket == "DOUBLES_1" ) {
 
-                has_r0 = true;
+                // for doubles equations: |efmn,1> = e*f*mn B*|0>
+                tmp_string.push_back("e*");
+                tmp_string.push_back("f*");
+                tmp_string.push_back("n");
+                tmp_string.push_back("m");
 
-            }else if ( in[i].substr(1,1) == "1" ){
+                data->is_boson_dagger.push_back(true);
 
-                std::string idx1 = "a" + std::to_string(vir_label_count++);
-                std::string idx2 = "i" + std::to_string(occ_label_count++);
+            }else if ( ket == "VACUUM_1" ) {
 
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2);
+                data->is_boson_dagger.push_back(true);
 
-                set_right_amplitudes({idx1,idx2});
-
-            }else if ( in[i].substr(1,1) == "2" ){
-
-                factor *= 0.25;
-
-                std::string idx1 = "a" + std::to_string(vir_label_count++);
-                std::string idx2 = "a" + std::to_string(vir_label_count++);
-                std::string idx3 = "i" + std::to_string(occ_label_count++);
-                std::string idx4 = "i" + std::to_string(occ_label_count++);
-
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2+"*");
-                tmp_string.push_back(idx3);
-                tmp_string.push_back(idx4);
-
-                set_right_amplitudes({idx1,idx2,idx4,idx3});
-
-            }else {
-                printf("\n");
-                printf("    error: only r0, r1, or r2 amplitudes are supported\n");
-                printf("\n");
-                exit(1);
             }
 
-/*
+            set_string(tmp_string);
 
-            if ( in[i].substr(1,1) == "0" ){
+            data->has_r0       = has_r0;
+            data->has_l0       = has_l0;
+            data->has_u0       = has_u0;
+            data->has_w0       = has_w0;
+            data->has_b        = has_b;
+            data->has_b_dagger = has_b_dagger;
 
-                has_r0 = true;
+            add_new_string();
 
-            }else if ( in[i].substr(1,1) == "1" ){
-
-                // find comma
-                size_t pos = in[i].find(",");
-                if ( pos == std::string::npos ) {
-                    printf("\n");
-                    printf("    error in right-hand amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
-                size_t len = pos - 2; 
-
-                // index 1
-                tmp_string.push_back(in[i].substr(2,len)+"*");
-
-                // index 2
-                tmp_string.push_back(in[i].substr(pos+1));
-
-                set_right_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
-
-            }else if ( in[i].substr(1,1) == "2" ){
-
-	        // count indices
-	        size_t pos = 0;
-	        int ncomma = 0;
-	        std::vector<size_t> commas;
-                pos = in[i].find(",", pos + 1);
-	        commas.push_back(pos);
-	        while( pos != std::string::npos){
-                    pos = in[i].find(",", pos + 1);
-	            commas.push_back(pos);
-                    ncomma++;
-	        }
-
-                if ( ncomma != 3 ) {
-                    printf("\n");
-                    printf("    error in right-hand amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
-
-                factor *= 0.25;
-
-
-                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                tmp_string.push_back(in[i].substr(commas[2]+1));
-                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
-
-                set_right_amplitudes({
-                                         in[i].substr(2,commas[0]-2),
-                                         in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
-                                         in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
-                                         in[i].substr(commas[2]+1)
-                                     });
-
-            }else {
-                printf("\n");
-                printf("    error: only r1 or r2 amplitudes are supported\n");
-                printf("\n");
-                exit(1);
-            }
-
-*/
-
-
-        }else if ( in[i].substr(0,1) == "l" ){
-
-            if ( in[i].substr(1,1) == "0" ){
-
-                has_l0 = true;
-
-            }else if ( in[i].substr(1,1) == "1" ){
-
-                std::string idx1 = "i" + std::to_string(occ_label_count++);
-                std::string idx2 = "a" + std::to_string(vir_label_count++);
-
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2);
-
-                set_left_amplitudes({idx1,idx2});
-
-            }else if ( in[i].substr(1,1) == "2" ){
-
-                factor *= 0.25;
-
-                std::string idx1 = "i" + std::to_string(occ_label_count++);
-                std::string idx2 = "i" + std::to_string(occ_label_count++);
-                std::string idx3 = "a" + std::to_string(vir_label_count++);
-                std::string idx4 = "a" + std::to_string(vir_label_count++);
-
-                tmp_string.push_back(idx1+"*");
-                tmp_string.push_back(idx2+"*");
-                tmp_string.push_back(idx3);
-                tmp_string.push_back(idx4);
-
-                set_left_amplitudes({idx1,idx2,idx4,idx3});
-
-            }else {
-                printf("\n");
-                printf("    error: only l0, l1, or l2 amplitudes are supported\n");
-                printf("\n");
-                exit(1);
-            }
-
-/*
-            if ( in[i].substr(1,1) == "0" ){
-                has_l0 = true;
-            }else if ( in[i].substr(1,1) == "1" ){
-
-                // find comma
-                size_t pos = in[i].find(",");
-                if ( pos == std::string::npos ) {
-                    printf("\n");
-                    printf("    error in left-hand amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
-                size_t len = pos - 2; 
-
-                // index 1
-                tmp_string.push_back(in[i].substr(2,len)+"*");
-
-                // index 2
-                tmp_string.push_back(in[i].substr(pos+1));
-
-                set_left_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
-
-            }else if ( in[i].substr(1,1) == "2" ){
-
-	        // count indices
-	        size_t pos = 0;
-	        int ncomma = 0;
-	        std::vector<size_t> commas;
-                pos = in[i].find(",", pos + 1);
-	        commas.push_back(pos);
-	        while( pos != std::string::npos){
-                    pos = in[i].find(",", pos + 1);
-	            commas.push_back(pos);
-                    ncomma++;
-	        }
-
-                if ( ncomma != 3 ) {
-                    printf("\n");
-                    printf("    error in left-hand amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
-
-                factor *= 0.25;
-
-                // ijba
-                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                tmp_string.push_back(in[i].substr(commas[2]+1));
-                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
-
-                // ijab
-                set_left_amplitudes({
-                                        in[i].substr(2,commas[0]-2),
-                                        in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
-                                        in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
-                                        in[i].substr(commas[2]+1)
-                                    });
-
-            }else {
-                printf("\n");
-                printf("    error: only l1 or l2 left-hand amplitudes are supported\n");
-                printf("\n");
-                exit(1);
-            }
-*/
-
-        }else if ( in[i].substr(0,1) == "e" ){
-
-
-            if ( in[i].substr(1,1) == "1" ){
-
-                // find comma
-                size_t pos = in[i].find(",");
-                if ( pos == std::string::npos ) {
-                    printf("\n");
-                    printf("    error in e operator definition\n");
-                    printf("\n");
-                    exit(1);
-                }
-                size_t len = pos - 2; 
-
-                // index 1
-                tmp_string.push_back(in[i].substr(2,len)+"*");
-
-                // index 2
-                tmp_string.push_back(in[i].substr(pos+1));
-
-            }else if ( in[i].substr(1,1) == "2" ){
-
-	        //printf("\n");
-	        //printf("    error: e2 operator not yet implemented.\n");
-	        //printf("\n");
-	        //exit(1);
-
-	        // count indices
-	        size_t pos = 0;
-	        int ncomma = 0;
-	        std::vector<size_t> commas;
-                pos = in[i].find(",", pos + 1);
-	        commas.push_back(pos);
-	        while( pos != std::string::npos){
-                    pos = in[i].find(",", pos + 1);
-	            commas.push_back(pos);
-                    ncomma++;
-	        }
-
-                if ( ncomma != 3 ) {
-                    printf("\n");
-                    printf("    error in left-hand amplitude definition\n");
-                    printf("\n");
-                    exit(1);
-                }
-
-                tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
-                tmp_string.push_back(in[i].substr(commas[2]+1));
-
-            }else {
-                printf("\n");
-                printf("    error: only e1 or e2 left-hand amplitudes are supported\n");
-                printf("\n");
-                exit(1);
-            }
-
-        }else if ( in[i].substr(0,1) == "1" ) { // unit operator ... do nothing
-
-        }else {
-                printf("\n");
-                printf("    error: undefined string\n");
-                printf("\n");
-                exit(1);
         }
-        
     }
 
-    set_factor(factor);
-
-    if ( ket == "SINGLES" ) {
-
-        // for singles equations: |em> = e*m|0>
-        tmp_string.push_back("e*");
-        tmp_string.push_back("m");
-
-    }else if ( ket == "SINGLES_1" ) {
-
-        // for singles equations: |em,1> = e*m B*|0>
-        tmp_string.push_back("e*");
-        tmp_string.push_back("m");
-
-        data->is_boson_dagger.push_back(true);
-
-    }else if ( ket == "DOUBLES" ) {
-
-        // for doubles equations: |efmn> = e*f*mn|0>
-        tmp_string.push_back("e*");
-        tmp_string.push_back("f*");
-        tmp_string.push_back("n");
-        tmp_string.push_back("m");
-
-    }else if ( ket == "DOUBLES_1" ) {
-
-        // for doubles equations: |efmn,1> = e*f*mn B*|0>
-        tmp_string.push_back("e*");
-        tmp_string.push_back("f*");
-        tmp_string.push_back("n");
-        tmp_string.push_back("m");
-
-        data->is_boson_dagger.push_back(true);
-
-    }else if ( ket == "VACUUM_1" ) {
-
-        data->is_boson_dagger.push_back(true);
-
-    }
-
-    set_string(tmp_string);
-
-    data->has_r0       = has_r0;
-    data->has_l0       = has_l0;
-    data->has_u0       = has_u0;
-    data->has_w0       = has_w0;
-    data->has_b        = has_b;
-    data->has_b_dagger = has_b_dagger;
-
-    add_new_string();
 
 }
 
