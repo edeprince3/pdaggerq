@@ -567,8 +567,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             bool has_m0       = false;
             bool has_s0       = false;
             bool has_w0       = false;
-            bool has_b        = false;
-            bool has_b_dagger = false;
+            //bool has_b        = false;
+            //bool has_b_dagger = false;
 
             int occ_label_count = 0;
             int vir_label_count = 0;
@@ -794,13 +794,13 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                 }else if ( in[i].substr(0,2) == "b+" ){ // B*
 
-                        has_b_dagger = true;
+                        //has_b_dagger = true;
 
                         data->is_boson_dagger.push_back(true);
 
                 }else if ( in[i].substr(0,2) == "b-" ){ // B
 
-                        has_b = true;
+                        //has_b = true;
 
                         data->is_boson_dagger.push_back(false);
 
@@ -1135,8 +1135,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             data->has_m0       = has_m0;
             data->has_s0       = has_s0;
             data->has_w0       = has_w0;
-            data->has_b        = has_b;
-            data->has_b_dagger = has_b_dagger;
+            //data->has_b        = has_b;
+            //data->has_b_dagger = has_b_dagger;
 
             add_new_string();
 
@@ -1229,8 +1229,8 @@ void ahat_helper::add_new_string_true_vacuum(){
     mystring->data->has_m0       = data->has_m0;
     mystring->data->has_s0       = data->has_s0;
     mystring->data->has_w0       = data->has_w0;
-    mystring->data->has_b        = data->has_b;
-    mystring->data->has_b_dagger = data->has_b_dagger;
+    //mystring->data->has_b        = data->has_b;
+    //mystring->data->has_b_dagger = data->has_b_dagger;
 
     for (int i = 0; i < (int)data->string.size(); i++) {
         std::string me = data->string[i];
@@ -1410,8 +1410,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
         mystrings[string_num]->data->has_m0       = data->has_m0;
         mystrings[string_num]->data->has_s0       = data->has_s0;
         mystrings[string_num]->data->has_w0       = data->has_w0;
-        mystrings[string_num]->data->has_b        = data->has_b;
-        mystrings[string_num]->data->has_b_dagger = data->has_b_dagger;
+        //mystrings[string_num]->data->has_b        = data->has_b;
+        //mystrings[string_num]->data->has_b_dagger = data->has_b_dagger;
 
         // tensor type
         mystrings[string_num]->data->tensor_type = data->tensor_type;

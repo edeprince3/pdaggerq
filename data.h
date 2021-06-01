@@ -88,11 +88,13 @@ class StringData {
     /// should we account for w0?
     bool has_w0 = false;
 
+/*
     /// should we account for terms with just b?
     bool has_b = false;
 
     /// should we account for terms with just b+?
     bool has_b_dagger = false;
+*/
 
     /// list: is bosonic operator creator or annihilator?
     std::vector<bool> is_boson_dagger;

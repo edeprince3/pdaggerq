@@ -503,15 +503,16 @@ void ahat::print() {
     // bosons:
     for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
         if ( data->is_boson_dagger[i] ) {
-            printf("Q* ");
+            printf("B* ");
         }else {
-            printf("Q ");
+            printf("B ");
         }
     }
     if ( data->has_w0 ) {
         printf("w0");
         printf(" ");
     }
+/*
     if ( data->has_b ) {
         printf("b-");
         printf(" ");
@@ -520,6 +521,7 @@ void ahat::print() {
         printf("b+");
         printf(" ");
     }
+*/
     printf("\n");
 }
 
@@ -813,20 +815,22 @@ std::vector<std::string> ahat::get_string() {
     // bosons:
     for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
         if ( data->is_boson_dagger[i] ) {
-            my_string.push_back("Q*");
+            my_string.push_back("B*");
         }else {
-            my_string.push_back("Q");
+            my_string.push_back("B");
         }
     }
     if ( data->has_w0 ) {
         my_string.push_back("w0");
     }
+/*
     if ( data->has_b ) {
         my_string.push_back("b-");
     }
     if ( data->has_b_dagger ) {
         my_string.push_back("b+");
     }
+*/
 
     return my_string;
 }
@@ -1735,12 +1739,14 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
     if ( ordered_1->data->has_l0 != ordered_2->data->has_l0 ) {
         return false;
     }
+/*
     if ( ordered_1->data->has_b != ordered_2->data->has_b ) {
         return false;
     }
     if ( ordered_1->data->has_b_dagger != ordered_2->data->has_b_dagger ) {
         return false;
     }
+*/
 
     n_permute = 0;
 
@@ -2186,11 +2192,14 @@ void ahat::shallow_copy(void * copy_me) {
     // w0 
     data->has_w0 = in->data->has_w0;
 
+/*
     // b 
     data->has_b = in->data->has_b;
 
     // b_dagger 
     data->has_b_dagger = in->data->has_b_dagger;
+*/
+
 }
 
 
