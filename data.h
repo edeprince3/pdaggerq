@@ -64,6 +64,12 @@ class StringData {
     /// list: labels right-hand amplitudes
     std::vector<std::vector<std::string> > right_amplitudes;
 
+    /// list: labels left-hand amplitudes plus boson
+    std::vector<std::vector<std::string> > m_amplitudes;
+
+    /// list: labels right-hand amplitudes plus boson
+    std::vector<std::vector<std::string> > s_amplitudes;
+
     /// should we account for l0 in EOM-CC?
     bool has_l0 = false;
 
@@ -72,6 +78,12 @@ class StringData {
 
     /// should we account for u0?
     bool has_u0 = false;
+
+    /// should we account for m0?
+    bool has_m0 = false;
+
+    /// should we account for s0?
+    bool has_s0 = false;
 
     /// should we account for w0?
     bool has_w0 = false;

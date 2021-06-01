@@ -51,6 +51,12 @@ class ahat {
     /// is label "idx" present in u-amplitudes?
     bool index_in_u_amplitudes(std::string idx);
 
+    /// is label "idx" present in m-amplitudes?
+    bool index_in_m_amplitudes(std::string idx);
+
+    /// is label "idx" present in s-amplitudes?
+    bool index_in_s_amplitudes(std::string idx);
+
     /// is label "idx" present in left-hand amplitudes?
     bool index_in_left_amplitudes(std::string idx);
 
@@ -68,6 +74,12 @@ class ahat {
 
     /// replace one label with another (in u-amplitudes)
     void replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx);
+
+    /// replace one label with another (in m-amplitudes)
+    void replace_index_in_m_amplitudes(std::string old_idx, std::string new_idx);
+
+    /// replace one label with another (in s-amplitudes)
+    void replace_index_in_s_amplitudes(std::string old_idx, std::string new_idx);
 
     /// replace one label with another (in left-hand amplitudes)
     void replace_index_in_left_amplitudes(std::string old_idx, std::string new_idx);

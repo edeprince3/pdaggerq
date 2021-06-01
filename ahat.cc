@@ -432,6 +432,74 @@ void ahat::print() {
         printf(" ");
     }
 
+    // m_amplitudes
+    if ( (int)data->m_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
+           
+            if ( (int)data->m_amplitudes[i].size() > 0 ) {
+                // m1
+                if ( (int)data->m_amplitudes[i].size() == 2 ) {
+                    printf("m1(");
+                    printf("%s",data->m_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->m_amplitudes[i][1].c_str());
+                    printf(")");
+                }
+                // m2
+                if ( (int)data->m_amplitudes[i].size() == 4 ) {
+                    printf("m2(");
+                    printf("%s",data->m_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->m_amplitudes[i][1].c_str());
+                    printf(",");
+                    printf("%s",data->m_amplitudes[i][2].c_str());
+                    printf(",");
+                    printf("%s",data->m_amplitudes[i][3].c_str());
+                    printf(")");
+                }
+                printf(" ");
+            } 
+        }
+    }
+    if ( data->has_m0 ) {
+        printf("m0");
+        printf(" ");
+    }
+
+    // s_amplitudes
+    if ( (int)data->s_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
+           
+            if ( (int)data->s_amplitudes[i].size() > 0 ) {
+                // s1
+                if ( (int)data->s_amplitudes[i].size() == 2 ) {
+                    printf("s1(");
+                    printf("%s",data->s_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->s_amplitudes[i][1].c_str());
+                    printf(")");
+                }
+                // s2
+                if ( (int)data->s_amplitudes[i].size() == 4 ) {
+                    printf("s2(");
+                    printf("%s",data->s_amplitudes[i][0].c_str());
+                    printf(",");
+                    printf("%s",data->s_amplitudes[i][1].c_str());
+                    printf(",");
+                    printf("%s",data->s_amplitudes[i][2].c_str());
+                    printf(",");
+                    printf("%s",data->s_amplitudes[i][3].c_str());
+                    printf(")");
+                }
+                printf(" ");
+            } 
+        }
+    }
+    if ( data->has_s0 ) {
+        printf("s0");
+        printf(" ");
+    }
+
     // bosons:
     for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
         if ( data->is_boson_dagger[i] ) {
@@ -672,6 +740,74 @@ std::vector<std::string> ahat::get_string() {
     }
     if ( data->has_u0 ) {
         my_string.push_back("u0");
+    }
+
+    // m_amplitudes
+    if ( (int)data->m_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
+           
+            if ( (int)data->m_amplitudes[i].size() > 0 ) {
+                std::string tmp;
+                // m1
+                if ( (int)data->m_amplitudes[i].size() == 2 ) {
+                    tmp = "m1("
+                        + data->m_amplitudes[i][0]
+                        + ","
+                        + data->m_amplitudes[i][1]
+                        + ")";
+                }
+                // m2
+                if ( (int)data->m_amplitudes[i].size() == 4 ) {
+                    tmp = "m2("
+                        + data->m_amplitudes[i][0]
+                        + ","
+                        + data->m_amplitudes[i][1]
+                        + ","
+                        + data->m_amplitudes[i][2]
+                        + ","
+                        + data->m_amplitudes[i][3]
+                        + ")";
+                }
+                my_string.push_back(tmp);
+            } 
+        }
+    }
+    if ( data->has_m0 ) {
+        my_string.push_back("m0");
+    }
+
+    // s_amplitudes
+    if ( (int)data->s_amplitudes.size() > 0 ) {
+        for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
+           
+            if ( (int)data->s_amplitudes[i].size() > 0 ) {
+                std::string tmp;
+                // s1
+                if ( (int)data->s_amplitudes[i].size() == 2 ) {
+                    tmp = "s1("
+                        + data->s_amplitudes[i][0]
+                        + ","
+                        + data->s_amplitudes[i][1]
+                        + ")";
+                }
+                // s2
+                if ( (int)data->s_amplitudes[i].size() == 4 ) {
+                    tmp = "s2("
+                        + data->s_amplitudes[i][0]
+                        + ","
+                        + data->s_amplitudes[i][1]
+                        + ","
+                        + data->s_amplitudes[i][2]
+                        + ","
+                        + data->s_amplitudes[i][3]
+                        + ")";
+                }
+                my_string.push_back(tmp);
+            } 
+        }
+    }
+    if ( data->has_s0 ) {
+        my_string.push_back("s0");
     }
 
     // bosons:
@@ -952,6 +1088,122 @@ void ahat::update_bra_labels() {
             if ( data->u_amplitudes[i][0] == "f" ) {
                 data->u_amplitudes[i][0] = data->u_amplitudes[i][1];
                 data->u_amplitudes[i][1] = "f";
+                sign = -sign;
+            }
+        }
+
+    }
+
+    // m_amplitudes
+    find_m = index_in_m_amplitudes("m");
+    find_n = index_in_m_amplitudes("n");
+    find_e = index_in_m_amplitudes("e");
+    find_f = index_in_m_amplitudes("f");
+    
+    for (int i = 0; i < data->m_amplitudes.size(); i++) {
+
+        if ( data->m_amplitudes[i].size() != 4 ) continue;
+
+        if ( find_m && find_n ) {
+            // should appear as "mn"
+            if ( data->m_amplitudes[i][2] == "n" && data->m_amplitudes[i][3] == "m" ) {
+                data->m_amplitudes[i][2] = "m";
+                data->m_amplitudes[i][3] = "n";
+                sign = -sign;
+            }
+        }else if ( find_m ) {
+            // should appear as "-m"
+            if ( data->m_amplitudes[i][2] == "m" ) {
+                data->m_amplitudes[i][2] = data->m_amplitudes[i][3];
+                data->m_amplitudes[i][3] = "m";
+                sign = -sign;
+            }
+        }else if ( find_n) {
+            // should appear as "-n"
+            if ( data->m_amplitudes[i][2] == "n" ) {
+                data->m_amplitudes[i][2] = data->m_amplitudes[i][3];
+                data->m_amplitudes[i][3] = "n";
+                sign = -sign;
+            }
+        }
+
+        if ( find_e && find_f ) {
+            // should appear as "mn"
+            if ( data->m_amplitudes[i][0] == "f" && data->m_amplitudes[i][1] == "e" ) {
+                data->m_amplitudes[i][0] = "e";
+                data->m_amplitudes[i][1] = "f";
+                sign = -sign;
+            }
+        }else if ( find_e ) {
+            // should appear as "-e"
+            if ( data->m_amplitudes[i][0] == "e" ) {
+                data->m_amplitudes[i][0] = data->m_amplitudes[i][1];
+                data->m_amplitudes[i][1] = "e";
+                sign = -sign;
+            }
+        }else if ( find_f) {
+            // should appear as "-f"
+            if ( data->m_amplitudes[i][0] == "f" ) {
+                data->m_amplitudes[i][0] = data->m_amplitudes[i][1];
+                data->m_amplitudes[i][1] = "f";
+                sign = -sign;
+            }
+        }
+
+    }
+
+    // s_amplitudes
+    find_m = index_in_s_amplitudes("m");
+    find_n = index_in_s_amplitudes("n");
+    find_e = index_in_s_amplitudes("e");
+    find_f = index_in_s_amplitudes("f");
+    
+    for (int i = 0; i < data->s_amplitudes.size(); i++) {
+
+        if ( data->s_amplitudes[i].size() != 4 ) continue;
+
+        if ( find_m && find_n ) {
+            // should appear as "mn"
+            if ( data->s_amplitudes[i][2] == "n" && data->s_amplitudes[i][3] == "m" ) {
+                data->s_amplitudes[i][2] = "m";
+                data->s_amplitudes[i][3] = "n";
+                sign = -sign;
+            }
+        }else if ( find_m ) {
+            // should appear as "-m"
+            if ( data->s_amplitudes[i][2] == "m" ) {
+                data->s_amplitudes[i][2] = data->s_amplitudes[i][3];
+                data->s_amplitudes[i][3] = "m";
+                sign = -sign;
+            }
+        }else if ( find_n) {
+            // should appear as "-n"
+            if ( data->s_amplitudes[i][2] == "n" ) {
+                data->s_amplitudes[i][2] = data->s_amplitudes[i][3];
+                data->s_amplitudes[i][3] = "n";
+                sign = -sign;
+            }
+        }
+
+        if ( find_e && find_f ) {
+            // should appear as "mn"
+            if ( data->s_amplitudes[i][0] == "f" && data->s_amplitudes[i][1] == "e" ) {
+                data->s_amplitudes[i][0] = "e";
+                data->s_amplitudes[i][1] = "f";
+                sign = -sign;
+            }
+        }else if ( find_e ) {
+            // should appear as "-e"
+            if ( data->s_amplitudes[i][0] == "e" ) {
+                data->s_amplitudes[i][0] = data->s_amplitudes[i][1];
+                data->s_amplitudes[i][1] = "e";
+                sign = -sign;
+            }
+        }else if ( find_f) {
+            // should appear as "-f"
+            if ( data->s_amplitudes[i][0] == "f" ) {
+                data->s_amplitudes[i][0] = data->s_amplitudes[i][1];
+                data->s_amplitudes[i][1] = "f";
                 sign = -sign;
             }
         }
@@ -1347,16 +1599,30 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
     }
     pruned.clear();
 
+    //printf("starting string comparisons\n");fflush(stdout);
+
     // consolidate terms, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         if ( ordered[i]-> skip ) continue;
 
-        bool find_i = ordered[i]->index_in_tensor("i") || ordered[i]->index_in_t_amplitudes("i") || ordered[i]->index_in_u_amplitudes("i");
-        bool find_j = ordered[i]->index_in_tensor("j") || ordered[i]->index_in_t_amplitudes("j") || ordered[i]->index_in_u_amplitudes("j");
+        // TODO: should be searching for labels in left / right / m / s amplitudes as well
+
+        bool find_i = ordered[i]->index_in_tensor("i") 
+                   || ordered[i]->index_in_t_amplitudes("i") 
+                   || ordered[i]->index_in_u_amplitudes("i");
+
+        bool find_j = ordered[i]->index_in_tensor("j") 
+                   || ordered[i]->index_in_t_amplitudes("j") 
+                   || ordered[i]->index_in_u_amplitudes("j");
                                                                                                                                              
-        bool find_a = ordered[i]->index_in_tensor("a") || ordered[i]->index_in_t_amplitudes("a") || ordered[i]->index_in_u_amplitudes("a");
-        bool find_b = ordered[i]->index_in_tensor("b") || ordered[i]->index_in_t_amplitudes("b") || ordered[i]->index_in_u_amplitudes("b");
+        bool find_a = ordered[i]->index_in_tensor("a") 
+                   || ordered[i]->index_in_t_amplitudes("a") 
+                   || ordered[i]->index_in_u_amplitudes("a");
+
+        bool find_b = ordered[i]->index_in_tensor("b") 
+                   || ordered[i]->index_in_t_amplitudes("b") 
+                   || ordered[i]->index_in_u_amplitudes("b");
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
 
@@ -1450,8 +1716,14 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute) {
 
 
-    // don't forget w0, u0, r0, l0, b+, b-
+    // don't forget w0, u0, r0, l0, b+, b-, m0, s0
     if ( ordered_1->data->has_u0 != ordered_2->data->has_u0 ) {
+        return false;
+    }
+    if ( ordered_1->data->has_m0 != ordered_2->data->has_m0 ) {
+        return false;
+    }
+    if ( ordered_1->data->has_s0 != ordered_2->data->has_s0 ) {
         return false;
     }
     if ( ordered_1->data->has_w0 != ordered_2->data->has_w0 ) {
@@ -1569,6 +1841,70 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
         }
     }
     if ( nsame_u_amps != (int)ordered_1->data->u_amplitudes.size() ) return false;
+
+    // m_amplitudes, which can be complicated since they aren't sorted
+
+    // same number of m_amplitudes?
+    if ( ordered_1->data->m_amplitudes.size() != ordered_2->data->m_amplitudes.size() ) return false;
+    
+    int nsame_m_amps = 0;
+    for (int ii = 0; ii < (int)ordered_1->data->m_amplitudes.size(); ii++) {
+        for (int jj = 0; jj < (int)ordered_2->data->m_amplitudes.size(); jj++) {
+
+            // m1 vs m2?
+            if ( ordered_1->data->m_amplitudes[ii].size() != ordered_2->data->m_amplitudes[jj].size() ) continue;
+
+            // indices?
+            int nsame_idx = 0;
+            for (int iii = 0; iii < (int)ordered_1->data->m_amplitudes[ii].size(); iii++) {
+                for (int jjj = 0; jjj < (int)ordered_2->data->m_amplitudes[jj].size(); jjj++) {
+                    if ( ordered_1->data->m_amplitudes[ii][iii] == ordered_2->data->m_amplitudes[jj][jjj] ) {
+                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
+                        nsame_idx++;
+                        break;
+                    }
+                }
+            }
+            // if all indices are the same, the u_amplitudes must be the same, but we need to be careful of permutations
+            if ( nsame_idx == (int)ordered_1->data->m_amplitudes[ii].size() ) {
+                nsame_m_amps++;
+                break;
+            }
+        }
+    }
+    if ( nsame_m_amps != (int)ordered_1->data->m_amplitudes.size() ) return false;
+
+    // s_amplitudes, which can be complicated since they aren't sorted
+
+    // same number of s_amplitudes?
+    if ( ordered_1->data->s_amplitudes.size() != ordered_2->data->s_amplitudes.size() ) return false;
+    
+    int nsame_s_amps = 0;
+    for (int ii = 0; ii < (int)ordered_1->data->s_amplitudes.size(); ii++) {
+        for (int jj = 0; jj < (int)ordered_2->data->s_amplitudes.size(); jj++) {
+
+            // s1 vs s2?
+            if ( ordered_1->data->s_amplitudes[ii].size() != ordered_2->data->s_amplitudes[jj].size() ) continue;
+
+            // indices?
+            int nsame_idx = 0;
+            for (int iii = 0; iii < (int)ordered_1->data->s_amplitudes[ii].size(); iii++) {
+                for (int jjj = 0; jjj < (int)ordered_2->data->s_amplitudes[jj].size(); jjj++) {
+                    if ( ordered_1->data->s_amplitudes[ii][iii] == ordered_2->data->s_amplitudes[jj][jjj] ) {
+                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
+                        nsame_idx++;
+                        break;
+                    }
+                }
+            }
+            // if all indices are the same, the s_amplitudes must be the same, but we need to be careful of permutations
+            if ( nsame_idx == (int)ordered_1->data->s_amplitudes[ii].size() ) {
+                nsame_s_amps++;
+                break;
+            }
+        }
+    }
+    if ( nsame_s_amps != (int)ordered_1->data->s_amplitudes.size() ) return false;
 
     // left-hand amplitudes, which can be complicated since they aren't sorted
 
@@ -1796,6 +2132,24 @@ void ahat::shallow_copy(void * copy_me) {
         data->u_amplitudes.push_back(tmp);
     }
 
+    // m_amplitudes
+    for (int i = 0; i < (int)in->data->m_amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in->data->m_amplitudes[i].size(); j++) {
+            tmp.push_back(in->data->m_amplitudes[i][j]);
+        }
+        data->m_amplitudes.push_back(tmp);
+    }
+
+    // s_amplitudes
+    for (int i = 0; i < (int)in->data->s_amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in->data->s_amplitudes[i].size(); j++) {
+            tmp.push_back(in->data->s_amplitudes[i][j]);
+        }
+        data->s_amplitudes.push_back(tmp);
+    }
+
     // left-hand amplitudes
     for (int i = 0; i < (int)in->data->left_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
@@ -1823,6 +2177,12 @@ void ahat::shallow_copy(void * copy_me) {
     // u0 
     data->has_u0 = in->data->has_u0;
 
+    // m0 
+    data->has_m0 = in->data->has_m0;
+
+    // s0 
+    data->has_s0 = in->data->has_s0;
+
     // w0 
     data->has_w0 = in->data->has_w0;
 
@@ -1841,6 +2201,10 @@ bool ahat::index_in_anywhere(std::string idx) {
     }else if ( index_in_t_amplitudes(idx) ) {
         return true;
     }else if ( index_in_u_amplitudes(idx) ) {
+        return true;
+    }else if ( index_in_m_amplitudes(idx) ) {
+        return true;
+    }else if ( index_in_s_amplitudes(idx) ) {
         return true;
     }else if ( index_in_left_amplitudes(idx) ) {
         return true;
@@ -1890,6 +2254,34 @@ bool ahat::index_in_u_amplitudes(std::string idx) {
 
 }
 
+bool ahat::index_in_m_amplitudes(std::string idx) {
+
+    for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
+            if ( data->m_amplitudes[i][j] == idx ) {
+                return true;
+            }
+           
+        }
+    }
+    return false;
+
+}
+
+bool ahat::index_in_s_amplitudes(std::string idx) {
+
+    for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
+            if ( data->s_amplitudes[i][j] == idx ) {
+                return true;
+            }
+           
+        }
+    }
+    return false;
+
+}
+
 bool ahat::index_in_left_amplitudes(std::string idx) {
 
     for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
@@ -1923,6 +2315,8 @@ void ahat::replace_index_everywhere(std::string old_idx, std::string new_idx) {
     replace_index_in_tensor(old_idx,new_idx);
     replace_index_in_t_amplitudes(old_idx,new_idx);
     replace_index_in_u_amplitudes(old_idx,new_idx);
+    replace_index_in_m_amplitudes(old_idx,new_idx);
+    replace_index_in_s_amplitudes(old_idx,new_idx);
     replace_index_in_left_amplitudes(old_idx,new_idx);
     replace_index_in_right_amplitudes(old_idx,new_idx);
 
@@ -1959,6 +2353,32 @@ void ahat::replace_index_in_u_amplitudes(std::string old_idx, std::string new_id
         for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
             if ( data->u_amplitudes[i][j] == old_idx ) {
                 data->u_amplitudes[i][j] = new_idx;
+                return; 
+            }
+        }
+    }
+
+}
+
+void ahat::replace_index_in_m_amplitudes(std::string old_idx, std::string new_idx) {
+
+    for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
+            if ( data->m_amplitudes[i][j] == old_idx ) {
+                data->m_amplitudes[i][j] = new_idx;
+                return; 
+            }
+        }
+    }
+
+}
+
+void ahat::replace_index_in_s_amplitudes(std::string old_idx, std::string new_idx) {
+
+    for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
+        for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
+            if ( data->s_amplitudes[i][j] == old_idx ) {
+                data->s_amplitudes[i][j] = new_idx;
                 return; 
             }
         }
@@ -2058,6 +2478,10 @@ void ahat::gobble_deltas() {
         bool delta2_in_right_amplitudes = index_in_right_amplitudes( delta2[i] );
         bool delta1_in_u_amplitudes     = index_in_u_amplitudes( delta1[i] );
         bool delta2_in_u_amplitudes     = index_in_u_amplitudes( delta2[i] );
+        bool delta1_in_m_amplitudes     = index_in_m_amplitudes( delta1[i] );
+        bool delta2_in_m_amplitudes     = index_in_m_amplitudes( delta2[i] );
+        bool delta1_in_s_amplitudes     = index_in_s_amplitudes( delta1[i] );
+        bool delta2_in_s_amplitudes     = index_in_s_amplitudes( delta2[i] );
 
         if ( delta1_in_tensor ) {
             replace_index_in_tensor( delta1[i], delta2[i] );
@@ -2088,6 +2512,18 @@ void ahat::gobble_deltas() {
             continue;
         }else if ( delta2_in_u_amplitudes ) {
             replace_index_in_u_amplitudes( delta2[i], delta1[i] );
+            continue;
+        }else if ( delta1_in_m_amplitudes ) {
+            replace_index_in_m_amplitudes( delta1[i], delta2[i] );
+            continue;
+        }else if ( delta2_in_m_amplitudes ) {
+            replace_index_in_m_amplitudes( delta2[i], delta1[i] );
+            continue;
+        }else if ( delta1_in_s_amplitudes ) {
+            replace_index_in_s_amplitudes( delta1[i], delta2[i] );
+            continue;
+        }else if ( delta2_in_s_amplitudes ) {
+            replace_index_in_s_amplitudes( delta2[i], delta1[i] );
             continue;
         }
 

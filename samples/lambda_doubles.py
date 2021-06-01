@@ -14,7 +14,7 @@ print('')
 print('    0 = <0| e(-T) H e*f*nm e(T)|0> + <0| L e(-T) [H, e*f*nm] e(T)|0>')
 print('')
 
-#  <0| e(-T) H e*m e(T)|0>
+#  <0| e(-T) H e*f*nm e(T)|0>
 
 ahat.set_left_operators(['1'])
 ahat.set_right_operators(['1'])
@@ -22,7 +22,7 @@ ahat.set_right_operators(['1'])
 ahat.add_st_operator(1.0,['h','e2(e,f,n,m)'],['t1','t2'])
 ahat.add_st_operator(1.0,['g','e2(e,f,n,m)'],['t1','t2'])
 
-# <0| L e(-T) [H,e*m] e(T)|0>
+# <0| L e(-T) [H,e*f*nm] e(T)|0>
 
 ahat.set_left_operators(['l1','l2'])
 

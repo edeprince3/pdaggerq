@@ -56,6 +56,8 @@ void export_ahat_helper(py::module& m) {
         .def("set_tensor", &ahat_helper::set_tensor)
         .def("set_t_amplitudes", &ahat_helper::set_t_amplitudes)
         .def("set_u_amplitudes", &ahat_helper::set_u_amplitudes)
+        .def("set_m_amplitudes", &ahat_helper::set_m_amplitudes)
+        .def("set_s_amplitudes", &ahat_helper::set_s_amplitudes)
         .def("set_left_amplitudes", &ahat_helper::set_left_amplitudes)
         .def("set_right_amplitudes", &ahat_helper::set_right_amplitudes)
         .def("set_left_operators", &ahat_helper::set_left_operators)
@@ -562,6 +564,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             bool has_l0       = false;
             bool has_r0       = false;
             bool has_u0       = false;
+            bool has_m0       = false;
+            bool has_s0       = false;
             bool has_w0       = false;
             bool has_b        = false;
             bool has_b_dagger = false;
@@ -845,80 +849,6 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                         exit(1);
                     }
 
-/*
-                    if ( in[i].substr(1,1) == "0" ){
-
-                        has_u0 = true;
-
-                        data->is_boson_dagger.push_back(true);
-
-                    }else if ( in[i].substr(1,1) == "1" ){
-
-                        // find comma
-                        size_t pos = in[i].find(",");
-                        if ( pos == std::string::npos ) {
-                            printf("\n");
-                            printf("    error in amplitude definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-                        size_t len = pos - 2; 
-
-                        // index 1
-                        tmp_string.push_back(in[i].substr(2,len)+"*");
-
-                        // index 2
-                        tmp_string.push_back(in[i].substr(pos+1));
-
-                        set_u_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
-
-                        data->is_boson_dagger.push_back(true);
-
-                    }else if ( in[i].substr(1,1) == "2" ){
-
-                            // count indices
-                            size_t pos = 0;
-                            int ncomma = 0;
-                            std::vector<size_t> commas;
-                            pos = in[i].find(",", pos + 1);
-                            commas.push_back(pos);
-                            while( pos != std::string::npos){
-                                pos = in[i].find(",", pos + 1);
-                                commas.push_back(pos);
-                                ncomma++;
-                            }
-
-                        if ( ncomma != 3 ) {
-                            printf("\n");
-                            printf("    error in amplitude definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
-                        factor *= 0.25;
-
-                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[2]+1));
-                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
-
-                        set_u_amplitudes({
-                                           in[i].substr(2,commas[0]-2),
-                                           in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
-                                           in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
-                                           in[i].substr(commas[2]+1)
-                                       });
-
-                        data->is_boson_dagger.push_back(true);
-
-                    }else {
-                        printf("\n");
-                        printf("    error: only u0, u1, or u2 amplitudes are supported\n");
-                        printf("\n");
-                        exit(1);
-                    }
-*/
-
                 }else if ( in[i].substr(0,1) == "r" ){
 
                     if ( in[i].substr(1,1) == "0" ){
@@ -958,77 +888,50 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                         exit(1);
                     }
 
-/*
+                }else if ( in[i].substr(0,1) == "s" ){ // r amplitudes + boson creator
 
                     if ( in[i].substr(1,1) == "0" ){
 
-                        has_r0 = true;
+                        has_s0 = true;
+
+                        data->is_boson_dagger.push_back(true);
 
                     }else if ( in[i].substr(1,1) == "1" ){
 
-                        // find comma
-                        size_t pos = in[i].find(",");
-                        if ( pos == std::string::npos ) {
-                            printf("\n");
-                            printf("    error in right-hand amplitude definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-                        size_t len = pos - 2; 
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "i" + std::to_string(occ_label_count++);
 
-                        // index 1
-                        tmp_string.push_back(in[i].substr(2,len)+"*");
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2);
 
-                        // index 2
-                        tmp_string.push_back(in[i].substr(pos+1));
+                        set_s_amplitudes({idx1,idx2});
 
-                        set_right_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+                        data->is_boson_dagger.push_back(true);
 
                     }else if ( in[i].substr(1,1) == "2" ){
 
-                        // count indices
-                        size_t pos = 0;
-                        int ncomma = 0;
-                        std::vector<size_t> commas;
-                        pos = in[i].find(",", pos + 1);
-                        commas.push_back(pos);
-                        while( pos != std::string::npos){
-                            pos = in[i].find(",", pos + 1);
-                            commas.push_back(pos);
-                            ncomma++;
-                        }
-
-                        if ( ncomma != 3 ) {
-                            printf("\n");
-                            printf("    error in right-hand amplitude definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
                         factor *= 0.25;
 
+                        std::string idx1 = "a" + std::to_string(vir_label_count++);
+                        std::string idx2 = "a" + std::to_string(vir_label_count++);
+                        std::string idx3 = "i" + std::to_string(occ_label_count++);
+                        std::string idx4 = "i" + std::to_string(occ_label_count++);
 
-                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[2]+1));
-                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2+"*");
+                        tmp_string.push_back(idx3);
+                        tmp_string.push_back(idx4);
 
-                        set_right_amplitudes({
-                                                 in[i].substr(2,commas[0]-2),
-                                                 in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
-                                                 in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
-                                                 in[i].substr(commas[2]+1)
-                                             });
+                        set_s_amplitudes({idx1,idx2,idx4,idx3});
+
+                        data->is_boson_dagger.push_back(true);
 
                     }else {
                         printf("\n");
-                        printf("    error: only r1 or r2 amplitudes are supported\n");
+                        printf("    error: only s0, s1, or s2 amplitudes are supported\n");
                         printf("\n");
                         exit(1);
                     }
-
-*/
-
 
                 }else if ( in[i].substr(0,1) == "l" ){
 
@@ -1069,73 +972,50 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                         exit(1);
                     }
 
-/*
+                }else if ( in[i].substr(0,1) == "m" ){ // l amplitudes plus boson annihilator
+
                     if ( in[i].substr(1,1) == "0" ){
-                        has_l0 = true;
+
+                        has_m0 = true;
+
+                        data->is_boson_dagger.push_back(false);
+
                     }else if ( in[i].substr(1,1) == "1" ){
 
-                        // find comma
-                        size_t pos = in[i].find(",");
-                        if ( pos == std::string::npos ) {
-                            printf("\n");
-                            printf("    error in left-hand amplitude definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-                        size_t len = pos - 2; 
+                        std::string idx1 = "i" + std::to_string(occ_label_count++);
+                        std::string idx2 = "a" + std::to_string(vir_label_count++);
 
-                        // index 1
-                        tmp_string.push_back(in[i].substr(2,len)+"*");
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2);
 
-                        // index 2
-                        tmp_string.push_back(in[i].substr(pos+1));
+                        set_m_amplitudes({idx1,idx2});
 
-                        set_left_amplitudes({in[i].substr(2,len), in[i].substr(pos+1)});
+                        data->is_boson_dagger.push_back(false);
 
                     }else if ( in[i].substr(1,1) == "2" ){
 
-                        // count indices
-                        size_t pos = 0;
-                        int ncomma = 0;
-                        std::vector<size_t> commas;
-                        pos = in[i].find(",", pos + 1);
-                        commas.push_back(pos);
-                        while( pos != std::string::npos){
-                            pos = in[i].find(",", pos + 1);
-                            commas.push_back(pos);
-                            ncomma++;
-                        }
-
-                        if ( ncomma != 3 ) {
-                            printf("\n");
-                            printf("    error in left-hand amplitude definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
                         factor *= 0.25;
 
-                        // ijba
-                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[2]+1));
-                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+                        std::string idx1 = "i" + std::to_string(occ_label_count++);
+                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+                        std::string idx3 = "a" + std::to_string(vir_label_count++);
+                        std::string idx4 = "a" + std::to_string(vir_label_count++);
 
-                        // ijab
-                        set_left_amplitudes({
-                                                in[i].substr(2,commas[0]-2),
-                                                in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
-                                                in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
-                                                in[i].substr(commas[2]+1)
-                                            });
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2+"*");
+                        tmp_string.push_back(idx3);
+                        tmp_string.push_back(idx4);
+
+                        set_m_amplitudes({idx1,idx2,idx4,idx3});
+
+                        data->is_boson_dagger.push_back(false);
 
                     }else {
                         printf("\n");
-                        printf("    error: only l1 or l2 left-hand amplitudes are supported\n");
+                        printf("    error: only m0, m1, or m2 amplitudes are supported\n");
                         printf("\n");
                         exit(1);
                     }
-*/
 
                 }else if ( in[i].substr(0,1) == "e" ){
 
@@ -1252,6 +1132,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             data->has_r0       = has_r0;
             data->has_l0       = has_l0;
             data->has_u0       = has_u0;
+            data->has_m0       = has_m0;
+            data->has_s0       = has_s0;
             data->has_w0       = has_w0;
             data->has_b        = has_b;
             data->has_b_dagger = has_b_dagger;
@@ -1293,6 +1175,22 @@ void ahat_helper::set_u_amplitudes(std::vector<std::string> in) {
     data->u_amplitudes.push_back(tmp);
 }
 
+void ahat_helper::set_m_amplitudes(std::vector<std::string> in) {
+    std::vector<std::string> tmp;
+    for (int i = 0; i < (int)in.size(); i++) {
+        tmp.push_back(in[i]);
+    }
+    data->m_amplitudes.push_back(tmp);
+}
+
+void ahat_helper::set_s_amplitudes(std::vector<std::string> in) {
+    std::vector<std::string> tmp;
+    for (int i = 0; i < (int)in.size(); i++) {
+        tmp.push_back(in[i]);
+    }
+    data->s_amplitudes.push_back(tmp);
+}
+
 void ahat_helper::set_left_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
@@ -1328,6 +1226,8 @@ void ahat_helper::add_new_string_true_vacuum(){
     mystring->data->has_r0       = data->has_r0;
     mystring->data->has_l0       = data->has_l0;
     mystring->data->has_u0       = data->has_u0;
+    mystring->data->has_m0       = data->has_m0;
+    mystring->data->has_s0       = data->has_s0;
     mystring->data->has_w0       = data->has_w0;
     mystring->data->has_b        = data->has_b;
     mystring->data->has_b_dagger = data->has_b_dagger;
@@ -1361,6 +1261,22 @@ void ahat_helper::add_new_string_true_vacuum(){
             tmp.push_back(data->u_amplitudes[i][j]);
         }
         mystring->data->u_amplitudes.push_back(tmp);
+    }
+
+    for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
+            tmp.push_back(data->m_amplitudes[i][j]);
+        }
+        mystring->data->m_amplitudes.push_back(tmp);
+    }
+
+    for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
+            tmp.push_back(data->s_amplitudes[i][j]);
+        }
+        mystring->data->s_amplitudes.push_back(tmp);
     }
 
     for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
@@ -1491,6 +1407,8 @@ void ahat_helper::add_new_string_fermi_vacuum(){
         mystrings[string_num]->data->has_r0       = data->has_r0;
         mystrings[string_num]->data->has_l0       = data->has_l0;
         mystrings[string_num]->data->has_u0       = data->has_u0;
+        mystrings[string_num]->data->has_m0       = data->has_m0;
+        mystrings[string_num]->data->has_s0       = data->has_s0;
         mystrings[string_num]->data->has_w0       = data->has_w0;
         mystrings[string_num]->data->has_b        = data->has_b;
         mystrings[string_num]->data->has_b_dagger = data->has_b_dagger;
@@ -1743,6 +1661,22 @@ void ahat_helper::add_new_string_fermi_vacuum(){
                 tmp.push_back(data->u_amplitudes[i][j]);
             }
             mystrings[string_num]->data->u_amplitudes.push_back(tmp);
+        }
+
+        for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
+            std::vector<std::string> tmp;
+            for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
+                tmp.push_back(data->m_amplitudes[i][j]);
+            }
+            mystrings[string_num]->data->m_amplitudes.push_back(tmp);
+        }
+
+        for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
+            std::vector<std::string> tmp;
+            for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
+                tmp.push_back(data->s_amplitudes[i][j]);
+            }
+            mystrings[string_num]->data->s_amplitudes.push_back(tmp);
         }
 
         for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
