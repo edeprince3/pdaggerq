@@ -272,6 +272,8 @@ void ahat::print() {
     if ( (int)data->tensor.size() == 2 ) {
         if ( data->tensor_type == "CORE") {
             printf("h(");
+        }else if ( data->tensor_type == "FOCK") {
+            printf("f(");
         }else if ( data->tensor_type == "D+") {
             printf("d+(");
         }else if ( data->tensor_type == "D-") {
@@ -582,6 +584,8 @@ std::vector<std::string> ahat::get_string() {
         std::string tmp;
         if ( data->tensor_type == "CORE") {
             tmp = "h(";
+        }else if ( data->tensor_type == "FOCK") {
+            tmp = "f(";
         }else if ( data->tensor_type == "D+") {
             tmp = "d+(";
         }else if ( data->tensor_type == "D-") {
@@ -3039,6 +3043,47 @@ bool ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
     }else {
         return normal_order_fermi_vacuum(ordered);
     }
+}
+
+// re-classify fluctuation potential terms
+void ahat::reclassify_tensors() {
+
+    if ( data->tensor_type == "OCC_REPULSION") {
+
+        // pick summation label not included in string already
+        std::vector<std::string> occ_out{"i","j","k","l","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
+        std::string idx;
+
+        int skip = -999;
+
+        for (int i = 0; i < (int)occ_out.size(); i++) {
+            if ( !index_in_anywhere(occ_out[i]) ) {
+                idx = occ_out[i];
+                skip = i;
+                break;
+            }
+        }
+        if ( skip == -999 ) {
+            printf("\n");
+            printf("    uh oh. no suitable summation index could be found.\n");
+            printf("\n");
+            exit(1);
+        }
+
+        std::string idx1 = data->tensor[0];
+        std::string idx2 = data->tensor[1];
+
+        data->tensor.clear();
+
+        data->tensor.push_back(idx1);
+        data->tensor.push_back(idx);
+        data->tensor.push_back(idx2);
+        data->tensor.push_back(idx);
+
+        data->tensor_type = "ERI";
+
+    }
+
 }
 
 } // End namespaces

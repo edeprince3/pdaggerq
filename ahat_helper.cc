@@ -491,6 +491,82 @@ void ahat_helper::add_quadruple_commutator(double factor,
 
 void ahat_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
+    // first check if there is a fluctuation potential operator 
+    // that needs to be split into multiple terms
+
+    std::vector<std::string> tmp;
+
+    // left operators
+    for (int i = 0; i < (int)left_operators.size(); i++) {
+        if ( left_operators[i] == "v" ) {
+            tmp.push_back("j1");
+            tmp.push_back("j2");
+        }else {
+            tmp.push_back(left_operators[i]);
+        }
+    }
+    left_operators.clear();
+    for (int i = 0; i < (int)tmp.size(); i++) {
+        left_operators.push_back(tmp[i]);
+    }
+    tmp.clear();
+    
+    // right operators
+    for (int i = 0; i < (int)right_operators.size(); i++) {
+        if ( right_operators[i] == "v" ) {
+            tmp.push_back("j1");
+            tmp.push_back("j2");
+        }else {
+            tmp.push_back(right_operators[i]);
+        }
+    }
+    right_operators.clear();
+    for (int i = 0; i < (int)tmp.size(); i++) {
+        right_operators.push_back(tmp[i]);
+    }
+    tmp.clear();
+    
+
+    int count = 0;
+    bool found_v = false;
+    for (int i = 0; i < (int)in.size(); i++) {
+        if ( in[i] == "v" ) {
+            found_v = true;
+            break;
+        }else {
+            tmp.push_back(in[i]);
+            count++;
+        }
+    }
+    if ( found_v ) {
+
+        // term 1
+        tmp.push_back("j1");
+        for (int i = count+1; i < (int)in.size(); i++) {
+            tmp.push_back(in[i]);
+        }
+        in.clear();
+        for (int i = 0; i < (int)tmp.size(); i++) {
+            in.push_back(tmp[i]);
+        }
+        add_operator_product(factor,in);
+
+        // term 2
+        in.clear();
+        for (int i = 0; i < count; i++) {
+            in.push_back(tmp[i]);
+        }
+        in.push_back("j2");
+        for (int i = count + 1; i < (int)tmp.size(); i++) {
+            in.push_back(tmp[i]);
+        }
+        add_operator_product(factor,in);
+        
+        return;
+
+    }
+
+
     // apply any extra operators on left or right:
     std::vector<std::string> save;
     for (int i = 0; i < (int)in.size(); i++) {
@@ -602,26 +678,6 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                 if ( in[i].substr(0,1) == "h" ) { // one-electron operator
 
-/*
-                    // find comma
-                    size_t pos = in[i].find(",");
-                    if ( pos == std::string::npos ) {
-                        printf("\n");
-                        printf("    error in tensor definition (no commas)\n");
-                        printf("\n");
-                        exit(1);
-                    }
-                    size_t len = pos - 1;
-
-                    // index 1
-                    tmp_string.push_back(in[i].substr(1,len)+"*");
-
-                    // index 2
-                    tmp_string.push_back(in[i].substr(pos+1));
-
-                    // tensor
-                    set_tensor({in[i].substr(1,len), in[i].substr(pos+1)},"CORE");
-*/
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
 
@@ -633,6 +689,20 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                     // tensor
                     set_tensor({idx1,idx2},"CORE");
+
+                }else if ( in[i].substr(0,1) == "f" ) { // fock operator
+
+                    std::string idx1 = "p" + std::to_string(gen_label_count++);
+                    std::string idx2 = "p" + std::to_string(gen_label_count++);
+
+                    // index 1
+                    tmp_string.push_back(idx1+"*");
+
+                    // index 2
+                    tmp_string.push_back(idx2);
+
+                    // tensor
+                    set_tensor({idx1,idx2},"FOCK");
 
                 }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
 
@@ -670,42 +740,6 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                 }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
 
-/*
-                    // count indices
-                    size_t pos = 0;
-                    int ncomma = 0;
-                    std::vector<size_t> commas;
-                    pos = in[i].find(",", pos + 1);
-                    commas.push_back(pos);
-                    while( pos != std::string::npos){
-                        pos = in[i].find(",", pos + 1);
-                        commas.push_back(pos);
-                        ncomma++;
-                    }
-
-                    if ( ncomma != 3 ) {
-                        printf("\n");
-                        printf("    error in tensor definition\n");
-                        printf("\n");
-                        exit(1);
-                    }
-
-                    factor *= 0.25;
-
-
-                    tmp_string.push_back(in[i].substr(1,commas[0]-1)+"*");
-                    tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                    tmp_string.push_back(in[i].substr(commas[2]+1));
-                    tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
-
-                    set_tensor({
-                                   in[i].substr(1,commas[0]-1),
-                                   in[i].substr(commas[0]+1,commas[1]-commas[0]-1),
-                                   in[i].substr(commas[1]+1,commas[2]-commas[1]-1),
-                                   in[i].substr(commas[2]+1)
-                               },"ERI");
-*/
-
                     factor *= 0.25;
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
@@ -719,6 +753,42 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                     tmp_string.push_back(idx4);
 
                     set_tensor({idx1,idx2,idx4,idx3},"ERI");
+
+                }else if ( in[i].substr(0,1) == "j" ) { // fluctuation potential
+
+                    if ( in[i].substr(1,1) == "1" ){
+
+                        factor *= -1.0;
+
+                        std::string idx1 = "p" + std::to_string(gen_label_count++);
+                        std::string idx2 = "p" + std::to_string(gen_label_count++);
+
+                        // index 1
+                        tmp_string.push_back(idx1+"*");
+
+                        // index 2
+                        tmp_string.push_back(idx2);
+
+                        // tensor
+                        set_tensor({idx1,idx2},"OCC_REPULSION");
+
+                    }else if ( in[i].substr(1,1) == "2" ){
+
+                        factor *= 0.25;
+
+                        std::string idx1 = "p" + std::to_string(gen_label_count++);
+                        std::string idx2 = "p" + std::to_string(gen_label_count++);
+                        std::string idx3 = "p" + std::to_string(gen_label_count++);
+                        std::string idx4 = "p" + std::to_string(gen_label_count++);
+
+                        tmp_string.push_back(idx1+"*");
+                        tmp_string.push_back(idx2+"*");
+                        tmp_string.push_back(idx3);
+                        tmp_string.push_back(idx4);
+
+                        set_tensor({idx1,idx2,idx4,idx3},"ERI");
+
+                    }
 
                 }else if ( in[i].substr(0,1) == "t" ){
 
@@ -1793,6 +1863,9 @@ void ahat_helper::simplify() {
 
         // apply delta functions
         ordered[i]->gobble_deltas();
+
+        // re-classify fluctuation potential terms
+        ordered[i]->reclassify_tensors();
 
         // replace any funny labels that were added with conventional ones (fermi vacumm only)
         if ( vacuum == "FERMI" ) {

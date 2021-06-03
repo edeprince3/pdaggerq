@@ -181,6 +181,9 @@ class ahat {
 
     /// does label correspond to virtual orbital?
     bool is_vir(std::string idx);
+
+    /// re-classify fluctuation potential terms
+    void reclassify_tensors();
 };
 
 }
