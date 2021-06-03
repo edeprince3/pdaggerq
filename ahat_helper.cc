@@ -738,9 +738,9 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                     // boson operator
                     data->is_boson_dagger.push_back(false);
 
-                }else if ( in[i].substr(0,1) == "g" ) { // two-electron operator
+                }else if ( in[i].substr(0,1) == "g" ) { // general two-electron operator
 
-                    factor *= 0.25;
+                    //factor *= 0.25;
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -752,7 +752,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                     tmp_string.push_back(idx3);
                     tmp_string.push_back(idx4);
 
-                    set_tensor({idx1,idx2,idx4,idx3},"ERI");
+                    set_tensor({idx1,idx2,idx4,idx3},"TWO_BODY");
 
                 }else if ( in[i].substr(0,1) == "j" ) { // fluctuation potential
 

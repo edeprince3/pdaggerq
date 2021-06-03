@@ -49,7 +49,7 @@ class StringData {
     /// list: labels for 1- or 2-index tensor
     std::vector<std::string> tensor;
 
-    /// tensor type (FOCK, CORE, ERI, D+, D-)
+    /// tensor type (FOCK, CORE, TWO_BODY, ERI, D+, D-)
     std::string tensor_type;
 
     /// list: labels u amplitudes

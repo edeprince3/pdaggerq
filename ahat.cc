@@ -235,37 +235,30 @@ void ahat::print() {
     // two-electron integrals
     if ( (int)data->tensor.size() == 4 ) {
 
-        // mulliken
-        //printf("[ (");
-        //printf("%s",data->tensor[0].c_str());
-        //printf(",");
-        //printf("%s",data->tensor[2].c_str());
-        //printf("|");
-        //printf("%s",data->tensor[1].c_str());
-        //printf(",");
-        //printf("%s",data->tensor[3].c_str());
-        //printf(") - (");
-        //printf("%s",data->tensor[0].c_str());
-        //printf(",");
-        //printf("%s",data->tensor[3].c_str());
-        //printf("|");
-        //printf("%s",data->tensor[1].c_str());
-        //printf(",");
-        //printf("%s",data->tensor[2].c_str());
-        //printf(") ]");
-        //printf(" ");
-
-        // dirac
-        printf("<");
-        printf("%s",data->tensor[0].c_str());
-        printf(",");
-        printf("%s",data->tensor[1].c_str());
-        printf("||");
-        printf("%s",data->tensor[2].c_str());
-        printf(",");
-        printf("%s",data->tensor[3].c_str());
-        printf(">");
-        printf(" ");
+        if ( data->tensor_type == "TWO_BODY") {
+            printf("g(");
+            printf("%s",data->tensor[0].c_str());
+            printf(",");
+            printf("%s",data->tensor[1].c_str());
+            printf(",");
+            printf("%s",data->tensor[2].c_str());
+            printf(",");
+            printf("%s",data->tensor[3].c_str());
+            printf(")");
+            printf(" ");
+        }else {
+            // dirac
+            printf("<");
+            printf("%s",data->tensor[0].c_str());
+            printf(",");
+            printf("%s",data->tensor[1].c_str());
+            printf("||");
+            printf("%s",data->tensor[2].c_str());
+            printf(",");
+            printf("%s",data->tensor[3].c_str());
+            printf(">");
+            printf(" ");
+        }
     }
 
     // one-electron integrals
@@ -566,17 +559,30 @@ std::vector<std::string> ahat::get_string() {
     // two-electron integrals
     if ( (int)data->tensor.size() == 4 ) {
 
-        // dirac
-        std::string tmp = "<"
-                        + data->tensor[0]
-                        + ","
-                        + data->tensor[1]
-                        + "||"
-                        + data->tensor[2]
-                        + ","
-                        + data->tensor[3]
-                        + ">";
-        my_string.push_back(tmp);
+        if ( data->tensor_type == "TWO_BODY") {
+            std::string tmp = "g("
+                            + data->tensor[0]
+                            + ","
+                            + data->tensor[1]
+                            + ","
+                            + data->tensor[2]
+                            + ","
+                            + data->tensor[3]
+                            + ")";
+            my_string.push_back(tmp);
+        }else {
+            // dirac
+            std::string tmp = "<"
+                            + data->tensor[0]
+                            + ","
+                            + data->tensor[1]
+                            + "||"
+                            + data->tensor[2]
+                            + ","
+                            + data->tensor[3]
+                            + ">";
+            my_string.push_back(tmp);
+        }
     }
 
     // one-electron integrals
