@@ -19,18 +19,18 @@ print('')
 ahat.set_left_operators(['1'])
 ahat.set_right_operators(['1'])
 
-ahat.add_st_operator(1.0,['h','e2(e,f,n,m)'],['t1','t2'])
-ahat.add_st_operator(1.0,['g','e2(e,f,n,m)'],['t1','t2'])
+ahat.add_st_operator(1.0,['f','e2(e,f,n,m)'],['t1','t2'])
+ahat.add_st_operator(1.0,['v','e2(e,f,n,m)'],['t1','t2'])
 
 # <0| L e(-T) [H,e*f*nm] e(T)|0>
 
 ahat.set_left_operators(['l1','l2'])
 
-ahat.add_st_operator( 1.0,['h','e2(e,f,n,m)'],['t1','t2'])
-ahat.add_st_operator( 1.0,['g','e2(e,f,n,m)'],['t1','t2'])
+ahat.add_st_operator( 1.0,['f','e2(e,f,n,m)'],['t1','t2'])
+ahat.add_st_operator( 1.0,['v','e2(e,f,n,m)'],['t1','t2'])
 
-ahat.add_st_operator(-1.0,['e2(e,f,n,m)','h'],['t1','t2'])
-ahat.add_st_operator(-1.0,['e2(e,f,n,m)','g'],['t1','t2'])
+ahat.add_st_operator(-1.0,['e2(e,f,n,m)','f'],['t1','t2'])
+ahat.add_st_operator(-1.0,['e2(e,f,n,m)','v'],['t1','t2'])
 
 ahat.simplify()
 

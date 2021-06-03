@@ -13,32 +13,32 @@ print('')
 print('    < 0 | e(-T) H e(T) | 0> :')
 print('')
 
-## one-electron part: 
-## h
-#ahat.add_operator_product(1.0,['h(p,q)'])
-#
-## [h, T1]
-#ahat.add_commutator(1.0,['h(p,q)'],[t1(a,i)'])
-#
-## [h, T2]
-#ahat.add_commutator(1.0,['h(p,q)'],['t2(a,b,i,j)'])
-#
-## two-electron part: 
-#
-## g
-#ahat.add_operator_product(1.0,['g(p,r,q,s)'])
-#
-## [g, T1]
-#ahat.add_commutator(1.0,['g(p,r,q,s)'],['t1(a,i)'])
-#
-## [g, T2]
-#ahat.add_commutator(1.0,['g(p,r,q,s)'],['t2(a,b,i,j)'])
-#
-## [[g, T1], T1]]
-#ahat.add_double_commutator(0.5, ['g(p,r,q,s)'],['t1(a,i)'],['t1(b,j)'])
+# one-electron part: 
+# h
+ahat.add_operator_product(1.0,['f'])
 
-ahat.add_st_operator(1.0,['h'],['t1','t2'])
-ahat.add_st_operator(1.0,['g'],['t1','t2'])
+# [h, T1]
+ahat.add_commutator(1.0,['f'],['t1'])
+
+# [h, T2]
+ahat.add_commutator(1.0,['f'],['t2'])
+
+# two-electron part: 
+
+# g
+ahat.add_operator_product(1.0,['v'])
+
+# [g, T1]
+ahat.add_commutator(1.0,['v'],['t1'])
+
+# [g, T2]
+ahat.add_commutator(1.0,['v'],['t2'])
+
+# [[g, T1], T1]]
+ahat.add_double_commutator(0.5, ['v'],['t1'],['t1'])
+
+#ahat.add_st_operator(1.0,['f'],['t1','t2'])
+#ahat.add_st_operator(1.0,['v'],['t1','t2'])
 
 ahat.simplify()
 

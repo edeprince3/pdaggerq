@@ -15,8 +15,8 @@ print('')
 print('    < 0 | e(-T) H e(T) | 0> :')
 print('')
 
-ahat.add_st_operator(1.0,['h','t1','t2','t3'])
-ahat.add_st_operator(1.0,['g','t1','t2','t3'])
+ahat.add_st_operator(1.0,['f'],['t1','t2','t3'])
+ahat.add_st_operator(1.0,['v'],['t1','t2','t3'])
 
 ahat.simplify()
 
@@ -35,8 +35,8 @@ print('')
 print('    < 0 | m* e e(-T) H e(T) | 0> :')
 print('')
 
-ahat.add_st_operator(1.0,['h','t1','t2','t3'])
-ahat.add_st_operator(1.0,['g','t1','t2','t3'])
+ahat.add_st_operator(1.0,['f'],['t1','t2','t3'])
+ahat.add_st_operator(1.0,['v'],['t1','t2','t3'])
 
 ahat.simplify()
 
@@ -55,8 +55,8 @@ print('')
 print('    < 0 | m* n* f e e(-T) H e(T) | 0> :')
 print('')
 
-ahat.add_st_operator(1.0,['h','t1','t2','t3'])
-ahat.add_st_operator(1.0,['g','t1','t2','t3'])
+ahat.add_st_operator(1.0,['f'],['t1','t2','t3'])
+ahat.add_st_operator(1.0,['v'],['t1','t2','t3'])
 
 ahat.simplify()
 
@@ -75,8 +75,8 @@ print('')
 print('    < 0 | m* n* o* g f e e(-T) H e(T) | 0> :')
 print('')
 
-ahat.add_st_operator(1.0,['h','t1','t2','t3'])
-ahat.add_st_operator(1.0,['g','t1','t2','t3'])
+ahat.add_st_operator(1.0,['f'],['t1','t2','t3'])
+ahat.add_st_operator(1.0,['v'],['t1','t2','t3'])
 
 ahat.simplify()
 
