@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: ahat_helper.cc
+// Filename: pq_helper.cc
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -34,8 +34,8 @@
 #include<algorithm>
 
 #include "data.h"
-#include "ahat.h"
-#include "ahat_helper.h"
+#include "pq.h"
+#include "pq_helper.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -46,42 +46,42 @@ using namespace pybind11::literals;
 
 namespace pdaggerq {
 
-void export_ahat_helper(py::module& m) {
-    py::class_<pdaggerq::ahat_helper, std::shared_ptr<pdaggerq::ahat_helper> >(m, "ahat_helper")
+void export_pq_helper(py::module& m) {
+    py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
-        .def("set_print_level", &ahat_helper::set_print_level)
-        .def("set_bra", &ahat_helper::set_bra)
-        .def("set_ket", &ahat_helper::set_ket)
-        .def("set_string", &ahat_helper::set_string)
-        .def("set_tensor", &ahat_helper::set_tensor)
-        .def("set_t_amplitudes", &ahat_helper::set_t_amplitudes)
-        .def("set_u_amplitudes", &ahat_helper::set_u_amplitudes)
-        .def("set_m_amplitudes", &ahat_helper::set_m_amplitudes)
-        .def("set_s_amplitudes", &ahat_helper::set_s_amplitudes)
-        .def("set_left_amplitudes", &ahat_helper::set_left_amplitudes)
-        .def("set_right_amplitudes", &ahat_helper::set_right_amplitudes)
-        .def("set_left_operators", &ahat_helper::set_left_operators)
-        .def("set_right_operators", &ahat_helper::set_right_operators)
-        .def("set_factor", &ahat_helper::set_factor)
-        .def("add_new_string", &ahat_helper::add_new_string)
-        .def("add_operator_product", &ahat_helper::add_operator_product)
-        .def("add_st_operator", &ahat_helper::add_st_operator)
-        .def("add_commutator", &ahat_helper::add_commutator)
-        .def("add_double_commutator", &ahat_helper::add_double_commutator)
-        .def("add_triple_commutator", &ahat_helper::add_triple_commutator)
-        .def("add_quadruple_commutator", &ahat_helper::add_quadruple_commutator)
-        .def("simplify", &ahat_helper::simplify)
-        .def("clear", &ahat_helper::clear)
-        .def("print", &ahat_helper::print)
-        .def("fully_contracted_strings", &ahat_helper::fully_contracted_strings)
-        .def("print_fully_contracted", &ahat_helper::print_fully_contracted)
-        .def("print_one_body", &ahat_helper::print_one_body)
-        .def("print_two_body", &ahat_helper::print_two_body);
+        .def("set_print_level", &pq_helper::set_print_level)
+        .def("set_bra", &pq_helper::set_bra)
+        .def("set_ket", &pq_helper::set_ket)
+        .def("set_string", &pq_helper::set_string)
+        .def("set_tensor", &pq_helper::set_tensor)
+        .def("set_t_amplitudes", &pq_helper::set_t_amplitudes)
+        .def("set_u_amplitudes", &pq_helper::set_u_amplitudes)
+        .def("set_m_amplitudes", &pq_helper::set_m_amplitudes)
+        .def("set_s_amplitudes", &pq_helper::set_s_amplitudes)
+        .def("set_left_amplitudes", &pq_helper::set_left_amplitudes)
+        .def("set_right_amplitudes", &pq_helper::set_right_amplitudes)
+        .def("set_left_operators", &pq_helper::set_left_operators)
+        .def("set_right_operators", &pq_helper::set_right_operators)
+        .def("set_factor", &pq_helper::set_factor)
+        .def("add_new_string", &pq_helper::add_new_string)
+        .def("add_operator_product", &pq_helper::add_operator_product)
+        .def("add_st_operator", &pq_helper::add_st_operator)
+        .def("add_commutator", &pq_helper::add_commutator)
+        .def("add_double_commutator", &pq_helper::add_double_commutator)
+        .def("add_triple_commutator", &pq_helper::add_triple_commutator)
+        .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
+        .def("simplify", &pq_helper::simplify)
+        .def("clear", &pq_helper::clear)
+        .def("print", &pq_helper::print)
+        .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
+        .def("print_fully_contracted", &pq_helper::print_fully_contracted)
+        .def("print_one_body", &pq_helper::print_one_body)
+        .def("print_two_body", &pq_helper::print_two_body);
 }
 
 PYBIND11_MODULE(pdaggerq, m) {
     m.doc() = "Python API of pdaggerq: A code for bringing strings of creation / annihilation operators to normal order.";
-    export_ahat_helper(m);
+    export_pq_helper(m);
 }
 
 void removeStar(std::string &x)
@@ -101,7 +101,7 @@ void removeParentheses(std::string &x)
 }
 
 
-ahat_helper::ahat_helper(std::string vacuum_type)
+pq_helper::pq_helper(std::string vacuum_type)
 {
 
     if ( vacuum_type == "" ) {
@@ -126,15 +126,15 @@ ahat_helper::ahat_helper(std::string vacuum_type)
 
 }
 
-ahat_helper::~ahat_helper()
+pq_helper::~pq_helper()
 {
 }
 
-void ahat_helper::set_print_level(int level) {
+void pq_helper::set_print_level(int level) {
     print_level = level;
 }
 
-void ahat_helper::set_left_operators(std::vector<std::string> in) {
+void pq_helper::set_left_operators(std::vector<std::string> in) {
 
     left_operators.clear();
     for (int i = 0; i < (int)in.size(); i++) {
@@ -143,7 +143,7 @@ void ahat_helper::set_left_operators(std::vector<std::string> in) {
 
 }
 
-void ahat_helper::set_right_operators(std::vector<std::string> in) {
+void pq_helper::set_right_operators(std::vector<std::string> in) {
 
     right_operators.clear();
     for (int i = 0; i < (int)in.size(); i++) {
@@ -152,7 +152,7 @@ void ahat_helper::set_right_operators(std::vector<std::string> in) {
 
 }
 
-void ahat_helper::set_bra(std::string bra_type){
+void pq_helper::set_bra(std::string bra_type){
 
     if ( bra_type == "" ) {
         bra = "VACUUM";
@@ -178,7 +178,7 @@ void ahat_helper::set_bra(std::string bra_type){
     }
 }
 
-void ahat_helper::set_ket(std::string ket_type){
+void pq_helper::set_ket(std::string ket_type){
 
     if ( ket_type == "" ) {
         ket = "VACUUM";
@@ -202,7 +202,7 @@ void ahat_helper::set_ket(std::string ket_type){
     }
 }
 
-void ahat_helper::add_commutator(double factor,
+void pq_helper::add_commutator(double factor,
                                  std::vector<std::string> op0,
                                  std::vector<std::string> op1) {
 
@@ -221,7 +221,7 @@ void ahat_helper::add_commutator(double factor,
 
 }
 
-void ahat_helper::add_double_commutator(double factor,
+void pq_helper::add_double_commutator(double factor,
                                         std::vector<std::string> op0, 
                                         std::vector<std::string> op1, 
                                         std::vector<std::string> op2) {
@@ -258,7 +258,7 @@ void ahat_helper::add_double_commutator(double factor,
 
 }
 
-void ahat_helper::add_triple_commutator(double factor,
+void pq_helper::add_triple_commutator(double factor,
                                         std::vector<std::string> op0,
                                         std::vector<std::string> op1,
                                         std::vector<std::string> op2,
@@ -332,7 +332,7 @@ void ahat_helper::add_triple_commutator(double factor,
 
 }
 
-void ahat_helper::add_quadruple_commutator(double factor,
+void pq_helper::add_quadruple_commutator(double factor,
                                            std::vector<std::string> op0,
                                            std::vector<std::string> op1,
                                            std::vector<std::string> op2,
@@ -489,7 +489,7 @@ void ahat_helper::add_quadruple_commutator(double factor,
 
 // add a string of operators
 
-void ahat_helper::add_operator_product(double factor, std::vector<std::string>  in){
+void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
     // first check if there is a fluctuation potential operator 
     // that needs to be split into multiple terms
@@ -1250,20 +1250,20 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
 }
 
-void ahat_helper::set_string(std::vector<std::string> in) {
+void pq_helper::set_string(std::vector<std::string> in) {
     for (int i = 0; i < (int)in.size(); i++) {
         data->string.push_back(in[i]);
     }
 }
 
-void ahat_helper::set_tensor(std::vector<std::string> in, std::string tensor_type) {
+void pq_helper::set_tensor(std::vector<std::string> in, std::string tensor_type) {
     for (int i = 0; i < (int)in.size(); i++) {
         data->tensor.push_back(in[i]);
     }
     data->tensor_type = tensor_type;
 }
 
-void ahat_helper::set_t_amplitudes(std::vector<std::string> in) {
+void pq_helper::set_t_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
         tmp.push_back(in[i]);
@@ -1271,7 +1271,7 @@ void ahat_helper::set_t_amplitudes(std::vector<std::string> in) {
     data->t_amplitudes.push_back(tmp);
 }
 
-void ahat_helper::set_u_amplitudes(std::vector<std::string> in) {
+void pq_helper::set_u_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
         tmp.push_back(in[i]);
@@ -1279,7 +1279,7 @@ void ahat_helper::set_u_amplitudes(std::vector<std::string> in) {
     data->u_amplitudes.push_back(tmp);
 }
 
-void ahat_helper::set_m_amplitudes(std::vector<std::string> in) {
+void pq_helper::set_m_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
         tmp.push_back(in[i]);
@@ -1287,7 +1287,7 @@ void ahat_helper::set_m_amplitudes(std::vector<std::string> in) {
     data->m_amplitudes.push_back(tmp);
 }
 
-void ahat_helper::set_s_amplitudes(std::vector<std::string> in) {
+void pq_helper::set_s_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
         tmp.push_back(in[i]);
@@ -1295,7 +1295,7 @@ void ahat_helper::set_s_amplitudes(std::vector<std::string> in) {
     data->s_amplitudes.push_back(tmp);
 }
 
-void ahat_helper::set_left_amplitudes(std::vector<std::string> in) {
+void pq_helper::set_left_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
         tmp.push_back(in[i]);
@@ -1303,7 +1303,7 @@ void ahat_helper::set_left_amplitudes(std::vector<std::string> in) {
     data->left_amplitudes.push_back(tmp);
 }
 
-void ahat_helper::set_right_amplitudes(std::vector<std::string> in) {
+void pq_helper::set_right_amplitudes(std::vector<std::string> in) {
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)in.size(); i++) {
         tmp.push_back(in[i]);
@@ -1311,13 +1311,13 @@ void ahat_helper::set_right_amplitudes(std::vector<std::string> in) {
     data->right_amplitudes.push_back(tmp);
 }
 
-void ahat_helper::set_factor(double in) {
+void pq_helper::set_factor(double in) {
     data->factor = in;
 }
 
-void ahat_helper::add_new_string_true_vacuum(){
+void pq_helper::add_new_string_true_vacuum(){
 
-    std::shared_ptr<ahat> mystring (new ahat(vacuum));
+    std::shared_ptr<pq> mystring (new pq(vacuum));
 
     if ( data->factor > 0.0 ) {
         mystring->sign = 1;
@@ -1411,12 +1411,12 @@ void ahat_helper::add_new_string_true_vacuum(){
     // rearrange strings
     //mystring->normal_order(ordered);
 
-    std::vector< std::shared_ptr<ahat> > tmp;
+    std::vector< std::shared_ptr<pq> > tmp;
     tmp.push_back(mystring);
 
     bool done_rearranging = false;
     do {  
-        std::vector< std::shared_ptr<ahat> > list;
+        std::vector< std::shared_ptr<pq> > list;
         done_rearranging = true;
         for (int i = 0; i < (int)tmp.size(); i++) {
             bool am_i_done = tmp[i]->normal_order(list);
@@ -1447,7 +1447,7 @@ void ahat_helper::add_new_string_true_vacuum(){
 
 }
 
-void ahat_helper::add_new_string() {
+void pq_helper::add_new_string() {
 
     if ( vacuum == "TRUE" ) {
         add_new_string_true_vacuum();
@@ -1457,10 +1457,10 @@ void ahat_helper::add_new_string() {
 
 }
 
-void ahat_helper::add_new_string_fermi_vacuum(){
+void pq_helper::add_new_string_fermi_vacuum(){
 
-    std::vector<std::shared_ptr<ahat> > mystrings;
-    mystrings.push_back( (std::shared_ptr<ahat>)(new ahat(vacuum)) );
+    std::vector<std::shared_ptr<pq> > mystrings;
+    mystrings.push_back( (std::shared_ptr<pq>)(new pq(vacuum)) );
 
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators
@@ -1484,7 +1484,7 @@ void ahat_helper::add_new_string_fermi_vacuum(){
     if ( n_gen_idx > 0 ) {
         mystrings.clear();
         for (int i = 0; i < n_gen_idx * n_gen_idx; i++) {
-            mystrings.push_back( (std::shared_ptr<ahat>)(new ahat(vacuum)) );
+            mystrings.push_back( (std::shared_ptr<pq>)(new pq(vacuum)) );
         }
     }
 
@@ -1836,12 +1836,12 @@ void ahat_helper::add_new_string_fermi_vacuum(){
 
         // rearrange strings
         //mystrings[string_num]->normal_order(ordered);
-        std::vector< std::shared_ptr<ahat> > tmp;
+        std::vector< std::shared_ptr<pq> > tmp;
         tmp.push_back(mystrings[string_num]);
 
         bool done_rearranging = false;
         do { 
-            std::vector< std::shared_ptr<ahat> > list;
+            std::vector< std::shared_ptr<pq> > list;
             done_rearranging = true;
             for (int i = 0; i < (int)tmp.size(); i++) {
                 bool am_i_done = tmp[i]->normal_order(list);
@@ -1879,9 +1879,9 @@ void ahat_helper::add_new_string_fermi_vacuum(){
  
 }
 
-void ahat_helper::simplify() {
+void pq_helper::simplify() {
 
-    std::shared_ptr<ahat> mystring (new ahat(vacuum));
+    std::shared_ptr<pq> mystring (new pq(vacuum));
 
     // eliminate strings based on delta functions and use delta functions to alter tensor / amplitude labels
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -1911,7 +1911,7 @@ void ahat_helper::simplify() {
     
 }
 
-void ahat_helper::print_two_body() {
+void pq_helper::print_two_body() {
 
     printf("\n");
     printf("    ");
@@ -1924,7 +1924,7 @@ void ahat_helper::print_two_body() {
 
 }
 
-void ahat_helper::print_fully_contracted() {
+void pq_helper::print_fully_contracted() {
 
     printf("\n");
     printf("    ");
@@ -1938,7 +1938,7 @@ void ahat_helper::print_fully_contracted() {
 
 }
 
-std::vector<std::vector<std::string> > ahat_helper::fully_contracted_strings() {
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() {
 
     std::vector<std::vector<std::string> > list;
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -1954,7 +1954,7 @@ std::vector<std::vector<std::string> > ahat_helper::fully_contracted_strings() {
 
 }
 
-void ahat_helper::print_one_body() {
+void pq_helper::print_one_body() {
 
     printf("\n");
     printf("    ");
@@ -1967,7 +1967,7 @@ void ahat_helper::print_one_body() {
 
 }
 
-void ahat_helper::print() {
+void pq_helper::print() {
 
     printf("\n");
     printf("    ");
@@ -1979,13 +1979,13 @@ void ahat_helper::print() {
 
 }
 
-void ahat_helper::clear() {
+void pq_helper::clear() {
 
     ordered.clear();
 
 }
 
-void ahat_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops) {
+void pq_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops) {
 
     int dim = (int)ops.size();
 

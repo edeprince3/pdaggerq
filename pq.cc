@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: ahat.cc
+// Filename: pq.cc
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -30,11 +30,11 @@
 #include<cstring>
 #include <math.h>
 
-#include "ahat.h"
+#include "pq.h"
 
 namespace pdaggerq {
 
-ahat::ahat(std::string vacuum_type) {
+pq::pq(std::string vacuum_type) {
 
   vacuum = vacuum_type;
   skip = false;
@@ -42,10 +42,10 @@ ahat::ahat(std::string vacuum_type) {
 
 }
 
-ahat::~ahat() {
+pq::~pq() {
 }
 
-bool ahat::is_occ(std::string idx) {
+bool pq::is_occ(std::string idx) {
     if ( idx == "I" || idx == "i") {
         return true;
     }else if ( idx == "J" || idx == "j") {
@@ -68,7 +68,7 @@ bool ahat::is_occ(std::string idx) {
     return false;
 }
 
-bool ahat::is_vir(std::string idx) {
+bool pq::is_vir(std::string idx) {
     if ( idx == "A" || idx == "a") {
         return true;
     }else if ( idx == "B" || idx == "b") {
@@ -91,7 +91,7 @@ bool ahat::is_vir(std::string idx) {
     return false;
 }
 
-void ahat::check_occ_vir() {
+void pq::check_occ_vir() {
 
    // OCC: I,J,K,L,M,N
    // VIR: A,B,C,D,E,F
@@ -124,7 +124,7 @@ void ahat::check_occ_vir() {
 
 }
 
-void ahat::check_spin() {
+void pq::check_spin() {
 
     printf("\n");
     printf("    error: spin is no longer supported\n");
@@ -197,7 +197,7 @@ void ahat::check_spin() {
 
 }
 
-void ahat::print() {
+void pq::print() {
 
     if ( skip ) return;
 
@@ -520,7 +520,7 @@ void ahat::print() {
     printf("\n");
 }
 
-std::vector<std::string> ahat::get_string() {
+std::vector<std::string> pq::get_string() {
 
     std::vector<std::string> my_string;
 
@@ -845,7 +845,7 @@ std::vector<std::string> ahat::get_string() {
     return my_string;
 }
 
-bool ahat::is_normal_order() {
+bool pq::is_normal_order() {
 
     // don't bother bringing to normal order if we're going to skip this string
     if (skip) return true;
@@ -881,7 +881,7 @@ bool ahat::is_normal_order() {
 }
 
 
-bool ahat::is_boson_normal_order() {
+bool pq::is_boson_normal_order() {
 
     if ( (int)data->is_boson_dagger.size() == 1 ) {
         bool is_dagger_right = data->is_boson_dagger[0];
@@ -912,7 +912,7 @@ bool ahat::is_boson_normal_order() {
 // in order to compare strings, the creation and annihilation 
 // operators should be ordered in some consistent way.
 // alphabetically seems reasonable enough
-void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
+void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
 
     // alphabetize string
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -986,7 +986,7 @@ void ahat::alphabetize(std::vector<std::shared_ptr<ahat> > &ordered) {
 // TODO: account for right-hand amplitudes
 // TODO: need an update_ket_labes function?
 
-void ahat::update_bra_labels() {
+void pq::update_bra_labels() {
 
     if ( vacuum == "FERMI" && symbol.size() != 0 ) return;
 
@@ -1283,7 +1283,7 @@ void ahat::update_bra_labels() {
 // prioritize summation labels as i > j > k > l and a > b > c > d.
 // this means that j, k, or l should not arise in a term if i is not
 // already present.
-void ahat::update_summation_labels() {
+void pq::update_summation_labels() {
 
     if ( vacuum == "FERMI" && symbol.size() != 0 ) return;
 
@@ -1494,14 +1494,14 @@ void ahat::update_summation_labels() {
 
 }
 
-void ahat::swap_two_labels(std::string label1, std::string label2) {
+void pq::swap_two_labels(std::string label1, std::string label2) {
 
     replace_index_everywhere(label1,"x");
     replace_index_everywhere(label2,label1);
     replace_index_everywhere("x",label2);
 }
 
-void ahat::reorder_t_amplitudes() {
+void pq::reorder_t_amplitudes() {
 
     int dim = (int)data->t_amplitudes.size();
 
@@ -1575,7 +1575,7 @@ void ahat::reorder_t_amplitudes() {
 // TODO: need to consider u-amplitudes
 // TODO: need to consider left-hand amplitudes
 // TODO: need to consider right-hand amplitudes
-void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
+void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
     // order amplitudes such that they're ordered t1, t2, t3
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -1592,7 +1592,7 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
     }
 
     // prune list so it only contains non-skipped ones
-    std::vector< std::shared_ptr<ahat> > pruned;
+    std::vector< std::shared_ptr<pq> > pruned;
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         if ( ordered[i]-> skip ) continue;
@@ -1656,7 +1656,7 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
             // try swapping summation labels - only i/j, a/b swaps for now. this should be sufficient for ccsd
             if ( !strings_same && find_i && find_j ) {
 
-                std::shared_ptr<ahat> newguy (new ahat(vacuum));
+                std::shared_ptr<pq> newguy (new pq(vacuum));
                 newguy->copy((void*)(ordered[i].get()));
                 newguy->swap_two_labels("i","j");
                 strings_same = compare_strings(ordered[j],newguy,n_permute);
@@ -1664,7 +1664,7 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
             if ( !strings_same && find_a && find_b ) {
 
-                std::shared_ptr<ahat> newguy (new ahat(vacuum));
+                std::shared_ptr<pq> newguy (new pq(vacuum));
                 newguy->copy((void*)(ordered[i].get()));
                 newguy->swap_two_labels("a","b");
                 strings_same = compare_strings(ordered[j],newguy,n_permute);
@@ -1673,7 +1673,7 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
             if ( !strings_same && find_i && find_j && find_a && find_b ) {
 
-                std::shared_ptr<ahat> newguy (new ahat(vacuum));
+                std::shared_ptr<pq> newguy (new pq(vacuum));
                 newguy->copy((void*)(ordered[i].get()));
                 newguy->swap_two_labels("i","j");
                 newguy->swap_two_labels("a","b");
@@ -1727,7 +1727,7 @@ void ahat::cleanup(std::vector<std::shared_ptr<ahat> > &ordered) {
 
 }
 
-bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute) {
+bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute) {
 
 
     // don't forget w0, u0, r0, l0, b+, b-, m0, s0
@@ -2099,9 +2099,9 @@ bool ahat::compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat
 
 // copy all data, except symbols and daggers. 
 
-void ahat::shallow_copy(void * copy_me) { 
+void pq::shallow_copy(void * copy_me) { 
 
-    ahat * in = reinterpret_cast<ahat * >(copy_me);
+    pq * in = reinterpret_cast<pq * >(copy_me);
 
     // skip string?
     skip   = in->skip;
@@ -2213,7 +2213,7 @@ void ahat::shallow_copy(void * copy_me) {
 }
 
 
-bool ahat::index_in_anywhere(std::string idx) {
+bool pq::index_in_anywhere(std::string idx) {
 
     if ( index_in_tensor(idx) ) {
         return true;
@@ -2234,7 +2234,7 @@ bool ahat::index_in_anywhere(std::string idx) {
 
 }
 
-bool ahat::index_in_tensor(std::string idx) {
+bool pq::index_in_tensor(std::string idx) {
 
     for (int i = 0; i < (int)data->tensor.size(); i++) {
         if ( data->tensor[i] == idx ) {
@@ -2245,7 +2245,7 @@ bool ahat::index_in_tensor(std::string idx) {
 
 }
 
-bool ahat::index_in_t_amplitudes(std::string idx) {
+bool pq::index_in_t_amplitudes(std::string idx) {
 
     for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
@@ -2259,7 +2259,7 @@ bool ahat::index_in_t_amplitudes(std::string idx) {
 
 }
 
-bool ahat::index_in_u_amplitudes(std::string idx) {
+bool pq::index_in_u_amplitudes(std::string idx) {
 
     for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
@@ -2273,7 +2273,7 @@ bool ahat::index_in_u_amplitudes(std::string idx) {
 
 }
 
-bool ahat::index_in_m_amplitudes(std::string idx) {
+bool pq::index_in_m_amplitudes(std::string idx) {
 
     for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
@@ -2287,7 +2287,7 @@ bool ahat::index_in_m_amplitudes(std::string idx) {
 
 }
 
-bool ahat::index_in_s_amplitudes(std::string idx) {
+bool pq::index_in_s_amplitudes(std::string idx) {
 
     for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
@@ -2301,7 +2301,7 @@ bool ahat::index_in_s_amplitudes(std::string idx) {
 
 }
 
-bool ahat::index_in_left_amplitudes(std::string idx) {
+bool pq::index_in_left_amplitudes(std::string idx) {
 
     for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
@@ -2315,7 +2315,7 @@ bool ahat::index_in_left_amplitudes(std::string idx) {
 
 }
 
-bool ahat::index_in_right_amplitudes(std::string idx) {
+bool pq::index_in_right_amplitudes(std::string idx) {
 
     for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
@@ -2329,7 +2329,7 @@ bool ahat::index_in_right_amplitudes(std::string idx) {
 
 }
 
-void ahat::replace_index_everywhere(std::string old_idx, std::string new_idx) {
+void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
     replace_index_in_tensor(old_idx,new_idx);
     replace_index_in_t_amplitudes(old_idx,new_idx);
@@ -2341,7 +2341,7 @@ void ahat::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
 }
 
-void ahat::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
+void pq::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
 
     for (int i = 0; i < (int)data->tensor.size(); i++) {
         if ( data->tensor[i] == old_idx ) {
@@ -2353,7 +2353,7 @@ void ahat::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
 
 }
 
-void ahat::replace_index_in_t_amplitudes(std::string old_idx, std::string new_idx) {
+void pq::replace_index_in_t_amplitudes(std::string old_idx, std::string new_idx) {
 
     for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
@@ -2366,7 +2366,7 @@ void ahat::replace_index_in_t_amplitudes(std::string old_idx, std::string new_id
 
 }
 
-void ahat::replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx) {
+void pq::replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx) {
 
     for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
@@ -2379,7 +2379,7 @@ void ahat::replace_index_in_u_amplitudes(std::string old_idx, std::string new_id
 
 }
 
-void ahat::replace_index_in_m_amplitudes(std::string old_idx, std::string new_idx) {
+void pq::replace_index_in_m_amplitudes(std::string old_idx, std::string new_idx) {
 
     for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
@@ -2392,7 +2392,7 @@ void ahat::replace_index_in_m_amplitudes(std::string old_idx, std::string new_id
 
 }
 
-void ahat::replace_index_in_s_amplitudes(std::string old_idx, std::string new_idx) {
+void pq::replace_index_in_s_amplitudes(std::string old_idx, std::string new_idx) {
 
     for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
@@ -2405,7 +2405,7 @@ void ahat::replace_index_in_s_amplitudes(std::string old_idx, std::string new_id
 
 }
 
-void ahat::replace_index_in_left_amplitudes(std::string old_idx, std::string new_idx) {
+void pq::replace_index_in_left_amplitudes(std::string old_idx, std::string new_idx) {
 
     for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
@@ -2418,7 +2418,7 @@ void ahat::replace_index_in_left_amplitudes(std::string old_idx, std::string new
 
 }
 
-void ahat::replace_index_in_right_amplitudes(std::string old_idx, std::string new_idx) {
+void pq::replace_index_in_right_amplitudes(std::string old_idx, std::string new_idx) {
 
     for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
@@ -2432,7 +2432,7 @@ void ahat::replace_index_in_right_amplitudes(std::string old_idx, std::string ne
 }
 
 // find and replace any funny labels in tensors with conventional ones. i.e., o1 -> i ,v1 -> a
-void ahat::use_conventional_labels() {
+void pq::use_conventional_labels() {
 
     // occupied first:
     std::vector<std::string> occ_in{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
@@ -2484,7 +2484,7 @@ void ahat::use_conventional_labels() {
     }
 }
 
-void ahat::gobble_deltas() {
+void pq::gobble_deltas() {
 
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
@@ -2567,11 +2567,11 @@ void ahat::gobble_deltas() {
 }
 
 // copy all data, including symbols and daggers
-void ahat::copy(void * copy_me) { 
+void pq::copy(void * copy_me) { 
 
     shallow_copy(copy_me);
 
-    ahat * in = reinterpret_cast<ahat * >(copy_me);
+    pq * in = reinterpret_cast<pq * >(copy_me);
 
     // operators
     for (int j = 0; j < (int)in->symbol.size(); j++) {
@@ -2593,14 +2593,14 @@ void ahat::copy(void * copy_me) {
     
 }
 
-bool ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
+bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
 
     if ( skip ) return true;
 
     if ( is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<ahat> newguy (new ahat(vacuum));
+        std::shared_ptr<pq> newguy (new pq(vacuum));
 
         newguy->copy((void*)this);
 
@@ -2610,8 +2610,8 @@ bool ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
     }
 
     // new strings
-    std::shared_ptr<ahat> s1 ( new ahat(vacuum) );
-    std::shared_ptr<ahat> s2 ( new ahat(vacuum) );
+    std::shared_ptr<pq> s1 ( new pq(vacuum) );
+    std::shared_ptr<pq> s2 ( new pq(vacuum) );
 
     // copy data common to both new strings
     s1->shallow_copy((void*)this);
@@ -2674,10 +2674,10 @@ bool ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
     }else {
 
         // new strings
-        std::shared_ptr<ahat> s1a ( new ahat(vacuum) );
-        std::shared_ptr<ahat> s1b ( new ahat(vacuum) );
-        std::shared_ptr<ahat> s2a ( new ahat(vacuum) );
-        std::shared_ptr<ahat> s2b ( new ahat(vacuum) );
+        std::shared_ptr<pq> s1a ( new pq(vacuum) );
+        std::shared_ptr<pq> s1b ( new pq(vacuum) );
+        std::shared_ptr<pq> s2a ( new pq(vacuum) );
+        std::shared_ptr<pq> s2b ( new pq(vacuum) );
 
         // copy data common to new strings
         s1a->copy((void*)s1.get());
@@ -2766,14 +2766,14 @@ bool ahat::normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered
     return false;
 }
 
-bool ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered) {
+bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
 
     if ( skip ) return true;
 
     if ( is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<ahat> newguy (new ahat(vacuum));
+        std::shared_ptr<pq> newguy (new pq(vacuum));
 
         newguy->copy((void*)this);
 
@@ -2783,8 +2783,8 @@ bool ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
     }
 
     // new strings
-    std::shared_ptr<ahat> s1 ( new ahat(vacuum) );
-    std::shared_ptr<ahat> s2 ( new ahat(vacuum) );
+    std::shared_ptr<pq> s1 ( new pq(vacuum) );
+    std::shared_ptr<pq> s2 ( new pq(vacuum) );
 
     // copy data common to both new strings
     s1->shallow_copy((void*)this);
@@ -2890,8 +2890,8 @@ bool ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
         }else {
 
             // new strings
-            std::shared_ptr<ahat> s1a ( new ahat(vacuum) );
-            std::shared_ptr<ahat> s1b ( new ahat(vacuum) );
+            std::shared_ptr<pq> s1a ( new pq(vacuum) );
+            std::shared_ptr<pq> s1b ( new pq(vacuum) );
 
             // copy data common to both new strings
             s1a->copy((void*)s1.get());
@@ -2953,10 +2953,10 @@ bool ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
         }else {
 
             // new strings
-            std::shared_ptr<ahat> s1a ( new ahat(vacuum) );
-            std::shared_ptr<ahat> s1b ( new ahat(vacuum) );
-            std::shared_ptr<ahat> s2a ( new ahat(vacuum) );
-            std::shared_ptr<ahat> s2b ( new ahat(vacuum) );
+            std::shared_ptr<pq> s1a ( new pq(vacuum) );
+            std::shared_ptr<pq> s1b ( new pq(vacuum) );
+            std::shared_ptr<pq> s2a ( new pq(vacuum) );
+            std::shared_ptr<pq> s2b ( new pq(vacuum) );
 
             // copy data common to new strings
             s1a->copy((void*)s1.get());
@@ -3047,7 +3047,7 @@ bool ahat::normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordere
 
 }
 
-bool ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
+bool pq::normal_order(std::vector<std::shared_ptr<pq> > &ordered) {
     if ( vacuum == "TRUE" ) {
         return normal_order_true_vacuum(ordered);
     }else {
@@ -3056,7 +3056,7 @@ bool ahat::normal_order(std::vector<std::shared_ptr<ahat> > &ordered) {
 }
 
 // re-classify fluctuation potential terms
-void ahat::reclassify_tensors() {
+void pq::reclassify_tensors() {
 
     if ( data->tensor_type == "OCC_REPULSION") {
 

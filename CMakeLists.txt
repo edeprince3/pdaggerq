@@ -42,4 +42,4 @@ endif()
 set(PYBIND11_CPP_STANDARD -std=c++14)
 
 #add_subdirectory(${source_dir})             
-pybind11_add_module(pdaggerq SHARED ahat.cc ahat_helper.cc)     
+pybind11_add_module(pdaggerq SHARED pq.cc pq_helper.cc)     

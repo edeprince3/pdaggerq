@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: ahat.h
+// Filename: pq.h
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -29,7 +29,7 @@
 
 namespace pdaggerq {
 
-class ahat {
+class pq {
 
   private:
 
@@ -88,7 +88,7 @@ class ahat {
     void replace_index_in_right_amplitudes(std::string old_idx, std::string new_idx);
 
     /// are two strings the same? if so, how many permutations to relate them?
-    bool compare_strings(std::shared_ptr<ahat> ordered_1, std::shared_ptr<ahat> ordered_2, int & n_permute);
+    bool compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute);
 
     /// prioritize summation labels as i > j > k > l and a > b > c > d.
     void update_summation_labels();
@@ -102,10 +102,10 @@ class ahat {
   public:
 
     /// constructor
-    ahat(std::string vacuum_type);
+    pq(std::string vacuum_type);
 
     /// destructor
-    ~ahat();
+    ~pq();
 
     /// vacuum type (fermi, true)
     std::string vacuum;
@@ -159,19 +159,19 @@ class ahat {
     void use_conventional_labels();
 
     /// bring string to normal order (relative to either vacuum)
-    bool normal_order(std::vector<std::shared_ptr<ahat> > &ordered);
+    bool normal_order(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// bring string to normal order relative to fermi vacuum
-    bool normal_order_fermi_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
+    bool normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// bring string to normal order relative to true vacuum
-    bool normal_order_true_vacuum(std::vector<std::shared_ptr<ahat> > &ordered);
+    bool normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// alphabetize operators to simplify string comparisons
-    void alphabetize(std::vector<std::shared_ptr<ahat> > &ordered);
+    void alphabetize(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// cancel terms where appropriate
-    void cleanup(std::vector<std::shared_ptr<ahat> > &ordered);
+    void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// reorder t amplitudes as t1, t2, t3
     void reorder_t_amplitudes();

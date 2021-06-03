@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: ahat_helper.h
+// Filename: pq_helper.h
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -22,20 +22,20 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef AHAT_HELPER_H
-#define AHAT_HELPER_H
+#ifndef PQ_HELPER_H
+#define PQ_HELPER_H
 
-#include "ahat.h"
+#include "pq.h"
 #include "data.h"
 
 namespace pdaggerq {
 
-class ahat_helper {
+class pq_helper {
 
   private:
 
     /// list of strings of operators
-    std::vector< std::shared_ptr<ahat> > ordered;
+    std::vector< std::shared_ptr<pq> > ordered;
 
     /// strings, tensors, etc.
     std::shared_ptr<StringData> data;
@@ -62,10 +62,10 @@ class ahat_helper {
   public:
 
     /// constructor
-    ahat_helper(std::string vacuum_type);
+    pq_helper(std::string vacuum_type);
 
     /// destructor
-    ~ahat_helper();
+    ~pq_helper();
 
     /// set operators to apply to the left of any operator products we add
     void set_left_operators(std::vector<std::string> in);

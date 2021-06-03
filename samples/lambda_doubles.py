@@ -7,8 +7,8 @@ sys.path.insert(0, './..')
 
 import pdaggerq
 
-ahat = pdaggerq.ahat_helper("fermi")
-ahat.set_print_level(0)
+pq = pdaggerq.pq_helper("fermi")
+pq.set_print_level(0)
 
 print('')
 print('    0 = <0| e(-T) H e*f*nm e(T)|0> + <0| L e(-T) [H, e*f*nm] e(T)|0>')
@@ -16,28 +16,28 @@ print('')
 
 #  <0| e(-T) H e*f*nm e(T)|0>
 
-ahat.set_left_operators(['1'])
-ahat.set_right_operators(['1'])
+pq.set_left_operators(['1'])
+pq.set_right_operators(['1'])
 
-ahat.add_st_operator(1.0,['f','e2(e,f,n,m)'],['t1','t2'])
-ahat.add_st_operator(1.0,['v','e2(e,f,n,m)'],['t1','t2'])
+pq.add_st_operator(1.0,['f','e2(e,f,n,m)'],['t1','t2'])
+pq.add_st_operator(1.0,['v','e2(e,f,n,m)'],['t1','t2'])
 
 # <0| L e(-T) [H,e*f*nm] e(T)|0>
 
-ahat.set_left_operators(['l1','l2'])
+pq.set_left_operators(['l1','l2'])
 
-ahat.add_st_operator( 1.0,['f','e2(e,f,n,m)'],['t1','t2'])
-ahat.add_st_operator( 1.0,['v','e2(e,f,n,m)'],['t1','t2'])
+pq.add_st_operator( 1.0,['f','e2(e,f,n,m)'],['t1','t2'])
+pq.add_st_operator( 1.0,['v','e2(e,f,n,m)'],['t1','t2'])
 
-ahat.add_st_operator(-1.0,['e2(e,f,n,m)','f'],['t1','t2'])
-ahat.add_st_operator(-1.0,['e2(e,f,n,m)','v'],['t1','t2'])
+pq.add_st_operator(-1.0,['e2(e,f,n,m)','f'],['t1','t2'])
+pq.add_st_operator(-1.0,['e2(e,f,n,m)','v'],['t1','t2'])
 
-ahat.simplify()
+pq.simplify()
 
 # grab list of fully-contracted strings, then print
-doubles_residual_terms = ahat.fully_contracted_strings()
+doubles_residual_terms = pq.fully_contracted_strings()
 for my_term in doubles_residual_terms:
     print(my_term)
 
-ahat.clear()
+pq.clear()
 
