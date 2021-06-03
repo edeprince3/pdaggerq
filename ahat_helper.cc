@@ -1096,7 +1096,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                         size_t pos = in[i].find(",");
                         if ( pos == std::string::npos ) {
                             printf("\n");
-                            printf("    error in e operator definition\n");
+                            printf("    error in e1 operator definition\n");
                             printf("\n");
                             exit(1);
                         }
@@ -1129,7 +1129,7 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                         if ( ncomma != 3 ) {
                             printf("\n");
-                            printf("    error in left-hand amplitude definition\n");
+                            printf("    error in e2 definition\n");
                             printf("\n");
                             exit(1);
                         }
@@ -1139,9 +1139,42 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
                         tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
                         tmp_string.push_back(in[i].substr(commas[2]+1));
 
+                    }else if ( in[i].substr(1,1) == "3" ){
+
+                        //printf("\n");
+                        //printf("    error: e3 operator not yet implemented.\n");
+                        //printf("\n");
+                        //exit(1);
+
+                        // count indices
+                        size_t pos = 0;
+                        int ncomma = 0;
+                        std::vector<size_t> commas;
+                        pos = in[i].find(",", pos + 1);
+                        commas.push_back(pos);
+                        while( pos != std::string::npos){
+                            pos = in[i].find(",", pos + 1);
+                            commas.push_back(pos);
+                            ncomma++;
+                        }
+
+                        if ( ncomma != 5 ) {
+                            printf("\n");
+                            printf("    error in e3 definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+
+                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[2]+1,commas[3]-commas[2]-1));
+                        tmp_string.push_back(in[i].substr(commas[3]+1,commas[4]-commas[3]-1));
+                        tmp_string.push_back(in[i].substr(commas[4]+1));
+
                     }else {
                         printf("\n");
-                        printf("    error: only e1 or e2 left-hand amplitudes are supported\n");
+                        printf("    error: only e1, e2, and e3 operators are supported\n");
                         printf("\n");
                         exit(1);
                     }
