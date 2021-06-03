@@ -15,8 +15,8 @@ print('')
 print('    < 0 | e(-T) H e(T) | 0> :')
 print('')
 
-ahat.add_st_operator(1.0,['h'],['t1','t2'])
-ahat.add_st_operator(1.0,['g'],['t1','t2'])
+ahat.add_st_operator(1.0,['f'],['t1','t2'])
+ahat.add_st_operator(1.0,['v'],['t1','t2'])
 
 ahat.simplify()
 
@@ -29,14 +29,15 @@ ahat.clear()
 
 # singles equations
 
-ahat.set_bra("singles")
+#ahat.set_bra("singles")
+ahat.set_left_operators(['e1(m,e)'])
 
 print('')
 print('    < 0 | m* e e(-T) H e(T) | 0> :')
 print('')
 
-ahat.add_st_operator(1.0,['h'],['t1','t2'])
-ahat.add_st_operator(1.0,['g'],['t1','t2'])
+ahat.add_st_operator(1.0,['f'],['t1','t2'])
+ahat.add_st_operator(1.0,['v'],['t1','t2'])
 
 ahat.simplify()
 
@@ -49,14 +50,15 @@ ahat.clear()
 
 # doubles equations
 
-ahat.set_bra("doubles")
+#ahat.set_bra("doubles")
+ahat.set_left_operators(['e2(m,n,f,e)'])
 
 print('')
 print('    < 0 | m* n* f e e(-T) H e(T) | 0> :')
 print('')
 
-ahat.add_st_operator(1.0,['h'],['t1','t2'])
-ahat.add_st_operator(1.0,['g'],['t1','t2'])
+ahat.add_st_operator(1.0,['f'],['t1','t2'])
+ahat.add_st_operator(1.0,['v'],['t1','t2'])
 
 ahat.simplify()
 
