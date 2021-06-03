@@ -2431,13 +2431,13 @@ void ahat::replace_index_in_right_amplitudes(std::string old_idx, std::string ne
 
 }
 
-// find and replace any funny labels in tensors with conventional ones. i.e., t -> i ,w -> a
+// find and replace any funny labels in tensors with conventional ones. i.e., o1 -> i ,v1 -> a
 void ahat::use_conventional_labels() {
 
     // occupied first:
-    std::vector<std::string> occ_in{"o1","o2","o3","o4",
-                                    "i0","i1","i2","i3","i4","i5","i6","i7","i8","i9",
-                                    "i10","i11","i12","i13","i14","i15","i16","i17","i18","i19"};
+    std::vector<std::string> occ_in{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
+                                    "o10","o11","o12","o13","o14","o15","o16","o17","o18","o19",
+                                    "o20","o21","o22","o23","o24","o25","o26","o27","o28","o29"};
     std::vector<std::string> occ_out{"i","j","k","l"};
 
     for (int i = 0; i < (int)occ_in.size(); i++) {
@@ -2458,9 +2458,9 @@ void ahat::use_conventional_labels() {
     }
 
     // now virtual
-    std::vector<std::string> vir_in{"v1","v2","v3","v4",
-                                    "a0","a1","a2","a3","a4","a5","a6","a7","a8","a9",
-                                    "a10","a11","a12","a13","a14","a15","a16","a17","a18","a19"};
+    std::vector<std::string> vir_in{"v0","v1","v2","v3","v4","v5","v6","v7","v8","v9",
+                                    "v10","v11","v12","v13","v14","v15","v16","v17","v18","v19",
+                                    "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
     std::vector<std::string> vir_out{"a","b","c","d"};
 
     for (int i = 0; i < (int)vir_in.size(); i++) {

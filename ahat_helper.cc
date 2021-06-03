@@ -646,8 +646,9 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
             //bool has_b        = false;
             //bool has_b_dagger = false;
 
-            int occ_label_count = 0;
-            int vir_label_count = 0;
+            // stupid design choice ... o1-o4 and v1-v4 are already used
+            int occ_label_count = 5;
+            int vir_label_count = 5;
             int gen_label_count = 0;
 
 
@@ -795,8 +796,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                     if ( in[i].substr(1,1) == "1" ){
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2);
@@ -807,10 +808,10 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                         factor *= 0.25;
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "a" + std::to_string(vir_label_count++);
-                        std::string idx3 = "i" + std::to_string(occ_label_count++);
-                        std::string idx4 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "v" + std::to_string(vir_label_count++);
+                        std::string idx3 = "o" + std::to_string(occ_label_count++);
+                        std::string idx4 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2+"*");
@@ -823,12 +824,12 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                         factor *= 1.0 / 36.0;
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "a" + std::to_string(vir_label_count++);
-                        std::string idx3 = "a" + std::to_string(vir_label_count++);
-                        std::string idx4 = "i" + std::to_string(occ_label_count++);
-                        std::string idx5 = "i" + std::to_string(occ_label_count++);
-                        std::string idx6 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "v" + std::to_string(vir_label_count++);
+                        std::string idx3 = "v" + std::to_string(vir_label_count++);
+                        std::string idx4 = "o" + std::to_string(occ_label_count++);
+                        std::string idx5 = "o" + std::to_string(occ_label_count++);
+                        std::string idx6 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2+"*");
@@ -884,8 +885,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                     }else if ( in[i].substr(1,1) == "1" ){
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2);
@@ -898,10 +899,10 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                         factor *= 0.25;
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "a" + std::to_string(vir_label_count++);
-                        std::string idx3 = "i" + std::to_string(occ_label_count++);
-                        std::string idx4 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "v" + std::to_string(vir_label_count++);
+                        std::string idx3 = "o" + std::to_string(occ_label_count++);
+                        std::string idx4 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2+"*");
@@ -927,8 +928,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                     }else if ( in[i].substr(1,1) == "1" ){
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2);
@@ -939,10 +940,10 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                         factor *= 0.25;
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "a" + std::to_string(vir_label_count++);
-                        std::string idx3 = "i" + std::to_string(occ_label_count++);
-                        std::string idx4 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "v" + std::to_string(vir_label_count++);
+                        std::string idx3 = "o" + std::to_string(occ_label_count++);
+                        std::string idx4 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2+"*");
@@ -968,8 +969,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                     }else if ( in[i].substr(1,1) == "1" ){
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2);
@@ -982,10 +983,10 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                         factor *= 0.25;
 
-                        std::string idx1 = "a" + std::to_string(vir_label_count++);
-                        std::string idx2 = "a" + std::to_string(vir_label_count++);
-                        std::string idx3 = "i" + std::to_string(occ_label_count++);
-                        std::string idx4 = "i" + std::to_string(occ_label_count++);
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "v" + std::to_string(vir_label_count++);
+                        std::string idx3 = "o" + std::to_string(occ_label_count++);
+                        std::string idx4 = "o" + std::to_string(occ_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2+"*");
@@ -1011,8 +1012,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                     }else if ( in[i].substr(1,1) == "1" ){
 
-                        std::string idx1 = "i" + std::to_string(occ_label_count++);
-                        std::string idx2 = "a" + std::to_string(vir_label_count++);
+                        std::string idx1 = "o" + std::to_string(occ_label_count++);
+                        std::string idx2 = "v" + std::to_string(vir_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2);
@@ -1023,10 +1024,10 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                         factor *= 0.25;
 
-                        std::string idx1 = "i" + std::to_string(occ_label_count++);
-                        std::string idx2 = "i" + std::to_string(occ_label_count++);
-                        std::string idx3 = "a" + std::to_string(vir_label_count++);
-                        std::string idx4 = "a" + std::to_string(vir_label_count++);
+                        std::string idx1 = "o" + std::to_string(occ_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
+                        std::string idx3 = "v" + std::to_string(vir_label_count++);
+                        std::string idx4 = "v" + std::to_string(vir_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2+"*");
@@ -1052,8 +1053,8 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                     }else if ( in[i].substr(1,1) == "1" ){
 
-                        std::string idx1 = "i" + std::to_string(occ_label_count++);
-                        std::string idx2 = "a" + std::to_string(vir_label_count++);
+                        std::string idx1 = "o" + std::to_string(occ_label_count++);
+                        std::string idx2 = "v" + std::to_string(vir_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2);
@@ -1066,10 +1067,10 @@ void ahat_helper::add_operator_product(double factor, std::vector<std::string>  
 
                         factor *= 0.25;
 
-                        std::string idx1 = "i" + std::to_string(occ_label_count++);
-                        std::string idx2 = "i" + std::to_string(occ_label_count++);
-                        std::string idx3 = "a" + std::to_string(vir_label_count++);
-                        std::string idx4 = "a" + std::to_string(vir_label_count++);
+                        std::string idx1 = "o" + std::to_string(occ_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
+                        std::string idx3 = "v" + std::to_string(vir_label_count++);
+                        std::string idx4 = "v" + std::to_string(vir_label_count++);
 
                         tmp_string.push_back(idx1+"*");
                         tmp_string.push_back(idx2+"*");
@@ -1407,7 +1408,6 @@ void ahat_helper::add_new_string_true_vacuum(){
         mystring->print();
     }
 
-    
     // rearrange strings
     //mystring->normal_order(ordered);
 
