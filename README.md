@@ -31,16 +31,16 @@ python setup.py clean; python setup.py install
 
 **Notes**
 
-1. Normal order may be defined relative to the true vacuum or the fermi vacuum. This selection is made when creating the ahat_helper class:
+1. Normal order may be defined relative to the true vacuum or the fermi vacuum. This selection is made when creating the pq_helper class:
 
         # true vacuum
-        ahat = pdaggerq.ahat_helper("")
+        pq = pdaggerq.pq_helper("")
     or    
         # true vacuum
-        ahat = pdaggerq.ahat_helper("true")
+        pq = pdaggerq.pq_helper("true")
     or    
         # fermi vacuum
-        ahat = pdaggerq.ahat_helper("fermi")
+        pq = pdaggerq.pq_helper("fermi")
         
     Note than full functionality is not yet available for manual string specification when normal order is defined relative to the fermi vacuum.  In this case, it is better to use the functions defined below that add complete strings in a single command.
 
@@ -48,74 +48,96 @@ python setup.py clean; python setup.py install
 
 3. Orbital labels refer to spin orbitals. In principle, one could explicitly specify spin labels with labels such as ia, ib, etc., but no checks on delta functions involving alpha / beta spin components defined in this way are performed.
 
-4. Strings are defined in Python using the ahat_helper class, which has the following functions:
+4. Strings are defined in Python using the pq_helper class, which has the following functions:
 
     #### add_operator_product: 
     
     set strings corresponding to a product of operators. 
     
-        add_operator_product( 0.5, ['h(p,q)','t1(a,i)','t2(c,d,k,l)'])
+        add_operator_product( 0.5, ['h','t1','t2'])
     
     Currently supported operators include 
+
+    the unit operator
     
+        '1'
+        
     a general one-body operator
     
-        'h(p,q)' 
+        'h' 
     
-    an antisymetrized two-body operator
+    an general two-body operator
     
-        'g(p,q,r,s)' 
+        'g' 
     
-    a pair of creation/annihilation operators, i.e., p*q
+    the fock operator
+    
+        'f' 
+    
+    the fluctuation potental operator 
+    
+        'v' 
+        
+    a pair of creation/annihilation operators, i.e., p\*q
     
         'e1(p,q)' 
         
-    a two-body transition operator, i.,e., p*q\*rs
+    a two-body transition operator, i.,e., p\*q\*rs
     
         'e2(p,q,r,s)' 
+   
+   a three-body transition operator, i.,e., p\*q\*r\*stu
+    
+        'e3(p,q,r,s,t,u)' 
     
     singles and doubles t-amplitudes 
     
-        't1(a,i)'
-        't2(a,b,i,j)' 
+        't1'
+        't2' 
     
     reference, singles, and doubles left-hand amplitudes 
     
         'l0'
-        'l1(i,a)'  
-        'l2(i,j,a,b)'   
+        'l1'  
+        'l2'   
         
     reference, singles, and doubles right-hand amplitudes 
     
         'r0'
-        'r1(a,i)'  
-        'r2(a,b,i,j)'   
+        'r1'  
+        'r2'   
     
-    Note that the factor of 1/4 associated with t2, l2, r2, and g are handled internally.
-     
+    Note that factor such as the 1/4 associated with t2, l2, and r2 are handled internally.
+    
     #### add_commutator: 
     
-    set strings corresponding to a commutator of two operators. If one of the operators is t2, l2, r2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    set strings corresponding to a commutator of operators. Note that the arguments are lists to allow for commutators of products of operators.
     
-        add_commutator(1.0, ['h(p,q)','t2(a,b,i,j)'])
+        add_commutator(1.0, ['f'],['t2'])
   
     #### add_double_commutator: 
     
-    set strings corresponding to a double commutator involving three operators. If any of the operators is t2, l2, r2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    set strings corresponding to a double commutator involving three operators. Note that the arguments are lists to allow for commutators of products of operators.
     
-        add_double_commutator(1.0/2.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)'])
+        add_double_commutator(1.0/2.0, ['f'],['t2'],['t1'])
         
     #### add_triple_commutator: 
     
-    set strings corresponding to a triple commutator involving four operators. If any of the operators are t2, l2, r2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    set strings corresponding to a triple commutator involving four operators. Note that the arguments are lists to allow for commutators of products of operators.
     
-        add_triple_commutator(1.0/6.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)', 't1(d,l)'])
+        add_triple_commutator(1.0/6.0, ['f','t2','t1', 't1'])
         
     #### add_quadruple_commutator: 
     
-    set strings corresponding to a quadruple commutator involving five operators. If any of the operators is t2, l2, r2, or g, recall that the factors of 1/4 associated with these operators are handled internally.
+    set strings corresponding to a quadruple commutator involving five operators. Note that the arguments are lists to allow for commutators of products of operators.
     
-        add_quadruple_commutator(1.0/24.0, ['h(p,q)','t2(a,b,i,j)','t1(c,k)', 't1(d,l)', 't1(e,m)'])
+        add_quadruple_commutator(1.0/24.0, ['f','t2','t1', 't1', 't1'])
+
+    #### add_st_operator: 
+    
+    set strings corresponding to a similarity transformed operator commutator involving five operators. The first argument after the numerical value is a list of operators; the product of these operators will be similarity transformed. The next argument is a list of operators appearing as a sum the exponential function. The similarity transformation is performed by applying the BCH expansion up to four nested commutators.
+    
+        add_st_operator(1.0, ['v'],['t1','t2'])
 
     #### set_print_level: 
     
@@ -123,16 +145,27 @@ python setup.py clean; python setup.py install
     
         set_print_level(0)
 
+    #### set_left_operators:
+    
+    set a sum of operators that define the bra state
+    
+        set_left_operators(['1','l1','l2'])
+        
+    #### set_right_operators:
+    
+    set a sum of operators that define the ket state
+    
+        set_right_operators(['r0','r1','r2'])
+
     #### set_bra: 
     
-    set a bra state to include in the operator string. possible bra states include "vacuum", "singles" (m* e), and "doubles" (m* n* f e)
+    set a bra state to include in the operator string. possible bra states include "vacuum", "singles" (m* e), and "doubles" (m* n* f e). Note that greater control over labels is provided by the set_left_operator function (e.g., set_left_operator(['e2(i,j,b,a)'])).
     
         set_bra("doubles")
-    
         
     #### set_ket: 
     
-    set a ket state to include in the operator string. possible ket states include "vacuum", "singles" (e* m), and "doubles" (e* f* n m)
+    set a ket state to include in the operator string. possible ket states include "vacuum", "singles" (e* m), and "doubles" (e* f* n m). Note that greater control over labels is provided by the set_right_operator function (e.g., set_right_operator(['e2(a,b,j,i)'])).
     
         set_ket("doubles")
     
@@ -153,18 +186,6 @@ python setup.py clean; python setup.py install
     print strings involving no creation / annihilation operators
     
         print_fully_contracted()
-    
-    #### print_one_body: 
-    
-    print strings involving only one-body operators.
-    
-        print_one_body()
-        
-    #### print_two_body: 
-    
-    print strings involving only two-body operators.
-    
-        print_two_body()
         
     #### clear: 
     
@@ -172,53 +193,13 @@ python setup.py clean; python setup.py install
     
         clear()
 
-5. Strings may also be specified manually using the following commands, but some of these don't yet work correctly when normal order is defined relative to the fermi vacuum. Most use cases would probably be best treated using the functions defined in the previous bullet.
+5. Strings of bare creation/annihilation operators may also be specified manually using the following commands. 
 
     #### set_string: 
     
     set the string of creation and annihiliation operators.
     
         set_string(['p*','q','a*','i'])
-        
-    #### set_tensor: 
-    
-    define a one- or two-body tensor to accompany the string. Note that only one tensor can accompany the string.
-    
-        set_tensor(['p','q'])
-        
-        or
-        
-        set_tensor(['p','q','r','s'])
-        
-    #### set_t_amplitudes: 
-    
-    define t1 or t2 amplitudes to accompany the string. Note that an arbitrary number of amplitudes can be set.
-
-        set_t_amplitudes(['a','i'])
-        
-        or 
-        
-        set_t_amplitudes(['a','b','i','j'])
-        
-    #### set_left_amplitudes: 
-    
-    define l1 or l2 amplitudes to accompany the string. 
-
-        set_left_amplitudes(['i','a'])
-        
-        or 
-        
-        set_left_amplitudes(['i','j','a','b'])
-        
-    #### set_right_amplitudes: 
-    
-    define r1 or r2 amplitudes to accompany the string. 
-
-        set_right_amplitudes(['a','i'])
-        
-        or 
-        
-        set_right_amplitudes(['a','b','i','j'])
         
     #### set_factor: 
     
@@ -241,10 +222,10 @@ Python:
 
     import pdaggerq
 
-    ahat = pdaggerq.ahat_helper("fermi")
+    pq = pdaggerq.pq_helper("fermi")
 
-    ahat.set_bra("")
-    ahat.set_print_level(0)
+    pq.set_bra("")
+    pq.set_print_level(0)
 
     print('')
     print('    < 0 | e(-T) H e(T) | 0> :')
@@ -252,32 +233,32 @@ Python:
 
     # one-electron part: 
     
-    # h
-    ahat.add_operator_product(1.0,['h(p,q)'])
+    # f
+    pq.add_operator_product(1.0,['f'])
 
-    # [h, T1]
-    ahat.add_commutator(1.0,['h(p,q)','t1(a,i)'])
+    # [f, T1]
+    pq.add_commutator(1.0,['f'],['t1'])
 
-    # [h, T2]
-    ahat.add_commutator(1.0,['h(p,q)','t2(a,b,i,j)'])
+    # [f, T2]
+    pq.add_commutator(1.0,['f'],['t2'])
 
     # two-electron part: 
 
-    # g
-    ahat.add_operator_product(1.0,['g(p,r,q,s)'])
+    # v
+    pq.add_operator_product(1.0,['v'])
 
-    # [g, T1]
-    ahat.add_commutator(1.0,['g(p,r,q,s)','t1(a,i)'])
+    # [v, T1]
+    pq.add_commutator(1.0,['v'],['t1'])
 
-    # [g, T2]
-    ahat.add_commutator(1.0,['g(p,r,q,s)','t2(a,b,i,j)'])
+    # [v, T2]
+    pq.add_commutator(1.0,['v'],['t2(a,b,i,j)'])
 
-    # [[g, T1], T1]]
-    ahat.add_double_commutator(0.5, ['g(p,r,q,s)','t1(a,i)','t1(b,j)'])
+    # [[v, T1], T1]]
+    pq.add_double_commutator(0.5, ['v'],['t1'],['t1'])
 
-    ahat.simplify()
-    ahat.print_fully_contracted()
-    ahat.clear()
+    pq.simplify()
+    pq.print_fully_contracted()
+    pq.clear()
 
 Output:
 
@@ -285,9 +266,8 @@ Output:
 
 
     // fully-contracted strings:
-    //     + 1.00000 h(i,i) 
-    //     + 1.00000 h(i,a) t1(a,i) 
-    //     + 0.50000 <i,j||i,j> 
-    //     + 1.00000 <i,j||a,j> t1(a,i) 
-    //     + 0.25000 <i,j||a,b> t2(a,b,i,j) 
-    //     + 0.50000 <i,j||a,b> t1(a,i) t1(b,j) 
+    //     + 1.00000 f(i,i) 
+    //     + 1.00000 f(i,a) t1(a,i) 
+    //     - 0.50000 <i,j||i,j> 
+    //     - 0.25000 <i,j||a,b> t2(a,b,j,i) 
+    //     + 0.50000 <i,j||a,b> t1(a,i) t1(b,j)
