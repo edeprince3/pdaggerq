@@ -222,9 +222,6 @@ Python:
 
     pq = pdaggerq.pq_helper("fermi")
 
-    pq.set_bra("")
-    pq.set_print_level(0)
-
     print('')
     print('    < 0 | e(-T) H e(T) | 0> :')
     print('')
@@ -269,3 +266,16 @@ Output:
     //     - 0.50000 <i,j||i,j> 
     //     - 0.25000 <i,j||a,b> t2(a,b,j,i) 
     //     + 0.50000 <i,j||a,b> t1(a,i) t1(b,j)
+
+The same output can be generated using the add_st_operator command:
+
+    import pdaggerq
+
+    pq = pdaggerq.pq_helper("fermi")
+
+    print('')
+    print('    < 0 | e(-T) H e(T) | 0> :')
+    print('')
+    
+    pq.add_st_operator(1.0,['f'],['t1','t2'])
+    pq.add_st_operator(1.0,['v'],['t1','t2'])
