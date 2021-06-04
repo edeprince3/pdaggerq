@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, './..')
-
 # elements of the one-electron reduced density matrix 
 # at the CID level of theory
 # D2(p,q,r,s) = <0|(l0 + l2) p*q*sr (r0 + t2)|0> 

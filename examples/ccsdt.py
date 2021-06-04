@@ -1,7 +1,4 @@
 
-import sys
-sys.path.insert(0, './..')
-
 import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")

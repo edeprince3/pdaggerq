@@ -2,6 +2,33 @@
 
 A code for bringing strings of creation / annihilation operators to normal order.
 
+## Installation
+Installing pdaggerq requires cmake is installed on your system.  To install first clone the package
+
+```
+git clone git@github.com:edeprince3/pdaggerq.git
+```
+
+Then install like a normal python package.  From the package top level directory run either
+
+```
+python setup.py install
+```
+or 
+```
+pip install .
+```
+which should compile pdaggerq.  These commands will produce `build`, `dist`, and `_deps` folders which contain
+the compiled c++ shared library. If you are a developer and make changes to the c++ code the package can 
+be rebuilt by running 
+```
+python setup.py clean; python setup.py install
+```
+
+##Getting Started
+
+
+
 **Notes**
 
 1. Normal order may be defined relative to the true vacuum or the fermi vacuum. This selection is made when creating the ahat_helper class:
