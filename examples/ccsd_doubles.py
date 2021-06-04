@@ -3,12 +3,12 @@ import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")
 
-pq.set_bra("doubles")
-pq.set_print_level(0)
 
 print('')
 print('    < 0 | m* n* f e e(-T) H e(T) | 0> :')
 print('')
+
+pq.set_left_operators(['e2(m,n,f,e)'])
 
 # one-electron part: need only up to double commutators
 # h
@@ -62,19 +62,12 @@ pq.add_triple_commutator( 1.0/2.0, ['v'],['t1'],['t1'],['t2'])
 # [[[[g, T1], T1], T1], T1]
 pq.add_quadruple_commutator( 1.0/24.0, ['v'],['t1'],['t1'],['t1'],['t1'])
 
-#pq.add_st_operator(1.0,['f'],['t1','t2'])
-#pq.add_st_operator(1.0,['v'],['t1','t2'])
-
 pq.simplify()
-
-# print fully-contracted strings
-#pq.print_fully_contracted()
 
 # grab list of fully-contracted strings, then print
 residual_terms = pq.fully_contracted_strings()
 for my_term in residual_terms:
     print(my_term)
-
 
 pq.clear()
 

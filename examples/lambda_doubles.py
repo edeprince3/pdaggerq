@@ -5,7 +5,6 @@
 import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")
-pq.set_print_level(0)
 
 print('')
 print('    0 = <0| e(-T) H e*f*nm e(T)|0> + <0| L e(-T) [H, e*f*nm] e(T)|0>')

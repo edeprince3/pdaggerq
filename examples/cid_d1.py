@@ -6,9 +6,6 @@ import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")
 
-pq.set_bra("vacuum")
-pq.set_print_level(0)
-
 print('')
 print('    D1(m,n) = <0|(l0 + l2) e(m,n) (r0 + r2)|0>')
 print('')

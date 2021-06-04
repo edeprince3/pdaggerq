@@ -3,12 +3,12 @@ import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")
 
-pq.set_bra("singles")
-pq.set_print_level(0)
 
 print('')
 print('    < 0 | m* e e(-T) H e(T) | 0> :')
 print('')
+
+pq.set_left_operators(['e1(m,e)'])
 
 # one-electron part: need only up to double commutators
 # h
@@ -60,21 +60,9 @@ pq.add_triple_commutator( 1.0/2.0, ['v'],['t1'],['t1'],['t2'])
 # [[[[g, T1], T1], T1], T1]
 pq.add_quadruple_commutator( 1.0/24.0, ['v'],['t1'],['t1'],['t1'],['t1'])
 
-
-#pq.add_st_operator(1.0,['f'],['t1','t2'])
-#pq.add_st_operator(1.0,['v'],['t1','t2'])
-
 pq.simplify()
 
 pq.print_fully_contracted()
-
-#pq.print_one_body()
-
-#pq.print_two_body()
-
-#pq.print_one_body()
-
-#pq.print_two_body()
 
 pq.clear()
 

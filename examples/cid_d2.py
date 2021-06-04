@@ -6,9 +6,6 @@ import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")
 
-pq.set_bra("vacuum")
-pq.set_print_level(0)
-
 pq.set_left_operators(['l0','l2'])
 pq.set_right_operators(['r0','r2'])
 

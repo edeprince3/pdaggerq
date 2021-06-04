@@ -69,7 +69,6 @@ pq.clear()
 
 # triples equations
 
-#pq.set_bra("triples")
 #pq.set_left_operators(['e3(m,n,o,g,f,e)'])
 #
 #print('')

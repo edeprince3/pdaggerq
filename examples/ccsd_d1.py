@@ -5,9 +5,6 @@ import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")
 
-pq.set_bra("vacuum")
-pq.set_print_level(0)
-
 print('')
 print('    D1(m,n):')
 print('')

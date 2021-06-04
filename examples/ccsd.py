@@ -6,7 +6,7 @@ pq.set_print_level(0)
 
 # energy equation
 
-pq.set_bra("")
+pq.set_left_operators(['1'])
 
 print('')
 print('    < 0 | e(-T) H e(T) | 0> :')
@@ -26,7 +26,6 @@ pq.clear()
 
 # singles equations
 
-#pq.set_bra("singles")
 pq.set_left_operators(['e1(m,e)'])
 
 print('')
@@ -47,7 +46,6 @@ pq.clear()
 
 # doubles equations
 
-#pq.set_bra("doubles")
 pq.set_left_operators(['e2(m,n,f,e)'])
 
 print('')
