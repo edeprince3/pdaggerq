@@ -25,9 +25,7 @@ be rebuilt by running
 python setup.py clean; python setup.py install
 ```
 
-##Getting Started
-
-
+## Getting started
 
 **Notes**
 
