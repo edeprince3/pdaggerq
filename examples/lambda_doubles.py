@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, './..')
-
 # ccsd lambda equations
 # L = <0| (1+L) e(-T) H e(T) |0>
 # dL/dtu = <0| e(-T) H e(T) |u> + <0| L e(-T) H e(T) |u> - <0| L tu e(-T) H e(T) |0>

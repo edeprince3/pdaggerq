@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, './..')
-
 # elements of the one-electron reduced density matrix 
 # at the CCSD level of theory: D(pq) = <psi|(1+lambda) e(-T) p*q e(T) |psi> 
 

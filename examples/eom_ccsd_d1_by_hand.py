@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, './..')
-
 # elements of the one-electron reduced density matrix 
 # at the EOM-CCSD level of theory: D(pq) = <0|(l0 + l1 + l2) e(-T) p*q e(T) (r0 + r1 + r2)|0> 
 
