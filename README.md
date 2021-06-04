@@ -105,7 +105,7 @@ python setup.py clean; python setup.py install
         'r1'  
         'r2'   
     
-    Note that factor such as the 1/4 associated with t2, l2, and r2 are handled internally.
+    Note that factors such as the 1/4 associated with t2, l2, and r2 are handled internally.
     
     #### add_commutator: 
     
@@ -178,6 +178,12 @@ python setup.py clean; python setup.py install
     print current list of strings.
         
         print()
+
+    #### fully_contracted_strings: 
+    
+    returns strings involving no creation / annihilation operators
+    
+        fully_contracted_strings()
 
     #### print_fully_contracted: 
     
@@ -267,7 +273,7 @@ Output:
     //     - 0.25000 <i,j||a,b> t2(a,b,j,i) 
     //     + 0.50000 <i,j||a,b> t1(a,i) t1(b,j)
 
-The same output can be generated using the add_st_operator command:
+The same result can be generated using the add_st_operator command. Here I am also using a different mechanism to print the strings:
 
     import pdaggerq
 
@@ -279,3 +285,20 @@ The same output can be generated using the add_st_operator command:
     
     pq.add_st_operator(1.0,['f'],['t1','t2'])
     pq.add_st_operator(1.0,['v'],['t1','t2'])
+    
+    pq.simplify()
+    energy_terms = pq.fully_contracted_strings()
+    for my_term in energy_terms:
+        print(my_term)
+        
+    pq.clear()
+
+Output:
+
+    < 0 | e(-T) H e(T) | 0> :
+
+    ['+1.000000', 'f(i,i)']
+    ['+1.000000', 'f(i,a)', 't1(a,i)']
+    ['-0.500000', '<i,j||i,j>']
+    ['-0.250000', '<i,j||a,b>', 't2(a,b,j,i)']
+    ['+0.500000', '<i,j||a,b>', 't1(a,i)', 't1(b,j)']
