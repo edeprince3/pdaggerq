@@ -155,6 +155,9 @@ class pq_helper {
     /// print strings
     void print();
 
+    /// get list of strings 
+    std::vector<std::vector<std::string> > strings();
+
     /// print fully-contracted strings
     void print_fully_contracted();
 
