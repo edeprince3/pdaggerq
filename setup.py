@@ -3,7 +3,7 @@ import os
 import sys
 import subprocess
 
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
@@ -78,7 +78,8 @@ setup(
     author_email="deprince@chem.fsu.edu, rubinnc0@gmail.com",
     description="A computer algebra program for fermions in second quantization",
     long_description="",
-    ext_modules=[CMakeExtension("pdaggerq")],
+    ext_modules=[CMakeExtension("pdaggerq._pdaggerq")],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
+    packages=['pdaggerq']
 )
