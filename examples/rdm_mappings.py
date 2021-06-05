@@ -5,18 +5,23 @@ import pdaggerq
 
 def main():
     print("T2 mappings")
-    # need cumulant decomposition on 3-RDM terms
-    # to simplify to a 2-RDM + 1-RDM expression
     ahat = pdaggerq.pq_helper('true')
-
     ahat.set_string(['i*','j*','k','n*','m', 'l'])
     ahat.add_new_string()
-    ahat.set_string(['i*','j','k', 'n*','m*', 'l'])
+    ahat.set_string(['n*','m','l', 'i*','j*', 'k'])
     ahat.add_new_string()
-
     ahat.simplify()
     ahat.print()
+    ahat.clear()
 
+    print("T1 mappings")
+    ahat = pdaggerq.pq_helper('true')
+    ahat.set_string(['i*','j*','k*','n','m', 'l'])
+    ahat.add_new_string()
+    ahat.set_string(['n','m','l', 'i*','j*', 'k*'])
+    ahat.add_new_string()
+    ahat.simplify()
+    ahat.print()
     ahat.clear()
 
     print("Q -> D")
