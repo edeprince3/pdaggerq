@@ -124,7 +124,8 @@ class TensorTerm:
                       occupied=['i', 'j', 'k', 'l', 'm', 'n'],
                       virtual=['a', 'b', 'c', 'd', 'e', 'f'],
                       occ_char=None,
-                      virt_char=None,):
+                      virt_char=None,
+                      optimize=True):
         einsum_out_strings = ""
         einsum_tensors = []
         tensor_out_idx = []
@@ -169,7 +170,7 @@ class TensorTerm:
 
         teinsum_string = "+= {} * einsum(\'".format(self.coefficient)
 
-        if len(einsum_strings) > 2:
+        if len(einsum_strings) > 2 and optimize:
             sorbs = 8
             nocc = 4
             nvirt = sorbs - nocc
@@ -312,5 +313,9 @@ class TwoBody(BaseTerm):
 
 
 class Delta(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index,...], name='kd'):
+        super().__init__(indices=indices, name=name)
+
     def __repr__(self):
         return "d({},{})".format(self.indices[0], self.indices[1])

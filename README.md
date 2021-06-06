@@ -1,5 +1,5 @@
 <img src="https://render.githubusercontent.com/render/math?math=p^{\dagger}q">
-------------------------------------------------------------------------------
+
 pdaggeq is a fermionic computer algebra package for bringing strings of creation / annihilation operators to normal
 order with respect to a true vacuum or Fermi vacuum. The code also evalutes projections used in coupled cluster theory
 and can be used to generate full working coupled cluster codes. In the examples section we provide worked examples that
