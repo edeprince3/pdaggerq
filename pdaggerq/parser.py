@@ -15,10 +15,9 @@
 #   limitations under the License.
 
 from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, Index,
-                              TensorTerm, D1,
-                              Delta, Left0amps, Left1amps, Left2amps,
-                              Right0amps,
-                              Right1amps, Right2amps, FockMat)
+                              TensorTerm, D1, Delta, Left0amps, Left1amps,
+                              Left2amps, Right0amps, Right1amps, Right2amps,
+                              FockMat, BaseTerm)
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
 
 
@@ -107,3 +106,63 @@ def contracted_strings_to_tensor_terms(pdaggerq_list_of_strings):
             TensorTerm(base_terms=tuple(single_tensor_term), coefficient=coeff)
         )
     return tensor_terms
+
+
+def vacuum_normal_ordered_strings_to_tensor_terms(pdaggerq_list_of_strings):
+    """
+    Take the output of a normal ordering in pdaggerq and produce tensor terms
+
+    Thus function enforces parsing normal ordered terms.  The name of the term
+    parsed is equal to d{} half the length of the number of indices. d1 'i*','j'
+    d2 'i*','j*','k','l', etc
+
+    :param pdaggerq_list_of_strings: List[List[str]] where  first item is always
+                                     a float.
+    :return: List of algebra.TensorTerms
+    """
+    tensor_terms = []
+    for pq_strings in pdaggerq_list_of_strings:
+        coeff = float(pq_strings[0])
+        delta_strings = list(
+            filter(lambda xx: True if 'd(' in xx else False, pq_strings))
+        delta_terms = []
+        for d_str in delta_strings:
+            delta_idx = d_str.replace('d(', '').replace(')', '').split(',')
+            delta_idx = [Index(xx, 'all') for xx in delta_idx]
+            delta_terms.append(Delta(indices=tuple(delta_idx)))
+        rdm_strings = list(
+            filter(lambda xx: False if 'd(' in xx else True, pq_strings[1:]))
+        dagger_locations = [1 if '*' in xx else 0 for xx in rdm_strings]
+        zero_location = dagger_locations.index(0)
+        if not all(dagger_locations[:zero_location]):
+            raise ValueError("Not in vacuum normal order")
+        if any(dagger_locations[zero_location:]):
+            raise ValueError("Not in vacuum normal order")
+        rdm_idx = [xx.replace('*', '') if '*' in xx else xx for xx in
+                   rdm_strings]
+        g_idx = [Index(xx, 'all') for xx in rdm_idx]
+        rdm_baseterm = BaseTerm(indices=tuple(g_idx),
+                                name="d{}".format(len(g_idx) // 2))
+        tensor_terms.append(
+            TensorTerm(base_terms=tuple(delta_terms + [rdm_baseterm]),
+                       coefficient=coeff))
+    return tensor_terms
+
+if __name__ == "__main__":
+    ahat_strings = [['-1.000000', 'j*', 'r*', 'k', 'q', 'd(i,s)', 'd(l,p)'],
+     ['+1.000000', 'j*', 'r*', 'l', 'q', 'd(i,s)', 'd(k,p)'],
+     ['+1.000000', 'i*', 'r*', 'k', 'q', 'd(j,s)', 'd(l,p)'],
+     ['-1.000000', 'i*', 'r*', 'l', 'q', 'd(j,s)', 'd(k,p)'],
+     ['+1.000000', 'j*', 'r*', 'k', 'l', 'd(p,s)', 'd(i,q)'],
+     ['-1.000000', 'i*', 'r*', 'k', 'l', 'd(p,s)', 'd(j,q)'],
+     ['-1.000000', 'p*', 'r*', 'k', 'l', 'd(i,q)', 'd(j,s)'],
+     ['+1.000000', 'p*', 'r*', 'k', 'l', 'd(i,s)', 'd(j,q)'],
+     ['-1.000000', 'i*', 'j*', 'k', 's', 'd(l,p)', 'd(q,r)'],
+     ['+1.000000', 'i*', 'j*', 'q', 's', 'd(l,p)', 'd(k,r)'],
+     ['+1.000000', 'i*', 'j*', 'l', 's', 'd(k,p)', 'd(q,r)'],
+     ['-1.000000', 'i*', 'j*', 'q', 's', 'd(k,p)', 'd(l,r)'],
+     ['-1.000000', 'j*', 'p*', 'k', 's', 'd(i,q)', 'd(l,r)'],
+     ['+1.000000', 'j*', 'p*', 'l', 's', 'd(i,q)', 'd(k,r)'],
+     ['+1.000000', 'i*', 'p*', 'k', 's', 'd(j,q)', 'd(l,r)'],
+     ['-1.000000', 'i*', 'p*', 'l', 's', 'd(j,q)', 'd(k,r)']]
+    vacuum_normal_ordered_strings_to_tensor_terms(ahat_strings)
