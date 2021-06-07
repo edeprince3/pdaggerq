@@ -20,7 +20,7 @@ pq.print_fully_contracted()
 pq.clear()
 
 print('')
-print('    D1(a,b,c,d) = <0|(l0 + l2) e(a,b,d,c) (r0 + r2)|0>')
+print('    D2(a,b,c,d) = <0|(l0 + l2) e(a,b,d,c) (r0 + r2)|0>')
 print('')
 
 pq.add_operator_product(1.0,['e2(a,b,d,c)'])
@@ -40,7 +40,7 @@ pq.print_fully_contracted()
 pq.clear()
 
 print('')
-print('    D1(a,b,i,j) = <0|(l0 + l2) e(a,b,j,i) (r0 + r2)|0>')
+print('    D2(a,b,i,j) = <0|(l0 + l2) e(a,b,j,i) (r0 + r2)|0>')
 print('')
 
 pq.add_operator_product(1.0,['e2(a,b,j,i)'])
@@ -50,7 +50,7 @@ pq.print_fully_contracted()
 pq.clear()
 
 print('')
-print('    D1(i,a,j,b) = <0|(l0 + l2) e(i,a,b,j) (r0 + r2)|0>')
+print('    D2(i,a,j,b) = <0|(l0 + l2) e(i,a,b,j) (r0 + r2)|0>')
 print('')
 
 pq.add_operator_product(1.0,['e2(i,a,b,j)'])
@@ -60,7 +60,7 @@ pq.print_fully_contracted()
 pq.clear()
 
 print('')
-print('    D1(i,a,b,j) = <0|(l0 + l2) e(i,a,j,b) (r0 + r2)|0>')
+print('    D2(i,a,b,j) = <0|(l0 + l2) e(i,a,j,b) (r0 + r2)|0>')
 print('')
 
 pq.add_operator_product(1.0,['e2(i,a,j,b)'])
