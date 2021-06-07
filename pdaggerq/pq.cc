@@ -349,7 +349,20 @@ void pq::print() {
     // t_amplitudes
     if ( (int)data->t_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-           
+
+            int order = (int)data->t_amplitudes[i].size() / 2;
+            printf("t");
+            printf("%i",order);
+            printf("(");
+            for (int j = 0; j < 2*order-1; j++) {
+                printf("%s",data->t_amplitudes[i][j].c_str());
+                printf(",");
+            }
+            printf("%s",data->t_amplitudes[i][2*order-1].c_str());
+            printf(")");
+            printf(" ");
+          
+/* 
             if ( (int)data->t_amplitudes[i].size() > 0 ) {
                 // t1
                 if ( (int)data->t_amplitudes[i].size() == 2 ) {
@@ -389,6 +402,7 @@ void pq::print() {
                 }
                 printf(" ");
             } 
+*/
         }
     }
 
@@ -675,7 +689,20 @@ std::vector<std::string> pq::get_string() {
     // t_amplitudes
     if ( (int)data->t_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-           
+          
+            if ( (int)data->t_amplitudes[i].size() > 0 ) {
+ 
+                int order = (int)data->t_amplitudes[i].size() / 2;
+                tmp = "t" + std::to_string(order) + "(";
+                for (int j = 0; j < 2*order-1; j++) {
+                    tmp += data->t_amplitudes[i][j] + ",";
+                }
+                tmp += data->t_amplitudes[i][2*order-1] + ")";
+                my_string.push_back(tmp);
+
+            }
+
+/*
             if ( (int)data->t_amplitudes[i].size() > 0 ) {
                 std::string tmp;
                 // t1
@@ -716,6 +743,7 @@ std::vector<std::string> pq::get_string() {
                 }
                 my_string.push_back(tmp);
             } 
+*/
         }
     }
 
@@ -1542,6 +1570,19 @@ void pq::reorder_t_amplitudes() {
             if ( nope[j] ) continue;
 
             if ( data->t_amplitudes[j].size() == 6 ) {
+                tmp.push_back(data->t_amplitudes[j]);
+                nope[j] = true;
+                break;
+            }
+        }
+
+    }
+    // now t4
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            if ( nope[j] ) continue;
+
+            if ( data->t_amplitudes[j].size() == 8 ) {
                 tmp.push_back(data->t_amplitudes[j]);
                 nope[j] = true;
                 break;

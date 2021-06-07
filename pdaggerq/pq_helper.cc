@@ -793,7 +793,50 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else if ( in[i].substr(0,1) == "t" ){
 
+                    int n = std::stoi(in[i].substr(1));
 
+                    std::vector<std::string> op_left;
+                    std::vector<std::string> op_right;
+                    std::vector<std::string> label_left;
+                    std::vector<std::string> label_right;
+                    for (int id = 0; id < n; id++) {
+
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
+
+                        op_left.push_back(idx1+"*");
+                        op_right.push_back(idx2);
+
+                        label_left.push_back(idx1);
+                        label_right.push_back(idx2);
+                    }
+                    // a*b*...
+                    for (int id = 0; id < n; id++) {
+                        tmp_string.push_back(op_left[id]);
+                    }
+                    // i*j*...
+                    for (int id = 0; id < n; id++) {
+                        tmp_string.push_back(op_right[id]);
+                    }
+                    std::vector<std::string> labels;
+                    // tn(ab...
+                    for (int id = 0; id < n; id++) {
+                        labels.push_back(label_left[id]);
+                    }
+                    // tn(ab......ji)
+                    for (int id = n-1; id >= 0; id--) {
+                        labels.push_back(label_right[id]);
+                    }
+                    set_t_amplitudes(labels);
+
+                    // factor = 1/(n!)^2
+                    double my_factor = 1.0;
+                    for (int id = 0; id < n; id++) {
+                        my_factor *= (id+1);
+                    }
+                    factor *= 1.0 / my_factor / my_factor;
+
+/*
                     if ( in[i].substr(1,1) == "1" ){
 
                         std::string idx1 = "v" + std::to_string(vir_label_count++);
@@ -846,6 +889,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         printf("\n");
                         exit(1);
                     }
+*/
 
                 }else if ( in[i].substr(0,1) == "w" ){ // w0 B*B
 
