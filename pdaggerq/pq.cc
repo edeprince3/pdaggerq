@@ -1538,6 +1538,7 @@ void pq::reorder_t_amplitudes() {
     memset((void*)nope,'\0',dim * sizeof(bool));
 
     std::vector<std::vector<std::string> > tmp;
+
     // t1 first
     for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
@@ -1590,9 +1591,37 @@ void pq::reorder_t_amplitudes() {
         }
 
     }
+    // now t5
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            if ( nope[j] ) continue;
+
+            if ( data->t_amplitudes[j].size() == 10 ) {
+                tmp.push_back(data->t_amplitudes[j]);
+                nope[j] = true;
+                break;
+            }
+        }
+
+    }
+    // now t6
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            if ( nope[j] ) continue;
+
+            if ( data->t_amplitudes[j].size() == 12 ) {
+                tmp.push_back(data->t_amplitudes[j]);
+                nope[j] = true;
+                break;
+            }
+        }
+
+    }
     if ( dim != (int)tmp.size() ) { 
         printf("\n");
         printf("    something went very wrong in reorder_t_amplitudes()\n");
+        printf("    this function breaks for t6 and higher. why would\n");
+        printf("    you want that, anyway?\n");
         printf("\n");
         exit(1);
     }
