@@ -219,6 +219,21 @@ void pq::print() {
     printf(" ");
     printf("%7.5lf", fabs(data->factor));
     printf(" ");
+
+    if ( (int)data->permutations.size() > 0 ) {
+        // should have an even number of symbols...how many pairs?
+        int n = (int)data->permutations.size() / 2;
+        int count = 0;
+        for (int i = 0; i < n; i++) {
+            printf("P(");
+            printf("%s",data->permutations[count++].c_str());
+            printf(",");
+            printf("%s",data->permutations[count++].c_str());
+            printf(")");
+            printf(" ");
+        }
+    }
+
     for (int i = 0; i < (int)symbol.size(); i++) {
         printf("%s",symbol[i].c_str());
         if ( is_dagger[i] ) {
@@ -555,6 +570,20 @@ std::vector<std::string> pq::get_string() {
         tmp = "-";
     }
     my_string.push_back(tmp + std::to_string(fabs(data->factor)));
+
+    if ( (int)data->permutations.size() > 0 ) {
+        // should have an even number of symbols...how many pairs?
+        int n = (int)data->permutations.size() / 2;
+        int count = 0;
+        for (int i = 0; i < n; i++) {
+            tmp  = "P(";
+            tmp += data->permutations[count++];
+            tmp += ",";
+            tmp += data->permutations[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }
 
     for (int i = 0; i < (int)symbol.size(); i++) {
         std::string tmp = symbol[i];
@@ -1684,48 +1713,29 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
     //printf("starting string comparisons\n");fflush(stdout);
 
-    // consolidate terms, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
+    // consolidate terms that differ by summed labels, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
     for (int i = 0; i < (int)ordered.size(); i++) {
 
-        if ( ordered[i]-> skip ) continue;
-
-        // TODO: should be searching for labels in left / right / m / s amplitudes as well
+        if ( ordered[i]->skip ) continue;
 
         // TODO: should be searching for more labels than this ... k,l,m,n,c,d,e,f
+        std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n" };
+        std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f" };
 
-        bool find_i = ordered[i]->index_in_tensor("i") 
-                   || ordered[i]->index_in_t_amplitudes("i") 
-                   || ordered[i]->index_in_u_amplitudes("i");
-
-        bool find_j = ordered[i]->index_in_tensor("j") 
-                   || ordered[i]->index_in_t_amplitudes("j") 
-                   || ordered[i]->index_in_u_amplitudes("j");
-                                                                                                                                             
-        bool find_a = ordered[i]->index_in_tensor("a") 
-                   || ordered[i]->index_in_t_amplitudes("a") 
-                   || ordered[i]->index_in_u_amplitudes("a");
-
-        bool find_b = ordered[i]->index_in_tensor("b") 
-                   || ordered[i]->index_in_t_amplitudes("b") 
-                   || ordered[i]->index_in_u_amplitudes("b");
+        int find_i = ordered[i]->index_in_anywhere("i");
+        int find_j = ordered[i]->index_in_anywhere("j");
+        int find_a = ordered[i]->index_in_anywhere("a");
+        int find_b = ordered[i]->index_in_anywhere("b");
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
 
-            if ( ordered[i]-> skip ) continue;
+            if ( ordered[j]->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
-/*
-            bool find_i = ordered[j]->index_in_tensor("i") || ordered[j]->index_in_t_amplitudes("i") || ordered[j]->index_in_u_amplitudes("i");
-            bool find_j = ordered[j]->index_in_tensor("j") || ordered[j]->index_in_t_amplitudes("j") || ordered[j]->index_in_u_amplitudes("j");
-                                                                                                                                                 
-            bool find_a = ordered[j]->index_in_tensor("a") || ordered[j]->index_in_t_amplitudes("a") || ordered[j]->index_in_u_amplitudes("a");
-            bool find_b = ordered[j]->index_in_tensor("b") || ordered[j]->index_in_t_amplitudes("b") || ordered[j]->index_in_u_amplitudes("b");
-*/
-
             // try swapping summation labels - only i/j, a/b swaps for now. this should be sufficient for ccsd
-            if ( !strings_same && find_i && find_j ) {
+            if ( !strings_same && find_i == 2 && find_j == 2 ) {
 
                 std::shared_ptr<pq> newguy (new pq(vacuum));
                 newguy->copy((void*)(ordered[i].get()));
@@ -1733,7 +1743,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
                 strings_same = compare_strings(ordered[j],newguy,n_permute);
             }
 
-            if ( !strings_same && find_a && find_b ) {
+            if ( !strings_same && find_a == 2 && find_b == 2 ) {
 
                 std::shared_ptr<pq> newguy (new pq(vacuum));
                 newguy->copy((void*)(ordered[i].get()));
@@ -1742,7 +1752,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
             }
 
-            if ( !strings_same && find_i && find_j && find_a && find_b ) {
+            if ( !strings_same && find_i == 2 && find_j == 2 && find_a == 2 && find_b == 2 ) {
 
                 std::shared_ptr<pq> newguy (new pq(vacuum));
                 newguy->copy((void*)(ordered[i].get()));
@@ -1753,14 +1763,6 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
             if ( !strings_same ) continue;
 
-            //printf("same tensors\n");
-
-            // are factors same?
-            //if ( ordered[i]->data->factor != ordered[j]->data->factor ) continue;
-
-            // are signs same?
-            //if ( ordered[i]->sign != ordered[j]->sign ) continue;
-
             double factor_i = ordered[i]->data->factor * ordered[i]->sign;
             double factor_j = ordered[j]->data->factor * ordered[j]->sign;
 
@@ -1768,16 +1770,12 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                //printf("skipping\n");
                 ordered[i]->skip = true;
                 ordered[j]->skip = true;
                 break;
             }
 
             // otherwise, combine terms
-
-            //printf("combining\n");
-            // well, i guess the are the same term
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
                 ordered[i]->sign =  1;
@@ -1785,16 +1783,139 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
                 ordered[i]->sign = -1;
             }
             ordered[j]->skip = true;
-
-            // break j because i'm not yet sure the best way to combine multiple terms.
-            //break;
-            
         }
 
     }
 
-    // TODO: consolidate terms that differ by permutations of bra labels
-    // TODO: consolidate terms that differ by permutations of ket labels
+    // consolidate terms that differ by permutations of non-summed labels (occupied)
+
+    // probably only relevant for vacuum = fermi
+    if ( vacuum != "FERMI" ) return;
+
+    for (int i = 0; i < (int)ordered.size(); i++) {
+
+        if ( ordered[i]->skip ) continue;
+
+        std::vector<int> find_idx;
+        std::vector<std::string> labels { "i", "j", "k", "l", "m", "n" };
+
+        // ok, what labels do we have?
+        for (int j = 0; j < (int)labels.size(); j++) {
+            int found = ordered[i]->index_in_anywhere(labels[j]);
+            find_idx.push_back(found);
+        }
+
+        for (int j = i+1; j < (int)ordered.size(); j++) {
+
+            if ( ordered[j]->skip ) continue;
+
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            std::string permutation_1;
+            std::string permutation_2;
+
+            // try swapping non-summed labels
+            for (int id1 = 0; id1 < (int)labels.size(); id1++) {
+                if ( find_idx[id1] != 1 ) continue;
+                for (int id2 = id1 + 1; id2 < (int)labels.size(); id2++) {
+                    if ( find_idx[id2] != 1 ) continue;
+
+                    std::shared_ptr<pq> newguy (new pq(vacuum));
+                    newguy->copy((void*)(ordered[i].get()));
+                    newguy->swap_two_labels(labels[id1],labels[id2]);
+                    strings_same = compare_strings(ordered[j],newguy,n_permute);
+
+                    if ( strings_same ) {
+                        permutation_1 = labels[id1];
+                        permutation_2 = labels[id2];
+                        break;
+                    }
+                }
+                if ( strings_same ) break;
+            }
+
+            if ( !strings_same ) continue;
+
+            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+
+            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+
+            // if terms exactly cancel, then this is a permutation
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->data->permutations.push_back(permutation_1);
+                ordered[i]->data->permutations.push_back(permutation_2);
+                ordered[j]->skip = true;
+                break;
+            }
+
+            // otherwise, something has gone wrong in the previous consolidation step...
+        }
+    }
+
+    // consolidate terms that differ by permutations of non-summed labels (virtual)
+    for (int i = 0; i < (int)ordered.size(); i++) {
+
+        if ( ordered[i]->skip ) continue;
+
+        std::vector<int> find_idx;
+        std::vector<std::string> labels { "a", "b", "c", "d", "e", "f" };
+
+        // ok, what labels do we have?
+        for (int j = 0; j < (int)labels.size(); j++) {
+            int found = ordered[i]->index_in_anywhere(labels[j]) ;
+            find_idx.push_back(found);
+        }
+
+        for (int j = i+1; j < (int)ordered.size(); j++) {
+
+            if ( ordered[j]->skip ) continue;
+
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            std::string permutation_1;
+            std::string permutation_2;
+
+            // try swapping non-summed labels
+            for (int id1 = 0; id1 < (int)labels.size(); id1++) {
+                if ( find_idx[id1] != 1 ) continue;
+                for (int id2 = id1 + 1; id2 < (int)labels.size(); id2++) {
+                    if ( find_idx[id2] != 1 ) continue;
+
+                    std::shared_ptr<pq> newguy (new pq(vacuum));
+                    newguy->copy((void*)(ordered[i].get()));
+                    newguy->swap_two_labels(labels[id1],labels[id2]);
+                    strings_same = compare_strings(ordered[j],newguy,n_permute);
+
+                    if ( strings_same ) {
+                        permutation_1 = labels[id1];
+                        permutation_2 = labels[id2];
+                        break;
+                    }
+                }
+                if ( strings_same ) break;
+            }
+
+            if ( !strings_same ) continue;
+
+            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+
+            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+
+            // if terms exactly cancel, then this is a permutation
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->data->permutations.push_back(permutation_1);
+                ordered[i]->data->permutations.push_back(permutation_2);
+                ordered[j]->skip = true;
+                break;
+            }
+
+            // otherwise, something has gone wrong in the previous consolidation step...
+        }
+    }
 
 }
 
@@ -2290,17 +2411,23 @@ int pq::index_in_anywhere(std::string idx) {
 
     if ( index_in_tensor(idx) ) {
         n++;
-    }else if ( index_in_t_amplitudes(idx) ) {
+    }
+    if ( index_in_t_amplitudes(idx) ) {
         n++;
-    }else if ( index_in_u_amplitudes(idx) ) {
+    }
+    if ( index_in_u_amplitudes(idx) ) {
         n++;
-    }else if ( index_in_m_amplitudes(idx) ) {
+    }
+    if ( index_in_m_amplitudes(idx) ) {
         n++;
-    }else if ( index_in_s_amplitudes(idx) ) {
+    }
+    if ( index_in_s_amplitudes(idx) ) {
         n++;
-    }else if ( index_in_left_amplitudes(idx) ) {
+    }
+    if ( index_in_left_amplitudes(idx) ) {
         n++;
-    }else if ( index_in_right_amplitudes(idx) ) {
+    }
+    if ( index_in_right_amplitudes(idx) ) {
         n++;
     }
 
