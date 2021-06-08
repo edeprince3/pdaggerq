@@ -38,8 +38,8 @@ class pq {
     /// are bosonic operators in normal order?
     bool is_boson_normal_order();
 
-    /// is label "idx" present anywhere?
-    bool index_in_anywhere(std::string idx);
+    /// how many times does label "idx" appear in any term?
+    int index_in_anywhere(std::string idx);
 
     /// is label "idx" present in tensor term?
     bool index_in_tensor(std::string idx);

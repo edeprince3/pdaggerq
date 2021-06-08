@@ -1007,11 +1007,12 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
 // move all bra lables to the right-most positions in t_amplitudes and
 // four-index tensors. only works for four-index amplitudes (i.e., t2)
 
-// TODO: t3?
-
+// TODO: t3, t4, etc?  
 // TODO: account for left-hand amplitudes
 // TODO: account for right-hand amplitudes
 // TODO: need an update_ket_labes function?
+
+// TODO: with set_left_operator replacing set_bra_state, this function might become useless
 
 void pq::update_bra_labels() {
 
@@ -1316,111 +1317,111 @@ void pq::update_summation_labels() {
 
     if ( skip ) return;
 
-    bool find_i = index_in_anywhere("i");
-    bool find_j = index_in_anywhere("j");
-    bool find_k = index_in_anywhere("k");
-    bool find_l = index_in_anywhere("l");
+    int find_i = index_in_anywhere("i");
+    int find_j = index_in_anywhere("j");
+    int find_k = index_in_anywhere("k");
+    int find_l = index_in_anywhere("l");
 
-    bool find_a = index_in_anywhere("a");
-    bool find_b = index_in_anywhere("b");
-    bool find_c = index_in_anywhere("c");
-    bool find_d = index_in_anywhere("d");
+    int find_a = index_in_anywhere("a");
+    int find_b = index_in_anywhere("b");
+    int find_c = index_in_anywhere("c");
+    int find_d = index_in_anywhere("d");
 
     // i,j,k,l
-    if ( !find_i && find_j && find_k && find_l ) {
+    if ( find_i == 0 && find_j == 2 && find_k == 2 && find_l == 2 ) {
 
         replace_index_everywhere("l","i");
 
-    }else if ( !find_i && find_j && find_k && !find_l ) {
+    }else if ( find_i == 0 && find_j == 2 && find_k == 2 && find_l == 0 ) {
 
         replace_index_everywhere("k","i");
 
-    }else if ( !find_i && find_j && !find_k && !find_l ) {
+    }else if ( find_i == 0 && find_j == 2 && find_k == 0 && find_l == 0 ) {
 
         replace_index_everywhere("j","i");
 
-    }else if ( !find_i && find_j && !find_k && find_l ) {
+    }else if ( find_i == 0 && find_j == 2 && find_k == 0 && find_l == 2 ) {
 
         replace_index_everywhere("l","i");
 
-    }else if ( !find_i && !find_j && find_k && find_l ) {
+    }else if ( find_i == 0 && find_j == 2 && find_k == 2 && find_l == 2 ) {
 
         replace_index_everywhere("k","i");
         replace_index_everywhere("l","j");
 
-    }else if ( !find_i && !find_j && !find_k && find_l ) {
+    }else if ( find_i == 0 && find_j == 0 && find_k == 0 && find_l == 2 ) {
 
         replace_index_everywhere("l","i");
 
-    }else if ( !find_i && !find_j && find_k && !find_l ) {
+    }else if ( find_i == 0 && find_j == 0 && find_k == 2 && find_l == 0 ) {
 
         replace_index_everywhere("k","i");
 
-    }else if ( find_i && !find_j && find_k && find_l ) {
+    }else if ( find_i == 2 && find_j == 0 && find_k == 2 && find_l == 2 ) {
 
         replace_index_everywhere("l","j");
 
-    }else if ( find_i && !find_j && !find_k && find_l ) {
+    }else if ( find_i == 2 && find_j == 0 && find_k == 0 && find_l == 2 ) {
 
         replace_index_everywhere("l","j");
 
-    }else if ( find_i && !find_j && find_k && !find_l ) {
+    }else if ( find_i == 2 && find_j == 0 && find_k == 2 && find_l == 0 ) {
 
         replace_index_everywhere("k","j");
 
-    }else if ( find_i && !find_j && !find_k && find_l ) {
+    }else if ( find_i == 2 && find_j == 0 && find_k == 0 && find_l == 2 ) {
 
         replace_index_everywhere("l","j");
 
     }
 
     // a,b,c,d
-    if ( !find_a && find_b && find_c && find_d ) {
+    if ( find_a == 0 && find_b == 2 && find_c == 2 && find_d == 2 ) {
 
         replace_index_everywhere("d","a");
 
-    }else if ( !find_a && find_b && find_c && !find_d ) {
+    }else if ( find_a == 0 && find_b == 2 && find_c == 2 && find_d == 0 ) {
 
         replace_index_everywhere("c","a");
 
-    }else if ( !find_a && find_b && !find_c && find_d ) {
+    }else if ( find_a == 0 && find_b == 2 && find_c == 0 && find_d == 2 ) {
 
         replace_index_everywhere("d","a");
 
-    }else if ( !find_a && find_b && !find_c && !find_d ) {
+    }else if ( find_a == 0 && find_b == 2 && find_c == 0 && find_d == 0 ) {
 
         replace_index_everywhere("b","a");
 
-    }else if ( !find_a && !find_b && find_c && find_d ) {
+    }else if ( find_a == 0 && find_b == 0 && find_c == 2 && find_d == 2 ) {
 
         replace_index_everywhere("c","a");
         replace_index_everywhere("d","b");
 
-    }else if ( !find_a && !find_b && !find_c && find_d ) {
+    }else if ( find_a == 0 && find_b == 0 && find_c == 0 && find_d == 2 ) {
 
         replace_index_everywhere("d","a");
 
-    }else if ( !find_a && !find_b && find_c && !find_d ) {
+    }else if ( find_a == 0 && find_b == 0 && find_c == 2 && find_d == 0 ) {
 
         replace_index_everywhere("c","a");
 
-    }else if ( find_a && !find_b && find_c && find_d ) {
+    }else if ( find_a == 2 && find_b == 0 && find_c == 2 && find_d == 2 ) {
 
         replace_index_everywhere("d","b");
 
-    }else if ( find_a && !find_b && !find_c && find_d ) {
+    }else if ( find_a == 2 && find_b == 0 && find_c == 0 && find_d == 2 ) {
 
         replace_index_everywhere("d","b");
 
-    }else if ( find_a && !find_b && !find_c && find_d ) {
+    }else if ( find_a == 2 && find_b == 0 && find_c == 0 && find_d == 2 ) {
 
         replace_index_everywhere("d","b");
 
-    }else if ( find_a && !find_b && find_c && !find_d ) {
+    }else if ( find_a == 2 && find_b == 0 && find_c == 2 && find_d == 0 ) {
 
         replace_index_everywhere("c","b");
 
-    }else if ( find_a && !find_b && !find_c && find_d ) {
+    }else if ( find_a == 2 && find_b == 0 && find_c == 0 && find_d == 2 ) {
 
         replace_index_everywhere("d","b");
 
@@ -1646,7 +1647,7 @@ void pq::reorder_t_amplitudes() {
 // TODO: need to consider right-hand amplitudes
 void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
-    // order amplitudes such that they're ordered t1, t2, t3
+    // order amplitudes such that they're ordered t1, t2, t3, etc.
     for (int i = 0; i < (int)ordered.size(); i++) {
         ordered[i]->reorder_t_amplitudes();
     }
@@ -1657,7 +1658,6 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
     for (int i = 0; i < (int)ordered.size(); i++) {
         if ( vacuum != "FERMI" ) continue;
         ordered[i]->update_summation_labels();
-        //ordered[i]->update_bra_labels();
     }
 
     // prune list so it only contains non-skipped ones
@@ -1690,6 +1690,8 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         if ( ordered[i]-> skip ) continue;
 
         // TODO: should be searching for labels in left / right / m / s amplitudes as well
+
+        // TODO: should be searching for more labels than this ... k,l,m,n,c,d,e,f
 
         bool find_i = ordered[i]->index_in_tensor("i") 
                    || ordered[i]->index_in_t_amplitudes("i") 
@@ -1869,11 +1871,11 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     for (int ii = 0; ii < (int)ordered_1->data->t_amplitudes.size(); ii++) {
         for (int jj = 0; jj < (int)ordered_2->data->t_amplitudes.size(); jj++) {
 
-            // t1 vs t2 vs t3?
+            // t1 vs t2 vs t3, etc?
             if ( ordered_1->data->t_amplitudes[ii].size() != ordered_2->data->t_amplitudes[jj].size() ) continue;
 
-            // need to carefully consider if this works for t3 (i doubt it does so just return false...)
-            if ( ordered_1->data->t_amplitudes[ii].size() == 6 ) return false;
+            // need to carefully consider if this works for t3 or higher (i doubt it does so just return false...)
+            if ( ordered_1->data->t_amplitudes[ii].size() >= 6 ) return false;
 
             // indices?
             int nsame_idx = 0;
@@ -2282,24 +2284,27 @@ void pq::shallow_copy(void * copy_me) {
 }
 
 
-bool pq::index_in_anywhere(std::string idx) {
+int pq::index_in_anywhere(std::string idx) {
+
+    int n = 0;
 
     if ( index_in_tensor(idx) ) {
-        return true;
+        n++;
     }else if ( index_in_t_amplitudes(idx) ) {
-        return true;
+        n++;
     }else if ( index_in_u_amplitudes(idx) ) {
-        return true;
+        n++;
     }else if ( index_in_m_amplitudes(idx) ) {
-        return true;
+        n++;
     }else if ( index_in_s_amplitudes(idx) ) {
-        return true;
+        n++;
     }else if ( index_in_left_amplitudes(idx) ) {
-        return true;
+        n++;
     }else if ( index_in_right_amplitudes(idx) ) {
-        return true;
+        n++;
     }
-    return false;
+
+    return n;
 
 }
 
@@ -2513,12 +2518,12 @@ void pq::use_conventional_labels() {
 
     for (int i = 0; i < (int)occ_in.size(); i++) {
 
-        if ( index_in_anywhere(occ_in[i]) ) {
+        if ( index_in_anywhere(occ_in[i]) > 0 ) {
 
             for (int j = 0; j < (int)occ_out.size(); j++) {
 
                 //if ( !index_in_tensor(occ_out[j]) ) 
-                if ( !index_in_anywhere(occ_out[j]) ) {
+                if ( index_in_anywhere(occ_out[j]) == 0 ) {
 
                     //replace_index_in_tensor(occ_in[i],occ_out[j]);
                     replace_index_everywhere(occ_in[i],occ_out[j]);
@@ -2538,11 +2543,11 @@ void pq::use_conventional_labels() {
 
     for (int i = 0; i < (int)vir_in.size(); i++) {
 
-        if ( index_in_anywhere(vir_in[i]) ) {
+        if ( index_in_anywhere(vir_in[i]) > 0 ) {
 
             for (int j = 0; j < (int)vir_out.size(); j++) {
 
-                if ( !index_in_anywhere(vir_out[j]) ) {
+                if ( index_in_anywhere(vir_out[j]) == 0 ) {
 
                     //replace_index_in_tensor(vir_in[i],vir_out[j]);
                     replace_index_everywhere(vir_in[i],vir_out[j]);
@@ -3136,7 +3141,7 @@ void pq::reclassify_tensors() {
         int skip = -999;
 
         for (int i = 0; i < (int)occ_out.size(); i++) {
-            if ( !index_in_anywhere(occ_out[i]) ) {
+            if ( index_in_anywhere(occ_out[i]) == 0 ) {
                 idx = occ_out[i];
                 skip = i;
                 break;
