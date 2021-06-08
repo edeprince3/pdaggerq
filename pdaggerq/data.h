@@ -68,6 +68,9 @@ class StringData {
     /// list: labels right-hand amplitudes plus boson
     std::vector<std::vector<std::string> > s_amplitudes;
 
+    /// list: labels permutation operators
+    std::vector<std::string> permutations;
+
     /// should we account for l0 in EOM-CC?
     bool has_l0 = false;
 
