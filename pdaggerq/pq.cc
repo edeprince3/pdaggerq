@@ -1716,7 +1716,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
     // consolidate terms, including those that differ only by symmetric quantities [i.e., g(iajb) and g(jbia)]
     for (int i = 0; i < (int)ordered.size(); i++) {
 
-        if ( ordered[i]-> skip ) continue;
+        if ( ordered[i]->skip ) continue;
 
         // TODO: should be searching for labels in left / right / m / s amplitudes as well
 
@@ -1740,7 +1740,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
 
-            if ( ordered[i]-> skip ) continue;
+            if ( ordered[j]->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -1822,7 +1822,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
     for (int i = 0; i < (int)ordered.size(); i++) {
 
-        if ( ordered[i]-> skip ) continue;
+        if ( ordered[i]->skip ) continue;
 
         std::vector<bool> find_idx;
         std::vector<std::string> labels { "i", "j", "k", "l", "m", "n" };
@@ -1837,7 +1837,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
 
-            if ( ordered[i]-> skip ) continue;
+            if ( ordered[j]->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -1884,14 +1884,12 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
             
         }
-
-
     }
 
     // TODO: consolidate terms that differ by permutations (virtual)
     for (int i = 0; i < (int)ordered.size(); i++) {
 
-        if ( ordered[i]-> skip ) continue;
+        if ( ordered[i]->skip ) continue;
 
         std::vector<bool> find_idx;
         std::vector<std::string> labels { "a", "b", "c", "d", "e", "f" };
@@ -1906,7 +1904,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
         for (int j = i+1; j < (int)ordered.size(); j++) {
 
-            if ( ordered[i]-> skip ) continue;
+            if ( ordered[j]->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
