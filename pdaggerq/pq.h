@@ -139,9 +139,6 @@ class pq {
     /// get string information
     std::vector<std::string> get_string();
 
-    /// check if string should be zero by spin symmetry (no longer supported)
-    void check_spin();
-
     /// check if string should be zero by o/v labels in delta function
     void check_occ_vir();
 

@@ -1968,9 +1968,6 @@ void pq_helper::simplify() {
 
         if ( ordered[i]->skip ) continue;
 
-        // check spin
-        //ordered[i]->check_spin();
-
         // check for occ/vir pairs in delta functions
         ordered[i]->check_occ_vir();
 
