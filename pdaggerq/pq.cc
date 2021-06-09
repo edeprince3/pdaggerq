@@ -1395,7 +1395,6 @@ void pq::consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered) {
 
 bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute) {
 
-
     // don't forget w0, u0, r0, l0, b+, b-, m0, s0
     if ( ordered_1->data->has_u0 != ordered_2->data->has_u0 ) {
         return false;
@@ -1415,14 +1414,6 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     if ( ordered_1->data->has_l0 != ordered_2->data->has_l0 ) {
         return false;
     }
-/*
-    if ( ordered_1->data->has_b != ordered_2->data->has_b ) {
-        return false;
-    }
-    if ( ordered_1->data->has_b_dagger != ordered_2->data->has_b_dagger ) {
-        return false;
-    }
-*/
 
     n_permute = 0;
 
@@ -1439,7 +1430,6 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
         }
     }
     if ( nsame_s != ordered_1->symbol.size() ) return false;
-    //printf("same strings\n");
 
     // same delta functions (recall these aren't sorted in any way)
     int nsame_d = 0;
@@ -1455,212 +1445,32 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
         }
     }
     if ( nsame_d != (int)ordered_1->delta1.size() ) return false;
-    //printf("same deltas\n");
 
-    // t_amplitudes, which can be complicated since they aren't sorted
+    // t_amplitudes
+    bool same_string = compare_amplitudes( ordered_1->data->t_amplitudes, ordered_2->data->t_amplitudes, n_permute);
+    if ( !same_string ) return false;
 
-    // same number of t_amplitudes?
-    if ( ordered_1->data->t_amplitudes.size() != ordered_2->data->t_amplitudes.size() ) return false;
-    
-    int nsame_amps = 0;
-    for (int ii = 0; ii < (int)ordered_1->data->t_amplitudes.size(); ii++) {
-        for (int jj = 0; jj < (int)ordered_2->data->t_amplitudes.size(); jj++) {
+    // u_amplitudes
+    same_string = compare_amplitudes( ordered_1->data->u_amplitudes, ordered_2->data->u_amplitudes, n_permute);
+    if ( !same_string ) return false;
 
-            // t1 vs t2 vs t3, etc?
-            if ( ordered_1->data->t_amplitudes[ii].size() != ordered_2->data->t_amplitudes[jj].size() ) continue;
+    // m_amplitudes
+    same_string = compare_amplitudes( ordered_1->data->m_amplitudes, ordered_2->data->m_amplitudes, n_permute);
+    if ( !same_string ) return false;
 
-            // need to carefully consider if this works for t3 or higher (i doubt it does so just return false...)
-            if ( ordered_1->data->t_amplitudes[ii].size() >= 6 ) return false;
+    // s_amplitudes
+    same_string = compare_amplitudes( ordered_1->data->s_amplitudes, ordered_2->data->s_amplitudes, n_permute);
+    if ( !same_string ) return false;
 
-            // indices?
-            int nsame_idx = 0;
-            for (int iii = 0; iii < (int)ordered_1->data->t_amplitudes[ii].size(); iii++) {
-                for (int jjj = 0; jjj < (int)ordered_2->data->t_amplitudes[jj].size(); jjj++) {
-                    if ( ordered_1->data->t_amplitudes[ii][iii] == ordered_2->data->t_amplitudes[jj][jjj] ) {
-                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
-                        nsame_idx++;
-                        break;
-                    }
-                }
-            }
-            // if all indices are the same, the t_amplitudes must be the same, but we need to be careful of permutations
-            if ( nsame_idx == (int)ordered_1->data->t_amplitudes[ii].size() ) {
-                nsame_amps++;
-                break;
-            }
-        }
-    }
-    if ( nsame_amps != (int)ordered_1->data->t_amplitudes.size() ) return false;
+    // left-hand amplitudes
+    same_string = compare_amplitudes( ordered_1->data->left_amplitudes, ordered_2->data->left_amplitudes, n_permute);
+    if ( !same_string ) return false;
 
-    // u_amplitudes, which can be complicated since they aren't sorted
-
-    // same number of u_amplitudes?
-    if ( ordered_1->data->u_amplitudes.size() != ordered_2->data->u_amplitudes.size() ) return false;
-    
-    int nsame_u_amps = 0;
-    for (int ii = 0; ii < (int)ordered_1->data->u_amplitudes.size(); ii++) {
-        for (int jj = 0; jj < (int)ordered_2->data->u_amplitudes.size(); jj++) {
-
-            // u1 vs u2?
-            if ( ordered_1->data->u_amplitudes[ii].size() != ordered_2->data->u_amplitudes[jj].size() ) continue;
-
-            // indices?
-            int nsame_idx = 0;
-            for (int iii = 0; iii < (int)ordered_1->data->u_amplitudes[ii].size(); iii++) {
-                for (int jjj = 0; jjj < (int)ordered_2->data->u_amplitudes[jj].size(); jjj++) {
-                    if ( ordered_1->data->u_amplitudes[ii][iii] == ordered_2->data->u_amplitudes[jj][jjj] ) {
-                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
-                        nsame_idx++;
-                        break;
-                    }
-                }
-            }
-            // if all indices are the same, the u_amplitudes must be the same, but we need to be careful of permutations
-            if ( nsame_idx == (int)ordered_1->data->u_amplitudes[ii].size() ) {
-                nsame_u_amps++;
-                break;
-            }
-        }
-    }
-    if ( nsame_u_amps != (int)ordered_1->data->u_amplitudes.size() ) return false;
-
-    // m_amplitudes, which can be complicated since they aren't sorted
-
-    // same number of m_amplitudes?
-    if ( ordered_1->data->m_amplitudes.size() != ordered_2->data->m_amplitudes.size() ) return false;
-    
-    int nsame_m_amps = 0;
-    for (int ii = 0; ii < (int)ordered_1->data->m_amplitudes.size(); ii++) {
-        for (int jj = 0; jj < (int)ordered_2->data->m_amplitudes.size(); jj++) {
-
-            // m1 vs m2?
-            if ( ordered_1->data->m_amplitudes[ii].size() != ordered_2->data->m_amplitudes[jj].size() ) continue;
-
-            // indices?
-            int nsame_idx = 0;
-            for (int iii = 0; iii < (int)ordered_1->data->m_amplitudes[ii].size(); iii++) {
-                for (int jjj = 0; jjj < (int)ordered_2->data->m_amplitudes[jj].size(); jjj++) {
-                    if ( ordered_1->data->m_amplitudes[ii][iii] == ordered_2->data->m_amplitudes[jj][jjj] ) {
-                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
-                        nsame_idx++;
-                        break;
-                    }
-                }
-            }
-            // if all indices are the same, the u_amplitudes must be the same, but we need to be careful of permutations
-            if ( nsame_idx == (int)ordered_1->data->m_amplitudes[ii].size() ) {
-                nsame_m_amps++;
-                break;
-            }
-        }
-    }
-    if ( nsame_m_amps != (int)ordered_1->data->m_amplitudes.size() ) return false;
-
-    // s_amplitudes, which can be complicated since they aren't sorted
-
-    // same number of s_amplitudes?
-    if ( ordered_1->data->s_amplitudes.size() != ordered_2->data->s_amplitudes.size() ) return false;
-    
-    int nsame_s_amps = 0;
-    for (int ii = 0; ii < (int)ordered_1->data->s_amplitudes.size(); ii++) {
-        for (int jj = 0; jj < (int)ordered_2->data->s_amplitudes.size(); jj++) {
-
-            // s1 vs s2?
-            if ( ordered_1->data->s_amplitudes[ii].size() != ordered_2->data->s_amplitudes[jj].size() ) continue;
-
-            // indices?
-            int nsame_idx = 0;
-            for (int iii = 0; iii < (int)ordered_1->data->s_amplitudes[ii].size(); iii++) {
-                for (int jjj = 0; jjj < (int)ordered_2->data->s_amplitudes[jj].size(); jjj++) {
-                    if ( ordered_1->data->s_amplitudes[ii][iii] == ordered_2->data->s_amplitudes[jj][jjj] ) {
-                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
-                        nsame_idx++;
-                        break;
-                    }
-                }
-            }
-            // if all indices are the same, the s_amplitudes must be the same, but we need to be careful of permutations
-            if ( nsame_idx == (int)ordered_1->data->s_amplitudes[ii].size() ) {
-                nsame_s_amps++;
-                break;
-            }
-        }
-    }
-    if ( nsame_s_amps != (int)ordered_1->data->s_amplitudes.size() ) return false;
-
-    // left-hand amplitudes, which can be complicated since they aren't sorted
-
-    // same number of left-hant amplitudes?
-    if ( ordered_1->data->left_amplitudes.size() != ordered_2->data->left_amplitudes.size() ) return false;
-    
-    int nsame_left_amps = 0;
-    for (int ii = 0; ii < (int)ordered_1->data->left_amplitudes.size(); ii++) {
-        for (int jj = 0; jj < (int)ordered_2->data->left_amplitudes.size(); jj++) {
-
-            // l1 vs l2?
-            if ( ordered_1->data->left_amplitudes[ii].size() != ordered_2->data->left_amplitudes[jj].size() ) continue;
-
-            // indices?
-            int nsame_idx = 0;
-            for (int iii = 0; iii < (int)ordered_1->data->left_amplitudes[ii].size(); iii++) {
-                for (int jjj = 0; jjj < (int)ordered_2->data->left_amplitudes[jj].size(); jjj++) {
-                    if ( ordered_1->data->left_amplitudes[ii][iii] == ordered_2->data->left_amplitudes[jj][jjj] ) {
-                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
-                        nsame_idx++;
-                        break;
-                    }
-                }
-            }
-            // if all indices are the same, the left-hand amplitudes must be the same, but we need to be careful of permutations
-            if ( nsame_idx == (int)ordered_1->data->left_amplitudes[ii].size() ) {
-                nsame_left_amps++;
-                break;
-            }
-        }
-    }
-    if ( nsame_left_amps != (int)ordered_1->data->left_amplitudes.size() ) return false;
-
-    //printf("same left-hand amps\n");
-    //if ( (n_permute % 2) != 0 ) continue;
-
-    // right-hand amplitudes, which can be complicated since they aren't sorted
-
-    // same number of right-hant amplitudes?
-    if ( ordered_1->data->right_amplitudes.size() != ordered_2->data->right_amplitudes.size() ) return false;
-    
-    int nsame_right_amps = 0;
-    for (int ii = 0; ii < (int)ordered_1->data->right_amplitudes.size(); ii++) {
-        for (int jj = 0; jj < (int)ordered_2->data->right_amplitudes.size(); jj++) {
-
-            // r1 vs r2?
-            if ( ordered_1->data->right_amplitudes[ii].size() != ordered_2->data->right_amplitudes[jj].size() ) continue;
-
-            // indices?
-            int nsame_idx = 0;
-            for (int iii = 0; iii < (int)ordered_1->data->right_amplitudes[ii].size(); iii++) {
-                for (int jjj = 0; jjj < (int)ordered_2->data->right_amplitudes[jj].size(); jjj++) {
-                    if ( ordered_1->data->right_amplitudes[ii][iii] == ordered_2->data->right_amplitudes[jj][jjj] ) {
-                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
-                        nsame_idx++;
-                        break;
-                    }
-                }
-            }
-            // if all indices are the same, the right-hand amplitudes must be the same, but we need to be careful of permutations
-            if ( nsame_idx == (int)ordered_1->data->right_amplitudes[ii].size() ) {
-                nsame_right_amps++;
-                break;
-            }
-        }
-    }
-    if ( nsame_right_amps != (int)ordered_1->data->right_amplitudes.size() ) return false;
-
-
-    //printf("same right-hand amps\n");
-    //if ( (n_permute % 2) != 0 ) continue;
+    // right-hand amplitudes
+    same_string = compare_amplitudes( ordered_1->data->right_amplitudes, ordered_2->data->right_amplitudes, n_permute);
+    if ( !same_string ) return false;
 
     // are tensors same?
-    //if ( ordered_1->data->tensor.size() != ordered_2->data->tensor.size() ) return false;
     if ( ordered_1->data->tensor_type != ordered_2->data->tensor_type ) return false;
 
     int nsame_t = 0;
@@ -1669,24 +1479,6 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
             nsame_t++;
         }
     }
-    // if not the same, check bras againt kets [mulliken notation: g(iajb) = (ia|jb)]
-/*
-    if ( nsame_t != ordered_1->data->tensor.size() ) {
-
-        // let's just limit ourselves to four-index tensors for now
-        if ( ordered_1->data->tensor.size() == 4 ) {
-
-            int nsame_t_swap = 0;
-            if ( ordered_1->data->tensor[0] != ordered_2->data->tensor[2] ||
-                 ordered_1->data->tensor[1] != ordered_2->data->tensor[3] ||
-                 ordered_1->data->tensor[2] != ordered_2->data->tensor[0] ||
-                 ordered_1->data->tensor[3] != ordered_2->data->tensor[1]) {
-                 return false;
-            }
-
-        }
-    }
-*/
 
     // if not the same, check antisymmetry <ij||kl> = -<ji||lk> = -<ij||lk> = <ji||lk>
     if ( nsame_t != ordered_1->data->tensor.size() ) {
@@ -1759,6 +1551,47 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     if ( nsame_t != ordered_1->data->tensor.size() ) {
         return false;
     }
+
+    return true;
+}
+
+/// compare two lists of amplitudes
+bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1, 
+                             std::vector<std::vector<std::string> > amps2, 
+                             int & n_permute ) {
+
+    // same number of amplitudes?
+    if ( amps1.size() != amps2.size() ) return false;
+   
+    int nsame_amps = 0;
+    for (int ii = 0; ii < (int)amps1.size(); ii++) {
+        for (int jj = 0; jj < (int)amps2.size(); jj++) {
+
+            // t1 vs t2 vs t3, etc?
+            if ( amps1[ii].size() != amps2[jj].size() ) continue;
+
+            // need to carefully consider if this works for t3 or higher (i doubt it does so just return false...)
+            if ( amps1[ii].size() >= 6 ) return false;
+
+            // indices?
+            int nsame_idx = 0;
+            for (int iii = 0; iii < (int)amps1[ii].size(); iii++) {
+                for (int jjj = 0; jjj < (int)amps2[jj].size(); jjj++) {
+                    if ( amps1[ii][iii] == amps2[jj][jjj] ) {
+                        if ( (iii - jjj) % 2 != 0  && iii < jjj ) n_permute++;
+                        nsame_idx++;
+                        break;
+                    }
+                }
+            }
+            // if all indices are the same, the t_amplitudes must be the same, but we need to be careful of permutations
+            if ( nsame_idx == (int)amps1[ii].size() ) {
+                nsame_amps++;
+                break;
+            }
+        }
+    }
+    if ( nsame_amps != (int)amps1.size() ) return false;
 
     return true;
 }
