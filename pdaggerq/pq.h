@@ -89,12 +89,6 @@ class pq {
     /// are two strings the same? if so, how many permutations to relate them?
     bool compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute);
 
-    /// prioritize summation labels as i > j > k > l and a > b > c > d.
-    void update_summation_labels();
-
-    //// move bra lables the right t_amplitudes and tensor
-    void update_bra_labels();
-
     /// swap to labels
     void swap_two_labels(std::string label1, std::string label2);
 
