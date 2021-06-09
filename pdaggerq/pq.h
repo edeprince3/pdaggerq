@@ -41,26 +41,26 @@ class pq {
     /// how many times does label "idx" appear in any term?
     int index_in_anywhere(std::string idx);
 
-    /// is label "idx" present in tensor term?
-    bool index_in_tensor(std::string idx);
+    /// how many times does label "idx" appear in tensor term?
+    int index_in_tensor(std::string idx);
 
-    /// is label "idx" present in t-amplitudes?
-    bool index_in_t_amplitudes(std::string idx);
+    /// how many times does label "idx" appear in t-amplitudes?
+    int index_in_t_amplitudes(std::string idx);
 
-    /// is label "idx" present in u-amplitudes?
-    bool index_in_u_amplitudes(std::string idx);
+    /// how many times does label "idx" appear in u-amplitudes?
+    int index_in_u_amplitudes(std::string idx);
 
-    /// is label "idx" present in m-amplitudes?
-    bool index_in_m_amplitudes(std::string idx);
+    /// how many times does label "idx" appear in m-amplitudes?
+    int index_in_m_amplitudes(std::string idx);
 
-    /// is label "idx" present in s-amplitudes?
-    bool index_in_s_amplitudes(std::string idx);
+    /// how many times does label "idx" appear in s-amplitudes?
+    int index_in_s_amplitudes(std::string idx);
 
-    /// is label "idx" present in left-hand amplitudes?
-    bool index_in_left_amplitudes(std::string idx);
+    /// how many times does label "idx" appear in left-hand amplitudes?
+    int index_in_left_amplitudes(std::string idx);
 
-    /// is label "idx" present in right-hand amplitudes?
-    bool index_in_right_amplitudes(std::string idx);
+    /// how many times does label "idx" appear in right-hand amplitudes?
+    int index_in_right_amplitudes(std::string idx);
 
     /// replace one label with another (everywhere)
     void replace_index_everywhere(std::string old_idx, std::string new_idx);

@@ -1809,124 +1809,117 @@ int pq::index_in_anywhere(std::string idx) {
 
     int n = 0;
 
-    if ( index_in_tensor(idx) ) {
-        n++;
-    }
-    if ( index_in_t_amplitudes(idx) ) {
-        n++;
-    }
-    if ( index_in_u_amplitudes(idx) ) {
-        n++;
-    }
-    if ( index_in_m_amplitudes(idx) ) {
-        n++;
-    }
-    if ( index_in_s_amplitudes(idx) ) {
-        n++;
-    }
-    if ( index_in_left_amplitudes(idx) ) {
-        n++;
-    }
-    if ( index_in_right_amplitudes(idx) ) {
-        n++;
-    }
+    n += index_in_tensor(idx);
+    n += index_in_t_amplitudes(idx);
+    n += index_in_u_amplitudes(idx);
+    n += index_in_m_amplitudes(idx);
+    n += index_in_s_amplitudes(idx);
+    n += index_in_left_amplitudes(idx);
+    n += index_in_right_amplitudes(idx);
 
     return n;
 
 }
 
-bool pq::index_in_tensor(std::string idx) {
+int pq::index_in_tensor(std::string idx) {
 
+    int n = 0;
     for (int i = 0; i < (int)data->tensor.size(); i++) {
         if ( data->tensor[i] == idx ) {
-            return true;
+            n++;
         }
     }
-    return false;
+    return n;
 
 }
 
-bool pq::index_in_t_amplitudes(std::string idx) {
+int pq::index_in_t_amplitudes(std::string idx) {
 
+    int n = 0;
     for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
             if ( data->t_amplitudes[i][j] == idx ) {
-                return true;
+                n++;
             }
            
         }
     }
-    return false;
+    return n;
 
 }
 
-bool pq::index_in_u_amplitudes(std::string idx) {
+int pq::index_in_u_amplitudes(std::string idx) {
 
+    int n = 0;
     for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
             if ( data->u_amplitudes[i][j] == idx ) {
-                return true;
+                n++;
             }
            
         }
     }
-    return false;
+    return n;
 
 }
 
-bool pq::index_in_m_amplitudes(std::string idx) {
+int pq::index_in_m_amplitudes(std::string idx) {
 
+    int n = 0;
     for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
             if ( data->m_amplitudes[i][j] == idx ) {
-                return true;
+                n++;
             }
            
         }
     }
-    return false;
+    return n;
 
 }
 
-bool pq::index_in_s_amplitudes(std::string idx) {
+int pq::index_in_s_amplitudes(std::string idx) {
 
+    int n = 0;
     for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
             if ( data->s_amplitudes[i][j] == idx ) {
-                return true;
+                n++;
             }
            
         }
     }
-    return false;
+    return n;
 
 }
 
-bool pq::index_in_left_amplitudes(std::string idx) {
+int pq::index_in_left_amplitudes(std::string idx) {
 
+    int n = 0;
     for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
             if ( data->left_amplitudes[i][j] == idx ) {
-                return true;
+                n++;
             }
            
         }
     }
-    return false;
+    return n;
 
 }
 
-bool pq::index_in_right_amplitudes(std::string idx) {
+int pq::index_in_right_amplitudes(std::string idx) {
 
+    int n = 0;
     for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
         for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
             if ( data->right_amplitudes[i][j] == idx ) {
-                return true;
+                n++;
             }
            
         }
     }
-    return false;
+    return n;
 
 }
 
@@ -2092,20 +2085,20 @@ void pq::gobble_deltas() {
 
     for (int i = 0; i < (int)delta1.size(); i++) {
 
-        bool delta1_in_tensor           = index_in_tensor( delta1[i] );
-        bool delta2_in_tensor           = index_in_tensor( delta2[i] );
-        bool delta1_in_t_amplitudes     = index_in_t_amplitudes( delta1[i] );
-        bool delta2_in_t_amplitudes     = index_in_t_amplitudes( delta2[i] );
-        bool delta1_in_left_amplitudes  = index_in_left_amplitudes( delta1[i] );
-        bool delta2_in_left_amplitudes  = index_in_left_amplitudes( delta2[i] );
-        bool delta1_in_right_amplitudes = index_in_right_amplitudes( delta1[i] );
-        bool delta2_in_right_amplitudes = index_in_right_amplitudes( delta2[i] );
-        bool delta1_in_u_amplitudes     = index_in_u_amplitudes( delta1[i] );
-        bool delta2_in_u_amplitudes     = index_in_u_amplitudes( delta2[i] );
-        bool delta1_in_m_amplitudes     = index_in_m_amplitudes( delta1[i] );
-        bool delta2_in_m_amplitudes     = index_in_m_amplitudes( delta2[i] );
-        bool delta1_in_s_amplitudes     = index_in_s_amplitudes( delta1[i] );
-        bool delta2_in_s_amplitudes     = index_in_s_amplitudes( delta2[i] );
+        bool delta1_in_tensor           = ( index_in_tensor( delta1[i] ) > 0 ) ? true : false;
+        bool delta2_in_tensor           = ( index_in_tensor( delta2[i] ) > 0 ) ? true : false;
+        bool delta1_in_t_amplitudes     = ( index_in_t_amplitudes( delta1[i] ) > 0 ) ? true : false;
+        bool delta2_in_t_amplitudes     = ( index_in_t_amplitudes( delta2[i] ) > 0 ) ? true : false;
+        bool delta1_in_left_amplitudes  = ( index_in_left_amplitudes( delta1[i] ) > 0 ) ? true : false;
+        bool delta2_in_left_amplitudes  = ( index_in_left_amplitudes( delta2[i] ) > 0 ) ? true : false;
+        bool delta1_in_right_amplitudes = ( index_in_right_amplitudes( delta1[i] ) > 0 ) ? true : false;
+        bool delta2_in_right_amplitudes = ( index_in_right_amplitudes( delta2[i] ) > 0 ) ? true : false;
+        bool delta1_in_u_amplitudes     = ( index_in_u_amplitudes( delta1[i] ) > 0 ) ? true : false;
+        bool delta2_in_u_amplitudes     = ( index_in_u_amplitudes( delta2[i] ) > 0 ) ? true : false;
+        bool delta1_in_m_amplitudes     = ( index_in_m_amplitudes( delta1[i] ) > 0 ) ? true : false;
+        bool delta2_in_m_amplitudes     = ( index_in_m_amplitudes( delta2[i] ) > 0 ) ? true : false;
+        bool delta1_in_s_amplitudes     = ( index_in_s_amplitudes( delta1[i] ) > 0 ) ? true : false;
+        bool delta2_in_s_amplitudes     = ( index_in_s_amplitudes( delta2[i] ) > 0 ) ? true : false;
 
         if ( delta1_in_tensor ) {
             replace_index_in_tensor( delta1[i], delta2[i] );
