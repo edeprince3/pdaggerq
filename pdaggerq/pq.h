@@ -174,6 +174,11 @@ class pq {
         std::vector<std::string> labels_1,
         std::vector<std::string> labels_2);
 
+    // consolidate terms that differ by permutations of non-summed labels
+    void consolidate_permutations_non_summed(
+        std::vector<std::shared_ptr<pq> > &ordered,
+        std::vector<std::string> labels);
+
 
     // consolidate terms that differ by permutations
     void consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered);

@@ -1125,17 +1125,24 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
     consolidate_permutations_plus_two_swaps(ordered,vir_labels,vir_labels);
     consolidate_permutations_plus_two_swaps(ordered,occ_labels,vir_labels);
 
-    // consolidate terms that differ by permutations of non-summed labels (occupied)
-
     // probably only relevant for vacuum = fermi
     if ( vacuum != "FERMI" ) return;
+
+    consolidate_permutations_non_summed(ordered,occ_labels);
+    consolidate_permutations_non_summed(ordered,vir_labels);
+
+}
+
+// consolidate terms that differ by permutations of non-summed labels
+void pq::consolidate_permutations_non_summed(
+    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::string> labels) {
 
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
 
         std::vector<int> find_idx;
-        std::vector<std::string> labels { "i", "j", "k", "l", "m", "n", "o" };
 
         // ok, what labels do we have?
         for (int j = 0; j < (int)labels.size(); j++) {
@@ -1191,71 +1198,8 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
             // otherwise, something has gone wrong in the previous consolidation step...
         }
     }
-
-    // consolidate terms that differ by permutations of non-summed labels (virtual)
-    for (int i = 0; i < (int)ordered.size(); i++) {
-
-        if ( ordered[i]->skip ) continue;
-
-        std::vector<int> find_idx;
-        std::vector<std::string> labels { "a", "b", "c", "d", "e", "f", "g" };
-
-        // ok, what labels do we have?
-        for (int j = 0; j < (int)labels.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels[j]) ;
-            find_idx.push_back(found);
-        }
-
-        for (int j = i+1; j < (int)ordered.size(); j++) {
-
-            if ( ordered[j]->skip ) continue;
-
-            int n_permute;
-            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
-
-            std::string permutation_1;
-            std::string permutation_2;
-
-            // try swapping non-summed labels
-            for (int id1 = 0; id1 < (int)labels.size(); id1++) {
-                if ( find_idx[id1] != 1 ) continue;
-                for (int id2 = id1 + 1; id2 < (int)labels.size(); id2++) {
-                    if ( find_idx[id2] != 1 ) continue;
-
-                    std::shared_ptr<pq> newguy (new pq(vacuum));
-                    newguy->copy((void*)(ordered[i].get()));
-                    newguy->swap_two_labels(labels[id1],labels[id2]);
-                    strings_same = compare_strings(ordered[j],newguy,n_permute);
-
-                    if ( strings_same ) {
-                        permutation_1 = labels[id1];
-                        permutation_2 = labels[id2];
-                        break;
-                    }
-                }
-                if ( strings_same ) break;
-            }
-
-            if ( !strings_same ) continue;
-
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
-
-            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
-
-            // if terms exactly cancel, then this is a permutation
-            if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->data->permutations.push_back(permutation_1);
-                ordered[i]->data->permutations.push_back(permutation_2);
-                ordered[j]->skip = true;
-                break;
-            }
-
-            // otherwise, something has gone wrong in the previous consolidation step...
-        }
-    }
-
 }
+
 
 // consolidate terms that differ by two summed labels plus permutations
 void pq::consolidate_permutations_plus_two_swaps(
