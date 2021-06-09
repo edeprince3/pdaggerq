@@ -163,6 +163,21 @@ class pq {
     /// cancel terms where appropriate
     void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
 
+    // consolidate terms that differ by summed labels plus permutations
+    void consolidate_permutations_plus_swap(
+        std::vector<std::shared_ptr<pq> > &ordered,
+        std::vector<std::string> labels);
+
+    // consolidate terms that differ by two summed labels plus permutations
+    void consolidate_permutations_plus_two_swaps(
+        std::vector<std::shared_ptr<pq> > &ordered,
+        std::vector<std::string> labels_1,
+        std::vector<std::string> labels_2);
+
+
+    // consolidate terms that differ by permutations
+    void consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered);
+
     /// reorder t amplitudes as t1, t2, t3
     void reorder_t_amplitudes();
 
