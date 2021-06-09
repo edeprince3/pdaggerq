@@ -1113,7 +1113,44 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
     //printf("starting string comparisons\n");fflush(stdout);
 
-    // consolidate terms that differ by summed labels (occupied)
+    // consolidate terms that differ by permutations
+    for (int i = 0; i < (int)ordered.size(); i++) {
+
+        if ( ordered[i]->skip ) continue;
+
+        for (int j = i+1; j < (int)ordered.size(); j++) {
+
+            if ( ordered[j]->skip ) continue;
+
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            if ( !strings_same ) continue;
+
+            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+
+            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+
+            // if terms exactly cancel, do so
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->skip = true;
+                ordered[j]->skip = true;
+                break;
+            }
+
+            // otherwise, combine terms
+            ordered[i]->data->factor = fabs(combined_factor);
+            if ( combined_factor > 0.0 ) {
+                ordered[i]->sign =  1;
+            }else {
+                ordered[i]->sign = -1;
+            }
+            ordered[j]->skip = true;
+        }
+    }
+
+    // consolidate terms that differ by summed labels (occupied) plus permutations
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -1176,7 +1213,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         }
     }
 
-    // consolidate terms that differ by summed labels (virtual)
+    // consolidate terms that differ by summed labels (virtual) plus permutations
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -1239,7 +1276,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         }
     }
 
-    // consolidate terms that differ by two summed labels (occupied,virtual)
+    // consolidate terms that differ by two summed labels (occupied,virtual) plus permutations
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -1280,13 +1317,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
                         if ( find_vir[id3] != 2 ) continue;
                         for (int id4 = id3 + 1; id4 < (int)vir_labels.size(); id4++) {
                             if ( find_vir[id4] != 2 ) continue;
-//printf("i found these %s %s %s %s\n",
-//occ_labels[id1].c_str(),
-//occ_labels[id2].c_str(),
-//vir_labels[id3].c_str(),
-//vir_labels[id4].c_str());
-//printf("in this guy:\n");
-//ordered[i]->print();
+
                             std::shared_ptr<pq> newguy (new pq(vacuum));
                             newguy->copy((void*)(ordered[i].get()));
                             newguy->swap_two_labels(occ_labels[id1],occ_labels[id2]);
@@ -1328,79 +1359,6 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         }
     }
 
-    // consolidate terms that differ by summed labels
-    for (int i = 0; i < (int)ordered.size(); i++) {
-
-        if ( ordered[i]->skip ) continue;
-
-        // TODO: should be searching for more labels than this ... k,l,m,n,c,d,e,f
-        std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n" };
-        std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f" };
-
-        int find_i = ordered[i]->index_in_anywhere("i");
-        int find_j = ordered[i]->index_in_anywhere("j");
-        int find_a = ordered[i]->index_in_anywhere("a");
-        int find_b = ordered[i]->index_in_anywhere("b");
-
-        for (int j = i+1; j < (int)ordered.size(); j++) {
-
-            if ( ordered[j]->skip ) continue;
-
-            int n_permute;
-            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
-
-            // try swapping summation labels - only i/j, a/b swaps for now. this should be sufficient for ccsd
-//            if ( !strings_same && find_i == 2 && find_j == 2 ) {
-//
-//                std::shared_ptr<pq> newguy (new pq(vacuum));
-//                newguy->copy((void*)(ordered[i].get()));
-//                newguy->swap_two_labels("i","j");
-//                strings_same = compare_strings(ordered[j],newguy,n_permute);
-//            }
-
-//            if ( !strings_same && find_a == 2 && find_b == 2 ) {
-//
-//                std::shared_ptr<pq> newguy (new pq(vacuum));
-//                newguy->copy((void*)(ordered[i].get()));
-//                newguy->swap_two_labels("a","b");
-//                strings_same = compare_strings(ordered[j],newguy,n_permute);
-//
-//            }
-
-            if ( !strings_same && find_i == 2 && find_j == 2 && find_a == 2 && find_b == 2 ) {
-
-                std::shared_ptr<pq> newguy (new pq(vacuum));
-                newguy->copy((void*)(ordered[i].get()));
-                newguy->swap_two_labels("i","j");
-                newguy->swap_two_labels("a","b");
-                strings_same = compare_strings(ordered[j],newguy,n_permute);
-            }
-
-            if ( !strings_same ) continue;
-
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
-
-            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
-
-            // if terms exactly cancel, do so
-            if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
-                break;
-            }
-
-            // otherwise, combine terms
-            ordered[i]->data->factor = fabs(combined_factor);
-            if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
-            }else {
-                ordered[i]->sign = -1;
-            }
-            ordered[j]->skip = true;
-        }
-
-    }
 
     // consolidate terms that differ by permutations of non-summed labels (occupied)
 
