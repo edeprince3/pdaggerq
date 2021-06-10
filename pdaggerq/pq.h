@@ -92,6 +92,11 @@ class pq {
     /// swap to labels
     void swap_two_labels(std::string label1, std::string label2);
 
+    /// compare two lists of amplitudes
+    bool compare_amplitudes( std::vector<std::vector<std::string> > amps1, 
+                             std::vector<std::vector<std::string> > amps2, 
+                             int & n_permute );
+
   public:
 
     /// constructor
