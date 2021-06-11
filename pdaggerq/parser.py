@@ -17,7 +17,8 @@
 from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, Index,
                               TensorTerm, D1, Delta, Left0amps, Left1amps,
                               Left2amps, Right0amps, Right1amps, Right2amps,
-                              FockMat, BaseTerm)
+                              FockMat, BaseTerm, ContractionPermuter,
+                              TensorTermAction)
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
 
 
@@ -53,7 +54,7 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return T1amps(indices=tuple(g_idx))
-    elif 'd' in term_string:
+    elif 'd(' in term_string:
         index_string = term_string.replace('d(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
@@ -82,6 +83,11 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return Right2amps(indices=tuple(g_idx))
+    elif 'P(' in term_string:
+        index_string = term_string.replace('P(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return ContractionPermuter(indices=tuple(g_idx))
     else:
         raise TypeError("{} not recognized".format(term_string))
 
@@ -99,11 +105,16 @@ def contracted_strings_to_tensor_terms(pdaggerq_list_of_strings):
     for pq_string in pdaggerq_list_of_strings:
         coeff = float(pq_string[0])
         single_tensor_term = []
+        actions = []
         for ts in pq_string[1:]:
             bs = string_to_baseterm(ts)
-            single_tensor_term.append(bs)
+            if isinstance(bs, TensorTermAction):
+                actions.append(bs)
+            else:
+                single_tensor_term.append(bs)
         tensor_terms.append(
-            TensorTerm(base_terms=tuple(single_tensor_term), coefficient=coeff)
+            TensorTerm(base_terms=tuple(single_tensor_term), coefficient=coeff,
+                       permutation_ops=actions)
         )
     return tensor_terms
 
