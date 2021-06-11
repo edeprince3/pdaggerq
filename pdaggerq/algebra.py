@@ -190,7 +190,7 @@ class TensorTerm:
             string_indices = [xx.name for xx in bt.indices]
             for idx_type in string_indices:
                 if idx_type in occupied:
-                    if bt.name in ['h', 'g', 'f', 'd1', 'd2']:
+                    if bt.name in ['h', 'g', 'f', 'kd']:
                         tensor_index_ranges.append(occ_char)
                     else:
                         tensor_index_ranges.append(':')
@@ -198,7 +198,7 @@ class TensorTerm:
                         if idx_type in output_variables:
                             tensor_out_idx.append(idx_type)
                 elif idx_type in virtual:  # virtual
-                    if bt.name in ['h', 'g', 'f', 'd1', 'd2']:
+                    if bt.name in ['h', 'g', 'f', 'kd']:
                         tensor_index_ranges.append(virt_char)
                     else:
                         tensor_index_ranges.append(':')
@@ -233,7 +233,7 @@ class TensorTerm:
             t2 = np.zeros((nvirt, nvirt, nocc, nocc))
             l2 = np.zeros((nocc, nocc, nvirt, nvirt))
             l1 = np.zeros((nocc, nvirt))
-            d1 = np.zeros((sorbs, sorbs))
+            kd = np.zeros((sorbs, sorbs))
             einsum_path_string = "np.einsum_path(\'".format(self.coefficient)
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(

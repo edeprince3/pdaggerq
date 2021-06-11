@@ -58,7 +58,7 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         index_string = term_string.replace('d(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
-        return D1(indices=tuple(g_idx))
+        return Delta(indices=tuple(g_idx))
     elif 'l0' in term_string:
         return Left0amps()
     elif 'r0' in term_string:
