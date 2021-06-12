@@ -41,6 +41,9 @@ class pq {
     /// how many times does label "idx" appear in any term?
     int index_in_anywhere(std::string idx);
 
+    /// how many times does label "idx" appear in delta terms?
+    int index_in_deltas(std::string idx);
+
     /// how many times does label "idx" appear in tensor term?
     int index_in_tensor(std::string idx);
 
@@ -64,6 +67,9 @@ class pq {
 
     /// replace one label with another (everywhere)
     void replace_index_everywhere(std::string old_idx, std::string new_idx);
+
+    /// replace one label with another (in delta functions)
+    void replace_index_in_deltas(std::string old_idx, std::string new_idx);
 
     /// replace one label with another (in tensor)
     void replace_index_in_tensor(std::string old_idx, std::string new_idx);
