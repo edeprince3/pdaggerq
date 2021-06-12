@@ -1855,6 +1855,7 @@ int pq::index_in_anywhere(std::string idx) {
 
     int n = 0;
 
+    n += index_in_deltas(idx);
     n += index_in_tensor(idx);
     n += index_in_t_amplitudes(idx);
     n += index_in_u_amplitudes(idx);
@@ -1867,6 +1868,22 @@ int pq::index_in_anywhere(std::string idx) {
 
 }
 
+int pq::index_in_deltas(std::string idx) {
+
+    int n = 0;
+    for (int i = 0; i < (int)delta1.size(); i++) {
+        if ( delta1[i] == idx ) {
+            n++;
+        }
+    }
+    for (int i = 0; i < (int)delta2.size(); i++) {
+        if ( delta2[i] == idx ) {
+            n++;
+        }
+    }
+    return n;
+
+}
 int pq::index_in_tensor(std::string idx) {
 
     int n = 0;
@@ -1971,6 +1988,7 @@ int pq::index_in_right_amplitudes(std::string idx) {
 
 void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
+    //replace_index_in_deltas(old_idx,new_idx);
     replace_index_in_tensor(old_idx,new_idx);
     replace_index_in_t_amplitudes(old_idx,new_idx);
     replace_index_in_u_amplitudes(old_idx,new_idx);
@@ -1992,6 +2010,24 @@ void pq::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
     }
 
 }
+void pq::replace_index_in_deltas(std::string old_idx, std::string new_idx) {
+
+    for (int i = 0; i < (int)delta1.size(); i++) {
+        if ( delta1[i] == old_idx ) {
+            delta1[i] = new_idx;
+            // dont' return because indices may be repeated in two-electron integrals
+            //return;
+        }
+    }
+    for (int i = 0; i < (int)delta2.size(); i++) {
+        if ( delta2[i] == old_idx ) {
+            delta2[i] = new_idx;
+            // dont' return because indices may be repeated in two-electron integrals
+            //return;
+        }
+    }
+
+}
 
 void pq::replace_index_in_t_amplitudes(std::string old_idx, std::string new_idx) {
 
@@ -1999,7 +2035,7 @@ void pq::replace_index_in_t_amplitudes(std::string old_idx, std::string new_idx)
         for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
             if ( data->t_amplitudes[i][j] == old_idx ) {
                 data->t_amplitudes[i][j] = new_idx;
-                return; 
+                //return; 
             }
         }
     }
@@ -2012,7 +2048,7 @@ void pq::replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx)
         for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
             if ( data->u_amplitudes[i][j] == old_idx ) {
                 data->u_amplitudes[i][j] = new_idx;
-                return; 
+                //return; 
             }
         }
     }
@@ -2025,7 +2061,7 @@ void pq::replace_index_in_m_amplitudes(std::string old_idx, std::string new_idx)
         for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
             if ( data->m_amplitudes[i][j] == old_idx ) {
                 data->m_amplitudes[i][j] = new_idx;
-                return; 
+                //return; 
             }
         }
     }
@@ -2038,7 +2074,7 @@ void pq::replace_index_in_s_amplitudes(std::string old_idx, std::string new_idx)
         for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
             if ( data->s_amplitudes[i][j] == old_idx ) {
                 data->s_amplitudes[i][j] = new_idx;
-                return; 
+                //return; 
             }
         }
     }
@@ -2051,7 +2087,7 @@ void pq::replace_index_in_left_amplitudes(std::string old_idx, std::string new_i
         for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
             if ( data->left_amplitudes[i][j] == old_idx ) {
                 data->left_amplitudes[i][j] = new_idx;
-                return; 
+                //return; 
             }
         }
     }
@@ -2064,7 +2100,7 @@ void pq::replace_index_in_right_amplitudes(std::string old_idx, std::string new_
         for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
             if ( data->right_amplitudes[i][j] == old_idx ) {
                 data->right_amplitudes[i][j] = new_idx;
-                return; 
+                //return; 
             }
         }
     }
@@ -2129,7 +2165,55 @@ void pq::gobble_deltas() {
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
 
+    // create list of summation labels. only consider internally-created labels
+
+    std::vector<std::string> occ_labels{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
+                                    "o10","o11","o12","o13","o14","o15","o16","o17","o18","o19",
+                                    "o20","o21","o22","o23","o24","o25","o26","o27","o28","o29"};
+    std::vector<std::string> vir_labels{"v0","v1","v2","v3","v4","v5","v6","v7","v8","v9",
+                                    "v10","v11","v12","v13","v14","v15","v16","v17","v18","v19",
+                                    "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
+
+    std::vector<std::string> sum_labels;
+    for (int i = 0; i < (int)occ_labels.size(); i++) {
+        if ( index_in_anywhere( occ_labels[i] ) == 2 ) {
+            sum_labels.push_back( occ_labels[i] );
+        }
+    }
+    for (int i = 0; i < (int)vir_labels.size(); i++) {
+        if ( index_in_anywhere( vir_labels[i] ) == 2 ) {
+            sum_labels.push_back( vir_labels[i] );
+        }
+    }
+
     for (int i = 0; i < (int)delta1.size(); i++) {
+
+        // is delta label 1 in list of summation labels?
+        bool have_delta1 = false;
+        for (int j = 0; j < (int)sum_labels.size(); j++) {
+            if ( delta1[i] == sum_labels[j] ) {
+                have_delta1 = true;
+                break;
+            }
+        }
+        // is delta label 2 in list of summation labels?
+        bool have_delta2 = false;
+        for (int j = 0; j < (int)sum_labels.size(); j++) {
+            if ( delta2[i] == sum_labels[j] ) {
+                have_delta2 = true;
+                break;
+            }
+        }
+
+/*
+        if ( have_delta1 ) {
+            replace_index_everywhere( delta1[i], delta2[i] );
+            continue;
+        }else if ( have_delta2 ) {
+            replace_index_everywhere( delta2[i], delta1[i] );
+            continue;
+        }
+*/
 
         bool delta1_in_tensor           = ( index_in_tensor( delta1[i] ) > 0 ) ? true : false;
         bool delta2_in_tensor           = ( index_in_tensor( delta2[i] ) > 0 ) ? true : false;
@@ -2146,46 +2230,46 @@ void pq::gobble_deltas() {
         bool delta1_in_s_amplitudes     = ( index_in_s_amplitudes( delta1[i] ) > 0 ) ? true : false;
         bool delta2_in_s_amplitudes     = ( index_in_s_amplitudes( delta2[i] ) > 0 ) ? true : false;
 
-        if ( delta1_in_tensor ) {
+        if ( delta1_in_tensor && have_delta1 ) {
             replace_index_in_tensor( delta1[i], delta2[i] );
             continue;
-        }else if ( delta2_in_tensor ) {
+        }else if ( delta2_in_tensor && have_delta2 ) {
                 replace_index_in_tensor( delta2[i], delta1[i] );
             continue;
-        }else if ( delta1_in_t_amplitudes ) {
+        }else if ( delta1_in_t_amplitudes && have_delta1 ) {
             replace_index_in_t_amplitudes( delta1[i], delta2[i] );
             continue;
-        }else if ( delta2_in_t_amplitudes ) {
+        }else if ( delta2_in_t_amplitudes && have_delta2 ) {
             replace_index_in_t_amplitudes( delta2[i], delta1[i] );
             continue;
-        }else if ( delta1_in_left_amplitudes ) {
+        }else if ( delta1_in_left_amplitudes && have_delta1 ) {
             replace_index_in_left_amplitudes( delta1[i], delta2[i] );
             continue;
-        }else if ( delta2_in_left_amplitudes ) {
+        }else if ( delta2_in_left_amplitudes && have_delta2 ) {
             replace_index_in_left_amplitudes( delta2[i], delta1[i] );
             continue;
-        }else if ( delta1_in_right_amplitudes ) {
+        }else if ( delta1_in_right_amplitudes && have_delta1 ) {
             replace_index_in_right_amplitudes( delta1[i], delta2[i] );
             continue;
-        }else if ( delta2_in_right_amplitudes ) {
+        }else if ( delta2_in_right_amplitudes && have_delta2 ) {
             replace_index_in_right_amplitudes( delta2[i], delta1[i] );
             continue;
-        }else if ( delta1_in_u_amplitudes ) {
+        }else if ( delta1_in_u_amplitudes && have_delta1 ) {
             replace_index_in_u_amplitudes( delta1[i], delta2[i] );
             continue;
-        }else if ( delta2_in_u_amplitudes ) {
+        }else if ( delta2_in_u_amplitudes && have_delta2 ) {
             replace_index_in_u_amplitudes( delta2[i], delta1[i] );
             continue;
-        }else if ( delta1_in_m_amplitudes ) {
+        }else if ( delta1_in_m_amplitudes && have_delta1 ) {
             replace_index_in_m_amplitudes( delta1[i], delta2[i] );
             continue;
-        }else if ( delta2_in_m_amplitudes ) {
+        }else if ( delta2_in_m_amplitudes && have_delta2 ) {
             replace_index_in_m_amplitudes( delta2[i], delta1[i] );
             continue;
-        }else if ( delta1_in_s_amplitudes ) {
+        }else if ( delta1_in_s_amplitudes && have_delta1 ) {
             replace_index_in_s_amplitudes( delta1[i], delta2[i] );
             continue;
-        }else if ( delta2_in_s_amplitudes ) {
+        }else if ( delta2_in_s_amplitudes && have_delta2 ) {
             replace_index_in_s_amplitudes( delta2[i], delta1[i] );
             continue;
         }
@@ -2737,4 +2821,75 @@ void pq::reclassify_tensors() {
 }
 
 } // End namespaces
+
+/*
+void pq::gobble_deltas() {
+
+    std::vector<std::string> tmp_delta1;
+    std::vector<std::string> tmp_delta2;
+
+    // create list of summation labels. only consider internally-created labels
+
+    std::vector<std::string> occ_labels{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
+                                    "o10","o11","o12","o13","o14","o15","o16","o17","o18","o19",
+                                    "o20","o21","o22","o23","o24","o25","o26","o27","o28","o29"};
+    std::vector<std::string> vir_labels{"v0","v1","v2","v3","v4","v5","v6","v7","v8","v9",
+                                    "v10","v11","v12","v13","v14","v15","v16","v17","v18","v19",
+                                    "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
+
+    std::vector<std::string> sum_labels;
+    for (int i = 0; i < (int)occ_labels.size(); i++) {
+        if ( index_in_anywhere( occ_labels[i] ) == 2 ) {
+            sum_labels.push_back( occ_labels[i] );
+        }
+    }
+    for (int i = 0; i < (int)vir_labels.size(); i++) {
+        if ( index_in_anywhere( vir_labels[i] ) == 2 ) {
+            sum_labels.push_back( vir_labels[i] );
+        }
+    }
+
+    for (int i = 0; i < (int)delta1.size(); i++) {
+
+        // is delta label 1 in list of summation labels?
+        bool have_delta1 = false;
+        for (int j = 0; j < (int)sum_labels.size(); j++) {
+            if ( delta1[i] == sum_labels[j] ) {
+                have_delta1 = true;
+                break;
+            }
+        }
+        // is delta label 2 in list of summation labels?
+        bool have_delta2 = false;
+        for (int j = 0; j < (int)sum_labels.size(); j++) {
+            if ( delta2[i] == sum_labels[j] ) {
+                have_delta2 = true;
+                break;
+            }
+        }
+
+        if ( have_delta1 ) {
+            replace_index_everywhere( delta1[i], delta2[i] );
+            continue;
+        }else if ( have_delta2 ) {
+            replace_index_everywhere( delta2[i], delta1[i] );
+            continue;
+        }
+
+        // at this point, it is safe to assume the delta function must remain
+        tmp_delta1.push_back(delta1[i]);
+        tmp_delta2.push_back(delta2[i]);
+
+    }
+
+    delta1.clear();
+    delta2.clear();
+
+    for (int i = 0; i < (int)tmp_delta1.size(); i++) {
+        delta1.push_back(tmp_delta1[i]);
+        delta2.push_back(tmp_delta2[i]);
+    }
+
+}
+*/
 
