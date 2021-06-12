@@ -10,11 +10,13 @@ def main():
     pq.set_left_operators(['1','l1','l2'])
 
     print('\n', '#    D2(i,j,k,l):', '\n')
+    pq.set_left_operators(['1','l1','l2'])
     pq.add_st_operator(1.0,['e2(i,j,l,k)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
-    d2_terms = contracted_strings_to_tensor_terms(d2_terms)
-    for my_term in d2_terms:
+    d2_terms_deprince = pq.fully_contracted_strings()
+    d2_terms_ncr = contracted_strings_to_tensor_terms(d2_terms_deprince)
+    for my_term, deprince_term in zip(d2_terms_ncr, d2_terms_deprince):
+        print("#\t", deprince_term)
         print("#\t", my_term)
         print(my_term.einsum_string(update_val='tpdm[o, o, o, o]',
                                     output_variables=['i', 'j', 'k', 'l']))
@@ -22,6 +24,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(i,j,k,a):', '\n')
+    pq.set_left_operators(['1','l1','l2'])
     pq.add_st_operator(1.0,['e2(i,j,a,k)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()
@@ -34,6 +37,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(i,j,a,l):', '\n')
+    pq.set_left_operators(['1','l1','l2'])
     pq.add_st_operator(1.0,['e2(i,j,l,a)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()
@@ -46,6 +50,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(i,a,k,l):', '\n')
+    pq.set_left_operators(['1','l1','l2'])
     pq.add_st_operator(1.0,['e2(i,a,l,k)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()
@@ -58,6 +63,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(a,j,k,l):', '\n')
+    pq.set_left_operators(['1','l1','l2'])
     pq.add_st_operator(1.0,['e2(a,j,l,k)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()
@@ -70,6 +76,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(a,b,c,d):', '\n')
+    pq.set_left_operators(['1','l1','l2'])
     pq.add_st_operator(1.0,['e2(a,b,d,c)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()

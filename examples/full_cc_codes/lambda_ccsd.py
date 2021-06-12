@@ -8,11 +8,30 @@ do not depend on those packages but you gotta get integrals frome somehwere.
 We also check the code by using pyscfs functionality for generating spin-orbital
 t-amplitudes from RCCSD.  the main() function is fairly straightforward.
 """
+# set allow numpy built with MKL to consume more threads for tensordot
+import os
+os.environ["MKL_NUM_THREADS"] = "{}".format(os.cpu_count() - 1)
+
 import numpy as np
 from numpy import einsum
 
 
 def lagrangian_energy(t1, t2, l1, l2, f, g, o, v):
+    """
+    L(t1, t2, l1, l2) = <0|e(-T)H e(T)|0> + \sum_{i}l_{i}<i|e(-T)H e(T)|0>
+
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param l1: lagrange multiplier for singles (nocc x nvirt)
+    :param l2: lagrange multiplier for doubles (nocc x nocc x nvirt x nvirt)
+    :param f: fock operator defined as soei + np.einsum('piiq->pq', astei[:, o, o, :])
+              where soei is 1 electron integrals (spinorb) and astei is
+              antisymmetric 2 electron integrals in openfermion format
+              <12|21>.  <ij|kl> - <ij|lk>
+    :param g: antisymmetric 2 electron integrals. See fock input.
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
+    """
     l_energy = ccsd_energy(t1, t2, f, g, o, v)
     l_energy += np.einsum('me,em', l1, singles_residual(t1, t2, f, g, o, v))
     l_energy += np.einsum('mnef,efmn', l2, doubles_residual(t1, t2, f, g, o, v))
@@ -20,6 +39,21 @@ def lagrangian_energy(t1, t2, l1, l2, f, g, o, v):
 
 
 def lambda_singles(t1, t2, l1, l2, f, g, o, v):
+    """
+    Derivative of Lagrangian w.r.t t1
+
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param l1: lagrange multiplier for singles (nocc x nvirt)
+    :param l2: lagrange multiplier for doubles (nocc x nocc x nvirt x nvirt)
+    :param f: fock operator defined as soei + np.einsum('piiq->pq', astei[:, o, o, :])
+              where soei is 1 electron integrals (spinorb) and astei is
+              antisymmetric 2 electron integrals in openfermion format
+              <12|21>.  <ij|kl> - <ij|lk>
+    :param g: antisymmetric 2 electron integrals. See fock input.
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
+    """
     #	  1.0000 f(m,e)
     lambda_one = 1.0 * einsum('me->me', f[o, v])
 
@@ -214,6 +248,21 @@ def lambda_singles(t1, t2, l1, l2, f, g, o, v):
 
 
 def lambda_doubles(t1, t2, l1, l2, f, g, o, v):
+    """
+    Lagrangian derivative with respect to t2
+
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param l1: lagrange multiplier for singles (nocc x nvirt)
+    :param l2: lagrange multiplier for doubles (nocc x nocc x nvirt x nvirt)
+    :param f: fock operator defined as soei + np.einsum('piiq->pq', astei[:, o, o, :])
+              where soei is 1 electron integrals (spinorb) and astei is
+              antisymmetric 2 electron integrals in openfermion format
+              <12|21>.  <ij|kl> - <ij|lk>
+    :param g: antisymmetric 2 electron integrals. See fock input.
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
+    """
     #	  1.0000 <m,n||e,f>
     lambda_two = 1.0 * einsum('mnef->mnef', g[o, o, v, v])
 
@@ -433,14 +482,18 @@ def ccsd_energy(t1, t2, f, g, o, v):
     """
     < 0 | e(-T) H e(T) | 0> :
 
-    :param f:
-    :param g:
-    :param t1:
-    :param t2:
-    :param o:
-    :param v:
-    :return:
+
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param f: fock operator defined as soei + np.einsum('piiq->pq', astei[:, o, o, :])
+              where soei is 1 electron integrals (spinorb) and astei is
+              antisymmetric 2 electron integrals in openfermion format
+              <12|21>.  <ij|kl> - <ij|lk>
+    :param g: antisymmetric 2 electron integrals. See fock input.
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
     """
+
     #	  1.0000 f(i,i)
     energy = 1.0 * einsum('ii', f[o, o])
 
@@ -463,13 +516,16 @@ def ccsd_energy(t1, t2, f, g, o, v):
 def singles_residual(t1, t2, f, g, o, v):
     """
     < 0 | m* e e(-T) H e(T) | 0>
-    :param f:
-    :param g:
-    :param t1:
-    :param t2:
-    :param o:
-    :param v:
-    :return:
+
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param f: fock operator defined as soei + np.einsum('piiq->pq', astei[:, o, o, :])
+              where soei is 1 electron integrals (spinorb) and astei is
+              antisymmetric 2 electron integrals in openfermion format
+              <12|21>.  <ij|kl> - <ij|lk>
+    :param g: antisymmetric 2 electron integrals. See fock input.
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
     """
     #	  1.0000 f(e,m)
     singles_res = 1.0 * einsum('em->em', f[v, o])
@@ -527,13 +583,15 @@ def doubles_residual(t1, t2, f, g, o, v):
     """
      < 0 | m* n* f e e(-T) H e(T) | 0>
 
-    :param f:
-    :param g:
-    :param t1:
-    :param t2:
-    :param o:
-    :param v:
-    :return:
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param f: fock operator defined as soei + np.einsum('piiq->pq', astei[:, o, o, :])
+              where soei is 1 electron integrals (spinorb) and astei is
+              antisymmetric 2 electron integrals in openfermion format
+              <12|21>.  <ij|kl> - <ij|lk>
+    :param g: antisymmetric 2 electron integrals. See fock input.
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
     """
     #	 -1.0000 P(m,n)f(i,n)*t2(e,f,m,i)
     contracted_intermediate = -1.0 * einsum('in,efmi->efmn', f[o, o], t2)
@@ -744,31 +802,30 @@ def doubles_residual(t1, t2, f, g, o, v):
     return doubles_res
 
 
-
-def kernel(t1, t2, l1, l2, fock, g, o, v, e_ai, e_abij, max_iter=100,
+def kernel(t1, t2, fock, g, o, v, e_ai, e_abij, max_iter=100,
            stopping_eps=1.0E-8):
     """
-    Solve method of multipliers
 
-    :param t1:
-    :param t2:
-    :param l1:
-    :param l2:
-    :param fock:
-    :param g:
-    :param o:
-    :param v:
-    :param e_ai:
-    :param e_abij:
-    :param max_iter:
-    :param stopping_eps:
-    :return:
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param fock: fock operator defined as soei + np.einsum('piiq->pq', astei[:, o, o, :])
+              where soei is 1 electron integrals (spinorb) and astei is
+              antisymmetric 2 electron integrals in openfermion format
+              <12|21>.  <ij|kl> - <ij|lk>
+    :param g: antisymmetric 2 electron integrals. See fock input.
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
+    :param e_ai: 1 / (-eps[v, n] + eps[n, o])
+    :param e_abij: 1 / (-eps[v, n, n, n] - eps[n, v, n, n] + eps[n, n, o, n] + eps[n, n, n, o])
+    :param max_iter: Total number of CC iterations allowed
+    :param stopping_eps: stopping criteria for residual l2-norm
     """
     fock_e_ai = np.reciprocal(e_ai)
     fock_e_abij = np.reciprocal(e_abij)
     old_energy = ccsd_energy(t1, t2, fock, g, o, v)
 
     print("\tSolving T-quations")
+    print("\tIteration num \t\tenergy\t\t\t\t\t\t|dE|\t\t\t||residual||")
     for idx in range(max_iter):
 
         residual_singles = singles_residual(t1, t2, fock, g, o, v)
@@ -799,6 +856,7 @@ def kernel(t1, t2, l1, l2, fock, g, o, v, e_ai, e_abij, max_iter=100,
         raise ValueError("Did not converge")
 
     print("\n\tSolving lambda-quations\n")
+    print("\tIteration num \t\tenergy\t\t\t\t\t\t|dE|\t\t\t||residual||\t\t Pseudo-Energy")
     # inverse diagonal fock should be rearranged for lambdas
     lfock_e_ai = fock_e_ai.transpose(1, 0)
     lfock_e_abij = fock_e_abij.transpose(2, 3, 0, 1)
@@ -849,9 +907,20 @@ def kernel(t1, t2, l1, l2, fock, g, o, v, e_ai, e_abij, max_iter=100,
 
 
 def ccsd_d1(t1, t2, l1, l2, kd, o, v):
-    opdm = np.zeros_like(kd)
-    #    D1(m,n):
+    """
+    Compute CCSD 1-RDM
 
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param l1: lagrange multiplier for singles (nocc x nvirt)
+    :param l2: lagrange multiplier for doubles (nocc x nocc x nvirt x nvirt)
+    :param kd: identity matrix (|spin-orb| x |spin-orb|)
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
+    """
+    opdm = np.zeros_like(kd)
+
+    #    D1(m,n):
     # 	  1.0000 d(m,n)
     # 	 ['+1.000000', 'd(m,n)']
     opdm[o, o] += 1.0 * einsum('mn->mn', kd[o, o])
@@ -904,54 +973,79 @@ def ccsd_d1(t1, t2, l1, l2, kd, o, v):
     #	 ['-0.500000', 'l2(i,j,b,a)', 't1(b,m)', 't2(e,a,i,j)']
     opdm[o, v] += -0.5 * einsum('ijba,bm,eaij->me', l2, t1, t2,
                                 optimize=['einsum_path', (0, 2), (0, 1)])
+
     return opdm
 
+
 def ccsd_d2(t1, t2, l1, l2, kd, o, v):
+    """
+    Compute CCSD 2-RDM
+
+    :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
+    :param t2: spin-orbital t2 amplitudes (nvirt x nvirt x nocc x nocc)
+    :param l1: lagrange multiplier for singles (nocc x nvirt)
+    :param l2: lagrange multiplier for doubles (nocc x nocc x nvirt x nvirt)
+    :param kd: identity matrix (|spin-orb| x |spin-orb|)
+    :param o: slice(None, occ) where occ is number of occupied spin-orbitals
+    :param v: slice(occ, None) whwere occ is number of occupied spin-orbitals
+    """
     nso = kd.shape[0]
     tpdm = np.zeros((nso, nso, nso, nso))
     #    D2(i,j,k,l):
 
+    #	 ['+1.000000', 'd(j,l)', 'd(i,k)']
     #	  1.0000 d(j,l)*d(i,k)
     tpdm[o, o, o, o] += 1.0 * einsum('jl,ik->ijkl', kd[o, o], kd[o, o])
 
+    #	 ['-1.000000', 'd(i,l)', 'd(j,k)']
     #	 -1.0000 d(i,l)*d(j,k)
     tpdm[o, o, o, o] += -1.0 * einsum('il,jk->ijkl', kd[o, o], kd[o, o])
 
+    #	 ['-1.000000', 'd(j,l)', 'l1(k,a)', 't1(a,i)']
     #	 -1.0000 d(j,l)*l1(k,a)*t1(a,i)
     tpdm[o, o, o, o] += -1.0 * einsum('jl,ka,ai->ijkl', kd[o, o], l1, t1,
                                       optimize=['einsum_path', (1, 2), (0, 1)])
 
+    #	 ['+1.000000', 'd(i,l)', 'l1(k,a)', 't1(a,j)']
     #	  1.0000 d(i,l)*l1(k,a)*t1(a,j)
     tpdm[o, o, o, o] += 1.0 * einsum('il,ka,aj->ijkl', kd[o, o], l1, t1,
                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
+    #	 ['+1.000000', 'd(j,k)', 'l1(l,a)', 't1(a,i)']
     #	  1.0000 d(j,k)*l1(l,a)*t1(a,i)
     tpdm[o, o, o, o] += 1.0 * einsum('jk,la,ai->ijkl', kd[o, o], l1, t1,
                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
+    #	 ['-1.000000', 'd(i,k)', 'l1(l,a)', 't1(a,j)']
     #	 -1.0000 d(i,k)*l1(l,a)*t1(a,j)
     tpdm[o, o, o, o] += -1.0 * einsum('ik,la,aj->ijkl', kd[o, o], l1, t1,
                                       optimize=['einsum_path', (1, 2), (0, 1)])
 
-    #	 -0.5000 d(j,l)*l2(j,k,b,a)*t2(b,a,j,i)
-    tpdm[o, o, o, o] += -0.5 * einsum('jl,jkba,baji->ijkl', kd[o, o], l2, t2,
+    #	 ['-0.500000', 'd(j,l)', 'l2(m,k,b,a)', 't2(b,a,m,i)']
+    #	 -0.5000 d(j,l)*l2(m,k,b,a)*t2(b,a,m,i)
+    tpdm[o, o, o, o] += -0.5 * einsum('jl,mkba,bami->ijkl', kd[o, o], l2, t2,
                                       optimize=['einsum_path', (1, 2), (0, 1)])
 
-    #	  0.5000 d(i,l)*l2(i,k,b,a)*t2(b,a,i,j)
-    tpdm[o, o, o, o] += 0.5 * einsum('il,ikba,baij->ijkl', kd[o, o], l2, t2,
+    #	 ['+0.500000', 'd(i,l)', 'l2(m,k,b,a)', 't2(b,a,m,j)']
+    #	  0.5000 d(i,l)*l2(m,k,b,a)*t2(b,a,m,j)
+    tpdm[o, o, o, o] += 0.5 * einsum('il,mkba,bamj->ijkl', kd[o, o], l2, t2,
                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
-    #	  0.5000 d(j,k)*l2(j,l,b,a)*t2(b,a,j,i)
-    tpdm[o, o, o, o] += 0.5 * einsum('jk,jlba,baji->ijkl', kd[o, o], l2, t2,
+    #	 ['+0.500000', 'd(j,k)', 'l2(m,l,b,a)', 't2(b,a,m,i)']
+    #	  0.5000 d(j,k)*l2(m,l,b,a)*t2(b,a,m,i)
+    tpdm[o, o, o, o] += 0.5 * einsum('jk,mlba,bami->ijkl', kd[o, o], l2, t2,
                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
-    #	 -0.5000 d(i,k)*l2(i,l,b,a)*t2(b,a,i,j)
-    tpdm[o, o, o, o] += -0.5 * einsum('ik,ilba,baij->ijkl', kd[o, o], l2, t2,
+    #	 ['-0.500000', 'd(i,k)', 'l2(m,l,b,a)', 't2(b,a,m,j)']
+    #	 -0.5000 d(i,k)*l2(m,l,b,a)*t2(b,a,m,j)
+    tpdm[o, o, o, o] += -0.5 * einsum('ik,mlba,bamj->ijkl', kd[o, o], l2, t2,
                                       optimize=['einsum_path', (1, 2), (0, 1)])
 
+    #	 ['+0.500000', 'l2(k,l,b,a)', 't2(b,a,i,j)']
     #	  0.5000 l2(k,l,b,a)*t2(b,a,i,j)
     tpdm[o, o, o, o] += 0.5 * einsum('klba,baij->ijkl', l2, t2)
 
+    #	 ['-1.000000', 'l2(k,l,b,a)', 't1(b,j)', 't1(a,i)']
     #	 -1.0000 l2(k,l,b,a)*t1(b,j)*t1(a,i)
     tpdm[o, o, o, o] += -1.0 * einsum('klba,bj,ai->ijkl', l2, t1, t1,
                                       optimize=['einsum_path', (0, 1), (0, 1)])
@@ -964,25 +1058,25 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
     #	  1.0000 d(i,k)*t1(a,j)
     tpdm[o, o, o, v] += 1.0 * einsum('ik,aj->ijka', kd[o, o], t1)
 
-    #	  1.0000 d(j,k)*l1(j,b)*t2(a,b,j,i)
-    tpdm[o, o, o, v] += 1.0 * einsum('jk,jb,abji->ijka', kd[o, o], l1, t2,
+    #	  1.0000 d(j,k)*l1(l,b)*t2(a,b,l,i)
+    tpdm[o, o, o, v] += 1.0 * einsum('jk,lb,abli->ijka', kd[o, o], l1, t2,
                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
-    #	 -1.0000 d(i,k)*l1(i,b)*t2(a,b,i,j)
-    tpdm[o, o, o, v] += -1.0 * einsum('ik,ib,abij->ijka', kd[o, o], l1, t2,
+    #	 -1.0000 d(i,k)*l1(l,b)*t2(a,b,l,j)
+    tpdm[o, o, o, v] += -1.0 * einsum('ik,lb,ablj->ijka', kd[o, o], l1, t2,
                                       optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	  1.0000 l1(k,b)*t2(a,b,i,j)
     tpdm[o, o, o, v] += 1.0 * einsum('kb,abij->ijka', l1, t2)
 
-    #	  1.0000 d(j,k)*l1(j,b)*t1(a,j)*t1(b,i)
-    tpdm[o, o, o, v] += 1.0 * einsum('jk,jb,aj,bi->ijka', kd[o, o], l1, t1, t1,
-                                     optimize=['einsum_path', (0, 2), (0, 1),
+    #	  1.0000 d(j,k)*l1(l,b)*t1(a,l)*t1(b,i)
+    tpdm[o, o, o, v] += 1.0 * einsum('jk,lb,al,bi->ijka', kd[o, o], l1, t1, t1,
+                                     optimize=['einsum_path', (1, 2), (1, 2),
                                                (0, 1)])
 
-    #	 -1.0000 d(i,k)*l1(i,b)*t1(a,i)*t1(b,j)
-    tpdm[o, o, o, v] += -1.0 * einsum('ik,ib,ai,bj->ijka', kd[o, o], l1, t1, t1,
-                                      optimize=['einsum_path', (0, 2), (0, 1),
+    #	 -1.0000 d(i,k)*l1(l,b)*t1(a,l)*t1(b,j)
+    tpdm[o, o, o, v] += -1.0 * einsum('ik,lb,al,bj->ijka', kd[o, o], l1, t1, t1,
+                                      optimize=['einsum_path', (1, 2), (1, 2),
                                                 (0, 1)])
 
     #	 -1.0000 P(i,j)l1(k,b)*t1(a,j)*t1(b,i)
@@ -992,28 +1086,28 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
     tpdm[o, o, o, v] += 1.00000 * contracted_intermediate + -1.00000 * einsum(
         'ijka->jika', contracted_intermediate)
 
-    #	  0.5000 d(j,k)*l2(j,k,c,b)*t1(a,k)*t2(c,b,j,i)
-    tpdm[o, o, o, v] += 0.5 * einsum('jk,jkcb,ak,cbji->ijka', kd[o, o], l2, t1,
+    #	  0.5000 d(j,k)*l2(l,m,c,b)*t1(a,m)*t2(c,b,l,i)
+    tpdm[o, o, o, v] += 0.5 * einsum('jk,lmcb,am,cbli->ijka', kd[o, o], l2, t1,
                                      t2,
-                                     optimize=['einsum_path', (0, 2), (0, 1),
+                                     optimize=['einsum_path', (1, 3), (1, 2),
                                                (0, 1)])
 
-    #	  0.5000 d(j,k)*l2(j,k,c,b)*t1(c,i)*t2(a,b,j,k)
-    tpdm[o, o, o, v] += 0.5 * einsum('jk,jkcb,ci,abjk->ijka', kd[o, o], l2, t1,
+    #	  0.5000 d(j,k)*l2(l,m,c,b)*t1(c,i)*t2(a,b,l,m)
+    tpdm[o, o, o, v] += 0.5 * einsum('jk,lmcb,ci,ablm->ijka', kd[o, o], l2, t1,
                                      t2,
-                                     optimize=['einsum_path', (0, 1), (0, 2),
+                                     optimize=['einsum_path', (1, 3), (1, 2),
                                                (0, 1)])
 
-    #	 -0.5000 d(i,k)*l2(i,k,c,b)*t1(a,k)*t2(c,b,i,j)
-    tpdm[o, o, o, v] += -0.5 * einsum('ik,ikcb,ak,cbij->ijka', kd[o, o], l2, t1,
+    #	 -0.5000 d(i,k)*l2(l,m,c,b)*t1(a,m)*t2(c,b,l,j)
+    tpdm[o, o, o, v] += -0.5 * einsum('ik,lmcb,am,cblj->ijka', kd[o, o], l2, t1,
                                       t2,
-                                      optimize=['einsum_path', (0, 2), (0, 1),
+                                      optimize=['einsum_path', (1, 3), (1, 2),
                                                 (0, 1)])
 
-    #	 -0.5000 d(i,k)*l2(i,k,c,b)*t1(c,j)*t2(a,b,i,k)
-    tpdm[o, o, o, v] += -0.5 * einsum('ik,ikcb,cj,abik->ijka', kd[o, o], l2, t1,
+    #	 -0.5000 d(i,k)*l2(l,m,c,b)*t1(c,j)*t2(a,b,l,m)
+    tpdm[o, o, o, v] += -0.5 * einsum('ik,lmcb,cj,ablm->ijka', kd[o, o], l2, t1,
                                       t2,
-                                      optimize=['einsum_path', (0, 1), (0, 2),
+                                      optimize=['einsum_path', (1, 3), (1, 2),
                                                 (0, 1)])
 
     #	 -0.5000 P(i,j)l2(l,k,c,b)*t1(a,j)*t2(c,b,l,i)
@@ -1047,25 +1141,25 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
     #	 -1.0000 d(i,l)*t1(a,j)
     tpdm[o, o, v, o] += -1.0 * einsum('il,aj->ijal', kd[o, o], t1)
 
-    #	 -1.0000 d(j,l)*l1(j,b)*t2(a,b,j,i)
-    tpdm[o, o, v, o] += -1.0 * einsum('jl,jb,abji->ijal', kd[o, o], l1, t2,
+    #	 -1.0000 d(j,l)*l1(k,b)*t2(a,b,k,i)
+    tpdm[o, o, v, o] += -1.0 * einsum('jl,kb,abki->ijal', kd[o, o], l1, t2,
                                       optimize=['einsum_path', (1, 2), (0, 1)])
 
-    #	  1.0000 d(i,l)*l1(i,b)*t2(a,b,i,j)
-    tpdm[o, o, v, o] += 1.0 * einsum('il,ib,abij->ijal', kd[o, o], l1, t2,
+    #	  1.0000 d(i,l)*l1(k,b)*t2(a,b,k,j)
+    tpdm[o, o, v, o] += 1.0 * einsum('il,kb,abkj->ijal', kd[o, o], l1, t2,
                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	 -1.0000 l1(l,b)*t2(a,b,i,j)
     tpdm[o, o, v, o] += -1.0 * einsum('lb,abij->ijal', l1, t2)
 
-    #	 -1.0000 d(j,l)*l1(j,b)*t1(a,j)*t1(b,i)
-    tpdm[o, o, v, o] += -1.0 * einsum('jl,jb,aj,bi->ijal', kd[o, o], l1, t1, t1,
-                                      optimize=['einsum_path', (0, 2), (0, 1),
+    #	 -1.0000 d(j,l)*l1(k,b)*t1(a,k)*t1(b,i)
+    tpdm[o, o, v, o] += -1.0 * einsum('jl,kb,ak,bi->ijal', kd[o, o], l1, t1, t1,
+                                      optimize=['einsum_path', (1, 2), (1, 2),
                                                 (0, 1)])
 
-    #	  1.0000 d(i,l)*l1(i,b)*t1(a,i)*t1(b,j)
-    tpdm[o, o, v, o] += 1.0 * einsum('il,ib,ai,bj->ijal', kd[o, o], l1, t1, t1,
-                                     optimize=['einsum_path', (0, 2), (0, 1),
+    #	  1.0000 d(i,l)*l1(k,b)*t1(a,k)*t1(b,j)
+    tpdm[o, o, v, o] += 1.0 * einsum('il,kb,ak,bj->ijal', kd[o, o], l1, t1, t1,
+                                     optimize=['einsum_path', (1, 2), (1, 2),
                                                (0, 1)])
 
     #	  1.0000 P(i,j)l1(l,b)*t1(a,j)*t1(b,i)
@@ -1075,26 +1169,26 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
     tpdm[o, o, v, o] += 1.00000 * contracted_intermediate + -1.00000 * einsum(
         'ijal->jial', contracted_intermediate)
 
-    #	 -0.5000 d(j,l)*l2(j,k,c,b)*t1(a,k)*t2(c,b,j,i)
-    tpdm[o, o, v, o] += -0.5 * einsum('jl,jkcb,ak,cbji->ijal', kd[o, o], l2, t1,
+    #	 -0.5000 d(j,l)*l2(k,m,c,b)*t1(a,m)*t2(c,b,k,i)
+    tpdm[o, o, v, o] += -0.5 * einsum('jl,kmcb,am,cbki->ijal', kd[o, o], l2, t1,
                                       t2,
                                       optimize=['einsum_path', (1, 3), (1, 2),
                                                 (0, 1)])
 
-    #	 -0.5000 d(j,l)*l2(j,k,c,b)*t1(c,i)*t2(a,b,j,k)
-    tpdm[o, o, v, o] += -0.5 * einsum('jl,jkcb,ci,abjk->ijal', kd[o, o], l2, t1,
+    #	 -0.5000 d(j,l)*l2(k,m,c,b)*t1(c,i)*t2(a,b,k,m)
+    tpdm[o, o, v, o] += -0.5 * einsum('jl,kmcb,ci,abkm->ijal', kd[o, o], l2, t1,
                                       t2,
                                       optimize=['einsum_path', (1, 3), (1, 2),
                                                 (0, 1)])
 
-    #	  0.5000 d(i,l)*l2(i,k,c,b)*t1(a,k)*t2(c,b,i,j)
-    tpdm[o, o, v, o] += 0.5 * einsum('il,ikcb,ak,cbij->ijal', kd[o, o], l2, t1,
+    #	  0.5000 d(i,l)*l2(k,m,c,b)*t1(a,m)*t2(c,b,k,j)
+    tpdm[o, o, v, o] += 0.5 * einsum('il,kmcb,am,cbkj->ijal', kd[o, o], l2, t1,
                                      t2,
                                      optimize=['einsum_path', (1, 3), (1, 2),
                                                (0, 1)])
 
-    #	  0.5000 d(i,l)*l2(i,k,c,b)*t1(c,j)*t2(a,b,i,k)
-    tpdm[o, o, v, o] += 0.5 * einsum('il,ikcb,cj,abik->ijal', kd[o, o], l2, t1,
+    #	  0.5000 d(i,l)*l2(k,m,c,b)*t1(c,j)*t2(a,b,k,m)
+    tpdm[o, o, v, o] += 0.5 * einsum('il,kmcb,cj,abkm->ijal', kd[o, o], l2, t1,
                                      t2,
                                      optimize=['einsum_path', (1, 3), (1, 2),
                                                (0, 1)])
@@ -1351,16 +1445,16 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
 
     #    D2(i,a,j,b):
 
-    #	  1.0000 d(i,j)*l1(i,a)*t1(b,i)
-    tpdm[o, v, o, v] += 1.0 * einsum('ij,ia,bi->iajb', kd[o, o], l1, t1,
-                                     optimize=['einsum_path', (0, 1, 2)])
+    #	  1.0000 d(i,j)*l1(k,a)*t1(b,k)
+    tpdm[o, v, o, v] += 1.0 * einsum('ij,ka,bk->iajb', kd[o, o], l1, t1,
+                                     optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	 -1.0000 l1(j,a)*t1(b,i)
     tpdm[o, v, o, v] += -1.0 * einsum('ja,bi->iajb', l1, t1)
 
-    #	  0.5000 d(i,j)*l2(i,j,a,c)*t2(b,c,i,j)
-    tpdm[o, v, o, v] += 0.5 * einsum('ij,ijac,bcij->iajb', kd[o, o], l2, t2,
-                                     optimize=['einsum_path', (0, 1), (0, 1)])
+    #	  0.5000 d(i,j)*l2(k,l,a,c)*t2(b,c,k,l)
+    tpdm[o, v, o, v] += 0.5 * einsum('ij,klac,bckl->iajb', kd[o, o], l2, t2,
+                                     optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	 -1.0000 l2(k,j,a,c)*t2(b,c,k,i)
     tpdm[o, v, o, v] += -1.0 * einsum('kjac,bcki->iajb', l2, t2)
@@ -1371,16 +1465,16 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
 
     #    D2(a,i,j,b):
 
-    #	 -1.0000 d(i,j)*l1(i,a)*t1(b,i)
-    tpdm[v, o, o, v] += -1.0 * einsum('ij,ia,bi->aijb', kd[o, o], l1, t1,
-                                      optimize=['einsum_path', (0, 1, 2)])
+    #	 -1.0000 d(i,j)*l1(k,a)*t1(b,k)
+    tpdm[v, o, o, v] += -1.0 * einsum('ij,ka,bk->aijb', kd[o, o], l1, t1,
+                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	  1.0000 l1(j,a)*t1(b,i)
     tpdm[v, o, o, v] += 1.0 * einsum('ja,bi->aijb', l1, t1)
 
-    #	 -0.5000 d(i,j)*l2(i,j,a,c)*t2(b,c,i,j)
-    tpdm[v, o, o, v] += -0.5 * einsum('ij,ijac,bcij->aijb', kd[o, o], l2, t2,
-                                      optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -0.5000 d(i,j)*l2(k,l,a,c)*t2(b,c,k,l)
+    tpdm[v, o, o, v] += -0.5 * einsum('ij,klac,bckl->aijb', kd[o, o], l2, t2,
+                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	  1.0000 l2(k,j,a,c)*t2(b,c,k,i)
     tpdm[v, o, o, v] += 1.0 * einsum('kjac,bcki->aijb', l2, t2)
@@ -1391,16 +1485,16 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
 
     #    D2(i,a,b,j):
 
-    #	 -1.0000 d(i,j)*l1(i,a)*t1(b,i)
-    tpdm[o, v, v, o] += -1.0 * einsum('ij,ia,bi->iabj', kd[o, o], l1, t1,
-                                      optimize=['einsum_path', (0, 1, 2)])
+    #	 -1.0000 d(i,j)*l1(k,a)*t1(b,k)
+    tpdm[o, v, v, o] += -1.0 * einsum('ij,ka,bk->iabj', kd[o, o], l1, t1,
+                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	  1.0000 l1(j,a)*t1(b,i)
     tpdm[o, v, v, o] += 1.0 * einsum('ja,bi->iabj', l1, t1)
 
-    #	 -0.5000 d(i,j)*l2(i,j,a,c)*t2(b,c,i,j)
-    tpdm[o, v, v, o] += -0.5 * einsum('ij,ijac,bcij->iabj', kd[o, o], l2, t2,
-                                      optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -0.5000 d(i,j)*l2(k,l,a,c)*t2(b,c,k,l)
+    tpdm[o, v, v, o] += -0.5 * einsum('ij,klac,bckl->iabj', kd[o, o], l2, t2,
+                                      optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	  1.0000 l2(k,j,a,c)*t2(b,c,k,i)
     tpdm[o, v, v, o] += 1.0 * einsum('kjac,bcki->iabj', l2, t2)
@@ -1411,16 +1505,16 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
 
     #    D2(a,i,b,j):
 
-    #	  1.0000 d(i,j)*l1(i,a)*t1(b,i)
-    tpdm[v, o, v, o] += 1.0 * einsum('ij,ia,bi->aibj', kd[o, o], l1, t1,
-                                     optimize=['einsum_path', (0, 1, 2)])
+    #	  1.0000 d(i,j)*l1(k,a)*t1(b,k)
+    tpdm[v, o, v, o] += 1.0 * einsum('ij,ka,bk->aibj', kd[o, o], l1, t1,
+                                     optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	 -1.0000 l1(j,a)*t1(b,i)
     tpdm[v, o, v, o] += -1.0 * einsum('ja,bi->aibj', l1, t1)
 
-    #	  0.5000 d(i,j)*l2(i,j,a,c)*t2(b,c,i,j)
-    tpdm[v, o, v, o] += 0.5 * einsum('ij,ijac,bcij->aibj', kd[o, o], l2, t2,
-                                     optimize=['einsum_path', (0, 1), (0, 1)])
+    #	  0.5000 d(i,j)*l2(k,l,a,c)*t2(b,c,k,l)
+    tpdm[v, o, v, o] += 0.5 * einsum('ij,klac,bckl->aibj', kd[o, o], l2, t2,
+                                     optimize=['einsum_path', (1, 2), (0, 1)])
 
     #	 -1.0000 l2(k,j,a,c)*t2(b,c,k,i)
     tpdm[v, o, v, o] += -1.0 * einsum('kjac,bcki->aibj', l2, t2)
@@ -1433,6 +1527,9 @@ def ccsd_d2(t1, t2, l1, l2, kd, o, v):
 
 
 def main():
+    """
+    Example for solving CC-Lagrangian and then computing 1-RDM and 2-RDM
+    """
     import pyscf
     import openfermion as of
     from openfermion.chem.molecular_data import spinorb_from_spatial
@@ -1440,25 +1537,17 @@ def main():
     from pyscf.cc.addons import spatial2spin
     from pyscf import cc
     import numpy as np
-    from itertools import product
 
     np.set_printoptions(linewidth=500)
-    basis = 'sto-3g'
+    basis = 'cc-pvdz'
     mol = pyscf.M(
-        atom='H 0 0 0; B 0 0 {}'.format(1.6),
+        atom='H 0 0 0; F 0 0 {}'.format(1.6),
         basis=basis)
 
     mf = mol.RHF()
     mf.verbose = 3
     mf.run()
 
-    dipole_ints = mol.intor('int1e_r')
-    dipole_mo_ints_x = of.general_basis_change(dipole_ints[0], mf.mo_coeff, key=(1, 0))
-    dipole_mo_ints_y = of.general_basis_change(dipole_ints[0], mf.mo_coeff, key=(1, 0))
-    dipole_mo_ints_z = of.general_basis_change(dipole_ints[0], mf.mo_coeff, key=(1, 0))
-    test_hcore = of.general_basis_change(mol.intor('int1e_kin') + mol.intor('int1e_nuc'), mf.mo_coeff, key=(1, 0))
-    # print(mf.get_hcore())
-    # print(mol.intor('int1e_kin') + mol.intor('int1e_nuc'))
     mycc = mf.CCSD()
     mycc.conv_tol = 1.0E-12
     ecc, pyscf_t1, pyscf_t2 = mycc.kernel()
@@ -1487,8 +1576,7 @@ def main():
     print(e1 + e2 - mf.e_tot + mol.energy_nuc())
 
 
-
-    molecule = of.MolecularData(geometry=[['H', (0, 0, 0)], ['B', (0, 0, 1.6)]],
+    molecule = of.MolecularData(geometry=[['H', (0, 0, 0)], ['F', (0, 0, 1.6)]],
                                 basis=basis, charge=0, multiplicity=1)
     molecule = run_pyscf(molecule, run_ccsd=True)
     # oei, tei = molecule.get_integrals()
@@ -1510,8 +1598,8 @@ def main():
     opdm = d1hf
     tpdm_wedge = 2 * of.wedge(opdm, opdm, (1, 1), (1, 1))
     rdm_energy = np.einsum('ij,ij', soei, opdm.real) + 0.25 * np.einsum('ijkl,ijkl', tpdm_wedge.real, astei)
-    print(rdm_energy + molecule.nuclear_repulsion, molecule.hf_energy)
-    assert np.allclose(rdm_energy + molecule.nuclear_repulsion, molecule.hf_energy)
+    print(rdm_energy + mol.energy_nuc(), mf.e_tot)
+    assert np.allclose(rdm_energy + mol.energy_nuc(), mf.e_tot)
 
     eps = np.kron(molecule.orbital_energies, np.ones(2))
     n = np.newaxis
@@ -1526,11 +1614,9 @@ def main():
     hf_energy = 0.5 * np.einsum('ii', (fock + soei)[o, o])
     hf_energy_test = 1.0 * einsum('ii', fock[o, o]) -0.5 * einsum('ijij', gtei[o, o, o, o])
     print("HF energies")
-    assert np.isclose(hf_energy, molecule.hf_energy - molecule.nuclear_repulsion)
+    print(hf_energy, rdm_energy)
+    assert np.isclose(hf_energy, mf.e_tot - molecule.nuclear_repulsion)
     assert np.isclose(hf_energy_test, hf_energy)
-    assert np.allclose(np.diagonal(fock[::2, ::2]), molecule.orbital_energies)
-
-
 
     g = gtei
 
@@ -1551,12 +1637,9 @@ def main():
     print(pyscf_sopdm)
     print("1-RDM symm norm diff ", np.linalg.norm(opdm_s - pyscf_sopdm))
 
-    # nsvirt = 2 * (norbs - nocc)
-    # nsocc = 2 * nocc
     t1z, t2z = np.zeros((nsvirt, nsocc)), np.zeros((nsvirt, nsvirt, nsocc, nsocc))
-    l1z, l2z = np.zeros((nsocc, nsvirt)), np.zeros((nsocc, nsocc, nsvirt, nsvirt))
 
-    t1f, t2f, l1f, l2f = kernel(t1z, t2z, l1z, l2z, fock, g, o, v, e_ai, e_abij,
+    t1f, t2f, l1f, l2f = kernel(t1z, t2z, fock, g, o, v, e_ai, e_abij,
                                 stopping_eps=mycc.conv_tol)
     print("Final Correlation Energy")
     print(ccsd_energy(t1f, t2f, fock, g, o, v) - hf_energy)
@@ -1583,22 +1666,6 @@ def main():
     rdm_energy = np.einsum('ij,ij', soei, opdm) + 0.25 * np.einsum('ijkl,ijkl', tpdm, astei)
     print("Correlation Energy from RDMs")
     print(rdm_energy - hf_energy)
-
-    # tpdm[v, v, o, o] += 1.0 * einsum('ijab->abij', l2)
-    # dm2[p,q,r,s] = \sum_{sigma,tau} <p_sigma^\dagger r_tau^\dagger s_tau q_sigma>
-    stpdm = np.zeros((norbs, norbs, norbs, norbs))
-    for sigma, tau in product(range(2), repeat=2):
-        stpdm += tpdm[sigma::2, tau::2, tau::2, sigma::2]
-    e2 = np.einsum('pqrs,pqrs', eri, pyscf_stpdm) * .5
-    print(e2)
-    e2 = np.einsum('pqrs,pqsr', eri, stpdm) * .5
-    print(e2)
-    exit()
-    vvoo_tpdm = tpdm[v, v, o, o]
-
-    vvoo_pyscf_sopdm = pyscf_sopdm
-    for p, q, r, s in product(range(norbs), repeat=4):
-        print((p,q,r,s), "{: 5.10f}\t{: 5.10f}".format(stpdm[p,q,s,r], pyscf_stpdm[p, q, r, s]))
 
 
 if __name__ == "__main__":

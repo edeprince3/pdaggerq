@@ -48,7 +48,6 @@ class Index:
         return not self.__eq__(other)
 
 
-
 class BaseTerm:
     """
     Base object for building named abstract tensors
@@ -56,6 +55,7 @@ class BaseTerm:
     These objects one can ONLY be composed by multiplication with other BaseTerms
     to produce new TensorTerms.  They can also be checked for equality.
     """
+
     def __init__(self, *, indices: Tuple[Index, ...], name: str):
         self.name = name
         self.indices = indices
@@ -105,6 +105,7 @@ class TensorTermAction:
     permute action will be used in conjunction with einsum contraction to
     minimize contraction work.
     """
+
     def __init__(self, *, indices: Tuple[Index, ...], name: str):
         self.name = name
         self.indices = indices
@@ -151,11 +152,12 @@ class TensorTerm:
 
     def __repr__(self):
         if self.actions is None:
-            return "{: 5.4f} ".format(self.coefficient) +"*".join(
-            xx.__repr__() for xx in self.base_terms)
+            return "{: 5.4f} ".format(self.coefficient) + "*".join(
+                xx.__repr__() for xx in self.base_terms)
         else:
-            return "{: 5.4f} ".format(self.coefficient) + "*".join(xx.__repr__() for xx in self.actions) + "*".join(
-            xx.__repr__() for xx in self.base_terms)
+            return "{: 5.4f} ".format(self.coefficient) + "*".join(
+                xx.__repr__() for xx in self.actions) + "*".join(
+                xx.__repr__() for xx in self.base_terms)
 
     def __mul__(self, other):
         self_copy = copy.deepcopy(self)
@@ -215,7 +217,9 @@ class TensorTerm:
                     bt.name + "[" + ", ".join(tensor_index_ranges) + "]")
             einsum_strings.append("".join(string_indices))
         if tensor_out_idx:
-            out_tensor_ordered = list(filter(None, [xx if xx in tensor_out_idx else None for xx in output_variables]))
+            out_tensor_ordered = list(filter(None, [
+                xx if xx in tensor_out_idx else None for xx in
+                output_variables]))
             einsum_out_strings += "->{}".format("".join(out_tensor_ordered))
 
         teinsum_string = "= {} * einsum(\'".format(self.coefficient)
@@ -242,7 +246,8 @@ class TensorTerm:
             # print(einsum_optimal_path[1])
             teinsum_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
-                einsum_tensors) + ", optimize={})".format(einsum_optimal_path[0])
+                einsum_tensors) + ", optimize={})".format(
+                einsum_optimal_path[0])
         else:
             teinsum_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
@@ -251,13 +256,16 @@ class TensorTerm:
             teinsum_string = update_val + " " + '+' + teinsum_string
         elif update_val is not None and self.actions is not None:
             # now generate logic for single permutation
-            original_out = list(filter(None, [xx if xx in tensor_out_idx else None for xx in output_variables]))
+            original_out = list(filter(None,
+                                       [xx if xx in tensor_out_idx else None for
+                                        xx in output_variables]))
             outstrings = [[+1, original_out]]
 
             for act in self.actions:
                 # check if we have a permutation
                 if not isinstance(act, ContractionPermuter):
-                    raise NotImplementedError("currently only permutations are implemented")
+                    raise NotImplementedError(
+                        "currently only permutations are implemented")
 
                 # get all sets of exchanged indices
                 exchanged_indices = [xx.name for xx in act.indices]
@@ -269,8 +277,11 @@ class TensorTerm:
                     # b) find position of indices in string
                     # c) swap positions of indices
                     tmp_outsrings = copy.deepcopy(perm[1])
-                    ii, jj = tmp_outsrings.index(exchanged_indices[0]), tmp_outsrings.index(exchanged_indices[1])
-                    tmp_outsrings[ii], tmp_outsrings[jj] = tmp_outsrings[jj], tmp_outsrings[ii]
+                    ii, jj = tmp_outsrings.index(
+                        exchanged_indices[0]), tmp_outsrings.index(
+                        exchanged_indices[1])
+                    tmp_outsrings[ii], tmp_outsrings[jj] = tmp_outsrings[jj], \
+                                                           tmp_outsrings[ii]
 
                     # store permuted set with a -1 phase
                     permuted_outstrings.append([perm[0] * -1, tmp_outsrings])
@@ -289,7 +300,8 @@ class TensorTerm:
                 if tuple(ots[1]) == tuple(original_out):
                     new_string += 'contracted_intermediate'
                 else:
-                    new_string += 'einsum(\'{}->{}\', contracted_intermediate) '.format(''.join(original_out), "".join(ots[1]))
+                    new_string += 'einsum(\'{}->{}\', contracted_intermediate) '.format(
+                        ''.join(original_out), "".join(ots[1]))
                 update_val_line.append(new_string)
             teinsum_string += " + ".join(update_val_line)
         return teinsum_string
@@ -297,7 +309,7 @@ class TensorTerm:
 
 class Right0amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='r0'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='r0'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -306,7 +318,7 @@ class Right0amps(BaseTerm):
 
 class Right1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='r1'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='r1'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -315,7 +327,7 @@ class Right1amps(BaseTerm):
 
 class Right2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='r2'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='r2'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -325,7 +337,7 @@ class Right2amps(BaseTerm):
 
 class Left0amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='l0'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='l0'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -334,7 +346,7 @@ class Left0amps(BaseTerm):
 
 class Left1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='l1'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='l1'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -343,17 +355,17 @@ class Left1amps(BaseTerm):
 
 class Left2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='l2'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='l2'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
         return "l2({},{},{},{})".format(self.indices[0], self.indices[1],
-                                  self.indices[2], self.indices[3])
+                                        self.indices[2], self.indices[3])
 
 
 class D1(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='d1'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='d1'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -362,7 +374,7 @@ class D1(BaseTerm):
 
 class T1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='t1'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='t1'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -371,7 +383,7 @@ class T1amps(BaseTerm):
 
 class T2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='t2'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='t2'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -381,15 +393,16 @@ class T2amps(BaseTerm):
 
 class OneBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='h'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='h'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
         return "h({},{})".format(self.indices[0], self.indices[1])
 
+
 class FockMat(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='f'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='f'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -398,7 +411,7 @@ class FockMat(BaseTerm):
 
 class TwoBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='g'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='g'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -408,7 +421,7 @@ class TwoBody(BaseTerm):
 
 class Delta(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='kd'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='kd'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -417,10 +430,8 @@ class Delta(BaseTerm):
 
 class ContractionPermuter(TensorTermAction):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='P'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='P'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
         return "P({},{})".format(self.indices[0], self.indices[1])
-
-
