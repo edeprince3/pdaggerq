@@ -43,7 +43,7 @@ def main():
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
         print(my_term.einsum_string(update_val='lambda_two',
-                                    output_variables=('e', 'f', 'm', 'n')))
+                                    output_variables=('m', 'n', 'e', 'f')))
         print()
 
 

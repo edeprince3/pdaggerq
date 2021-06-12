@@ -55,6 +55,7 @@ class BaseTerm:
     These objects one can ONLY be composed by multiplication with other BaseTerms
     to produce new TensorTerms.  They can also be checked for equality.
     """
+
     def __init__(self, *, indices: Tuple[Index, ...], name: str):
         self.name = name
         self.indices = indices
@@ -95,18 +96,68 @@ class BaseTerm:
         return not self.__eq__(other)
 
 
+class TensorTermAction:
+    """
+    Object for representing a type of transform on TensorTerm.
+
+    An example of Transformation can be duplicate or permute indices,
+
+    permute action will be used in conjunction with einsum contraction to
+    minimize contraction work.
+    """
+
+    def __init__(self, *, indices: Tuple[Index, ...], name: str):
+        self.name = name
+        self.indices = indices
+
+    def __repr__(self):
+        return "{}".format(self.name) + "(" + ",".join(
+            repr(xx) for xx in self.indices) + ")"
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def __eq__(self, other):
+        name_equality = other.name == self.name
+        if len(self.indices) == len(other.indices):
+            index_equal = all([self.indices[xx] == other.indices[xx] for xx in
+                               range(len(self.indices))])
+            return name_equality and index_equal
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
 class TensorTerm:
     """
     collection  of BaseTerms that can be translated to a einsnum contraction
     """
 
-    def __init__(self, base_terms: Tuple[BaseTerm, ...], coefficient=1.0):
+    def __init__(self, base_terms: Tuple[BaseTerm, ...], coefficient=1.0,
+                 permutation_ops=None):
         self.base_terms = base_terms
         self.coefficient = coefficient
+        if permutation_ops is not None:
+            if len(permutation_ops) == 0:
+                self.actions = None
+            else:
+                self.actions = permutation_ops
+        else:
+            self.actions = None
 
     def __repr__(self):
-        return "{: 5.4f} ".format(self.coefficient) + "*".join(
-            xx.__repr__() for xx in self.base_terms)
+        if self.actions is None:
+            return "{: 5.4f} ".format(self.coefficient) + "*".join(
+                xx.__repr__() for xx in self.base_terms)
+        else:
+            return "{: 5.4f} ".format(self.coefficient) + "*".join(
+                xx.__repr__() for xx in self.actions) + "*".join(
+                xx.__repr__() for xx in self.base_terms)
 
     def __mul__(self, other):
         self_copy = copy.deepcopy(self)
@@ -141,7 +192,7 @@ class TensorTerm:
             string_indices = [xx.name for xx in bt.indices]
             for idx_type in string_indices:
                 if idx_type in occupied:
-                    if bt.name in ['h', 'g', 'f']:
+                    if bt.name in ['h', 'g', 'f', 'kd']:
                         tensor_index_ranges.append(occ_char)
                     else:
                         tensor_index_ranges.append(':')
@@ -149,7 +200,7 @@ class TensorTerm:
                         if idx_type in output_variables:
                             tensor_out_idx.append(idx_type)
                 elif idx_type in virtual:  # virtual
-                    if bt.name in ['h', 'g', 'f']:
+                    if bt.name in ['h', 'g', 'f', 'kd']:
                         tensor_index_ranges.append(virt_char)
                     else:
                         tensor_index_ranges.append(':')
@@ -166,9 +217,12 @@ class TensorTerm:
                     bt.name + "[" + ", ".join(tensor_index_ranges) + "]")
             einsum_strings.append("".join(string_indices))
         if tensor_out_idx:
-            einsum_out_strings += "->{}".format("".join(sorted(tensor_out_idx)))
+            out_tensor_ordered = list(filter(None, [
+                xx if xx in tensor_out_idx else None for xx in
+                output_variables]))
+            einsum_out_strings += "->{}".format("".join(out_tensor_ordered))
 
-        teinsum_string = "+= {} * einsum(\'".format(self.coefficient)
+        teinsum_string = "= {} * einsum(\'".format(self.coefficient)
 
         if len(einsum_strings) > 2 and optimize:
             sorbs = 8
@@ -183,6 +237,7 @@ class TensorTerm:
             t2 = np.zeros((nvirt, nvirt, nocc, nocc))
             l2 = np.zeros((nocc, nocc, nvirt, nvirt))
             l1 = np.zeros((nocc, nvirt))
+            kd = np.zeros((sorbs, sorbs))
             einsum_path_string = "np.einsum_path(\'".format(self.coefficient)
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
@@ -191,19 +246,70 @@ class TensorTerm:
             # print(einsum_optimal_path[1])
             teinsum_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
-                einsum_tensors) + ", optimize={})".format(einsum_optimal_path[0])
+                einsum_tensors) + ", optimize={})".format(
+                einsum_optimal_path[0])
         else:
             teinsum_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
                 einsum_tensors) + ")"
-        if update_val is not None:
-            teinsum_string = update_val + " " + teinsum_string
+        if update_val is not None and self.actions is None:
+            teinsum_string = update_val + " " + '+' + teinsum_string
+        elif update_val is not None and self.actions is not None:
+            # now generate logic for single permutation
+            original_out = list(filter(None,
+                                       [xx if xx in tensor_out_idx else None for
+                                        xx in output_variables]))
+            outstrings = [[+1, original_out]]
+
+            for act in self.actions:
+                # check if we have a permutation
+                if not isinstance(act, ContractionPermuter):
+                    raise NotImplementedError(
+                        "currently only permutations are implemented")
+
+                # get all sets of exchanged indices
+                exchanged_indices = [xx.name for xx in act.indices]
+
+                permuted_outstrings = []
+                for perm in outstrings:
+                    # Generate new permuted outstring by
+                    # a) make copy of current permutation
+                    # b) find position of indices in string
+                    # c) swap positions of indices
+                    tmp_outsrings = copy.deepcopy(perm[1])
+                    ii, jj = tmp_outsrings.index(
+                        exchanged_indices[0]), tmp_outsrings.index(
+                        exchanged_indices[1])
+                    tmp_outsrings[ii], tmp_outsrings[jj] = tmp_outsrings[jj], \
+                                                           tmp_outsrings[ii]
+
+                    # store permuted set with a -1 phase
+                    permuted_outstrings.append([perm[0] * -1, tmp_outsrings])
+
+                outstrings = outstrings + permuted_outstrings
+
+            # now that we've generated all the permutations
+            # generate the reshapped summands.
+            teinsum_string = 'contracted_intermediate' + " " + teinsum_string + "\n"
+            teinsum_string += update_val
+            teinsum_string += " += "
+            update_val_line = []
+            for ots in outstrings:
+                new_string = ""
+                new_string += '{: 5.5f} * '.format(ots[0])
+                if tuple(ots[1]) == tuple(original_out):
+                    new_string += 'contracted_intermediate'
+                else:
+                    new_string += 'einsum(\'{}->{}\', contracted_intermediate) '.format(
+                        ''.join(original_out), "".join(ots[1]))
+                update_val_line.append(new_string)
+            teinsum_string += " + ".join(update_val_line)
         return teinsum_string
 
 
 class Right0amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='r0'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='r0'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -212,7 +318,7 @@ class Right0amps(BaseTerm):
 
 class Right1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='r1'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='r1'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -221,7 +327,7 @@ class Right1amps(BaseTerm):
 
 class Right2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='r2'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='r2'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -231,7 +337,7 @@ class Right2amps(BaseTerm):
 
 class Left0amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='l0'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='l0'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -240,7 +346,7 @@ class Left0amps(BaseTerm):
 
 class Left1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='l1'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='l1'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -249,17 +355,17 @@ class Left1amps(BaseTerm):
 
 class Left2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='l2'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='l2'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
         return "l2({},{},{},{})".format(self.indices[0], self.indices[1],
-                                  self.indices[2], self.indices[3])
+                                        self.indices[2], self.indices[3])
 
 
 class D1(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='d1'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='d1'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -268,7 +374,7 @@ class D1(BaseTerm):
 
 class T1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='t1'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='t1'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -277,7 +383,7 @@ class T1amps(BaseTerm):
 
 class T2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='t2'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='t2'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -287,15 +393,16 @@ class T2amps(BaseTerm):
 
 class OneBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='h'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='h'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
         return "h({},{})".format(self.indices[0], self.indices[1])
 
+
 class FockMat(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='f'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='f'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -304,7 +411,7 @@ class FockMat(BaseTerm):
 
 class TwoBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='g'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='g'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
@@ -314,8 +421,17 @@ class TwoBody(BaseTerm):
 
 class Delta(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index,...], name='kd'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='kd'):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
         return "d({},{})".format(self.indices[0], self.indices[1])
+
+
+class ContractionPermuter(TensorTermAction):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='P'):
+        super().__init__(indices=indices, name=name)
+
+    def __repr__(self):
+        return "P({},{})".format(self.indices[0], self.indices[1])

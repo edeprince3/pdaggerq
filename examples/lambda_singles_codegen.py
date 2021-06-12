@@ -43,6 +43,7 @@ def main():
         print("#\t", my_term)
         print(my_term.einsum_string(update_val='lambda_one',
                                     output_variables=('m', 'e')))
+        print()
 
     pq.clear()
 
