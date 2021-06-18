@@ -18,7 +18,7 @@ from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, Index,
                               TensorTerm, D1, Delta, Left0amps, Left1amps,
                               Left2amps, Right0amps, Right1amps, Right2amps,
                               FockMat, BaseTerm, ContractionPermuter,
-                              TensorTermAction)
+                              TensorTermAction, T3amps)
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
 
 
@@ -44,6 +44,11 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return FockMat(indices=tuple(g_idx))
+    elif 't3' in term_string:
+        index_string = term_string.replace('t3(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return T3amps(indices=tuple(g_idx))
     elif 't2' in term_string:
         index_string = term_string.replace('t2(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx

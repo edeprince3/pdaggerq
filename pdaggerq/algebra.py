@@ -210,7 +210,7 @@ class TensorTerm:
                 else:  # route to output with ->
                     tensor_index_ranges.append(idx_type)
 
-            if bt.name in ['t1', 't2', 'l2', 'l1', 'r1', 'r2']:
+            if bt.name in ['t1', 't2', 't3', 'l2', 'l1', 'r1', 'r2']:
                 einsum_tensors.append(bt.name)
             else:
                 einsum_tensors.append(
@@ -235,6 +235,7 @@ class TensorTerm:
             g = np.zeros((sorbs, sorbs, sorbs, sorbs))
             t1 = np.zeros((nvirt, nocc))
             t2 = np.zeros((nvirt, nvirt, nocc, nocc))
+            t3 = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
             l2 = np.zeros((nocc, nocc, nvirt, nvirt))
             l1 = np.zeros((nocc, nvirt))
             kd = np.zeros((sorbs, sorbs))
@@ -389,6 +390,16 @@ class T2amps(BaseTerm):
     def __repr__(self):
         return "t2({},{},{},{})".format(self.indices[0], self.indices[1],
                                         self.indices[2], self.indices[3])
+
+class T3amps(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='t3'):
+        super().__init__(indices=indices, name=name)
+
+    def __repr__(self):
+        return "t3({},{},{},{},{},{})".format(self.indices[0], self.indices[1],
+                                              self.indices[2], self.indices[3],
+                                              self.indices[4], self.indices[5])
 
 
 class OneBody(BaseTerm):
