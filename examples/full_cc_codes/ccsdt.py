@@ -1,13 +1,23 @@
 """
-A full working spin-orbital lambda-CCSD code generated with pdaggerq
+A full working spin-orbital CCSDT code generated with pdaggerq
 
-If you want to run the example here you should install pyscf openfermion and openfermion-pyscf
-The actual CCSD code (ccsd_energy, singles_residual, doubles_residual, kernel)
-do not depend on those packages but you gotta get integrals frome somehwere.
+If you want to run the example here you should install pyscf openfermion
+and openfermion-pyscf The actual CCSDT code (cc_energy, singles_residual,
+doubles_residual, triples_residual, kernel) do not depend on those
+packages but you must obtain integrals from somehwere.
 
-We also check the code by using pyscfs functionality for generating spin-orbital
-t-amplitudes from RCCSD.  the main() function is fairly straightforward.
+The total energy for this example been checked against that produced by
+the CCSDT implementation in NWChem. Note that there must be a discrepancy
+in the definition of the angstrom/bohr conversion ... agreement with
+NWChem past 7 decimals can only be achieved if the geometry is defined
+in bohr in that program.
+
+ CCSDT correlation energy / hartree =        -0.179049024111075
+ CCSDT total energy / hartree       =      -100.008956600850908
+
+the main() function is fairly straightforward.
 """
+
 # set allow numpy built with MKL to consume more threads for tensordot
 import os
 os.environ["MKL_NUM_THREADS"] = "{}".format(os.cpu_count() - 1)
@@ -16,7 +26,7 @@ import numpy as np
 from numpy import einsum
 
 
-def ccsd_energy(t1, t2, f, g, o, v):
+def cc_energy(t1, t2, f, g, o, v):
     """
     < 0 | e(-T) H e(T) | 0> :
 
@@ -962,7 +972,7 @@ def kernel(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_ite
     fock_e_ai = np.reciprocal(e_ai)
     fock_e_abij = np.reciprocal(e_abij)
     fock_e_abcijk = np.reciprocal(e_abcijk)
-    old_energy = ccsd_energy(t1, t2, fock, g, o, v)
+    old_energy = cc_energy(t1, t2, fock, g, o, v)
 
     print("    ==> CCSDT amplitude equations <==")
     print("")
@@ -983,7 +993,7 @@ def kernel(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_ite
         new_doubles = doubles_res * e_abij
         new_triples = triples_res * e_abcijk
 
-        current_energy = ccsd_energy(new_singles, new_doubles, fock, g, o, v)
+        current_energy = cc_energy(new_singles, new_doubles, fock, g, o, v)
         delta_e = np.abs(old_energy - current_energy)
 
         if delta_e < stopping_eps and res_norm < stopping_eps:
@@ -1081,12 +1091,14 @@ def main():
                         stopping_eps=1e-10)
 
 
-    en = ccsd_energy(t1f, t2f, fock, g, o, v) 
+    en = cc_energy(t1f, t2f, fock, g, o, v) 
     print("")
     print("    CCSDT Correlation Energy: {: 20.12f}".format(en - hf_energy))
     print("    CCSDT Total Energy:       {: 20.12f}".format(en + molecule.nuclear_repulsion))
     print("")
 
+    assert np.isclose(en-hf_energy,-0.179049024111075,atol=1e-9)
+    assert np.isclose(en+molecule.nuclear_repulsion,-100.008956600850908,atol=1e-9)
 
 
 if __name__ == "__main__":
