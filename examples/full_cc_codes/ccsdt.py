@@ -1066,7 +1066,7 @@ def main():
     hf_energy_test = 1.0 * einsum('ii', fock[o, o]) -0.5 * einsum('ijij', gtei[o, o, o, o])
 
     print("")
-    print("    SCF Total Energy:         {: 20.12f}".format(hf_energy))
+    print("    SCF Total Energy:         {: 20.12f}".format(hf_energy + molecule.nuclear_repulsion))
     print("")
     assert np.isclose(hf_energy, mf.e_tot - molecule.nuclear_repulsion)
     assert np.isclose(hf_energy_test, hf_energy)
