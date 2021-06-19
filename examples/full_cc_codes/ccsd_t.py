@@ -363,7 +363,7 @@ def kernel(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_ite
     fock_e_abcijk = np.reciprocal(e_abcijk)
     old_energy = ccsd_energy(t1, t2, fock, g, o, v)
 
-    print("    ==> CC3 amplitude equations <==")
+    print("    ==> CCSD amplitude equations <==")
     print("")
     print("     Iter               Energy                 |dE|                 |dT|")
     for idx in range(max_iter):
