@@ -258,29 +258,18 @@ void pq::print() {
     if ( (int)data->right_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
            
-            if ( (int)data->right_amplitudes[i].size() > 0 ) {
-                // r1
-                if ( (int)data->right_amplitudes[i].size() == 2 ) {
-                    printf("r1(");
-                    printf("%s",data->right_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->right_amplitudes[i][1].c_str());
-                    printf(")");
-                }
-                // r2
-                if ( (int)data->right_amplitudes[i].size() == 4 ) {
-                    printf("r2(");
-                    printf("%s",data->right_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->right_amplitudes[i][1].c_str());
-                    printf(",");
-                    printf("%s",data->right_amplitudes[i][2].c_str());
-                    printf(",");
-                    printf("%s",data->right_amplitudes[i][3].c_str());
-                    printf(")");
-                }
-                printf(" ");
-            } 
+            int order = (int)data->right_amplitudes[i].size() / 2;
+            printf("r");
+            printf("%i",order);
+            printf("(");
+            for (int j = 0; j < 2*order-1; j++) {
+                printf("%s",data->right_amplitudes[i][j].c_str());
+                printf(",");
+            }
+            printf("%s",data->right_amplitudes[i][2*order-1].c_str());
+            printf(")");
+            printf(" ");
+
         }
     }
     if ( data->has_r0 ) {
@@ -304,47 +293,6 @@ void pq::print() {
             printf(")");
             printf(" ");
           
-/* 
-            if ( (int)data->t_amplitudes[i].size() > 0 ) {
-                // t1
-                if ( (int)data->t_amplitudes[i].size() == 2 ) {
-                    printf("t1(");
-                    printf("%s",data->t_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][1].c_str());
-                    printf(")");
-                }
-                // t2
-                if ( (int)data->t_amplitudes[i].size() == 4 ) {
-                    printf("t2(");
-                    printf("%s",data->t_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][1].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][2].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][3].c_str());
-                    printf(")");
-                }
-                // t3
-                if ( (int)data->t_amplitudes[i].size() == 6 ) {
-                    printf("t3(");
-                    printf("%s",data->t_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][1].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][2].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][3].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][4].c_str());
-                    printf(",");
-                    printf("%s",data->t_amplitudes[i][5].c_str());
-                    printf(")");
-                }
-                printf(" ");
-            } 
-*/
         }
     }
 
@@ -611,31 +559,18 @@ std::vector<std::string> pq::get_string() {
     // right-hand amplitudes
     if ( (int)data->right_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-           
+
             if ( (int)data->right_amplitudes[i].size() > 0 ) {
-                std::string tmp;
-                // r1
-                if ( (int)data->right_amplitudes[i].size() == 2 ) {
-                    tmp = "r1("
-                        + data->right_amplitudes[i][0]
-                        + ","
-                        + data->right_amplitudes[i][1]
-                        + ")";
+                
+                int order = (int)data->right_amplitudes[i].size() / 2;
+                tmp = "r" + std::to_string(order) + "(";
+                for (int j = 0; j < 2*order-1; j++) { 
+                    tmp += data->right_amplitudes[i][j] + ",";
                 }
-                // r2
-                if ( (int)data->right_amplitudes[i].size() == 4 ) {
-                    tmp = "r2("
-                        + data->right_amplitudes[i][0]
-                        + ","
-                        + data->right_amplitudes[i][1]
-                        + ","
-                        + data->right_amplitudes[i][2]
-                        + ","
-                        + data->right_amplitudes[i][3]
-                        + ")";
-                }
+                tmp += data->right_amplitudes[i][2*order-1] + ")";
                 my_string.push_back(tmp);
-            } 
+            
+            }           
         }
     }
     if ( data->has_r0 ) {
@@ -658,48 +593,6 @@ std::vector<std::string> pq::get_string() {
 
             }
 
-/*
-            if ( (int)data->t_amplitudes[i].size() > 0 ) {
-                std::string tmp;
-                // t1
-                if ( (int)data->t_amplitudes[i].size() == 2 ) {
-                    tmp = "t1("
-                        + data->t_amplitudes[i][0]
-                        + ","
-                        + data->t_amplitudes[i][1]
-                        + ")";
-                }
-                // t2
-                if ( (int)data->t_amplitudes[i].size() == 4 ) {
-                    tmp = "t2("
-                        + data->t_amplitudes[i][0]
-                        + ","
-                        + data->t_amplitudes[i][1]
-                        + ","
-                        + data->t_amplitudes[i][2]
-                        + ","
-                        + data->t_amplitudes[i][3]
-                        + ")";
-                }
-                // t3
-                if ( (int)data->t_amplitudes[i].size() == 6 ) {
-                    tmp = "t3("
-                        + data->t_amplitudes[i][0]
-                        + ","
-                        + data->t_amplitudes[i][1]
-                        + ","
-                        + data->t_amplitudes[i][2]
-                        + ","
-                        + data->t_amplitudes[i][3]
-                        + ","
-                        + data->t_amplitudes[i][4]
-                        + ","
-                        + data->t_amplitudes[i][5]
-                        + ")";
-                }
-                my_string.push_back(tmp);
-            } 
-*/
         }
     }
 
