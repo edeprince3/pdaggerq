@@ -836,61 +836,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     }
                     factor *= 1.0 / my_factor / my_factor;
 
-/*
-                    if ( in[i].substr(1,1) == "1" ){
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2);
-
-                        set_t_amplitudes({idx1,idx2});
-
-                    }else if ( in[i].substr(1,1) == "2" ){
-
-                        factor *= 0.25;
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "v" + std::to_string(vir_label_count++);
-                        std::string idx3 = "o" + std::to_string(occ_label_count++);
-                        std::string idx4 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3);
-                        tmp_string.push_back(idx4);
-
-                        set_t_amplitudes({idx1,idx2,idx4,idx3});
-
-                    }else if ( in[i].substr(1,1) == "3" ){
-
-                        factor *= 1.0 / 36.0;
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "v" + std::to_string(vir_label_count++);
-                        std::string idx3 = "v" + std::to_string(vir_label_count++);
-                        std::string idx4 = "o" + std::to_string(occ_label_count++);
-                        std::string idx5 = "o" + std::to_string(occ_label_count++);
-                        std::string idx6 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3+"*");
-                        tmp_string.push_back(idx4);
-                        tmp_string.push_back(idx5);
-                        tmp_string.push_back(idx6);
-
-                        set_t_amplitudes({idx1,idx2,idx3,idx6,idx5,idx4});
-
-                    }else {
-                        printf("\n");
-                        printf("    error: only t1, t2 or t3 amplitudes are supported\n");
-                        printf("\n");
-                        exit(1);
-                    }
-*/
-
                 }else if ( in[i].substr(0,1) == "w" ){ // w0 B*B
 
                     if ( in[i].substr(1,1) == "0" ){
@@ -921,47 +866,58 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else if ( in[i].substr(0,1) == "u" ){ // t-amplitudes + boson creator
 
-                    if ( in[i].substr(1,1) == "0" ){
+                    int n = std::stoi(in[i].substr(1));
+
+                    if ( n == 0 ){
 
                         has_u0 = true;
 
                         data->is_boson_dagger.push_back(true);
 
-                    }else if ( in[i].substr(1,1) == "1" ){
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2);
-
-                        set_u_amplitudes({idx1,idx2});
-
-                        data->is_boson_dagger.push_back(true);
-
-                    }else if ( in[i].substr(1,1) == "2" ){
-
-                        factor *= 0.25;
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "v" + std::to_string(vir_label_count++);
-                        std::string idx3 = "o" + std::to_string(occ_label_count++);
-                        std::string idx4 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3);
-                        tmp_string.push_back(idx4);
-
-                        set_u_amplitudes({idx1,idx2,idx4,idx3});
-
-                        data->is_boson_dagger.push_back(true);
-
                     }else {
-                        printf("\n");
-                        printf("    error: only u0, u1, or u2 amplitudes are supported\n");
-                        printf("\n");
-                        exit(1);
+
+                        std::vector<std::string> op_left;
+                        std::vector<std::string> op_right;
+                        std::vector<std::string> label_left;
+                        std::vector<std::string> label_right;
+                        for (int id = 0; id < n; id++) {
+                            
+                            std::string idx1 = "v" + std::to_string(vir_label_count++);
+                            std::string idx2 = "o" + std::to_string(occ_label_count++);
+                            
+                            op_left.push_back(idx1+"*");
+                            op_right.push_back(idx2);
+                            
+                            label_left.push_back(idx1);
+                            label_right.push_back(idx2);
+                        }
+                        // a*b*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_left[id]);
+                        }
+                        // i*j*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_right[id]);
+                        }
+                        std::vector<std::string> labels;
+                        // tn(ab... 
+                        for (int id = 0; id < n; id++) {
+                            labels.push_back(label_left[id]);
+                        }
+                        // tn(ab......ji)
+                        for (int id = n-1; id >= 0; id--) {
+                            labels.push_back(label_right[id]);
+                        }
+                        set_u_amplitudes(labels);
+                        
+                        // factor = 1/(n!)^2
+                        double my_factor = 1.0;
+                        for (int id = 0; id < n; id++) {
+                            my_factor *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor / my_factor;
+
+                        data->is_boson_dagger.push_back(true);
                     }
 
                 }else if ( in[i].substr(0,1) == "r" ){
@@ -1018,173 +974,171 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }
 
-
-/*
-                    if ( in[i].substr(1,1) == "0" ){
-
-                        has_r0 = true;
-
-                    }else if ( in[i].substr(1,1) == "1" ){
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2);
-
-                        set_right_amplitudes({idx1,idx2});
-
-                    }else if ( in[i].substr(1,1) == "2" ){
-
-                        factor *= 0.25;
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "v" + std::to_string(vir_label_count++);
-                        std::string idx3 = "o" + std::to_string(occ_label_count++);
-                        std::string idx4 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3);
-                        tmp_string.push_back(idx4);
-
-                        set_right_amplitudes({idx1,idx2,idx4,idx3});
-
-                    }else {
-                        printf("\n");
-                        printf("    error: only r0, r1, or r2 amplitudes are supported\n");
-                        printf("\n");
-                        exit(1);
-                    }
-*/
-
                 }else if ( in[i].substr(0,1) == "s" ){ // r amplitudes + boson creator
 
-                    if ( in[i].substr(1,1) == "0" ){
+                    int n = std::stoi(in[i].substr(1));
+
+                    if ( n == 0 ){
 
                         has_s0 = true;
 
                         data->is_boson_dagger.push_back(true);
 
-                    }else if ( in[i].substr(1,1) == "1" ){
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2);
-
-                        set_s_amplitudes({idx1,idx2});
-
-                        data->is_boson_dagger.push_back(true);
-
-                    }else if ( in[i].substr(1,1) == "2" ){
-
-                        factor *= 0.25;
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "v" + std::to_string(vir_label_count++);
-                        std::string idx3 = "o" + std::to_string(occ_label_count++);
-                        std::string idx4 = "o" + std::to_string(occ_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3);
-                        tmp_string.push_back(idx4);
-
-                        set_s_amplitudes({idx1,idx2,idx4,idx3});
-
-                        data->is_boson_dagger.push_back(true);
-
                     }else {
-                        printf("\n");
-                        printf("    error: only s0, s1, or s2 amplitudes are supported\n");
-                        printf("\n");
-                        exit(1);
+                        
+                        std::vector<std::string> op_left;
+                        std::vector<std::string> op_right;
+                        std::vector<std::string> label_left;
+                        std::vector<std::string> label_right;
+                        for (int id = 0; id < n; id++) {
+                            
+                            std::string idx1 = "v" + std::to_string(vir_label_count++);
+                            std::string idx2 = "o" + std::to_string(occ_label_count++);
+                            
+                            op_left.push_back(idx1+"*");
+                            op_right.push_back(idx2);
+                            
+                            label_left.push_back(idx1);
+                            label_right.push_back(idx2);
+                        }
+                        // a*b*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_left[id]);
+                        }
+                        // i*j*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_right[id]);
+                        }
+                        std::vector<std::string> labels;
+                        // tn(ab... 
+                        for (int id = 0; id < n; id++) {
+                            labels.push_back(label_left[id]);
+                        }
+                        // tn(ab......ji)
+                        for (int id = n-1; id >= 0; id--) {
+                            labels.push_back(label_right[id]);
+                        }
+                        set_s_amplitudes(labels);
+                        
+                        // factor = 1/(n!)^2
+                        double my_factor = 1.0;
+                        for (int id = 0; id < n; id++) {
+                            my_factor *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor / my_factor;
+                    
+                        data->is_boson_dagger.push_back(true);
+
                     }
 
                 }else if ( in[i].substr(0,1) == "l" ){
 
-                    if ( in[i].substr(1,1) == "0" ){
+                    int n = std::stoi(in[i].substr(1));
+
+                    if ( n == 0 ){
 
                         has_l0 = true;
 
-                    }else if ( in[i].substr(1,1) == "1" ){
-
-                        std::string idx1 = "o" + std::to_string(occ_label_count++);
-                        std::string idx2 = "v" + std::to_string(vir_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2);
-
-                        set_left_amplitudes({idx1,idx2});
-
-                    }else if ( in[i].substr(1,1) == "2" ){
-
-                        factor *= 0.25;
-
-                        std::string idx1 = "o" + std::to_string(occ_label_count++);
-                        std::string idx2 = "o" + std::to_string(occ_label_count++);
-                        std::string idx3 = "v" + std::to_string(vir_label_count++);
-                        std::string idx4 = "v" + std::to_string(vir_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3);
-                        tmp_string.push_back(idx4);
-
-                        set_left_amplitudes({idx1,idx2,idx4,idx3});
-
                     }else {
-                        printf("\n");
-                        printf("    error: only l0, l1, or l2 amplitudes are supported\n");
-                        printf("\n");
-                        exit(1);
+                        
+                        std::vector<std::string> op_left;
+                        std::vector<std::string> op_right;
+                        std::vector<std::string> label_left;
+                        std::vector<std::string> label_right;
+                        for (int id = 0; id < n; id++) {
+                            
+                            std::string idx1 = "o" + std::to_string(occ_label_count++);
+                            std::string idx2 = "v" + std::to_string(vir_label_count++);
+                            
+                            op_left.push_back(idx1+"*");
+                            op_right.push_back(idx2);
+                            
+                            label_left.push_back(idx1);
+                            label_right.push_back(idx2);
+                        }
+                        // i*j*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_left[id]);
+                        }
+                        // a*b*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_right[id]);
+                        }
+                        std::vector<std::string> labels;
+                        // tn(ab... 
+                        for (int id = 0; id < n; id++) {
+                            labels.push_back(label_left[id]);
+                        }
+                        // tn(ab......ji)
+                        for (int id = n-1; id >= 0; id--) {
+                            labels.push_back(label_right[id]);
+                        }
+                        set_left_amplitudes(labels);
+                        
+                        // factor = 1/(n!)^2
+                        double my_factor = 1.0;
+                        for (int id = 0; id < n; id++) {
+                            my_factor *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor / my_factor;
+                    
                     }
 
                 }else if ( in[i].substr(0,1) == "m" ){ // l amplitudes plus boson annihilator
 
-                    if ( in[i].substr(1,1) == "0" ){
+                    int n = std::stoi(in[i].substr(1));
+
+                    if ( n == 0 ){
 
                         has_m0 = true;
 
                         data->is_boson_dagger.push_back(false);
 
-                    }else if ( in[i].substr(1,1) == "1" ){
-
-                        std::string idx1 = "o" + std::to_string(occ_label_count++);
-                        std::string idx2 = "v" + std::to_string(vir_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2);
-
-                        set_m_amplitudes({idx1,idx2});
-
-                        data->is_boson_dagger.push_back(false);
-
-                    }else if ( in[i].substr(1,1) == "2" ){
-
-                        factor *= 0.25;
-
-                        std::string idx1 = "o" + std::to_string(occ_label_count++);
-                        std::string idx2 = "o" + std::to_string(occ_label_count++);
-                        std::string idx3 = "v" + std::to_string(vir_label_count++);
-                        std::string idx4 = "v" + std::to_string(vir_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3);
-                        tmp_string.push_back(idx4);
-
-                        set_m_amplitudes({idx1,idx2,idx4,idx3});
-
-                        data->is_boson_dagger.push_back(false);
-
                     }else {
-                        printf("\n");
-                        printf("    error: only m0, m1, or m2 amplitudes are supported\n");
-                        printf("\n");
-                        exit(1);
+
+                        std::vector<std::string> op_left;
+                        std::vector<std::string> op_right;
+                        std::vector<std::string> label_left;
+                        std::vector<std::string> label_right;
+                        for (int id = 0; id < n; id++) {
+
+                            std::string idx1 = "o" + std::to_string(occ_label_count++);
+                            std::string idx2 = "v" + std::to_string(vir_label_count++);
+
+                            op_left.push_back(idx1+"*");
+                            op_right.push_back(idx2);
+
+                            label_left.push_back(idx1);
+                            label_right.push_back(idx2);
+                        }
+                        // i*j*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_left[id]);
+                        }
+                        // a*b*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_right[id]);
+                        }
+                        std::vector<std::string> labels;
+                        // tn(ab... 
+                        for (int id = 0; id < n; id++) {
+                            labels.push_back(label_left[id]);
+                        }
+                        // tn(ab......ji)
+                        for (int id = n-1; id >= 0; id--) {
+                            labels.push_back(label_right[id]);
+                        }
+                        set_m_amplitudes(labels);
+
+                        // factor = 1/(n!)^2
+                        double my_factor = 1.0;
+                        for (int id = 0; id < n; id++) {
+                            my_factor *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor / my_factor;
+
+                        data->is_boson_dagger.push_back(false);
+
                     }
 
                 }else if ( in[i].substr(0,2) == "2p" ){ // particle-particle 

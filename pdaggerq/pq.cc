@@ -225,27 +225,19 @@ void pq::print() {
         for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
            
             if ( (int)data->left_amplitudes[i].size() > 0 ) {
-                // l1
-                if ( (int)data->left_amplitudes[i].size() == 2 ) {
-                    printf("l1(");
-                    printf("%s",data->left_amplitudes[i][0].c_str());
+
+                int order = (int)data->left_amplitudes[i].size() / 2;
+                printf("l");
+                printf("%i",order);
+                printf("(");
+                for (int j = 0; j < 2*order-1; j++) {
+                    printf("%s",data->left_amplitudes[i][j].c_str());
                     printf(",");
-                    printf("%s",data->left_amplitudes[i][1].c_str());
-                    printf(")");
                 }
-                // l2
-                if ( (int)data->left_amplitudes[i].size() == 4 ) {
-                    printf("l2(");
-                    printf("%s",data->left_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->left_amplitudes[i][1].c_str());
-                    printf(",");
-                    printf("%s",data->left_amplitudes[i][2].c_str());
-                    printf(",");
-                    printf("%s",data->left_amplitudes[i][3].c_str());
-                    printf(")");
-                }
+                printf("%s",data->left_amplitudes[i][2*order-1].c_str());
+                printf(")");
                 printf(" ");
+
             } 
         }
     }
@@ -258,17 +250,21 @@ void pq::print() {
     if ( (int)data->right_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
            
-            int order = (int)data->right_amplitudes[i].size() / 2;
-            printf("r");
-            printf("%i",order);
-            printf("(");
-            for (int j = 0; j < 2*order-1; j++) {
-                printf("%s",data->right_amplitudes[i][j].c_str());
-                printf(",");
+            if ( (int)data->right_amplitudes[i].size() > 0 ) {
+
+                int order = (int)data->right_amplitudes[i].size() / 2;
+                printf("r");
+                printf("%i",order);
+                printf("(");
+                for (int j = 0; j < 2*order-1; j++) {
+                    printf("%s",data->right_amplitudes[i][j].c_str());
+                    printf(",");
+                }
+                printf("%s",data->right_amplitudes[i][2*order-1].c_str());
+                printf(")");
+                printf(" ");
+
             }
-            printf("%s",data->right_amplitudes[i][2*order-1].c_str());
-            printf(")");
-            printf(" ");
 
         }
     }
@@ -281,17 +277,21 @@ void pq::print() {
     if ( (int)data->t_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
 
-            int order = (int)data->t_amplitudes[i].size() / 2;
-            printf("t");
-            printf("%i",order);
-            printf("(");
-            for (int j = 0; j < 2*order-1; j++) {
-                printf("%s",data->t_amplitudes[i][j].c_str());
-                printf(",");
+            if ( (int)data->t_amplitudes[i].size() > 0 ) {
+
+                int order = (int)data->t_amplitudes[i].size() / 2;
+                printf("t");
+                printf("%i",order);
+                printf("(");
+                for (int j = 0; j < 2*order-1; j++) {
+                    printf("%s",data->t_amplitudes[i][j].c_str());
+                    printf(",");
+                }
+                printf("%s",data->t_amplitudes[i][2*order-1].c_str());
+                printf(")");
+                printf(" ");
+
             }
-            printf("%s",data->t_amplitudes[i][2*order-1].c_str());
-            printf(")");
-            printf(" ");
           
         }
     }
@@ -301,28 +301,20 @@ void pq::print() {
         for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
            
             if ( (int)data->u_amplitudes[i].size() > 0 ) {
-                // u1
-                if ( (int)data->u_amplitudes[i].size() == 2 ) {
-                    printf("u1(");
-                    printf("%s",data->u_amplitudes[i][0].c_str());
+
+                int order = (int)data->u_amplitudes[i].size() / 2;
+                printf("u");
+                printf("%i",order);
+                printf("(");
+                for (int j = 0; j < 2*order-1; j++) {
+                    printf("%s",data->u_amplitudes[i][j].c_str());
                     printf(",");
-                    printf("%s",data->u_amplitudes[i][1].c_str());
-                    printf(")");
                 }
-                // u2
-                if ( (int)data->u_amplitudes[i].size() == 4 ) {
-                    printf("u2(");
-                    printf("%s",data->u_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->u_amplitudes[i][1].c_str());
-                    printf(",");
-                    printf("%s",data->u_amplitudes[i][2].c_str());
-                    printf(",");
-                    printf("%s",data->u_amplitudes[i][3].c_str());
-                    printf(")");
-                }
+                printf("%s",data->u_amplitudes[i][2*order-1].c_str());
+                printf(")");
                 printf(" ");
-            } 
+            }
+
         }
     }
     if ( data->has_u0 ) {
@@ -333,30 +325,22 @@ void pq::print() {
     // m_amplitudes
     if ( (int)data->m_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
-           
+        
             if ( (int)data->m_amplitudes[i].size() > 0 ) {
-                // m1
-                if ( (int)data->m_amplitudes[i].size() == 2 ) {
-                    printf("m1(");
-                    printf("%s",data->m_amplitudes[i][0].c_str());
+
+                int order = (int)data->m_amplitudes[i].size() / 2;
+                printf("m");
+                printf("%i",order);
+                printf("(");
+                for (int j = 0; j < 2*order-1; j++) {
+                    printf("%s",data->m_amplitudes[i][j].c_str());
                     printf(",");
-                    printf("%s",data->m_amplitudes[i][1].c_str());
-                    printf(")");
                 }
-                // m2
-                if ( (int)data->m_amplitudes[i].size() == 4 ) {
-                    printf("m2(");
-                    printf("%s",data->m_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->m_amplitudes[i][1].c_str());
-                    printf(",");
-                    printf("%s",data->m_amplitudes[i][2].c_str());
-                    printf(",");
-                    printf("%s",data->m_amplitudes[i][3].c_str());
-                    printf(")");
-                }
+                printf("%s",data->m_amplitudes[i][2*order-1].c_str());
+                printf(")");
                 printf(" ");
-            } 
+
+            }   
         }
     }
     if ( data->has_m0 ) {
@@ -367,30 +351,23 @@ void pq::print() {
     // s_amplitudes
     if ( (int)data->s_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
-           
+       
             if ( (int)data->s_amplitudes[i].size() > 0 ) {
-                // s1
-                if ( (int)data->s_amplitudes[i].size() == 2 ) {
-                    printf("s1(");
-                    printf("%s",data->s_amplitudes[i][0].c_str());
+
+                int order = (int)data->s_amplitudes[i].size() / 2;
+                printf("s");
+                printf("%i",order);
+                printf("(");
+                for (int j = 0; j < 2*order-1; j++) {
+                    printf("%s",data->s_amplitudes[i][j].c_str());
                     printf(",");
-                    printf("%s",data->s_amplitudes[i][1].c_str());
-                    printf(")");
                 }
-                // s2
-                if ( (int)data->s_amplitudes[i].size() == 4 ) {
-                    printf("s2(");
-                    printf("%s",data->s_amplitudes[i][0].c_str());
-                    printf(",");
-                    printf("%s",data->s_amplitudes[i][1].c_str());
-                    printf(",");
-                    printf("%s",data->s_amplitudes[i][2].c_str());
-                    printf(",");
-                    printf("%s",data->s_amplitudes[i][3].c_str());
-                    printf(")");
-                }
+                printf("%s",data->s_amplitudes[i][2*order-1].c_str());
+                printf(")");
                 printf(" ");
-            } 
+
+            }    
+
         }
     }
     if ( data->has_s0 ) {
@@ -525,31 +502,19 @@ std::vector<std::string> pq::get_string() {
     if ( (int)data->left_amplitudes.size() > 0 ) {
 
         for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-           
-            std::string tmp;
+        
             if ( (int)data->left_amplitudes[i].size() > 0 ) {
-                // l1
-                if ( (int)data->left_amplitudes[i].size() == 2 ) {
-                    tmp = "l1("
-                        + data->left_amplitudes[i][0]
-                        + ","
-                        + data->left_amplitudes[i][1]
-                        + ")";
+
+                int order = (int)data->left_amplitudes[i].size() / 2;
+                tmp = "l" + std::to_string(order) + "(";
+                for (int j = 0; j < 2*order-1; j++) {
+                    tmp += data->left_amplitudes[i][j] + ",";
                 }
-                // l2
-                if ( (int)data->left_amplitudes[i].size() == 4 ) {
-                    tmp = "l2("
-                        + data->left_amplitudes[i][0]
-                        + ","
-                        + data->left_amplitudes[i][1]
-                        + ","
-                        + data->left_amplitudes[i][2]
-                        + ","
-                        + data->left_amplitudes[i][3]
-                        + ")";
-                }
+                tmp += data->left_amplitudes[i][2*order-1] + ")";
                 my_string.push_back(tmp);
-            } 
+
+            }   
+
         }
     }
     if ( data->has_l0 ) {
@@ -601,29 +566,17 @@ std::vector<std::string> pq::get_string() {
         for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
            
             if ( (int)data->u_amplitudes[i].size() > 0 ) {
-                std::string tmp;
-                // u1
-                if ( (int)data->u_amplitudes[i].size() == 2 ) {
-                    tmp = "u1("
-                        + data->u_amplitudes[i][0]
-                        + ","
-                        + data->u_amplitudes[i][1]
-                        + ")";
+ 
+                int order = (int)data->u_amplitudes[i].size() / 2;
+                tmp = "u" + std::to_string(order) + "(";
+                for (int j = 0; j < 2*order-1; j++) {
+                    tmp += data->u_amplitudes[i][j] + ",";
                 }
-                // u2
-                if ( (int)data->u_amplitudes[i].size() == 4 ) {
-                    tmp = "u2("
-                        + data->u_amplitudes[i][0]
-                        + ","
-                        + data->u_amplitudes[i][1]
-                        + ","
-                        + data->u_amplitudes[i][2]
-                        + ","
-                        + data->u_amplitudes[i][3]
-                        + ")";
-                }
+                tmp += data->u_amplitudes[i][2*order-1] + ")";
                 my_string.push_back(tmp);
-            } 
+
+            }
+
         }
     }
     if ( data->has_u0 ) {
@@ -633,31 +586,19 @@ std::vector<std::string> pq::get_string() {
     // m_amplitudes
     if ( (int)data->m_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
-           
+        
             if ( (int)data->m_amplitudes[i].size() > 0 ) {
-                std::string tmp;
-                // m1
-                if ( (int)data->m_amplitudes[i].size() == 2 ) {
-                    tmp = "m1("
-                        + data->m_amplitudes[i][0]
-                        + ","
-                        + data->m_amplitudes[i][1]
-                        + ")";
+
+                int order = (int)data->m_amplitudes[i].size() / 2;
+                tmp = "m" + std::to_string(order) + "(";
+                for (int j = 0; j < 2*order-1; j++) {
+                    tmp += data->m_amplitudes[i][j] + ",";
                 }
-                // m2
-                if ( (int)data->m_amplitudes[i].size() == 4 ) {
-                    tmp = "m2("
-                        + data->m_amplitudes[i][0]
-                        + ","
-                        + data->m_amplitudes[i][1]
-                        + ","
-                        + data->m_amplitudes[i][2]
-                        + ","
-                        + data->m_amplitudes[i][3]
-                        + ")";
-                }
+                tmp += data->m_amplitudes[i][2*order-1] + ")";
                 my_string.push_back(tmp);
-            } 
+
+            }   
+
         }
     }
     if ( data->has_m0 ) {
@@ -667,31 +608,19 @@ std::vector<std::string> pq::get_string() {
     // s_amplitudes
     if ( (int)data->s_amplitudes.size() > 0 ) {
         for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
-           
+       
             if ( (int)data->s_amplitudes[i].size() > 0 ) {
-                std::string tmp;
-                // s1
-                if ( (int)data->s_amplitudes[i].size() == 2 ) {
-                    tmp = "s1("
-                        + data->s_amplitudes[i][0]
-                        + ","
-                        + data->s_amplitudes[i][1]
-                        + ")";
+ 
+                int order = (int)data->s_amplitudes[i].size() / 2;
+                tmp = "s" + std::to_string(order) + "(";
+                for (int j = 0; j < 2*order-1; j++) {
+                    tmp += data->s_amplitudes[i][j] + ",";
                 }
-                // s2
-                if ( (int)data->s_amplitudes[i].size() == 4 ) {
-                    tmp = "s2("
-                        + data->s_amplitudes[i][0]
-                        + ","
-                        + data->s_amplitudes[i][1]
-                        + ","
-                        + data->s_amplitudes[i][2]
-                        + ","
-                        + data->s_amplitudes[i][3]
-                        + ")";
-                }
+                tmp += data->s_amplitudes[i][2*order-1] + ")";
                 my_string.push_back(tmp);
-            } 
+
+            }
+
         }
     }
     if ( data->has_s0 ) {
