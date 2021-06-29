@@ -28,8 +28,20 @@
 #include<algorithm>
 #include<cstring>
 #include <math.h>
+#include<sstream>
 
 #include "pq.h"
+
+
+// work-around for finite precision of std::to_string
+template <typename T>
+std::string to_string_with_precision(const T a_value, const int n = 14)
+{
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
+}
 
 namespace pdaggerq {
 
@@ -144,7 +156,7 @@ void pq::print() {
     printf("//     ");
     printf("%c", sign > 0 ? '+' : '-');
     printf(" ");
-    printf("%7.5lf", fabs(data->factor));
+    printf("%20.14lf", fabs(data->factor));
     printf(" ");
 
     if ( (int)data->permutations.size() > 0 ) {
@@ -421,7 +433,8 @@ std::vector<std::string> pq::get_string() {
     }else {
         tmp = "-";
     }
-    my_string.push_back(tmp + std::to_string(fabs(data->factor)));
+    //my_string.push_back(tmp + std::to_string(fabs(data->factor)));
+    my_string.push_back(tmp + to_string_with_precision(fabs(data->factor),14));
 
     if ( (int)data->permutations.size() > 0 ) {
         // should have an even number of symbols...how many pairs?
