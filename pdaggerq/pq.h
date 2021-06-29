@@ -103,6 +103,20 @@ class pq {
                              std::vector<std::vector<std::string> > amps2, 
                              int & n_permute );
 
+    /// permutations and coincidences for triples
+    void triples_permutations(std::vector<std::string> amps1, 
+                              std::vector<std::string> amps2, 
+                              int & nsame_idx, 
+                              int & n_permute,
+                              int off);
+    /// permutations and coincidences for quadruples
+    void quadruples_permutations(std::vector<std::string> amps1, 
+                                 std::vector<std::string> amps2, 
+                                 int & nsame_idx, 
+                                 int & n_permute,
+                                 int off);
+
+
   public:
 
     /// constructor
