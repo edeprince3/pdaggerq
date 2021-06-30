@@ -12,8 +12,8 @@ in the definition of the angstrom/bohr conversion ... agreement with
 NWChem past 7 decimals can only be achieved if the geometry is defined
 in bohr in that program.
 
- CCSDT correlation energy / hartree =        -0.179049024111075
- CCSDT total energy / hartree       =      -100.008956600850908
+ CCSDTQ correlation energy / hartree =        -0.179815934953076
+ CCSDTQ total energy / hartree       =      -100.009723511692869
 
 the main() function is fairly straightforward.
 """
@@ -1167,8 +1167,8 @@ def main():
     print("    CCSDTQ Total Energy:       {: 20.12f}".format(en + molecule.nuclear_repulsion))
     print("")
 
-    assert np.isclose(en-hf_energy,-0.179049024111075,atol=1e-9)
-    assert np.isclose(en+molecule.nuclear_repulsion,-100.008956600850908,atol=1e-9)
+    assert np.isclose(en-hf_energy,-0.179815934953076,atol=1e-9)
+    assert np.isclose(en+molecule.nuclear_repulsion,-100.009723511692869,atol=1e-9)
 
 
 if __name__ == "__main__":
