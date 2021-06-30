@@ -14,11 +14,12 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, Index,
-                              TensorTerm, D1, Delta, Left0amps, Left1amps,
-                              Left2amps, Right0amps, Right1amps, Right2amps,
+from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, T3amps, T4amps,
+                              Index, TensorTerm, D1, Delta, Left0amps, Left1amps,
+                              Left2amps, Left3amps, Left4amps, Right0amps,
+                              Right1amps, Right2amps, Right3amps, Right4amps,
                               FockMat, BaseTerm, ContractionPermuter,
-                              TensorTermAction, T3amps)
+                              TensorTermAction, )
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
 
 
@@ -44,6 +45,11 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return FockMat(indices=tuple(g_idx))
+    elif 't4' in term_string:
+        index_string = term_string.replace('t4(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return T4amps(indices=tuple(g_idx))
     elif 't3' in term_string:
         index_string = term_string.replace('t3(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
@@ -78,6 +84,16 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return Left2amps(indices=tuple(g_idx))
+    elif 'l3' in term_string:
+        index_string = term_string.replace('l3(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return Left3amps(indices=tuple(g_idx))
+    elif 'l4' in term_string:
+        index_string = term_string.replace('l4(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return Left4amps(indices=tuple(g_idx))
     elif 'r1' in term_string:
         index_string = term_string.replace('r1(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
@@ -88,6 +104,16 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return Right2amps(indices=tuple(g_idx))
+    elif 'r3' in term_string:
+        index_string = term_string.replace('r3(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return Right3amps(indices=tuple(g_idx))
+    elif 'r4' in term_string:
+        index_string = term_string.replace('r4(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return Right4amps(indices=tuple(g_idx))
     elif 'P(' in term_string:
         index_string = term_string.replace('P(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
@@ -166,20 +192,24 @@ def vacuum_normal_ordered_strings_to_tensor_terms(pdaggerq_list_of_strings):
 
 
 if __name__ == "__main__":
-    ahat_strings = [['-1.000000', 'j*', 'r*', 'k', 'q', 'd(i,s)', 'd(l,p)'],
-                    ['+1.000000', 'j*', 'r*', 'l', 'q', 'd(i,s)', 'd(k,p)'],
-                    ['+1.000000', 'i*', 'r*', 'k', 'q', 'd(j,s)', 'd(l,p)'],
-                    ['-1.000000', 'i*', 'r*', 'l', 'q', 'd(j,s)', 'd(k,p)'],
-                    ['+1.000000', 'j*', 'r*', 'k', 'l', 'd(p,s)', 'd(i,q)'],
-                    ['-1.000000', 'i*', 'r*', 'k', 'l', 'd(p,s)', 'd(j,q)'],
-                    ['-1.000000', 'p*', 'r*', 'k', 'l', 'd(i,q)', 'd(j,s)'],
-                    ['+1.000000', 'p*', 'r*', 'k', 'l', 'd(i,s)', 'd(j,q)'],
-                    ['-1.000000', 'i*', 'j*', 'k', 's', 'd(l,p)', 'd(q,r)'],
-                    ['+1.000000', 'i*', 'j*', 'q', 's', 'd(l,p)', 'd(k,r)'],
-                    ['+1.000000', 'i*', 'j*', 'l', 's', 'd(k,p)', 'd(q,r)'],
-                    ['-1.000000', 'i*', 'j*', 'q', 's', 'd(k,p)', 'd(l,r)'],
-                    ['-1.000000', 'j*', 'p*', 'k', 's', 'd(i,q)', 'd(l,r)'],
-                    ['+1.000000', 'j*', 'p*', 'l', 's', 'd(i,q)', 'd(k,r)'],
-                    ['+1.000000', 'i*', 'p*', 'k', 's', 'd(j,q)', 'd(l,r)'],
-                    ['-1.000000', 'i*', 'p*', 'l', 's', 'd(j,q)', 'd(k,r)']]
-    vacuum_normal_ordered_strings_to_tensor_terms(ahat_strings)
+    # ahat_strings = [['-1.000000', 'j*', 'r*', 'k', 'q', 'd(i,s)', 'd(l,p)'],
+    #                 ['+1.000000', 'j*', 'r*', 'l', 'q', 'd(i,s)', 'd(k,p)'],
+    #                 ['+1.000000', 'i*', 'r*', 'k', 'q', 'd(j,s)', 'd(l,p)'],
+    #                 ['-1.000000', 'i*', 'r*', 'l', 'q', 'd(j,s)', 'd(k,p)'],
+    #                 ['+1.000000', 'j*', 'r*', 'k', 'l', 'd(p,s)', 'd(i,q)'],
+    #                 ['-1.000000', 'i*', 'r*', 'k', 'l', 'd(p,s)', 'd(j,q)'],
+    #                 ['-1.000000', 'p*', 'r*', 'k', 'l', 'd(i,q)', 'd(j,s)'],
+    #                 ['+1.000000', 'p*', 'r*', 'k', 'l', 'd(i,s)', 'd(j,q)'],
+    #                 ['-1.000000', 'i*', 'j*', 'k', 's', 'd(l,p)', 'd(q,r)'],
+    #                 ['+1.000000', 'i*', 'j*', 'q', 's', 'd(l,p)', 'd(k,r)'],
+    #                 ['+1.000000', 'i*', 'j*', 'l', 's', 'd(k,p)', 'd(q,r)'],
+    #                 ['-1.000000', 'i*', 'j*', 'q', 's', 'd(k,p)', 'd(l,r)'],
+    #                 ['-1.000000', 'j*', 'p*', 'k', 's', 'd(i,q)', 'd(l,r)'],
+    #                 ['+1.000000', 'j*', 'p*', 'l', 's', 'd(i,q)', 'd(k,r)'],
+    #                 ['+1.000000', 'i*', 'p*', 'k', 's', 'd(j,q)', 'd(l,r)'],
+    #                 ['-1.000000', 'i*', 'p*', 'l', 's', 'd(j,q)', 'd(k,r)']]
+
+    # vacuum_normal_ordered_strings_to_tensor_terms(ahat_strings)
+
+    string_list = [['+0.250000', '<l,k||c,d>', 't4(c,d,a,b,i,j,l,k)']]
+    contracted_strings_to_tensor_terms(string_list)
