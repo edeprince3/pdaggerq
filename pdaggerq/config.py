@@ -20,6 +20,7 @@
 # einsum code that just lists the axis to contract over instead of indices
 # this is because the einsum character alphabet is only 52 characters and
 # total OCC_INDICES and VIRT_INDICES are 54!
+import numpy as np
 
 __version__ = "0.0.1"
 
@@ -36,3 +37,30 @@ VIRT_INDICES = ["a", "b", "c", "d", "e", "f", "g",
 # numpy einsum alphabet
 EINSUM_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
+# set up base tensors for tensor contractions
+sorbs = 8   # fake system
+nocc = 4
+nvirt = sorbs - nocc
+o = slice(0, nocc, 1)
+v = slice(nocc, sorbs, 1)
+
+h = np.zeros((sorbs, sorbs))
+f = np.zeros((sorbs, sorbs))
+g = np.zeros((sorbs, sorbs, sorbs, sorbs))
+
+t1 = np.zeros((nvirt, nocc))
+t2 = np.zeros((nvirt, nvirt, nocc, nocc))
+t3 = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
+t4 = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
+
+l1 = np.zeros((nocc, nvirt))
+l2 = np.zeros((nocc, nocc, nvirt, nvirt))
+l3 = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
+l4 = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
+
+r1 = np.zeros((nocc, nvirt))
+r2 = np.zeros((nocc, nocc, nvirt, nvirt))
+r3 = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
+r4 = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
+
+kd = np.zeros((sorbs, sorbs))
