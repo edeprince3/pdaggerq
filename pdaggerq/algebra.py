@@ -16,9 +16,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from typing import List, Tuple, Union, Sequence
+from typing import Tuple
 import copy
 import numpy as np
+
+# This imports fake values of all these quantities (zero tensors) so
+# we can build the optimal tensor contraction orderings
+# NOTE: THESE ARE PROTECTED VARIABLE NAMES FOR THIS MODULE
+from pdaggerq.config import (o, v, h, f, g, t1, t2, t3, t4, l1, l2, l3, l4, r1,
+                             r2, r3, r4, kd)
 
 
 class Index:
@@ -222,23 +228,9 @@ class TensorTerm:
                 output_variables]))
             einsum_out_strings += "->{}".format("".join(out_tensor_ordered))
 
-        teinsum_string = "= {} * einsum(\'".format(self.coefficient)
+        teinsum_string = "= {: 5.15f} * einsum(\'".format(self.coefficient)
 
         if len(einsum_strings) > 2 and optimize:
-            sorbs = 8
-            nocc = 4
-            nvirt = sorbs - nocc
-            o = slice(0, nocc, 1)
-            v = slice(nocc, sorbs, 1)
-            h = np.zeros((sorbs, sorbs))
-            f = np.zeros((sorbs, sorbs))
-            g = np.zeros((sorbs, sorbs, sorbs, sorbs))
-            t1 = np.zeros((nvirt, nocc))
-            t2 = np.zeros((nvirt, nvirt, nocc, nocc))
-            t3 = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
-            l2 = np.zeros((nocc, nocc, nvirt, nvirt))
-            l1 = np.zeros((nocc, nvirt))
-            kd = np.zeros((sorbs, sorbs))
             einsum_path_string = "np.einsum_path(\'".format(self.coefficient)
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
@@ -332,10 +324,34 @@ class Right2amps(BaseTerm):
         super().__init__(indices=indices, name=name)
 
     def __repr__(self):
-        return "r2({},{})".format(self.indices[0], self.indices[1],
-                                  self.indices[2], self.indices[3])
+        return "r2({},{},{},{})".format(self.indices[0], self.indices[1],
+                                        self.indices[2], self.indices[3])
+
+class Right3amps(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='r3'):
+        super().__init__(indices=indices, name=name)
+
+    def __repr__(self):
+        return "r3({},{},{},{},{},{})".format(self.indices[0], self.indices[1],
+                                              self.indices[2], self.indices[3],
+                                              self.indices[4], self.indices[5])
 
 
+class Right4amps(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='r4'):
+        super().__init__(indices=indices, name=name)
+
+    def __repr__(self):
+        return "r4({},{},{},{},{},{},{},{})".format(self.indices[0],
+                                                    self.indices[1],
+                                                    self.indices[2],
+                                                    self.indices[3],
+                                                    self.indices[4],
+                                                    self.indices[5],
+                                                    self.indices[6],
+                                                    self.indices[7])
 class Left0amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='l0'):
@@ -362,6 +378,34 @@ class Left2amps(BaseTerm):
     def __repr__(self):
         return "l2({},{},{},{})".format(self.indices[0], self.indices[1],
                                         self.indices[2], self.indices[3])
+
+
+class Left3amps(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='l3'):
+        super().__init__(indices=indices, name=name)
+
+    def __repr__(self):
+        return "l3({},{},{},{},{},{})".format(self.indices[0], self.indices[1],
+                                              self.indices[2], self.indices[3],
+                                              self.indices[4], self.indices[5])
+
+
+class Left4amps(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='l4'):
+        super().__init__(indices=indices, name=name)
+
+    def __repr__(self):
+        return "l4({},{},{},{},{},{},{},{})".format(self.indices[0],
+                                                    self.indices[1],
+                                                    self.indices[2],
+                                                    self.indices[3],
+                                                    self.indices[4],
+                                                    self.indices[5],
+                                                    self.indices[6],
+                                                    self.indices[7]
+                                                    )
 
 
 class D1(BaseTerm):
@@ -400,6 +444,23 @@ class T3amps(BaseTerm):
         return "t3({},{},{},{},{},{})".format(self.indices[0], self.indices[1],
                                               self.indices[2], self.indices[3],
                                               self.indices[4], self.indices[5])
+
+
+class T4amps(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='t4'):
+        super().__init__(indices=indices, name=name)
+
+    def __repr__(self):
+        return "t4({},{},{},{},{},{},{},{})".format(self.indices[0],
+                                                    self.indices[1],
+                                                    self.indices[2],
+                                                    self.indices[3],
+                                                    self.indices[4],
+                                                    self.indices[5],
+                                                    self.indices[6],
+                                                    self.indices[7])
+
 
 
 class OneBody(BaseTerm):
