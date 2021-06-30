@@ -7,6 +7,8 @@ from pdaggerq.parser import contracted_strings_to_tensor_terms
 pq = pdaggerq.pq_helper("fermi")
 pq.set_print_level(0)
 
+T = ['t1','t2','t3','t4']
+
 # energy equation
 
 #pq.set_bra("")
@@ -16,8 +18,8 @@ print('')
 print('    < 0 | e(-T) H e(T) | 0> :')
 print('')
 
-pq.add_st_operator(1.0,['f'],['t1','t2','t3','t4'])
-pq.add_st_operator(1.0,['v'],['t1','t2','t3','t4'])
+pq.add_st_operator(1.0,['f'],T)
+pq.add_st_operator(1.0,['v'],T)
 
 pq.simplify()
 
@@ -37,8 +39,8 @@ print('')
 print('    < 0 | i* a e(-T) H e(T) | 0> :')
 print('')
 
-pq.add_st_operator(1.0,['f'],['t1','t2','t3','t4'])
-pq.add_st_operator(1.0,['v'],['t1','t2','t3','t4'])
+pq.add_st_operator(1.0,['f'],T)
+pq.add_st_operator(1.0,['v'],T)
 
 pq.simplify()
 
@@ -46,6 +48,13 @@ pq.simplify()
 singles_residual_terms = pq.fully_contracted_strings()
 for my_term in singles_residual_terms:
     print(my_term, flush=True)
+
+singles_residual_terms = contracted_strings_to_tensor_terms(singles_residual_terms)
+for my_term in singles_residual_terms:
+    print("#\t", my_term)
+    print(my_term.einsum_string(update_val='singles_res',
+                                output_variables=('a', 'i')))
+    print(flush=True)
 
 pq.clear()
 
@@ -58,8 +67,8 @@ print('')
 print('    < 0 | i* j* b a e(-T) H e(T) | 0> :')
 print('')
 
-pq.add_st_operator(1.0,['f'],['t1','t2','t3','t4'])
-pq.add_st_operator(1.0,['v'],['t1','t2','t3','t4'])
+pq.add_st_operator(1.0,['f'],T)
+pq.add_st_operator(1.0,['v'],T)
 
 pq.simplify()
 
@@ -67,6 +76,13 @@ pq.simplify()
 doubles_residual_terms = pq.fully_contracted_strings()
 for my_term in doubles_residual_terms:
     print(my_term, flush=True)
+
+doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
+for my_term in doubles_residual_terms:
+    print("#\t", my_term)
+    print(my_term.einsum_string(update_val='doubles_res',
+                                output_variables=('a', 'b', 'i', 'j')))
+    print(flush=True)
 
 pq.clear()
 
@@ -78,8 +94,8 @@ print('')
 print('    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
 print('')
 
-pq.add_st_operator(1.0,['f'],['t1','t2','t3','t4'])
-pq.add_st_operator(1.0,['v'],['t1','t2','t3','t4'])
+pq.add_st_operator(1.0,['f'],T)
+pq.add_st_operator(1.0,['v'],T)
 
 pq.simplify()
 
@@ -87,6 +103,13 @@ pq.simplify()
 triples_residual_terms = pq.fully_contracted_strings()
 for my_term in triples_residual_terms:
     print(my_term, flush=True)
+
+triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
+for my_term in triples_residual_terms:
+    print("#\t", my_term)
+    print(my_term.einsum_string(update_val='triples_res',
+                                output_variables=('a', 'b', 'c', 'i', 'j', 'k')))
+    print(flush=True)
 
 pq.clear()
 
@@ -98,15 +121,22 @@ print('')
 print('    < 0 | i* j* k* l* d c b a e(-T) H e(T) | 0> :')
 print('')
 
-pq.add_st_operator(1.0,['f'],['t1','t2','t3','t4'])
-pq.add_st_operator(1.0,['v'],['t1','t2','t3','t4'])
+pq.add_st_operator(1.0,['f'],T)
+pq.add_st_operator(1.0,['v'],T)
 
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-triples_residual_terms = pq.fully_contracted_strings()
-for my_term in triples_residual_terms:
+quadruples_residual_terms = pq.fully_contracted_strings()
+for my_term in quadruples_residual_terms:
     print(my_term, flush=True)
+
+quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
+for my_term in quadruples_residual_terms:
+    print("#\t", my_term)
+    print(my_term.einsum_string(update_val='quadruples_res',
+                                output_variables=('a', 'b', 'c', 'd', 'i', 'j', 'k', 'l')))
+    print(flush=True)
 
 pq.clear()
 
