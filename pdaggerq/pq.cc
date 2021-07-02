@@ -2777,7 +2777,7 @@ void pq::reclassify_tensors() {
     if ( data->tensor_type == "OCC_REPULSION") {
 
         // pick summation label not included in string already
-        std::vector<std::string> occ_out{"i","j","k","l","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
+        std::vector<std::string> occ_out{"i","j","k","l","m","n","o","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
         std::string idx;
 
         int skip = -999;
