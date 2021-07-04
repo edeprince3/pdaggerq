@@ -157,6 +157,7 @@ void pq::print() {
     printf("%c", sign > 0 ? '+' : '-');
     printf(" ");
     printf("%20.14lf", fabs(data->factor));
+    //printf("%7.5lf", fabs(data->factor));
     printf(" ");
 
     if ( (int)data->permutations.size() > 0 ) {
@@ -1405,22 +1406,7 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
             // t1 vs t2 vs t3, etc?
             if ( amps1[i].size() != amps2[j].size() ) continue;
 
-            // need to carefully consider if this works for t3 or higher (i doubt it does so just return false...)
-/*
-            if ( amps1[i].size() >= 6 ) return false;
-
-            // indices?
-            int nsame_idx = 0;
-            for (int ii = 0; ii < (int)amps1[i].size(); ii++) {
-                for (int jj = 0; jj < (int)amps2[j].size(); jj++) {
-                    if ( amps1[i][ii] == amps2[j][jj] ) {
-                        if ( (ii - jj) % 2 != 0  && ii < jj ) n_permute++;
-                        nsame_idx++;
-                        break;
-                    }
-                }
-            }
-*/
+            // for higher than t4, just return false
 
             // check labels
             int dim = (int)amps1[i].size();
@@ -1428,14 +1414,14 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
 
             // cases: 
 
-            // dim = 2: no permutations
+            // dim = 2: singles, no permutations
             if ( dim == 2 ) {
 
                 if ( amps1[i][0] == amps2[j][0] && amps1[i][1] == amps2[j][1] ) {
                     nsame_idx = 2;
                 }
 
-            // dim = 4: 
+            // dim = 4: doubles
             }else if ( dim == 4 ) {
             
                 // first part
@@ -1466,91 +1452,23 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
 
                 }
             
-            // dim = 6: 
+            // dim = 6: triples
             }else if ( dim == 6 ) {
 
                 // first part
-                if ( amps1[i][0] == amps2[j][0] 
-                  && amps1[i][1] == amps2[j][1] 
-                  && amps1[i][2] == amps2[j][2] ) {
+                triples_permutations(amps1[i],amps2[j],nsame_idx,n_permute,0);
 
-                    nsame_idx += 3;
-
-                }else if ( amps1[i][0] == amps2[j][0] 
-                        && amps1[i][1] == amps2[j][2] 
-                        && amps1[i][2] == amps2[j][1] ) {
-
-                    nsame_idx += 3;
-                    n_permute++;
-
-                }else if ( amps1[i][0] == amps2[j][1] 
-                        && amps1[i][1] == amps2[j][0] 
-                        && amps1[i][2] == amps2[j][2] ) {
-
-                    nsame_idx += 3;
-                    n_permute++;
-
-                }else if ( amps1[i][0] == amps2[j][1] 
-                        && amps1[i][1] == amps2[j][2] 
-                        && amps1[i][2] == amps2[j][0] ) {
-
-                    nsame_idx += 3;
-
-                }else if ( amps1[i][0] == amps2[j][2] 
-                        && amps1[i][1] == amps2[j][0] 
-                        && amps1[i][2] == amps2[j][1] ) {
-
-                    nsame_idx += 3;
-
-                }else if ( amps1[i][0] == amps2[j][2] 
-                        && amps1[i][1] == amps2[j][1] 
-                        && amps1[i][2] == amps2[j][0] ) {
-
-                    nsame_idx += 3;
-                    n_permute++;
-
-                }
                 // second part
-                if ( amps1[i][3] == amps2[j][3] 
-                  && amps1[i][4] == amps2[j][4] 
-                  && amps1[i][5] == amps2[j][5] ) {
+                triples_permutations(amps1[i],amps2[j],nsame_idx,n_permute,3);
 
-                    nsame_idx += 3;
+            // dim = 8: quadruples
+            }else if ( dim == 8 ) {
 
-                }else if ( amps1[i][3] == amps2[j][3] 
-                        && amps1[i][4] == amps2[j][5] 
-                        && amps1[i][5] == amps2[j][4] ) {
+                // first part
+                quadruples_permutations(amps1[i],amps2[j],nsame_idx,n_permute,0);
 
-                    nsame_idx += 3;
-                    n_permute++;
-
-                }else if ( amps1[i][3] == amps2[j][4] 
-                        && amps1[i][4] == amps2[j][3] 
-                        && amps1[i][5] == amps2[j][5] ) {
-
-                    nsame_idx += 3;
-                    n_permute++;
-
-                }else if ( amps1[i][3] == amps2[j][4] 
-                        && amps1[i][4] == amps2[j][5] 
-                        && amps1[i][5] == amps2[j][3] ) {
-
-                    nsame_idx += 3;
-
-                }else if ( amps1[i][3] == amps2[j][5] 
-                        && amps1[i][4] == amps2[j][3] 
-                        && amps1[i][5] == amps2[j][4] ) {
-
-                    nsame_idx += 3;
-
-                }else if ( amps1[i][3] == amps2[j][5] 
-                        && amps1[i][4] == amps2[j][4] 
-                        && amps1[i][5] == amps2[j][3] ) {
-
-                    nsame_idx += 3;
-                    n_permute++;
-
-                }
+                // second part
+                quadruples_permutations(amps1[i],amps2[j],nsame_idx,n_permute,4);
 
             }else {
 
@@ -1568,6 +1486,245 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
     if ( nsame_amps != (int)amps1.size() ) return false;
 
     return true;
+}
+
+/// permutations and coincidences for triples
+void pq::triples_permutations(std::vector<std::string> amps1, 
+                              std::vector<std::string> amps2, 
+                              int & nsame_idx, 
+                              int & n_permute,
+                              int off) {
+
+   if ( amps1[0+off] == amps2[0+off] 
+     && amps1[1+off] == amps2[1+off] 
+     && amps1[2+off] == amps2[2+off] ) {
+
+       nsame_idx += 3;
+
+   }else if ( amps1[0+off] == amps2[0+off] 
+           && amps1[1+off] == amps2[2+off] 
+           && amps1[2+off] == amps2[1+off] ) {
+
+       nsame_idx += 3;
+       n_permute++;
+
+   }else if ( amps1[0+off] == amps2[1+off] 
+           && amps1[1+off] == amps2[0+off] 
+           && amps1[2+off] == amps2[2+off] ) {
+
+       nsame_idx += 3;
+       n_permute++;
+
+   }else if ( amps1[0+off] == amps2[1+off] 
+           && amps1[1+off] == amps2[2+off] 
+           && amps1[2+off] == amps2[0+off] ) {
+
+       nsame_idx += 3;
+
+   }else if ( amps1[0+off] == amps2[2+off] 
+           && amps1[1+off] == amps2[0+off] 
+           && amps1[2+off] == amps2[1+off] ) {
+
+       nsame_idx += 3;
+
+   }else if ( amps1[0+off] == amps2[2+off] 
+           && amps1[1+off] == amps2[1+off] 
+           && amps1[2+off] == amps2[0+off] ) {
+
+       nsame_idx += 3;
+       n_permute++;
+
+   }
+}
+
+/// permutations and coincidences for quadruples
+void pq::quadruples_permutations(std::vector<std::string> amps1, 
+                                 std::vector<std::string> amps2, 
+                                 int & nsame_idx, 
+                                 int & n_permute,
+                                 int off) {
+
+    if ( amps1[0+off] == amps2[0+off] 
+      && amps1[1+off] == amps2[1+off] 
+      && amps1[2+off] == amps2[2+off]
+      && amps1[3+off] == amps2[3+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[0+off] 
+            && amps1[1+off] == amps2[1+off] 
+            && amps1[2+off] == amps2[3+off]
+            && amps1[3+off] == amps2[2+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[0+off] 
+            && amps1[1+off] == amps2[2+off] 
+            && amps1[2+off] == amps2[1+off]
+            && amps1[3+off] == amps2[3+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[0+off] 
+            && amps1[1+off] == amps2[2+off] 
+            && amps1[2+off] == amps2[3+off]
+            && amps1[3+off] == amps2[1+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[0+off] 
+            && amps1[1+off] == amps2[3+off] 
+            && amps1[2+off] == amps2[1+off]
+            && amps1[3+off] == amps2[2+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[0+off] 
+            && amps1[1+off] == amps2[3+off] 
+            && amps1[2+off] == amps2[2+off]
+            && amps1[3+off] == amps2[1+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[1+off] 
+            && amps1[1+off] == amps2[0+off] 
+            && amps1[2+off] == amps2[2+off]
+            && amps1[3+off] == amps2[3+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[1+off] 
+            && amps1[1+off] == amps2[0+off] 
+            && amps1[2+off] == amps2[3+off]
+            && amps1[3+off] == amps2[2+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[1+off] 
+            && amps1[1+off] == amps2[2+off] 
+            && amps1[2+off] == amps2[3+off]
+            && amps1[3+off] == amps2[0+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[1+off] 
+            && amps1[1+off] == amps2[2+off] 
+            && amps1[2+off] == amps2[0+off]
+            && amps1[3+off] == amps2[3+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[1+off] 
+            && amps1[1+off] == amps2[3+off] 
+            && amps1[2+off] == amps2[0+off]
+            && amps1[3+off] == amps2[2+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[1+off] 
+            && amps1[1+off] == amps2[3+off] 
+            && amps1[2+off] == amps2[2+off]
+            && amps1[3+off] == amps2[0+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[2+off] 
+            && amps1[1+off] == amps2[0+off] 
+            && amps1[2+off] == amps2[3+off]
+            && amps1[3+off] == amps2[1+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[2+off] 
+            && amps1[1+off] == amps2[0+off] 
+            && amps1[2+off] == amps2[1+off]
+            && amps1[3+off] == amps2[3+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[2+off] 
+            && amps1[1+off] == amps2[1+off] 
+            && amps1[2+off] == amps2[0+off]
+            && amps1[3+off] == amps2[3+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[2+off] 
+            && amps1[1+off] == amps2[1+off] 
+            && amps1[2+off] == amps2[3+off]
+            && amps1[3+off] == amps2[0+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[2+off] 
+            && amps1[1+off] == amps2[3+off] 
+            && amps1[2+off] == amps2[0+off]
+            && amps1[3+off] == amps2[1+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[2+off] 
+            && amps1[1+off] == amps2[3+off] 
+            && amps1[2+off] == amps2[1+off]
+            && amps1[3+off] == amps2[0+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[3+off] 
+            && amps1[1+off] == amps2[0+off] 
+            && amps1[2+off] == amps2[1+off]
+            && amps1[3+off] == amps2[2+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[3+off] 
+            && amps1[1+off] == amps2[0+off] 
+            && amps1[2+off] == amps2[2+off]
+            && amps1[3+off] == amps2[1+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[3+off] 
+            && amps1[1+off] == amps2[1+off] 
+            && amps1[2+off] == amps2[0+off]
+            && amps1[3+off] == amps2[2+off] ) {
+
+        nsame_idx += 4;
+
+    }else if ( amps1[0+off] == amps2[3+off] 
+            && amps1[1+off] == amps2[1+off] 
+            && amps1[2+off] == amps2[2+off]
+            && amps1[3+off] == amps2[0+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[3+off] 
+            && amps1[1+off] == amps2[2+off] 
+            && amps1[2+off] == amps2[0+off]
+            && amps1[3+off] == amps2[1+off] ) {
+
+        nsame_idx += 4;
+        n_permute++;
+
+    }else if ( amps1[0+off] == amps2[3+off] 
+            && amps1[1+off] == amps2[2+off] 
+            && amps1[2+off] == amps2[1+off]
+            && amps1[3+off] == amps2[0+off] ) {
+
+        nsame_idx += 4;
+
+   }
 }
 
 // copy all data, except symbols and daggers. 
@@ -2620,7 +2777,7 @@ void pq::reclassify_tensors() {
     if ( data->tensor_type == "OCC_REPULSION") {
 
         // pick summation label not included in string already
-        std::vector<std::string> occ_out{"i","j","k","l","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
+        std::vector<std::string> occ_out{"i","j","k","l","m","n","o","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
         std::string idx;
 
         int skip = -999;

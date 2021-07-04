@@ -1231,11 +1231,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }else if ( in[i].substr(1,1) == "3" ){
 
-                        //printf("\n");
-                        //printf("    error: e3 operator not yet implemented.\n");
-                        //printf("\n");
-                        //exit(1);
-
                         // count indices
                         size_t pos = 0;
                         int ncomma = 0;
@@ -1262,9 +1257,39 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(in[i].substr(commas[3]+1,commas[4]-commas[3]-1));
                         tmp_string.push_back(in[i].substr(commas[4]+1));
 
+                    }else if ( in[i].substr(1,1) == "4" ){
+
+                        // count indices
+                        size_t pos = 0;
+                        int ncomma = 0;
+                        std::vector<size_t> commas;
+                        pos = in[i].find(",", pos + 1);
+                        commas.push_back(pos);
+                        while( pos != std::string::npos){
+                            pos = in[i].find(",", pos + 1);
+                            commas.push_back(pos);
+                            ncomma++;
+                        }
+
+                        if ( ncomma != 7 ) {
+                            printf("\n");
+                            printf("    error in e4 definition\n");
+                            printf("\n");
+                            exit(1);
+                        }
+
+                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[2]+1,commas[3]-commas[2]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[3]+1,commas[4]-commas[3]-1));
+                        tmp_string.push_back(in[i].substr(commas[4]+1,commas[5]-commas[4]-1));
+                        tmp_string.push_back(in[i].substr(commas[5]+1,commas[6]-commas[5]-1));
+                        tmp_string.push_back(in[i].substr(commas[6]+1));
+
                     }else {
                         printf("\n");
-                        printf("    error: only e1, e2, and e3 operators are supported\n");
+                        printf("    error: only e1, e2, e3, and e4 operators are supported\n");
                         printf("\n");
                         exit(1);
                     }
