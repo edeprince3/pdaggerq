@@ -3932,7 +3932,7 @@ def quadruples_residual(t1, t2, t3, t4, f, g, o, v):
     return quadruples_res
 
 def kernel(t1, t2, t3, t4, fock, g, o, v, e_ai, e_abij, e_abcijk, e_abcdijkl, hf_energy, max_iter=100,
-           stopping_eps=1.0E-8):
+           stopping_eps_e=1.0E-9,stopping_eps_t=1e-5):
     """
 
     :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
@@ -3981,7 +3981,7 @@ def kernel(t1, t2, t3, t4, fock, g, o, v, e_ai, e_abij, e_abcijk, e_abcdijkl, hf
         current_energy = cc_energy(new_singles, new_doubles, fock, g, o, v)
         delta_e = np.abs(old_energy - current_energy)
 
-        if delta_e < stopping_eps and res_norm < stopping_eps:
+        if delta_e < stopping_eps_e and res_norm < stopping_eps_t:
             # assign t1 and t2 variables for future use before breaking
             t1 = new_singles
             t2 = new_doubles
@@ -4079,7 +4079,7 @@ def main():
     t4z = np.zeros((nsvirt, nsvirt, nsvirt, nsvirt, nsocc, nsocc, nsocc, nsocc))
 
     t1f, t2f, t3f = kernel(t1z, t2z, t3z, t4z, fock, g, o, v, e_ai, e_abij,e_abcijk,e_abcdijkl, hf_energy,
-                        stopping_eps=1e-10)
+                        stopping_eps_e=1e-9,stopping_eps_t=1e-5)
 
 
     en = cc_energy(t1f, t2f, fock, g, o, v) 
