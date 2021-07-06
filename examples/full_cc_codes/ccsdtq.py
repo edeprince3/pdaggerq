@@ -3932,7 +3932,7 @@ def quadruples_residual(t1, t2, t3, t4, f, g, o, v):
     return quadruples_res
 
 def kernel(t1, t2, t3, t4, fock, g, o, v, e_ai, e_abij, e_abcijk, e_abcdijkl, hf_energy, max_iter=100,
-           stopping_eps_e=1.0E-9,stopping_eps_t=1e-5):
+           stopping_eps_e=1.0E-9,stopping_eps_t=1e-4):
     """
 
     :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
