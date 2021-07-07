@@ -4079,7 +4079,7 @@ def main():
     t4z = np.zeros((nsvirt, nsvirt, nsvirt, nsvirt, nsocc, nsocc, nsocc, nsocc))
 
     t1f, t2f, t3f = kernel(t1z, t2z, t3z, t4z, fock, g, o, v, e_ai, e_abij,e_abcijk,e_abcdijkl, hf_energy,
-                        stopping_eps_e=1e-9,stopping_eps_t=1e-5)
+                        stopping_eps_e=1e-9,stopping_eps_t=1e-4)
 
 
     en = cc_energy(t1f, t2f, fock, g, o, v) 
