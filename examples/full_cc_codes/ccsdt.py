@@ -996,6 +996,7 @@ def kernel(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_ite
         current_energy = cc_energy(new_singles, new_doubles, fock, g, o, v)
         delta_e = np.abs(old_energy - current_energy)
 
+        print("    {: 5d} {: 20.12f} {: 20.12f} {: 20.12f}".format(idx, current_energy - hf_energy, delta_e, res_norm))
         if delta_e < stopping_eps and res_norm < stopping_eps:
             # assign t1 and t2 variables for future use before breaking
             t1 = new_singles
@@ -1008,7 +1009,6 @@ def kernel(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_ite
             t2 = new_doubles
             t3 = new_triples
             old_energy = current_energy
-            print("    {: 5d} {: 20.12f} {: 20.12f} {: 20.12f}".format(idx, old_energy - hf_energy, delta_e, res_norm))
     else:
         raise ValueError("CCSDT iterations did not converge")
 

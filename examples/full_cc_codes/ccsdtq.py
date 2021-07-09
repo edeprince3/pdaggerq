@@ -25,7 +25,6 @@ os.environ["MKL_NUM_THREADS"] = "{}".format(os.cpu_count() - 1)
 import numpy as np
 from numpy import einsum
 
-
 def cc_energy(t1, t2, f, g, o, v):
     """
     < 0 | e(-T) H e(T) | 0> :
@@ -3932,7 +3931,7 @@ def quadruples_residual(t1, t2, t3, t4, f, g, o, v):
     return quadruples_res
 
 def kernel(t1, t2, t3, t4, fock, g, o, v, e_ai, e_abij, e_abcijk, e_abcdijkl, hf_energy, max_iter=100,
-           stopping_eps_e=1.0E-9,stopping_eps_t=1e-4):
+           stopping_eps_e=1e-9,stopping_eps_t=1e-5):
     """
 
     :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
@@ -3981,6 +3980,7 @@ def kernel(t1, t2, t3, t4, fock, g, o, v, e_ai, e_abij, e_abcijk, e_abcdijkl, hf
         current_energy = cc_energy(new_singles, new_doubles, fock, g, o, v)
         delta_e = np.abs(old_energy - current_energy)
 
+        print("    {: 5d} {: 20.12f} {: 20.12f} {: 20.12f}".format(idx, current_energy - hf_energy, delta_e, res_norm))
         if delta_e < stopping_eps_e and res_norm < stopping_eps_t:
             # assign t1 and t2 variables for future use before breaking
             t1 = new_singles
@@ -3995,7 +3995,6 @@ def kernel(t1, t2, t3, t4, fock, g, o, v, e_ai, e_abij, e_abcijk, e_abcdijkl, hf
             t3 = new_triples
             t4 = new_quadruples
             old_energy = current_energy
-            print("    {: 5d} {: 20.12f} {: 20.12f} {: 20.12f}".format(idx, old_energy - hf_energy, delta_e, res_norm))
     else:
         raise ValueError("CCSDTQ iterations did not converge")
 
@@ -4079,7 +4078,7 @@ def main():
     t4z = np.zeros((nsvirt, nsvirt, nsvirt, nsvirt, nsocc, nsocc, nsocc, nsocc))
 
     t1f, t2f, t3f = kernel(t1z, t2z, t3z, t4z, fock, g, o, v, e_ai, e_abij,e_abcijk,e_abcdijkl, hf_energy,
-                        stopping_eps_e=1e-9,stopping_eps_t=1e-4)
+                        stopping_eps_e=1e-9,stopping_eps_t=1e-5)
 
 
     en = cc_energy(t1f, t2f, fock, g, o, v) 
