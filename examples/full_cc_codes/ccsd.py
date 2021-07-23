@@ -326,8 +326,16 @@ def doubles_residual(t1, t2, f, g, o, v):
 
     return doubles_res
 
+def kernel(t1, t2, fock, g, o, v, e_ai, e_abij, max_iter=100, stopping_eps=1.0E-8,
+           diis_size=None, diis_start_cycle=4):
 
-def kernel(t1, t2, fock, g, o, v, e_ai, e_abij, max_iter=100, stopping_eps=1.0E-8):
+    # initialize diis if diis_size is not None
+    # else normal scf iterate
+    if diis_size is not None:
+        from diis import DIIS
+        diis_update = DIIS(diis_size, start_iter=diis_start_cycle)
+        t1_dim = t1.size
+        old_vec = np.hstack((t1.flatten(), t2.flatten()))
 
     fock_e_ai = np.reciprocal(e_ai)
     fock_e_abij = np.reciprocal(e_abij)
@@ -339,6 +347,17 @@ def kernel(t1, t2, fock, g, o, v, e_ai, e_abij, max_iter=100, stopping_eps=1.0E-
 
         new_singles = singles_res * e_ai
         new_doubles = doubles_res * e_abij
+
+        # diis update
+        if diis_size is not None:
+            vectorized_iterate = np.hstack(
+                (new_singles.flatten(), new_doubles.flatten()))
+            error_vec = old_vec - vectorized_iterate
+            new_vectorized_iterate = diis_update.compute_new_vec(vectorized_iterate,
+                                                                 error_vec)
+            new_singles = new_vectorized_iterate[:t1_dim].reshape(t1.shape)
+            new_doubles = new_vectorized_iterate[t1_dim:].reshape(t2.shape)
+            old_vec = new_vectorized_iterate
 
         current_energy = ccsd_energy(new_singles, new_doubles, fock, g, o, v)
         delta_e = np.abs(old_energy - current_energy)
@@ -410,6 +429,11 @@ def main():
     nsocc = 2 * nocc
     t1f, t2f = kernel(np.zeros((nsvirt, nsocc)), np.zeros((nsvirt, nsvirt, nsocc, nsocc)), fock, g, o, v, e_ai, e_abij)
     print(ccsd_energy(t1f, t2f, fock, g, o, v) - hf_energy)
+
+    t1f, t2f = kernel(np.zeros((nsvirt, nsocc)), np.zeros((nsvirt, nsvirt, nsocc, nsocc)), fock, g, o, v, e_ai, e_abij,
+                      diis_size=8, diis_start_cycle=4)
+    print(ccsd_energy(t1f, t2f, fock, g, o, v) - hf_energy)
+
 
 
 
