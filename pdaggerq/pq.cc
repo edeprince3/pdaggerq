@@ -582,7 +582,7 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
             for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
                 if ( ordered[i]->is_dagger[j] ) ndagger++;
             }
-            for (size_t j = 0; j < ndagger-1; j++) {
+            for (int j = 0; j < ndagger-1; j++) {
                 int val1 = ordered[i]->symbol[j].c_str()[0];
                 int val2 = ordered[i]->symbol[j+1].c_str()[0];
                 if ( val2 < val1 ) {
