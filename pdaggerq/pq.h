@@ -59,23 +59,8 @@ class pq {
     /// replace one label with another (in tensor)
     void replace_index_in_tensor(std::string old_idx, std::string new_idx);
 
-    /// replace one label with another (in t-amplitudes)
-    void replace_index_in_t_amplitudes(std::string old_idx, std::string new_idx);
-
-    /// replace one label with another (in u-amplitudes)
-    void replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx);
-
-    /// replace one label with another (in m-amplitudes)
-    void replace_index_in_m_amplitudes(std::string old_idx, std::string new_idx);
-
-    /// replace one label with another (in s-amplitudes)
-    void replace_index_in_s_amplitudes(std::string old_idx, std::string new_idx);
-
-    /// replace one label with another (in left-hand amplitudes)
-    void replace_index_in_left_amplitudes(std::string old_idx, std::string new_idx);
-
-    /// replace one label with another (in right-hand amplitudes)
-    void replace_index_in_right_amplitudes(std::string old_idx, std::string new_idx);
+    /// replace one label with another (in a given term)
+    void replace_index_in_term(std::string old_idx, std::string new_idx, std::vector<std::vector<std::string> > &term);
 
     /// are two strings the same? if so, how many permutations to relate them?
     bool compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute);
