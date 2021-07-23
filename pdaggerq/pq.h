@@ -47,23 +47,8 @@ class pq {
     /// how many times does label "idx" appear in tensor term?
     int index_in_tensor(std::string idx);
 
-    /// how many times does label "idx" appear in t-amplitudes?
-    int index_in_t_amplitudes(std::string idx);
-
-    /// how many times does label "idx" appear in u-amplitudes?
-    int index_in_u_amplitudes(std::string idx);
-
-    /// how many times does label "idx" appear in m-amplitudes?
-    int index_in_m_amplitudes(std::string idx);
-
-    /// how many times does label "idx" appear in s-amplitudes?
-    int index_in_s_amplitudes(std::string idx);
-
-    /// how many times does label "idx" appear in left-hand amplitudes?
-    int index_in_left_amplitudes(std::string idx);
-
-    /// how many times does label "idx" appear in right-hand amplitudes?
-    int index_in_right_amplitudes(std::string idx);
+    /// how many times does label "idx" appear in a given term
+    int index_in_term(std::string idx, std::vector<std::vector<std::string> > term);
 
     /// replace one label with another (everywhere)
     void replace_index_everywhere(std::string old_idx, std::string new_idx);
