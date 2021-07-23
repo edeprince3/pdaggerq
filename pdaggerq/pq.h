@@ -161,6 +161,14 @@ class pq {
     /// print string information
     void print();
 
+    /// print amplitudes
+    void print_amplitudes(std::string label, std::vector<std::vector<std::string> > amplitudes);
+
+    /// add amplitudes to list of strings
+    void print_amplitudes_to_string(std::string label, 
+                                    std::vector<std::vector<std::string> > amplitudes, 
+                                    std::vector<std::string> &my_string );
+
     /// get string information
     std::vector<std::string> get_string();
 

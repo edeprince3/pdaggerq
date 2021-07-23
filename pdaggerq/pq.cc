@@ -108,7 +108,7 @@ void pq::check_occ_vir() {
    // VIR: A,B,C,D,E,F
    // GEN: P,Q,R,S,T,U,V,W
 
-   for (int i = 0; i < (int)delta1.size(); i++ ) {
+   for (size_t i = 0; i < delta1.size(); i++ ) {
        bool first_is_occ = false;
        if ( is_occ(delta1[i]) ){
            first_is_occ = true;
@@ -135,21 +135,48 @@ void pq::check_occ_vir() {
 
 }
 
+void pq::print_amplitudes(std::string label, std::vector<std::vector<std::string> > amplitudes) {
+
+    if ( amplitudes.size() == 0 ) {
+        return;
+    }
+
+    for (size_t i = 0; i < amplitudes.size(); i++) {
+
+        if ( amplitudes[i].size() > 0 ) {
+
+            size_t order = amplitudes[i].size() / 2;
+            printf("%s",label.c_str());
+            printf("%zu",order);
+            printf("(");
+            for (size_t j = 0; j < 2*order-1; j++) {
+                printf("%s",amplitudes[i][j].c_str());
+                printf(",");
+            }
+            printf("%s",amplitudes[i][2*order-1].c_str());
+            printf(")");
+            printf(" ");
+
+        }
+    }
+
+}
+
 void pq::print() {
 
     if ( skip ) return;
 
-    if ( vacuum == "FERMI" && (int)symbol.size() > 0 ) {
+    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
-        bool is_dagger_right = is_dagger_fermi[(int)symbol.size() - 1];
+        bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
         bool is_dagger_left  = is_dagger_fermi[0];
         if ( !is_dagger_right || is_dagger_left ) {
             //return;
         }
     }
 
-    //for (int i = 0; i < (int)symbol.size(); i++) {
-    //    printf("%5i\n",(int)is_dagger_fermi[i]);
+    //for (size_t i = 0; i < symbol.size(); i++) {
+    //    printf("%5zu\n",is_dagger_fermi[i]);
     //}
 
     printf("    ");
@@ -160,9 +187,9 @@ void pq::print() {
     //printf("%7.5lf", fabs(data->factor));
     printf(" ");
 
-    if ( (int)data->permutations.size() > 0 ) {
+    if ( data->permutations.size() > 0 ) {
         // should have an even number of symbols...how many pairs?
-        int n = (int)data->permutations.size() / 2;
+        size_t n = data->permutations.size() / 2;
         int count = 0;
         for (int i = 0; i < n; i++) {
             printf("P(");
@@ -174,20 +201,20 @@ void pq::print() {
         }
     }
 
-    for (int i = 0; i < (int)symbol.size(); i++) {
+    for (size_t i = 0; i < symbol.size(); i++) {
         printf("%s",symbol[i].c_str());
         if ( is_dagger[i] ) {
             printf("%c",'*');
         }
         printf(" ");
     }
-    for (int i = 0; i < (int)delta1.size(); i++) {
+    for (size_t i = 0; i < delta1.size(); i++) {
         printf("d(%s,%s)",delta1[i].c_str(),delta2[i].c_str());
         printf(" ");
     }
 
     // two-electron integrals
-    if ( (int)data->tensor.size() == 4 ) {
+    if ( data->tensor.size() == 4 ) {
 
         if ( data->tensor_type == "TWO_BODY") {
             printf("g(");
@@ -216,7 +243,7 @@ void pq::print() {
     }
 
     // one-electron integrals
-    if ( (int)data->tensor.size() == 2 ) {
+    if ( data->tensor.size() == 2 ) {
         if ( data->tensor_type == "CORE") {
             printf("h(");
         }else if ( data->tensor_type == "FOCK") {
@@ -234,162 +261,45 @@ void pq::print() {
     }
 
     // left-hand amplitudes
-    if ( (int)data->left_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-           
-            if ( (int)data->left_amplitudes[i].size() > 0 ) {
-
-                int order = (int)data->left_amplitudes[i].size() / 2;
-                printf("l");
-                printf("%i",order);
-                printf("(");
-                for (int j = 0; j < 2*order-1; j++) {
-                    printf("%s",data->left_amplitudes[i][j].c_str());
-                    printf(",");
-                }
-                printf("%s",data->left_amplitudes[i][2*order-1].c_str());
-                printf(")");
-                printf(" ");
-
-            } 
-        }
-    }
+    print_amplitudes("l",data->left_amplitudes);
     if ( data->has_l0 ) {
         printf("l0");
         printf(" ");
     }
 
     // right-hand amplitudes
-    if ( (int)data->right_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-           
-            if ( (int)data->right_amplitudes[i].size() > 0 ) {
-
-                int order = (int)data->right_amplitudes[i].size() / 2;
-                printf("r");
-                printf("%i",order);
-                printf("(");
-                for (int j = 0; j < 2*order-1; j++) {
-                    printf("%s",data->right_amplitudes[i][j].c_str());
-                    printf(",");
-                }
-                printf("%s",data->right_amplitudes[i][2*order-1].c_str());
-                printf(")");
-                printf(" ");
-
-            }
-
-        }
-    }
+    print_amplitudes("r",data->right_amplitudes);
     if ( data->has_r0 ) {
         printf("r0");
         printf(" ");
     }
 
     // t_amplitudes
-    if ( (int)data->t_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-
-            if ( (int)data->t_amplitudes[i].size() > 0 ) {
-
-                int order = (int)data->t_amplitudes[i].size() / 2;
-                printf("t");
-                printf("%i",order);
-                printf("(");
-                for (int j = 0; j < 2*order-1; j++) {
-                    printf("%s",data->t_amplitudes[i][j].c_str());
-                    printf(",");
-                }
-                printf("%s",data->t_amplitudes[i][2*order-1].c_str());
-                printf(")");
-                printf(" ");
-
-            }
-          
-        }
-    }
+    print_amplitudes("t",data->t_amplitudes);
 
     // u_amplitudes
-    if ( (int)data->u_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
-           
-            if ( (int)data->u_amplitudes[i].size() > 0 ) {
-
-                int order = (int)data->u_amplitudes[i].size() / 2;
-                printf("u");
-                printf("%i",order);
-                printf("(");
-                for (int j = 0; j < 2*order-1; j++) {
-                    printf("%s",data->u_amplitudes[i][j].c_str());
-                    printf(",");
-                }
-                printf("%s",data->u_amplitudes[i][2*order-1].c_str());
-                printf(")");
-                printf(" ");
-            }
-
-        }
-    }
+    print_amplitudes("u",data->u_amplitudes);
     if ( data->has_u0 ) {
         printf("u0");
         printf(" ");
     }
 
     // m_amplitudes
-    if ( (int)data->m_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
-        
-            if ( (int)data->m_amplitudes[i].size() > 0 ) {
-
-                int order = (int)data->m_amplitudes[i].size() / 2;
-                printf("m");
-                printf("%i",order);
-                printf("(");
-                for (int j = 0; j < 2*order-1; j++) {
-                    printf("%s",data->m_amplitudes[i][j].c_str());
-                    printf(",");
-                }
-                printf("%s",data->m_amplitudes[i][2*order-1].c_str());
-                printf(")");
-                printf(" ");
-
-            }   
-        }
-    }
+    print_amplitudes("m",data->m_amplitudes);
     if ( data->has_m0 ) {
         printf("m0");
         printf(" ");
     }
 
     // s_amplitudes
-    if ( (int)data->s_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
-       
-            if ( (int)data->s_amplitudes[i].size() > 0 ) {
-
-                int order = (int)data->s_amplitudes[i].size() / 2;
-                printf("s");
-                printf("%i",order);
-                printf("(");
-                for (int j = 0; j < 2*order-1; j++) {
-                    printf("%s",data->s_amplitudes[i][j].c_str());
-                    printf(",");
-                }
-                printf("%s",data->s_amplitudes[i][2*order-1].c_str());
-                printf(")");
-                printf(" ");
-
-            }    
-
-        }
-    }
+    print_amplitudes("s",data->s_amplitudes);
     if ( data->has_s0 ) {
         printf("s0");
         printf(" ");
     }
 
     // bosons:
-    for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+    for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
         if ( data->is_boson_dagger[i] ) {
             printf("B* ");
         }else {
@@ -413,15 +323,40 @@ void pq::print() {
     printf("\n");
 }
 
+void pq::print_amplitudes_to_string(std::string label, 
+                                    std::vector<std::vector<std::string> > amplitudes, 
+                                    std::vector<std::string> &my_string ) {
+
+    if ( amplitudes.size() == 0 ) {
+        return;
+    }
+    
+    for (size_t i = 0; i < amplitudes.size(); i++) {
+        
+        if ( amplitudes[i].size() > 0 ) {
+            
+            size_t order = amplitudes[i].size() / 2;
+            std::string tmp = label + std::to_string(order) + "(";
+            for (int j = 0; j < 2*order-1; j++) {
+                tmp += amplitudes[i][j] + ",";
+            }
+            tmp += amplitudes[i][2*order-1] + ")";
+            my_string.push_back(tmp);
+        
+        }
+
+    }
+}
+
 std::vector<std::string> pq::get_string() {
 
     std::vector<std::string> my_string;
 
     if ( skip ) return my_string;
 
-    if ( vacuum == "FERMI" && (int)symbol.size() > 0 ) {
+    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
-        bool is_dagger_right = is_dagger_fermi[(int)symbol.size() - 1];
+        bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
         bool is_dagger_left  = is_dagger_fermi[0];
         if ( !is_dagger_right || is_dagger_left ) {
             //return;
@@ -437,11 +372,11 @@ std::vector<std::string> pq::get_string() {
     //my_string.push_back(tmp + std::to_string(fabs(data->factor)));
     my_string.push_back(tmp + to_string_with_precision(fabs(data->factor),14));
 
-    if ( (int)data->permutations.size() > 0 ) {
+    if ( data->permutations.size() > 0 ) {
         // should have an even number of symbols...how many pairs?
-        int n = (int)data->permutations.size() / 2;
-        int count = 0;
-        for (int i = 0; i < n; i++) {
+        size_t n = data->permutations.size() / 2;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
             tmp  = "P(";
             tmp += data->permutations[count++];
             tmp += ",";
@@ -451,7 +386,7 @@ std::vector<std::string> pq::get_string() {
         }
     }
 
-    for (int i = 0; i < (int)symbol.size(); i++) {
+    for (size_t i = 0; i < symbol.size(); i++) {
         std::string tmp = symbol[i];
         if ( is_dagger[i] ) {
             tmp += "*";
@@ -459,13 +394,13 @@ std::vector<std::string> pq::get_string() {
         my_string.push_back(tmp);
     }
 
-    for (int i = 0; i < (int)delta1.size(); i++) {
+    for (size_t i = 0; i < delta1.size(); i++) {
         std::string tmp = "d(" + delta1[i] + "," + delta2[i] + ")";
         my_string.push_back(tmp);
     }
 
     // two-electron integrals
-    if ( (int)data->tensor.size() == 4 ) {
+    if ( data->tensor.size() == 4 ) {
 
         if ( data->tensor_type == "TWO_BODY") {
             std::string tmp = "g("
@@ -494,7 +429,7 @@ std::vector<std::string> pq::get_string() {
     }
 
     // one-electron integrals
-    if ( (int)data->tensor.size() == 2 ) {
+    if ( data->tensor.size() == 2 ) {
         std::string tmp;
         if ( data->tensor_type == "CORE") {
             tmp = "h(";
@@ -513,136 +448,40 @@ std::vector<std::string> pq::get_string() {
     }
 
     // left-hand amplitudes
-    if ( (int)data->left_amplitudes.size() > 0 ) {
-
-        for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-        
-            if ( (int)data->left_amplitudes[i].size() > 0 ) {
-
-                int order = (int)data->left_amplitudes[i].size() / 2;
-                tmp = "l" + std::to_string(order) + "(";
-                for (int j = 0; j < 2*order-1; j++) {
-                    tmp += data->left_amplitudes[i][j] + ",";
-                }
-                tmp += data->left_amplitudes[i][2*order-1] + ")";
-                my_string.push_back(tmp);
-
-            }   
-
-        }
-    }
+    print_amplitudes_to_string("l",data->left_amplitudes,my_string);
     if ( data->has_l0 ) {
         my_string.push_back("l0");
     }
 
     // right-hand amplitudes
-    if ( (int)data->right_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-
-            if ( (int)data->right_amplitudes[i].size() > 0 ) {
-                
-                int order = (int)data->right_amplitudes[i].size() / 2;
-                tmp = "r" + std::to_string(order) + "(";
-                for (int j = 0; j < 2*order-1; j++) { 
-                    tmp += data->right_amplitudes[i][j] + ",";
-                }
-                tmp += data->right_amplitudes[i][2*order-1] + ")";
-                my_string.push_back(tmp);
-            
-            }           
-        }
-    }
+    print_amplitudes_to_string("r",data->right_amplitudes,my_string);
     if ( data->has_r0 ) {
         my_string.push_back("r0");
     }
 
     // t_amplitudes
-    if ( (int)data->t_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-          
-            if ( (int)data->t_amplitudes[i].size() > 0 ) {
- 
-                int order = (int)data->t_amplitudes[i].size() / 2;
-                tmp = "t" + std::to_string(order) + "(";
-                for (int j = 0; j < 2*order-1; j++) {
-                    tmp += data->t_amplitudes[i][j] + ",";
-                }
-                tmp += data->t_amplitudes[i][2*order-1] + ")";
-                my_string.push_back(tmp);
-
-            }
-
-        }
-    }
+    print_amplitudes_to_string("t",data->t_amplitudes,my_string);
 
     // u_amplitudes
-    if ( (int)data->u_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
-           
-            if ( (int)data->u_amplitudes[i].size() > 0 ) {
- 
-                int order = (int)data->u_amplitudes[i].size() / 2;
-                tmp = "u" + std::to_string(order) + "(";
-                for (int j = 0; j < 2*order-1; j++) {
-                    tmp += data->u_amplitudes[i][j] + ",";
-                }
-                tmp += data->u_amplitudes[i][2*order-1] + ")";
-                my_string.push_back(tmp);
-
-            }
-
-        }
-    }
+    print_amplitudes_to_string("u",data->u_amplitudes,my_string);
     if ( data->has_u0 ) {
         my_string.push_back("u0");
     }
 
     // m_amplitudes
-    if ( (int)data->m_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
-        
-            if ( (int)data->m_amplitudes[i].size() > 0 ) {
-
-                int order = (int)data->m_amplitudes[i].size() / 2;
-                tmp = "m" + std::to_string(order) + "(";
-                for (int j = 0; j < 2*order-1; j++) {
-                    tmp += data->m_amplitudes[i][j] + ",";
-                }
-                tmp += data->m_amplitudes[i][2*order-1] + ")";
-                my_string.push_back(tmp);
-
-            }   
-
-        }
-    }
+    print_amplitudes_to_string("m",data->m_amplitudes,my_string);
     if ( data->has_m0 ) {
         my_string.push_back("m0");
     }
 
     // s_amplitudes
-    if ( (int)data->s_amplitudes.size() > 0 ) {
-        for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
-       
-            if ( (int)data->s_amplitudes[i].size() > 0 ) {
- 
-                int order = (int)data->s_amplitudes[i].size() / 2;
-                tmp = "s" + std::to_string(order) + "(";
-                for (int j = 0; j < 2*order-1; j++) {
-                    tmp += data->s_amplitudes[i][j] + ",";
-                }
-                tmp += data->s_amplitudes[i][2*order-1] + ")";
-                my_string.push_back(tmp);
-
-            }
-
-        }
-    }
+    print_amplitudes_to_string("s",data->s_amplitudes,my_string);
     if ( data->has_s0 ) {
         my_string.push_back("s0");
     }
 
     // bosons:
-    for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+    for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
         if ( data->is_boson_dagger[i] ) {
             my_string.push_back("B*");
         }else {
@@ -679,7 +518,7 @@ bool pq::is_normal_order() {
     }else {
         for (int i = 0; i < (int)symbol.size()-1; i++) {
             // check if stings should be zero or not
-            bool is_dagger_right = is_dagger_fermi[(int)symbol.size() - 1];
+            bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
             bool is_dagger_left  = is_dagger_fermi[0];
             if ( !is_dagger_right || is_dagger_left ) {
                 skip = true; // added 5/28/21
@@ -699,10 +538,9 @@ bool pq::is_normal_order() {
     return true;
 }
 
-
 bool pq::is_boson_normal_order() {
 
-    if ( (int)data->is_boson_dagger.size() == 1 ) {
+    if ( data->is_boson_dagger.size() == 1 ) {
         bool is_dagger_right = data->is_boson_dagger[0];
         bool is_dagger_left  = data->is_boson_dagger[0];
         if ( !is_dagger_right || is_dagger_left ) {
@@ -710,10 +548,10 @@ bool pq::is_boson_normal_order() {
             return true;
         }
     }
-    for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+    for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
 
         // check if stings should be zero or not ... added 5/28/21
-        bool is_dagger_right = data->is_boson_dagger[(int)data->is_boson_dagger.size() - 1];
+        bool is_dagger_right = data->is_boson_dagger[data->is_boson_dagger.size()-1];
         bool is_dagger_left  = data->is_boson_dagger[0];
         if ( !is_dagger_right || is_dagger_left ) {
             skip = true; 
@@ -734,17 +572,17 @@ bool pq::is_boson_normal_order() {
 void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
 
     // alphabetize string
-    for (int i = 0; i < (int)ordered.size(); i++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         // creation
         bool not_alphabetized = false;
         do {
             not_alphabetized = false;
             int ndagger = 0;
-            for (int j = 0; j < (int)ordered[i]->symbol.size(); j++) {
+            for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
                 if ( ordered[i]->is_dagger[j] ) ndagger++;
             }
-            for (int j = 0; j < ndagger-1; j++) {
+            for (size_t j = 0; j < ndagger-1; j++) {
                 int val1 = ordered[i]->symbol[j].c_str()[0];
                 int val2 = ordered[i]->symbol[j+1].c_str()[0];
                 if ( val2 < val1 ) {
@@ -753,7 +591,7 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
                     ordered[i]->symbol[j+1] = dum;
                     ordered[i]->sign = -ordered[i]->sign;
                     not_alphabetized = true;
-                    j = (int)ordered[i]->symbol.size() + 1;
+                    j = ordered[i]->symbol.size() + 1;
                     not_alphabetized = true;
                 }
             }
@@ -763,7 +601,7 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
         do {
             not_alphabetized = false;
             int ndagger = 0;
-            for (int j = 0; j < (int)ordered[i]->symbol.size(); j++) {
+            for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
                 if ( ordered[i]->is_dagger[j] ) ndagger++;
             }
             for (int j = ndagger; j < (int)ordered[i]->symbol.size()-1; j++) {
@@ -775,7 +613,7 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
                     ordered[i]->symbol[j+1] = dum;
                     ordered[i]->sign = -ordered[i]->sign;
                     not_alphabetized = true;
-                    j = (int)ordered[i]->symbol.size() + 1;
+                    j = ordered[i]->symbol.size() + 1;
                     not_alphabetized = true;
                 }
             }
@@ -783,8 +621,8 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
     }
 
     // alphabetize deltas
-    for (int i = 0; i < (int)ordered.size(); i++) {
-        for (int j = 0; j < (int)ordered[i]->delta1.size(); j++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
+        for (size_t j = 0; j < ordered[i]->delta1.size(); j++) {
             int val1 = ordered[i]->delta1[j].c_str()[0];
             int val2 = ordered[i]->delta2[j].c_str()[0];
             if ( val2 < val1 ) {
@@ -805,7 +643,7 @@ void pq::swap_two_labels(std::string label1, std::string label2) {
 
 void pq::reorder_t_amplitudes() {
 
-    int dim = (int)data->t_amplitudes.size();
+    size_t dim = data->t_amplitudes.size();
 
     if ( dim == 0 ) return;
 
@@ -892,7 +730,7 @@ void pq::reorder_t_amplitudes() {
         }
 
     }
-    if ( dim != (int)tmp.size() ) { 
+    if ( dim != tmp.size() ) { 
         printf("\n");
         printf("    something went very wrong in reorder_t_amplitudes()\n");
         printf("    this function breaks for t6 and higher. why would\n");
@@ -905,7 +743,7 @@ void pq::reorder_t_amplitudes() {
         data->t_amplitudes[i].clear();
     }
     data->t_amplitudes.clear();
-    for (int i = 0; i < (int)tmp.size(); i++) {
+    for (size_t i = 0; i < tmp.size(); i++) {
         data->t_amplitudes.push_back(tmp[i]);
     }
 
@@ -915,19 +753,16 @@ void pq::reorder_t_amplitudes() {
 
 // compare strings and remove terms that cancel
 
-// TODO: need to consider u-amplitudes
-// TODO: need to consider left-hand amplitudes
-// TODO: need to consider right-hand amplitudes
 void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
     // order amplitudes such that they're ordered t1, t2, t3, etc.
-    for (int i = 0; i < (int)ordered.size(); i++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
         ordered[i]->reorder_t_amplitudes();
     }
 
     // prune list so it only contains non-skipped ones
     std::vector< std::shared_ptr<pq> > pruned;
-    for (int i = 0; i < (int)ordered.size(); i++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]-> skip ) continue;
 
@@ -942,7 +777,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         pruned.push_back(ordered[i]);
     }
     ordered.clear();
-    for (int i = 0; i < (int)pruned.size(); i++) {
+    for (size_t i = 0; i < pruned.size(); i++) {
         ordered.push_back(pruned[i]);
     }
     pruned.clear();
@@ -974,19 +809,19 @@ void pq::consolidate_permutations_non_summed(
     std::vector<std::shared_ptr<pq> > &ordered,
     std::vector<std::string> labels) {
 
-    for (int i = 0; i < (int)ordered.size(); i++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
 
         std::vector<int> find_idx;
 
         // ok, what labels do we have?
-        for (int j = 0; j < (int)labels.size(); j++) {
+        for (size_t j = 0; j < labels.size(); j++) {
             int found = ordered[i]->index_in_anywhere(labels[j]);
             find_idx.push_back(found);
         }
 
-        for (int j = i+1; j < (int)ordered.size(); j++) {
+        for (size_t j = i+1; j < ordered.size(); j++) {
 
             if ( ordered[j]->skip ) continue;
 
@@ -997,9 +832,9 @@ void pq::consolidate_permutations_non_summed(
             std::string permutation_2;
 
             // try swapping non-summed labels
-            for (int id1 = 0; id1 < (int)labels.size(); id1++) {
+            for (size_t id1 = 0; id1 < labels.size(); id1++) {
                 if ( find_idx[id1] != 1 ) continue;
-                for (int id2 = id1 + 1; id2 < (int)labels.size(); id2++) {
+                for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 1 ) continue;
 
                     std::shared_ptr<pq> newguy (new pq(vacuum));
@@ -1043,7 +878,7 @@ void pq::consolidate_permutations_plus_two_swaps(
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2) {
 
-    for (int i = 0; i < (int)ordered.size(); i++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
 
@@ -1051,18 +886,18 @@ void pq::consolidate_permutations_plus_two_swaps(
         std::vector<int> find_2;
 
         // ok, what labels do we have? list 1
-        for (int j = 0; j < (int)labels_1.size(); j++) {
+        for (size_t j = 0; j < labels_1.size(); j++) {
             int found = ordered[i]->index_in_anywhere(labels_1[j]);
             find_1.push_back(found);
         }
 
         // ok, what labels do we have? list 2
-        for (int j = 0; j < (int)labels_2.size(); j++) {
+        for (size_t j = 0; j < labels_2.size(); j++) {
             int found = ordered[i]->index_in_anywhere(labels_2[j]);
             find_2.push_back(found);
         }
 
-        for (int j = i+1; j < (int)ordered.size(); j++) {
+        for (size_t j = i+1; j < ordered.size(); j++) {
 
             if ( ordered[j]->skip ) continue;
 
@@ -1070,15 +905,15 @@ void pq::consolidate_permutations_plus_two_swaps(
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
             // try swapping non-summed labels 1
-            for (int id1 = 0; id1 < (int)labels_1.size(); id1++) {
+            for (size_t id1 = 0; id1 < labels_1.size(); id1++) {
                 if ( find_1[id1] != 2 ) continue;
-                for (int id2 = id1 + 1; id2 < (int)labels_1.size(); id2++) {
+                for (size_t id2 = id1 + 1; id2 < labels_1.size(); id2++) {
                     if ( find_1[id2] != 2 ) continue;
 
                     // try swapping non-summed labels 2
-                    for (int id3 = 0; id3 < (int)labels_2.size(); id3++) {
+                    for (size_t id3 = 0; id3 < labels_2.size(); id3++) {
                         if ( find_2[id3] != 2 ) continue;
-                        for (int id4 = id3 + 1; id4 < (int)labels_2.size(); id4++) {
+                        for (size_t id4 = id3 + 1; id4 < labels_2.size(); id4++) {
                             if ( find_2[id4] != 2 ) continue;
 
                             std::shared_ptr<pq> newguy (new pq(vacuum));
@@ -1126,19 +961,19 @@ void pq::consolidate_permutations_plus_two_swaps(
 void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &ordered,
                                             std::vector<std::string> labels) {
 
-    for (int i = 0; i < (int)ordered.size(); i++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
 
         std::vector<int> find_idx;
 
         // ok, what labels do we have?
-        for (int j = 0; j < (int)labels.size(); j++) {
+        for (size_t j = 0; j < labels.size(); j++) {
             int found = ordered[i]->index_in_anywhere(labels[j]);
             find_idx.push_back(found);
         }
 
-        for (int j = i+1; j < (int)ordered.size(); j++) {
+        for (size_t j = i+1; j < ordered.size(); j++) {
 
             if ( ordered[j]->skip ) continue;
 
@@ -1146,9 +981,9 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
             // try swapping non-summed labels
-            for (int id1 = 0; id1 < (int)labels.size(); id1++) {
+            for (size_t id1 = 0; id1 < labels.size(); id1++) {
                 if ( find_idx[id1] != 2 ) continue;
-                for (int id2 = id1 + 1; id2 < (int)labels.size(); id2++) {
+                for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 2 ) continue;
 
                     std::shared_ptr<pq> newguy (new pq(vacuum));
@@ -1192,11 +1027,11 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
 void pq::consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered) {
 
     // consolidate terms that differ by permutations
-    for (int i = 0; i < (int)ordered.size(); i++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
 
-        for (int j = i+1; j < (int)ordered.size(); j++) {
+        for (size_t j = i+1; j < ordered.size(); j++) {
 
             if ( ordered[j]->skip ) continue;
 
@@ -1260,7 +1095,7 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     // are strings same?
     if ( ordered_1->symbol.size() != ordered_2->symbol.size() ) return false;
     int nsame_s = 0;
-    for (int k = 0; k < (int)ordered_1->symbol.size(); k++) {
+    for (size_t k = 0; k < ordered_1->symbol.size(); k++) {
         if ( ordered_1->symbol[k] == ordered_2->symbol[k] ) {
             nsame_s++;
         }
@@ -1269,8 +1104,8 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
 
     // same delta functions (recall these aren't sorted in any way)
     int nsame_d = 0;
-    for (int k = 0; k < (int)ordered_1->delta1.size(); k++) {
-        for (int l = 0; l < (int)ordered_2->delta1.size(); l++) {
+    for (size_t k = 0; k < ordered_1->delta1.size(); k++) {
+        for (size_t l = 0; l < ordered_2->delta1.size(); l++) {
             if ( ordered_1->delta1[k] == ordered_2->delta1[l] && ordered_1->delta2[k] == ordered_2->delta2[l] ) {
                 nsame_d++;
                 //break;
@@ -1280,7 +1115,7 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
             }
         }
     }
-    if ( nsame_d != (int)ordered_1->delta1.size() ) return false;
+    if ( nsame_d != ordered_1->delta1.size() ) return false;
 
     // t_amplitudes
     bool same_string = compare_amplitudes( ordered_1->data->t_amplitudes, ordered_2->data->t_amplitudes, n_permute);
@@ -1310,7 +1145,7 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     if ( ordered_1->data->tensor_type != ordered_2->data->tensor_type ) return false;
 
     int nsame_t = 0;
-    for (int k = 0; k < (int)ordered_1->data->tensor.size(); k++) {
+    for (size_t k = 0; k < ordered_1->data->tensor.size(); k++) {
         if ( ordered_1->data->tensor[k] == ordered_2->data->tensor[k] ) {
             nsame_t++;
         }
@@ -1399,9 +1234,9 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
     // same number of amplitudes?
     if ( amps1.size() != amps2.size() ) return false;
    
-    int nsame_amps = 0;
-    for (int i = 0; i < (int)amps1.size(); i++) {
-        for (int j = 0; j < (int)amps2.size(); j++) {
+    size_t nsame_amps = 0;
+    for (size_t i = 0; i < amps1.size(); i++) {
+        for (size_t j = 0; j < amps2.size(); j++) {
 
             // t1 vs t2 vs t3, etc?
             if ( amps1[i].size() != amps2[j].size() ) continue;
@@ -1409,7 +1244,7 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
             // for higher than t4, just return false
 
             // check labels
-            int dim = (int)amps1[i].size();
+            size_t dim = amps1[i].size();
             int nsame_idx = 0;
 
             // cases: 
@@ -1483,7 +1318,7 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
             }
         }
     }
-    if ( nsame_amps != (int)amps1.size() ) return false;
+    if ( nsame_amps != amps1.size() ) return false;
 
     return true;
 }
@@ -1747,7 +1582,7 @@ void pq::shallow_copy(void * copy_me) {
     std::vector<std::string> tmp_delta2;
 
     // data->tensor
-    for (int i = 0; i < (int)in->data->tensor.size(); i++) {
+    for (size_t i = 0; i < in->data->tensor.size(); i++) {
         data->tensor.push_back(in->data->tensor[i]);
     }
 
@@ -1755,60 +1590,60 @@ void pq::shallow_copy(void * copy_me) {
     data->tensor_type = in->data->tensor_type;
 
     // delta1, delta2
-    for (int i = 0; i < (int)in->delta1.size(); i++) {
+    for (size_t i = 0; i < in->delta1.size(); i++) {
         delta1.push_back(in->delta1[i]);
         delta2.push_back(in->delta2[i]);
     }
 
     // t_amplitudes
-    for (int i = 0; i < (int)in->data->t_amplitudes.size(); i++) {
+    for (size_t i = 0; i < in->data->t_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in->data->t_amplitudes[i].size(); j++) {
+        for (size_t j = 0; j < in->data->t_amplitudes[i].size(); j++) {
             tmp.push_back(in->data->t_amplitudes[i][j]);
         }
         data->t_amplitudes.push_back(tmp);
     }
 
     // u_amplitudes
-    for (int i = 0; i < (int)in->data->u_amplitudes.size(); i++) {
+    for (size_t i = 0; i < in->data->u_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in->data->u_amplitudes[i].size(); j++) {
+        for (size_t j = 0; j < in->data->u_amplitudes[i].size(); j++) {
             tmp.push_back(in->data->u_amplitudes[i][j]);
         }
         data->u_amplitudes.push_back(tmp);
     }
 
     // m_amplitudes
-    for (int i = 0; i < (int)in->data->m_amplitudes.size(); i++) {
+    for (size_t i = 0; i < in->data->m_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in->data->m_amplitudes[i].size(); j++) {
+        for (size_t j = 0; j < in->data->m_amplitudes[i].size(); j++) {
             tmp.push_back(in->data->m_amplitudes[i][j]);
         }
         data->m_amplitudes.push_back(tmp);
     }
 
     // s_amplitudes
-    for (int i = 0; i < (int)in->data->s_amplitudes.size(); i++) {
+    for (size_t i = 0; i < in->data->s_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in->data->s_amplitudes[i].size(); j++) {
+        for (size_t j = 0; j < in->data->s_amplitudes[i].size(); j++) {
             tmp.push_back(in->data->s_amplitudes[i][j]);
         }
         data->s_amplitudes.push_back(tmp);
     }
 
     // left-hand amplitudes
-    for (int i = 0; i < (int)in->data->left_amplitudes.size(); i++) {
+    for (size_t i = 0; i < in->data->left_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in->data->left_amplitudes[i].size(); j++) {
+        for (size_t j = 0; j < in->data->left_amplitudes[i].size(); j++) {
             tmp.push_back(in->data->left_amplitudes[i][j]);
         }
         data->left_amplitudes.push_back(tmp);
     }
 
     // right-hand amplitudes
-    for (int i = 0; i < (int)in->data->right_amplitudes.size(); i++) {
+    for (size_t i = 0; i < in->data->right_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in->data->right_amplitudes[i].size(); j++) {
+        for (size_t j = 0; j < in->data->right_amplitudes[i].size(); j++) {
             tmp.push_back(in->data->right_amplitudes[i][j]);
         }
         data->right_amplitudes.push_back(tmp);
@@ -1863,12 +1698,12 @@ int pq::index_in_anywhere(std::string idx) {
 int pq::index_in_deltas(std::string idx) {
 
     int n = 0;
-    for (int i = 0; i < (int)delta1.size(); i++) {
+    for (size_t i = 0; i < delta1.size(); i++) {
         if ( delta1[i] == idx ) {
             n++;
         }
     }
-    for (int i = 0; i < (int)delta2.size(); i++) {
+    for (size_t i = 0; i < delta2.size(); i++) {
         if ( delta2[i] == idx ) {
             n++;
         }
@@ -1879,7 +1714,7 @@ int pq::index_in_deltas(std::string idx) {
 int pq::index_in_tensor(std::string idx) {
 
     int n = 0;
-    for (int i = 0; i < (int)data->tensor.size(); i++) {
+    for (size_t i = 0; i < data->tensor.size(); i++) {
         if ( data->tensor[i] == idx ) {
             n++;
         }
@@ -1891,8 +1726,8 @@ int pq::index_in_tensor(std::string idx) {
 int pq::index_in_t_amplitudes(std::string idx) {
 
     int n = 0;
-    for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->t_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->t_amplitudes[i].size(); j++) {
             if ( data->t_amplitudes[i][j] == idx ) {
                 n++;
             }
@@ -1906,8 +1741,8 @@ int pq::index_in_t_amplitudes(std::string idx) {
 int pq::index_in_u_amplitudes(std::string idx) {
 
     int n = 0;
-    for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->u_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->u_amplitudes[i].size(); j++) {
             if ( data->u_amplitudes[i][j] == idx ) {
                 n++;
             }
@@ -1921,8 +1756,8 @@ int pq::index_in_u_amplitudes(std::string idx) {
 int pq::index_in_m_amplitudes(std::string idx) {
 
     int n = 0;
-    for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->m_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->m_amplitudes[i].size(); j++) {
             if ( data->m_amplitudes[i][j] == idx ) {
                 n++;
             }
@@ -1936,8 +1771,8 @@ int pq::index_in_m_amplitudes(std::string idx) {
 int pq::index_in_s_amplitudes(std::string idx) {
 
     int n = 0;
-    for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->s_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->s_amplitudes[i].size(); j++) {
             if ( data->s_amplitudes[i][j] == idx ) {
                 n++;
             }
@@ -1951,8 +1786,8 @@ int pq::index_in_s_amplitudes(std::string idx) {
 int pq::index_in_left_amplitudes(std::string idx) {
 
     int n = 0;
-    for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->left_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->left_amplitudes[i].size(); j++) {
             if ( data->left_amplitudes[i][j] == idx ) {
                 n++;
             }
@@ -1966,8 +1801,8 @@ int pq::index_in_left_amplitudes(std::string idx) {
 int pq::index_in_right_amplitudes(std::string idx) {
 
     int n = 0;
-    for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->right_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->right_amplitudes[i].size(); j++) {
             if ( data->right_amplitudes[i][j] == idx ) {
                 n++;
             }
@@ -1993,7 +1828,7 @@ void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
 void pq::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
 
-    for (int i = 0; i < (int)data->tensor.size(); i++) {
+    for (size_t i = 0; i < data->tensor.size(); i++) {
         if ( data->tensor[i] == old_idx ) {
             data->tensor[i] = new_idx;
             // dont' return because indices may be repeated in two-electron integrals
@@ -2004,14 +1839,14 @@ void pq::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
 }
 void pq::replace_index_in_deltas(std::string old_idx, std::string new_idx) {
 
-    for (int i = 0; i < (int)delta1.size(); i++) {
+    for (size_t i = 0; i < delta1.size(); i++) {
         if ( delta1[i] == old_idx ) {
             delta1[i] = new_idx;
             // dont' return because indices may be repeated in two-electron integrals
             //return;
         }
     }
-    for (int i = 0; i < (int)delta2.size(); i++) {
+    for (size_t i = 0; i < delta2.size(); i++) {
         if ( delta2[i] == old_idx ) {
             delta2[i] = new_idx;
             // dont' return because indices may be repeated in two-electron integrals
@@ -2023,8 +1858,8 @@ void pq::replace_index_in_deltas(std::string old_idx, std::string new_idx) {
 
 void pq::replace_index_in_t_amplitudes(std::string old_idx, std::string new_idx) {
 
-    for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->t_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->t_amplitudes[i].size(); j++) {
             if ( data->t_amplitudes[i][j] == old_idx ) {
                 data->t_amplitudes[i][j] = new_idx;
                 //return; 
@@ -2036,8 +1871,8 @@ void pq::replace_index_in_t_amplitudes(std::string old_idx, std::string new_idx)
 
 void pq::replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx) {
 
-    for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->u_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->u_amplitudes[i].size(); j++) {
             if ( data->u_amplitudes[i][j] == old_idx ) {
                 data->u_amplitudes[i][j] = new_idx;
                 //return; 
@@ -2049,8 +1884,8 @@ void pq::replace_index_in_u_amplitudes(std::string old_idx, std::string new_idx)
 
 void pq::replace_index_in_m_amplitudes(std::string old_idx, std::string new_idx) {
 
-    for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->m_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->m_amplitudes[i].size(); j++) {
             if ( data->m_amplitudes[i][j] == old_idx ) {
                 data->m_amplitudes[i][j] = new_idx;
                 //return; 
@@ -2062,8 +1897,8 @@ void pq::replace_index_in_m_amplitudes(std::string old_idx, std::string new_idx)
 
 void pq::replace_index_in_s_amplitudes(std::string old_idx, std::string new_idx) {
 
-    for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->s_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->s_amplitudes[i].size(); j++) {
             if ( data->s_amplitudes[i][j] == old_idx ) {
                 data->s_amplitudes[i][j] = new_idx;
                 //return; 
@@ -2075,8 +1910,8 @@ void pq::replace_index_in_s_amplitudes(std::string old_idx, std::string new_idx)
 
 void pq::replace_index_in_left_amplitudes(std::string old_idx, std::string new_idx) {
 
-    for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->left_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->left_amplitudes[i].size(); j++) {
             if ( data->left_amplitudes[i][j] == old_idx ) {
                 data->left_amplitudes[i][j] = new_idx;
                 //return; 
@@ -2088,8 +1923,8 @@ void pq::replace_index_in_left_amplitudes(std::string old_idx, std::string new_i
 
 void pq::replace_index_in_right_amplitudes(std::string old_idx, std::string new_idx) {
 
-    for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-        for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
+    for (size_t i = 0; i < data->right_amplitudes.size(); i++) {
+        for (size_t j = 0; j < data->right_amplitudes[i].size(); j++) {
             if ( data->right_amplitudes[i][j] == old_idx ) {
                 data->right_amplitudes[i][j] = new_idx;
                 //return; 
@@ -2110,11 +1945,11 @@ void pq::use_conventional_labels() {
                                      "i0","i1","i2","i3","i4","i5","i6","i7","i8","i9",
                                      "i10","i11","i12","i13","i14","i15","i16","i17","i18","i19"};
 
-    for (int i = 0; i < (int)occ_in.size(); i++) {
+    for (size_t i = 0; i < occ_in.size(); i++) {
 
         if ( index_in_anywhere(occ_in[i]) > 0 ) {
 
-            for (int j = 0; j < (int)occ_out.size(); j++) {
+            for (size_t j = 0; j < occ_out.size(); j++) {
 
                 //if ( !index_in_tensor(occ_out[j]) ) 
                 if ( index_in_anywhere(occ_out[j]) == 0 ) {
@@ -2135,11 +1970,11 @@ void pq::use_conventional_labels() {
                                      "a0","a1","a2","a3","a4","a5","a6","a7","a8","a9",
                                      "a10","a11","a12","a13","a14","a15","a16","a17","a18","a19"};
 
-    for (int i = 0; i < (int)vir_in.size(); i++) {
+    for (size_t i = 0; i < vir_in.size(); i++) {
 
         if ( index_in_anywhere(vir_in[i]) > 0 ) {
 
-            for (int j = 0; j < (int)vir_out.size(); j++) {
+            for (size_t j = 0; j < vir_out.size(); j++) {
 
                 if ( index_in_anywhere(vir_out[j]) == 0 ) {
 
@@ -2167,22 +2002,22 @@ void pq::gobble_deltas() {
                                     "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
 
     std::vector<std::string> sum_labels;
-    for (int i = 0; i < (int)occ_labels.size(); i++) {
+    for (size_t i = 0; i < occ_labels.size(); i++) {
         if ( index_in_anywhere( occ_labels[i] ) == 2 ) {
             sum_labels.push_back( occ_labels[i] );
         }
     }
-    for (int i = 0; i < (int)vir_labels.size(); i++) {
+    for (size_t i = 0; i < vir_labels.size(); i++) {
         if ( index_in_anywhere( vir_labels[i] ) == 2 ) {
             sum_labels.push_back( vir_labels[i] );
         }
     }
 
-    for (int i = 0; i < (int)delta1.size(); i++) {
+    for (size_t i = 0; i < delta1.size(); i++) {
 
         // is delta label 1 in list of summation labels?
         bool have_delta1 = false;
-        for (int j = 0; j < (int)sum_labels.size(); j++) {
+        for (size_t j = 0; j < sum_labels.size(); j++) {
             if ( delta1[i] == sum_labels[j] ) {
                 have_delta1 = true;
                 break;
@@ -2190,7 +2025,7 @@ void pq::gobble_deltas() {
         }
         // is delta label 2 in list of summation labels?
         bool have_delta2 = false;
-        for (int j = 0; j < (int)sum_labels.size(); j++) {
+        for (size_t j = 0; j < sum_labels.size(); j++) {
             if ( delta2[i] == sum_labels[j] ) {
                 have_delta2 = true;
                 break;
@@ -2275,7 +2110,7 @@ void pq::gobble_deltas() {
     delta1.clear();
     delta2.clear();
 
-    for (int i = 0; i < (int)tmp_delta1.size(); i++) {
+    for (size_t i = 0; i < tmp_delta1.size(); i++) {
         delta1.push_back(tmp_delta1[i]);
         delta2.push_back(tmp_delta2[i]);
     }
@@ -2290,7 +2125,7 @@ void pq::copy(void * copy_me) {
     pq * in = reinterpret_cast<pq * >(copy_me);
 
     // operators
-    for (int j = 0; j < (int)in->symbol.size(); j++) {
+    for (size_t j = 0; j < in->symbol.size(); j++) {
         symbol.push_back(in->symbol[j]);
 
         // dagger?
@@ -2303,7 +2138,7 @@ void pq::copy(void * copy_me) {
     }
 
     // boson daggers
-    for (int i = 0; i < (int)in->data->is_boson_dagger.size(); i++) {
+    for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
         data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
     }
     
@@ -2349,7 +2184,7 @@ bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
             s2->is_dagger.push_back(is_dagger[i+1]);
             s2->is_dagger.push_back(is_dagger[i]);
 
-            for (int j = i+2; j < (int)symbol.size(); j++) {
+            for (size_t j = i+2; j < symbol.size(); j++) {
 
                 s1->symbol.push_back(symbol[j]);
                 s2->symbol.push_back(symbol[j]);
@@ -2377,7 +2212,7 @@ bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
     if ( is_boson_normal_order() ) {
 
         // copy boson daggers 
-        for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+        for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
             s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
             s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
         }
@@ -2403,7 +2238,7 @@ bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
         s1a->data->is_boson_dagger.clear();
         s1b->data->is_boson_dagger.clear();
 
-        for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+        for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
 
             // swap operators?
             bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
@@ -2415,7 +2250,7 @@ bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
                 s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
 
                 // push remaining operators onto s1a and s1b
-                for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+                for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
 
                     s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
                     s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
@@ -2439,7 +2274,7 @@ bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
         s2a->data->is_boson_dagger.clear();
         s2b->data->is_boson_dagger.clear();
 
-        for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+        for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
 
             // swap operators?
             bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
@@ -2451,7 +2286,7 @@ bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
                 s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
 
                 // push remaining operators onto s2a and s2b
-                for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+                for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
 
                     s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
                     s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
@@ -2536,7 +2371,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
             s2->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
             s2->is_dagger_fermi.push_back(is_dagger_fermi[i]);
 
-            for (int j = i+2; j < (int)symbol.size(); j++) {
+            for (size_t j = i+2; j < symbol.size(); j++) {
 
                 s1->symbol.push_back(symbol[j]);
                 s2->symbol.push_back(symbol[j]);
@@ -2563,7 +2398,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
             s1->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
             s1->is_dagger_fermi.push_back(is_dagger_fermi[i]);
 
-            for (int j = i+2; j < (int)symbol.size(); j++) {
+            for (size_t j = i+2; j < symbol.size(); j++) {
 
                 s1->symbol.push_back(symbol[j]);
 
@@ -2596,7 +2431,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
         if ( is_boson_normal_order() ) {
             if ( !skip ) {
                 // copy boson daggers
-                for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+                for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
                     s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
                 }
                 //s1->normal_order_fermi_vacuum(ordered);
@@ -2617,7 +2452,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
             s1a->data->is_boson_dagger.clear();
             s1b->data->is_boson_dagger.clear();
 
-            for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+            for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
 
                 // swap operators?
                 bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
@@ -2629,7 +2464,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
                     s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
 
                     // push remaining operators onto s1a and s1b
-                    for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+                    for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
         
                         s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
                         s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
@@ -2656,7 +2491,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
         if ( is_boson_normal_order() ) {
             if ( !skip ) {
                 // copy boson daggers
-                for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
+                for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
                     s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
                     s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
                 }
@@ -2682,7 +2517,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
             s1a->data->is_boson_dagger.clear();
             s1b->data->is_boson_dagger.clear();
 
-            for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+            for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
 
                 // swap operators?
                 bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
@@ -2694,7 +2529,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
                     s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
 
                     // push remaining operators onto s1a and s1b
-                    for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+                    for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
 
                         s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
                         s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
@@ -2718,7 +2553,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
             s2a->data->is_boson_dagger.clear();
             s2b->data->is_boson_dagger.clear();
 
-            for (int i = 0; i < (int)data->is_boson_dagger.size() - 1; i++) {
+            for (int i = 0; i < data->is_boson_dagger.size()-1; i++) {
 
                 // swap operators?
                 bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
@@ -2730,7 +2565,7 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
                     s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
 
                     // push remaining operators onto s2a and s2b
-                    for (int j = i+2; j < (int)data->is_boson_dagger.size(); j++) {
+                    for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
 
                         s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
                         s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
@@ -2782,7 +2617,7 @@ void pq::reclassify_tensors() {
 
         int skip = -999;
 
-        for (int i = 0; i < (int)occ_out.size(); i++) {
+        for (size_t i = 0; i < occ_out.size(); i++) {
             if ( index_in_anywhere(occ_out[i]) == 0 ) {
                 idx = occ_out[i];
                 skip = i;
@@ -2813,75 +2648,4 @@ void pq::reclassify_tensors() {
 }
 
 } // End namespaces
-
-/*
-void pq::gobble_deltas() {
-
-    std::vector<std::string> tmp_delta1;
-    std::vector<std::string> tmp_delta2;
-
-    // create list of summation labels. only consider internally-created labels
-
-    std::vector<std::string> occ_labels{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
-                                    "o10","o11","o12","o13","o14","o15","o16","o17","o18","o19",
-                                    "o20","o21","o22","o23","o24","o25","o26","o27","o28","o29"};
-    std::vector<std::string> vir_labels{"v0","v1","v2","v3","v4","v5","v6","v7","v8","v9",
-                                    "v10","v11","v12","v13","v14","v15","v16","v17","v18","v19",
-                                    "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
-
-    std::vector<std::string> sum_labels;
-    for (int i = 0; i < (int)occ_labels.size(); i++) {
-        if ( index_in_anywhere( occ_labels[i] ) == 2 ) {
-            sum_labels.push_back( occ_labels[i] );
-        }
-    }
-    for (int i = 0; i < (int)vir_labels.size(); i++) {
-        if ( index_in_anywhere( vir_labels[i] ) == 2 ) {
-            sum_labels.push_back( vir_labels[i] );
-        }
-    }
-
-    for (int i = 0; i < (int)delta1.size(); i++) {
-
-        // is delta label 1 in list of summation labels?
-        bool have_delta1 = false;
-        for (int j = 0; j < (int)sum_labels.size(); j++) {
-            if ( delta1[i] == sum_labels[j] ) {
-                have_delta1 = true;
-                break;
-            }
-        }
-        // is delta label 2 in list of summation labels?
-        bool have_delta2 = false;
-        for (int j = 0; j < (int)sum_labels.size(); j++) {
-            if ( delta2[i] == sum_labels[j] ) {
-                have_delta2 = true;
-                break;
-            }
-        }
-
-        if ( have_delta1 ) {
-            replace_index_everywhere( delta1[i], delta2[i] );
-            continue;
-        }else if ( have_delta2 ) {
-            replace_index_everywhere( delta2[i], delta1[i] );
-            continue;
-        }
-
-        // at this point, it is safe to assume the delta function must remain
-        tmp_delta1.push_back(delta1[i]);
-        tmp_delta2.push_back(delta2[i]);
-
-    }
-
-    delta1.clear();
-    delta2.clear();
-
-    for (int i = 0; i < (int)tmp_delta1.size(); i++) {
-        delta1.push_back(tmp_delta1[i]);
-        delta2.push_back(tmp_delta2[i]);
-    }
-
-}
-*/
 
