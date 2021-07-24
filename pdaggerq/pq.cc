@@ -797,7 +797,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
     consolidate_permutations_plus_two_swaps(ordered,occ_labels,vir_labels);
 
 /*
-    // these don't seem to be necessary for any of the test cases.
+    // these don't seem to be necessary for test cases up to ccsdt
     consolidate_permutations_plus_three_swaps(ordered,occ_labels,occ_labels,occ_labels);
     consolidate_permutations_plus_three_swaps(ordered,occ_labels,occ_labels,vir_labels);
     consolidate_permutations_plus_three_swaps(ordered,occ_labels,vir_labels,vir_labels);

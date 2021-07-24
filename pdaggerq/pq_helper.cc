@@ -2140,11 +2140,12 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         }
     }
     simplify();
+
     //printf("done double_commutator\n");fflush(stdout);
     //printf("current list size: %zu\n",ordered.size());
     //print_fully_contracted();
-
-    for (int i = 0; i < dim; i++) {
+/*
+     for (int i = 0; i < dim; i++) {
         for (int j = i; j < dim; j++) {
             for (int k = j; k < dim; k++) {
                 double scale = 1.0 / 6.0;
@@ -2157,10 +2158,37 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         }
     }
     simplify();
+*/
+     // ijk
+     for (int i = 0; i < dim; i++) {
+        for (int j = i + 1; j < dim; j++) {
+            for (int k = j + 1; k < dim; k++) {
+                add_triple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+            }
+        }
+    }
+    simplify();
+
+    // ijj
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            if ( i == j ) continue;
+            add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
+        }
+    }
+    simplify();
+
+     // iii
+    for (int i = 0; i < dim; i++) {
+        add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
+    }
+    simplify();
+
     //printf("done triple_commutator\n");fflush(stdout);
     //printf("current list size: %zu\n",ordered.size());
     //print_fully_contracted();
 
+    // ijkl
     for (int i = 0; i < dim; i++) {
         for (int j = i + 1; j < dim; j++) {
             for (int k = j + 1; k < dim; k++) {
@@ -2171,30 +2199,41 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         }
     }
     simplify();
+
+    // ijkk
     for (int i = 0; i < dim; i++) {
         for (int j = i + 1; j < dim; j++) {
-            for (int k = j + 1; k < dim; k++) {
+            for (int k = 0; k < dim; k++) {
+                if ( k == i || k == j ) continue;
                 add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]});
             }
         }
     }
     simplify();
+
+    // iijj
     for (int i = 0; i < dim; i++) {
         for (int j = i + 1; j < dim; j++) {
             add_quadruple_commutator( 0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
         }
     }
     simplify();
+
+    // iiij
     for (int i = 0; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
+        for (int j = 0; j < dim; j++) {
+            if ( i == j ) continue;
             add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
         }
     }
     simplify();
+
+    // iiii
     for (int i = 0; i < dim; i++) {
         add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
     }
     simplify();
+
     //printf("done quadruple_commutator\n");fflush(stdout);
     //printf("current list size: %zu\n",ordered.size());
     //print_fully_contracted();
