@@ -816,6 +816,28 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
     consolidate_permutations_non_summed(ordered,occ_labels);
     consolidate_permutations_non_summed(ordered,vir_labels);
 
+    // re-prune
+    pruned.clear();
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]-> skip ) continue;
+
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
+        // about terms that aren't fully contracted. so, skip those because this
+        // function is time consuming
+        if ( vacuum == "FERMI" ) {
+            if ( ordered[i]->symbol.size() != 0 ) continue;
+            if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        }
+
+        pruned.push_back(ordered[i]);
+    }
+    ordered.clear();
+    for (size_t i = 0; i < pruned.size(); i++) {
+        ordered.push_back(pruned[i]);
+    }
+    pruned.clear();
+
 }
 
 // consolidate terms that differ by permutations of non-summed labels
@@ -829,10 +851,21 @@ void pq::consolidate_permutations_non_summed(
 
         std::vector<int> find_idx;
 
-        // ok, what labels do we have?
+        // ok, what labels do we have? 
         for (size_t j = 0; j < labels.size(); j++) {
             int found = ordered[i]->index_in_anywhere(labels[j]);
-            find_idx.push_back(found);
+            // make sure label isn't already in a permutation operator
+            bool already_found = false;
+            for (size_t k = 0; k < ordered[i]->data->permutations.size(); k++) {
+                if ( ordered[i]->data->permutations[k] == labels[j] ) {
+                    already_found = true;
+                    break;
+                }
+            }
+
+            if ( !already_found ) {
+                find_idx.push_back(found);
+            }
         }
 
         for (size_t j = i+1; j < ordered.size(); j++) {

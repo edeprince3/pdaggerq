@@ -1610,6 +1610,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
         n_gen_idx = 1;
     }
 
+    //printf("current list size: %zu\n",ordered.size());
     for (int string_num = 0; string_num < n_gen_idx * n_gen_idx; string_num++) {
 
         // factors:
@@ -1963,7 +1964,9 @@ void pq_helper::add_new_string_fermi_vacuum(){
             }
             tmp.clear();
             for (int i = 0; i < (int)list.size(); i++) {
-                tmp.push_back(list[i]);
+                if ( !list[i]->skip ) {
+                    tmp.push_back(list[i]);
+                }
             }
         }while(!done_rearranging);
 
@@ -1971,6 +1974,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
         for (int i = 0; i < (int)tmp.size(); i++) {
             ordered.push_back(tmp[i]);
         }
+        //printf("current list size: %zu\n",ordered.size());
         tmp.clear();
 
     }
@@ -2002,8 +2006,8 @@ void pq_helper::simplify() {
 
         if ( ordered[i]->skip ) continue;
 
-        // check for occ/vir pairs in delta functions
-        ordered[i]->check_occ_vir();
+        // check for occ/vir pairs in delta functions ... i think this is handled by the normal order procedure
+        //ordered[i]->check_occ_vir();
 
         // apply delta functions
         ordered[i]->gobble_deltas();
@@ -2019,7 +2023,7 @@ void pq_helper::simplify() {
 
     // try to cancel similar terms
     mystring->cleanup(ordered);
-    
+
 }
 
 void pq_helper::print_two_body() {
@@ -2115,16 +2119,29 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     int dim = (int)ops.size();
 
     add_operator_product( factor, targets);
+    simplify();
+    //printf("done add_operator_product\n");fflush(stdout);
+    //printf("current list size: %zu\n",ordered.size());
+    //print_fully_contracted();
 
     for (int i = 0; i < dim; i++) {
         add_commutator( factor, targets, {ops[i]});
     }
+    simplify();
+    //printf("done commutator\n");fflush(stdout);
+    //printf("current list size: %zu\n",ordered.size());
+    //print_fully_contracted();
 
     for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
             add_double_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]});
         }
     }
+    simplify();
+    //printf("done double_commutator\n");fflush(stdout);
+    //printf("current list size: %zu\n",ordered.size());
+    //print_fully_contracted();
+
     for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
             for (int k = 0; k < dim; k++) {
@@ -2132,6 +2149,11 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
             }
         }
     }
+    simplify();
+    //printf("done triple_commutator\n");fflush(stdout);
+    //printf("current list size: %zu\n",ordered.size());
+    //print_fully_contracted();
+
     for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
             for (int k = 0; k < dim; k++) {
@@ -2141,6 +2163,10 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
             }
         }
     }
+    simplify();
+    //printf("done quadruple_commutator\n");fflush(stdout);
+    //printf("current list size: %zu\n",ordered.size());
+    //print_fully_contracted();
 
 }
 
