@@ -2133,8 +2133,10 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     //print_fully_contracted();
 
     for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            add_double_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]});
+        for (int j = i; j < dim; j++) {
+            double scale = 0.5;
+            if ( i != j ) scale = 1.0;
+            add_double_commutator( scale * factor, targets, {ops[i]}, {ops[j]});
         }
     }
     simplify();
@@ -2143,9 +2145,14 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     //print_fully_contracted();
 
     for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            for (int k = 0; k < dim; k++) {
-                add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+        for (int j = i; j < dim; j++) {
+            for (int k = j; k < dim; k++) {
+                double scale = 1.0 / 6.0;
+                if      ( i != j && i != k && j != k ) scale = 1.0;
+                else if ( i != j && i != k && j == k ) scale = 0.5;
+                else if ( i != j && i == k && j != k ) scale = 0.5;
+                else if ( i == j && i != k && j != k ) scale = 0.5;
+                add_triple_commutator( scale * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
             }
         }
     }
@@ -2155,10 +2162,22 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     //print_fully_contracted();
 
     for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            for (int k = 0; k < dim; k++) {
-                for (int l = 0; l < dim; l++) {
-                    add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+        for (int j = i; j < dim; j++) {
+            for (int k = j; k < dim; k++) {
+                for (int l = k; l < dim; l++) {
+                    double scale = 1.0 / 24.0;
+                    if      ( i != j && i != k && j != k && j != l) scale = 1.0;
+                    if      ( i != j && i != k && j != k && j == l) scale = 1.0 / 6.0;
+                    if      ( i != j && i != k && j == k && j != l) scale = 1.0 / 6.0;
+                    if      ( i != j && i == k && j != k && j != l) scale = 1.0 / 6.0;
+                    if      ( i == j && i != k && j != k && j != l) scale = 1.0 / 6.0;
+                    if      ( i != j && i != k && j == k && j == l) scale = 0.5;
+                    if      ( i != j && i == k && j != k && j == l) scale = 0.5;
+                    if      ( i == j && i != k && j != k && j == l) scale = 0.5;
+                    if      ( i != j && i == k && j == k && j != l) scale = 0.5;
+                    if      ( i == j && i != k && j == k && j != l) scale = 0.5;
+                    if      ( i == j && i == k && j != k && j != l) scale = 0.5;
+                    add_quadruple_commutator( scale * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
                 }
             }
         }
