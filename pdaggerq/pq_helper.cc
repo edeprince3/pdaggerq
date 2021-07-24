@@ -2166,17 +2166,45 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
             for (int k = j; k < dim; k++) {
                 for (int l = k; l < dim; l++) {
                     double scale = 1.0 / 24.0;
-                    if      ( i != j && i != k && j != k && j != l) scale = 1.0;
-                    if      ( i != j && i != k && j != k && j == l) scale = 1.0 / 6.0;
-                    if      ( i != j && i != k && j == k && j != l) scale = 1.0 / 6.0;
-                    if      ( i != j && i == k && j != k && j != l) scale = 1.0 / 6.0;
-                    if      ( i == j && i != k && j != k && j != l) scale = 1.0 / 6.0;
-                    if      ( i != j && i != k && j == k && j == l) scale = 0.5;
-                    if      ( i != j && i == k && j != k && j == l) scale = 0.5;
-                    if      ( i == j && i != k && j != k && j == l) scale = 0.5;
-                    if      ( i != j && i == k && j == k && j != l) scale = 0.5;
-                    if      ( i == j && i != k && j == k && j != l) scale = 0.5;
-                    if      ( i == j && i == k && j != k && j != l) scale = 0.5;
+
+                    if      ( i != j && i != k && i != l && j != k && j != l && k != l) scale = 1.0;
+
+                    if      ( i != j && i != k && i != l && j != k && j != l && k == l) scale = 0.5;
+                    if      ( i != j && i != k && i != l && j != k && j == l && k != l) scale = 0.5;
+                    if      ( i != j && i != k && i != l && j == k && j != l && k != l) scale = 0.5;
+                    if      ( i != j && i != k && i == l && j != k && j != l && k != l) scale = 0.5;
+                    if      ( i != j && i == k && i != l && j != k && j != l && k != l) scale = 0.5;
+                    if      ( i == j && i != k && i != l && j != k && j != l && k != l) scale = 0.5;
+
+                    //if      ( i != j && i != k && i != l && j != k && j == l && k == l) scale = 1.0 / 6.0;
+                    //if      ( i != j && i != k && i != l && j == k && j != l && k == l) scale = 1.0 / 6.0;
+                    //if      ( i != j && i != k && i == l && j != k && j != l && k == l) scale = 1.0 / 6.0;
+                    //if      ( i != j && i == k && i != l && j != k && j != l && k == l) scale = 1.0 / 6.0;
+                    //if      ( i == j && i != k && i != l && j != k && j != l && k == l) scale = 1.0 / 6.0;
+                    //if      ( i != j && i != k && i != l && j == k && j == l && k != l) scale = 1.0 / 6.0;
+                    //if      ( i != j && i != k && i == l && j != k && j == l && k != l) scale = 1.0 / 6.0;
+                    //if      ( i != j && i == k && i != l && j != k && j == l && k != l) scale = 1.0 / 6.0;
+                    //if      ( i == j && i != k && i != l && j != k && j == l && k != l) scale = 1.0 / 6.0;
+                    //if      ( i != j && i != k && i == l && j == k && j != l && k != l) scale = 1.0 / 6.0;
+                    //if      ( i != j && i == k && i != l && j == k && j != l && k != l) scale = 1.0 / 6.0;
+                    //if      ( i == j && i != k && i != l && j == k && j != l && k != l) scale = 1.0 / 6.0;
+
+                    if      ( i != j && i == k && i == l) scale = 1.0 / 6.0;
+                    if      ( i == j && i != k && i == l) scale = 1.0 / 6.0;
+                    if      ( i == j && i == k && i != l) scale = 1.0 / 6.0;
+
+                    if      ( j != i && j == k && j == l) scale = 1.0 / 6.0;
+                    if      ( j == i && j != k && j == l) scale = 1.0 / 6.0;
+                    if      ( j == i && j == k && j != l) scale = 1.0 / 6.0;
+
+                    if      ( k != i && k == j && k == l) scale = 1.0 / 6.0;
+                    if      ( k == i && k != j && k == l) scale = 1.0 / 6.0;
+                    if      ( k == i && k == j && k != l) scale = 1.0 / 6.0;
+
+                    if      ( l != i && l == j && l == l) scale = 1.0 / 6.0;
+                    if      ( l == i && l != j && l == l) scale = 1.0 / 6.0;
+                    if      ( l == i && l == j && l != l) scale = 1.0 / 6.0;
+
                     add_quadruple_commutator( scale * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
                 }
             }
