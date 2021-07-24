@@ -2162,25 +2162,37 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     //print_fully_contracted();
 
     for (int i = 0; i < dim; i++) {
-        for (int j = i; j < dim; j++) {
-            for (int k = j; k < dim; k++) {
-                for (int l = k; l < dim; l++) {
-                    double scale = 1.0 / 24.0;
-                    if      ( i != j && i != k && j != k && j != l) scale = 1.0;
-                    if      ( i != j && i != k && j != k && j == l) scale = 1.0 / 6.0;
-                    if      ( i != j && i != k && j == k && j != l) scale = 1.0 / 6.0;
-                    if      ( i != j && i == k && j != k && j != l) scale = 1.0 / 6.0;
-                    if      ( i == j && i != k && j != k && j != l) scale = 1.0 / 6.0;
-                    if      ( i != j && i != k && j == k && j == l) scale = 0.5;
-                    if      ( i != j && i == k && j != k && j == l) scale = 0.5;
-                    if      ( i == j && i != k && j != k && j == l) scale = 0.5;
-                    if      ( i != j && i == k && j == k && j != l) scale = 0.5;
-                    if      ( i == j && i != k && j == k && j != l) scale = 0.5;
-                    if      ( i == j && i == k && j != k && j != l) scale = 0.5;
-                    add_quadruple_commutator( scale * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+        for (int j = i + 1; j < dim; j++) {
+            for (int k = j + 1; k < dim; k++) {
+                for (int l = k + 1; l < dim; l++) {
+                    add_quadruple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
                 }
             }
         }
+    }
+    simplify();
+    for (int i = 0; i < dim; i++) {
+        for (int j = i + 1; j < dim; j++) {
+            for (int k = j + 1; k < dim; k++) {
+                add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]});
+            }
+        }
+    }
+    simplify();
+    for (int i = 0; i < dim; i++) {
+        for (int j = i + 1; j < dim; j++) {
+            add_quadruple_commutator( 0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
+        }
+    }
+    simplify();
+    for (int i = 0; i < dim; i++) {
+        for (int j = i + 1; j < dim; j++) {
+            add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
+        }
+    }
+    simplify();
+    for (int i = 0; i < dim; i++) {
+        add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
     }
     simplify();
     //printf("done quadruple_commutator\n");fflush(stdout);
