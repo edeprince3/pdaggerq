@@ -2133,11 +2133,13 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     //print_fully_contracted();
 
     for (int i = 0; i < dim; i++) {
-        for (int j = i; j < dim; j++) {
-            double scale = 0.5;
-            if ( i != j ) scale = 1.0;
-            add_double_commutator( scale * factor, targets, {ops[i]}, {ops[j]});
+        for (int j = i + 1; j < dim; j++) {
+            add_double_commutator(factor, targets, {ops[i]}, {ops[j]});
         }
+    }
+    simplify();
+    for (int i = 0; i < dim; i++) {
+        add_double_commutator(0.5 * factor, targets, {ops[i]}, {ops[i]});
     }
     simplify();
 
@@ -2171,9 +2173,9 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
 
     // ijj
     for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            if ( i == j ) continue;
+        for (int j = i + 1; j < dim; j++) {
             add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
+            add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]});
         }
     }
     simplify();
@@ -2203,9 +2205,10 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     // ijkk
     for (int i = 0; i < dim; i++) {
         for (int j = i + 1; j < dim; j++) {
-            for (int k = 0; k < dim; k++) {
-                if ( k == i || k == j ) continue;
+            for (int k = j + 1; k < dim; k++) {
                 add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]});
+                add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]});
+                add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]});
             }
         }
     }
@@ -2221,9 +2224,9 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
 
     // iiij
     for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            if ( i == j ) continue;
+        for (int j = i + 1; j < dim; j++) {
             add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
+            add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]});
         }
     }
     simplify();
