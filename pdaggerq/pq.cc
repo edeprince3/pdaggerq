@@ -865,6 +865,8 @@ void pq::consolidate_permutations_non_summed(
 
             if ( !already_found ) {
                 find_idx.push_back(found);
+            }else{
+                find_idx.push_back(0);
             }
         }
 
@@ -890,9 +892,41 @@ void pq::consolidate_permutations_non_summed(
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                     if ( strings_same ) {
+
+                        // also need to check if the permutations are the same...
+                        // otherwise, we shouldn't be combining these terms
+                        if ( ordered[i]->data->permutations.size() == ordered[j]->data->permutations.size() ) {
+
+                            // remember, permutations come in pairs
+                            size_t n = data->permutations.size() / 2;
+                            int count = 0;
+                            int n_same = 0;
+                            for (int i = 0; i < n; i++) {
+                                
+                                if ( ordered[i]->data->permutations[count] == ordered[j]->data->permutations[count] ) {
+                                    n_same++;
+                                }else if (  ordered[i]->data->permutations[count]   == ordered[j]->data->permutations[count+1] ) {
+                                    n_same++;
+                                }else if (  ordered[i]->data->permutations[count+1] == ordered[j]->data->permutations[count]   ) {
+                                    n_same++;
+                                }else if (  ordered[i]->data->permutations[count+1] == ordered[j]->data->permutations[count+1] ) {
+                                    n_same++;
+                                }
+                                count += 2;
+
+                            }
+                            if ( n_same != n ) {
+                                continue;
+                            }
+ 
+                        }else {
+                            continue;
+                        }
+                       
                         permutation_1 = labels[id1];
                         permutation_2 = labels[id2];
                         break;
+
                     }
                 }
                 if ( strings_same ) break;

@@ -2161,6 +2161,7 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     }
     simplify();
 */
+
      // ijk
      for (int i = 0; i < dim; i++) {
         for (int j = i + 1; j < dim; j++) {
@@ -2189,6 +2190,19 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     //printf("done triple_commutator\n");fflush(stdout);
     //printf("current list size: %zu\n",ordered.size());
     //print_fully_contracted();
+
+/*
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0 k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                }
+            }
+        }
+    }
+    simplify();
+*/
 
     // ijkl
     for (int i = 0; i < dim; i++) {
