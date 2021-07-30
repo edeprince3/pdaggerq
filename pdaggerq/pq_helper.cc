@@ -62,6 +62,7 @@ void export_pq_helper(py::module& m) {
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_factor", &pq_helper::set_factor)
+        .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("add_new_string", &pq_helper::add_new_string)
         .def("add_operator_product", &pq_helper::add_operator_product)
         .def("add_st_operator", &pq_helper::add_st_operator)
@@ -123,6 +124,10 @@ pq_helper::pq_helper(std::string vacuum_type)
     ket = "VACUUM";
 
     print_level = 0;
+
+    // assume operators entering a similarity transformation
+    // commute. only relevant for the add_st_operator() function
+    cluster_operators_commute_ = true;
 
 }
 
@@ -2130,89 +2135,127 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     // we only need to consider unique pairs/triples/quadruplets of
     // operators. need to add logic to handle cases where the operators
     // do not commute.
+    if ( cluster_operators_commute_ ) {
 
-    for (int i = 0; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
-            add_double_commutator(factor, targets, {ops[i]}, {ops[j]});
-        }
-    }
-    simplify();
-    for (int i = 0; i < dim; i++) {
-        add_double_commutator(0.5 * factor, targets, {ops[i]}, {ops[i]});
-    }
-    simplify();
-
-    // ijk
-    for (int i = 0; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
-            for (int k = j + 1; k < dim; k++) {
-                add_triple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+        for (int i = 0; i < dim; i++) {
+            for (int j = i + 1; j < dim; j++) {
+                add_double_commutator(factor, targets, {ops[i]}, {ops[j]});
             }
         }
-    }
-    simplify();
-
-    // ijj
-    for (int i = 0; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
-            add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
-            add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]});
+        simplify();
+        for (int i = 0; i < dim; i++) {
+            add_double_commutator(0.5 * factor, targets, {ops[i]}, {ops[i]});
         }
-    }
-    simplify();
+        simplify();
 
-     // iii
-    for (int i = 0; i < dim; i++) {
-        add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
-    }
-    simplify();
-
-    // ijkl
-    for (int i = 0; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
-            for (int k = j + 1; k < dim; k++) {
-                for (int l = k + 1; l < dim; l++) {
-                    add_quadruple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+        // ijk
+        for (int i = 0; i < dim; i++) {
+            for (int j = i + 1; j < dim; j++) {
+                for (int k = j + 1; k < dim; k++) {
+                    add_triple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
                 }
             }
         }
-    }
-    simplify();
+        simplify();
 
-    // ijkk
-    for (int i = 0; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
-            for (int k = j + 1; k < dim; k++) {
-                add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]});
-                add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]});
-                add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]});
+        // ijj
+        for (int i = 0; i < dim; i++) {
+            for (int j = i + 1; j < dim; j++) {
+                add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
+                add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]});
             }
         }
-    }
-    simplify();
+        simplify();
 
-    // iijj
-    for (int i = 0; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
-            add_quadruple_commutator( 0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
+         // iii
+        for (int i = 0; i < dim; i++) {
+            add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
         }
-    }
-    simplify();
+        simplify();
 
-    // iiij
-    for (int i = 0; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
-            add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
-            add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]});
+        // ijkl
+        for (int i = 0; i < dim; i++) {
+            for (int j = i + 1; j < dim; j++) {
+                for (int k = j + 1; k < dim; k++) {
+                    for (int l = k + 1; l < dim; l++) {
+                        add_quadruple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                    }
+                }
+            }
         }
-    }
-    simplify();
+        simplify();
 
-    // iiii
-    for (int i = 0; i < dim; i++) {
-        add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
+        // ijkk
+        for (int i = 0; i < dim; i++) {
+            for (int j = i + 1; j < dim; j++) {
+                for (int k = j + 1; k < dim; k++) {
+                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]});
+                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]});
+                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]});
+                }
+            }
+        }
+        simplify();
+
+        // iijj
+        for (int i = 0; i < dim; i++) {
+            for (int j = i + 1; j < dim; j++) {
+                add_quadruple_commutator( 0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
+            }
+        }
+        simplify();
+
+        // iiij
+        for (int i = 0; i < dim; i++) {
+            for (int j = i + 1; j < dim; j++) {
+                add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
+                add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]});
+            }
+        }
+        simplify();
+
+        // iiii
+        for (int i = 0; i < dim; i++) {
+            add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
+        }
+        simplify();
+    }else {
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                add_double_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]});
+            }
+        }
+        simplify();
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                for (int k = 0; k < dim; k++) {
+                    add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+                }
+            }
+        }
+        simplify();
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                for (int k = 0; k < dim; k++) {
+                    for (int l = 0; l < dim; l++) {
+                        add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                    }
+                }
+            }
+        }
+        simplify();
+
     }
-    simplify();
+}
+
+// do operators entering similarity transformation commute? default true
+void pq_helper::set_cluster_operators_commute(bool cluster_operators_commute) {
+
+    cluster_operators_commute_ = cluster_operators_commute;
+
 }
 
 } // End namespaces
