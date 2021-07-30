@@ -2120,17 +2120,16 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
 
     add_operator_product( factor, targets);
     simplify();
-    //printf("done add_operator_product\n");fflush(stdout);
-    //printf("current list size: %zu\n",ordered.size());
-    //print_fully_contracted();
 
     for (int i = 0; i < dim; i++) {
         add_commutator( factor, targets, {ops[i]});
     }
     simplify();
-    //printf("done commutator\n");fflush(stdout);
-    //printf("current list size: %zu\n",ordered.size());
-    //print_fully_contracted();
+
+    // for higher than single commutators, if operators commute, then
+    // we only need to consider unique pairs/triples/quadruplets of
+    // operators. need to add logic to handle cases where the operators
+    // do not commute.
 
     for (int i = 0; i < dim; i++) {
         for (int j = i + 1; j < dim; j++) {
@@ -2143,27 +2142,8 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     }
     simplify();
 
-    //printf("done double_commutator\n");fflush(stdout);
-    //printf("current list size: %zu\n",ordered.size());
-    //print_fully_contracted();
-/*
-     for (int i = 0; i < dim; i++) {
-        for (int j = i; j < dim; j++) {
-            for (int k = j; k < dim; k++) {
-                double scale = 1.0 / 6.0;
-                if      ( i != j && i != k && j != k ) scale = 1.0;
-                else if ( i != j && i != k && j == k ) scale = 0.5;
-                else if ( i != j && i == k && j != k ) scale = 0.5;
-                else if ( i == j && i != k && j != k ) scale = 0.5;
-                add_triple_commutator( scale * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
-            }
-        }
-    }
-    simplify();
-*/
-
-     // ijk
-     for (int i = 0; i < dim; i++) {
+    // ijk
+    for (int i = 0; i < dim; i++) {
         for (int j = i + 1; j < dim; j++) {
             for (int k = j + 1; k < dim; k++) {
                 add_triple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
@@ -2186,23 +2166,6 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
     }
     simplify();
-
-    //printf("done triple_commutator\n");fflush(stdout);
-    //printf("current list size: %zu\n",ordered.size());
-    //print_fully_contracted();
-
-/*
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            for (int k = 0 k < dim; k++) {
-                for (int l = 0; l < dim; l++) {
-                    add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
-                }
-            }
-        }
-    }
-    simplify();
-*/
 
     // ijkl
     for (int i = 0; i < dim; i++) {
@@ -2250,11 +2213,6 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
     }
     simplify();
-
-    //printf("done quadruple_commutator\n");fflush(stdout);
-    //printf("current list size: %zu\n",ordered.size());
-    //print_fully_contracted();
-
 }
 
 } // End namespaces
