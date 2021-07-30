@@ -192,6 +192,50 @@ class pq {
         std::vector<std::string> labels_3,
         std::vector<std::string> labels_4);
 
+    /// consolidate terms that differ by five summed labels plus permutations
+    void consolidate_permutations_plus_five_swaps(
+        std::vector<std::shared_ptr<pq> > &ordered,
+        std::vector<std::string> labels_1,
+        std::vector<std::string> labels_2,
+        std::vector<std::string> labels_3,
+        std::vector<std::string> labels_4, 
+        std::vector<std::string> labels_5);
+
+    /// consolidate terms that differ by six summed labels plus permutations
+    void consolidate_permutations_plus_six_swaps(
+        std::vector<std::shared_ptr<pq> > &ordered,
+        std::vector<std::string> labels_1,
+        std::vector<std::string> labels_2,
+        std::vector<std::string> labels_3,
+        std::vector<std::string> labels_4, 
+        std::vector<std::string> labels_5,
+        std::vector<std::string> labels_6);
+
+    /// consolidate terms that differ by seven summed labels plus permutations
+    void consolidate_permutations_plus_seven_swaps(
+        std::vector<std::shared_ptr<pq> > &ordered,
+        std::vector<std::string> labels_1,
+        std::vector<std::string> labels_2,
+        std::vector<std::string> labels_3,
+        std::vector<std::string> labels_4, 
+        std::vector<std::string> labels_5,
+        std::vector<std::string> labels_6,
+        std::vector<std::string> labels_7);
+
+    /// consolidate terms that differ by eight summed labels plus permutations
+    void consolidate_permutations_plus_eight_swaps(
+        std::vector<std::shared_ptr<pq> > &ordered,
+        std::vector<std::string> labels_1,
+        std::vector<std::string> labels_2,
+        std::vector<std::string> labels_3,
+        std::vector<std::string> labels_4, 
+        std::vector<std::string> labels_5,
+        std::vector<std::string> labels_6,
+        std::vector<std::string> labels_7,
+        std::vector<std::string> labels_8);
+
+    /// consolidate terms that differ by permutations of non-summed labels
+
     /// consolidate terms that differ by permutations of non-summed labels
     void consolidate_permutations_non_summed(
         std::vector<std::shared_ptr<pq> > &ordered,

@@ -57,6 +57,8 @@ class pq_helper {
     /// operators to apply to the right of any operator products we add
     std::vector<std::string> right_operators;
 
+    /// do operators entering a similarity transformation commute?
+    bool cluster_operators_commute_;
 
   public:
 
@@ -170,6 +172,8 @@ class pq_helper {
     /// print two-body strings
     void print_two_body();
 
+    /// do operators entering similarity transformation commute? default true
+    void set_cluster_operators_commute(bool cluster_operators_commute);
 };
 
 }
