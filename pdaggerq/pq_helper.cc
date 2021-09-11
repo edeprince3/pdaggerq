@@ -61,6 +61,8 @@ void export_pq_helper(py::module& m) {
         .def("set_right_amplitudes", &pq_helper::set_right_amplitudes)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
+        .def("set_left_operators_type", &pq_helper::set_left_operators_type)
+        .def("set_right_operators_type", &pq_helper::set_right_operators_type)
         .def("set_factor", &pq_helper::set_factor)
         .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("add_new_string", &pq_helper::add_new_string)
@@ -129,6 +131,12 @@ pq_helper::pq_helper(std::string vacuum_type)
     // commute. only relevant for the add_st_operator() function
     cluster_operators_commute_ = true;
 
+    /// right operators type (EE, IP, EA)
+    right_operators_type = "EE";
+
+    /// left operators type (EE, IP, EA)
+    left_operators_type = "EE";
+
 }
 
 pq_helper::~pq_helper()
@@ -146,6 +154,28 @@ void pq_helper::set_left_operators(std::vector<std::string> in) {
         left_operators.push_back(in[i]);
     }
 
+}
+
+void pq_helper::set_left_operators_type(std::string type) {
+    if ( type == "EE" || type == "IP" ) {
+        left_operators_type = type;
+    }else {
+        printf("\n");
+        printf("    error: invalid left-hand operator type (%s)\n",type.c_str());
+        printf("\n");
+        exit(1);
+    }
+}
+
+void pq_helper::set_right_operators_type(std::string type) {
+    if ( type == "EE" || type == "IP" ) {
+        right_operators_type = type;
+    }else {
+        printf("\n");
+        printf("    error: invalid right-hand operator type (%s)\n",type.c_str());
+        printf("\n");
+        exit(1);
+    }
 }
 
 void pq_helper::set_right_operators(std::vector<std::string> in) {
@@ -496,7 +526,18 @@ void pq_helper::add_quadruple_commutator(double factor,
 
 void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
-    // first check if there is a fluctuation potential operator 
+    // first check if right-/left-hand operator type works with 
+    // chosen bra or ket
+    if ( bra != "VACUUM" || ket != "VACUUM" ) {
+        if ( right_operators_type != "EE" || left_operators_type != "EE" ) {
+            printf("\n");
+            printf("    error: invalid bra/ket/operator type combination\n");
+            printf("\n");
+            exit(1);
+        }
+    }
+
+    // now check if there is a fluctuation potential operator 
     // that needs to be split into multiple terms
 
     std::vector<std::string> tmp;
@@ -936,36 +977,39 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }else {
 
+                        int n_annihilate = n;
+                        int n_create     = n;
+                        if ( right_operators_type == "IP" ) n_create--;
+
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
                         std::vector<std::string> label_left;
                         std::vector<std::string> label_right;
-                        for (int id = 0; id < n; id++) {
-
+                        for (int id = 0; id < n_create; id++) {
                             std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
-
                             op_left.push_back(idx1+"*");
-                            op_right.push_back(idx2);
-
                             label_left.push_back(idx1);
+                        }
+                        for (int id = 0; id < n_annihilate; id++) {
+                            std::string idx2 = "o" + std::to_string(occ_label_count++);
+                            op_right.push_back(idx2);
                             label_right.push_back(idx2);
                         }
                         // a*b*...
-                        for (int id = 0; id < n; id++) {
+                        for (int id = 0; id < n_create; id++) {
                             tmp_string.push_back(op_left[id]);
                         }
-                        // i*j*...
-                        for (int id = 0; id < n; id++) {
+                        // ij...
+                        for (int id = 0; id < n_annihilate; id++) {
                             tmp_string.push_back(op_right[id]);
                         }
                         std::vector<std::string> labels;
                         // tn(ab...
-                        for (int id = 0; id < n; id++) {
+                        for (int id = 0; id < n_create; id++) {
                             labels.push_back(label_left[id]);
                         }
                         // tn(ab......ji)
-                        for (int id = n-1; id >= 0; id--) {
+                        for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
                         set_right_amplitudes(labels);
@@ -990,39 +1034,42 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         data->is_boson_dagger.push_back(true);
 
                     }else {
-                        
+                       
+                        int n_annihilate = n;
+                        int n_create     = n;
+                        if ( right_operators_type == "IP" ) n_create--;
+
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
                         std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n; id++) {
-                            
+                        std::vector<std::string> label_right; 
+                        for (int id = 0; id < n_create; id++) {
                             std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
-                            
                             op_left.push_back(idx1+"*");
-                            op_right.push_back(idx2);
-                            
                             label_left.push_back(idx1);
+                        }
+                        for (int id = 0; id < n_annihilate; id++) {
+                            std::string idx2 = "o" + std::to_string(occ_label_count++);
+                            op_right.push_back(idx2);
                             label_right.push_back(idx2);
                         }
                         // a*b*...
-                        for (int id = 0; id < n; id++) {
+                        for (int id = 0; id < n_create; id++) {
                             tmp_string.push_back(op_left[id]);
                         }
-                        // i*j*...
-                        for (int id = 0; id < n; id++) {
+                        // ij...
+                        for (int id = 0; id < n_annihilate; id++) {
                             tmp_string.push_back(op_right[id]);
                         }
                         std::vector<std::string> labels;
                         // tn(ab... 
-                        for (int id = 0; id < n; id++) {
+                        for (int id = 0; id < n_create; id++) {
                             labels.push_back(label_left[id]);
                         }
                         // tn(ab......ji)
-                        for (int id = n-1; id >= 0; id--) {
+                        for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
-                        }
+                        } 
                         set_s_amplitudes(labels);
                         
                         // factor = 1/(n!)^2
@@ -1046,36 +1093,39 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }else {
                         
+                        int n_annihilate = n;
+                        int n_create     = n;
+                        if ( left_operators_type == "IP" ) n_annihilate--;
+
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
                         std::vector<std::string> label_left;
                         std::vector<std::string> label_right;
-                        for (int id = 0; id < n; id++) {
-                            
+                        for (int id = 0; id < n_create; id++) {
                             std::string idx1 = "o" + std::to_string(occ_label_count++);
-                            std::string idx2 = "v" + std::to_string(vir_label_count++);
-                            
                             op_left.push_back(idx1+"*");
-                            op_right.push_back(idx2);
-                            
                             label_left.push_back(idx1);
+                        }
+                        for (int id = 0; id < n_annihilate; id++) {
+                            std::string idx2 = "v" + std::to_string(vir_label_count++);
+                            op_right.push_back(idx2);
                             label_right.push_back(idx2);
                         }
                         // i*j*...
-                        for (int id = 0; id < n; id++) {
+                        for (int id = 0; id < n_create; id++) {
                             tmp_string.push_back(op_left[id]);
                         }
-                        // a*b*...
-                        for (int id = 0; id < n; id++) {
+                        // ab...
+                        for (int id = 0; id < n_annihilate; id++) {
                             tmp_string.push_back(op_right[id]);
                         }
                         std::vector<std::string> labels;
-                        // tn(ab... 
-                        for (int id = 0; id < n; id++) {
+                        // tn(ij... 
+                        for (int id = 0; id < n_create; id++) {
                             labels.push_back(label_left[id]);
                         }
-                        // tn(ab......ji)
-                        for (int id = n-1; id >= 0; id--) {
+                        // tn(ij......ba)
+                        for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
                         set_left_amplitudes(labels);
@@ -1101,36 +1151,39 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }else {
 
+                        int n_annihilate = n;
+                        int n_create     = n;
+                        if ( left_operators_type == "IP" ) n_annihilate--;
+
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
                         std::vector<std::string> label_left;
                         std::vector<std::string> label_right;
-                        for (int id = 0; id < n; id++) {
-
+                        for (int id = 0; id < n_create; id++) {
                             std::string idx1 = "o" + std::to_string(occ_label_count++);
-                            std::string idx2 = "v" + std::to_string(vir_label_count++);
-
                             op_left.push_back(idx1+"*");
-                            op_right.push_back(idx2);
-
                             label_left.push_back(idx1);
+                        }
+                        for (int id = 0; id < n_annihilate; id++) {
+                            std::string idx2 = "v" + std::to_string(vir_label_count++);
+                            op_right.push_back(idx2);
                             label_right.push_back(idx2);
                         }
                         // i*j*...
-                        for (int id = 0; id < n; id++) {
+                        for (int id = 0; id < n_create; id++) {
                             tmp_string.push_back(op_left[id]);
                         }
-                        // a*b*...
-                        for (int id = 0; id < n; id++) {
+                        // ab...
+                        for (int id = 0; id < n_annihilate; id++) {
                             tmp_string.push_back(op_right[id]);
                         }
                         std::vector<std::string> labels;
-                        // tn(ab... 
-                        for (int id = 0; id < n; id++) {
+                        // tn(ij... 
+                        for (int id = 0; id < n_create; id++) {
                             labels.push_back(label_left[id]);
                         }
-                        // tn(ab......ji)
-                        for (int id = n-1; id >= 0; id--) {
+                        // tn(ij......ba)
+                        for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
                         set_m_amplitudes(labels);

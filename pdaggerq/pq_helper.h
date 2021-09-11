@@ -60,6 +60,12 @@ class pq_helper {
     /// do operators entering a similarity transformation commute?
     bool cluster_operators_commute_;
 
+    /// right-hand operators type (EE, IP, EA)
+    std::string right_operators_type;
+
+    /// left-hand operators type (EE, IP, EA)
+    std::string left_operators_type;
+
   public:
 
     /// constructor
@@ -174,6 +180,13 @@ class pq_helper {
 
     /// do operators entering similarity transformation commute? default true
     void set_cluster_operators_commute(bool cluster_operators_commute);
+
+    /// set right-hand operators type (EE, IP, EA)
+    void set_right_operators_type(std::string type);
+
+    /// set right-hand operators type (EE, IP, EA)
+    void set_left_operators_type(std::string type);
+
 };
 
 }
