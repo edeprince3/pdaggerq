@@ -52,10 +52,10 @@ class pq_helper {
     int print_level;
 
     /// operators to apply to the left of any operator products we add
-    std::vector<std::string> left_operators;
+    std::vector<std::vector<std::string> > left_operators;
 
     /// operators to apply to the right of any operator products we add
-    std::vector<std::string> right_operators;
+    std::vector<std::vector<std::string> > right_operators;
 
     /// do operators entering a similarity transformation commute?
     bool cluster_operators_commute_;
@@ -75,10 +75,10 @@ class pq_helper {
     ~pq_helper();
 
     /// set operators to apply to the left of any operator products we add
-    void set_left_operators(std::vector<std::string> in);
+    void set_left_operators(std::vector<std::vector<std::string> > in);
 
     /// set operators to apply to the right of any operator products we add
-    void set_right_operators(std::vector<std::string> in);
+    void set_right_operators(std::vector<std::vector<std::string> >in);
 
     /// when bringing to normal order, does the bra involve any operators?
     void set_bra(std::string bra_type);

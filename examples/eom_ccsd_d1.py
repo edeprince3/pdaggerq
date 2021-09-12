@@ -6,8 +6,8 @@ import pdaggerq
 pq = pdaggerq.pq_helper("fermi")
 
 # set right and left-hand operators
-pq.set_left_operators(['l0','l1','l2'])
-pq.set_right_operators(['r0','r1','r2'])
+pq.set_left_operators([['l0'],['l1'],['l2']])
+pq.set_right_operators([['r0'],['r1'],['r2']])
 
 print('')
 print('    D1(m,n) = <0|(l0 + l1 + l2) e(-T) e(m,n) e(T) (r0 + r1 + r2)|0>')

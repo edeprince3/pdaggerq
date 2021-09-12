@@ -7,7 +7,7 @@ print('')
 print('    < 0 | e(-T) H e(T) | 0> :')
 print('')
 
-pq.set_left_operators(['1'])
+pq.set_left_operators([['1']])
 
 # one-electron part: 
 # h

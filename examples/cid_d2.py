@@ -6,8 +6,8 @@ import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")
 
-pq.set_left_operators(['l0','l2'])
-pq.set_right_operators(['r0','r2'])
+pq.set_left_operators([['l0'],['l2']])
+pq.set_right_operators([['r0'],['r2']])
 
 print('')
 print('    D2(i,j,k,l) = <0|(l0 + l2) e2(i,j,l,k) (r0 + r2)|0>')

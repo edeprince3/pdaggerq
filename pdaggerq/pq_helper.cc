@@ -147,11 +147,15 @@ void pq_helper::set_print_level(int level) {
     print_level = level;
 }
 
-void pq_helper::set_left_operators(std::vector<std::string> in) {
+void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
 
     left_operators.clear();
     for (int i = 0; i < (int)in.size(); i++) {
-        left_operators.push_back(in[i]);
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in[i].size(); j++) {
+            tmp.push_back(in[i][j]);
+        }
+        left_operators.push_back(tmp);
     }
 
 }
@@ -178,11 +182,15 @@ void pq_helper::set_right_operators_type(std::string type) {
     }
 }
 
-void pq_helper::set_right_operators(std::vector<std::string> in) {
+void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
 
     right_operators.clear();
     for (int i = 0; i < (int)in.size(); i++) {
-        right_operators.push_back(in[i]);
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in[i].size(); j++) {
+            tmp.push_back(in[i][j]);
+        }
+        right_operators.push_back(tmp);
     }
 
 }
@@ -544,33 +552,39 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
     // left operators
     for (int i = 0; i < (int)left_operators.size(); i++) {
-        if ( left_operators[i] == "v" ) {
-            tmp.push_back("j1");
-            tmp.push_back("j2");
-        }else {
-            tmp.push_back(left_operators[i]);
+        tmp.clear();
+        for (int j = 0; j < (int)left_operators[i].size(); j++) {
+            if ( left_operators[i][j] == "v" ) {
+                tmp.push_back("j1");
+                tmp.push_back("j2");
+            }else {
+                tmp.push_back(left_operators[i][j]);
+            }
         }
+        left_operators[i].clear();
+        for (int j = 0; j < (int)tmp.size(); j++) {
+            left_operators[i].push_back(tmp[j]);
+        }
+        tmp.clear();
     }
-    left_operators.clear();
-    for (int i = 0; i < (int)tmp.size(); i++) {
-        left_operators.push_back(tmp[i]);
-    }
-    tmp.clear();
     
     // right operators
     for (int i = 0; i < (int)right_operators.size(); i++) {
-        if ( right_operators[i] == "v" ) {
-            tmp.push_back("j1");
-            tmp.push_back("j2");
-        }else {
-            tmp.push_back(right_operators[i]);
+        tmp.clear();
+        for (int j = 0; j < (int)right_operators[i].size(); j++) {
+            if ( right_operators[i][j] == "v" ) {
+                tmp.push_back("j1");
+                tmp.push_back("j2");
+            }else {
+                tmp.push_back(right_operators[i][j]);
+            }
         }
+        right_operators[i].clear();
+        for (int j = 0; j < (int)tmp.size(); j++) {
+            right_operators[i].push_back(tmp[j]);
+        }
+        tmp.clear();
     }
-    right_operators.clear();
-    for (int i = 0; i < (int)tmp.size(); i++) {
-        right_operators.push_back(tmp[i]);
-    }
-    tmp.clear();
     
 
     int count = 0;
@@ -620,10 +634,14 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     }
 
     if ( (int)left_operators.size() == 0 ) {
-        left_operators.push_back("1");
+        std::vector<std::string> junk;
+        junk.push_back("1");
+        left_operators.push_back(junk);
     }
     if ( (int)right_operators.size() == 0 ) {
-        right_operators.push_back("1");
+        std::vector<std::string> junk;
+        junk.push_back("1");
+        right_operators.push_back(junk);
     }
 
     double original_factor = factor;
@@ -700,11 +718,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             // apply any extra operators on left or right:
             std::vector<std::string> tmp;
-            tmp.push_back(left_operators[left]);
+            for (int i = 0; i < (int)left_operators[left].size(); i++) {
+                tmp.push_back(left_operators[left][i]);
+            }
             for (int i = 0; i < (int)save.size(); i++) {
                 tmp.push_back(save[i]);
             }
-            tmp.push_back(right_operators[right]);
+            for (int i = 0; i < (int)right_operators[right].size(); i++) {
+                tmp.push_back(right_operators[right][i]);
+            }
             in.clear();
             for (int i = 0; i < (int)tmp.size(); i++) {
                 in.push_back(tmp[i]);

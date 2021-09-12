@@ -13,7 +13,7 @@ def main():
     print('')
 
     # D(mn) = <psi|(1+l1 + l2) e(-T) e(m,n) e(T) |psi>
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e1(m,n)'],['t1','t2'])
     pq.simplify()
 
@@ -33,7 +33,7 @@ def main():
     print('#    D1(e,f):')
     print('')
 
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e1(e,f)'],['t1','t2'])
     pq.simplify()
 
@@ -52,7 +52,7 @@ def main():
     print('#    D1(e,m):')
     print('')
 
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e1(e,m)'],['t1','t2'])
     pq.simplify()
 
@@ -71,7 +71,7 @@ def main():
     print('#    D1(m,e):')
     print('')
 
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e1(m,e)'],['t1','t2'])
     pq.simplify()
 

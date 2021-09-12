@@ -8,7 +8,7 @@ print('')
 print('    < 0 | m* e e(-T) H e(T) | 0> :')
 print('')
 
-pq.set_left_operators(['e1(m,e)'])
+pq.set_left_operators([['e1(m,e)']])
 
 # one-electron part: need only up to double commutators
 # h
