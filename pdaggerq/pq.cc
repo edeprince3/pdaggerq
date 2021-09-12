@@ -145,15 +145,19 @@ void pq::print_amplitudes(std::string label, std::vector<std::vector<std::string
 
         if ( amplitudes[i].size() > 0 ) {
 
+            size_t size  = amplitudes[i].size();
             size_t order = amplitudes[i].size() / 2;
+            if ( 2*order != size ) {
+                order++;
+            }
             printf("%s",label.c_str());
             printf("%zu",order);
             printf("(");
-            for (size_t j = 0; j < 2*order-1; j++) {
+            for (size_t j = 0; j < size-1; j++) {
                 printf("%s",amplitudes[i][j].c_str());
                 printf(",");
             }
-            printf("%s",amplitudes[i][2*order-1].c_str());
+            printf("%s",amplitudes[i][size-1].c_str());
             printf(")");
             printf(" ");
 
@@ -335,12 +339,16 @@ void pq::print_amplitudes_to_string(std::string label,
         
         if ( amplitudes[i].size() > 0 ) {
             
+            size_t size  = amplitudes[i].size();
             size_t order = amplitudes[i].size() / 2;
+            if ( 2*order != size ) {
+                order++;
+            }
             std::string tmp = label + std::to_string(order) + "(";
-            for (int j = 0; j < 2*order-1; j++) {
+            for (int j = 0; j < size-1; j++) {
                 tmp += amplitudes[i][j] + ",";
             }
-            tmp += amplitudes[i][2*order-1] + ")";
+            tmp += amplitudes[i][size-1] + ")";
             my_string.push_back(tmp);
         
         }
