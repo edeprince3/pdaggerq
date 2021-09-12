@@ -1376,6 +1376,19 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else if ( in[i].substr(0,1) == "1" ) { // unit operator ... do nothing
 
+                }else if ( in[i].substr(0,1) == "a" ){ // single creator / annihilator
+
+
+                    if ( in[i].substr(1,1) == "*" ){ // creator
+
+                        tmp_string.push_back(in[i].substr(1)+"*");
+
+                    }else { // annihilator
+
+                        tmp_string.push_back(in[i].substr(1));
+
+                    }
+
                 }else {
                         printf("\n");
                         printf("    error: undefined string\n");
