@@ -2437,6 +2437,32 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
                 // second part
                 triples_permutations(amps1[i],amps2[j],nsame_idx,n_permute,3);
 
+            // dim = 7: ip quadruples or ea triples?
+            }else if ( dim == 7 ) {
+
+                int nsame_1 = 0;
+                int nsame_2 = 0;
+
+                int n_permute_1 = 0;
+                int n_permute_2 = 0;
+
+                // try 3/4
+                triples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,0);
+                quadruples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,3);
+
+                // try 4/3
+                quadruples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,0);
+                triples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,4);
+
+                // which combination wins?
+                if ( nsame_1 == dim ) {
+                    nsame_idx = nsame_1;
+                    n_permute = n_permute_1;
+                }else if ( nsame_2 == dim ) {
+                    nsame_idx = nsame_2;
+                    n_permute = n_permute_2;
+                }
+
             // dim = 8: quadruples
             }else if ( dim == 8 ) {
 
