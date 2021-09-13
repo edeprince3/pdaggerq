@@ -2306,7 +2306,7 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
                     nsame_idx = 2;
                 }
 
-            // dim = 3: ip doubles or ea singles
+            // dim = 3: ip/ea doubles 
             }else if ( dim == 3 ) {
             
                 // two possibilities ... either oov/vvo or ovv/voo
@@ -2364,7 +2364,7 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
 
                 }
             
-            // dim = 5: ip triples or ea doubles
+            // dim = 5: ip / ea triples 
             }else if ( dim == 5 ) {
             
                 // so many possibilities ... either ooovv/vvvoo or oovvv/vvooo
@@ -2437,7 +2437,7 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
                 // second part
                 triples_permutations(amps1[i],amps2[j],nsame_idx,n_permute,3);
 
-            // dim = 7: ip quadruples or ea triples?
+            // dim = 7: ip / ea quadruples 
             }else if ( dim == 7 ) {
 
                 int nsame_1 = 0;
