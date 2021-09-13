@@ -2364,6 +2364,70 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
 
                 }
             
+            // dim = 5: ip triples or ea doubles
+            }else if ( dim == 5 ) {
+            
+                // so many possibilities ... either ooovv/vvvoo or oovvv/vvooo
+
+                int nsame_1 = 0;
+                int nsame_2 = 0;
+                int nsame_3 = 0;
+                int nsame_4 = 0;
+
+                int n_permute_1 = 0;
+                int n_permute_2 = 0;
+                int n_permute_3 = 0;
+                int n_permute_4 = 0;
+
+                if ( amps1[i][0] == amps2[j][0]
+                  && amps1[i][1] == amps2[j][1] ) {
+                    
+                    nsame_1 += 2;
+                    triples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,2);
+
+                }
+
+                if ( amps1[i][0] == amps2[j][1]
+                  && amps1[i][1] == amps2[j][0] ) {
+
+                    nsame_2 += 2;
+                    n_permute_2++;
+                    triples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,2);
+
+                }
+
+                if ( amps1[i][3] == amps2[j][3]
+                  && amps1[i][4] == amps2[j][4] ) {
+                    
+                    nsame_3 += 2;
+                    triples_permutations(amps1[i],amps2[j],nsame_3,n_permute_3,0);
+
+                }
+
+                if ( amps1[i][3] == amps2[j][4]
+                  && amps1[i][4] == amps2[j][3] ) {
+
+                    nsame_4 += 2;
+                    n_permute_4++;
+                    triples_permutations(amps1[i],amps2[j],nsame_4,n_permute_4,0);
+
+                }
+
+                // which combination wins?
+                if ( nsame_1 == dim ) {
+                    nsame_idx = nsame_1;
+                    n_permute = n_permute_1;
+                }else if ( nsame_2 == dim ) {
+                    nsame_idx = nsame_2;
+                    n_permute = n_permute_2;
+                }else if ( nsame_3 == dim ) {
+                    nsame_idx = nsame_3;
+                    n_permute = n_permute_3;
+                }else if ( nsame_4 == dim ) {
+                    nsame_idx = nsame_4;
+                    n_permute = n_permute_4;
+                }
+                
             // dim = 6: triples
             }else if ( dim == 6 ) {
 
