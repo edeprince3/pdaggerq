@@ -1037,11 +1037,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         set_right_amplitudes(labels);
 
                         // factor = 1/(n!)^2
-                        double my_factor = 1.0;
-                        for (int id = 0; id < n; id++) {
-                            my_factor *= (id+1);
+                        double my_factor_create = 1.0;
+                        double my_factor_annihilate = 1.0;
+                        for (int id = 0; id < n_create; id++) {
+                            my_factor_create *= (id+1);
                         }
-                        factor *= 1.0 / my_factor / my_factor;
+                        for (int id = 0; id < n_annihilate; id++) {
+                            my_factor_annihilate *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
 
                     }
 
@@ -1095,11 +1099,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         set_s_amplitudes(labels);
                         
                         // factor = 1/(n!)^2
-                        double my_factor = 1.0;
-                        for (int id = 0; id < n; id++) {
-                            my_factor *= (id+1);
+                        double my_factor_create = 1.0;
+                        double my_factor_annihilate = 1.0;
+                        for (int id = 0; id < n_create; id++) {
+                            my_factor_create *= (id+1);
                         }
-                        factor *= 1.0 / my_factor / my_factor;
+                        for (int id = 0; id < n_annihilate; id++) {
+                            my_factor_annihilate *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
                     
                         data->is_boson_dagger.push_back(true);
 
@@ -1153,11 +1161,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         set_left_amplitudes(labels);
                         
                         // factor = 1/(n!)^2
-                        double my_factor = 1.0;
-                        for (int id = 0; id < n; id++) {
-                            my_factor *= (id+1);
+                        double my_factor_create = 1.0;
+                        double my_factor_annihilate = 1.0;
+                        for (int id = 0; id < n_create; id++) {
+                            my_factor_create *= (id+1);
                         }
-                        factor *= 1.0 / my_factor / my_factor;
+                        for (int id = 0; id < n_annihilate; id++) {
+                            my_factor_annihilate *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
                     
                     }
 
@@ -1211,11 +1223,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         set_m_amplitudes(labels);
 
                         // factor = 1/(n!)^2
-                        double my_factor = 1.0;
-                        for (int id = 0; id < n; id++) {
-                            my_factor *= (id+1);
+                        double my_factor_create = 1.0;
+                        double my_factor_annihilate = 1.0;
+                        for (int id = 0; id < n_create; id++) {
+                            my_factor_create *= (id+1);
                         }
-                        factor *= 1.0 / my_factor / my_factor;
+                        for (int id = 0; id < n_annihilate; id++) {
+                            my_factor_annihilate *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
 
                         data->is_boson_dagger.push_back(false);
 

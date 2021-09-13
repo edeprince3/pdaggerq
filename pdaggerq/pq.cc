@@ -2292,11 +2292,45 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
 
             // cases: 
 
+            // dim = 1: ip singles, no permutations
+            if ( dim == 1 ) {
+
+                if ( amps1[i][0] == amps2[j][0] ) {
+                    nsame_idx = 1;
+                }
+
             // dim = 2: singles, no permutations
-            if ( dim == 2 ) {
+            }else if ( dim == 2 ) {
 
                 if ( amps1[i][0] == amps2[j][0] && amps1[i][1] == amps2[j][1] ) {
                     nsame_idx = 2;
+                }
+
+            // dim = 3: ip doubles or ea singles
+            }else if ( dim == 3 ) {
+            
+                // two possibilities ... either oov/vvo or ovv/voo
+
+                if ( amps1[i][0] == amps2[j][0] 
+                  && amps1[i][1] == amps2[j][1] 
+                  && amps1[i][2] == amps2[j][2] ) {
+
+                    nsame_idx += 3;
+
+                }else if ( amps1[i][0] == amps2[j][1] 
+                        && amps1[i][1] == amps2[j][0] 
+                        && amps1[i][2] == amps2[j][2] ) {
+
+                    nsame_idx += 3;
+                    n_permute++;
+
+                }else if ( amps1[i][0] == amps2[j][0] 
+                        && amps1[i][1] == amps2[j][2] 
+                        && amps1[i][2] == amps2[j][1] ) {
+
+                    nsame_idx += 3;
+                    n_permute++;
+
                 }
 
             // dim = 4: doubles
