@@ -2967,7 +2967,7 @@ void pq::use_conventional_labels() {
     std::vector<std::string> occ_in{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
                                     "o10","o11","o12","o13","o14","o15","o16","o17","o18","o19",
                                     "o20","o21","o22","o23","o24","o25","o26","o27","o28","o29"};
-    std::vector<std::string> occ_out{"i","j","k","l","m","n","o",
+    std::vector<std::string> occ_out{"i","j","k","l","m","n","o","t",
                                      "i0","i1","i2","i3","i4","i5","i6","i7","i8","i9",
                                      "i10","i11","i12","i13","i14","i15","i16","i17","i18","i19"};
 
@@ -2992,7 +2992,7 @@ void pq::use_conventional_labels() {
     std::vector<std::string> vir_in{"v0","v1","v2","v3","v4","v5","v6","v7","v8","v9",
                                     "v10","v11","v12","v13","v14","v15","v16","v17","v18","v19",
                                     "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
-    std::vector<std::string> vir_out{"a","b","c","d","e","f","g",
+    std::vector<std::string> vir_out{"a","b","c","d","e","f","g","h",
                                      "a0","a1","a2","a3","a4","a5","a6","a7","a8","a9",
                                      "a10","a11","a12","a13","a14","a15","a16","a17","a18","a19"};
 
@@ -3642,7 +3642,7 @@ void pq::reclassify_tensors() {
     if ( data->tensor_type == "OCC_REPULSION") {
 
         // pick summation label not included in string already
-        std::vector<std::string> occ_out{"i","j","k","l","m","n","o","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
+        std::vector<std::string> occ_out{"i","j","k","l","m","n","o","t","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
         std::string idx;
 
         int skip = -999;
