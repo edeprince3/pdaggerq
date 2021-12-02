@@ -15,7 +15,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 """
-Driver for spin-orbital CCSD and EOM-CCSD. (EOM-)CCSD code  generated with pdaggerq. Integrals come from psi4.
+Driver for spin-orbital CCSD and EOM-CCSD. (EOM-)CCSD code generated with pdaggerq. Integrals come from psi4.
 """
 import numpy as np
 from numpy import einsum
@@ -116,7 +116,9 @@ def main():
     from ccsd import ccsd_iterations
     from ccsd import ccsd_energy
 
-    t1, t2 = ccsd_iterations(np.zeros((nsvirt, nsocc)), np.zeros((nsvirt, nsvirt, nsocc, nsocc)), fock, gtei, o, v, e_ai, e_abij,
+    t1 = np.zeros((nsvirt, nsocc))
+    t2 = np.zeros((nsvirt, nsvirt, nsocc, nsocc))
+    t1, t2 = ccsd_iterations(t1, t2, fock, gtei, o, v, e_ai, e_abij,
                       hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
 
     cc_energy = ccsd_energy(t1, t2, fock, gtei, o, v)
@@ -127,6 +129,9 @@ def main():
     print("    CCSD Correlation Energy: {: 20.12f}".format(cc_energy - hf_energy))
     print("    CCSD Total Energy:       {: 20.12f}".format(cc_energy + nuclear_repulsion_energy))
     print("")
+
+    # check ccsd energy against psi4
+    assert np.isclose(cc_energy+nuclear_repulsion_energy,-75.019715133639338,atol=1e-9)
 
     # now eom-ccsd?
     print("    ==> EOM-CCSD <==")
