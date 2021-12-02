@@ -30,6 +30,8 @@ def main():
     from spatial_to_spin_orbital import spatial_to_spin_orbital_oei
     from spatial_to_spin_orbital import spatial_to_spin_orbital_tei
 
+    do_eom_ccsd = True
+
     # set molecule
     mol = psi4.geometry("""
     0 1
@@ -132,6 +134,9 @@ def main():
 
     # check ccsd energy against psi4
     assert np.isclose(cc_energy+nuclear_repulsion_energy,-75.019715133639338,atol=1e-9)
+
+    if not do_eom_ccsd: 
+        return
 
     # now eom-ccsd?
     print("    ==> EOM-CCSD <==")
