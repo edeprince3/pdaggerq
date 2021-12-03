@@ -135,6 +135,9 @@ def main():
     # check ccsd energy against psi4
     assert np.isclose(cc_energy+nuclear_repulsion_energy,-75.019715133639338,atol=1e-9)
 
+    print('    CCSD Total Energy..........................................................PASSED')
+    print('')
+
     if not do_eom_ccsd: 
         return
 
