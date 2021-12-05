@@ -879,6 +879,7 @@ void pq::consolidate_permutations_non_summed(
     std::vector<std::shared_ptr<pq> > &ordered,
     std::vector<std::string> labels) {
 
+
     for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -917,8 +918,8 @@ void pq::consolidate_permutations_non_summed(
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
-            std::string permutation_1;
-            std::string permutation_2;
+            std::string permutation_1 = "";
+            std::string permutation_2 = "";
 
             // try swapping non-summed labels
             for (size_t id1 = 0; id1 < labels.size(); id1++) {
@@ -933,36 +934,6 @@ void pq::consolidate_permutations_non_summed(
 
                     if ( strings_same ) {
 
-                        // also need to check if the permutations are the same...
-                        // otherwise, we shouldn't be combining these terms
-                        if ( ordered[i]->data->permutations.size() == ordered[j]->data->permutations.size() ) {
-
-                            // remember, permutations come in pairs
-                            size_t n = data->permutations.size() / 2;
-                            int count = 0;
-                            int n_same = 0;
-                            for (int i = 0; i < n; i++) {
-                                
-                                if ( ordered[i]->data->permutations[count] == ordered[j]->data->permutations[count] ) {
-                                    n_same++;
-                                }else if (  ordered[i]->data->permutations[count]   == ordered[j]->data->permutations[count+1] ) {
-                                    n_same++;
-                                }else if (  ordered[i]->data->permutations[count+1] == ordered[j]->data->permutations[count]   ) {
-                                    n_same++;
-                                }else if (  ordered[i]->data->permutations[count+1] == ordered[j]->data->permutations[count+1] ) {
-                                    n_same++;
-                                }
-                                count += 2;
-
-                            }
-                            if ( n_same != n ) {
-                                continue;
-                            }
- 
-                        }else {
-                            continue;
-                        }
-                       
                         permutation_1 = labels[id1];
                         permutation_2 = labels[id2];
                         break;
@@ -973,6 +944,11 @@ void pq::consolidate_permutations_non_summed(
             }
 
             if ( !strings_same ) continue;
+
+            // it is possible to have made it through the previous logic without 
+            // assigning permutation labels, if strings are identical but 
+            // permutation operators differ
+            //if ( permutation_1 == "" || permutation_2 == "" ) continue;
 
             double factor_i = ordered[i]->data->factor * ordered[i]->sign;
             double factor_j = ordered[j]->data->factor * ordered[j]->sign;
@@ -2258,6 +2234,35 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
         return false;
     }
 
+    // permutations should be the same, too wtf
+    // also need to check if the permutations are the same...
+    // otherwise, we shouldn't be combining these terms
+    if ( ordered_1->data->permutations.size() != ordered_2->data->permutations.size() ) {
+        return false;
+    }
+
+    int nsame_permutations = 0;
+    // remember, permutations come in pairs
+    size_t n = data->permutations.size() / 2;
+    int count = 0;
+    for (int i = 0; i < n; i++) {
+
+        if ( ordered_1->data->permutations[count] == ordered_2->data->permutations[count] ) {
+            nsame_permutations++;
+        }else if (  ordered_1->data->permutations[count]   == ordered_2->data->permutations[count+1] ) {
+            nsame_permutations++;
+        }else if (  ordered_1->data->permutations[count+1] == ordered_2->data->permutations[count]   ) {
+            nsame_permutations++;
+        }else if (  ordered_1->data->permutations[count+1] == ordered_2->data->permutations[count+1] ) {
+            nsame_permutations++;
+        }
+        count += 2;
+
+    }
+    if ( nsame_permutations != n ) {
+        return false;
+    }
+
     return true;
 }
 
@@ -3040,6 +3045,10 @@ void pq::copy(void * copy_me) {
         data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
     }
     
+    // permutations
+    for (size_t i = 0; i < in->data->permutations.size(); i++) {
+        data->permutations.push_back(in->data->permutations[i]);
+    }
 }
 
 bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
