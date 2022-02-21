@@ -9,7 +9,7 @@ def main():
 
     # energy equation
 
-    pq.set_bra("")
+    pq.set_left_operators([['1']])
 
     print('')
     print('    < 0 | e(-T) H e(T) | 0> :')
@@ -35,8 +35,7 @@ def main():
 
     # singles equations
 
-    # pq.set_bra("singles")
-    pq.set_left_operators(['e1(m,e)'])
+    pq.set_left_operators([['e1(m,e)']])
 
     print('')
     print('    < 0 | m* e e(-T) H e(T) | 0> :')
@@ -61,8 +60,7 @@ def main():
 
     # doubles equations
 
-    # pq.set_bra("doubles")
-    pq.set_left_operators(['e2(m,n,f,e)'])
+    pq.set_left_operators([['e2(m,n,f,e)']])
 
     print('')
     print('    < 0 | m* n* f e e(-T) H e(T) | 0> :')
