@@ -497,11 +497,18 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
     std::vector<std::string> tmp;
 
-    // left operators
+    // left operators 
+    // this is not handled correectly now that left operators can be sums of products of operators ... just exit with an error
     for (int i = 0; i < (int)left_operators.size(); i++) {
         tmp.clear();
         for (int j = 0; j < (int)left_operators[i].size(); j++) {
             if ( left_operators[i][j] == "v" ) {
+
+                printf("\n");
+                printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
+                printf("\n");
+                exit(1);
+
                 tmp.push_back("j1");
                 tmp.push_back("j2");
             }else {
@@ -515,11 +522,18 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         tmp.clear();
     }
     
-    // right operators
+    // right operators 
+    // this is not handled correectly now that right operators can be sums of products of operators ... just exit with an error
     for (int i = 0; i < (int)right_operators.size(); i++) {
         tmp.clear();
         for (int j = 0; j < (int)right_operators[i].size(); j++) {
             if ( right_operators[i][j] == "v" ) {
+
+                printf("\n");
+                printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
+                printf("\n");
+                exit(1);
+
                 tmp.push_back("j1");
                 tmp.push_back("j2");
             }else {
@@ -532,7 +546,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         }
         tmp.clear();
     }
-    
 
     int count = 0;
     bool found_v = false;
@@ -570,7 +583,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         add_operator_product(factor,in);
         
         return;
-
     }
 
 
