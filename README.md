@@ -292,36 +292,18 @@ set_print_level(0)
 ```    
 #### set_left_operators:
     
-set a sum of operators that define the bra state
+set a sum (outer list) of products (inner lists) of operators that define the bra state
    
 ```
-set_left_operators(['1','l1','l2'])
+set_left_operators([['1'],['l1'],['l2']])
 ```
 #### set_right_operators:
     
-set a sum of operators that define the ket state
+set a sum (outer list) of products (inner lists) of operators that define the ket state
 ```
-set_right_operators(['r0','r1','r2'])
+set_right_operators([['r0'],['r1'],['r2']])
 ```    
 
-#### set_bra: 
-
-set a bra state to include in the operator string. possible bra states include "vacuum", "singles" (m* e), and "
-doubles" (m* n* f e). Note that greater control over labels is provided by the set_left_operator function (e.g.,
-set_left_operator(['e2(i,j,b,a)']))
-```
-set_bra("doubles")
-```
-        
-#### set_ket: 
-
-set a ket state to include in the operator string. possible ket states include "vacuum", "singles" (e* m), and "
-doubles" (e* f* n m). Note that greater control over labels is provided by the set_right_operator function (e.g.,
-set_right_operator(['e2(a,b,j,i)'])).
-
-```
-set_ket("doubles")
-```    
 #### simplify: 
     
 consolidate/cancel terms and zero any delta functions that involve occupied / virtual combinations.
