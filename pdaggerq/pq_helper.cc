@@ -49,8 +49,6 @@ void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
-        .def("set_bra", &pq_helper::set_bra)
-        .def("set_ket", &pq_helper::set_ket)
         .def("set_string", &pq_helper::set_string)
         .def("set_tensor", &pq_helper::set_tensor)
         .def("set_t_amplitudes", &pq_helper::set_t_amplitudes)
@@ -122,9 +120,6 @@ pq_helper::pq_helper(std::string vacuum_type)
 
     data = (std::shared_ptr<StringData>)(new StringData());
 
-    bra = "VACUUM";
-    ket = "VACUUM";
-
     print_level = 0;
 
     // assume operators entering a similarity transformation
@@ -193,56 +188,6 @@ void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
         right_operators.push_back(tmp);
     }
 
-}
-
-void pq_helper::set_bra(std::string bra_type){
-
-    if ( bra_type == "" ) {
-        bra = "VACUUM";
-    }else if ( bra_type == "SINGLES" || bra_type == "singles" ) {
-        bra = "SINGLES";
-    }else if ( bra_type == "SINGLES_1" || bra_type == "singles_1" ) {
-        bra = "SINGLES_1";
-    }else if ( bra_type == "DOUBLES" || bra_type == "doubles" ) {
-        bra = "DOUBLES";
-    }else if ( bra_type == "DOUBLES_1" || bra_type == "doubles_1" ) {
-        bra = "DOUBLES_1";
-    }else if ( bra_type == "TRIPLES" || bra_type == "triples" ) {
-        bra = "TRIPLES";
-    }else if ( bra_type == "VACUUM" || bra_type == "vacuum" ) {
-        bra = "VACUUM";
-    }else if ( bra_type == "VACUUM_1" || bra_type == "vacuum_1" ) {
-        bra = "VACUUM_1";
-    }else {
-        printf("\n");
-        printf("    error: invalid bra type (%s)\n",bra_type.c_str());
-        printf("\n");
-        exit(1);
-    }
-}
-
-void pq_helper::set_ket(std::string ket_type){
-
-    if ( ket_type == "" ) {
-        ket = "VACUUM";
-    }else if ( ket_type == "SINGLES" || ket_type == "singles" ) {
-        ket = "SINGLES";
-    }else if ( ket_type == "SINGLES_1" || ket_type == "singles_1" ) {
-        ket = "SINGLES_1";
-    }else if ( ket_type == "DOUBLES" || ket_type == "doubles" ) {
-        ket = "DOUBLES";
-    }else if ( ket_type == "DOUBLES_1" || ket_type == "doubles_1" ) {
-        ket = "DOUBLES_1";
-    }else if ( ket_type == "VACUUM" || ket_type == "vacuum" ) {
-        ket = "VACUUM";
-    }else if ( ket_type == "VACUUM_1" || ket_type == "vacuum_1" ) {
-        ket = "VACUUM_1";
-    }else {
-        printf("\n");
-        printf("    error: invalid ket type (%s)\n",ket_type.c_str());
-        printf("\n");
-        exit(1);
-    }
 }
 
 void pq_helper::add_commutator(double factor,
@@ -536,6 +481,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
     // first check if right-/left-hand operator type works with 
     // chosen bra or ket
+/*
     if ( bra != "VACUUM" || ket != "VACUUM" ) {
         if ( right_operators_type != "EE" || left_operators_type != "EE" ) {
             printf("\n");
@@ -544,6 +490,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             exit(1);
         }
     }
+*/
 
     // now check if there is a fluctuation potential operator 
     // that needs to be split into multiple terms
@@ -653,53 +600,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             factor = original_factor;
 
             std::vector<std::string> tmp_string;
-
-            if ( bra == "SINGLES" ) {
-
-                // for singles equations: <me| = <0|m*e
-                tmp_string.push_back("m*");
-                tmp_string.push_back("e");
-
-            }else if ( bra == "DOUBLES" ) {
-
-                // for doubles equations: <mnef| = <0|m*n*fe
-                tmp_string.push_back("m*");
-                tmp_string.push_back("n*");
-                tmp_string.push_back("f");
-                tmp_string.push_back("e");
-
-            }else if ( bra == "TRIPLES" ) {
-
-                // for triples equations: <mnoefg| = <0|m*n*o*gfe
-                tmp_string.push_back("m*");
-                tmp_string.push_back("n*");
-                tmp_string.push_back("o*");
-                tmp_string.push_back("g");
-                tmp_string.push_back("f");
-                tmp_string.push_back("e");
-
-            }else if ( bra == "SINGLES_1" ) {
-
-                // for singles equations: <me,1| = <0|m*e B
-                tmp_string.push_back("m*");
-                tmp_string.push_back("e");
-
-                data->is_boson_dagger.push_back(false);
-
-            }else if ( bra == "DOUBLES_1" ) {
-
-                // for doubles equations: <mnef,1| = <0|m*n*fe B
-                tmp_string.push_back("m*");
-                tmp_string.push_back("n*");
-                tmp_string.push_back("f");
-                tmp_string.push_back("e");
-
-                data->is_boson_dagger.push_back(false);
-            }else if ( bra == "VACUUM_1" ) {
-
-                data->is_boson_dagger.push_back(false);
-
-            }
 
             bool has_l0       = false;
             bool has_r0       = false;
@@ -1419,44 +1319,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             }
 
             set_factor(factor);
-
-            if ( ket == "SINGLES" ) {
-
-                // for singles equations: |em> = e*m|0>
-                tmp_string.push_back("e*");
-                tmp_string.push_back("m");
-
-            }else if ( ket == "SINGLES_1" ) {
-
-                // for singles equations: |em,1> = e*m B*|0>
-                tmp_string.push_back("e*");
-                tmp_string.push_back("m");
-
-                data->is_boson_dagger.push_back(true);
-
-            }else if ( ket == "DOUBLES" ) {
-
-                // for doubles equations: |efmn> = e*f*mn|0>
-                tmp_string.push_back("e*");
-                tmp_string.push_back("f*");
-                tmp_string.push_back("n");
-                tmp_string.push_back("m");
-
-            }else if ( ket == "DOUBLES_1" ) {
-
-                // for doubles equations: |efmn,1> = e*f*mn B*|0>
-                tmp_string.push_back("e*");
-                tmp_string.push_back("f*");
-                tmp_string.push_back("n");
-                tmp_string.push_back("m");
-
-                data->is_boson_dagger.push_back(true);
-
-            }else if ( ket == "VACUUM_1" ) {
-
-                data->is_boson_dagger.push_back(true);
-
-            }
 
             set_string(tmp_string);
 

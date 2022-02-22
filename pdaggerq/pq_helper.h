@@ -42,12 +42,6 @@ class pq_helper {
     /// vacuum (fermi or true)
     std::string vacuum;
 
-    /// bra (vacuum, singles, or doubles)
-    std::string bra;
-
-    /// ket (vacuum, singles, or doubles)
-    std::string ket;
-
     /// print level
     int print_level;
 
@@ -79,12 +73,6 @@ class pq_helper {
 
     /// set operators to apply to the right of any operator products we add
     void set_right_operators(std::vector<std::vector<std::string> >in);
-
-    /// when bringing to normal order, does the bra involve any operators?
-    void set_bra(std::string bra_type);
-
-    /// when bringing to normal order, does the ket involve any operators?
-    void set_ket(std::string ket_type);
 
     /// set print level (default zero)
     void set_print_level(int level);
