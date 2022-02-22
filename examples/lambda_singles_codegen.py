@@ -18,15 +18,15 @@ def main():
 
     #  <0| e(-T) H e*m e(T)|0>
 
-    pq.set_left_operators(['1'])
-    pq.set_right_operators(['1'])
+    pq.set_left_operators([['1']])
+    pq.set_right_operators([['1']])
 
     pq.add_st_operator(1.0,['f','e1(e,m)'],['t1','t2'])
     pq.add_st_operator(1.0,['v','e1(e,m)'],['t1','t2'])
 
     # <0| L e(-T) [H,e*m] e(T)|0>
 
-    pq.set_left_operators(['l1','l2'])
+    pq.set_left_operators([['l1','l2']])
 
     pq.add_st_operator( 1.0,['f','e1(e,m)'],['t1','t2'])
     pq.add_st_operator( 1.0,['v','e1(e,m)'],['t1','t2'])
