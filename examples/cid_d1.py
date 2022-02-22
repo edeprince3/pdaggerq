@@ -10,8 +10,8 @@ print('')
 print('    D1(m,n) = <0|(l0 + l2) e(m,n) (r0 + r2)|0>')
 print('')
 
-pq.set_left_operators(['l0','l2'])
-pq.set_right_operators(['r0','r2'])
+pq.set_left_operators([['l0'],['l2']])
+pq.set_right_operators([['r0'],['r2']])
 
 pq.add_operator_product(1.0,['e1(m,n)'])
 

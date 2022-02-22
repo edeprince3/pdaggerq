@@ -7,10 +7,10 @@ def main():
     pq = pdaggerq.pq_helper("fermi")
 
     # D2(p,q,r,s) = <0|(1 + l1 + l2) e(-T) p*q*sr e(T) |0>
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
 
     print('\n', '#    D2(i,j,k,l):', '\n')
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(i,j,l,k)'],['t1','t2'])
     pq.simplify()
     d2_terms_deprince = pq.fully_contracted_strings()
@@ -24,7 +24,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(i,j,k,a):', '\n')
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(i,j,a,k)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()
@@ -37,7 +37,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(i,j,a,l):', '\n')
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(i,j,l,a)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()
@@ -50,7 +50,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(i,a,k,l):', '\n')
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(i,a,l,k)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()
@@ -63,7 +63,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(a,j,k,l):', '\n')
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(a,j,l,k)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()
@@ -76,7 +76,7 @@ def main():
     pq.clear()
 
     print('\n', '#    D2(a,b,c,d):', '\n')
-    pq.set_left_operators(['1','l1','l2'])
+    pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(a,b,d,c)'],['t1','t2'])
     pq.simplify()
     d2_terms = pq.fully_contracted_strings()

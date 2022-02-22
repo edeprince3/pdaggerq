@@ -6,7 +6,10 @@ from pdaggerq.parser import contracted_strings_to_tensor_terms
 def main():
     pq = pdaggerq.pq_helper("fermi")
 
-    # CCSD energy
+    # energy equation
+
+    pq.set_left_operators([['1']])
+
 
     print('')
     print('def ccsd_energy(t1, t2, f, g, o, v):')
@@ -35,7 +38,8 @@ def main():
 
     # CCSD singles equations
 
-    pq.set_left_operators(['e1(m,e)'])
+    pq.set_left_operators([['e1(m,e)']])
+
 
     print('')
     print('def singles_residual(t1, t2, f, g, o, v):')
@@ -65,7 +69,8 @@ def main():
 
     # CCSD doubles equations
 
-    pq.set_left_operators(['e2(m,n,f,e)'])
+    pq.set_left_operators([['e2(m,n,f,e)']])
+
 
     print('')
     print('def doubles_residual(t1, t2, f, g, o, v):')

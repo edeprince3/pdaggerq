@@ -145,15 +145,19 @@ void pq::print_amplitudes(std::string label, std::vector<std::vector<std::string
 
         if ( amplitudes[i].size() > 0 ) {
 
+            size_t size  = amplitudes[i].size();
             size_t order = amplitudes[i].size() / 2;
+            if ( 2*order != size ) {
+                order++;
+            }
             printf("%s",label.c_str());
             printf("%zu",order);
             printf("(");
-            for (size_t j = 0; j < 2*order-1; j++) {
+            for (size_t j = 0; j < size-1; j++) {
                 printf("%s",amplitudes[i][j].c_str());
                 printf(",");
             }
-            printf("%s",amplitudes[i][2*order-1].c_str());
+            printf("%s",amplitudes[i][size-1].c_str());
             printf(")");
             printf(" ");
 
@@ -335,12 +339,16 @@ void pq::print_amplitudes_to_string(std::string label,
         
         if ( amplitudes[i].size() > 0 ) {
             
+            size_t size  = amplitudes[i].size();
             size_t order = amplitudes[i].size() / 2;
+            if ( 2*order != size ) {
+                order++;
+            }
             std::string tmp = label + std::to_string(order) + "(";
-            for (int j = 0; j < 2*order-1; j++) {
+            for (int j = 0; j < size-1; j++) {
                 tmp += amplitudes[i][j] + ",";
             }
-            tmp += amplitudes[i][2*order-1] + ")";
+            tmp += amplitudes[i][size-1] + ")";
             my_string.push_back(tmp);
         
         }
@@ -2289,11 +2297,45 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
 
             // cases: 
 
+            // dim = 1: ip singles, no permutations
+            if ( dim == 1 ) {
+
+                if ( amps1[i][0] == amps2[j][0] ) {
+                    nsame_idx = 1;
+                }
+
             // dim = 2: singles, no permutations
-            if ( dim == 2 ) {
+            }else if ( dim == 2 ) {
 
                 if ( amps1[i][0] == amps2[j][0] && amps1[i][1] == amps2[j][1] ) {
                     nsame_idx = 2;
+                }
+
+            // dim = 3: ip/ea doubles 
+            }else if ( dim == 3 ) {
+            
+                // two possibilities ... either oov/vvo or ovv/voo
+
+                if ( amps1[i][0] == amps2[j][0] 
+                  && amps1[i][1] == amps2[j][1] 
+                  && amps1[i][2] == amps2[j][2] ) {
+
+                    nsame_idx += 3;
+
+                }else if ( amps1[i][0] == amps2[j][1] 
+                        && amps1[i][1] == amps2[j][0] 
+                        && amps1[i][2] == amps2[j][2] ) {
+
+                    nsame_idx += 3;
+                    n_permute++;
+
+                }else if ( amps1[i][0] == amps2[j][0] 
+                        && amps1[i][1] == amps2[j][2] 
+                        && amps1[i][2] == amps2[j][1] ) {
+
+                    nsame_idx += 3;
+                    n_permute++;
+
                 }
 
             // dim = 4: doubles
@@ -2327,6 +2369,70 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
 
                 }
             
+            // dim = 5: ip / ea triples 
+            }else if ( dim == 5 ) {
+            
+                // so many possibilities ... either ooovv/vvvoo or oovvv/vvooo
+
+                int nsame_1 = 0;
+                int nsame_2 = 0;
+                int nsame_3 = 0;
+                int nsame_4 = 0;
+
+                int n_permute_1 = 0;
+                int n_permute_2 = 0;
+                int n_permute_3 = 0;
+                int n_permute_4 = 0;
+
+                if ( amps1[i][0] == amps2[j][0]
+                  && amps1[i][1] == amps2[j][1] ) {
+                    
+                    nsame_1 += 2;
+                    triples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,2);
+
+                }
+
+                if ( amps1[i][0] == amps2[j][1]
+                  && amps1[i][1] == amps2[j][0] ) {
+
+                    nsame_2 += 2;
+                    n_permute_2++;
+                    triples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,2);
+
+                }
+
+                if ( amps1[i][3] == amps2[j][3]
+                  && amps1[i][4] == amps2[j][4] ) {
+                    
+                    nsame_3 += 2;
+                    triples_permutations(amps1[i],amps2[j],nsame_3,n_permute_3,0);
+
+                }
+
+                if ( amps1[i][3] == amps2[j][4]
+                  && amps1[i][4] == amps2[j][3] ) {
+
+                    nsame_4 += 2;
+                    n_permute_4++;
+                    triples_permutations(amps1[i],amps2[j],nsame_4,n_permute_4,0);
+
+                }
+
+                // which combination wins?
+                if ( nsame_1 == dim ) {
+                    nsame_idx = nsame_1;
+                    n_permute = n_permute_1;
+                }else if ( nsame_2 == dim ) {
+                    nsame_idx = nsame_2;
+                    n_permute = n_permute_2;
+                }else if ( nsame_3 == dim ) {
+                    nsame_idx = nsame_3;
+                    n_permute = n_permute_3;
+                }else if ( nsame_4 == dim ) {
+                    nsame_idx = nsame_4;
+                    n_permute = n_permute_4;
+                }
+                
             // dim = 6: triples
             }else if ( dim == 6 ) {
 
@@ -2335,6 +2441,32 @@ bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1,
 
                 // second part
                 triples_permutations(amps1[i],amps2[j],nsame_idx,n_permute,3);
+
+            // dim = 7: ip / ea quadruples 
+            }else if ( dim == 7 ) {
+
+                int nsame_1 = 0;
+                int nsame_2 = 0;
+
+                int n_permute_1 = 0;
+                int n_permute_2 = 0;
+
+                // try 3/4
+                triples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,0);
+                quadruples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,3);
+
+                // try 4/3
+                quadruples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,0);
+                triples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,4);
+
+                // which combination wins?
+                if ( nsame_1 == dim ) {
+                    nsame_idx = nsame_1;
+                    n_permute = n_permute_1;
+                }else if ( nsame_2 == dim ) {
+                    nsame_idx = nsame_2;
+                    n_permute = n_permute_2;
+                }
 
             // dim = 8: quadruples
             }else if ( dim == 8 ) {
@@ -2840,7 +2972,7 @@ void pq::use_conventional_labels() {
     std::vector<std::string> occ_in{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
                                     "o10","o11","o12","o13","o14","o15","o16","o17","o18","o19",
                                     "o20","o21","o22","o23","o24","o25","o26","o27","o28","o29"};
-    std::vector<std::string> occ_out{"i","j","k","l","m","n","o",
+    std::vector<std::string> occ_out{"i","j","k","l","m","n","o","t",
                                      "i0","i1","i2","i3","i4","i5","i6","i7","i8","i9",
                                      "i10","i11","i12","i13","i14","i15","i16","i17","i18","i19"};
 
@@ -2865,7 +2997,7 @@ void pq::use_conventional_labels() {
     std::vector<std::string> vir_in{"v0","v1","v2","v3","v4","v5","v6","v7","v8","v9",
                                     "v10","v11","v12","v13","v14","v15","v16","v17","v18","v19",
                                     "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
-    std::vector<std::string> vir_out{"a","b","c","d","e","f","g",
+    std::vector<std::string> vir_out{"a","b","c","d","e","f","g","h",
                                      "a0","a1","a2","a3","a4","a5","a6","a7","a8","a9",
                                      "a10","a11","a12","a13","a14","a15","a16","a17","a18","a19"};
 
@@ -3519,7 +3651,7 @@ void pq::reclassify_tensors() {
     if ( data->tensor_type == "OCC_REPULSION") {
 
         // pick summation label not included in string already
-        std::vector<std::string> occ_out{"i","j","k","l","m","n","o","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
+        std::vector<std::string> occ_out{"i","j","k","l","m","n","o","t","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
         std::string idx;
 
         int skip = -999;
