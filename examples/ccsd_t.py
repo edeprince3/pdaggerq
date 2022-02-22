@@ -111,7 +111,7 @@ pq.clear()
 
 # E(t)
 
-pq.set_left_operators([['l1','l2']])
+pq.set_left_operators([['l1'],['l2']])
 
 print('')
 print('    E(t)')
