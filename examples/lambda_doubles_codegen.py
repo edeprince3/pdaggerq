@@ -25,7 +25,7 @@ def main():
 
     # <0| L e(-T) [H,e*f*nm] e(T)|0>
 
-    pq.set_left_operators([['l1','l2']])
+    pq.set_left_operators([['l1'],['l2']])
 
     pq.add_st_operator( 1.0,['f','e2(e,f,n,m)'],['t1','t2'])
     pq.add_st_operator( 1.0,['v','e2(e,f,n,m)'],['t1','t2'])
