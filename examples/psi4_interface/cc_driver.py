@@ -146,7 +146,11 @@ def main():
     print("")
     from eom_ccsd import build_eom_ccsd_H
 
-    H = build_eom_ccsd_H(fock, gtei, o, v, t1, t2, nsocc, nsvirt)
+    # populate core list for super inefficicent implementation of CVS approximation
+    core_list = []
+    #core_list.append(0)
+    #core_list.append(5)
+    H = build_eom_ccsd_H(fock, gtei, o, v, t1, t2, nsocc, nsvirt, core_list)
 
     print('    eigenvalues of e(-T) H e(T):')
     print('')

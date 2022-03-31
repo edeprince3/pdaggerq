@@ -1302,71 +1302,108 @@ def build_eom_ccsd_H_by_block(kd, f, g, o, v, t1, t2):
     
     return H00, Hs0, H0s, Hd0, H0d, Hss, Hsd, Hds, Hdd
     
-def pack_eom_ccsd_H(H00, Hs0, H0s, Hd0, H0d, Hss, Hsd, Hds, Hdd, nsocc, nsvirt):
+def pack_eom_ccsd_H(H00, Hs0, H0s, Hd0, H0d, Hss, Hsd, Hds, Hdd, nsocc, nsvirt, core_list):
 
-    dim = int(1 + nsvirt*(nsvirt-1)/2*nsocc*(nsocc-1)/2 + nsvirt*nsocc)
+    nsingles = 0
+    for a in range (0,nsvirt):
+        for i in range (0,nsocc):
+            if i not in core_list:
+                continue
+            nsingles += 1
+
+    ndoubles = 0
+    for a in range (0,nsvirt):
+        for b in range (a+1,nsvirt):
+            for i in range (0,nsocc):
+                for j in range (i+1,nsocc):
+                    if i not in core_list and j not in core_list:
+                        continue
+                    ndoubles += 1
+
+    #dim = int(1 + nsvirt*(nsvirt-1)/2*nsocc*(nsocc-1)/2 + nsvirt*nsocc)
+    dim = int(1 + ndoubles + nsingles)
     H = np.zeros((dim,dim))
 
     # 00 block
     H[0,0] = H00
 
     # 0s, s0 blocks
+    ai = 1
     for a in range (0,nsvirt):
         for i in range (0,nsocc):
-            ai = 1 + a*nsocc + i
+            if i not in core_list:
+                continue
             H[ai,0] = Hs0[a,i]
             H[0,ai] = H0s[a,i]
+            ai += 1
 
     # ss block
+    ai = 1
     for a in range (0,nsvirt):
         for i in range (0,nsocc):
-            ai = 1 + a*nsocc + i
+            if i not in core_list:
+                continue
+            em = 1
             for e in range (0,nsvirt):
                 for m in range (0,nsocc):
-                    em = 1 + e*nsocc + m
+                    if m not in core_list:
+                        continue
                     H[ai,em] = Hss[a,i,e,m]
+                    em += 1
+            ai += 1
 
     # sd, ds blocks
+    ai = 1
     for a in range (0,nsvirt):
         for i in range (0,nsocc):
-            ai = 1 + a*nsocc + i
-            efmn = 1 + nsocc*nsvirt
+            if i not in core_list:
+                continue
+            efmn = 1 + nsingles
             for e in range (0,nsvirt):
                 for f in range (e+1,nsvirt):
                     for m in range (0,nsocc):
                         for n in range (m+1,nsocc):
+                            if m not in core_list and n not in core_list:
+                                continue
                             H[ai,efmn] = Hsd[a,i,e,f,m,n]
                             H[efmn,ai] = Hds[e,f,m,n,a,i]
                             efmn += 1
+            ai += 1
 
     # 0d, d0 blocks
-    abij = 1 + nsocc*nsvirt
+    abij = 1 + nsingles
     for a in range (0,nsvirt):
         for b in range (a+1,nsvirt):
             for i in range (0,nsocc):
                 for j in range (i+1,nsocc):
+                    if i not in core_list and j not in core_list:
+                        continue
                     H[abij,0] = Hd0[a,b,i,j]
                     H[0,abij] = H0d[a,b,i,j]
                     abij += 1
 
     # dd blocks
-    abij = 1 + nsocc*nsvirt
+    abij = 1 + nsingles
     for a in range (0,nsvirt):
         for b in range (a+1,nsvirt):
             for i in range (0,nsocc):
                 for j in range (i+1,nsocc):
-                    efmn = 1 + nsocc*nsvirt
+                    if i not in core_list and j not in core_list:
+                        continue
+                    efmn = 1 + nsingles
                     for e in range (0,nsvirt):
                         for f in range (e+1,nsvirt):
                             for m in range (0,nsocc):
                                 for n in range (m+1,nsocc):
+                                    if n not in core_list and m not in core_list:
+                                        continue
                                     H[abij,efmn] = Hdd[a,b,i,j,e,f,m,n]
                                     efmn += 1
                     abij += 1
 
     return H
 
-def build_eom_ccsd_H(f, g, o, v, t1, t2, nsocc, nsvirt):
+def build_eom_ccsd_H(f, g, o, v, t1, t2, nsocc, nsvirt, core_list):
 
     kd = np.zeros((nsocc+nsvirt,nsocc+nsvirt))
     for i in range (0,nsocc+nsvirt):
@@ -1374,6 +1411,6 @@ def build_eom_ccsd_H(f, g, o, v, t1, t2, nsocc, nsvirt):
 
     H00, Hs0, H0s, Hd0, H0d, Hss, Hsd, Hds, Hdd = build_eom_ccsd_H_by_block(kd,f, g, o, v, t1, t2)
 
-    H = pack_eom_ccsd_H(H00, Hs0, H0s, Hd0, H0d, Hss, Hsd, Hds, Hdd, nsocc, nsvirt)
+    H = pack_eom_ccsd_H(H00, Hs0, H0s, Hd0, H0d, Hss, Hsd, Hds, Hdd, nsocc, nsvirt, core_list)
 
     return H
