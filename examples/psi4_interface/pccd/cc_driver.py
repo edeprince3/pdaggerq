@@ -20,6 +20,12 @@ Driver for spin-orbital pCCD
 import numpy as np
 from numpy import einsum
 
+run_hilbert = False
+if run_hilbert == True:
+    import sys
+    sys.path.insert(0, '/Users/deprince/edeprince3/hilbert/public')
+    import hilbert
+
 def main():
 
     import sys
@@ -48,14 +54,43 @@ def main():
     # set options
     psi4_options_dict = {
         'basis': 'sto-3g',
-        'scf_type': 'pk',
+        'scf_type': 'cd',
+        'cholesky_tolerance': 1e-14,
         'e_convergence': 1e-14,
-        'd_convergence': 1e-14
+        'r_convergence': 1e-14,
+        'd_convergence': 1e-14,
     }
     psi4.set_options(psi4_options_dict)
     
     # compute the Hartree-Fock energy and wave function
     scf_e, wfn = psi4.energy('SCF', return_wfn=True)
+
+    # run hilbert's pccd and doci?
+    if run_hilbert == True:
+        psi4_options_dict = {
+            'basis': 'sto-3g',
+            'scf_type': 'cd',
+            'cholesky_tolerance': 1e-14,
+            'df_ints_io': 'save',
+            'e_convergence': 1e-14,
+            'r_convergence': 1e-14,
+            'd_convergence': 1e-14,
+            'optimize_orbitals': False,
+            'p2rdm_type': 'ccd',
+        }
+        psi4.set_options(psi4_options_dict)
+
+        # grab options object
+        options = psi4.core.get_options()
+        options.set_current_module('HILBERT')
+
+        pccd_psi4 = hilbert.pp2RDMHelper(wfn,options)
+        pccd_psi4.compute_energy()
+
+        doci_psi4 = hilbert.DOCIHelper(wfn,options)
+        doci_psi4.compute_energy()
+
+    # end of hilbert's pccd and doci
 
     # number of doubly occupied orbitals
     no   = wfn.nalpha()
@@ -194,13 +229,26 @@ def main():
     t1, t2, l1, l2 = lambda_iterations(t1, t2, fock, gtei, o, v, e_ai, e_abij,
                       hf_energy, nsocc, nsvirt, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
 
+    print("")
+    print("    ==> t amplitudes<== ")
+    print("")
+    for a in range (nv):
+        for i in range (no):
+            print("%5i %5i %20.12lf" % (a, i, t2[a,a+nv,i,i+no]))
+    print("")
+    print("    ==> lambda amplitudes<== ")
+    print("")
+    for i in range (no):
+        for a in range (nv):
+            print("%5i %5i %20.12lf" % (i, a, l2[i,i+no,a,a+nv]))
+
     cc_energy = ccsd_energy(t1, t2, fock, gtei, o, v)
 
     nuclear_repulsion_energy = mol.nuclear_repulsion_energy()
 
     print("")
-    print("    pCCD Correlation Energy: {: 20.12f}".format(cc_energy - hf_energy))
-    print("    pCCD Total Energy:       {: 20.12f}".format(cc_energy + nuclear_repulsion_energy))
+    print("    pCCD correlation energy: {: 20.12f}".format(cc_energy - hf_energy))
+    print("    * pCCD total energy:       {: 20.12f}".format(cc_energy + nuclear_repulsion_energy))
     print("")
 
     # build 1rdm
