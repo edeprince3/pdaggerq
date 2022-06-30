@@ -50,15 +50,20 @@ def main():
     nocom
     symmetry c1
     """)  
+
+    basis = 'sto-3g'
     
     # set options
     psi4_options_dict = {
-        'basis': 'sto-3g',
+        'basis': basis,
         'scf_type': 'cd',
-        'cholesky_tolerance': 1e-14,
-        'e_convergence': 1e-14,
-        'r_convergence': 1e-14,
-        'd_convergence': 1e-14,
+        'cholesky_tolerance': 1e-12,
+        'df_basis_scf': 'aug-cc-pv5z-jkfit',
+        'df_ints_io': 'save',
+        'e_convergence': 1e-6,
+        'r_convergence': 1e-6,
+        'd_convergence': 1e-6,
+        'maxiter': 100,
     }
     psi4.set_options(psi4_options_dict)
     
@@ -68,14 +73,20 @@ def main():
     # run hilbert's pccd and doci?
     if run_hilbert == True:
         psi4_options_dict = {
-            'basis': 'sto-3g',
+            'basis': basis,
             'scf_type': 'cd',
-            'cholesky_tolerance': 1e-14,
+            'cholesky_tolerance': 1e-6,
+            'scf_type': 'cd',
+            'df_basis_scf': 'aug-cc-pv5z-jkfit',
             'df_ints_io': 'save',
-            'e_convergence': 1e-14,
-            'r_convergence': 1e-14,
-            'd_convergence': 1e-14,
+            'e_convergence': 1e-6,
+            'r_convergence': 1e-6,
+            'd_convergence': 1e-6,
             'optimize_orbitals': False,
+            'orbopt_gradient_convergence': 1e-4,
+            'orbopt_energy_convergence': 1e-6,
+            'orbopt_maxiter': 10,
+            'maxiter': 100,
             'p2rdm_type': 'ccd',
         }
         psi4.set_options(psi4_options_dict)
@@ -84,11 +95,11 @@ def main():
         options = psi4.core.get_options()
         options.set_current_module('HILBERT')
 
-        pccd_psi4 = hilbert.pp2RDMHelper(wfn,options)
-        pccd_psi4.compute_energy()
-
         doci_psi4 = hilbert.DOCIHelper(wfn,options)
         doci_psi4.compute_energy()
+
+        pccd_psi4 = hilbert.pp2RDMHelper(doci_psi4,options)
+        pccd_psi4.compute_energy()
 
     # end of hilbert's pccd and doci
 
@@ -106,6 +117,7 @@ def main():
     
     # molecular orbitals (spatial):
     C = wfn.Ca()
+    #C = doci_psi4.Ca()
 
     # use Psi4's MintsHelper to generate integrals
     mints = psi4.core.MintsHelper(wfn.basisset())
@@ -162,58 +174,6 @@ def main():
     # hartree-fock energy
     hf_energy = 1.0 * einsum('ii', fock[o, o]) -0.5 * einsum('ijij', gtei[o, o, o, o])
 
-# enforce seniority zero structure on integrals
-
-    # build the one-electron integrals
-    #H = np.asarray(mints.ao_kinetic()) + np.asarray(mints.ao_potential())
-    #H = np.einsum('uj,vi,uv', C, C, H)
-    #tmp = np.asarray(mints.ao_kinetic()) + np.asarray(mints.ao_potential())
-    #tmp = np.einsum('uj,vi,uv', C, C, tmp)
-    #for p in range (nmo):
-    #    for q in range (nmo):
-    #        H[p,q] = 0.0
-    #for p in range (nmo):
-    #    H[p,p] = tmp[p,p]
-
-    ## unpack one-electron integrals in spin-orbital basis
-    #sH   = spatial_to_spin_orbital_oei(H,nmo,no)
-   
-    ## build the two-electron integrals:
-    #tei = np.asarray(mints.mo_eri(C, C, C, C))
-    #tmp = np.asarray(mints.mo_eri(C, C, C, C))
-
-    #for p in range (nmo):
-    #    for q in range (nmo):
-    #        for r in range (nmo):
-    #            for s in range (nmo):
-    #                tei[p,q,r,s] = 0.0
-    #for p in range (nmo):
-    #    for q in range (nmo):
-    #        tei[p,q,p,q] = tmp[p,q,p,q]
-    #        tei[p,p,q,q] = tmp[p,p,q,q]
-    #        tei[p,q,q,p] = tmp[p,q,q,p]
-
-    ## unpack two-electron integrals in spin-orbital basis
-    #stei = spatial_to_spin_orbital_tei(tei,nmo,no)
-
-    ## antisymmetrize g(ijkl) = <ij|kl> - <ij|lk> = (ik|jl) - (il|jk)
-    #gtei = np.einsum('ikjl->ijkl', stei) - np.einsum('iljk->ijkl', stei)
-
-    ## occupied, virtual slices
-    #n = np.newaxis
-    #o = slice(None, 2 * no)
-    #v = slice(2 * no, None)
-
-    ## build spin-orbital fock matrix
-    #fock = sH + np.einsum('piqi->pq', gtei[:, o, :, o])
-    #for i in range (0,2*nmo):
-    #    for j in range (0,2*nmo):
-    #        if i == j:
-    #            continue
-    #        fock[i,j] = 0.0
-
-# end of enforcing seniority zero structure on integrals
-
     # ccsd iterations
     from pccd import ccsd_iterations
     from pccd import ccsd_energy
@@ -229,18 +189,18 @@ def main():
     t1, t2, l1, l2 = lambda_iterations(t1, t2, fock, gtei, o, v, e_ai, e_abij,
                       hf_energy, nsocc, nsvirt, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
 
-    print("")
-    print("    ==> t amplitudes<== ")
-    print("")
-    for a in range (nv):
-        for i in range (no):
-            print("%5i %5i %20.12lf" % (a, i, t2[a,a+nv,i,i+no]))
-    print("")
-    print("    ==> lambda amplitudes<== ")
-    print("")
-    for i in range (no):
-        for a in range (nv):
-            print("%5i %5i %20.12lf" % (i, a, l2[i,i+no,a,a+nv]))
+    #print("")
+    #print("    ==> t amplitudes <== ")
+    #print("")
+    #for a in range (nv):
+    #    for i in range (no):
+    #        print("%5i %5i %20.12lf" % (a, i, t2[a,a+nv,i,i+no]))
+    #print("")
+    #print("    ==> lambda amplitudes <== ")
+    #print("")
+    #for i in range (no):
+    #    for a in range (nv):
+    #        print("%5i %5i %20.12lf" % (i, a, l2[i,i+no,a,a+nv]))
 
     cc_energy = ccsd_energy(t1, t2, fock, gtei, o, v)
 
@@ -256,16 +216,16 @@ def main():
     d1hf = np.eye(2 * nmo)
     opdm = ccsd_d1(t1, t2, l1, l2, d1hf, o, v)
 
-    opdm_a = opdm[::2, ::2]
-    opdm_b = opdm[1::2, 1::2]
-    opdm_s = (opdm_a + opdm_b + opdm_a.T + opdm_b.T) / 2
     print("")
     print(" # Natural Orbital Occupation Numbers (spin free) #")
     print("")
-    for i in range (nmo):
-        print("%5i: %20.12lf" % (i, opdm_s[i,i]) )
+    for i in range (no):
+        print("%5i: %20.12lf" % (i, 2*opdm[i,i]) )
+    for i in range (2*no,2*no+nv):
+        print("%5i: %20.12lf" % (i, 2*opdm[i,i]) )
     print("")
 
 if __name__ == "__main__":
     main()
+
 
