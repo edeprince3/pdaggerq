@@ -16,7 +16,12 @@ pq.set_right_operators([['r0'],['r2']])
 pq.add_operator_product(1.0,['e1(m,n)'])
 
 pq.simplify()
-pq.print_fully_contracted()
+
+# grab list of fully-contracted strings, then print
+terms = pq.fully_contracted_strings()
+for my_term in terms:
+    print(my_term)
+
 pq.clear()
 
 print('')
@@ -26,7 +31,12 @@ print('')
 pq.add_operator_product(1.0,['e1(e,f)'])
         
 pq.simplify()
-pq.print_fully_contracted()
+
+# grab list of fully-contracted strings, then print
+terms = pq.fully_contracted_strings()
+for my_term in terms:
+    print(my_term)
+
 pq.clear()
 
 print('')
@@ -36,7 +46,12 @@ print('')
 pq.add_operator_product(1.0,['e1(m,e)'])
         
 pq.simplify()
-pq.print_fully_contracted()
+
+# grab list of fully-contracted strings, then print
+terms = pq.fully_contracted_strings()
+for my_term in terms:
+    print(my_term)
+
 pq.clear()
 
 print('')
@@ -46,6 +61,11 @@ print('')
 pq.add_operator_product(1.0,['e1(e,m)'])
 
 pq.simplify()
-pq.print_fully_contracted()
+
+# grab list of fully-contracted strings, then print
+terms = pq.fully_contracted_strings()
+for my_term in terms:
+    print(my_term)
+
 pq.clear()
 

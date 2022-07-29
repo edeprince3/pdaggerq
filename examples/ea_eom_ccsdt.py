@@ -16,7 +16,6 @@ pq.add_st_operator(1.0,['f'],['t1','t2','t3'])
 pq.add_st_operator(1.0,['v'],['t1','t2','t3'])
 
 pq.simplify()
-#pq.print_fully_contracted()
 # grab list of fully-contracted strings, then print
 singles_residual_terms = pq.fully_contracted_strings()
 for my_term in singles_residual_terms:
@@ -36,7 +35,6 @@ pq.add_st_operator(1.0,['f'],['t1','t2','t3'])
 pq.add_st_operator(1.0,['v'],['t1','t2','t3'])
 
 pq.simplify()
-#pq.print_fully_contracted()
 # grab list of fully-contracted strings, then print
 doubles_residual_terms = pq.fully_contracted_strings()
 for my_term in doubles_residual_terms:
@@ -56,7 +54,6 @@ pq.add_st_operator(1.0,['f'],['t1','t2','t3'])
 pq.add_st_operator(1.0,['v'],['t1','t2','t3'])
 
 pq.simplify()
-#pq.print_fully_contracted()
 # grab list of fully-contracted strings, then print
 triples_residual_terms = pq.fully_contracted_strings()
 for my_term in triples_residual_terms:

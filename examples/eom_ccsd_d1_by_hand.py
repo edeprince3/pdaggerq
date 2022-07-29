@@ -60,7 +60,12 @@ for L in left_hand_operators:
         pq.add_operator_product( 1.0/2.0,[L,C,B,A,R]) 
 
 pq.simplify()
-pq.print_fully_contracted()
+
+# grab list of fully-contracted strings, then print
+terms = pq.fully_contracted_strings()
+for my_term in terms:
+    print(my_term)
+
 pq.clear()
 
 print('')
@@ -115,7 +120,12 @@ for L in left_hand_operators:
         pq.add_operator_product( 1.0/2.0,[L,C,B,A,R]) 
 
 pq.simplify()
-pq.print_fully_contracted()
+
+# grab list of fully-contracted strings, then print
+terms = pq.fully_contracted_strings()
+for my_term in terms:
+    print(my_term)
+
 pq.clear()
 
 print('')
@@ -170,7 +180,12 @@ for L in left_hand_operators:
         pq.add_operator_product( 1.0/2.0,[L,C,B,A,R]) 
 
 pq.simplify()
-pq.print_fully_contracted()
+
+# grab list of fully-contracted strings, then print
+terms = pq.fully_contracted_strings()
+for my_term in terms:
+    print(my_term)
+
 pq.clear()
 
 print('')
@@ -225,6 +240,11 @@ for L in left_hand_operators:
         pq.add_operator_product( 1.0/2.0,[L,C,B,A,R]) 
 
 pq.simplify()
-pq.print_fully_contracted()
+
+# grab list of fully-contracted strings, then print
+terms = pq.fully_contracted_strings()
+for my_term in terms:
+    print(my_term)
+
 pq.clear()
 
