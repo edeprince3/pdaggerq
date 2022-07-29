@@ -1,0 +1,240 @@
+
+#    H(0;0) = <0| H |0>
+
+#	  1.0000 f(i,i)
+H00 +=  1.000000000000000 * einsum('ii', f[o, o])
+
+#	 -0.5000 <j,i||j,i>
+H00 += -0.500000000000000 * einsum('jiji', g[o, o, o, o])
+
+
+#    H(m,e;0) = <0|e1(m,e) H |0>
+
+#	  1.0000 f(e,m)
+Hs0[v,o] +=  1.000000000000000 * einsum('em->em', f[v, o])
+
+
+#    H(0;i,a) = <0| H e1(a,i)|0>
+
+#	  1.0000 f(i,a)
+H0s[v,o] +=  1.000000000000000 * einsum('ia->ai', f[o, v])
+
+
+#    H(m,n,e,f;0) = <0|e2(m,n,f,e) H |0>
+
+#	  1.0000 <e,f||m,n>
+Hd0 +=  1.000000000000000 * einsum('efmn->efmn', g[v, v, o, o])
+
+
+#    H(0;i,j,a,b) = <0| H e2(a,b,j,i)|0>
+
+#	  1.0000 <i,j||a,b>
+H0d +=  1.000000000000000 * einsum('ijab->abij', g[o, o, v, v])
+
+
+#    H(m,e;i,a) = <0|e1(m,e) H e1(a,i)|0>
+
+#	  1.0000 d(e,a)*d(m,i)*f(j,j)
+Hss +=  1.000000000000000 * einsum('ea,mi,jj->emai', kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 2), (0, 1)])
+
+#	 -1.0000 d(e,a)*f(i,m)
+Hss += -1.000000000000000 * einsum('ea,im->emai', kd[v, v], f[o, o])
+
+#	  1.0000 d(m,i)*f(e,a)
+Hss +=  1.000000000000000 * einsum('mi,ea->emai', kd[o, o], f[v, v])
+
+#	 -0.5000 d(e,a)*d(m,i)*<k,j||k,j>
+Hss += -0.500000000000000 * einsum('ea,mi,kjkj->emai', kd[v, v], kd[o, o], g[o, o, o, o], optimize=['einsum_path', (0, 2), (0, 1)])
+
+#	  1.0000 <i,e||a,m>
+Hss +=  1.000000000000000 * einsum('ieam->emai', g[o, v, v, o])
+
+
+#    H(m,e;i,j,a,b) = <0|e1(m,e) H e2(a,b,j,i)|0>
+
+#	 -1.0000 d(e,b)*d(m,i)*f(j,a)
+Hsd += -1.000000000000000 * einsum('eb,mi,ja->emabij', kd[v, v], kd[o, o], f[o, v], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(e,b)*d(m,j)*f(i,a)
+Hsd +=  1.000000000000000 * einsum('eb,mj,ia->emabij', kd[v, v], kd[o, o], f[o, v], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(e,a)*d(m,i)*f(j,b)
+Hsd +=  1.000000000000000 * einsum('ea,mi,jb->emabij', kd[v, v], kd[o, o], f[o, v], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(e,a)*d(m,j)*f(i,b)
+Hsd += -1.000000000000000 * einsum('ea,mj,ib->emabij', kd[v, v], kd[o, o], f[o, v], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(e,b)*<i,j||a,m>
+Hsd += -1.000000000000000 * einsum('eb,ijam->emabij', kd[v, v], g[o, o, v, o])
+
+#	  1.0000 d(e,a)*<i,j||b,m>
+Hsd +=  1.000000000000000 * einsum('ea,ijbm->emabij', kd[v, v], g[o, o, v, o])
+
+#	 -1.0000 d(m,i)*<j,e||a,b>
+Hsd += -1.000000000000000 * einsum('mi,jeab->emabij', kd[o, o], g[o, v, v, v])
+
+#	  1.0000 d(m,j)*<i,e||a,b>
+Hsd +=  1.000000000000000 * einsum('mj,ieab->emabij', kd[o, o], g[o, v, v, v])
+
+
+#    H(m,n,e,f;i,a) = <0|e2(m,n,f,e) H e1(a,i)|0>
+
+#	 -1.0000 d(f,a)*d(m,i)*f(e,n)
+Hds += -1.000000000000000 * einsum('fa,mi,en->efmnai', kd[v, v], kd[o, o], f[v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(f,a)*d(n,i)*f(e,m)
+Hds +=  1.000000000000000 * einsum('fa,ni,em->efmnai', kd[v, v], kd[o, o], f[v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(e,a)*d(m,i)*f(f,n)
+Hds +=  1.000000000000000 * einsum('ea,mi,fn->efmnai', kd[v, v], kd[o, o], f[v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(e,a)*d(n,i)*f(f,m)
+Hds += -1.000000000000000 * einsum('ea,ni,fm->efmnai', kd[v, v], kd[o, o], f[v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(f,a)*<i,e||m,n>
+Hds +=  1.000000000000000 * einsum('fa,iemn->efmnai', kd[v, v], g[o, v, o, o])
+
+#	 -1.0000 d(e,a)*<i,f||m,n>
+Hds += -1.000000000000000 * einsum('ea,ifmn->efmnai', kd[v, v], g[o, v, o, o])
+
+#	  1.0000 d(m,i)*<e,f||a,n>
+Hds +=  1.000000000000000 * einsum('mi,efan->efmnai', kd[o, o], g[v, v, v, o])
+
+#	 -1.0000 d(n,i)*<e,f||a,m>
+Hds += -1.000000000000000 * einsum('ni,efam->efmnai', kd[o, o], g[v, v, v, o])
+
+
+#    H(m,n,e,f;i,j,a,b) = <0|e2(m,n,f,e) H e2(a,b,j,i)|0>
+
+#	  1.0000 d(e,a)*d(f,b)*d(n,j)*d(m,i)*f(k,k)
+Hdd +=  1.000000000000000 * einsum('ea,fb,nj,mi,kk->efmnabij', kd[v, v], kd[v, v], kd[o, o], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1), (0, 2), (0, 2), (0, 1)])
+
+#	 -1.0000 d(e,a)*d(f,b)*d(m,j)*d(n,i)*f(k,k)
+Hdd += -1.000000000000000 * einsum('ea,fb,mj,ni,kk->efmnabij', kd[v, v], kd[v, v], kd[o, o], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1), (0, 2), (0, 2), (0, 1)])
+
+#	 -1.0000 d(f,a)*d(e,b)*d(n,j)*d(m,i)*f(k,k)
+Hdd += -1.000000000000000 * einsum('fa,eb,nj,mi,kk->efmnabij', kd[v, v], kd[v, v], kd[o, o], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1), (0, 2), (0, 2), (0, 1)])
+
+#	  1.0000 d(f,a)*d(e,b)*d(m,j)*d(n,i)*f(k,k)
+Hdd +=  1.000000000000000 * einsum('fa,eb,mj,ni,kk->efmnabij', kd[v, v], kd[v, v], kd[o, o], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1), (0, 2), (0, 2), (0, 1)])
+
+#	 -1.0000 d(e,a)*d(f,b)*d(m,i)*f(j,n)
+Hdd += -1.000000000000000 * einsum('ea,fb,mi,jn->efmnabij', kd[v, v], kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	  1.0000 d(e,a)*d(f,b)*d(m,j)*f(i,n)
+Hdd +=  1.000000000000000 * einsum('ea,fb,mj,in->efmnabij', kd[v, v], kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	  1.0000 d(f,a)*d(e,b)*d(m,i)*f(j,n)
+Hdd +=  1.000000000000000 * einsum('fa,eb,mi,jn->efmnabij', kd[v, v], kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	 -1.0000 d(f,a)*d(e,b)*d(m,j)*f(i,n)
+Hdd += -1.000000000000000 * einsum('fa,eb,mj,in->efmnabij', kd[v, v], kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	  1.0000 d(e,a)*d(f,b)*d(n,i)*f(j,m)
+Hdd +=  1.000000000000000 * einsum('ea,fb,ni,jm->efmnabij', kd[v, v], kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	 -1.0000 d(e,a)*d(f,b)*d(n,j)*f(i,m)
+Hdd += -1.000000000000000 * einsum('ea,fb,nj,im->efmnabij', kd[v, v], kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	 -1.0000 d(f,a)*d(e,b)*d(n,i)*f(j,m)
+Hdd += -1.000000000000000 * einsum('fa,eb,ni,jm->efmnabij', kd[v, v], kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	  1.0000 d(f,a)*d(e,b)*d(n,j)*f(i,m)
+Hdd +=  1.000000000000000 * einsum('fa,eb,nj,im->efmnabij', kd[v, v], kd[v, v], kd[o, o], f[o, o], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	  1.0000 d(f,b)*d(n,j)*d(m,i)*f(e,a)
+Hdd +=  1.000000000000000 * einsum('fb,nj,mi,ea->efmnabij', kd[v, v], kd[o, o], kd[o, o], f[v, v], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	 -1.0000 d(f,b)*d(m,j)*d(n,i)*f(e,a)
+Hdd += -1.000000000000000 * einsum('fb,mj,ni,ea->efmnabij', kd[v, v], kd[o, o], kd[o, o], f[v, v], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	 -1.0000 d(f,a)*d(n,j)*d(m,i)*f(e,b)
+Hdd += -1.000000000000000 * einsum('fa,nj,mi,eb->efmnabij', kd[v, v], kd[o, o], kd[o, o], f[v, v], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	  1.0000 d(f,a)*d(m,j)*d(n,i)*f(e,b)
+Hdd +=  1.000000000000000 * einsum('fa,mj,ni,eb->efmnabij', kd[v, v], kd[o, o], kd[o, o], f[v, v], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	 -1.0000 d(e,b)*d(n,j)*d(m,i)*f(f,a)
+Hdd += -1.000000000000000 * einsum('eb,nj,mi,fa->efmnabij', kd[v, v], kd[o, o], kd[o, o], f[v, v], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	  1.0000 d(e,b)*d(m,j)*d(n,i)*f(f,a)
+Hdd +=  1.000000000000000 * einsum('eb,mj,ni,fa->efmnabij', kd[v, v], kd[o, o], kd[o, o], f[v, v], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	  1.0000 d(e,a)*d(n,j)*d(m,i)*f(f,b)
+Hdd +=  1.000000000000000 * einsum('ea,nj,mi,fb->efmnabij', kd[v, v], kd[o, o], kd[o, o], f[v, v], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	 -1.0000 d(e,a)*d(m,j)*d(n,i)*f(f,b)
+Hdd += -1.000000000000000 * einsum('ea,mj,ni,fb->efmnabij', kd[v, v], kd[o, o], kd[o, o], f[v, v], optimize=['einsum_path', (0, 1, 2, 3)])
+
+#	 -0.5000 d(e,a)*d(f,b)*d(n,j)*d(m,i)*<l,k||l,k>
+Hdd += -0.500000000000000 * einsum('ea,fb,nj,mi,lklk->efmnabij', kd[v, v], kd[v, v], kd[o, o], kd[o, o], g[o, o, o, o], optimize=['einsum_path', (0, 1), (0, 2), (0, 2), (0, 1)])
+
+#	  0.5000 d(e,a)*d(f,b)*d(m,j)*d(n,i)*<l,k||l,k>
+Hdd +=  0.500000000000000 * einsum('ea,fb,mj,ni,lklk->efmnabij', kd[v, v], kd[v, v], kd[o, o], kd[o, o], g[o, o, o, o], optimize=['einsum_path', (0, 1), (0, 2), (0, 2), (0, 1)])
+
+#	  0.5000 d(f,a)*d(e,b)*d(n,j)*d(m,i)*<l,k||l,k>
+Hdd +=  0.500000000000000 * einsum('fa,eb,nj,mi,lklk->efmnabij', kd[v, v], kd[v, v], kd[o, o], kd[o, o], g[o, o, o, o], optimize=['einsum_path', (0, 1), (0, 2), (0, 2), (0, 1)])
+
+#	 -0.5000 d(f,a)*d(e,b)*d(m,j)*d(n,i)*<l,k||l,k>
+Hdd += -0.500000000000000 * einsum('fa,eb,mj,ni,lklk->efmnabij', kd[v, v], kd[v, v], kd[o, o], kd[o, o], g[o, o, o, o], optimize=['einsum_path', (0, 1), (0, 2), (0, 2), (0, 1)])
+
+#	  1.0000 d(e,a)*d(f,b)*<i,j||m,n>
+Hdd +=  1.000000000000000 * einsum('ea,fb,ijmn->efmnabij', kd[v, v], kd[v, v], g[o, o, o, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(f,a)*d(e,b)*<i,j||m,n>
+Hdd += -1.000000000000000 * einsum('fa,eb,ijmn->efmnabij', kd[v, v], kd[v, v], g[o, o, o, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(f,b)*d(m,i)*<j,e||a,n>
+Hdd +=  1.000000000000000 * einsum('fb,mi,jean->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(f,b)*d(m,j)*<i,e||a,n>
+Hdd += -1.000000000000000 * einsum('fb,mj,iean->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(f,a)*d(m,i)*<j,e||b,n>
+Hdd += -1.000000000000000 * einsum('fa,mi,jebn->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(f,a)*d(m,j)*<i,e||b,n>
+Hdd +=  1.000000000000000 * einsum('fa,mj,iebn->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(f,b)*d(n,i)*<j,e||a,m>
+Hdd += -1.000000000000000 * einsum('fb,ni,jeam->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(f,b)*d(n,j)*<i,e||a,m>
+Hdd +=  1.000000000000000 * einsum('fb,nj,ieam->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(f,a)*d(n,i)*<j,e||b,m>
+Hdd +=  1.000000000000000 * einsum('fa,ni,jebm->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(f,a)*d(n,j)*<i,e||b,m>
+Hdd += -1.000000000000000 * einsum('fa,nj,iebm->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(e,b)*d(m,i)*<j,f||a,n>
+Hdd += -1.000000000000000 * einsum('eb,mi,jfan->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(e,b)*d(m,j)*<i,f||a,n>
+Hdd +=  1.000000000000000 * einsum('eb,mj,ifan->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(e,a)*d(m,i)*<j,f||b,n>
+Hdd +=  1.000000000000000 * einsum('ea,mi,jfbn->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(e,a)*d(m,j)*<i,f||b,n>
+Hdd += -1.000000000000000 * einsum('ea,mj,ifbn->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(e,b)*d(n,i)*<j,f||a,m>
+Hdd +=  1.000000000000000 * einsum('eb,ni,jfam->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(e,b)*d(n,j)*<i,f||a,m>
+Hdd += -1.000000000000000 * einsum('eb,nj,ifam->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(e,a)*d(n,i)*<j,f||b,m>
+Hdd += -1.000000000000000 * einsum('ea,ni,jfbm->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(e,a)*d(n,j)*<i,f||b,m>
+Hdd +=  1.000000000000000 * einsum('ea,nj,ifbm->efmnabij', kd[v, v], kd[o, o], g[o, v, v, o], optimize=['einsum_path', (0, 1, 2)])
+
+#	  1.0000 d(n,j)*d(m,i)*<e,f||a,b>
+Hdd +=  1.000000000000000 * einsum('nj,mi,efab->efmnabij', kd[o, o], kd[o, o], g[v, v, v, v], optimize=['einsum_path', (0, 1, 2)])
+
+#	 -1.0000 d(m,j)*d(n,i)*<e,f||a,b>
+Hdd += -1.000000000000000 * einsum('mj,ni,efab->efmnabij', kd[o, o], kd[o, o], g[v, v, v, v], optimize=['einsum_path', (0, 1, 2)])
+
