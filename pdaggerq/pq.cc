@@ -2085,6 +2085,27 @@ void pq::consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered) {
 
 bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute) {
 
+    // test new amplitudes class
+    ordered_1->data->t_amplitudes_test.clear();
+    for (size_t j = 0; j < ordered_1->data->t_amplitudes.size(); j++) {
+        amplitudes amps;
+        for (size_t k = 0; k < ordered_1->data->t_amplitudes[j].size(); k++) {
+            amps.labels.push_back(ordered_1->data->t_amplitudes[j][k]);
+        }
+        amps.sort();
+        ordered_1->data->t_amplitudes_test.push_back(amps);
+    }
+    ordered_2->data->t_amplitudes_test.clear();
+    for (size_t j = 0; j < ordered_2->data->t_amplitudes.size(); j++) {
+        amplitudes amps;
+        for (size_t k = 0; k < ordered_2->data->t_amplitudes[j].size(); k++) {
+            amps.labels.push_back(ordered_2->data->t_amplitudes[j][k]);
+        }
+        amps.sort();
+        ordered_2->data->t_amplitudes_test.push_back(amps);
+    }
+
+
     // don't forget w0, u0, r0, l0, b+, b-, m0, s0
     if ( ordered_1->data->has_u0 != ordered_2->data->has_u0 ) {
         return false;
@@ -2104,8 +2125,6 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     if ( ordered_1->data->has_l0 != ordered_2->data->has_l0 ) {
         return false;
     }
-
-    n_permute = 0;
 
     //printf("ok, how about these\n");
     //ordered[i]->print();
@@ -2136,8 +2155,12 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     }
     if ( nsame_d != ordered_1->delta1.size() ) return false;
 
+    // amplitude comparisons, with permutations
+    n_permute = 0;
+
     // t_amplitudes
-    bool same_string = compare_amplitudes( ordered_1->data->t_amplitudes, ordered_2->data->t_amplitudes, n_permute);
+    //bool same_string = compare_amplitudes( ordered_1->data->t_amplitudes, ordered_2->data->t_amplitudes, n_permute);
+    bool same_string = compare_amplitudes_new( ordered_1->data->t_amplitudes_test, ordered_2->data->t_amplitudes_test, n_permute);
     if ( !same_string ) return false;
 
     // u_amplitudes
@@ -2273,6 +2296,32 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
 
     return true;
 }
+
+/// compare two lists of amplitudes
+bool pq::compare_amplitudes_new( std::vector<amplitudes> amps1,
+                                 std::vector<amplitudes> amps2,
+                                 int & n_permute ) {
+    
+    size_t nsame_amps = 0;
+    for (size_t i = 0; i < amps1.size(); i++) {
+        for (size_t j = 0; j < amps2.size(); j++) {
+
+            if ( amps1[i] == amps2[j] ) {
+
+                n_permute += amps1[i].permutations + amps2[j].permutations;
+
+                nsame_amps++;
+                break;
+            }
+
+        }
+    }
+
+    if ( nsame_amps != amps1.size() ) return false;
+
+    return true;
+}
+
 
 /// compare two lists of amplitudes
 bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1, 
@@ -3202,6 +3251,7 @@ void pq::copy(void * copy_me) {
     for (size_t i = 0; i < in->data->permutations.size(); i++) {
         data->permutations.push_back(in->data->permutations[i]);
     }
+
 }
 
 bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {

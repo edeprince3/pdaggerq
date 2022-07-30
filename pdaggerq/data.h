@@ -23,6 +23,8 @@
 #ifndef DATA_H
 #define DATA_H
 
+#include "amplitudes.h"
+
 namespace pdaggerq {
 
 class StringData {
@@ -55,6 +57,7 @@ class StringData {
 
     /// list: labels t amplitudes
     std::vector<std::vector<std::string> > t_amplitudes;
+    std::vector<amplitudes> t_amplitudes_test;
 
     /// list: labels left-hand eom-cc amplitudes
     std::vector<std::vector<std::string> > left_amplitudes;

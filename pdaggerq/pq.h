@@ -73,6 +73,11 @@ class pq {
                              std::vector<std::vector<std::string> > amps2, 
                              int & n_permute );
 
+    /// compare two lists of amplitudes with new data structure
+    bool compare_amplitudes_new( std::vector<amplitudes> amps1, 
+                                 std::vector<amplitudes> amps2, 
+                                 int & n_permute );
+
     /// permutations and coincidences for triples
     void triples_permutations(std::vector<std::string> amps1, 
                               std::vector<std::string> amps2, 
