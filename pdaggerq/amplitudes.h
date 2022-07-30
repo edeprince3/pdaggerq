@@ -81,7 +81,7 @@ class amplitudes {
 
                 }
             }
-            if ( swapped ) {
+            if ( !swapped ) {
                 break;
             }
         }
