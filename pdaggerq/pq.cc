@@ -135,6 +135,36 @@ void pq::check_occ_vir() {
 
 }
 
+void pq::print_amplitudes_new(std::string label, std::vector<amplitudes> amps) {
+
+    if ( amps.size() == 0 ) {
+        return;
+    }
+
+    for (size_t i = 0; i < amps.size(); i++) {
+
+        if ( amps[i].labels.size() > 0 ) {
+
+            size_t size  = amps[i].labels.size();
+            size_t order = amps[i].labels.size() / 2;
+            if ( 2*order != size ) {
+                order++;
+            }
+            printf("%s",label.c_str());
+            printf("%zu",order);
+            printf("(");
+            for (size_t j = 0; j < size-1; j++) {
+                printf("%s",amps[i].labels[j].c_str());
+                printf(",");
+            }
+            printf("%s",amps[i].labels[size-1].c_str());
+            printf(")");
+            printf(" ");
+
+        }
+    }
+
+}
 void pq::print_amplitudes(std::string label, std::vector<std::vector<std::string> > amplitudes) {
 
     if ( amplitudes.size() == 0 ) {
@@ -279,7 +309,7 @@ void pq::print() {
     }
 
     // t_amplitudes
-    print_amplitudes("t",data->t_amplitudes);
+    print_amplitudes_new("t",data->amps['T']);
 
     // u_amplitudes
     print_amplitudes("u",data->u_amplitudes);
@@ -325,6 +355,34 @@ void pq::print() {
     }
 */
     printf("\n");
+}
+
+void pq::print_amplitudes_to_string_new(std::string label, 
+                                    std::vector<amplitudes> amps, 
+                                    std::vector<std::string> &my_string ) {
+    if ( amps.size() == 0 ) {
+        return;
+    }
+
+    for (size_t i = 0; i < amps.size(); i++) {
+
+        if ( amps[i].labels.size() > 0 ) {
+
+            size_t size  = amps[i].labels.size();
+            size_t order = amps[i].labels.size() / 2;
+            if ( 2*order != size ) {
+                order++;
+            }
+            std::string tmp = label + std::to_string(order) + "(";
+            for (int j = 0; j < size-1; j++) {
+                tmp += amps[i].labels[j] + ",";
+            }
+            tmp += amps[i].labels[size-1] + ")";
+            my_string.push_back(tmp);
+
+        }
+
+    }
 }
 
 void pq::print_amplitudes_to_string(std::string label, 
@@ -467,8 +525,8 @@ std::vector<std::string> pq::get_string() {
         my_string.push_back("r0");
     }
 
-    // t_amplitudes
-    print_amplitudes_to_string("t",data->t_amplitudes,my_string);
+    // t-amplitudes
+    print_amplitudes_to_string_new("t",data->amps['T'],my_string);
 
     // u_amplitudes
     print_amplitudes_to_string("u",data->u_amplitudes,my_string);
@@ -647,11 +705,12 @@ void pq::swap_two_labels(std::string label1, std::string label2) {
     replace_index_everywhere(label1,"x");
     replace_index_everywhere(label2,label1);
     replace_index_everywhere("x",label2);
+
 }
 
 void pq::reorder_t_amplitudes() {
 
-    size_t dim = data->t_amplitudes.size();
+    size_t dim = data->amps['T'].size();
 
     if ( dim == 0 ) return;
 
@@ -660,13 +719,15 @@ void pq::reorder_t_amplitudes() {
 
     std::vector<std::vector<std::string> > tmp;
 
+    std::vector<amplitudes> tmp_new;
+
     // t1 first
     for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
             if ( nope[j] ) continue;
 
-            if ( data->t_amplitudes[j].size() == 2 ) {
-                tmp.push_back(data->t_amplitudes[j]);
+            if ( data->amps['T'][j].labels.size() == 2 ) {
+                tmp_new.push_back(data->amps['T'][j]);
                 nope[j] = true;
                 break;
             }
@@ -678,8 +739,8 @@ void pq::reorder_t_amplitudes() {
         for (int j = 0; j < dim; j++) {
             if ( nope[j] ) continue;
 
-            if ( data->t_amplitudes[j].size() == 4 ) {
-                tmp.push_back(data->t_amplitudes[j]);
+            if ( data->amps['T'][j].labels.size() == 4 ) {
+                tmp_new.push_back(data->amps['T'][j]);
                 nope[j] = true;
                 break;
             }
@@ -691,8 +752,8 @@ void pq::reorder_t_amplitudes() {
         for (int j = 0; j < dim; j++) {
             if ( nope[j] ) continue;
 
-            if ( data->t_amplitudes[j].size() == 6 ) {
-                tmp.push_back(data->t_amplitudes[j]);
+            if ( data->amps['T'][j].labels.size() == 6 ) {
+                tmp_new.push_back(data->amps['T'][j]);
                 nope[j] = true;
                 break;
             }
@@ -704,8 +765,8 @@ void pq::reorder_t_amplitudes() {
         for (int j = 0; j < dim; j++) {
             if ( nope[j] ) continue;
 
-            if ( data->t_amplitudes[j].size() == 8 ) {
-                tmp.push_back(data->t_amplitudes[j]);
+            if ( data->amps['T'][j].labels.size() == 8 ) {
+                tmp_new.push_back(data->amps['T'][j]);
                 nope[j] = true;
                 break;
             }
@@ -717,8 +778,8 @@ void pq::reorder_t_amplitudes() {
         for (int j = 0; j < dim; j++) {
             if ( nope[j] ) continue;
 
-            if ( data->t_amplitudes[j].size() == 10 ) {
-                tmp.push_back(data->t_amplitudes[j]);
+            if ( data->amps['T'][j].labels.size() == 10 ) {
+                tmp_new.push_back(data->amps['T'][j]);
                 nope[j] = true;
                 break;
             }
@@ -730,15 +791,15 @@ void pq::reorder_t_amplitudes() {
         for (int j = 0; j < dim; j++) {
             if ( nope[j] ) continue;
 
-            if ( data->t_amplitudes[j].size() == 12 ) {
-                tmp.push_back(data->t_amplitudes[j]);
+            if ( data->amps['T'][j].labels.size() == 12 ) {
+                tmp_new.push_back(data->amps['T'][j]);
                 nope[j] = true;
                 break;
             }
         }
 
     }
-    if ( dim != tmp.size() ) { 
+    if ( dim != tmp_new.size() ) { 
         printf("\n");
         printf("    something went very wrong in reorder_t_amplitudes()\n");
         printf("    this function breaks for t6 and higher. why would\n");
@@ -748,11 +809,12 @@ void pq::reorder_t_amplitudes() {
     }
 
     for (int i = 0; i < dim; i++) {
-        data->t_amplitudes[i].clear();
+        data->amps['T'][i].labels.clear();
+        data->amps['T'][i].numerical_labels.clear();
     }
-    data->t_amplitudes.clear();
-    for (size_t i = 0; i < tmp.size(); i++) {
-        data->t_amplitudes.push_back(tmp[i]);
+    data->amps['T'].clear();
+    for (size_t i = 0; i < tmp_new.size(); i++) {
+        data->amps['T'].push_back(tmp_new[i]);
     }
 
     free(nope);
@@ -761,16 +823,13 @@ void pq::reorder_t_amplitudes() {
 
 // sort amplitude labels
 
-void pq::sort_amplitude_labels(char type) {
+void pq::sort_amplitude_labels() {
 
-    data->amps[type].clear();
-    for (size_t j = 0; j < data->t_amplitudes.size(); j++) {
-        amplitudes amps;
-        for (size_t k = 0; k < data->t_amplitudes[j].size(); k++) {
-            amps.labels.push_back(data->t_amplitudes[j][k]);
+    for (size_t i = 0; i < data->amplitude_types.size(); i++) { 
+        char type = data->amplitude_types[i];
+        for (size_t j = 0; j < data->amps[type].size(); j++) {
+            data->amps[type][j].sort();
         }
-        amps.sort();
-        data->amps[type].push_back(amps);
     }
 }
 
@@ -779,20 +838,13 @@ void pq::sort_amplitude_labels(char type) {
 void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 
 
-    // order amplitudes such that they're ordered t1, t2, t3, etc.
     for (size_t i = 0; i < ordered.size(); i++) {
+
+        // order amplitudes such that they're ordered t1, t2, t3, etc.
         ordered[i]->reorder_t_amplitudes();
 
-        // test
-        ordered[i]->data->amps['T'].clear();
-        for (size_t j = 0; j < ordered[i]->data->t_amplitudes.size(); j++) {
-            amplitudes amps;
-            for (size_t k = 0; k < ordered[i]->data->t_amplitudes[j].size(); k++) {
-                amps.labels.push_back(ordered[i]->data->t_amplitudes[j][k]);
-            }
-            amps.sort();
-            ordered[i]->data->amps['T'].push_back(amps);
-        }
+        // sort amplitude labels
+        ordered[i]->sort_amplitude_labels();
 
     }
 
@@ -966,7 +1018,6 @@ void pq::consolidate_permutations_non_summed(
                     std::shared_ptr<pq> newguy (new pq(vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     newguy->swap_two_labels(labels[id1],labels[id2]);
-                    newguy->sort_amplitude_labels('T');
 
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -1145,6 +1196,7 @@ void pq::consolidate_permutations_plus_eight_swaps(
                                                                             newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
                                                                             newguy->swap_two_labels(labels_7[id13],labels_7[id14]);
                                                                             newguy->swap_two_labels(labels_8[id15],labels_8[id16]);
+                                                                            newguy->sort_amplitude_labels();
                                                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                                             if ( strings_same ) break;
@@ -1329,6 +1381,7 @@ void pq::consolidate_permutations_plus_seven_swaps(
                                                                     newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
                                                                     newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
                                                                     newguy->swap_two_labels(labels_7[id13],labels_7[id14]);
+                                                                    newguy->sort_amplitude_labels();
                                                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                                     if ( strings_same ) break;
@@ -1494,6 +1547,7 @@ void pq::consolidate_permutations_plus_six_swaps(
                                                             newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
                                                             newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
                                                             newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
+                                                            newguy->sort_amplitude_labels();
                                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                             if ( strings_same ) break;
@@ -1640,6 +1694,7 @@ void pq::consolidate_permutations_plus_five_swaps(
                                                     newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
                                                     newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
                                                     newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
+                                                    newguy->sort_amplitude_labels();
                                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                     if ( strings_same ) break;
@@ -1768,6 +1823,7 @@ void pq::consolidate_permutations_plus_four_swaps(
                                             newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
                                             newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
                                             newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
+                                            newguy->sort_amplitude_labels();
                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                             if ( strings_same ) break;
@@ -1877,6 +1933,7 @@ void pq::consolidate_permutations_plus_three_swaps(
                                     newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
                                     newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
                                     newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
+                                    newguy->sort_amplitude_labels();
                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                     if ( strings_same ) break;
@@ -1967,7 +2024,7 @@ void pq::consolidate_permutations_plus_two_swaps(
                             newguy->copy((void*)(ordered[i].get()));
                             newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
                             newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                            newguy->sort_amplitude_labels('T');
+                            newguy->sort_amplitude_labels();
 
                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -2040,7 +2097,8 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
                     std::shared_ptr<pq> newguy (new pq(vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     newguy->swap_two_labels(labels[id1],labels[id2]);
-                    newguy->sort_amplitude_labels('T');
+                    newguy->sort_amplitude_labels();
+
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                     if ( strings_same ) break;
@@ -2171,7 +2229,6 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     n_permute = 0;
 
     // t_amplitudes
-    //bool same_string = compare_amplitudes( ordered_1->data->t_amplitudes, ordered_2->data->t_amplitudes, n_permute);
     bool same_string = compare_amplitudes_new( ordered_1->data->amps['T'], ordered_2->data->amps['T'], n_permute);
     if ( !same_string ) return false;
 
@@ -2849,13 +2906,12 @@ void pq::shallow_copy(void * copy_me) {
         delta2.push_back(in->delta2[i]);
     }
 
-    // t_amplitudes
-    for (size_t i = 0; i < in->data->t_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (size_t j = 0; j < in->data->t_amplitudes[i].size(); j++) {
-            tmp.push_back(in->data->t_amplitudes[i][j]);
+    // amplitudes
+    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+        char type = data->amplitude_types[i];
+        for (size_t j = 0; j < in->data->amps[type].size(); j++) {
+            data->amps[type].push_back( in->data->amps[type][j] );
         }
-        data->t_amplitudes.push_back(tmp);
     }
 
     // u_amplitudes
@@ -2938,7 +2994,11 @@ int pq::index_in_anywhere(std::string idx) {
 
     n += index_in_deltas(idx);
     n += index_in_tensor(idx);
-    n += index_in_term(idx, data->t_amplitudes);
+    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+        char type = data->amplitude_types[i];
+        n += index_in_amplitudes(idx, data->amps[type]);
+    }
+
     n += index_in_term(idx, data->u_amplitudes);
     n += index_in_term(idx, data->m_amplitudes);
     n += index_in_term(idx, data->s_amplitudes);
@@ -2991,12 +3051,31 @@ int pq::index_in_term(std::string idx, std::vector<std::vector<std::string> > te
     return n;
 
 }
+int pq::index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
+
+    int n = 0;
+    for (size_t i = 0; i < amps.size(); i++) {
+        for (size_t j = 0; j < amps[i].labels.size(); j++) {
+            if ( amps[i].labels[j] == idx ) {
+                n++;
+            }
+           
+        }
+    }
+    return n;
+
+}
 
 void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
     //replace_index_in_deltas(old_idx,new_idx);
-    replace_index_in_tensor(old_idx,new_idx);
-    replace_index_in_term(old_idx,new_idx,data->t_amplitudes);
+    replace_index_in_tensor(old_idx, new_idx);
+    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+        char type = data->amplitude_types[i];
+        replace_index_in_amplitudes(old_idx, new_idx, data->amps[type]);
+    }
+    sort_amplitude_labels();
+
     replace_index_in_term(old_idx,new_idx,data->u_amplitudes);
     replace_index_in_term(old_idx,new_idx,data->m_amplitudes);
     replace_index_in_term(old_idx,new_idx,data->s_amplitudes);
@@ -3035,6 +3114,17 @@ void pq::replace_index_in_deltas(std::string old_idx, std::string new_idx) {
 
 }
 
+void pq::replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps) {
+
+    for (size_t i = 0; i < amps.size(); i++) {
+        for (size_t j = 0; j < amps[i].labels.size(); j++) {
+            if ( amps[i].labels[j] == old_idx ) {
+                amps[i].labels[j] = new_idx;
+            }
+        }
+    }
+
+}
 void pq::replace_index_in_term(std::string old_idx, std::string new_idx, std::vector<std::vector<std::string> > &term) {
 
     for (size_t i = 0; i < term.size(); i++) {
@@ -3161,8 +3251,8 @@ void pq::gobble_deltas() {
 
         bool delta1_in_tensor           = ( index_in_tensor( delta1[i] ) > 0 ) ? true : false;
         bool delta2_in_tensor           = ( index_in_tensor( delta2[i] ) > 0 ) ? true : false;
-        bool delta1_in_t_amplitudes     = ( index_in_term( delta1[i], data->t_amplitudes ) > 0 ) ? true : false;
-        bool delta2_in_t_amplitudes     = ( index_in_term( delta2[i], data->t_amplitudes ) > 0 ) ? true : false;
+        bool delta1_in_t_amplitudes     = ( index_in_amplitudes( delta1[i], data->amps['T'] ) > 0 ) ? true : false;
+        bool delta2_in_t_amplitudes     = ( index_in_amplitudes( delta2[i], data->amps['T'] ) > 0 ) ? true : false;
         bool delta1_in_left_amplitudes  = ( index_in_term( delta1[i], data->left_amplitudes ) > 0 ) ? true : false;
         bool delta2_in_left_amplitudes  = ( index_in_term( delta2[i], data->left_amplitudes ) > 0 ) ? true : false;
         bool delta1_in_right_amplitudes = ( index_in_term( delta1[i], data->right_amplitudes ) > 0 ) ? true : false;
@@ -3181,10 +3271,10 @@ void pq::gobble_deltas() {
             replace_index_in_tensor( delta2[i], delta1[i] );
             continue;
         }else if ( delta1_in_t_amplitudes && have_delta1 ) {
-            replace_index_in_term( delta1[i], delta2[i], data->t_amplitudes );
+            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['T'] );
             continue;
         }else if ( delta2_in_t_amplitudes && have_delta2 ) {
-            replace_index_in_term( delta2[i], delta1[i], data->t_amplitudes );
+            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['T'] );
             continue;
         }else if ( delta1_in_left_amplitudes && have_delta1 ) {
             replace_index_in_term( delta1[i], delta2[i], data->left_amplitudes );

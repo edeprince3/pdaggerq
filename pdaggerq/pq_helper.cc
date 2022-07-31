@@ -35,6 +35,7 @@
 #include "data.h"
 #include "pq.h"
 #include "pq_helper.h"
+#include "amplitudes.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -51,7 +52,7 @@ void export_pq_helper(py::module& m) {
         .def("set_print_level", &pq_helper::set_print_level)
         .def("set_string", &pq_helper::set_string)
         .def("set_tensor", &pq_helper::set_tensor)
-        .def("set_t_amplitudes", &pq_helper::set_t_amplitudes)
+        .def("set_amplitudes", &pq_helper::set_amplitudes)
         .def("set_u_amplitudes", &pq_helper::set_u_amplitudes)
         .def("set_m_amplitudes", &pq_helper::set_m_amplitudes)
         .def("set_s_amplitudes", &pq_helper::set_s_amplitudes)
@@ -807,7 +808,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     for (int id = n-1; id >= 0; id--) {
                         labels.push_back(label_right[id]);
                     }
-                    set_t_amplitudes(labels);
+                    set_amplitudes('T', labels);
 
                     // factor = 1/(n!)^2
                     double my_factor = 1.0;
@@ -1364,12 +1365,13 @@ void pq_helper::set_tensor(std::vector<std::string> in, std::string tensor_type)
     data->tensor_type = tensor_type;
 }
 
-void pq_helper::set_t_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
+void pq_helper::set_amplitudes(char type, std::vector<std::string> in) {
+    amplitudes amps;
     for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
+        amps.labels.push_back(in[i]);
     }
-    data->t_amplitudes.push_back(tmp);
+    amps.sort();
+    data->amps[type].push_back(amps);
 }
 
 void pq_helper::set_u_amplitudes(std::vector<std::string> in) {
@@ -1453,12 +1455,12 @@ void pq_helper::add_new_string_true_vacuum(){
     }
     mystring->data->tensor_type = data->tensor_type;
 
-    for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
-            tmp.push_back(data->t_amplitudes[i][j]);
+    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+        char type = data->amplitude_types[i];
+        mystring->data->amps[type].clear();
+        for (size_t j = 0; j < data->amps[type].size(); j++) {
+            mystring->data->amps[type].push_back( data->amps[type][j] );
         }
-        mystring->data->t_amplitudes.push_back(tmp);
     }
     for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
         std::vector<std::string> tmp;
@@ -1852,12 +1854,12 @@ void pq_helper::add_new_string_fermi_vacuum(){
 
         }
 
-        for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
-                tmp.push_back(data->t_amplitudes[i][j]);
+        for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+            char type = data->amplitude_types[i];
+            mystrings[string_num]->data->amps[type].clear();
+            for (size_t j = 0; j < data->amps[type].size(); j++) {
+                mystrings[string_num]->data->amps[type].push_back( data->amps[type][j] );
             }
-            mystrings[string_num]->data->t_amplitudes.push_back(tmp);
         }
 
         for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {

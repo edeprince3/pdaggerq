@@ -83,8 +83,8 @@ class pq_helper {
     /// set labels for a one- or two-body tensor
     void set_tensor(std::vector<std::string> in, std::string tensor_type);
 
-    /// set labels for t1, t2, or t3 amplitudes
-    void set_t_amplitudes(std::vector<std::string> in);
+    /// set labels for amplitudes
+    void set_amplitudes(char type, std::vector<std::string> in);
 
     /// set labels for u1 or u2 amplitudes
     void set_u_amplitudes(std::vector<std::string> in);

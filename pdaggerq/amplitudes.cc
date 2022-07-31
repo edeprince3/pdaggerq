@@ -41,6 +41,8 @@ void amplitudes::sort() {
         numerical_labels.push_back(numerical_label);
     }
 
+    permutations = 0;
+
     // sort labels and accumulate permutations
     for (size_t step = 1; step < numerical_labels.size(); step++) {
         

@@ -50,6 +50,9 @@ class pq {
     /// how many times does label "idx" appear in a given term
     int index_in_term(std::string idx, std::vector<std::vector<std::string> > term);
 
+    /// how many times does label "idx" appear in a given set of amplitudes
+    int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
+
     /// replace one label with another (everywhere)
     void replace_index_everywhere(std::string old_idx, std::string new_idx);
 
@@ -61,6 +64,9 @@ class pq {
 
     /// replace one label with another (in a given term)
     void replace_index_in_term(std::string old_idx, std::string new_idx, std::vector<std::vector<std::string> > &term);
+
+    /// replace one label with another (in a given set of amplitudes)
+    void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps);
 
     /// are two strings the same? if so, how many permutations to relate them?
     bool compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute);
@@ -139,9 +145,17 @@ class pq {
     /// print amplitudes
     void print_amplitudes(std::string label, std::vector<std::vector<std::string> > amplitudes);
 
+    /// print amplitudes
+    void print_amplitudes_new(std::string label, std::vector<amplitudes> amps);
+
     /// add amplitudes to list of strings
     void print_amplitudes_to_string(std::string label, 
                                     std::vector<std::vector<std::string> > amplitudes, 
+                                    std::vector<std::string> &my_string );
+
+    /// add amplitudes to list of strings
+    void print_amplitudes_to_string_new(std::string label, 
+                                    std::vector<amplitudes> amps, 
                                     std::vector<std::string> &my_string );
 
     /// get string information
@@ -251,7 +265,7 @@ class pq {
     void consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// sort amplitude labels
-    void sort_amplitude_labels(char type);
+    void sort_amplitude_labels();
 
     /// reorder t amplitudes as t1, t2, t3
     void reorder_t_amplitudes();

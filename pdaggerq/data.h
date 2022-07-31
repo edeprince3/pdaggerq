@@ -56,8 +56,8 @@ class StringData {
     /// list: labels u amplitudes
     std::vector<std::vector<std::string> > u_amplitudes;
 
-    /// list: labels t amplitudes
-    std::vector<std::vector<std::string> > t_amplitudes;
+    /// amplitude types
+    std::vector<char> amplitude_types = {'T'};
 
     /// amplitudes
     std::map<char, std::vector<amplitudes> > amps;
