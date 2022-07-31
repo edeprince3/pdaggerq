@@ -761,16 +761,16 @@ void pq::reorder_t_amplitudes() {
 
 // sort amplitude labels
 
-void pq::sort_amplitude_labels() {
+void pq::sort_amplitude_labels(char type) {
 
-    data->amps['T'].clear();
+    data->amps[type].clear();
     for (size_t j = 0; j < data->t_amplitudes.size(); j++) {
         amplitudes amps;
         for (size_t k = 0; k < data->t_amplitudes[j].size(); k++) {
             amps.labels.push_back(data->t_amplitudes[j][k]);
         }
         amps.sort();
-        data->amps['T'].push_back(amps);
+        data->amps[type].push_back(amps);
     }
 }
 
@@ -966,16 +966,7 @@ void pq::consolidate_permutations_non_summed(
                     std::shared_ptr<pq> newguy (new pq(vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     newguy->swap_two_labels(labels[id1],labels[id2]);
-
-                    newguy->data->amps['T'].clear();
-                    for (size_t j = 0; j < newguy->data->t_amplitudes.size(); j++) {
-                        amplitudes amps;
-                        for (size_t k = 0; k < newguy->data->t_amplitudes[j].size(); k++) {
-                            amps.labels.push_back(newguy->data->t_amplitudes[j][k]);
-                        }
-                        amps.sort();
-                        newguy->data->amps['T'].push_back(amps);
-                    }
+                    newguy->sort_amplitude_labels('T');
 
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -1976,16 +1967,7 @@ void pq::consolidate_permutations_plus_two_swaps(
                             newguy->copy((void*)(ordered[i].get()));
                             newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
                             newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-
-                            newguy->data->amps['T'].clear();
-                            for (size_t j = 0; j < newguy->data->t_amplitudes.size(); j++) {
-                                amplitudes amps;
-                                for (size_t k = 0; k < newguy->data->t_amplitudes[j].size(); k++) {
-                                    amps.labels.push_back(newguy->data->t_amplitudes[j][k]);
-                                }
-                                amps.sort();
-                                newguy->data->amps['T'].push_back(amps);
-                            }
+                            newguy->sort_amplitude_labels('T');
 
                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -2058,7 +2040,7 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
                     std::shared_ptr<pq> newguy (new pq(vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     newguy->swap_two_labels(labels[id1],labels[id2]);
-                    newguy->sort_amplitude_labels();
+                    newguy->sort_amplitude_labels('T');
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                     if ( strings_same ) break;

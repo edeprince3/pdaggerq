@@ -251,7 +251,7 @@ class pq {
     void consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// sort amplitude labels
-    void sort_amplitude_labels();
+    void sort_amplitude_labels(char type);
 
     /// reorder t amplitudes as t1, t2, t3
     void reorder_t_amplitudes();
