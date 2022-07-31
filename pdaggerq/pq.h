@@ -62,9 +62,6 @@ class pq {
     /// replace one label with another (in tensor)
     void replace_index_in_tensor(std::string old_idx, std::string new_idx);
 
-    /// replace one label with another (in a given term)
-    void replace_index_in_term(std::string old_idx, std::string new_idx, std::vector<std::vector<std::string> > &term);
-
     /// replace one label with another (in a given set of amplitudes)
     void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps);
 
@@ -74,15 +71,10 @@ class pq {
     /// swap to labels
     void swap_two_labels(std::string label1, std::string label2);
 
-    /// compare two lists of amplitudes
-    bool compare_amplitudes( std::vector<std::vector<std::string> > amps1, 
-                             std::vector<std::vector<std::string> > amps2, 
+    /// compare two lists of amplitudes 
+    bool compare_amplitudes( std::vector<amplitudes> amps1, 
+                             std::vector<amplitudes> amps2, 
                              int & n_permute );
-
-    /// compare two lists of amplitudes with new data structure
-    bool compare_amplitudes_new( std::vector<amplitudes> amps1, 
-                                 std::vector<amplitudes> amps2, 
-                                 int & n_permute );
 
     /// permutations and coincidences for triples
     void triples_permutations(std::vector<std::string> amps1, 

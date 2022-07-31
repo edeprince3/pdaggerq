@@ -2171,7 +2171,7 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     bool same_string = false;
     for (size_t i = 0; i < data->amplitude_types.size(); i++) {
         char type = data->amplitude_types[i];
-        same_string = compare_amplitudes_new( ordered_1->data->amps[type], ordered_2->data->amps[type], n_permute);
+        same_string = compare_amplitudes( ordered_1->data->amps[type], ordered_2->data->amps[type], n_permute);
         if ( !same_string ) return false;
     }
 
@@ -2290,9 +2290,9 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
 }
 
 /// compare two lists of amplitudes
-bool pq::compare_amplitudes_new( std::vector<amplitudes> amps1,
-                                 std::vector<amplitudes> amps2,
-                                 int & n_permute ) {
+bool pq::compare_amplitudes( std::vector<amplitudes> amps1,
+                             std::vector<amplitudes> amps2,
+                             int & n_permute ) {
     
     size_t nsame_amps = 0;
     for (size_t i = 0; i < amps1.size(); i++) {
@@ -2314,248 +2314,6 @@ bool pq::compare_amplitudes_new( std::vector<amplitudes> amps1,
     return true;
 }
 
-
-/// compare two lists of amplitudes
-bool pq::compare_amplitudes( std::vector<std::vector<std::string> > amps1, 
-                             std::vector<std::vector<std::string> > amps2, 
-                             int & n_permute ) {
-
-    // same number of amplitudes?
-    if ( amps1.size() != amps2.size() ) return false;
-   
-    size_t nsame_amps = 0;
-    for (size_t i = 0; i < amps1.size(); i++) {
-        for (size_t j = 0; j < amps2.size(); j++) {
-
-            // t1 vs t2 vs t3, etc?
-            if ( amps1[i].size() != amps2[j].size() ) continue;
-
-            // for higher than t4, just return false
-
-            // check labels
-            size_t dim = amps1[i].size();
-            int nsame_idx = 0;
-
-            // cases: 
-
-            // dim = 1: ip singles, no permutations
-            if ( dim == 1 ) {
-
-                if ( amps1[i][0] == amps2[j][0] ) {
-                    nsame_idx = 1;
-                }
-
-            // dim = 2: singles, no permutations
-            }else if ( dim == 2 ) {
-
-                if ( amps1[i][0] == amps2[j][0] && amps1[i][1] == amps2[j][1] ) {
-                    nsame_idx = 2;
-                }
-
-            // dim = 3: ip/ea doubles 
-            }else if ( dim == 3 ) {
-            
-                // two possibilities ... either oov/vvo or ovv/voo
-
-                if ( amps1[i][0] == amps2[j][0] 
-                  && amps1[i][1] == amps2[j][1] 
-                  && amps1[i][2] == amps2[j][2] ) {
-
-                    nsame_idx += 3;
-
-                }else if ( amps1[i][0] == amps2[j][1] 
-                        && amps1[i][1] == amps2[j][0] 
-                        && amps1[i][2] == amps2[j][2] ) {
-
-                    nsame_idx += 3;
-                    n_permute++;
-
-                }else if ( amps1[i][0] == amps2[j][0] 
-                        && amps1[i][1] == amps2[j][2] 
-                        && amps1[i][2] == amps2[j][1] ) {
-
-                    nsame_idx += 3;
-                    n_permute++;
-
-                }
-
-            // dim = 4: doubles
-            }else if ( dim == 4 ) {
-
-                int n_permute_1 = 0;
-                int n_permute_2 = 0;
-
-                // first part
-                if ( amps1[i][0] == amps2[j][0]
-                  && amps1[i][1] == amps2[j][1] ) {
-
-                    nsame_idx += 2;
-
-                }else if ( amps1[i][0] == amps2[j][1]
-                        && amps1[i][1] == amps2[j][0] ) {
-
-                    nsame_idx += 2;
-                    n_permute_1 = 1;
-
-                }
-
-                // second part
-                if ( amps1[i][2] == amps2[j][2]
-                  && amps1[i][3] == amps2[j][3] ) {
-
-                    nsame_idx += 2;
-
-                }else if ( amps1[i][2] == amps2[j][3]
-                        && amps1[i][3] == amps2[j][2] ) {
-
-                    nsame_idx += 2;
-                    n_permute_2 = 1;
-
-                }
-                if ( nsame_idx == dim ) {
-                    n_permute += n_permute_1 + n_permute_2;
-                }
-
-            // dim = 5: ip / ea triples 
-            }else if ( dim == 5 ) {
-            
-                // so many possibilities ... either ooovv/vvvoo or oovvv/vvooo
-
-                int nsame_1 = 0;
-                int nsame_2 = 0;
-                int nsame_3 = 0;
-                int nsame_4 = 0;
-
-                int n_permute_1 = 0;
-                int n_permute_2 = 0;
-                int n_permute_3 = 0;
-                int n_permute_4 = 0;
-
-                if ( amps1[i][0] == amps2[j][0]
-                  && amps1[i][1] == amps2[j][1] ) {
-                    
-                    nsame_1 += 2;
-                    triples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,2);
-
-                }
-
-                if ( amps1[i][0] == amps2[j][1]
-                  && amps1[i][1] == amps2[j][0] ) {
-
-                    nsame_2 += 2;
-                    n_permute_2++;
-                    triples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,2);
-
-                }
-
-                if ( amps1[i][3] == amps2[j][3]
-                  && amps1[i][4] == amps2[j][4] ) {
-                    
-                    nsame_3 += 2;
-                    triples_permutations(amps1[i],amps2[j],nsame_3,n_permute_3,0);
-
-                }
-
-                if ( amps1[i][3] == amps2[j][4]
-                  && amps1[i][4] == amps2[j][3] ) {
-
-                    nsame_4 += 2;
-                    n_permute_4++;
-                    triples_permutations(amps1[i],amps2[j],nsame_4,n_permute_4,0);
-
-                }
-
-                // which combination wins?
-                if ( nsame_1 == dim ) {
-                    nsame_idx = nsame_1;
-                    n_permute += n_permute_1;
-                }else if ( nsame_2 == dim ) {
-                    nsame_idx = nsame_2;
-                    n_permute += n_permute_2;
-                }else if ( nsame_3 == dim ) {
-                    nsame_idx = nsame_3;
-                    n_permute += n_permute_3;
-                }else if ( nsame_4 == dim ) {
-                    nsame_idx = nsame_4;
-                    n_permute += n_permute_4;
-                }
-                
-            // dim = 6: triples
-            }else if ( dim == 6 ) {
-
-                int n_permute_1 = 0;
-                int n_permute_2 = 0;
-
-                // first part
-                triples_permutations(amps1[i],amps2[j],nsame_idx,n_permute_1,0);
-
-                // second part
-                triples_permutations(amps1[i],amps2[j],nsame_idx,n_permute_2,3);
-
-                if ( nsame_idx == dim ) {
-                    n_permute += n_permute_1 + n_permute_2;
-                }
-
-
-            // dim = 7: ip / ea quadruples 
-            }else if ( dim == 7 ) {
-
-                int nsame_1 = 0;
-                int nsame_2 = 0;
-
-                int n_permute_1 = 0;
-                int n_permute_2 = 0;
-
-                // try 3/4
-                triples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,0);
-                quadruples_permutations(amps1[i],amps2[j],nsame_1,n_permute_1,3);
-
-                // try 4/3
-                quadruples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,0);
-                triples_permutations(amps1[i],amps2[j],nsame_2,n_permute_2,4);
-
-                // which combination wins?
-                if ( nsame_1 == dim ) {
-                    nsame_idx = nsame_1;
-                    n_permute += n_permute_1;
-                }else if ( nsame_2 == dim ) {
-                    nsame_idx = nsame_2;
-                    n_permute += n_permute_2;
-                }
-
-            // dim = 8: quadruples
-            }else if ( dim == 8 ) {
-
-                int n_permute_1 = 0;
-                int n_permute_2 = 0;
-
-                // first part
-                quadruples_permutations(amps1[i],amps2[j],nsame_idx,n_permute_1,0);
-
-                // second part
-                quadruples_permutations(amps1[i],amps2[j],nsame_idx,n_permute_2,4);
-
-                if ( nsame_idx == dim ) {
-                    n_permute += n_permute_1 + n_permute_2;
-                }
-
-            }else {
-
-                return false;
-
-            }
-
-            // if all indices are the same, the amplitudes must be the same, but we need to be careful of permutations
-            if ( nsame_idx == dim ) {
-                nsame_amps++;
-                break;
-            }
-        }
-    }
-    if ( nsame_amps != amps1.size() ) return false;
-
-    return true;
-}
 
 /// permutations and coincidences for triples
 void pq::triples_permutations(std::vector<std::string> amps1, 
@@ -2986,17 +2744,6 @@ void pq::replace_index_in_amplitudes(std::string old_idx, std::string new_idx, s
         for (size_t j = 0; j < amps[i].labels.size(); j++) {
             if ( amps[i].labels[j] == old_idx ) {
                 amps[i].labels[j] = new_idx;
-            }
-        }
-    }
-
-}
-void pq::replace_index_in_term(std::string old_idx, std::string new_idx, std::vector<std::vector<std::string> > &term) {
-
-    for (size_t i = 0; i < term.size(); i++) {
-        for (size_t j = 0; j < term[i].size(); j++) {
-            if ( term[i][j] == old_idx ) {
-                term[i][j] = new_idx;
             }
         }
     }
