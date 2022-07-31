@@ -295,14 +295,14 @@ void pq::print() {
     }
 
     // left-hand amplitudes
-    print_amplitudes("l",data->left_amplitudes);
+    print_amplitudes_new("l",data->amps['L']);
     if ( data->has_l0 ) {
         printf("l0");
         printf(" ");
     }
 
     // right-hand amplitudes
-    print_amplitudes("r",data->right_amplitudes);
+    print_amplitudes_new("r",data->amps['R']);
     if ( data->has_r0 ) {
         printf("r0");
         printf(" ");
@@ -514,13 +514,13 @@ std::vector<std::string> pq::get_string() {
     }
 
     // left-hand amplitudes
-    print_amplitudes_to_string("l",data->left_amplitudes,my_string);
+    print_amplitudes_to_string_new("l",data->amps['L'],my_string);
     if ( data->has_l0 ) {
         my_string.push_back("l0");
     }
 
     // right-hand amplitudes
-    print_amplitudes_to_string("r",data->right_amplitudes,my_string);
+    print_amplitudes_to_string_new("r",data->amps['R'],my_string);
     if ( data->has_r0 ) {
         my_string.push_back("r0");
     }
@@ -2245,11 +2245,11 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     if ( !same_string ) return false;
 
     // left-hand amplitudes
-    same_string = compare_amplitudes( ordered_1->data->left_amplitudes, ordered_2->data->left_amplitudes, n_permute);
+    same_string = compare_amplitudes_new( ordered_1->data->amps['L'], ordered_2->data->amps['L'], n_permute);
     if ( !same_string ) return false;
 
     // right-hand amplitudes
-    same_string = compare_amplitudes( ordered_1->data->right_amplitudes, ordered_2->data->right_amplitudes, n_permute);
+    same_string = compare_amplitudes_new( ordered_1->data->amps['R'], ordered_2->data->amps['R'], n_permute);
     if ( !same_string ) return false;
 
     // are tensors same?
@@ -2941,24 +2941,6 @@ void pq::shallow_copy(void * copy_me) {
         data->s_amplitudes.push_back(tmp);
     }
 
-    // left-hand amplitudes
-    for (size_t i = 0; i < in->data->left_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (size_t j = 0; j < in->data->left_amplitudes[i].size(); j++) {
-            tmp.push_back(in->data->left_amplitudes[i][j]);
-        }
-        data->left_amplitudes.push_back(tmp);
-    }
-
-    // right-hand amplitudes
-    for (size_t i = 0; i < in->data->right_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (size_t j = 0; j < in->data->right_amplitudes[i].size(); j++) {
-            tmp.push_back(in->data->right_amplitudes[i][j]);
-        }
-        data->right_amplitudes.push_back(tmp);
-    }
-
     // l0 
     data->has_l0 = in->data->has_l0;
 
@@ -3002,8 +2984,6 @@ int pq::index_in_anywhere(std::string idx) {
     n += index_in_term(idx, data->u_amplitudes);
     n += index_in_term(idx, data->m_amplitudes);
     n += index_in_term(idx, data->s_amplitudes);
-    n += index_in_term(idx, data->left_amplitudes);
-    n += index_in_term(idx, data->right_amplitudes);
 
     return n;
 
@@ -3079,8 +3059,6 @@ void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
     replace_index_in_term(old_idx,new_idx,data->u_amplitudes);
     replace_index_in_term(old_idx,new_idx,data->m_amplitudes);
     replace_index_in_term(old_idx,new_idx,data->s_amplitudes);
-    replace_index_in_term(old_idx,new_idx,data->left_amplitudes);
-    replace_index_in_term(old_idx,new_idx,data->right_amplitudes);
 
 }
 
@@ -3253,10 +3231,10 @@ void pq::gobble_deltas() {
         bool delta2_in_tensor           = ( index_in_tensor( delta2[i] ) > 0 ) ? true : false;
         bool delta1_in_t_amplitudes     = ( index_in_amplitudes( delta1[i], data->amps['T'] ) > 0 ) ? true : false;
         bool delta2_in_t_amplitudes     = ( index_in_amplitudes( delta2[i], data->amps['T'] ) > 0 ) ? true : false;
-        bool delta1_in_left_amplitudes  = ( index_in_term( delta1[i], data->left_amplitudes ) > 0 ) ? true : false;
-        bool delta2_in_left_amplitudes  = ( index_in_term( delta2[i], data->left_amplitudes ) > 0 ) ? true : false;
-        bool delta1_in_right_amplitudes = ( index_in_term( delta1[i], data->right_amplitudes ) > 0 ) ? true : false;
-        bool delta2_in_right_amplitudes = ( index_in_term( delta2[i], data->right_amplitudes ) > 0 ) ? true : false;
+        bool delta1_in_left_amplitudes  = ( index_in_amplitudes( delta1[i], data->amps['L'] ) > 0 ) ? true : false;
+        bool delta2_in_left_amplitudes  = ( index_in_amplitudes( delta2[i], data->amps['L'] ) > 0 ) ? true : false;
+        bool delta1_in_right_amplitudes = ( index_in_amplitudes( delta1[i], data->amps['R'] ) > 0 ) ? true : false;
+        bool delta2_in_right_amplitudes = ( index_in_amplitudes( delta2[i], data->amps['R'] ) > 0 ) ? true : false;
         bool delta1_in_u_amplitudes     = ( index_in_term( delta1[i], data->u_amplitudes ) > 0 ) ? true : false;
         bool delta2_in_u_amplitudes     = ( index_in_term( delta2[i], data->u_amplitudes ) > 0 ) ? true : false;
         bool delta1_in_m_amplitudes     = ( index_in_term( delta1[i], data->m_amplitudes ) > 0 ) ? true : false;
@@ -3277,16 +3255,16 @@ void pq::gobble_deltas() {
             replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['T'] );
             continue;
         }else if ( delta1_in_left_amplitudes && have_delta1 ) {
-            replace_index_in_term( delta1[i], delta2[i], data->left_amplitudes );
+            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['L'] );
             continue;
         }else if ( delta2_in_left_amplitudes && have_delta2 ) {
-            replace_index_in_term( delta2[i], delta1[i], data->left_amplitudes );
+            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['L'] );
             continue;
         }else if ( delta1_in_right_amplitudes && have_delta1 ) {
-            replace_index_in_term( delta1[i], delta2[i], data->right_amplitudes );
+            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['R'] );
             continue;
         }else if ( delta2_in_right_amplitudes && have_delta2 ) {
-            replace_index_in_term( delta2[i], delta1[i], data->right_amplitudes );
+            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['R'] );
             continue;
         }else if ( delta1_in_u_amplitudes && have_delta1 ) {
             replace_index_in_term( delta1[i], delta2[i], data->u_amplitudes );

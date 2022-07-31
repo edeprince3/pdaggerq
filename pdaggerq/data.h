@@ -57,16 +57,10 @@ class StringData {
     std::vector<std::vector<std::string> > u_amplitudes;
 
     /// amplitude types
-    std::vector<char> amplitude_types = {'T'};
+    std::vector<char> amplitude_types = {'T', 'R', 'L'};
 
     /// amplitudes
     std::map<char, std::vector<amplitudes> > amps;
-
-    /// list: labels left-hand eom-cc amplitudes
-    std::vector<std::vector<std::string> > left_amplitudes;
-
-    /// list: labels right-hand amplitudes
-    std::vector<std::vector<std::string> > right_amplitudes;
 
     /// list: labels left-hand amplitudes plus boson
     std::vector<std::vector<std::string> > m_amplitudes;

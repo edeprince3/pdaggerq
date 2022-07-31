@@ -56,8 +56,6 @@ void export_pq_helper(py::module& m) {
         .def("set_u_amplitudes", &pq_helper::set_u_amplitudes)
         .def("set_m_amplitudes", &pq_helper::set_m_amplitudes)
         .def("set_s_amplitudes", &pq_helper::set_s_amplitudes)
-        .def("set_left_amplitudes", &pq_helper::set_left_amplitudes)
-        .def("set_right_amplitudes", &pq_helper::set_right_amplitudes)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
@@ -948,7 +946,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_right_amplitudes(labels);
+                        set_amplitudes('R', labels);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1074,7 +1072,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_left_amplitudes(labels);
+                        set_amplitudes('L', labels);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1398,22 +1396,6 @@ void pq_helper::set_s_amplitudes(std::vector<std::string> in) {
     data->s_amplitudes.push_back(tmp);
 }
 
-void pq_helper::set_left_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
-    }
-    data->left_amplitudes.push_back(tmp);
-}
-
-void pq_helper::set_right_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
-    }
-    data->right_amplitudes.push_back(tmp);
-}
-
 void pq_helper::set_factor(double in) {
     data->factor = in;
 }
@@ -1486,20 +1468,6 @@ void pq_helper::add_new_string_true_vacuum(){
         mystring->data->s_amplitudes.push_back(tmp);
     }
 
-    for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
-            tmp.push_back(data->left_amplitudes[i][j]);
-        }
-        mystring->data->left_amplitudes.push_back(tmp);
-    }
-    for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
-            tmp.push_back(data->right_amplitudes[i][j]);
-        }
-        mystring->data->right_amplitudes.push_back(tmp);
-    }
     for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
         mystring->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
     }
@@ -1884,22 +1852,6 @@ void pq_helper::add_new_string_fermi_vacuum(){
                 tmp.push_back(data->s_amplitudes[i][j]);
             }
             mystrings[string_num]->data->s_amplitudes.push_back(tmp);
-        }
-
-        for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
-                tmp.push_back(data->left_amplitudes[i][j]);
-            }
-            mystrings[string_num]->data->left_amplitudes.push_back(tmp);
-        }
-
-        for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
-                tmp.push_back(data->right_amplitudes[i][j]);
-            }
-            mystrings[string_num]->data->right_amplitudes.push_back(tmp);
         }
 
         // now, string is complete, but labels in four-index tensors need to be reordered p*q*sr(pq|sr) -> (pr|qs)
