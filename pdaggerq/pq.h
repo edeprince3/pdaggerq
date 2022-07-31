@@ -143,18 +143,10 @@ class pq {
     void print();
 
     /// print amplitudes
-    void print_amplitudes(std::string label, std::vector<std::vector<std::string> > amplitudes);
-
-    /// print amplitudes
-    void print_amplitudes_new(std::string label, std::vector<amplitudes> amps);
+    void print_amplitudes(std::string label, std::vector<amplitudes> amps);
 
     /// add amplitudes to list of strings
     void print_amplitudes_to_string(std::string label, 
-                                    std::vector<std::vector<std::string> > amplitudes, 
-                                    std::vector<std::string> &my_string );
-
-    /// add amplitudes to list of strings
-    void print_amplitudes_to_string_new(std::string label, 
                                     std::vector<amplitudes> amps, 
                                     std::vector<std::string> &my_string );
 

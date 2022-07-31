@@ -135,7 +135,7 @@ void pq::check_occ_vir() {
 
 }
 
-void pq::print_amplitudes_new(std::string label, std::vector<amplitudes> amps) {
+void pq::print_amplitudes(std::string label, std::vector<amplitudes> amps) {
 
     if ( amps.size() == 0 ) {
         return;
@@ -165,37 +165,6 @@ void pq::print_amplitudes_new(std::string label, std::vector<amplitudes> amps) {
     }
 
 }
-void pq::print_amplitudes(std::string label, std::vector<std::vector<std::string> > amplitudes) {
-
-    if ( amplitudes.size() == 0 ) {
-        return;
-    }
-
-    for (size_t i = 0; i < amplitudes.size(); i++) {
-
-        if ( amplitudes[i].size() > 0 ) {
-
-            size_t size  = amplitudes[i].size();
-            size_t order = amplitudes[i].size() / 2;
-            if ( 2*order != size ) {
-                order++;
-            }
-            printf("%s",label.c_str());
-            printf("%zu",order);
-            printf("(");
-            for (size_t j = 0; j < size-1; j++) {
-                printf("%s",amplitudes[i][j].c_str());
-                printf(",");
-            }
-            printf("%s",amplitudes[i][size-1].c_str());
-            printf(")");
-            printf(" ");
-
-        }
-    }
-
-}
-
 void pq::print() {
 
     if ( skip ) return;
@@ -295,38 +264,38 @@ void pq::print() {
     }
 
     // left-hand amplitudes
-    print_amplitudes_new("l",data->amps['L']);
+    print_amplitudes("l",data->amps['L']);
     if ( data->has_l0 ) {
         printf("l0");
         printf(" ");
     }
 
     // right-hand amplitudes
-    print_amplitudes_new("r",data->amps['R']);
+    print_amplitudes("r",data->amps['R']);
     if ( data->has_r0 ) {
         printf("r0");
         printf(" ");
     }
 
     // t_amplitudes
-    print_amplitudes_new("t",data->amps['T']);
+    print_amplitudes("t",data->amps['T']);
 
     // u_amplitudes
-    print_amplitudes_new("u",data->amps['U']);
+    print_amplitudes("u",data->amps['U']);
     if ( data->has_u0 ) {
         printf("u0");
         printf(" ");
     }
 
     // m_amplitudes
-    print_amplitudes_new("m",data->amps['M']);
+    print_amplitudes("m",data->amps['M']);
     if ( data->has_m0 ) {
         printf("m0");
         printf(" ");
     }
 
     // s_amplitudes
-    print_amplitudes_new("s",data->amps['S']);
+    print_amplitudes("s",data->amps['S']);
     if ( data->has_s0 ) {
         printf("s0");
         printf(" ");
@@ -357,7 +326,7 @@ void pq::print() {
     printf("\n");
 }
 
-void pq::print_amplitudes_to_string_new(std::string label, 
+void pq::print_amplitudes_to_string(std::string label, 
                                     std::vector<amplitudes> amps, 
                                     std::vector<std::string> &my_string ) {
     if ( amps.size() == 0 ) {
@@ -380,35 +349,6 @@ void pq::print_amplitudes_to_string_new(std::string label,
             tmp += amps[i].labels[size-1] + ")";
             my_string.push_back(tmp);
 
-        }
-
-    }
-}
-
-void pq::print_amplitudes_to_string(std::string label, 
-                                    std::vector<std::vector<std::string> > amplitudes, 
-                                    std::vector<std::string> &my_string ) {
-
-    if ( amplitudes.size() == 0 ) {
-        return;
-    }
-    
-    for (size_t i = 0; i < amplitudes.size(); i++) {
-        
-        if ( amplitudes[i].size() > 0 ) {
-            
-            size_t size  = amplitudes[i].size();
-            size_t order = amplitudes[i].size() / 2;
-            if ( 2*order != size ) {
-                order++;
-            }
-            std::string tmp = label + std::to_string(order) + "(";
-            for (int j = 0; j < size-1; j++) {
-                tmp += amplitudes[i][j] + ",";
-            }
-            tmp += amplitudes[i][size-1] + ")";
-            my_string.push_back(tmp);
-        
         }
 
     }
@@ -514,34 +454,34 @@ std::vector<std::string> pq::get_string() {
     }
 
     // left-hand amplitudes
-    print_amplitudes_to_string_new("l",data->amps['L'],my_string);
+    print_amplitudes_to_string("l",data->amps['L'],my_string);
     if ( data->has_l0 ) {
         my_string.push_back("l0");
     }
 
     // right-hand amplitudes
-    print_amplitudes_to_string_new("r",data->amps['R'],my_string);
+    print_amplitudes_to_string("r",data->amps['R'],my_string);
     if ( data->has_r0 ) {
         my_string.push_back("r0");
     }
 
     // t-amplitudes
-    print_amplitudes_to_string_new("t",data->amps['T'],my_string);
+    print_amplitudes_to_string("t",data->amps['T'],my_string);
 
     // u_amplitudes
-    print_amplitudes_to_string_new("u",data->amps['U'],my_string);
+    print_amplitudes_to_string("u",data->amps['U'],my_string);
     if ( data->has_u0 ) {
         my_string.push_back("u0");
     }
 
     // m_amplitudes
-    print_amplitudes_to_string_new("m",data->amps['M'],my_string);
+    print_amplitudes_to_string("m",data->amps['M'],my_string);
     if ( data->has_m0 ) {
         my_string.push_back("m0");
     }
 
     // s_amplitudes
-    print_amplitudes_to_string_new("s",data->amps['S'],my_string);
+    print_amplitudes_to_string("s",data->amps['S'],my_string);
     if ( data->has_s0 ) {
         my_string.push_back("s0");
     }
