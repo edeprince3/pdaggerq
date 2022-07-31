@@ -53,20 +53,11 @@ class StringData {
     /// tensor type (FOCK, CORE, TWO_BODY, ERI, D+, D-)
     std::string tensor_type;
 
-    /// list: labels u amplitudes
-    std::vector<std::vector<std::string> > u_amplitudes;
-
     /// amplitude types
-    std::vector<char> amplitude_types = {'T', 'R', 'L'};
+    std::vector<char> amplitude_types = {'T', 'R', 'L', 'U', 'S', 'M'};
 
     /// amplitudes
     std::map<char, std::vector<amplitudes> > amps;
-
-    /// list: labels left-hand amplitudes plus boson
-    std::vector<std::vector<std::string> > m_amplitudes;
-
-    /// list: labels right-hand amplitudes plus boson
-    std::vector<std::vector<std::string> > s_amplitudes;
 
     /// list: labels permutation operators
     std::vector<std::string> permutations;
