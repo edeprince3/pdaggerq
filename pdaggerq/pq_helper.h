@@ -86,15 +86,6 @@ class pq_helper {
     /// set labels for amplitudes
     void set_amplitudes(char type, std::vector<std::string> in);
 
-    /// set labels for u1 or u2 amplitudes
-    void set_u_amplitudes(std::vector<std::string> in);
-
-    /// set labels for m1 or m2 amplitudes
-    void set_m_amplitudes(std::vector<std::string> in);
-
-    /// set labels for s1 or s2 amplitudes
-    void set_s_amplitudes(std::vector<std::string> in);
-
     /// set a numerical factor
     void set_factor(double in);
 
