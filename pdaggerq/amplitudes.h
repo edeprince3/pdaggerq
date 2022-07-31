@@ -23,6 +23,8 @@
 #ifndef AMPLITUDES_H
 #define AMPLITUDES_H
 
+#include<vector>
+
 namespace pdaggerq {
 
 class amplitudes {
@@ -45,73 +47,13 @@ class amplitudes {
     int permutations = 0;
 
     /// sort amplitudes, keep track of permutations, assign total numerical value
-    void sort() {
-
-        numerical_labels.clear();
-
-        // convert labels to numerical labels
-        for (size_t i = 0; i < labels.size(); i++) {
-            int numerical_label = 0;
-            int factor = 1;
-            for (size_t j = 0; j < labels[i].size(); j++) {
-                numerical_label += factor * labels[i][j];
-                factor *= 128;
-            }
-            numerical_labels.push_back(numerical_label);
-        }
-
-        // sort labels and accumulate permutations
-        for (size_t step = 1; step < numerical_labels.size(); step++) {
-            
-            bool swapped = false;
-            for (size_t i = 0; i < numerical_labels.size() - step; i++) {
-        
-                // compare elements
-                if (numerical_labels[i] > numerical_labels[i + 1]) {
-        
-                  // swap
-                  int temp = numerical_labels[i];
-                  numerical_labels[i] = numerical_labels[i + 1];
-                  numerical_labels[i + 1] = temp;
-
-                  // accumulate permutations
-                  permutations++;
-
-                  swapped = true;
-
-                }
-            }
-            if ( !swapped ) {
-                break;
-            }
-        }
-
-        return;
-    }
+    void sort();
 
     /// comparison between two amplitudes
-    bool operator==(const amplitudes& rhs)
-    {
-        return ( numerical_labels == rhs.numerical_labels );
-    }
+    bool operator==(const amplitudes& rhs);
 
     /// copy amplitudes
-    amplitudes operator=(const amplitudes& rhs)
-    {
-        amplitudes amps;
-
-        amps.labels.clear();
-        amps.numerical_labels.clear();
-
-        for (size_t i = 0; i < rhs.labels.size(); i++) {
-            amps.labels.push_back(rhs.labels[i]);
-        }
-
-        amps.sort();
-
-        return amps;
-
-    }
+    amplitudes operator=(const amplitudes& rhs);
 
 };
 
