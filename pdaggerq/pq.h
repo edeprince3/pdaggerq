@@ -47,9 +47,6 @@ class pq {
     /// how many times does label "idx" appear in tensor term?
     int index_in_tensor(std::string idx);
 
-    /// how many times does label "idx" appear in a given term
-    int index_in_term(std::string idx, std::vector<std::vector<std::string> > term);
-
     /// how many times does label "idx" appear in a given set of amplitudes
     int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
 
@@ -75,20 +72,6 @@ class pq {
     bool compare_amplitudes( std::vector<amplitudes> amps1, 
                              std::vector<amplitudes> amps2, 
                              int & n_permute );
-
-    /// permutations and coincidences for triples
-    void triples_permutations(std::vector<std::string> amps1, 
-                              std::vector<std::string> amps2, 
-                              int & nsame_idx, 
-                              int & n_permute,
-                              int off);
-    /// permutations and coincidences for quadruples
-    void quadruples_permutations(std::vector<std::string> amps1, 
-                                 std::vector<std::string> amps2, 
-                                 int & nsame_idx, 
-                                 int & n_permute,
-                                 int off);
-
 
   public:
 
@@ -144,9 +127,6 @@ class pq {
 
     /// get string information
     std::vector<std::string> get_string();
-
-    /// check if string should be zero by o/v labels in delta function
-    void check_occ_vir();
 
     /// apply delta functions to string / tensor labels
     void gobble_deltas();

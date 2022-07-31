@@ -1455,7 +1455,6 @@ void pq_helper::add_new_string_true_vacuum(){
     }
     tmp.clear();
 
-
     // alphabetize
     mystring->alphabetize(ordered);
 
@@ -1846,18 +1845,6 @@ void pq_helper::add_new_string_fermi_vacuum(){
 
     }
 
-    //for (int n_ordered = 0; n_ordered < (int)ordered.size(); n_ordered++) {
-    //    ordered[n_ordered]->check_occ_vir();
-    //}
-
-    // TODO: this only seems to work with normal ordering relative to the true vacuum
-    // alphabetize
-    //mystring->alphabetize(ordered);
-
-    // TODO: moved cleanup to final simplify function?
-    // cancel terms. i think the work is actually done on "ordered" so only need to call once 
-    //mystrings[0]->cleanup(ordered);
-
     // reset data object
     data.reset();
     data = (std::shared_ptr<StringData>)(new StringData());
@@ -1872,9 +1859,6 @@ void pq_helper::simplify() {
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
-
-        // check for occ/vir pairs in delta functions ... i think this is handled by the normal order procedure
-        //ordered[i]->check_occ_vir();
 
         // apply delta functions
         ordered[i]->gobble_deltas();
