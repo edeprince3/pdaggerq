@@ -273,11 +273,14 @@ void pq::print_amplitudes_to_string(std::string label,
             tmp += amps[i].labels[size-1] + ")";
             my_string.push_back(tmp);
 
-        }else if ( amps[i].is_reference ) {
+        }
+
+    }
+    for (size_t i = 0; i < amps.size(); i++) {
+        if ( amps[i].is_reference ) {
             std::string tmp = label + "0";
             my_string.push_back(tmp);
         }
-
     }
 }
 
@@ -2168,6 +2171,8 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
 bool pq::compare_amplitudes( std::vector<amplitudes> amps1,
                              std::vector<amplitudes> amps2,
                              int & n_permute ) {
+
+    if ( amps1.size() != amps2.size() ) return false;
     
     size_t nsame_amps = 0;
     for (size_t i = 0; i < amps1.size(); i++) {
