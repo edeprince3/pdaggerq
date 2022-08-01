@@ -43,6 +43,9 @@ class amplitudes {
     /// amplitude numerical labels
     std::vector<int> numerical_labels;
 
+    /// is this an amplitude for the reference (e.g., r0)?
+    bool is_reference = false;
+
     /// number of permutations required to sort amplitude labels
     int permutations = 0;
 

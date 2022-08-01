@@ -609,14 +609,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             std::vector<std::string> tmp_string;
 
-            bool has_l0       = false;
-            bool has_r0       = false;
-            bool has_u0       = false;
-            bool has_m0       = false;
-            bool has_s0       = false;
             bool has_w0       = false;
-            //bool has_b        = false;
-            //bool has_b_dagger = false;
 
             // stupid design choice ... o1-o4 and v1-v4 are already used
             int occ_label_count = 5;
@@ -803,7 +796,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     for (int id = n-1; id >= 0; id--) {
                         labels.push_back(label_right[id]);
                     }
-                    set_amplitudes('T', labels);
+                    set_amplitudes('T', labels, false);
 
                     // factor = 1/(n!)^2
                     double my_factor = 1.0;
@@ -830,13 +823,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else if ( in[i].substr(0,2) == "b+" ){ // B*
 
-                        //has_b_dagger = true;
-
                         data->is_boson_dagger.push_back(true);
 
                 }else if ( in[i].substr(0,2) == "b-" ){ // B
-
-                        //has_b = true;
 
                         data->is_boson_dagger.push_back(false);
 
@@ -846,7 +835,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_u0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('U', labels, true);
 
                         data->is_boson_dagger.push_back(true);
 
@@ -884,7 +874,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('U', labels);
+                        set_amplitudes('U', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor = 1.0;
@@ -903,7 +893,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_r0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('R', labels, true);
 
                     }else {
 
@@ -943,7 +934,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('R', labels);
+                        set_amplitudes('R', labels, false);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -964,7 +955,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_s0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('S', labels, true);
 
                         data->is_boson_dagger.push_back(true);
 
@@ -1006,7 +998,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         } 
-                        set_amplitudes('S', labels);
+                        set_amplitudes('S', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1029,7 +1021,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_l0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('L', labels, true);
 
                     }else {
                         
@@ -1069,7 +1062,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('L', labels);
+                        set_amplitudes('L', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1090,7 +1083,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_m0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('M', labels, true);
 
                         data->is_boson_dagger.push_back(false);
 
@@ -1132,7 +1126,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('M', labels);
+                        set_amplitudes('M', labels, false);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1330,14 +1324,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             set_string(tmp_string);
 
-            data->has_r0       = has_r0;
-            data->has_l0       = has_l0;
-            data->has_u0       = has_u0;
-            data->has_m0       = has_m0;
-            data->has_s0       = has_s0;
             data->has_w0       = has_w0;
-            //data->has_b        = has_b;
-            //data->has_b_dagger = has_b_dagger;
 
             add_new_string();
 
@@ -1360,11 +1347,12 @@ void pq_helper::set_tensor(std::vector<std::string> in, std::string tensor_type)
     data->tensor_type = tensor_type;
 }
 
-void pq_helper::set_amplitudes(char type, std::vector<std::string> in) {
+void pq_helper::set_amplitudes(char type, std::vector<std::string> in, bool is_reference) {
     amplitudes amps;
     for (int i = 0; i < (int)in.size(); i++) {
         amps.labels.push_back(in[i]);
     }
+    amps.is_reference = is_reference;
     amps.sort();
     data->amps[type].push_back(amps);
 }
@@ -1385,14 +1373,7 @@ void pq_helper::add_new_string_true_vacuum(){
         mystring->data->factor = fabs(data->factor);
     }
 
-    mystring->data->has_r0       = data->has_r0;
-    mystring->data->has_l0       = data->has_l0;
-    mystring->data->has_u0       = data->has_u0;
-    mystring->data->has_m0       = data->has_m0;
-    mystring->data->has_s0       = data->has_s0;
     mystring->data->has_w0       = data->has_w0;
-    //mystring->data->has_b        = data->has_b;
-    //mystring->data->has_b_dagger = data->has_b_dagger;
 
     for (int i = 0; i < (int)data->string.size(); i++) {
         std::string me = data->string[i];
@@ -1528,14 +1509,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
             mystrings[string_num]->data->factor = fabs(data->factor);
         }
 
-        mystrings[string_num]->data->has_r0       = data->has_r0;
-        mystrings[string_num]->data->has_l0       = data->has_l0;
-        mystrings[string_num]->data->has_u0       = data->has_u0;
-        mystrings[string_num]->data->has_m0       = data->has_m0;
-        mystrings[string_num]->data->has_s0       = data->has_s0;
         mystrings[string_num]->data->has_w0       = data->has_w0;
-        //mystrings[string_num]->data->has_b        = data->has_b;
-        //mystrings[string_num]->data->has_b_dagger = data->has_b_dagger;
 
         // tensor type
         mystrings[string_num]->data->tensor_type = data->tensor_type;

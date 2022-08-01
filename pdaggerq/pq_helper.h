@@ -84,7 +84,7 @@ class pq_helper {
     void set_tensor(std::vector<std::string> in, std::string tensor_type);
 
     /// set labels for amplitudes
-    void set_amplitudes(char type, std::vector<std::string> in);
+    void set_amplitudes(char type, std::vector<std::string> in, bool is_reference);
 
     /// set a numerical factor
     void set_factor(double in);

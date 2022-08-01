@@ -89,6 +89,8 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
         amps.labels.push_back(rhs.labels[i]);
     }
 
+    amps.is_reference = rhs.is_reference;
+
     amps.sort();
 
     return amps;

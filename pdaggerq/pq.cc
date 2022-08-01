@@ -127,6 +127,9 @@ void pq::print_amplitudes(std::string label, std::vector<amplitudes> amps) {
             printf(")");
             printf(" ");
 
+        }else if ( amps[i].is_reference ) {
+            printf("%s0", label.c_str());
+            printf(" ");
         }
     }
 }
@@ -231,41 +234,21 @@ void pq::print() {
 
     // left-hand amplitudes
     print_amplitudes("l",data->amps['L']);
-    if ( data->has_l0 ) {
-        printf("l0");
-        printf(" ");
-    }
 
     // right-hand amplitudes
     print_amplitudes("r",data->amps['R']);
-    if ( data->has_r0 ) {
-        printf("r0");
-        printf(" ");
-    }
 
     // t_amplitudes
     print_amplitudes("t",data->amps['T']);
 
     // u_amplitudes
     print_amplitudes("u",data->amps['U']);
-    if ( data->has_u0 ) {
-        printf("u0");
-        printf(" ");
-    }
 
     // m_amplitudes
     print_amplitudes("m",data->amps['M']);
-    if ( data->has_m0 ) {
-        printf("m0");
-        printf(" ");
-    }
 
     // s_amplitudes
     print_amplitudes("s",data->amps['S']);
-    if ( data->has_s0 ) {
-        printf("s0");
-        printf(" ");
-    }
 
     // bosons:
     for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
@@ -279,16 +262,7 @@ void pq::print() {
         printf("w0");
         printf(" ");
     }
-/*
-    if ( data->has_b ) {
-        printf("b-");
-        printf(" ");
-    }
-    if ( data->has_b_dagger ) {
-        printf("b+");
-        printf(" ");
-    }
-*/
+
     printf("\n");
 }
 
@@ -315,6 +289,9 @@ void pq::print_amplitudes_to_string(std::string label,
             tmp += amps[i].labels[size-1] + ")";
             my_string.push_back(tmp);
 
+        }else if ( amps[i].is_reference ) {
+            std::string tmp = label + "0";
+            my_string.push_back(tmp);
         }
 
     }
@@ -421,36 +398,21 @@ std::vector<std::string> pq::get_string() {
 
     // left-hand amplitudes
     print_amplitudes_to_string("l",data->amps['L'],my_string);
-    if ( data->has_l0 ) {
-        my_string.push_back("l0");
-    }
 
     // right-hand amplitudes
     print_amplitudes_to_string("r",data->amps['R'],my_string);
-    if ( data->has_r0 ) {
-        my_string.push_back("r0");
-    }
 
     // t-amplitudes
     print_amplitudes_to_string("t",data->amps['T'],my_string);
 
     // u_amplitudes
     print_amplitudes_to_string("u",data->amps['U'],my_string);
-    if ( data->has_u0 ) {
-        my_string.push_back("u0");
-    }
 
     // m_amplitudes
     print_amplitudes_to_string("m",data->amps['M'],my_string);
-    if ( data->has_m0 ) {
-        my_string.push_back("m0");
-    }
 
     // s_amplitudes
     print_amplitudes_to_string("s",data->amps['S'],my_string);
-    if ( data->has_s0 ) {
-        my_string.push_back("s0");
-    }
 
     // bosons:
     for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
@@ -463,14 +425,6 @@ std::vector<std::string> pq::get_string() {
     if ( data->has_w0 ) {
         my_string.push_back("w0");
     }
-/*
-    if ( data->has_b ) {
-        my_string.push_back("b-");
-    }
-    if ( data->has_b_dagger ) {
-        my_string.push_back("b+");
-    }
-*/
 
     return my_string;
 }
@@ -2084,29 +2038,10 @@ void pq::consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered) {
 
 bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute) {
 
-    // don't forget w0, u0, r0, l0, b+, b-, m0, s0
-    if ( ordered_1->data->has_u0 != ordered_2->data->has_u0 ) {
-        return false;
-    }
-    if ( ordered_1->data->has_m0 != ordered_2->data->has_m0 ) {
-        return false;
-    }
-    if ( ordered_1->data->has_s0 != ordered_2->data->has_s0 ) {
-        return false;
-    }
+    // don't forget w0
     if ( ordered_1->data->has_w0 != ordered_2->data->has_w0 ) {
         return false;
     }
-    if ( ordered_1->data->has_r0 != ordered_2->data->has_r0 ) {
-        return false;
-    }
-    if ( ordered_1->data->has_l0 != ordered_2->data->has_l0 ) {
-        return false;
-    }
-
-    //printf("ok, how about these\n");
-    //ordered[i]->print();
-    //ordered[j]->print();
 
     // are strings same?
     if ( ordered_1->symbol.size() != ordered_2->symbol.size() ) return false;
@@ -2324,31 +2259,8 @@ void pq::shallow_copy(void * copy_me) {
         }
     }
 
-    // l0 
-    data->has_l0 = in->data->has_l0;
-
-    // r0 
-    data->has_r0 = in->data->has_r0;
-
-    // u0 
-    data->has_u0 = in->data->has_u0;
-
-    // m0 
-    data->has_m0 = in->data->has_m0;
-
-    // s0 
-    data->has_s0 = in->data->has_s0;
-
     // w0 
     data->has_w0 = in->data->has_w0;
-
-/*
-    // b 
-    data->has_b = in->data->has_b;
-
-    // b_dagger 
-    data->has_b_dagger = in->data->has_b_dagger;
-*/
 
 }
 
