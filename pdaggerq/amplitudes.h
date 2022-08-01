@@ -24,6 +24,7 @@
 #define AMPLITUDES_H
 
 #include<vector>
+#include<string>
 
 namespace pdaggerq {
 

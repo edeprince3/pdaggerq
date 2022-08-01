@@ -2461,18 +2461,6 @@ void pq::gobble_deltas() {
 
         bool delta1_in_tensor           = ( index_in_tensor( delta1[i] ) > 0 ) ? true : false;
         bool delta2_in_tensor           = ( index_in_tensor( delta2[i] ) > 0 ) ? true : false;
-        bool delta1_in_t_amplitudes     = ( index_in_amplitudes( delta1[i], data->amps['t'] ) > 0 ) ? true : false;
-        bool delta2_in_t_amplitudes     = ( index_in_amplitudes( delta2[i], data->amps['t'] ) > 0 ) ? true : false;
-        bool delta1_in_left_amplitudes  = ( index_in_amplitudes( delta1[i], data->amps['l'] ) > 0 ) ? true : false;
-        bool delta2_in_left_amplitudes  = ( index_in_amplitudes( delta2[i], data->amps['l'] ) > 0 ) ? true : false;
-        bool delta1_in_right_amplitudes = ( index_in_amplitudes( delta1[i], data->amps['r'] ) > 0 ) ? true : false;
-        bool delta2_in_right_amplitudes = ( index_in_amplitudes( delta2[i], data->amps['r'] ) > 0 ) ? true : false;
-        bool delta1_in_u_amplitudes     = ( index_in_amplitudes( delta1[i], data->amps['u'] ) > 0 ) ? true : false;
-        bool delta2_in_u_amplitudes     = ( index_in_amplitudes( delta2[i], data->amps['u'] ) > 0 ) ? true : false;
-        bool delta1_in_m_amplitudes     = ( index_in_amplitudes( delta1[i], data->amps['m'] ) > 0 ) ? true : false;
-        bool delta2_in_m_amplitudes     = ( index_in_amplitudes( delta2[i], data->amps['m'] ) > 0 ) ? true : false;
-        bool delta1_in_s_amplitudes     = ( index_in_amplitudes( delta1[i], data->amps['s'] ) > 0 ) ? true : false;
-        bool delta2_in_s_amplitudes     = ( index_in_amplitudes( delta2[i], data->amps['s'] ) > 0 ) ? true : false;
 
         if ( delta1_in_tensor && have_delta1 ) {
             replace_index_in_tensor( delta1[i], delta2[i] );
@@ -2480,43 +2468,26 @@ void pq::gobble_deltas() {
         }else if ( delta2_in_tensor && have_delta2 ) {
             replace_index_in_tensor( delta2[i], delta1[i] );
             continue;
-        }else if ( delta1_in_t_amplitudes && have_delta1 ) {
-            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['t'] );
-            continue;
-        }else if ( delta2_in_t_amplitudes && have_delta2 ) {
-            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['t'] );
-            continue;
-        }else if ( delta1_in_left_amplitudes && have_delta1 ) {
-            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['l'] );
-            continue;
-        }else if ( delta2_in_left_amplitudes && have_delta2 ) {
-            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['l'] );
-            continue;
-        }else if ( delta1_in_right_amplitudes && have_delta1 ) {
-            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['r'] );
-            continue;
-        }else if ( delta2_in_right_amplitudes && have_delta2 ) {
-            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['r'] );
-            continue;
-        }else if ( delta1_in_u_amplitudes && have_delta1 ) {
-            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['u'] );
-            continue;
-        }else if ( delta2_in_u_amplitudes && have_delta2 ) {
-            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['u'] );
-            continue;
-        }else if ( delta1_in_m_amplitudes && have_delta1 ) {
-            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['m'] );
-            continue;
-        }else if ( delta2_in_m_amplitudes && have_delta2 ) {
-            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['m'] );
-            continue;
-        }else if ( delta1_in_s_amplitudes && have_delta1 ) {
-            replace_index_in_amplitudes( delta1[i], delta2[i], data->amps['s'] );
-            continue;
-        }else if ( delta2_in_s_amplitudes && have_delta2 ) {
-            replace_index_in_amplitudes( delta2[i], delta1[i], data->amps['s'] );
-            continue;
         }
+
+        bool do_continue = false;
+        // TODO: the only reason not looping over data->amplitude_types is to 
+        // recover the reference outputs generated with master version. update before
+        // merging into master branch.
+        std::vector<char> types = { 't', 'l', 'r', 'u', 'm', 's' };
+        for (size_t j = 0; j < types.size(); j++) { 
+            char type = types[j];
+            if ( have_delta1 && index_in_amplitudes( delta1[i], data->amps[type] ) > 0 ) {
+               replace_index_in_amplitudes( delta1[i], delta2[i], data->amps[type] );
+               do_continue = true;
+               break;
+            }else if ( have_delta2 && index_in_amplitudes( delta2[i], data->amps[type] ) > 0 ) {
+               replace_index_in_amplitudes( delta2[i], delta1[i], data->amps[type] );
+               do_continue = true;
+               break;
+            }
+        }
+        if ( do_continue ) continue;
 
         // at this point, it is safe to assume the delta function must remain
         tmp_delta1.push_back(delta1[i]);
