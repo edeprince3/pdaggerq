@@ -2464,8 +2464,8 @@ void pq::gobble_deltas() {
         }
 */
 
-        bool delta1_in_tensor           = ( index_in_tensor( delta1[i] ) > 0 ) ? true : false;
-        bool delta2_in_tensor           = ( index_in_tensor( delta2[i] ) > 0 ) ? true : false;
+        bool delta1_in_tensor = ( index_in_tensor( delta1[i] ) > 0 ) ? true : false;
+        bool delta2_in_tensor = ( index_in_tensor( delta2[i] ) > 0 ) ? true : false;
 
         if ( delta1_in_tensor && have_delta1 ) {
             replace_index_in_tensor( delta1[i], delta2[i] );
@@ -2475,11 +2475,11 @@ void pq::gobble_deltas() {
             continue;
         }
 
+        // TODO: note that the code only efficiently collects terms when the amplitude
+        // list is ordered as {'t', 'l', 'r', 'u', 'm', 's'} ... i don't know why, but
+        // i do know that this is the problematic part of the code
         bool do_continue = false;
-        // TODO: the only reason not looping over data->amplitude_types is to 
-        // recover the reference outputs generated with master version. update before
-        // merging into master branch.
-        std::vector<char> types = { 't', 'l', 'r', 'u', 'm', 's' };
+        std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
         for (size_t j = 0; j < types.size(); j++) { 
             char type = types[j];
             if ( have_delta1 && index_in_amplitudes( delta1[i], data->amps[type] ) > 0 ) {
