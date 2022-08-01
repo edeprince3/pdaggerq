@@ -796,7 +796,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     for (int id = n-1; id >= 0; id--) {
                         labels.push_back(label_right[id]);
                     }
-                    set_amplitudes('T', labels, false);
+                    set_amplitudes('t', labels, false);
 
                     // factor = 1/(n!)^2
                     double my_factor = 1.0;
@@ -836,7 +836,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('U', labels, true);
+                        set_amplitudes('u', labels, true);
 
                         data->is_boson_dagger.push_back(true);
 
@@ -874,7 +874,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('U', labels, false);
+                        set_amplitudes('u', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor = 1.0;
@@ -894,7 +894,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('R', labels, true);
+                        set_amplitudes('r', labels, true);
 
                     }else {
 
@@ -934,7 +934,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('R', labels, false);
+                        set_amplitudes('r', labels, false);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -956,7 +956,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('S', labels, true);
+                        set_amplitudes('s', labels, true);
 
                         data->is_boson_dagger.push_back(true);
 
@@ -998,7 +998,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         } 
-                        set_amplitudes('S', labels, false);
+                        set_amplitudes('s', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1022,7 +1022,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('L', labels, true);
+                        set_amplitudes('l', labels, true);
 
                     }else {
                         
@@ -1062,7 +1062,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('L', labels, false);
+                        set_amplitudes('l', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1084,7 +1084,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('M', labels, true);
+                        set_amplitudes('m', labels, true);
 
                         data->is_boson_dagger.push_back(false);
 
@@ -1126,7 +1126,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('M', labels, false);
+                        set_amplitudes('m', labels, false);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;

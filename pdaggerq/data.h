@@ -54,7 +54,7 @@ class StringData {
     std::string tensor_type;
 
     /// amplitude types
-    std::vector<char> amplitude_types = {'T', 'R', 'L', 'U', 'S', 'M'};
+    std::vector<char> amplitude_types = {'l', 'r', 't', 'u', 'm', 's'};
 
     /// amplitudes
     std::map<char, std::vector<amplitudes> > amps;
@@ -62,31 +62,8 @@ class StringData {
     /// list: labels permutation operators
     std::vector<std::string> permutations;
 
-    /// should we account for l0 in EOM-CC?
-    bool has_l0 = false;
-
-    /// should we account for r0 in EOM-CC?
-    bool has_r0 = false;
-
-    /// should we account for u0?
-    bool has_u0 = false;
-
-    /// should we account for m0?
-    bool has_m0 = false;
-
-    /// should we account for s0?
-    bool has_s0 = false;
-
     /// should we account for w0?
     bool has_w0 = false;
-
-/*
-    /// should we account for terms with just b?
-    bool has_b = false;
-
-    /// should we account for terms with just b+?
-    bool has_b_dagger = false;
-*/
 
     /// list: is bosonic operator creator or annihilator?
     std::vector<bool> is_boson_dagger;
