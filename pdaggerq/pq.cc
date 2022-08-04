@@ -556,84 +556,21 @@ void pq::reorder_t_amplitudes() {
 
     std::vector<amplitudes> tmp_new;
 
-    // t1 first
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            if ( nope[j] ) continue;
+    for (size_t order = 1; order < 7; order++) {
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                if ( nope[j] ) continue;
 
-            if ( data->amps['t'][j].labels.size() == 2 ) {
-                tmp_new.push_back(data->amps['t'][j]);
-                nope[j] = true;
-                break;
+                if ( data->amps['t'][j].labels.size() == 2 * order ) {
+                    tmp_new.push_back(data->amps['t'][j]);
+                    nope[j] = true;
+                    break;
+                }
+
             }
         }
-
     }
-    // now t2
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            if ( nope[j] ) continue;
 
-            if ( data->amps['t'][j].labels.size() == 4 ) {
-                tmp_new.push_back(data->amps['t'][j]);
-                nope[j] = true;
-                break;
-            }
-        }
-
-    }
-    // now t3
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            if ( nope[j] ) continue;
-
-            if ( data->amps['t'][j].labels.size() == 6 ) {
-                tmp_new.push_back(data->amps['t'][j]);
-                nope[j] = true;
-                break;
-            }
-        }
-
-    }
-    // now t4
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            if ( nope[j] ) continue;
-
-            if ( data->amps['t'][j].labels.size() == 8 ) {
-                tmp_new.push_back(data->amps['t'][j]);
-                nope[j] = true;
-                break;
-            }
-        }
-
-    }
-    // now t5
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            if ( nope[j] ) continue;
-
-            if ( data->amps['t'][j].labels.size() == 10 ) {
-                tmp_new.push_back(data->amps['t'][j]);
-                nope[j] = true;
-                break;
-            }
-        }
-
-    }
-    // now t6
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            if ( nope[j] ) continue;
-
-            if ( data->amps['t'][j].labels.size() == 12 ) {
-                tmp_new.push_back(data->amps['t'][j]);
-                nope[j] = true;
-                break;
-            }
-        }
-
-    }
     if ( dim != tmp_new.size() ) { 
         printf("\n");
         printf("    something went very wrong in reorder_t_amplitudes()\n");
