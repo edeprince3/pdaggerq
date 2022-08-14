@@ -92,6 +92,62 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
     return amps;
 }
 
+void amplitudes::print(char symbol) {
+
+    if ( labels.size() > 0 ) {
+
+        size_t size  = labels.size();
+        size_t order = labels.size() / 2;
+        if ( 2*order != size ) {
+            order++;
+        }
+        printf("%c",symbol);
+        printf("%zu",order);
+        printf("(");
+        for (size_t j = 0; j < size-1; j++) {
+            printf("%s",labels[j].c_str());
+            printf(",");
+        }
+        printf("%s",labels[size-1].c_str());
+        printf(")");
+        printf(" ");
+
+    }else if ( is_reference ) {
+        printf("%c0", symbol);
+        printf(" ");
+    }
+}
+
+std::string amplitudes::to_string(char symbol) {
+
+    std::string val;
+
+    std::string symbol_s(1, symbol);
+
+    if ( labels.size() > 0 ) {
+
+        size_t size  = labels.size();
+        size_t order = labels.size() / 2;
+        if ( 2*order != size ) {
+            order++;
+        }
+        val = symbol_s + std::to_string(order) + "(";
+        for (int j = 0; j < size-1; j++) {
+            val += labels[j] + ",";
+        }
+        val += labels[size-1] + ")";
+
+    }
+
+    if ( is_reference ) {
+        val = symbol_s + "0";
+    }
+
+    return val;
+}
+
+
+
 
 /// sort integrals labels
 void integrals::sort() {
@@ -118,5 +174,6 @@ integrals integrals::operator=(const integrals& rhs) {
 
     return ints;
 }
+
 }
 

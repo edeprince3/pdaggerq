@@ -101,39 +101,6 @@ bool pq::is_vir(std::string idx) {
     return false;
 }
 
-void pq::print_amplitudes(std::string label, std::vector<amplitudes> amps) {
-
-    if ( amps.size() == 0 ) {
-        return;
-    }
-
-    for (size_t i = 0; i < amps.size(); i++) {
-
-        if ( amps[i].labels.size() > 0 ) {
-
-            size_t size  = amps[i].labels.size();
-            size_t order = amps[i].labels.size() / 2;
-            if ( 2*order != size ) {
-                order++;
-            }
-            printf("%s",label.c_str());
-            printf("%zu",order);
-            printf("(");
-            for (size_t j = 0; j < size-1; j++) {
-                printf("%s",amps[i].labels[j].c_str());
-                printf(",");
-            }
-            printf("%s",amps[i].labels[size-1].c_str());
-            printf(")");
-            printf(" ");
-
-        }else if ( amps[i].is_reference ) {
-            printf("%s0", label.c_str());
-            printf(" ");
-        }
-    }
-}
-
 void pq::print() {
 
     if ( skip ) return;
@@ -230,8 +197,9 @@ void pq::print() {
     // print amplitudes
     for (size_t i = 0; i < data->amplitude_types.size(); i++) { 
         char type = data->amplitude_types[i];
-        std::string type_s(1, type);
-        print_amplitudes(type_s, data->amps[type]);
+        for (size_t j = 0; j < data->amps[type].size(); j++) { 
+            data->amps[type][j].print(type);
+        }
     }
 
     // bosons:
@@ -248,40 +216,6 @@ void pq::print() {
     }
 
     printf("\n");
-}
-
-void pq::print_amplitudes_to_string(std::string label, 
-                                    std::vector<amplitudes> amps, 
-                                    std::vector<std::string> &my_string ) {
-    if ( amps.size() == 0 ) {
-        return;
-    }
-
-    for (size_t i = 0; i < amps.size(); i++) {
-
-        if ( amps[i].labels.size() > 0 ) {
-
-            size_t size  = amps[i].labels.size();
-            size_t order = amps[i].labels.size() / 2;
-            if ( 2*order != size ) {
-                order++;
-            }
-            std::string tmp = label + std::to_string(order) + "(";
-            for (int j = 0; j < size-1; j++) {
-                tmp += amps[i].labels[j] + ",";
-            }
-            tmp += amps[i].labels[size-1] + ")";
-            my_string.push_back(tmp);
-
-        }
-
-    }
-    for (size_t i = 0; i < amps.size(); i++) {
-        if ( amps[i].is_reference ) {
-            std::string tmp = label + "0";
-            my_string.push_back(tmp);
-        }
-    }
 }
 
 std::vector<std::string> pq::get_string() {
@@ -385,8 +319,11 @@ std::vector<std::string> pq::get_string() {
 
     for (size_t i = 0; i < data->amplitude_types.size(); i++) { 
         char type = data->amplitude_types[i];
-        std::string type_s(1, type);
-        print_amplitudes_to_string(type_s, data->amps[type], my_string);
+        for (size_t j = 0; j < data->amps[type].size(); j++) { 
+            my_string.push_back( data->amps[type][j].to_string(type) );
+        }
+        //std::string type_s(1, type);
+        //print_amplitudes_to_string(type_s, data->amps[type], my_string);
     }
 
     // bosons:

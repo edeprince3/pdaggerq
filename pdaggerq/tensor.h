@@ -68,6 +68,22 @@ class tensor {
         exit(1);
     }
 
+    /// print tensor
+    virtual void print(std::string label) {
+        printf("\n");
+        printf("    print() has not been implemented for this tensor type\n");
+        printf("\n");
+        exit(1);
+    }
+
+    /// print to string
+    virtual std::string to_string(std::string label) {
+        printf("\n");
+        printf("    to_string() has not been implemented for this tensor type\n");
+        printf("\n");
+        exit(1);
+    }
+
 };
 
 class amplitudes: public tensor {
@@ -88,6 +104,12 @@ class amplitudes: public tensor {
 
     /// copy amplitudes
     amplitudes operator=(const amplitudes& rhs);
+
+    /// print amplitudes
+    void print(char symbol);
+
+    /// print amplitudes
+    std::string to_string(char symbol);
 
 };
 
