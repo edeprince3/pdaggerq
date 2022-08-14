@@ -92,6 +92,7 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
     return amps;
 }
 
+/// print amplitudes
 void amplitudes::print(char symbol) {
 
     if ( labels.size() > 0 ) {
@@ -118,6 +119,7 @@ void amplitudes::print(char symbol) {
     }
 }
 
+/// print amplitudes to string
 std::string amplitudes::to_string(char symbol) {
 
     std::string val;
@@ -146,9 +148,6 @@ std::string amplitudes::to_string(char symbol) {
     return val;
 }
 
-
-
-
 /// sort integrals labels
 void integrals::sort() {
 
@@ -158,7 +157,6 @@ void integrals::sort() {
 
     return;
 }
-
 
 /// copy integrals
 integrals integrals::operator=(const integrals& rhs) {
@@ -173,6 +171,122 @@ integrals integrals::operator=(const integrals& rhs) {
     }
 
     return ints;
+}
+
+/// print integrals
+void integrals::print(std::string symbol) {
+
+    if ( symbol == "two_body") {
+        printf("g(");
+        printf("%s",labels[0].c_str());
+        printf(",");
+        printf("%s",labels[1].c_str());
+        printf(",");
+        printf("%s",labels[2].c_str());
+        printf(",");
+        printf("%s",labels[3].c_str());
+        printf(")");
+        printf(" ");
+    }else if (symbol == "eri" ) {
+        printf("<");
+        printf("%s",labels[0].c_str());
+        printf(",");
+        printf("%s",labels[1].c_str());
+        printf("||");
+        printf("%s",labels[2].c_str());
+        printf(",");
+        printf("%s",labels[3].c_str());
+        printf(">");
+        printf(" ");
+    }else if ( symbol == "core") {
+        printf("h(");
+        printf("%s",labels[0].c_str());
+        printf(",");
+        printf("%s",labels[1].c_str());
+        printf(")");
+        printf(" ");
+    }else if ( symbol == "fock") {
+        printf("f(");
+        printf("%s",labels[0].c_str());
+        printf(",");
+        printf("%s",labels[1].c_str());
+        printf(")");
+        printf(" ");
+    }else if ( symbol == "d+") {
+        printf("d+(");
+        printf("%s",labels[0].c_str());
+        printf(",");
+        printf("%s",labels[1].c_str());
+        printf(")");
+        printf(" ");
+    }else if ( symbol == "d-") {
+        printf("d-(");
+        printf("%s",labels[0].c_str());
+        printf(",");
+        printf("%s",labels[1].c_str());
+        printf(")");
+        printf(" ");
+    }else {
+        printf("\n");
+        printf("    unknown integral type\n");
+        printf("\n");
+        exit(1);
+    }
+
+}
+
+/// print integrals to string
+std::string integrals::to_string(std::string symbol) {
+
+    std::string val;
+
+    if ( symbol == "two_body") {
+        val = "g("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ","
+            + labels[2]
+            + ","
+            + labels[3]
+            + ")";
+    }else if ( symbol == "eri" ) {
+        val = "<"
+            + labels[0]
+            + ","
+            + labels[1]
+            + "||"
+            + labels[2]
+            + ","
+            + labels[3]
+            + ">";
+    }else if ( symbol == "core") {
+        val = "h("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "fock") {
+        val = "f("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "d+") {
+        val = "d+("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "d-") {
+        val = "d-("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }
+
+    return val;
 }
 
 }

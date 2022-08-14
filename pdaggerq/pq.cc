@@ -194,6 +194,14 @@ void pq::print() {
         printf(" ");
     }
 
+    // print integrals
+    for (size_t i = 0; i < data->integral_types.size(); i++) { 
+        std::string type = data->integral_types[i];
+        for (size_t j = 0; j < data->ints[type].size(); j++) { 
+            data->ints[type][j].print(type);
+        }
+    }
+
     // print amplitudes
     for (size_t i = 0; i < data->amplitude_types.size(); i++) { 
         char type = data->amplitude_types[i];
@@ -317,13 +325,20 @@ std::vector<std::string> pq::get_string() {
         my_string.push_back(tmp);
     }
 
+    // integrals
+    for (size_t i = 0; i < data->integral_types.size(); i++) { 
+        std::string type = data->integral_types[i];
+        for (size_t j = 0; j < data->ints[type].size(); j++) { 
+            my_string.push_back( data->ints[type][j].to_string(type) );
+        }
+    }
+
+    // amplitudes
     for (size_t i = 0; i < data->amplitude_types.size(); i++) { 
         char type = data->amplitude_types[i];
         for (size_t j = 0; j < data->amps[type].size(); j++) { 
             my_string.push_back( data->amps[type][j].to_string(type) );
         }
-        //std::string type_s(1, type);
-        //print_amplitudes_to_string(type_s, data->amps[type], my_string);
     }
 
     // bosons:
@@ -1926,6 +1941,13 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
         same_string = compare_amplitudes( ordered_1->data->amps[type], ordered_2->data->amps[type], n_permute);
         if ( !same_string ) return false;
     }
+
+    // integral comparisons, with permutations
+    //for (size_t i = 0; i < data->integral_types.size(); i++) {
+    //    std::string type = data->integral_types[i];
+    //    same_string = compare_integrals( ordered_1->data->ints[type], ordered_2->data->ints[type], n_permute);
+    //    if ( !same_string ) return false;
+    //}
 
     // are tensors same?
     if ( ordered_1->data->tensor_type != ordered_2->data->tensor_type ) return false;

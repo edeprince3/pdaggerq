@@ -69,15 +69,15 @@ class tensor {
     }
 
     /// print tensor
-    virtual void print(std::string label) {
+    virtual void print(std::string symbol) {
         printf("\n");
         printf("    print() has not been implemented for this tensor type\n");
         printf("\n");
         exit(1);
     }
 
-    /// print to string
-    virtual std::string to_string(std::string label) {
+    /// print tensor to string
+    virtual std::string to_string(std::string symbol) {
         printf("\n");
         printf("    to_string() has not been implemented for this tensor type\n");
         printf("\n");
@@ -108,7 +108,7 @@ class amplitudes: public tensor {
     /// print amplitudes
     void print(char symbol);
 
-    /// print amplitudes
+    /// print amplitudes to string
     std::string to_string(char symbol);
 
 };
@@ -128,6 +128,12 @@ class integrals: public tensor {
 
     /// copy amplitudes
     integrals operator=(const integrals& rhs);
+
+    /// print integrals
+    void print(std::string symbol);
+
+    /// print integrals to string
+    std::string to_string(std::string symbol);
 
 };
 

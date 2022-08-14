@@ -53,6 +53,12 @@ class StringData {
     /// tensor type (FOCK, CORE, TWO_BODY, ERI, D+, D-)
     std::string tensor_type;
 
+    /// integral types
+    std::vector<std::string> integral_types = {"fock", "core", "two_body", "eri", "d+", "d-", "occ_repulsion"};
+
+    /// integrals
+    std::map<std::string, std::vector<integrals> > ints;
+
     /// amplitude types
     std::vector<char> amplitude_types = {'l', 'r', 't', 'u', 'm', 's'};
 
