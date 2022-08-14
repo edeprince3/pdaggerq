@@ -20,12 +20,13 @@
 //  limitations under the License./>.
 //
 
-#include"amplitudes.h"
+#include"tensor.h"
 
 #include<string>
 
 namespace pdaggerq {
 
+/// sort amplitude labels
 void amplitudes::sort() {
 
     numerical_labels.clear();
@@ -72,11 +73,6 @@ void amplitudes::sort() {
     return;
 }
 
-/// comparison between two amplitudes
-bool amplitudes::operator==(const amplitudes& rhs) {
-    return ( numerical_labels == rhs.numerical_labels );
-}
-
 /// copy amplitudes
 amplitudes amplitudes::operator=(const amplitudes& rhs) {
 
@@ -96,5 +92,31 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
     return amps;
 }
 
+
+/// sort integrals labels
+void integrals::sort() {
+
+    numerical_labels.clear();
+
+    permutations = 0;
+
+    return;
+}
+
+
+/// copy integrals
+integrals integrals::operator=(const integrals& rhs) {
+
+    integrals ints;
+
+    ints.labels.clear();
+    ints.numerical_labels.clear();
+
+    for (size_t i = 0; i < rhs.labels.size(); i++) {
+        ints.labels.push_back(rhs.labels[i]);
+    }
+
+    return ints;
+}
 }
 

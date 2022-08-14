@@ -35,7 +35,7 @@
 #include "data.h"
 #include "pq.h"
 #include "pq_helper.h"
-#include "amplitudes.h"
+#include "tensor.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>

@@ -20,15 +20,57 @@
 //  limitations under the License./>.
 //
 
-#ifndef AMPLITUDES_H
-#define AMPLITUDES_H
+#ifndef TENSOR_H
+#define TENSOR_H
 
 #include<vector>
 #include<string>
 
 namespace pdaggerq {
 
-class amplitudes {
+class tensor {
+
+  public:
+
+    /// constructor
+    tensor(){};
+
+    /// destructor
+    ~tensor(){};
+
+    /// tensor labels (human readable)
+    std::vector<std::string> labels;
+
+    /// tensor numerical labels
+    std::vector<int> numerical_labels;
+
+    /// number of permutations required to sort tensor labels
+    int permutations = 0;
+
+    /// sort tensor, keep track of permutations
+    virtual void sort() {
+        printf("\n");
+        printf("    sort() has not been implemented for this tensor type\n");
+        printf("\n");
+        exit(1);
+    }
+
+    /// comparison between two tensors
+    bool operator==(const tensor& rhs) {
+        return ( numerical_labels == rhs.numerical_labels );
+    }
+
+    /// copy tensors
+    virtual tensor operator=(const tensor& rhs) {
+        printf("\n");
+        printf("    operator '=' has not been implemented for this tensor type\n");
+        printf("\n");
+        exit(1);
+    }
+
+};
+
+class amplitudes: public tensor {
 
   public:
 
@@ -38,29 +80,34 @@ class amplitudes {
     /// destructor
     ~amplitudes(){};
 
-    /// amplitude labels (human readable)
-    std::vector<std::string> labels;
-
-    /// amplitude numerical labels
-    std::vector<int> numerical_labels;
-
     /// is this an amplitude for the reference (e.g., r0)?
     bool is_reference = false;
 
-    /// number of permutations required to sort amplitude labels
-    int permutations = 0;
-
     /// sort amplitudes, keep track of permutations, assign total numerical value
     void sort();
-
-    /// comparison between two amplitudes
-    bool operator==(const amplitudes& rhs);
 
     /// copy amplitudes
     amplitudes operator=(const amplitudes& rhs);
 
 };
 
+class integrals: public tensor {
+
+  public:
+
+    /// constructor
+    integrals(){};
+
+    /// destructor
+    ~integrals(){};
+
+    /// sort amplitudes, keep track of permutations, assign total numerical value
+    void sort();
+
+    /// copy amplitudes
+    integrals operator=(const integrals& rhs);
+
+};
 
 }
 
