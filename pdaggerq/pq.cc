@@ -1943,11 +1943,11 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     }
 
     // integral comparisons, with permutations
-    //for (size_t i = 0; i < data->integral_types.size(); i++) {
-    //    std::string type = data->integral_types[i];
-    //    same_string = compare_integrals( ordered_1->data->ints[type], ordered_2->data->ints[type], n_permute);
-    //    if ( !same_string ) return false;
-    //}
+    for (size_t i = 0; i < data->integral_types.size(); i++) {
+        std::string type = data->integral_types[i];
+        same_string = compare_integrals( ordered_1->data->ints[type], ordered_2->data->ints[type], n_permute);
+        if ( !same_string ) return false;
+    }
 
     // are tensors same?
     if ( ordered_1->data->tensor_type != ordered_2->data->tensor_type ) return false;
@@ -2059,6 +2059,33 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     if ( nsame_permutations != n ) {
         return false;
     }
+
+    return true;
+}
+
+/// compare two lists of integrals
+bool pq::compare_integrals( std::vector<integrals> ints1,
+                            std::vector<integrals> ints2,
+                            int & n_permute ) {
+
+    if ( ints1.size() != ints2.size() ) return false;
+    
+    size_t nsame_ints = 0;
+    for (size_t i = 0; i < ints1.size(); i++) {
+        for (size_t j = 0; j < ints2.size(); j++) {
+
+            if ( ints1[i] == ints2[j] ) {
+
+                n_permute += ints1[i].permutations + ints2[j].permutations;
+
+                nsame_ints++;
+                break;
+            }
+
+        }
+    }
+
+    if ( nsame_ints != ints1.size() ) return false;
 
     return true;
 }

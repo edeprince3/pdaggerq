@@ -153,7 +153,38 @@ void integrals::sort() {
 
     numerical_labels.clear();
 
+    // convert labels to numerical labels
+    for (size_t i = 0; i < labels.size(); i++) {
+        int numerical_label = 0;
+        int factor = 1;
+        for (size_t j = 0; j < labels[i].size(); j++) {
+            numerical_label += factor * labels[i][j];
+            factor *= 128;
+        }
+        numerical_labels.push_back(numerical_label);
+    }
+
     permutations = 0;
+
+    if ( numerical_labels.size() == 4 ) {
+
+        // bra
+        if ( numerical_labels[0] > numerical_labels[1] ) {
+            int tmp = numerical_labels[0];
+            numerical_labels[0] = numerical_labels[1];
+            numerical_labels[1] = tmp;
+            permutations++;
+        }
+
+        // ket
+        if ( numerical_labels[2] > numerical_labels[3] ) {
+            int tmp = numerical_labels[2];
+            numerical_labels[2] = numerical_labels[3];
+            numerical_labels[3] = tmp;
+            permutations++;
+        }
+
+    }
 
     return;
 }

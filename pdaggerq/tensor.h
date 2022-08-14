@@ -123,7 +123,7 @@ class integrals: public tensor {
     /// destructor
     ~integrals(){};
 
-    /// sort amplitudes, keep track of permutations, assign total numerical value
+    /// sort integrals, keep track of permutations
     void sort();
 
     /// copy amplitudes

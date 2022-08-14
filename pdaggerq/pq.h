@@ -73,6 +73,11 @@ class pq {
                              std::vector<amplitudes> amps2, 
                              int & n_permute );
 
+    /// compare two lists of integrals 
+    bool compare_integrals( std::vector<integrals> ints1, 
+                            std::vector<integrals> ints2, 
+                            int & n_permute );
+
   public:
 
     /// constructor
