@@ -47,12 +47,6 @@ class StringData {
     /// list: labels for fermionic creation / annihilation operators 
     std::vector<std::string> string;
 
-    /// list: labels for 1- or 2-index tensor
-    std::vector<std::string> tensor;
-
-    /// tensor type (FOCK, CORE, TWO_BODY, ERI, D+, D-)
-    std::string tensor_type;
-
     /// integral types
     std::vector<std::string> integral_types = {"fock", "core", "two_body", "eri", "d+", "d-", "occ_repulsion"};
 

@@ -44,8 +44,8 @@ class pq {
     /// how many times does label "idx" appear in delta terms?
     int index_in_deltas(std::string idx);
 
-    /// how many times does label "idx" appear in tensor term?
-    int index_in_tensor(std::string idx);
+    /// how many times does label "idx" appear in a given set of integrals
+    int index_in_integrals(std::string idx, std::vector<integrals> ints);
 
     /// how many times does label "idx" appear in a given set of amplitudes
     int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
@@ -56,8 +56,8 @@ class pq {
     /// replace one label with another (in delta functions)
     void replace_index_in_deltas(std::string old_idx, std::string new_idx);
 
-    /// replace one label with another (in tensor)
-    void replace_index_in_tensor(std::string old_idx, std::string new_idx);
+    /// replace one label with another (in a given set of integrals)
+    void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::vector<integrals> &ints);
 
     /// replace one label with another (in a given set of amplitudes)
     void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps);
@@ -125,7 +125,7 @@ class pq {
     /// get string information
     std::vector<std::string> get_string();
 
-    /// apply delta functions to string / tensor labels
+    /// apply delta functions to amplitude and integral labels
     void gobble_deltas();
 
     /// replace internal labels with conventional ones (o1 -> i, etc.)
@@ -225,8 +225,8 @@ class pq {
     /// consolidate terms that differ by permutations
     void consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered);
 
-    /// sort amplitude labels
-    void sort_amplitude_labels();
+    /// sort amplitude and integral labels
+    void sort_labels();
 
     /// reorder t amplitudes as t1, t2, t3
     void reorder_t_amplitudes();
@@ -238,7 +238,7 @@ class pq {
     bool is_vir(std::string idx);
 
     /// re-classify fluctuation potential terms
-    void reclassify_tensors();
+    void reclassify_integrals();
 };
 
 }

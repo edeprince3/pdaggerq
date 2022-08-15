@@ -147,53 +147,6 @@ void pq::print() {
         printf(" ");
     }
 
-    // two-electron integrals
-    if ( data->tensor.size() == 4 ) {
-
-        if ( data->tensor_type == "TWO_BODY") {
-            printf("g(");
-            printf("%s",data->tensor[0].c_str());
-            printf(",");
-            printf("%s",data->tensor[1].c_str());
-            printf(",");
-            printf("%s",data->tensor[2].c_str());
-            printf(",");
-            printf("%s",data->tensor[3].c_str());
-            printf(")");
-            printf(" ");
-        }else {
-            // dirac
-            printf("<");
-            printf("%s",data->tensor[0].c_str());
-            printf(",");
-            printf("%s",data->tensor[1].c_str());
-            printf("||");
-            printf("%s",data->tensor[2].c_str());
-            printf(",");
-            printf("%s",data->tensor[3].c_str());
-            printf(">");
-            printf(" ");
-        }
-    }
-
-    // one-electron integrals
-    if ( data->tensor.size() == 2 ) {
-        if ( data->tensor_type == "CORE") {
-            printf("h(");
-        }else if ( data->tensor_type == "FOCK") {
-            printf("f(");
-        }else if ( data->tensor_type == "D+") {
-            printf("d+(");
-        }else if ( data->tensor_type == "D-") {
-            printf("d-(");
-        }
-        printf("%s",data->tensor[0].c_str());
-        printf(",");
-        printf("%s",data->tensor[1].c_str());
-        printf(")");
-        printf(" ");
-    }
-
     // print integrals
     for (size_t i = 0; i < data->integral_types.size(); i++) { 
         std::string type = data->integral_types[i];
@@ -274,54 +227,6 @@ std::vector<std::string> pq::get_string() {
 
     for (size_t i = 0; i < delta1.size(); i++) {
         std::string tmp = "d(" + delta1[i] + "," + delta2[i] + ")";
-        my_string.push_back(tmp);
-    }
-
-    // two-electron integrals
-    if ( data->tensor.size() == 4 ) {
-
-        if ( data->tensor_type == "TWO_BODY") {
-            std::string tmp = "g("
-                            + data->tensor[0]
-                            + ","
-                            + data->tensor[1]
-                            + ","
-                            + data->tensor[2]
-                            + ","
-                            + data->tensor[3]
-                            + ")";
-            my_string.push_back(tmp);
-        }else {
-            // dirac
-            std::string tmp = "<"
-                            + data->tensor[0]
-                            + ","
-                            + data->tensor[1]
-                            + "||"
-                            + data->tensor[2]
-                            + ","
-                            + data->tensor[3]
-                            + ">";
-            my_string.push_back(tmp);
-        }
-    }
-
-    // one-electron integrals
-    if ( data->tensor.size() == 2 ) {
-        std::string tmp;
-        if ( data->tensor_type == "CORE") {
-            tmp = "h(";
-        }else if ( data->tensor_type == "FOCK") {
-            tmp = "f(";
-        }else if ( data->tensor_type == "D+") {
-            tmp = "d+(";
-        }else if ( data->tensor_type == "D-") {
-            tmp = "d-(";
-        }
-        tmp += data->tensor[0]
-             + ","
-             + data->tensor[1]
-             + ")";
         my_string.push_back(tmp);
     }
 
@@ -545,9 +450,15 @@ void pq::reorder_t_amplitudes() {
     
 }
 
-// sort amplitude labels
-void pq::sort_amplitude_labels() {
+// sort amplitude and integral labels
+void pq::sort_labels() {
 
+    for (size_t i = 0; i < data->integral_types.size(); i++) { 
+        std::string type = data->integral_types[i];
+        for (size_t j = 0; j < data->ints[type].size(); j++) {
+            data->ints[type][j].sort();
+        }
+    }
     for (size_t i = 0; i < data->amplitude_types.size(); i++) { 
         char type = data->amplitude_types[i];
         for (size_t j = 0; j < data->amps[type].size(); j++) {
@@ -567,7 +478,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         ordered[i]->reorder_t_amplitudes();
 
         // sort amplitude labels
-        ordered[i]->sort_amplitude_labels();
+        ordered[i]->sort_labels();
 
     }
 
@@ -919,7 +830,7 @@ void pq::consolidate_permutations_plus_eight_swaps(
                                                                             newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
                                                                             newguy->swap_two_labels(labels_7[id13],labels_7[id14]);
                                                                             newguy->swap_two_labels(labels_8[id15],labels_8[id16]);
-                                                                            newguy->sort_amplitude_labels();
+                                                                            newguy->sort_labels();
                                                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                                             if ( strings_same ) break;
@@ -1105,7 +1016,7 @@ void pq::consolidate_permutations_plus_seven_swaps(
                                                                     newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
                                                                     newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
                                                                     newguy->swap_two_labels(labels_7[id13],labels_7[id14]);
-                                                                    newguy->sort_amplitude_labels();
+                                                                    newguy->sort_labels();
                                                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                                     if ( strings_same ) break;
@@ -1272,7 +1183,7 @@ void pq::consolidate_permutations_plus_six_swaps(
                                                             newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
                                                             newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
                                                             newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
-                                                            newguy->sort_amplitude_labels();
+                                                            newguy->sort_labels();
                                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                             if ( strings_same ) break;
@@ -1420,7 +1331,7 @@ void pq::consolidate_permutations_plus_five_swaps(
                                                     newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
                                                     newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
                                                     newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
-                                                    newguy->sort_amplitude_labels();
+                                                    newguy->sort_labels();
                                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                     if ( strings_same ) break;
@@ -1549,7 +1460,7 @@ void pq::consolidate_permutations_plus_four_swaps(
                                             newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
                                             newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
                                             newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
-                                            newguy->sort_amplitude_labels();
+                                            newguy->sort_labels();
                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                             if ( strings_same ) break;
@@ -1659,7 +1570,7 @@ void pq::consolidate_permutations_plus_three_swaps(
                                     newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
                                     newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
                                     newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
-                                    newguy->sort_amplitude_labels();
+                                    newguy->sort_labels();
                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                     if ( strings_same ) break;
@@ -1750,7 +1661,7 @@ void pq::consolidate_permutations_plus_two_swaps(
                             newguy->copy((void*)(ordered[i].get()));
                             newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
                             newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                            newguy->sort_amplitude_labels();
+                            newguy->sort_labels();
 
                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -1823,7 +1734,7 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
                     std::shared_ptr<pq> newguy (new pq(vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     newguy->swap_two_labels(labels[id1],labels[id2]);
-                    newguy->sort_amplitude_labels();
+                    newguy->sort_labels();
 
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -1949,88 +1860,6 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
         if ( !same_string ) return false;
     }
 
-    // are tensors same?
-    if ( ordered_1->data->tensor_type != ordered_2->data->tensor_type ) return false;
-
-    int nsame_t = 0;
-    for (size_t k = 0; k < ordered_1->data->tensor.size(); k++) {
-        if ( ordered_1->data->tensor[k] == ordered_2->data->tensor[k] ) {
-            nsame_t++;
-        }
-    }
-
-    // if not the same, check antisymmetry <ij||kl> = -<ji||lk> = -<ij||lk> = <ji||lk>
-    if ( nsame_t != ordered_1->data->tensor.size() ) {
-
-        if ( ordered_1->data->tensor.size() == 4 ) {
-
-            nsame_t = 0;
-            if ( ordered_1->data->tensor[0] == ordered_2->data->tensor[0] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[1] == ordered_2->data->tensor[1] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[2] == ordered_2->data->tensor[3] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[3] == ordered_2->data->tensor[2] ) {
-                nsame_t++;
-            }
-            if ( nsame_t == 4 ) {
-                n_permute++;
-            }
-
-        }
-    }
-    if ( nsame_t != ordered_1->data->tensor.size() ) {
-
-        if ( ordered_1->data->tensor.size() == 4 ) {
-
-            nsame_t = 0;
-            if ( ordered_1->data->tensor[0] == ordered_2->data->tensor[1] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[1] == ordered_2->data->tensor[0] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[2] == ordered_2->data->tensor[2] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[3] == ordered_2->data->tensor[3] ) {
-                nsame_t++;
-            }
-            if ( nsame_t == 4 ) {
-                n_permute++;
-            }
-
-        }
-    }
-    if ( nsame_t != ordered_1->data->tensor.size() ) {
-
-        if ( ordered_1->data->tensor.size() == 4 ) {
-
-            nsame_t = 0;
-            if ( ordered_1->data->tensor[0] == ordered_2->data->tensor[1] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[1] == ordered_2->data->tensor[0] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[2] == ordered_2->data->tensor[3] ) {
-                nsame_t++;
-            }
-            if ( ordered_1->data->tensor[3] == ordered_2->data->tensor[2] ) {
-                nsame_t++;
-            }
-
-        }
-    }
-
-    if ( nsame_t != ordered_1->data->tensor.size() ) {
-        return false;
-    }
-
     // permutations should be the same, too wtf
     // also need to check if the permutations are the same...
     // otherwise, we shouldn't be combining these terms
@@ -2133,22 +1962,18 @@ void pq::shallow_copy(void * copy_me) {
     // factor
     data->factor = in->data->factor;
 
-    // temporary delta functions
-    std::vector<std::string> tmp_delta1;
-    std::vector<std::string> tmp_delta2;
-
-    // data->tensor
-    for (size_t i = 0; i < in->data->tensor.size(); i++) {
-        data->tensor.push_back(in->data->tensor[i]);
-    }
-
-    // data->tensor_type
-    data->tensor_type = in->data->tensor_type;
-
     // delta1, delta2
     for (size_t i = 0; i < in->delta1.size(); i++) {
         delta1.push_back(in->delta1[i]);
         delta2.push_back(in->delta2[i]);
+    }
+
+    // integrals
+    for (size_t i = 0; i < data->integral_types.size(); i++) {
+        std::string type = data->integral_types[i];
+        for (size_t j = 0; j < in->data->ints[type].size(); j++) {
+            data->ints[type].push_back( in->data->ints[type][j] );
+        }
     }
 
     // amplitudes
@@ -2169,7 +1994,10 @@ int pq::index_in_anywhere(std::string idx) {
     int n = 0;
 
     n += index_in_deltas(idx);
-    n += index_in_tensor(idx);
+    for (size_t i = 0; i < data->integral_types.size(); i++) {
+        std::string type = data->integral_types[i];
+        n += index_in_integrals(idx, data->ints[type]);
+    }
     for (size_t i = 0; i < data->amplitude_types.size(); i++) {
         char type = data->amplitude_types[i];
         n += index_in_amplitudes(idx, data->amps[type]);
@@ -2194,18 +2022,20 @@ int pq::index_in_deltas(std::string idx) {
     return n;
 }
 
-int pq::index_in_tensor(std::string idx) {
+int pq::index_in_integrals(std::string idx, std::vector<integrals> ints) {
 
     int n = 0;
-    for (size_t i = 0; i < data->tensor.size(); i++) {
-        if ( data->tensor[i] == idx ) {
-            n++;
+    for (size_t i = 0; i < ints.size(); i++) {
+        for (size_t j = 0; j < ints[i].labels.size(); j++) {
+            if ( ints[i].labels[j] == idx ) {
+                n++;
+            }
+           
         }
     }
     return n;
 
 }
-
 int pq::index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
 
     int n = 0;
@@ -2224,24 +2054,16 @@ int pq::index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
 void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
     //replace_index_in_deltas(old_idx,new_idx);
-    replace_index_in_tensor(old_idx, new_idx);
+    for (size_t i = 0; i < data->integral_types.size(); i++) {
+        std::string type = data->integral_types[i];
+        replace_index_in_integrals(old_idx, new_idx, data->ints[type]);
+    }
     for (size_t i = 0; i < data->amplitude_types.size(); i++) {
         char type = data->amplitude_types[i];
         replace_index_in_amplitudes(old_idx, new_idx, data->amps[type]);
     }
-    sort_amplitude_labels();
+    sort_labels();
 
-}
-
-void pq::replace_index_in_tensor(std::string old_idx, std::string new_idx) {
-
-    for (size_t i = 0; i < data->tensor.size(); i++) {
-        if ( data->tensor[i] == old_idx ) {
-            data->tensor[i] = new_idx;
-            // dont' return because indices may be repeated in two-electron integrals
-            //return;
-        }
-    }
 }
 
 void pq::replace_index_in_deltas(std::string old_idx, std::string new_idx) {
@@ -2272,10 +2094,20 @@ void pq::replace_index_in_amplitudes(std::string old_idx, std::string new_idx, s
             }
         }
     }
-
 }
 
-// find and replace any funny labels in tensors with conventional ones. i.e., o1 -> i ,v1 -> a
+void pq::replace_index_in_integrals(std::string old_idx, std::string new_idx, std::vector<integrals> &ints) {
+
+    for (size_t i = 0; i < ints.size(); i++) {
+        for (size_t j = 0; j < ints[i].labels.size(); j++) {
+            if ( ints[i].labels[j] == old_idx ) {
+                ints[i].labels[j] = new_idx;
+            }
+        }
+    }
+}
+
+// find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a
 void pq::use_conventional_labels() {
 
     // occupied first:
@@ -2292,10 +2124,8 @@ void pq::use_conventional_labels() {
 
             for (size_t j = 0; j < occ_out.size(); j++) {
 
-                //if ( !index_in_tensor(occ_out[j]) ) 
                 if ( index_in_anywhere(occ_out[j]) == 0 ) {
 
-                    //replace_index_in_tensor(occ_in[i],occ_out[j]);
                     replace_index_everywhere(occ_in[i],occ_out[j]);
                     break;
                 }
@@ -2319,7 +2149,6 @@ void pq::use_conventional_labels() {
 
                 if ( index_in_anywhere(vir_out[j]) == 0 ) {
 
-                    //replace_index_in_tensor(vir_in[i],vir_out[j]);
                     replace_index_everywhere(vir_in[i],vir_out[j]);
                     break;
                 }
@@ -2387,21 +2216,25 @@ void pq::gobble_deltas() {
         }
 */
 
-        bool delta1_in_tensor = ( index_in_tensor( delta1[i] ) > 0 ) ? true : false;
-        bool delta2_in_tensor = ( index_in_tensor( delta2[i] ) > 0 ) ? true : false;
-
-        if ( delta1_in_tensor && have_delta1 ) {
-            replace_index_in_tensor( delta1[i], delta2[i] );
-            continue;
-        }else if ( delta2_in_tensor && have_delta2 ) {
-            replace_index_in_tensor( delta2[i], delta1[i] );
-            continue;
+        bool do_continue = false;
+        for (size_t j = 0; j < data->integral_types.size(); j++) { 
+            std::string type = data->integral_types[j];
+            if ( have_delta1 && index_in_integrals( delta1[i], data->ints[type] ) > 0 ) {
+               replace_index_in_integrals( delta1[i], delta2[i], data->ints[type] );
+               do_continue = true;
+               break;
+            }else if ( have_delta2 && index_in_integrals( delta2[i], data->ints[type] ) > 0 ) {
+               replace_index_in_integrals( delta2[i], delta1[i], data->ints[type] );
+               do_continue = true;
+               break;
+            }
         }
+        if ( do_continue ) continue;
 
         // TODO: note that the code only efficiently collects terms when the amplitude
         // list is ordered as {'t', 'l', 'r', 'u', 'm', 's'} ... i don't know why, but
         // i do know that this is the problematic part of the code
-        bool do_continue = false;
+        do_continue = false;
         std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
         for (size_t j = 0; j < types.size(); j++) { 
             char type = types[j];
@@ -2928,9 +2761,16 @@ bool pq::normal_order(std::vector<std::shared_ptr<pq> > &ordered) {
 }
 
 // re-classify fluctuation potential terms
-void pq::reclassify_tensors() {
+void pq::reclassify_integrals() {
 
-    if ( data->tensor_type == "OCC_REPULSION") {
+    if ( data->ints["occ_repulsion"].size() > 1 ) {
+       printf("\n");
+       printf("only support for one integral type object per string\n");
+       printf("\n");
+       exit(1);
+    }
+
+    if ( data->ints["occ_repulsion"].size() > 0 ) {
 
         // pick summation label not included in string already
         std::vector<std::string> occ_out{"i","j","k","l","m","n","o","t","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
@@ -2952,17 +2792,31 @@ void pq::reclassify_tensors() {
             exit(1);
         }
 
-        std::string idx1 = data->tensor[0];
-        std::string idx2 = data->tensor[1];
+        std::string idx1 = data->ints["occ_repulsion"][0].labels[0];
+        std::string idx2 = data->ints["occ_repulsion"][0].labels[1];
 
-        data->tensor.clear();
+        data->ints["occ_repulsion"].clear();
 
-        data->tensor.push_back(idx1);
-        data->tensor.push_back(idx);
-        data->tensor.push_back(idx2);
-        data->tensor.push_back(idx);
+        integrals ints;
 
-        data->tensor_type = "ERI";
+        ints.labels.clear();
+        ints.numerical_labels.clear();
+
+        ints.labels.push_back(idx1);
+        ints.labels.push_back(idx);
+        ints.labels.push_back(idx2);
+        ints.labels.push_back(idx);
+
+        ints.sort();
+
+        if ( data->ints["eri"].size() > 0 ) {
+           printf("\n");
+           printf("only support for one integral type object per string\n");
+           printf("\n");
+           exit(1);
+        }
+        data->ints["eri"].clear();
+        data->ints["eri"].push_back(ints);
 
     }
 
