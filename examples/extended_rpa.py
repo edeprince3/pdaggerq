@@ -38,14 +38,14 @@ def erpa_terms_to_einsum(tensor_terms: List[TensorTerm],
 def main():
     # need cumulant decomposition on 3-RDM terms
     # to simplify to a 2-RDM + 1-RDM expression
-    ahat = pdaggerq.pq_helper('true')
+    pq = pdaggerq.pq_helper('true')
 
     # [r^s, [H, p^ q]] = - [[H,p^ q],r^s]
-    ahat.add_double_commutator(-1.0,['e2(i,j,k,l)'],['e1(p,q)'],['e1(r,s)'])
-    ahat.simplify()
-    ahat.print()
-    rpa_tensor_terms = vacuum_normal_ordered_strings_to_tensor_terms(ahat.strings())
-    ahat.clear()
+    pq.add_double_commutator(-1.0,['e2(i,j,k,l)'],['e1(p,q)'],['e1(r,s)'])
+    pq.simplify()
+    pq.print()
+    rpa_tensor_terms = vacuum_normal_ordered_strings_to_tensor_terms(pq.strings())
+    pq.clear()
     print(rpa_tensor_terms)
 
     erpa_terms_to_einsum(tensor_terms=rpa_tensor_terms)

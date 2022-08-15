@@ -35,6 +35,7 @@
 #include "data.h"
 #include "pq.h"
 #include "pq_helper.h"
+#include "tensor.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -50,13 +51,8 @@ void export_pq_helper(py::module& m) {
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
         .def("set_string", &pq_helper::set_string)
-        .def("set_tensor", &pq_helper::set_tensor)
-        .def("set_t_amplitudes", &pq_helper::set_t_amplitudes)
-        .def("set_u_amplitudes", &pq_helper::set_u_amplitudes)
-        .def("set_m_amplitudes", &pq_helper::set_m_amplitudes)
-        .def("set_s_amplitudes", &pq_helper::set_s_amplitudes)
-        .def("set_left_amplitudes", &pq_helper::set_left_amplitudes)
-        .def("set_right_amplitudes", &pq_helper::set_right_amplitudes)
+        .def("set_integrals", &pq_helper::set_integrals)
+        .def("set_amplitudes", &pq_helper::set_amplitudes)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
@@ -613,14 +609,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             std::vector<std::string> tmp_string;
 
-            bool has_l0       = false;
-            bool has_r0       = false;
-            bool has_u0       = false;
-            bool has_m0       = false;
-            bool has_s0       = false;
             bool has_w0       = false;
-            //bool has_b        = false;
-            //bool has_b_dagger = false;
 
             // stupid design choice ... o1-o4 and v1-v4 are already used
             int occ_label_count = 5;
@@ -668,8 +657,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // index 2
                     tmp_string.push_back(idx2);
 
-                    // tensor
-                    set_tensor({idx1,idx2},"CORE");
+                    // integrals
+                    set_integrals("core", {idx1,idx2});
 
                 }else if ( in[i].substr(0,1) == "f" ) { // fock operator
 
@@ -682,8 +671,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // index 2
                     tmp_string.push_back(idx2);
 
-                    // tensor
-                    set_tensor({idx1,idx2},"FOCK");
+                    // integrals
+                    set_integrals("fock", {idx1,idx2});
 
                 }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
 
@@ -696,8 +685,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // index 2
                     tmp_string.push_back(idx2);
 
-                    // tensor
-                    set_tensor({idx1,idx2},"D+");
+                    // integrals
+                    set_integrals("d+", {idx1,idx2});
 
                     // boson operator
                     data->is_boson_dagger.push_back(true);
@@ -713,8 +702,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // index 2
                     tmp_string.push_back(idx2);
 
-                    // tensor
-                    set_tensor({idx1,idx2},"D-");
+                    // integrals
+                    set_integrals("d-", {idx1,idx2});
 
                     // boson operator
                     data->is_boson_dagger.push_back(false);
@@ -733,7 +722,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx3);
                     tmp_string.push_back(idx4);
 
-                    set_tensor({idx1,idx2,idx4,idx3},"TWO_BODY");
+                    set_integrals("two_body", {idx1,idx2,idx4,idx3});
 
                 }else if ( in[i].substr(0,1) == "j" ) { // fluctuation potential
 
@@ -750,8 +739,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         // index 2
                         tmp_string.push_back(idx2);
 
-                        // tensor
-                        set_tensor({idx1,idx2},"OCC_REPULSION");
+                        // integrals
+                        set_integrals("occ_repulsion", {idx1,idx2});
 
                     }else if ( in[i].substr(1,1) == "2" ){
 
@@ -767,7 +756,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(idx3);
                         tmp_string.push_back(idx4);
 
-                        set_tensor({idx1,idx2,idx4,idx3},"ERI");
+                        set_integrals("eri", {idx1,idx2,idx4,idx3});
 
                     }
 
@@ -807,7 +796,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     for (int id = n-1; id >= 0; id--) {
                         labels.push_back(label_right[id]);
                     }
-                    set_t_amplitudes(labels);
+                    set_amplitudes('t', labels, false);
 
                     // factor = 1/(n!)^2
                     double my_factor = 1.0;
@@ -834,13 +823,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else if ( in[i].substr(0,2) == "b+" ){ // B*
 
-                        //has_b_dagger = true;
-
                         data->is_boson_dagger.push_back(true);
 
                 }else if ( in[i].substr(0,2) == "b-" ){ // B
-
-                        //has_b = true;
 
                         data->is_boson_dagger.push_back(false);
 
@@ -850,7 +835,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_u0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('u', labels, true);
 
                         data->is_boson_dagger.push_back(true);
 
@@ -888,7 +874,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_u_amplitudes(labels);
+                        set_amplitudes('u', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor = 1.0;
@@ -907,7 +893,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_r0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('r', labels, true);
 
                     }else {
 
@@ -947,7 +934,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_right_amplitudes(labels);
+                        set_amplitudes('r', labels, false);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -968,7 +955,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_s0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('s', labels, true);
 
                         data->is_boson_dagger.push_back(true);
 
@@ -1010,7 +998,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         } 
-                        set_s_amplitudes(labels);
+                        set_amplitudes('s', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1033,7 +1021,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_l0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('l', labels, true);
 
                     }else {
                         
@@ -1073,7 +1062,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_left_amplitudes(labels);
+                        set_amplitudes('l', labels, false);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1094,7 +1083,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        has_m0 = true;
+                        std::vector<std::string> labels;
+                        set_amplitudes('m', labels, true);
 
                         data->is_boson_dagger.push_back(false);
 
@@ -1136,7 +1126,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_m_amplitudes(labels);
+                        set_amplitudes('m', labels, false);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1334,14 +1324,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             set_string(tmp_string);
 
-            data->has_r0       = has_r0;
-            data->has_l0       = has_l0;
-            data->has_u0       = has_u0;
-            data->has_m0       = has_m0;
-            data->has_s0       = has_s0;
             data->has_w0       = has_w0;
-            //data->has_b        = has_b;
-            //data->has_b_dagger = has_b_dagger;
 
             add_new_string();
 
@@ -1357,59 +1340,23 @@ void pq_helper::set_string(std::vector<std::string> in) {
     }
 }
 
-void pq_helper::set_tensor(std::vector<std::string> in, std::string tensor_type) {
+void pq_helper::set_integrals(std::string type, std::vector<std::string> in) {
+    integrals ints;
     for (int i = 0; i < (int)in.size(); i++) {
-        data->tensor.push_back(in[i]);
+        ints.labels.push_back(in[i]);
     }
-    data->tensor_type = tensor_type;
+    ints.sort();
+    data->ints[type].push_back(ints);
 }
 
-void pq_helper::set_t_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
+void pq_helper::set_amplitudes(char type, std::vector<std::string> in, bool is_reference) {
+    amplitudes amps;
     for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
+        amps.labels.push_back(in[i]);
     }
-    data->t_amplitudes.push_back(tmp);
-}
-
-void pq_helper::set_u_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
-    }
-    data->u_amplitudes.push_back(tmp);
-}
-
-void pq_helper::set_m_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
-    }
-    data->m_amplitudes.push_back(tmp);
-}
-
-void pq_helper::set_s_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
-    }
-    data->s_amplitudes.push_back(tmp);
-}
-
-void pq_helper::set_left_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
-    }
-    data->left_amplitudes.push_back(tmp);
-}
-
-void pq_helper::set_right_amplitudes(std::vector<std::string> in) {
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)in.size(); i++) {
-        tmp.push_back(in[i]);
-    }
-    data->right_amplitudes.push_back(tmp);
+    amps.is_reference = is_reference;
+    amps.sort();
+    data->amps[type].push_back(amps);
 }
 
 void pq_helper::set_factor(double in) {
@@ -1428,14 +1375,7 @@ void pq_helper::add_new_string_true_vacuum(){
         mystring->data->factor = fabs(data->factor);
     }
 
-    mystring->data->has_r0       = data->has_r0;
-    mystring->data->has_l0       = data->has_l0;
-    mystring->data->has_u0       = data->has_u0;
-    mystring->data->has_m0       = data->has_m0;
-    mystring->data->has_s0       = data->has_s0;
     mystring->data->has_w0       = data->has_w0;
-    //mystring->data->has_b        = data->has_b;
-    //mystring->data->has_b_dagger = data->has_b_dagger;
 
     for (int i = 0; i < (int)data->string.size(); i++) {
         std::string me = data->string[i];
@@ -1448,56 +1388,22 @@ void pq_helper::add_new_string_true_vacuum(){
         mystring->symbol.push_back(me);
     }
 
-    for (int i = 0; i < (int)data->tensor.size(); i++) {
-        mystring->data->tensor.push_back(data->tensor[i]);
-    }
-    mystring->data->tensor_type = data->tensor_type;
-
-    for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
-            tmp.push_back(data->t_amplitudes[i][j]);
+    for (size_t i = 0; i < data->integral_types.size(); i++) {
+        std::string type = data->integral_types[i];
+        mystring->data->ints[type].clear();
+        for (size_t j = 0; j < data->ints[type].size(); j++) {
+            mystring->data->ints[type].push_back( data->ints[type][j] );
         }
-        mystring->data->t_amplitudes.push_back(tmp);
-    }
-    for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
-            tmp.push_back(data->u_amplitudes[i][j]);
-        }
-        mystring->data->u_amplitudes.push_back(tmp);
     }
 
-    for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
-            tmp.push_back(data->m_amplitudes[i][j]);
+    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+        char type = data->amplitude_types[i];
+        mystring->data->amps[type].clear();
+        for (size_t j = 0; j < data->amps[type].size(); j++) {
+            mystring->data->amps[type].push_back( data->amps[type][j] );
         }
-        mystring->data->m_amplitudes.push_back(tmp);
     }
 
-    for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
-            tmp.push_back(data->s_amplitudes[i][j]);
-        }
-        mystring->data->s_amplitudes.push_back(tmp);
-    }
-
-    for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
-            tmp.push_back(data->left_amplitudes[i][j]);
-        }
-        mystring->data->left_amplitudes.push_back(tmp);
-    }
-    for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
-            tmp.push_back(data->right_amplitudes[i][j]);
-        }
-        mystring->data->right_amplitudes.push_back(tmp);
-    }
     for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
         mystring->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
     }
@@ -1535,7 +1441,6 @@ void pq_helper::add_new_string_true_vacuum(){
     }
     tmp.clear();
 
-
     // alphabetize
     mystring->alphabetize(ordered);
 
@@ -1560,42 +1465,38 @@ void pq_helper::add_new_string() {
 
 void pq_helper::add_new_string_fermi_vacuum(){
 
-    std::vector<std::shared_ptr<pq> > mystrings;
-    mystrings.push_back( (std::shared_ptr<pq>)(new pq(vacuum)) );
-
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators
     // (h, g). If it does, then the string must be split to account explicitly
     // for sums over 
-    int n_gen_idx = 0;
-    for (int i = 0; i < (int)data->string.size(); i++) {
-        std::string me = data->string[i];
-        std::string me_nostar = me;
-        if (me_nostar.find("*") != std::string::npos ){
-            removeStar(me_nostar);
-        }
-         
-        if ( !mystrings[0]->is_vir(me_nostar) && !mystrings[0]->is_occ(me_nostar) ) {
-            n_gen_idx++;
-        }
 
-    }
-    //printf("number of general indices: %5i\n",n_gen_idx);
-    // need number of strings to be square of number of general indices 
-    if ( n_gen_idx > 0 ) {
-        mystrings.clear();
-        for (int i = 0; i < n_gen_idx * n_gen_idx; i++) {
-            mystrings.push_back( (std::shared_ptr<pq>)(new pq(vacuum)) );
+    int n_gen_idx = 1;
+    int n_integral_objects = 0;
+    std::string integral_type = "none";
+    for (size_t i = 0; i < data->integral_types.size(); i++) {
+        std::string type = data->integral_types[i];
+        for (size_t j = 0; j < data->ints[type].size(); j++) {
+            n_integral_objects++;
+            n_gen_idx = data->ints[type][j].labels.size();
+            integral_type = type;
         }
+    }
+    if ( n_integral_objects > 1 ) {
+        printf("\n");
+        printf("    error: only support for a single integral object per string\n");
+        printf("\n");
+        exit(1);
+    }
+
+    // need number of strings to be square of number of general indices  (or one)
+    std::vector<std::shared_ptr<pq> > mystrings;
+    for (int i = 0; i < n_gen_idx * n_gen_idx; i++) {
+        mystrings.push_back( (std::shared_ptr<pq>)(new pq(vacuum)) );
     }
 
     // TODO: this function only works correctly if you go through the
     // add_operator_product function (or some function that calls that one
-    // one). should generalize so set_tensor, etc. can be used directly.
-
-    if ( n_gen_idx == 0 ) {
-        n_gen_idx = 1;
-    }
+    // one). should generalize so set_integrals, etc. can be used directly.
 
     //printf("current list size: %zu\n",ordered.size());
     for (int string_num = 0; string_num < n_gen_idx * n_gen_idx; string_num++) {
@@ -1609,17 +1510,9 @@ void pq_helper::add_new_string_fermi_vacuum(){
             mystrings[string_num]->data->factor = fabs(data->factor);
         }
 
-        mystrings[string_num]->data->has_r0       = data->has_r0;
-        mystrings[string_num]->data->has_l0       = data->has_l0;
-        mystrings[string_num]->data->has_u0       = data->has_u0;
-        mystrings[string_num]->data->has_m0       = data->has_m0;
-        mystrings[string_num]->data->has_s0       = data->has_s0;
         mystrings[string_num]->data->has_w0       = data->has_w0;
-        //mystrings[string_num]->data->has_b        = data->has_b;
-        //mystrings[string_num]->data->has_b_dagger = data->has_b_dagger;
 
-        // tensor type
-        mystrings[string_num]->data->tensor_type = data->tensor_type;
+        integrals ints;
 
         int my_gen_idx = 0;
         for (int i = 0; i < (int)data->string.size(); i++) {
@@ -1652,7 +1545,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                 mystrings[string_num]->symbol.push_back(me_nostar);
             }else {
 
-                //two-index tensor
+                //two-index integrals
                 // 00, 01, 10, 11
                 if ( n_gen_idx == 2 ) {
                     if ( my_gen_idx == 0 ) {
@@ -1665,7 +1558,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("o1");
+                            ints.labels.push_back("o1");
                             mystrings[string_num]->symbol.push_back("o1");
                         }else {
                             // first index vir
@@ -1676,7 +1569,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                                 mystrings[string_num]->is_dagger.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("v1");
+                            ints.labels.push_back("v1");
                             mystrings[string_num]->symbol.push_back("v1");
                         }
                     }else {
@@ -1689,7 +1582,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("o2");
+                            ints.labels.push_back("o2");
                             mystrings[string_num]->symbol.push_back("o2");
                         }else {
                             // second index vir
@@ -1700,13 +1593,13 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("v2");
+                            ints.labels.push_back("v2");
                             mystrings[string_num]->symbol.push_back("v2");
                         }
                     }
                 }
 
-                //four-index tensor
+                //four-index integrals
 
                 // managing these labels is so very confusing:
                 // p*q*sr (pr|qs) -> o*t*uv (ov|tu), etc.
@@ -1733,7 +1626,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("o1");
+                            ints.labels.push_back("o1");
                             mystrings[string_num]->symbol.push_back("o1");
                         }else {
                             // first index vir
@@ -1744,7 +1637,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("v1");
+                            ints.labels.push_back("v1");
                             mystrings[string_num]->symbol.push_back("v1");
                         }
                     }else if ( my_gen_idx == 1 ) {
@@ -1766,7 +1659,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("o2");
+                            ints.labels.push_back("o2");
                             mystrings[string_num]->symbol.push_back("o2");
                         }else {
                             // second index vir
@@ -1777,7 +1670,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("v2");
+                            ints.labels.push_back("v2");
                             mystrings[string_num]->symbol.push_back("v2");
                         }
                     }else if ( my_gen_idx == 2 ) {
@@ -1799,7 +1692,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("o3");
+                            ints.labels.push_back("o3");
                             mystrings[string_num]->symbol.push_back("o3");
                         }else {
                             // third index vir
@@ -1810,7 +1703,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("v3");
+                            ints.labels.push_back("v3");
                             mystrings[string_num]->symbol.push_back("v3");
                         }
                     }else {
@@ -1830,7 +1723,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(true);
                             }
-                            mystrings[string_num]->data->tensor.push_back("o4");
+                            ints.labels.push_back("o4");
                             mystrings[string_num]->symbol.push_back("o4");
                         }else {
                             // fourth index vir
@@ -1841,90 +1734,52 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->is_dagger.push_back(false);
                                 mystrings[string_num]->is_dagger_fermi.push_back(false);
                             }
-                            mystrings[string_num]->data->tensor.push_back("v4");
+                            ints.labels.push_back("v4");
                             mystrings[string_num]->symbol.push_back("v4");
                         }
                     }
                 }
 
                 my_gen_idx++;
+
             }
 
         }
 
-        for (int i = 0; i < (int)data->t_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->t_amplitudes[i].size(); j++) {
-                tmp.push_back(data->t_amplitudes[i][j]);
+        for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+            char type = data->amplitude_types[i];
+            mystrings[string_num]->data->amps[type].clear();
+            for (size_t j = 0; j < data->amps[type].size(); j++) {
+                mystrings[string_num]->data->amps[type].push_back( data->amps[type][j] );
             }
-            mystrings[string_num]->data->t_amplitudes.push_back(tmp);
         }
 
-        for (int i = 0; i < (int)data->u_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->u_amplitudes[i].size(); j++) {
-                tmp.push_back(data->u_amplitudes[i][j]);
-            }
-            mystrings[string_num]->data->u_amplitudes.push_back(tmp);
-        }
-
-        for (int i = 0; i < (int)data->m_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->m_amplitudes[i].size(); j++) {
-                tmp.push_back(data->m_amplitudes[i][j]);
-            }
-            mystrings[string_num]->data->m_amplitudes.push_back(tmp);
-        }
-
-        for (int i = 0; i < (int)data->s_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->s_amplitudes[i].size(); j++) {
-                tmp.push_back(data->s_amplitudes[i][j]);
-            }
-            mystrings[string_num]->data->s_amplitudes.push_back(tmp);
-        }
-
-        for (int i = 0; i < (int)data->left_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->left_amplitudes[i].size(); j++) {
-                tmp.push_back(data->left_amplitudes[i][j]);
-            }
-            mystrings[string_num]->data->left_amplitudes.push_back(tmp);
-        }
-
-        for (int i = 0; i < (int)data->right_amplitudes.size(); i++) {
-            std::vector<std::string> tmp;
-            for (int j = 0; j < (int)data->right_amplitudes[i].size(); j++) {
-                tmp.push_back(data->right_amplitudes[i][j]);
-            }
-            mystrings[string_num]->data->right_amplitudes.push_back(tmp);
-        }
-
-        // now, string is complete, but labels in four-index tensors need to be reordered p*q*sr(pq|sr) -> (pr|qs)
-        if ( (int)mystrings[string_num]->data->tensor.size() == 4 ) {
-
-
-            // mulliken notation: g(prqs) p*q*sr
-            //std::vector<std::string> tmp;
-            //tmp.push_back(mystrings[string_num]->data->tensor[0]);
-            //tmp.push_back(mystrings[string_num]->data->tensor[3]);
-            //tmp.push_back(mystrings[string_num]->data->tensor[1]);
-            //tmp.push_back(mystrings[string_num]->data->tensor[2]);
+        // now, string is complete, but ints need to be pushed onto the 
+        // string, and the labels in four-index integrals need to be 
+        // reordered p*q*sr(pq|sr) -> (pr|qs)
+        if ( integral_type == "eri" || integral_type == "two_body" ) {
 
             // dirac notation: g(pqrs) p*q*sr
             std::vector<std::string> tmp;
-            tmp.push_back(mystrings[string_num]->data->tensor[0]);
-            tmp.push_back(mystrings[string_num]->data->tensor[1]);
-            tmp.push_back(mystrings[string_num]->data->tensor[3]);
-            tmp.push_back(mystrings[string_num]->data->tensor[2]);
+            tmp.push_back(ints.labels[0]);
+            tmp.push_back(ints.labels[1]);
+            tmp.push_back(ints.labels[3]);
+            tmp.push_back(ints.labels[2]);
 
-            mystrings[string_num]->data->tensor.clear();
-            mystrings[string_num]->data->tensor.push_back(tmp[0]);
-            mystrings[string_num]->data->tensor.push_back(tmp[1]);
-            mystrings[string_num]->data->tensor.push_back(tmp[2]);
-            mystrings[string_num]->data->tensor.push_back(tmp[3]);
+            ints.labels.clear();
+            ints.labels.push_back(tmp[0]);
+            ints.labels.push_back(tmp[1]);
+            ints.labels.push_back(tmp[2]);
+            ints.labels.push_back(tmp[3]);
+
+            mystrings[string_num]->data->ints[integral_type].push_back(ints);
+
+        }else if ( integral_type != "none" ) {
+
+            mystrings[string_num]->data->ints[integral_type].push_back(ints);
 
         }
+
         for (int i = 0; i < (int)data->is_boson_dagger.size(); i++) {
             mystrings[string_num]->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
         }
@@ -1966,18 +1821,6 @@ void pq_helper::add_new_string_fermi_vacuum(){
 
     }
 
-    //for (int n_ordered = 0; n_ordered < (int)ordered.size(); n_ordered++) {
-    //    ordered[n_ordered]->check_occ_vir();
-    //}
-
-    // TODO: this only seems to work with normal ordering relative to the true vacuum
-    // alphabetize
-    //mystring->alphabetize(ordered);
-
-    // TODO: moved cleanup to final simplify function?
-    // cancel terms. i think the work is actually done on "ordered" so only need to call once 
-    //mystrings[0]->cleanup(ordered);
-
     // reset data object
     data.reset();
     data = (std::shared_ptr<StringData>)(new StringData());
@@ -1988,19 +1831,16 @@ void pq_helper::simplify() {
 
     std::shared_ptr<pq> mystring (new pq(vacuum));
 
-    // eliminate strings based on delta functions and use delta functions to alter tensor / amplitude labels
+    // eliminate strings based on delta functions and use delta functions to alter integral / amplitude labels
     for (int i = 0; i < (int)ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
-
-        // check for occ/vir pairs in delta functions ... i think this is handled by the normal order procedure
-        //ordered[i]->check_occ_vir();
 
         // apply delta functions
         ordered[i]->gobble_deltas();
 
         // re-classify fluctuation potential terms
-        ordered[i]->reclassify_tensors();
+        ordered[i]->reclassify_integrals();
 
         // replace any funny labels that were added with conventional ones (fermi vacumm only)
         if ( vacuum == "FERMI" ) {

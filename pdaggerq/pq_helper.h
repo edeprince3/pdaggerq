@@ -36,7 +36,7 @@ class pq_helper {
     /// list of strings of operators
     std::vector< std::shared_ptr<pq> > ordered;
 
-    /// strings, tensors, etc.
+    /// strings, amplitudes, integrals, etc.
     std::shared_ptr<StringData> data;
 
     /// vacuum (fermi or true)
@@ -80,37 +80,22 @@ class pq_helper {
     /// set a string of creation / annihilation operators
     void set_string(std::vector<std::string> in);
 
-    /// set labels for a one- or two-body tensor
-    void set_tensor(std::vector<std::string> in, std::string tensor_type);
+    /// set labels for integrals
+    void set_integrals(std::string type, std::vector<std::string> in);
 
-    /// set labels for t1, t2, or t3 amplitudes
-    void set_t_amplitudes(std::vector<std::string> in);
-
-    /// set labels for u1 or u2 amplitudes
-    void set_u_amplitudes(std::vector<std::string> in);
-
-    /// set labels for m1 or m2 amplitudes
-    void set_m_amplitudes(std::vector<std::string> in);
-
-    /// set labels for s1 or s2 amplitudes
-    void set_s_amplitudes(std::vector<std::string> in);
-
-    /// set labels for l1 or l2 amplitudes
-    void set_left_amplitudes(std::vector<std::string> in);
-
-    /// set labels for r1 or r2 amplitudes
-    void set_right_amplitudes(std::vector<std::string> in);
+    /// set labels for amplitudes
+    void set_amplitudes(char type, std::vector<std::string> in, bool is_reference);
 
     /// set a numerical factor
     void set_factor(double in);
 
-    /// add new completed string / tensor / amplitudes / factor
+    /// add new completed string / integrals / amplitudes / factor
     void add_new_string();
 
-    /// add new completed string / tensor / amplitudes / factor (assuming normal order is definied relative to the true vacuum
+    /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the true vacuum
     void add_new_string_true_vacuum();
 
-    /// add new completed string / tensor / amplitudes / factor (assuming normal order is definied relative to the fermi vacuum
+    /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the fermi vacuum
     void add_new_string_fermi_vacuum();
 
     /// add new complete string as a product of operators (i.e., {'h(pq)','t1(ai)'} )
