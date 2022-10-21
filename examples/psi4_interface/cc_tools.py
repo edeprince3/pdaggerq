@@ -33,6 +33,9 @@ from ccsd import ccsd_energy
 from ccsdt import ccsdt_iterations
 from ccsdt import ccsdt_energy
 
+# (t)
+from ccsdt import perturbative_triples_correction
+
 def spatial_to_spin_orbital_oei(h, n, no):
     """
     get spin-orbital-basis one-electron integrals
@@ -317,6 +320,59 @@ def ccsd(mol, do_eom_ccsd = False):
     print('')
 
     return cc_energy + nuclear_repulsion_energy
+
+def ccsd_t(mol):
+    """
+
+    run ccsd(t)
+
+    :param mol: a psi4 molecule
+    :return cc_energy: the total ccsdt energy
+
+    """
+
+    nsocc, nsvirt, fock, tei = get_integrals()
+    
+    # occupied, virtual slices
+    n = np.newaxis
+    o = slice(None, nsocc)
+    v = slice(nsocc, None)
+
+    # orbital energies
+    row, col = fock.shape
+    eps = np.zeros(row)
+    for i in range(0,row):
+        eps[i] = fock[i,i]
+
+    # energy denominators
+    e_abij = 1 / (-eps[v, n, n, n] - eps[n, v, n, n] + eps[n, n, o, n] + eps[n, n, n, o])
+    e_ai = 1 / (-eps[v, n] + eps[n, o])
+
+    # hartree-fock energy
+    hf_energy = 1.0 * einsum('ii', fock[o, o]) -0.5 * einsum('ijij', tei[o, o, o, o])
+
+    # ccsd
+    t1 = np.zeros((nsvirt, nsocc))
+    t2 = np.zeros((nsvirt, nsvirt, nsocc, nsocc))
+    t1, t2 = ccsd_iterations(t1, t2, fock, tei, o, v, e_ai, e_abij, 
+                      hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
+
+    cc_energy = ccsd_energy(t1, t2, fock, tei, o, v)
+
+    # triples 
+    t3 = np.zeros((nsvirt, nsvirt, nsvirt, nsocc, nsocc, nsocc))
+    e_abcijk = 1 / (-eps[v, n, n, n, n, n] - eps[n, v, n, n, n, n] - eps[n, n, v, n, n, n] + eps[n, n, n, o, n, n] + eps[n, n, n, n, o, n] + eps[n, n, n, n, n, o])
+    et = perturbative_triples_correction(t1, t2, t3, fock, tei, o, v, e_abcijk)
+
+    nuclear_repulsion_energy = mol.nuclear_repulsion_energy()
+
+    print("")
+    print("    CCSD Correlation Energy:    {: 20.12f}".format(cc_energy - hf_energy))
+    print("    (T) Correction:             {: 20.12f}".format(et))
+    print("    CCSD(T) Total Energy:       {: 20.12f}".format(cc_energy + et + nuclear_repulsion_energy))
+    print("")
+
+    return cc_energy + et + nuclear_repulsion_energy
 
 def ccsdt(mol):
     """

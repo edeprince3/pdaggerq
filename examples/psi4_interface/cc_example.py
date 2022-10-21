@@ -27,6 +27,7 @@ from numpy import einsum
 import psi4
 
 from cc_tools import ccsd
+from cc_tools import ccsd_t
 from cc_tools import ccsdt
 
 def main():
@@ -57,10 +58,18 @@ def main():
     en = ccsd(mol, do_eom_ccsd = False)
 
     # check ccsd energy against psi4
-    print(en)
-    assert np.isclose(en,-75.019715133639338,rtol = 1e-8, atol = 1e-8)
+    assert np.isclose(en,-75.019715133639338, rtol = 1e-8, atol = 1e-8)
 
     print('    CCSD Total Energy..........................................................PASSED')
+    print('')
+
+    # run ccsd(t)
+    en = ccsd_t(mol)
+
+    # check ccsd energy against psi4
+    assert np.isclose(en,-75.019790965805612, rtol = 1e-8, atol = 1e-8)
+
+    print('    CCSD(T) Total Energy..........................................................PASSED')
     print('')
 
     # CCSDT / HF / 6-31G

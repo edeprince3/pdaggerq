@@ -211,6 +211,7 @@ def doubles_residual(t1, t2, f, g, o, v):
     doubles_res +=  1.000000000000000 * einsum('jiab,an,bm,ei,fj->efmn', g[o, o, v, v], t1, t1, t1, t1, optimize=['einsum_path', (0, 1), (0, 3), (0, 2), (0, 1)])
     
     return doubles_res
+
 def ccsd_iterations(t1, t2, fock, g, o, v, e_ai, e_abij, hf_energy, max_iter=100, 
         e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
            
@@ -274,7 +275,6 @@ def ccsd_iterations(t1, t2, fock, g, o, v, e_ai, e_abij, hf_energy, max_iter=100
     else:
         raise ValueError("CCSD iterations did not converge")
 
+
     return t1, t2
-
-
 

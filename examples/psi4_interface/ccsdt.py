@@ -902,7 +902,6 @@ def triples_residual(t1, t2, t3, f, g, o, v):
     
     return triples_res
 
-
 def ccsdt_iterations(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_iter=100, 
         e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
            
@@ -972,4 +971,102 @@ def ccsdt_iterations(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energ
         raise ValueError("CCSD iterations did not converge")
 
     return t1, t2, t3
+
+#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :
+#
+#['-1.00000000000000', 'P(j,k)', 'f(l,k)', 't3(a,b,c,i,j,l)']
+#['-1.00000000000000', 'f(l,i)', 't3(a,b,c,j,k,l)']
+#['+1.00000000000000', 'P(a,b)', 'f(a,d)', 't3(d,b,c,i,j,k)']
+#['+1.00000000000000', 'f(c,d)', 't3(d,a,b,i,j,k)']
+#['-1.00000000000000', 'P(i,j)', 'P(a,b)', '<l,a||j,k>', 't2(b,c,i,l)']
+#['-1.00000000000000', 'P(a,b)', '<l,a||i,j>', 't2(b,c,k,l)']
+#['-1.00000000000000', 'P(i,j)', '<l,c||j,k>', 't2(a,b,i,l)']
+#['-1.00000000000000', '<l,c||i,j>', 't2(a,b,k,l)']
+#['-1.00000000000000', 'P(j,k)', 'P(b,c)', '<a,b||d,k>', 't2(d,c,i,j)']
+#['-1.00000000000000', 'P(b,c)', '<a,b||d,i>', 't2(d,c,j,k)']
+#['-1.00000000000000', 'P(j,k)', '<b,c||d,k>', 't2(d,a,i,j)']
+#['-1.00000000000000', '<b,c||d,i>', 't2(d,a,j,k)']
+
+def perturbative_triples_residual(t1, t2, t3, f, g, o, v):
+
+    #        -1.0000 P(j,k)f(l,k)*t3(a,b,c,i,j,l)
+    contracted_intermediate = -1.000000000000000 * einsum('lk,abcijl->abcijk', f[o, o], t3)
+    triples_res =  1.00000 * contracted_intermediate + -1.00000 * einsum('abcijk->abcikj', contracted_intermediate)
+    
+    #        -1.0000 f(l,i)*t3(a,b,c,j,k,l)
+    triples_res += -1.000000000000000 * einsum('li,abcjkl->abcijk', f[o, o], t3)
+    
+    #         1.0000 P(a,b)f(a,d)*t3(d,b,c,i,j,k)
+    contracted_intermediate =  1.000000000000000 * einsum('ad,dbcijk->abcijk', f[v, v], t3)
+    triples_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('abcijk->bacijk', contracted_intermediate)
+    
+    #         1.0000 f(c,d)*t3(d,a,b,i,j,k)
+    triples_res +=  1.000000000000000 * einsum('cd,dabijk->abcijk', f[v, v], t3)
+    
+    #        -1.0000 P(i,j)*P(a,b)<l,a||j,k>*t2(b,c,i,l)
+    contracted_intermediate = -1.000000000000000 * einsum('lajk,bcil->abcijk', g[o, v, o, o], t2)
+    triples_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('abcijk->abcjik', contracted_intermediate)  + -1.00000 * einsum('abcijk->bacijk', contracted_intermediate)  +  1.00000 * einsum('abcijk->bacjik', contracted_intermediate)
+    
+    #        -1.0000 P(a,b)<l,a||i,j>*t2(b,c,k,l)
+    contracted_intermediate = -1.000000000000000 * einsum('laij,bckl->abcijk', g[o, v, o, o], t2)
+    triples_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('abcijk->bacijk', contracted_intermediate)
+    
+    #        -1.0000 P(i,j)<l,c||j,k>*t2(a,b,i,l)
+    contracted_intermediate = -1.000000000000000 * einsum('lcjk,abil->abcijk', g[o, v, o, o], t2)
+    triples_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('abcijk->abcjik', contracted_intermediate)
+    
+    #        -1.0000 <l,c||i,j>*t2(a,b,k,l)
+    triples_res += -1.000000000000000 * einsum('lcij,abkl->abcijk', g[o, v, o, o], t2)
+    
+    #        -1.0000 P(j,k)*P(b,c)<a,b||d,k>*t2(d,c,i,j)
+    contracted_intermediate = -1.000000000000000 * einsum('abdk,dcij->abcijk', g[v, v, v, o], t2)
+    triples_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('abcijk->abcikj', contracted_intermediate)  + -1.00000 * einsum('abcijk->acbijk', contracted_intermediate)  +  1.00000 * einsum('abcijk->acbikj', contracted_intermediate)
+    
+    #        -1.0000 P(b,c)<a,b||d,i>*t2(d,c,j,k)
+    contracted_intermediate = -1.000000000000000 * einsum('abdi,dcjk->abcijk', g[v, v, v, o], t2)
+    triples_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('abcijk->acbijk', contracted_intermediate)
+    
+    #        -1.0000 P(j,k)<b,c||d,k>*t2(d,a,i,j)
+    contracted_intermediate = -1.000000000000000 * einsum('bcdk,daij->abcijk', g[v, v, v, o], t2)
+    triples_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('abcijk->abcikj', contracted_intermediate)
+    
+    #        -1.0000 <b,c||d,i>*t2(d,a,j,k)
+    triples_res += -1.000000000000000 * einsum('bcdi,dajk->abcijk', g[v, v, v, o], t2)
+    
+    return triples_res
+
+#    E(t)
+#
+#['+0.25000000000000', '<k,j||b,c>', 'l1(i,a)', 't3(b,c,a,i,k,j)']
+#['+0.25000000000000', '<l,k||c,j>', 'l2(i,j,b,a)', 't3(c,b,a,i,l,k)']
+#['+0.25000000000000', '<k,b||c,d>', 'l2(i,j,b,a)', 't3(c,d,a,i,j,k)']
+
+def perturbative_triples_energy(t1, t2, t3, f, g, o, v):
+
+    l1 = t1.transpose(1, 0)
+    l2 = t2.transpose(2, 3, 0, 1)
+
+    #         0.2500 <k,j||b,c>*l1(i,a)*t3(b,c,a,i,k,j)
+    energy =  0.250000000000000 * einsum('kjbc,ia,bcaikj', g[o, o, v, v], l1, t3, optimize=['einsum_path', (0, 2), (0, 1)])
+    
+    #         0.2500 <l,k||c,j>*l2(i,j,b,a)*t3(c,b,a,i,l,k)
+    energy +=  0.250000000000000 * einsum('lkcj,ijba,cbailk', g[o, o, v, o], l2, t3, optimize=['einsum_path', (0, 2), (0, 1)])
+    
+    #         0.2500 <k,b||c,d>*l2(i,j,b,a)*t3(c,d,a,i,j,k)
+    energy +=  0.250000000000000 * einsum('kbcd,ijba,cdaijk', g[o, v, v, v], l2, t3, optimize=['einsum_path', (0, 2), (0, 1)])
+    
+    return energy
+
+def perturbative_triples_correction(t1, t2, t3, fock, g, o, v, e_abcijk):
+
+    fock_e_abcijk = np.reciprocal(e_abcijk)
+
+    residual_triples = perturbative_triples_residual(t1, t2, t3, fock, g, o, v)
+    triples_res = residual_triples + fock_e_abcijk * t3
+    new_triples = triples_res * e_abcijk
+    t3 = new_triples
+
+    et = perturbative_triples_energy(t1, t2, t3, fock, g, o, v)
+
+    return et
 
