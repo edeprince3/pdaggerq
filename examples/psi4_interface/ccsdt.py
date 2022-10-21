@@ -1102,7 +1102,7 @@ def perturbative_triples_correction(t1, t2, t3, fock, g, o, v, e_abcijk):
     :param v: virtual orbitals slice
     :param e_abcijk: triples energy denominator 
 
-    :return et: the perurbative triples correction to the ccsd energy
+    :return et: the perurbative triples correction to the ccsd energy, (t)
 
     """
 
