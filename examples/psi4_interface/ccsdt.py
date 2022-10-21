@@ -988,6 +988,22 @@ def ccsdt_iterations(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energ
 #['-1.00000000000000', '<b,c||d,i>', 't2(d,a,j,k)']
 
 def perturbative_triples_residual(t1, t2, t3, f, g, o, v):
+    """
+
+    evaluate perturbative triples residual 
+
+    triples_res = < abc;ijk | e(-t3) F e(t3) + e(-t2) V e(t2) | 0 >
+
+    :param t2: CCSD doubles amplitudes
+    :param t3: approximate triples amplitudes (should be zero)
+    :param fock: fock matrix
+    :param g: two-electron integrals
+    :param o: occupied orbitals slice
+    :param v: virtual orbitals slice
+
+    :return triples_res: defined above
+
+    """
 
     #        -1.0000 P(j,k)f(l,k)*t3(a,b,c,i,j,l)
     contracted_intermediate = -1.000000000000000 * einsum('lk,abcijl->abcijk', f[o, o], t3)
@@ -1042,6 +1058,21 @@ def perturbative_triples_residual(t1, t2, t3, f, g, o, v):
 #['+0.25000000000000', '<k,b||c,d>', 'l2(i,j,b,a)', 't3(c,d,a,i,j,k)']
 
 def perturbative_triples_energy(t1, t2, t3, f, g, o, v):
+    """
+
+    evaluate the (T) correction to CCSD energy
+
+    :param t1: CCSD singles amplitudes
+    :param t2: CCSD doubles amplitudes
+    :param t3: approximate triples amplitudes 
+    :param fock: fock matrix
+    :param g: two-electron integrals
+    :param o: occupied orbitals slice
+    :param v: virtual orbitals slice
+
+    :return energy: the perurbative triples correction to the ccsd energy
+
+    """
 
     l1 = t1.transpose(1, 0)
     l2 = t2.transpose(2, 3, 0, 1)
@@ -1058,6 +1089,22 @@ def perturbative_triples_energy(t1, t2, t3, f, g, o, v):
     return energy
 
 def perturbative_triples_correction(t1, t2, t3, fock, g, o, v, e_abcijk):
+    """
+
+    evaluate the (T) correction to CCSD energy
+
+    :param t1: CCSD singles amplitudes
+    :param t2: CCSD doubles amplitudes
+    :param t3: approximate triples amplitudes (to be determined)
+    :param fock: fock matrix
+    :param g: two-electron integrals
+    :param o: occupied orbitals slice
+    :param v: virtual orbitals slice
+    :param e_abcijk: triples energy denominator 
+
+    :return et: the perurbative triples correction to the ccsd energy
+
+    """
 
     fock_e_abcijk = np.reciprocal(e_abcijk)
 
