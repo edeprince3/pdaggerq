@@ -20,30 +20,9 @@ spin-orbital CCSDT amplitude equations
 import numpy as np
 from numpy import einsum
 
+from ccsd import coupled_cluster_energy
 
-def ccsdt_energy(t1, t2, t3, f, g, o, v):
-
-    #    < 0 | e(-T) H e(T) | 0> :
-    
-    #	  1.0000 f(i,i)
-    energy =  1.000000000000000 * einsum('ii', f[o, o])
-    
-    #	  1.0000 f(i,a)*t1(a,i)
-    energy +=  1.000000000000000 * einsum('ia,ai', f[o, v], t1)
-    
-    #	 -0.5000 <j,i||j,i>
-    energy += -0.500000000000000 * einsum('jiji', g[o, o, o, o])
-    
-    #	  0.2500 <j,i||a,b>*t2(a,b,j,i)
-    energy +=  0.250000000000000 * einsum('jiab,abji', g[o, o, v, v], t2)
-    
-    #	 -0.5000 <j,i||a,b>*t1(a,i)*t1(b,j)
-    energy += -0.500000000000000 * einsum('jiab,ai,bj', g[o, o, v, v], t1, t1, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    return energy
-
-
-def singles_residual(t1, t2, t3, f, g, o, v):
+def ccsdt_singles_residual(t1, t2, t3, f, g, o, v):
 
     #    < 0 | i* a e(-T) H e(T) | 0> :
     
@@ -95,7 +74,7 @@ def singles_residual(t1, t2, t3, f, g, o, v):
     return singles_res
 
 
-def doubles_residual(t1, t2, t3, f, g, o, v):
+def ccsdt_doubles_residual(t1, t2, t3, f, g, o, v):
 
     #    < 0 | i* j* b a e(-T) H e(T) | 0> :
     
@@ -241,7 +220,7 @@ def doubles_residual(t1, t2, t3, f, g, o, v):
     return doubles_res
 
 
-def triples_residual(t1, t2, t3, f, g, o, v):
+def ccsdt_triples_residual(t1, t2, t3, f, g, o, v):
 
     #    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :
     
@@ -919,7 +898,7 @@ def ccsdt_iterations(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energ
     fock_e_ai = np.reciprocal(e_ai)
     fock_e_abij = np.reciprocal(e_abij)
     fock_e_abcijk = np.reciprocal(e_abcijk)
-    old_energy = ccsdt_energy(t1, t2, t3, fock, g, o, v)
+    old_energy = coupled_cluster_energy(t1, t2, fock, g, o, v)
 
     print("")
     print("    ==> CCSDT amplitude equations <==")
@@ -927,9 +906,9 @@ def ccsdt_iterations(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energ
     print("     Iter               Energy                 |dE|                 |dT|")
     for idx in range(max_iter):
 
-        residual_singles = singles_residual(t1, t2, t3, fock, g, o, v)
-        residual_doubles = doubles_residual(t1, t2, t3, fock, g, o, v)
-        residual_triples = triples_residual(t1, t2, t3, fock, g, o, v)
+        residual_singles = ccsdt_singles_residual(t1, t2, t3, fock, g, o, v)
+        residual_doubles = ccsdt_doubles_residual(t1, t2, t3, fock, g, o, v)
+        residual_triples = ccsdt_triples_residual(t1, t2, t3, fock, g, o, v)
 
         res_norm = np.linalg.norm(residual_singles) + np.linalg.norm(residual_doubles) + np.linalg.norm(residual_triples)
 
@@ -953,7 +932,7 @@ def ccsdt_iterations(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energ
             new_triples = new_vectorized_iterate[t1_dim+t2_dim:].reshape(t3.shape)
             old_vec = new_vectorized_iterate
 
-        current_energy = ccsdt_energy(new_singles, new_doubles, new_triples, fock, g, o, v)
+        current_energy = coupled_cluster_energy(new_singles, new_doubles, fock, g, o, v)
         delta_e = np.abs(old_energy - current_energy)
 
         print("    {: 5d} {: 20.12f} {: 20.12f} {: 20.12f}".format(idx, current_energy - hf_energy, delta_e, res_norm))

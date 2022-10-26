@@ -20,7 +20,7 @@ spin-orbital CCSD amplitude equations
 import numpy as np
 from numpy import einsum
 
-def ccsd_energy(t1, t2, f, g, o, v):
+def coupled_cluster_energy(t1, t2, f, g, o, v):
 
     #    < 0 | e(-T) H e(T) | 0> :
     
@@ -41,7 +41,7 @@ def ccsd_energy(t1, t2, f, g, o, v):
 
     return energy
     
-def singles_residual(t1, t2, f, g, o, v):
+def ccsd_singles_residual(t1, t2, f, g, o, v):
     
     #    < 0 | m* e e(-T) H e(T) | 0> :
     
@@ -89,7 +89,7 @@ def singles_residual(t1, t2, f, g, o, v):
 
     return singles_res    
 
-def doubles_residual(t1, t2, f, g, o, v):
+def ccsd_doubles_residual(t1, t2, f, g, o, v):
     
     #    < 0 | m* n* f e e(-T) H e(T) | 0> :
     
@@ -227,7 +227,7 @@ def ccsd_iterations(t1, t2, fock, g, o, v, e_ai, e_abij, hf_energy, max_iter=100
 
     fock_e_ai = np.reciprocal(e_ai)
     fock_e_abij = np.reciprocal(e_abij)
-    old_energy = ccsd_energy(t1, t2, fock, g, o, v)
+    old_energy = coupled_cluster_energy(t1, t2, fock, g, o, v)
 
     print("")
     print("    ==> CCSD amplitude equations <==")
@@ -235,8 +235,8 @@ def ccsd_iterations(t1, t2, fock, g, o, v, e_ai, e_abij, hf_energy, max_iter=100
     print("     Iter               Energy                 |dE|                 |dT|")
     for idx in range(max_iter):
 
-        residual_singles = singles_residual(t1, t2, fock, g, o, v)
-        residual_doubles = doubles_residual(t1, t2, fock, g, o, v)
+        residual_singles = ccsd_singles_residual(t1, t2, fock, g, o, v)
+        residual_doubles = ccsd_doubles_residual(t1, t2, fock, g, o, v)
 
         res_norm = np.linalg.norm(residual_singles) + np.linalg.norm(residual_doubles)
 
@@ -257,7 +257,7 @@ def ccsd_iterations(t1, t2, fock, g, o, v, e_ai, e_abij, hf_energy, max_iter=100
             new_doubles = new_vectorized_iterate[t1_dim:].reshape(t2.shape)
             old_vec = new_vectorized_iterate
 
-        current_energy = ccsd_energy(new_singles, new_doubles, fock, g, o, v)
+        current_energy = coupled_cluster_energy(new_singles, new_doubles, fock, g, o, v)
         delta_e = np.abs(old_energy - current_energy)
 
         print("    {: 5d} {: 20.12f} {: 20.12f} {: 20.12f}".format(idx, current_energy - hf_energy, delta_e, res_norm))

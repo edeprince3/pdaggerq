@@ -27,11 +27,10 @@ import psi4
 
 # ccsd iterations
 from ccsd import ccsd_iterations
-from ccsd import ccsd_energy
+from ccsd import coupled_cluster_energy
 
 # ccsdt iterations
 from ccsdt import ccsdt_iterations
-from ccsdt import ccsdt_energy
 
 # (t)
 from ccsdt import perturbative_triples_correction
@@ -285,7 +284,7 @@ def ccsd(mol, do_eom_ccsd = False):
     t1, t2 = ccsd_iterations(t1, t2, fock, tei, o, v, e_ai, e_abij,
                       hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
 
-    cc_energy = ccsd_energy(t1, t2, fock, tei, o, v)
+    cc_energy = coupled_cluster_energy(t1, t2, fock, tei, o, v)
 
     nuclear_repulsion_energy = mol.nuclear_repulsion_energy()
 
@@ -357,7 +356,7 @@ def ccsd_t(mol):
     t1, t2 = ccsd_iterations(t1, t2, fock, tei, o, v, e_ai, e_abij, 
                       hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
 
-    cc_energy = ccsd_energy(t1, t2, fock, tei, o, v)
+    cc_energy = coupled_cluster_energy(t1, t2, fock, tei, o, v)
 
     # triples 
     t3 = np.zeros((nsvirt, nsvirt, nsvirt, nsocc, nsocc, nsocc))
@@ -414,7 +413,7 @@ def ccsdt(mol):
     #t1, t2 = ccsd_iterations(t1, t2, fock, tei, o, v, e_ai, e_abij,
     #                  hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
 
-    cc_energy = ccsdt_energy(t1, t2, t3, fock, tei, o, v)
+    cc_energy = coupled_cluster_energy(t1, t2, fock, tei, o, v)
 
     nuclear_repulsion_energy = mol.nuclear_repulsion_energy()
 
