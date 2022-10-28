@@ -28,6 +28,8 @@ import psi4
 # ccsd iterations
 from ccsd import ccsd_iterations
 from ccsd import coupled_cluster_energy
+from ccsd import ccsd_iterations_with_spin
+from ccsd import ccsd_energy_with_spin
 
 # ccsdt iterations
 from ccsdt import ccsdt_iterations
@@ -185,6 +187,71 @@ def spatial_to_spin_orbital_tei(g, n, no):
     
     return sg
 
+def get_integrals_with_spin():
+    """
+
+    get one- and two-electron integrals from psi4, with spin
+
+    :return nsocc: number of occupied orbitals
+    :return nsvirt: number of virtual orbitals
+    :return fock: the fock matrix (spin-orbital basis)
+    :return gtei: antisymmetrized two-electron integrals (spin-orbital basis)
+
+    """
+
+    # compute the Hartree-Fock energy and wave function
+    scf_e, wfn = psi4.energy('SCF', return_wfn=True)
+
+    # number of doubly occupied orbitals
+    noa = wfn.nalpha()
+    nob = wfn.nbeta()
+    
+    # total number of orbitals
+    nmo = wfn.nmo()
+    
+    # number of virtual orbitals
+    nva = nmo - noa
+    nvb = nmo - nob
+
+    # orbital energies
+    epsilon_a     = np.asarray(wfn.epsilon_a())
+    epsilon_b     = np.asarray(wfn.epsilon_b())
+    
+    # molecular orbitals (spatial):
+    Ca = wfn.Ca()
+    Cb = wfn.Cb()
+
+    # use Psi4's MintsHelper to generate integrals
+    mints = psi4.core.MintsHelper(wfn.basisset())
+
+    # build the one-electron integrals
+    H = np.asarray(mints.ao_kinetic()) + np.asarray(mints.ao_potential())
+    Ha = np.einsum('uj,vi,uv', Ca, Ca, H)
+    Hb = np.einsum('uj,vi,uv', Cb, Cb, H)
+
+    # build the two-electron integrals:
+    g_aaaa = np.asarray(mints.mo_eri(Ca, Ca, Ca, Ca))
+    g_bbbb = np.asarray(mints.mo_eri(Cb, Cb, Cb, Cb))
+    g_abab = np.asarray(mints.mo_eri(Ca, Ca, Cb, Cb))
+
+    # antisymmetrize g(ijkl) = <ij|kl> - <ij|lk> = (ik|jl) - (il|jk)
+    g_aaaa = np.einsum('ikjl->ijkl', g_aaaa) - np.einsum('iljk->ijkl', g_aaaa)
+    g_bbbb = np.einsum('ikjl->ijkl', g_bbbb) - np.einsum('iljk->ijkl', g_bbbb)
+    g_abab = np.einsum('ikjl->ijkl', g_abab)
+
+    # occupied, virtual slices
+    n = np.newaxis
+    oa = slice(None, noa)
+    ob = slice(None, nob)
+    va = slice(noa, None)
+    vb = slice(nob, None)
+
+    # build spin-orbital fock matrix
+    fa = Ha + np.einsum('piqi->pq', g_aaaa[:, oa, :, oa]) + np.einsum('piqi->pq', g_abab[:, ob, :, ob])
+    fb = Hb + np.einsum('piqi->pq', g_bbbb[:, ob, :, ob]) + np.einsum('ipiq->pq', g_abab[oa, : , oa, :])
+
+    return noa, nob, nva, nvb, fa, fb, g_aaaa, g_bbbb, g_abab 
+
 def get_integrals():
     """
 
@@ -247,16 +314,99 @@ def get_integrals():
 
     return nsocc, nsvirt, fock, gtei
 
-def ccsd(mol, do_eom_ccsd = False):
+def ccsd_with_spin(mol):
+    """
+
+    run ccsd, with spin
+
+    :param mol: a psi4 molecule
+    :return cc_energy: the total ccsd energy
+
+    """
+
+    nocc_a, nocc_b, nvirt_a, nvirt_b, fa, fb, g_aaaa, g_bbbb, g_abab  = get_integrals_with_spin()
+    
+    # occupied, virtual slices
+    n = np.newaxis
+    oa = slice(None, nocc_a)
+    ob = slice(None, nocc_b)
+    va = slice(nocc_a, None)
+    vb = slice(nocc_b, None)
+
+    # orbital energies
+    row, col = fa.shape
+    eps_a = np.zeros(row)
+    for i in range(0,row):
+        eps_a[i] = fa[i,i]
+
+    row, col = fb.shape
+    eps_b = np.zeros(row)
+    for i in range(0,row):
+        eps_b[i] = fb[i,i]
+
+    # energy denominators
+    e_aaaa_abij = 1 / ( - eps_a[va, n, n, n] 
+                        - eps_a[n, va, n, n] 
+                        + eps_a[n, n, oa, n] 
+                        + eps_a[n, n, n, oa] ) 
+    e_bbbb_abij = 1 / ( - eps_b[vb, n, n, n] 
+                        - eps_b[n, vb, n, n] 
+                        + eps_b[n, n, ob, n] 
+                        + eps_b[n, n, n, ob] ) 
+    e_abab_abij = 1 / ( - eps_a[va, n, n, n] 
+                        - eps_b[n, vb, n, n] 
+                        + eps_a[n, n, oa, n] 
+                        + eps_b[n, n, n, ob] ) 
+
+    e_aa_ai = 1 / (-eps_a[va, n] + eps_a[n, oa])
+    e_bb_ai = 1 / (-eps_b[vb, n] + eps_b[n, ob])
+
+    # hartree-fock energy
+    hf_energy = ( einsum('ii', fa[oa, oa]) + einsum('ii', fb[ob, ob])
+              - 0.5 * einsum('ijij', g_aaaa[oa, oa, oa, oa])
+              - 0.5 * einsum('ijij', g_bbbb[ob, ob, ob, ob])
+              - 1.0 * einsum('ijij', g_abab[oa, ob, oa, ob]) )
+
+    nuclear_repulsion_energy = mol.nuclear_repulsion_energy()
+
+    #print('hartree-fock energy: {: 20.12f}'.format(hf_energy + nuclear_repulsion_energy))
+
+    t1_aa = np.zeros((nvirt_a, nocc_a))
+    t1_bb = np.zeros((nvirt_a, nocc_a))
+
+    t2_aaaa = np.zeros((nvirt_a, nvirt_a, nocc_a, nocc_a))
+    t2_bbbb = np.zeros((nvirt_a, nvirt_a, nocc_a, nocc_a))
+    t2_abab = np.zeros((nvirt_a, nvirt_a, nocc_a, nocc_a))
+
+    t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab = ccsd_iterations_with_spin(t1_aa, t1_bb,
+            t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb, 
+            e_aa_ai, e_bb_ai, e_aaaa_abij, e_bbbb_abij, e_abab_abij,
+            hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
+
+    #cc_energy = coupled_cluster_energy_spatial(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+    print("")
+    print("    CCSD Correlation Energy: {: 20.12f}".format(cc_energy - hf_energy))
+    print("    CCSD Total Energy:       {: 20.12f}".format(cc_energy + nuclear_repulsion_energy))
+    print("")
+
+    return cc_energy + nuclear_repulsion_energy
+
+def ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True):
     """
 
     run ccsd
 
     :param mol: a psi4 molecule
     :param do_eom_ccsd: do run eom-ccsd? default false
+    :param use_spin_orbital_basis: do use spin-obital basis? default false
     :return cc_energy: the total ccsd energy
 
     """
+
+    if not use_spin_orbital_basis : 
+        ccsd_with_spin(mol)
+        return
 
     nsocc, nsvirt, fock, tei = get_integrals()
     

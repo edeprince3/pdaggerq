@@ -55,7 +55,7 @@ def main():
     psi4.set_options(psi4_options)
 
     # run ccsd
-    en = ccsd(mol, do_eom_ccsd = False)
+    en = ccsd(mol, do_eom_ccsd = False ) #, use_spin_orbital_basis = False)
 
     # check ccsd energy against psi4
     assert np.isclose(en,-75.019715133639338, rtol = 1e-8, atol = 1e-8)
