@@ -96,7 +96,7 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
     return amps;
 }
 
-/// print amplitudes (TODO: generalize for spin)
+/// print amplitudes 
 void amplitudes::print(char symbol) {
 
     if ( labels.size() > 0 ) {
@@ -246,7 +246,7 @@ integrals integrals::operator=(const integrals& rhs) {
     return ints;
 }
 
-/// print integrals (TODO: generalize for spin)
+/// print integrals 
 void integrals::print(std::string symbol) {
 
     if ( symbol == "two_body") {
