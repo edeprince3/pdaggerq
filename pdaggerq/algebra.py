@@ -238,7 +238,6 @@ class TensorTerm:
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
                 einsum_tensors) + ", optimize=\'optimal\')"
-            print('hi', einsum_path_string)
             einsum_optimal_path = eval(einsum_path_string)
             # print(einsum_optimal_path[1])
             teinsum_string += ",".join(
