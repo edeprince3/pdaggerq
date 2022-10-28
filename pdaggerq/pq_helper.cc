@@ -21,7 +21,6 @@
 //  limitations under the License.
 //
 
-
 #ifndef _python_api2_h_
 #define _python_api2_h_
 
@@ -71,6 +70,7 @@ void export_pq_helper(py::module& m) {
         .def("print", &pq_helper::print)
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
+        .def("fully_contracted_strings_with_spin", &pq_helper::fully_contracted_strings_with_spin)
         .def("print_fully_contracted", &pq_helper::print_fully_contracted)
         .def("print_one_body", &pq_helper::print_one_body)
         .def("print_two_body", &pq_helper::print_two_body);
@@ -96,7 +96,6 @@ void removeParentheses(std::string &x)
   x.erase(it, std::end(x));
 
 }
-
 
 pq_helper::pq_helper(std::string vacuum_type)
 {
@@ -475,20 +474,7 @@ void pq_helper::add_quadruple_commutator(double factor,
 
 void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
-    // first check if right-/left-hand operator type works with 
-    // chosen bra or ket
-/*
-    if ( bra != "VACUUM" || ket != "VACUUM" ) {
-        if ( right_operators_type != "EE" || left_operators_type != "EE" ) {
-            printf("\n");
-            printf("    error: invalid bra/ket/operator type combination\n");
-            printf("\n");
-            exit(1);
-        }
-    }
-*/
-
-    // now check if there is a fluctuation potential operator 
+    // check if there is a fluctuation potential operator 
     // that needs to be split into multiple terms
 
     std::vector<std::string> tmp;
@@ -580,7 +566,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         
         return;
     }
-
 
     // apply any extra operators on left or right:
     std::vector<std::string> save;
@@ -1877,6 +1862,37 @@ void pq_helper::print_fully_contracted() {
         ordered[i]->print();
     }
     printf("\n");
+
+}
+
+// get list of fully-contracted strings, after spin tracing
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::vector<std::string> spin_labels) {
+
+    // perform spin tracing
+
+    std::vector< std::shared_ptr<pq> > spin_traced;
+
+    for (size_t i = 0; i < ordered.size(); i++) {
+        if ( ordered[i]->symbol.size() != 0 ) continue;
+        if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        std::vector< std::shared_ptr<pq> > tmp;
+        ordered[i]->spin_tracing(tmp, spin_labels);
+        for (size_t j = 0; j < tmp.size(); j++) {
+            spin_traced.push_back(tmp[j]);
+        }
+    }
+
+    std::vector<std::vector<std::string> > list;
+    for (int i = 0; i < (int)spin_traced.size(); i++) {
+        if ( spin_traced[i]->symbol.size() != 0 ) continue;
+        if ( spin_traced[i]->data->is_boson_dagger.size() != 0 ) continue;
+        std::vector<std::string> my_string = spin_traced[i]->get_string_with_spin();
+        if ( (int)my_string.size() > 0 ) {
+            list.push_back(my_string);
+        }
+    }
+
+    return list;
 
 }
 

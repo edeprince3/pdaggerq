@@ -145,6 +145,9 @@ class pq_helper {
     /// get list of fully-contracted strings
     std::vector<std::vector<std::string> > fully_contracted_strings();
 
+    /// get list of fully-contracted strings, after spin tracing
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::vector<std::string> spin_labels);
+
     /// print one-body strings
     void print_one_body();
 

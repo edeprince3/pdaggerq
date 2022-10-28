@@ -80,9 +80,13 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
 
     amps.labels.clear();
     amps.numerical_labels.clear();
+    amps.spin_labels.clear();
 
     for (size_t i = 0; i < rhs.labels.size(); i++) {
         amps.labels.push_back(rhs.labels[i]);
+    }
+    for (size_t i = 0; i < rhs.spin_labels.size(); i++) {
+        amps.spin_labels.push_back(rhs.spin_labels[i]);
     }
 
     amps.is_reference = rhs.is_reference;
@@ -92,7 +96,7 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
     return amps;
 }
 
-/// print amplitudes
+/// print amplitudes (TODO: generalize for spin)
 void amplitudes::print(char symbol) {
 
     if ( labels.size() > 0 ) {
@@ -119,7 +123,7 @@ void amplitudes::print(char symbol) {
     }
 }
 
-/// print amplitudes to string
+/// print amplitudes to string 
 std::string amplitudes::to_string(char symbol) {
 
     std::string val;
@@ -134,6 +138,40 @@ std::string amplitudes::to_string(char symbol) {
             order++;
         }
         val = symbol_s + std::to_string(order) + "(";
+        for (int j = 0; j < size-1; j++) {
+            val += labels[j] + ",";
+        }
+        val += labels[size-1] + ")";
+
+    }
+
+    if ( is_reference ) {
+        val = symbol_s + "0";
+    }
+
+    return val;
+}
+
+/// print amplitudes to string with spin labels
+std::string amplitudes::to_string_with_spin(char symbol) {
+
+    std::string val;
+
+    std::string symbol_s(1, symbol);
+
+    std::string spin = "_";
+    for (size_t k = 0; k < spin_labels.size(); k++) {
+        spin += spin_labels[k];
+    }
+
+    if ( labels.size() > 0 ) {
+
+        size_t size  = labels.size();
+        size_t order = labels.size() / 2;
+        if ( 2*order != size ) {
+            order++;
+        }
+        val = symbol_s + std::to_string(order) + spin + "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
         }
@@ -196,15 +234,19 @@ integrals integrals::operator=(const integrals& rhs) {
 
     ints.labels.clear();
     ints.numerical_labels.clear();
+    ints.spin_labels.clear();
 
     for (size_t i = 0; i < rhs.labels.size(); i++) {
         ints.labels.push_back(rhs.labels[i]);
+    }
+    for (size_t i = 0; i < rhs.spin_labels.size(); i++) {
+        ints.spin_labels.push_back(rhs.spin_labels[i]);
     }
 
     return ints;
 }
 
-/// print integrals
+/// print integrals (TODO: generalize for spin)
 void integrals::print(std::string symbol) {
 
     if ( symbol == "two_body") {
@@ -311,6 +353,65 @@ std::string integrals::to_string(std::string symbol) {
             + ")";
     }else if ( symbol == "d-") {
         val = "d-("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }
+
+    return val;
+}
+
+/// print integrals to string with spin labels
+std::string integrals::to_string_with_spin(std::string symbol) {
+
+    std::string val;
+
+    std::string spin = "_";
+    for (size_t k = 0; k < spin_labels.size(); k++) {
+        spin += spin_labels[k];
+    }
+
+    if ( symbol == "two_body") {
+        val = "g" + spin + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ","
+            + labels[2]
+            + ","
+            + labels[3]
+            + ")";
+    }else if ( symbol == "eri" ) {
+        val = "<"
+            + labels[0]
+            + ","
+            + labels[1]
+            + "||"
+            + labels[2]
+            + ","
+            + labels[3]
+            + ">" + spin;
+    }else if ( symbol == "core") {
+        val = "h" + spin + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "fock") {
+        val = "f" + spin + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "d+") {
+        val = "d+" + spin + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "d-") {
+        val = "d-" + spin + "("
             + labels[0]
             + ","
             + labels[1]

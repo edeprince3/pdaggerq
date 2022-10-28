@@ -44,6 +44,9 @@ class tensor {
     /// tensor numerical labels
     std::vector<int> numerical_labels;
 
+    /// spin labels (human readable)
+    std::vector<std::string> spin_labels;
+
     /// number of permutations required to sort tensor labels
     int permutations = 0;
 
@@ -55,7 +58,7 @@ class tensor {
         exit(1);
     }
 
-    /// comparison between two tensors
+    /// comparison between two tensors (warning: ignores spin)
     bool operator==(const tensor& rhs) {
         return ( numerical_labels == rhs.numerical_labels );
     }
@@ -80,6 +83,14 @@ class tensor {
     virtual std::string to_string(std::string symbol) {
         printf("\n");
         printf("    to_string() has not been implemented for this tensor type\n");
+        printf("\n");
+        exit(1);
+    }
+
+    /// print tensor to string with spin labels
+    virtual std::string to_string_with_spin(std::string symbol) {
+        printf("\n");
+        printf("    to_string_with_spin() has not been implemented for this tensor type\n");
         printf("\n");
         exit(1);
     }
@@ -111,6 +122,9 @@ class amplitudes: public tensor {
     /// print amplitudes to string
     std::string to_string(char symbol);
 
+    /// print amplitudes to string with spin labels
+    std::string to_string_with_spin(char symbol);
+
 };
 
 class integrals: public tensor {
@@ -134,6 +148,9 @@ class integrals: public tensor {
 
     /// print integrals to string
     std::string to_string(std::string symbol);
+
+    /// print integrals to string with spin labels
+    std::string to_string_with_spin(std::string symbol);
 
 };
 

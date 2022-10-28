@@ -125,6 +125,9 @@ class pq {
     /// get string information
     std::vector<std::string> get_string();
 
+    /// get string information (with spin)
+    std::vector<std::string> get_string_with_spin();
+
     /// apply delta functions to amplitude and integral labels
     void gobble_deltas();
 
@@ -145,6 +148,9 @@ class pq {
 
     /// cancel terms where appropriate
     void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
+
+    /// expand sums to include spin and zero terms where appropriate
+    void spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vector<std::string> spin_labels);
 
     /// consolidate terms that differ by summed labels plus permutations
     void consolidate_permutations_plus_swap(
@@ -239,6 +245,14 @@ class pq {
 
     /// re-classify fluctuation potential terms
     void reclassify_integrals();
+
+    /// add spin labels to a string
+    bool add_spins(std::vector<std::shared_ptr<pq> > &list);
+
+    /// set spin labels in integrals and amplitudes
+    void set_spin_everywhere(std::string target, std::string spin);
+
+
 };
 
 }
