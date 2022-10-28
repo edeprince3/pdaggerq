@@ -24,7 +24,8 @@ import numpy as np
 # we can build the optimal tensor contraction orderings
 # NOTE: THESE ARE PROTECTED VARIABLE NAMES FOR THIS MODULE
 from pdaggerq.config import (o, v, h, f, g, t1, t2, t3, t4, l1, l2, l3, l4, r1,
-                             r2, r3, r4, kd)
+                             r2, r3, r4, kd, g_aaaa, g_bbbb, g_abab, f_aa, f_bb,
+                             t1_aa, t1_bb, t2_aaaa, t2_abab, t2_bbbb, h_aa, h_bb)
 
 
 class Index:
@@ -62,12 +63,13 @@ class BaseTerm:
     to produce new TensorTerms.  They can also be checked for equality.
     """
 
-    def __init__(self, *, indices: Tuple[Index, ...], name: str):
+    def __init__(self, *, indices: Tuple[Index, ...], name: str, spin: str):
+        self.spin = spin
         self.name = name
         self.indices = indices
 
     def __repr__(self):
-        return "{}".format(self.name) + "(" + ",".join(
+        return "{}".format(self.name) + "{}".format(self.spin) + "(" + ",".join(
             repr(xx) for xx in self.indices) + ")"
 
     def __str__(self):
@@ -112,12 +114,13 @@ class TensorTermAction:
     minimize contraction work.
     """
 
-    def __init__(self, *, indices: Tuple[Index, ...], name: str):
+    def __init__(self, *, indices: Tuple[Index, ...], name: str, spin: str):
         self.name = name
+        self.spin = spin
         self.indices = indices
 
     def __repr__(self):
-        return "{}".format(self.name) + "(" + ",".join(
+        return "{}".format(self.name) + "{}".format(self.spin) + "(" + ",".join(
             repr(xx) for xx in self.indices) + ")"
 
     def __str__(self):
@@ -217,10 +220,10 @@ class TensorTerm:
                     tensor_index_ranges.append(idx_type)
 
             if bt.name in ['t1', 't2', 't3', 'l2', 'l1', 'r1', 'r2']:
-                einsum_tensors.append(bt.name)
+                einsum_tensors.append(bt.name + bt.spin)
             else:
                 einsum_tensors.append(
-                    bt.name + "[" + ", ".join(tensor_index_ranges) + "]")
+                    bt.name + bt.spin + "[" + ", ".join(tensor_index_ranges) + "]")
             einsum_strings.append("".join(string_indices))
         if tensor_out_idx:
             out_tensor_ordered = list(filter(None, [
@@ -235,6 +238,7 @@ class TensorTerm:
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
                 einsum_tensors) + ", optimize=\'optimal\')"
+            print('hi', einsum_path_string)
             einsum_optimal_path = eval(einsum_path_string)
             # print(einsum_optimal_path[1])
             teinsum_string += ",".join(
@@ -419,20 +423,20 @@ class D1(BaseTerm):
 
 class T1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='t1'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, indices=Tuple[Index, ...], name='t1', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
 
     def __repr__(self):
-        return "t1({},{})".format(self.indices[0], self.indices[1])
+        return "t1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
 
 
 class T2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='t2'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, indices=Tuple[Index, ...], name='t2', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
 
     def __repr__(self):
-        return "t2({},{},{},{})".format(self.indices[0], self.indices[1],
+        return "t2{}({},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
                                         self.indices[2], self.indices[3])
 
 class T3amps(BaseTerm):
@@ -461,34 +465,32 @@ class T4amps(BaseTerm):
                                                     self.indices[6],
                                                     self.indices[7])
 
-
-
 class OneBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='h'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, spin='', indices=Tuple[Index, ...], name='h'):
+        super().__init__(spin=spin, indices=indices, name=name)
 
     def __repr__(self):
-        return "h({},{})".format(self.indices[0], self.indices[1])
+        return "h{}({},{})".format(self.spin, self.indices[0], self.indices[1])
 
 
 class FockMat(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='f'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, indices=Tuple[Index, ...], name='f', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
 
     def __repr__(self):
-        return "f({},{})".format(self.indices[0], self.indices[1])
+        return "f{}({},{})".format(self.spin, self.indices[0], self.indices[1])
 
 
 class TwoBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='g'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, spin='', indices=Tuple[Index, ...], name='g'):
+        super().__init__(spin=spin, indices=indices, name=name)
 
     def __repr__(self):
-        return "<{},{}||{},{}>".format(self.indices[0], self.indices[1],
-                                       self.indices[2], self.indices[3])
+        return "<{},{}||{},{}>{}".format(self.indices[0], self.indices[1],
+                                       self.indices[2], self.indices[3], self.spin)
 
 
 class Delta(BaseTerm):
@@ -502,8 +504,8 @@ class Delta(BaseTerm):
 
 class ContractionPermuter(TensorTermAction):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='P'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, spin='', indices=Tuple[Index, ...], name='P'):
+        super().__init__(indices=indices, name=name, spin=spin)
 
     def __repr__(self):
         return "P({},{})".format(self.indices[0], self.indices[1])

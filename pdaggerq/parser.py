@@ -27,9 +27,12 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
     if "||" in term_string:
         index_string = term_string.replace('<', '').replace('>', '').replace(
             '||', ',')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return TwoBody(indices=tuple(g_idx))
+        tmp = index_string.split('_')
+        spin = ''
+        if len(tmp) > 1 :
+            spin = '_' + tmp[1]
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx in tmp[0].split(',')]
+        return TwoBody(indices=tuple(g_idx), spin=spin)
     if "g(" in term_string:
         index_string = term_string.replace('g(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
@@ -44,7 +47,17 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         index_string = term_string.replace('f(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
-        return FockMat(indices=tuple(g_idx))
+        return FockMat(spin='', indices=tuple(g_idx))
+    elif 'f_aa(' in term_string:
+        index_string = term_string.replace('f_aa(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return FockMat(indices=tuple(g_idx), spin='_aa')
+    elif 'f_bb(' in term_string:
+        index_string = term_string.replace('f_bb(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return FockMat(indices=tuple(g_idx), spin='_bb')
     elif 't4' in term_string:
         index_string = term_string.replace('t4(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
@@ -55,16 +68,41 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return T3amps(indices=tuple(g_idx))
-    elif 't2' in term_string:
+    elif 't2(' in term_string:
         index_string = term_string.replace('t2(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return T2amps(indices=tuple(g_idx))
-    elif 't1' in term_string:
+    elif 't2_aaaa(' in term_string:
+        index_string = term_string.replace('t2_aaaa(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return T2amps(indices=tuple(g_idx), spin='_aaaa')
+    elif 't2_abab(' in term_string:
+        index_string = term_string.replace('t2_abab(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return T2amps(indices=tuple(g_idx), spin='_abab')
+    elif 't2_bbbb(' in term_string:
+        index_string = term_string.replace('t2_bbbb(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return T2amps(indices=tuple(g_idx), spin='_bbbb')
+    elif 't1(' in term_string:
         index_string = term_string.replace('t1(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return T1amps(indices=tuple(g_idx))
+    elif 't1_aa(' in term_string:
+        index_string = term_string.replace('t1_aa(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return T1amps(indices=tuple(g_idx), spin='_aa')
+    elif 't1_bb(' in term_string:
+        index_string = term_string.replace('t1_bb(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return T1amps(indices=tuple(g_idx), spin='_bb')
     elif 'd(' in term_string:
         index_string = term_string.replace('d(', '').replace(')', '')
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
