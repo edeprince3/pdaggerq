@@ -1883,11 +1883,11 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
     }
 
     std::vector<std::vector<std::string> > list;
-    for (int i = 0; i < (int)spin_traced.size(); i++) {
+    for (size_t i = 0; i < spin_traced.size(); i++) {
         if ( spin_traced[i]->symbol.size() != 0 ) continue;
         if ( spin_traced[i]->data->is_boson_dagger.size() != 0 ) continue;
         std::vector<std::string> my_string = spin_traced[i]->get_string_with_spin();
-        if ( (int)my_string.size() > 0 ) {
+        if ( my_string.size() > 0 ) {
             list.push_back(my_string);
         }
     }

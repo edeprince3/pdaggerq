@@ -805,6 +805,36 @@ void pq::spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vecto
             continue;
         }
 
+        // permutations ... this doesn't fix the problem
+/*
+        size_t n = tmp[i]->data->permutations.size() / 2;
+        for (size_t j = 0; j < n; j++) {
+            std::string idx1 = tmp[i]->data->permutations[2*j];
+            std::string idx2 = tmp[i]->data->permutations[2*j+1];
+
+            // spin 1
+            std::string spin1 = "";
+            if ( found_occ[idx1] ) {
+                spin1 = found_occ_spin_labels[idx1];
+            }else {
+                spin1 = found_vir_spin_labels[idx1];
+            }
+
+            // spin 2
+            std::string spin2 = "";
+            if ( found_occ[idx2] ) {
+                spin2 = found_occ_spin_labels[idx2];
+            }else {
+                spin2 = found_vir_spin_labels[idx2];
+            }
+
+            if ( spin1 != spin2 ) {
+                tmp[i]->data->permutations.clear();
+                break;
+            }
+
+        }
+*/
     }
     
     // rearrange terms so that they have standard spin order (abba -> -abab, etc.)
@@ -1123,8 +1153,8 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
     // probably only relevant for vacuum = fermi
     if ( vacuum != "FERMI" ) return;
 
-    consolidate_permutations_non_summed(ordered,occ_labels);
-    consolidate_permutations_non_summed(ordered,vir_labels);
+    //consolidate_permutations_non_summed(ordered,occ_labels);
+    //consolidate_permutations_non_summed(ordered,vir_labels);
 
     // re-prune
     pruned.clear();
