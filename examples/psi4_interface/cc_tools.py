@@ -33,6 +33,7 @@ from ccsd import ccsd_energy_with_spin
 
 # ccsdt iterations
 from ccsdt import ccsdt_iterations
+from ccsdt import ccsdt_iterations_with_spin
 
 # (t)
 from ccsdt import perturbative_triples_correction
@@ -372,11 +373,11 @@ def ccsd_with_spin(mol):
     #print('hartree-fock energy: {: 20.12f}'.format(hf_energy + nuclear_repulsion_energy))
 
     t1_aa = np.zeros((nvirt_a, nocc_a))
-    t1_bb = np.zeros((nvirt_a, nocc_a))
+    t1_bb = np.zeros((nvirt_b, nocc_b))
 
     t2_aaaa = np.zeros((nvirt_a, nvirt_a, nocc_a, nocc_a))
-    t2_bbbb = np.zeros((nvirt_a, nvirt_a, nocc_a, nocc_a))
-    t2_abab = np.zeros((nvirt_a, nvirt_a, nocc_a, nocc_a))
+    t2_bbbb = np.zeros((nvirt_b, nvirt_b, nocc_b, nocc_b))
+    t2_abab = np.zeros((nvirt_a, nvirt_b, nocc_a, nocc_b))
 
     t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab = ccsd_iterations_with_spin(t1_aa, t1_bb,
             t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb, 
@@ -522,7 +523,115 @@ def ccsd_t(mol):
 
     return cc_energy + et + nuclear_repulsion_energy
 
-def ccsdt(mol):
+def ccsdt_with_spin(mol):
+    """
+
+    run ccsdt, with spin
+
+    :param mol: a psi4 molecule
+    :return cc_energy: the total ccsdt energy
+
+    """
+
+    nocc_a, nocc_b, nvirt_a, nvirt_b, fa, fb, g_aaaa, g_bbbb, g_abab  = get_integrals_with_spin()
+    
+    # occupied, virtual slices
+    n = np.newaxis
+    oa = slice(None, nocc_a)
+    ob = slice(None, nocc_b)
+    va = slice(nocc_a, None)
+    vb = slice(nocc_b, None)
+
+    # orbital energies
+    row, col = fa.shape
+    eps_a = np.zeros(row)
+    for i in range(0,row):
+        eps_a[i] = fa[i,i]
+
+    row, col = fb.shape
+    eps_b = np.zeros(row)
+    for i in range(0,row):
+        eps_b[i] = fb[i,i]
+
+    # energy denominators
+    e_aaaaaa_abcijk = 1 / ( - eps_a[va, n,  n,  n,  n,  n] 
+                            - eps_a[n, va,  n,  n,  n,  n] 
+                            - eps_a[n,  n, va,  n,  n,  n] 
+                            + eps_a[n,  n,  n, oa,  n,  n] 
+                            + eps_a[n,  n,  n,  n, oa,  n] 
+                            + eps_a[n,  n,  n,  n,  n, oa]  )
+    e_aabaab_abcijk = 1 / ( - eps_a[va, n,  n,  n,  n,  n] 
+                            - eps_a[n, va,  n,  n,  n,  n] 
+                            - eps_b[n,  n, vb,  n,  n,  n] 
+                            + eps_a[n,  n,  n, oa,  n,  n] 
+                            + eps_a[n,  n,  n,  n, oa,  n] 
+                            + eps_b[n,  n,  n,  n,  n, ob]  )
+    e_abbabb_abcijk = 1 / ( - eps_a[va, n,  n,  n,  n,  n] 
+                            - eps_b[n, vb,  n,  n,  n,  n] 
+                            - eps_b[n,  n, vb,  n,  n,  n] 
+                            + eps_a[n,  n,  n, oa,  n,  n] 
+                            + eps_b[n,  n,  n,  n, ob,  n] 
+                            + eps_b[n,  n,  n,  n,  n, ob]  )
+    e_bbbbbb_abcijk = 1 / ( - eps_b[vb, n,  n,  n,  n,  n] 
+                            - eps_b[n, vb,  n,  n,  n,  n] 
+                            - eps_b[n,  n, vb,  n,  n,  n] 
+                            + eps_b[n,  n,  n, ob,  n,  n] 
+                            + eps_b[n,  n,  n,  n, ob,  n] 
+                            + eps_b[n,  n,  n,  n,  n, ob]  )
+
+    e_aaaa_abij = 1 / ( - eps_a[va, n, n, n] 
+                        - eps_a[n, va, n, n] 
+                        + eps_a[n, n, oa, n] 
+                        + eps_a[n, n, n, oa] ) 
+    e_bbbb_abij = 1 / ( - eps_b[vb, n, n, n] 
+                        - eps_b[n, vb, n, n] 
+                        + eps_b[n, n, ob, n] 
+                        + eps_b[n, n, n, ob] ) 
+    e_abab_abij = 1 / ( - eps_a[va, n, n, n] 
+                        - eps_b[n, vb, n, n] 
+                        + eps_a[n, n, oa, n] 
+                        + eps_b[n, n, n, ob] ) 
+
+    e_aa_ai = 1 / (-eps_a[va, n] + eps_a[n, oa])
+    e_bb_ai = 1 / (-eps_b[vb, n] + eps_b[n, ob])
+
+    # hartree-fock energy
+    hf_energy = ( einsum('ii', fa[oa, oa]) + einsum('ii', fb[ob, ob])
+              - 0.5 * einsum('ijij', g_aaaa[oa, oa, oa, oa])
+              - 0.5 * einsum('ijij', g_bbbb[ob, ob, ob, ob])
+              - 1.0 * einsum('ijij', g_abab[oa, ob, oa, ob]) )
+
+    nuclear_repulsion_energy = mol.nuclear_repulsion_energy()
+
+    #print('hartree-fock energy: {: 20.12f}'.format(hf_energy + nuclear_repulsion_energy))
+
+    t1_aa = np.zeros((nvirt_a, nocc_a))
+    t1_bb = np.zeros((nvirt_b, nocc_b))
+
+    t2_aaaa = np.zeros((nvirt_a, nvirt_a, nocc_a, nocc_a))
+    t2_bbbb = np.zeros((nvirt_b, nvirt_b, nocc_b, nocc_b))
+    t2_abab = np.zeros((nvirt_a, nvirt_b, nocc_a, nocc_b))
+
+    t3_aaaaaa = np.zeros((nvirt_a, nvirt_a, nvirt_a, nocc_a, nocc_a, nocc_a))
+    t3_aabaab = np.zeros((nvirt_a, nvirt_a, nvirt_b, nocc_a, nocc_a, nocc_b))
+    t3_abbabb = np.zeros((nvirt_a, nvirt_b, nvirt_b, nocc_a, nocc_b, nocc_b))
+    t3_bbbbbb = np.zeros((nvirt_b, nvirt_b, nvirt_b, nocc_b, nocc_b, nocc_b))
+
+    t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb = ccsdt_iterations_with_spin(t1_aa, t1_bb,
+            t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb, 
+            e_aa_ai, e_bb_ai, e_aaaa_abij, e_bbbb_abij, e_abab_abij, e_aaaaaa_abcijk, e_aabaab_abcijk, e_abbabb_abcijk, e_bbbbbb_abcijk,
+            hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
+
+    cc_energy = ccsd_energy_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+    print("")
+    print("    CCSDT Correlation Energy: {: 20.12f}".format(cc_energy - hf_energy))
+    print("    CCSDT Total Energy:       {: 20.12f}".format(cc_energy + nuclear_repulsion_energy))
+    print("")
+
+    return cc_energy + nuclear_repulsion_energy
+
+def ccsdt(mol, use_spin_orbital_basis = True):
     """
 
     run ccsdt
@@ -531,6 +640,9 @@ def ccsdt(mol):
     :return cc_energy: the total ccsdt energy
 
     """
+
+    if not use_spin_orbital_basis : 
+        return ccsdt_with_spin(mol)
 
     nsocc, nsvirt, fock, tei = get_integrals()
     

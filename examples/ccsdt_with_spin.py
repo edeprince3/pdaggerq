@@ -137,6 +137,8 @@ def main():
                                     output_variables=('e', 'f', 'm', 'n'))))
         print()
 
+    print('return doubles_res')
+    print('')
 
     pq.clear()
     

@@ -12,9 +12,12 @@ def main():
 
 
     print('')
-    print('def ccsd_energy(t1, t2, f, g, o, v):')
+    print('def ccsd_energy(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | e(-T) H e(T) | 0> :')
+    print('')
+    print('o = oa')
+    print('v = va')
     print('')
 
     pq.add_st_operator(1.0, ['f'], ['t1', 't2'])
@@ -47,9 +50,12 @@ def main():
     pq.simplify()
 
     print('')
-    print('def ccsd_t1_aa_residual(t1, t2, f, g, o, v):')
+    print('def ccsd_t1_aa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | m* e e(-T) H e(T) | 0> :')
+    print('')
+    print('o = oa')
+    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -66,9 +72,12 @@ def main():
     print('')
 
     print('')
-    print('def ccsd_t1_bb_residual(t1, t2, f, g, o, v):')
+    print('def ccsd_t1_bb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | m* e e(-T) H e(T) | 0> :')
+    print('')
+    print('o = oa')
+    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -97,9 +106,12 @@ def main():
     pq.simplify()
 
     print('')
-    print('def ccsd_t2_aaaa_residual(t1, t2, f, g, o, v):')
+    print('def ccsd_t2_aaaa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | m* n* f e e(-T) H e(T) | 0> :')
+    print('')
+    print('o = oa')
+    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -115,9 +127,12 @@ def main():
     print('')
 
     print('')
-    print('def ccsd_t2_bbbb_residual(t1, t2, f, g, o, v):')
+    print('def ccsd_t2_bbbb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | m* n* f e e(-T) H e(T) | 0> :')
+    print('')
+    print('o = oa')
+    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -133,9 +148,12 @@ def main():
     print('')
 
     print('')
-    print('def ccsd_t2_abab_residual(t1, t2, f, g, o, v):')
+    print('def ccsd_t2_abab_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | m* n* f e e(-T) H e(T) | 0> :')
+    print('')
+    print('o = oa')
+    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print

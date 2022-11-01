@@ -55,7 +55,16 @@ def main():
     psi4.set_options(psi4_options)
 
     # run ccsd
-    en = ccsd(mol, do_eom_ccsd = False ) #, use_spin_orbital_basis = False)
+    import time
+    s1 = time.time()
+    en = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True)
+    e1 = time.time()
+
+    s2 = time.time()
+    en = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = False)
+    e2 = time.time()
+
+    print(e1-s1, e2-s2)
 
     # check ccsd energy against psi4
     assert np.isclose(en,-75.019715133639338, rtol = 1e-8, atol = 1e-8)
@@ -94,14 +103,29 @@ def main():
     }
     psi4.set_options(psi4_options)
 
-    # run ccsdt
-    en = ccsdt(mol)
+    # run ccsdt with spin
+    s1 = time.time()
+    en = ccsdt(mol, use_spin_orbital_basis = False)
+    e1 = time.time()
 
     # check ccsdt energy against nwchem
     assert np.isclose(en,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
 
     print('    CCSDT Total Energy..........................................................PASSED')
     print('')
+
+    # run ccsdt
+    s2 = time.time()
+    en = ccsdt(mol)
+    e2 = time.time()
+
+    # check ccsdt energy against nwchem
+    assert np.isclose(en,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
+
+    print('    CCSDT Total Energy..........................................................PASSED')
+    print('')
+
+    print(e1-s1, e2-s2)
 
 if __name__ == "__main__":
     main()
