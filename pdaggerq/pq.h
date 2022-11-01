@@ -246,6 +246,9 @@ class pq {
     /// re-classify fluctuation potential terms
     void reclassify_integrals();
 
+    /// set non-summed spin labels
+    void set_non_summed_spin_labels(std::vector<std::string> spin_labels);
+
     /// add spin labels to a string
     bool add_spins(std::vector<std::shared_ptr<pq> > &list);
 
