@@ -1870,23 +1870,23 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
 
     // perform spin tracing
 
-    std::vector< std::shared_ptr<pq> > spin_traced;
+    std::vector< std::shared_ptr<pq> > spin_blocked;
 
     for (size_t i = 0; i < ordered.size(); i++) {
         if ( ordered[i]->symbol.size() != 0 ) continue;
         if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         std::vector< std::shared_ptr<pq> > tmp;
-        ordered[i]->spin_tracing(tmp, spin_labels);
+        ordered[i]->spin_blocking(tmp, spin_labels);
         for (size_t j = 0; j < tmp.size(); j++) {
-            spin_traced.push_back(tmp[j]);
+            spin_blocked.push_back(tmp[j]);
         }
     }
 
     std::vector<std::vector<std::string> > list;
-    for (size_t i = 0; i < spin_traced.size(); i++) {
-        if ( spin_traced[i]->symbol.size() != 0 ) continue;
-        if ( spin_traced[i]->data->is_boson_dagger.size() != 0 ) continue;
-        std::vector<std::string> my_string = spin_traced[i]->get_string_with_spin();
+    for (size_t i = 0; i < spin_blocked.size(); i++) {
+        if ( spin_blocked[i]->symbol.size() != 0 ) continue;
+        if ( spin_blocked[i]->data->is_boson_dagger.size() != 0 ) continue;
+        std::vector<std::string> my_string = spin_blocked[i]->get_string_with_spin();
         if ( my_string.size() > 0 ) {
             list.push_back(my_string);
         }

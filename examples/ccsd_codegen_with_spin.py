@@ -12,7 +12,7 @@ def main():
 
 
     print('')
-    print('def ccsd_energy(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('def ccsd_energy_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | e(-T) H e(T) | 0> :')
     print('')

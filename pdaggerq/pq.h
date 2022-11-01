@@ -150,7 +150,7 @@ class pq {
     void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// expand sums to include spin and zero terms where appropriate
-    void spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vector<std::string> spin_labels);
+    void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vector<std::string> spin_labels);
 
     /// consolidate terms that differ by summed labels plus permutations
     void consolidate_permutations_plus_swap(
@@ -252,6 +252,8 @@ class pq {
     /// set spin labels in integrals and amplitudes
     void set_spin_everywhere(std::string target, std::string spin);
 
+    /// reorder spin labels as aab and abb
+    void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
 
 };
 

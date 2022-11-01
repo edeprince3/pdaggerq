@@ -549,7 +549,7 @@ void pq::sort_labels() {
 }
 
 // expand sums to include spin and zero terms where appropriate
-void pq::spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vector<std::string> spin_labels) {
+void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vector<std::string> spin_labels) {
 
     // determine non-summed labels
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
@@ -610,17 +610,6 @@ void pq::spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vecto
         printf("\n");
         exit(1);
     }
-
-    //for (size_t j = 0; j < occ_labels.size(); j++) {
-    //    if ( found_occ[occ_labels[j]] ) {
-    //        printf("found %s with spin %s\n",occ_labels[j].c_str(), found_occ_spin_labels[occ_labels[j]].c_str());
-    //    }
-    //}
-    //for (size_t j = 0; j < vir_labels.size(); j++) {
-    //    if ( found_vir[vir_labels[j]] ) {
-    //        printf("found %s with spin %s\n",vir_labels[j].c_str(), found_vir_spin_labels[vir_labels[j]].c_str());
-    //    }
-    //}
 
     // copy this term and zero spins
 
@@ -725,6 +714,90 @@ void pq::spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vecto
         }
     }while(!done_adding_spins);
 
+/*
+    // expand permutations where spins don't match and re-expand spin sums
+    for (size_t i = 0; i < tmp.size(); i++) {
+
+        if ( tmp[i]->skip ) continue;
+
+        size_t n = tmp[i]->data->permutations.size() / 2;
+
+        for (size_t j = 0; j < n; j++) {
+
+            std::string idx1 = tmp[i]->data->permutations[2*j];
+            std::string idx2 = tmp[i]->data->permutations[2*j+1];
+
+            // spin 1
+            std::string spin1 = "";
+            if ( found_occ[idx1] ) {
+                spin1 = found_occ_spin_labels[idx1];
+            }else {
+                spin1 = found_vir_spin_labels[idx1];
+            }
+
+            // spin 2
+            std::string spin2 = "";
+            if ( found_occ[idx2] ) {
+                spin2 = found_occ_spin_labels[idx2];
+            }else {
+                spin2 = found_vir_spin_labels[idx2];
+            }
+
+            // if spins are not the same, then the permutation needs to be expanded explicitly and allowed spins redetermined
+            if ( spin1 != spin2 ) {
+
+                // first guy is just a copy
+                std::shared_ptr<pq> newguy1 (new pq(vacuum));
+                newguy1->copy((void*)tmp[i].get());
+
+                // second guy is a copy with permuted labels and change in sign
+                std::shared_ptr<pq> newguy2 (new pq(vacuum));
+                newguy2->copy((void*)tmp[i].get());
+                newguy2->swap_two_labels(idx1, idx2);
+                newguy2->sign *= -1;
+
+                // both guys need to have permutation lists adjusted
+                newguy1->data->permutations.clear();
+                newguy2->data->permutations.clear();
+                for (size_t k = 0; k < n; k++) {
+
+                    // skip jth permutation
+                    if ( j == k ) continue;
+
+                    newguy1->data->permutations.push_back(tmp[i]->data->permutations[2*k]);
+                    newguy1->data->permutations.push_back(tmp[i]->data->permutations[2*k+1]);
+
+                    newguy2->data->permutations.push_back(tmp[i]->data->permutations[2*k]);
+                    newguy2->data->permutations.push_back(tmp[i]->data->permutations[2*k+1]);
+                }
+
+                std::vector< std::shared_ptr<pq> > spin_blocked_1;
+                std::vector< std::shared_ptr<pq> > spin_blocked_2;
+
+                newguy1->spin_blocking(spin_blocked_1, spin_labels);
+                newguy2->spin_blocking(spin_blocked_2, spin_labels);
+
+                // add new guys to the end of the list
+                for (size_t k = 0; k < spin_blocked_1.size(); k++) {
+                    if ( spin_blocked_1[k]->skip ) continue;
+                    tmp.push_back(spin_blocked_1[k]);
+                }
+                for (size_t k = 0; k < spin_blocked_2.size(); k++) {
+                    if ( spin_blocked_2[k]->skip ) continue;
+                    tmp.push_back(spin_blocked_2[k]);
+                }
+
+                // skip this guy, since expanded permutation is added to the end of the list
+                tmp[i]->skip = true;
+
+                // break because this above logic only works on one permutation at a time
+                break;
+            }
+        }
+    }
+*/
+
+
     // kill terms that have mismatched spin 
     for (size_t i = 0; i < tmp.size(); i++) {
 
@@ -804,38 +877,8 @@ void pq::spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vecto
             tmp[i]->skip = true;
             continue;
         }
-
-        // permutations ... this doesn't fix the problem
-/*
-        size_t n = tmp[i]->data->permutations.size() / 2;
-        for (size_t j = 0; j < n; j++) {
-            std::string idx1 = tmp[i]->data->permutations[2*j];
-            std::string idx2 = tmp[i]->data->permutations[2*j+1];
-
-            // spin 1
-            std::string spin1 = "";
-            if ( found_occ[idx1] ) {
-                spin1 = found_occ_spin_labels[idx1];
-            }else {
-                spin1 = found_vir_spin_labels[idx1];
-            }
-
-            // spin 2
-            std::string spin2 = "";
-            if ( found_occ[idx2] ) {
-                spin2 = found_occ_spin_labels[idx2];
-            }else {
-                spin2 = found_vir_spin_labels[idx2];
-            }
-
-            if ( spin1 != spin2 ) {
-                tmp[i]->data->permutations.clear();
-                break;
-            }
-
-        }
-*/
     }
+
     
     // rearrange terms so that they have standard spin order (abba -> -abab, etc.)
     for (size_t p = 0; p < tmp.size(); p++) {
@@ -847,63 +890,72 @@ void pq::spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vecto
             char type = data->amplitude_types[i];
             for (size_t j = 0; j < tmp[p]->data->amps[type].size(); j++) {
                 size_t order = tmp[p]->data->amps[type][j].labels.size()/2;
-                if ( order > 2 ) {
+                if ( order > 3 ) {
                     printf("\n");
-                    printf("    error: spin tracing doesn't work for higher than doubles yet\n");
+                    printf("    error: spin tracing doesn't work for higher than triples yet\n");
                     printf("\n");
                     exit(1);
                 }
-                if ( order != 2 ) continue;
+                if ( order == 2 ) {
 
-                // three cases that require attention: ab;ba, ba;ab, and ba;ba
+                    // three cases that require attention: ab;ba, ba;ab, and ba;ba
 
-                if (       tmp[p]->data->amps[type][j].spin_labels[0] == "a"
-                        && tmp[p]->data->amps[type][j].spin_labels[1] == "b"
-                        && tmp[p]->data->amps[type][j].spin_labels[2] == "b"
-                        && tmp[p]->data->amps[type][j].spin_labels[3] == "a" ) {
+                    if (       tmp[p]->data->amps[type][j].spin_labels[0] == "a"
+                            && tmp[p]->data->amps[type][j].spin_labels[1] == "b"
+                            && tmp[p]->data->amps[type][j].spin_labels[2] == "b"
+                            && tmp[p]->data->amps[type][j].spin_labels[3] == "a" ) {
 
-                        std::string tmp_label = tmp[p]->data->amps[type][j].labels[2];
-                        tmp[p]->data->amps[type][j].labels[2] = tmp[p]->data->amps[type][j].labels[3];
-                        tmp[p]->data->amps[type][j].labels[3] = tmp_label;
+                            std::string tmp_label = tmp[p]->data->amps[type][j].labels[2];
+                            tmp[p]->data->amps[type][j].labels[2] = tmp[p]->data->amps[type][j].labels[3];
+                            tmp[p]->data->amps[type][j].labels[3] = tmp_label;
 
-                        tmp[p]->data->amps[type][j].spin_labels[2] = "a";
-                        tmp[p]->data->amps[type][j].spin_labels[3] = "b";
+                            tmp[p]->data->amps[type][j].spin_labels[2] = "a";
+                            tmp[p]->data->amps[type][j].spin_labels[3] = "b";
 
-                        tmp[p]->sign *= -1;
+                            tmp[p]->sign *= -1;
 
-                }else if ( tmp[p]->data->amps[type][j].spin_labels[0] == "b"
-                        && tmp[p]->data->amps[type][j].spin_labels[1] == "a"
-                        && tmp[p]->data->amps[type][j].spin_labels[2] == "a"
-                        && tmp[p]->data->amps[type][j].spin_labels[3] == "b" ) {
+                    }else if ( tmp[p]->data->amps[type][j].spin_labels[0] == "b"
+                            && tmp[p]->data->amps[type][j].spin_labels[1] == "a"
+                            && tmp[p]->data->amps[type][j].spin_labels[2] == "a"
+                            && tmp[p]->data->amps[type][j].spin_labels[3] == "b" ) {
 
-                        std::string tmp_label = tmp[p]->data->amps[type][j].labels[0];
-                        tmp[p]->data->amps[type][j].labels[0] = tmp[p]->data->amps[type][j].labels[1];
-                        tmp[p]->data->amps[type][j].labels[1] = tmp_label;
+                            std::string tmp_label = tmp[p]->data->amps[type][j].labels[0];
+                            tmp[p]->data->amps[type][j].labels[0] = tmp[p]->data->amps[type][j].labels[1];
+                            tmp[p]->data->amps[type][j].labels[1] = tmp_label;
 
-                        tmp[p]->data->amps[type][j].spin_labels[0] = "a";
-                        tmp[p]->data->amps[type][j].spin_labels[1] = "b";
+                            tmp[p]->data->amps[type][j].spin_labels[0] = "a";
+                            tmp[p]->data->amps[type][j].spin_labels[1] = "b";
 
-                        tmp[p]->sign *= -1;
+                            tmp[p]->sign *= -1;
 
 
-                }else if ( tmp[p]->data->amps[type][j].spin_labels[0] == "b"
-                        && tmp[p]->data->amps[type][j].spin_labels[1] == "a"
-                        && tmp[p]->data->amps[type][j].spin_labels[2] == "b"
-                        && tmp[p]->data->amps[type][j].spin_labels[3] == "a" ) {
+                    }else if ( tmp[p]->data->amps[type][j].spin_labels[0] == "b"
+                            && tmp[p]->data->amps[type][j].spin_labels[1] == "a"
+                            && tmp[p]->data->amps[type][j].spin_labels[2] == "b"
+                            && tmp[p]->data->amps[type][j].spin_labels[3] == "a" ) {
 
-                        std::string tmp_label = tmp[p]->data->amps[type][j].labels[0];
-                        tmp[p]->data->amps[type][j].labels[0] = tmp[p]->data->amps[type][j].labels[1];
-                        tmp[p]->data->amps[type][j].labels[1] = tmp_label;
+                            std::string tmp_label = tmp[p]->data->amps[type][j].labels[0];
+                            tmp[p]->data->amps[type][j].labels[0] = tmp[p]->data->amps[type][j].labels[1];
+                            tmp[p]->data->amps[type][j].labels[1] = tmp_label;
 
-                        tmp[p]->data->amps[type][j].spin_labels[0] = "a";
-                        tmp[p]->data->amps[type][j].spin_labels[1] = "b";
+                            tmp[p]->data->amps[type][j].spin_labels[0] = "a";
+                            tmp[p]->data->amps[type][j].spin_labels[1] = "b";
 
-                        tmp_label = tmp[p]->data->amps[type][j].labels[2];
-                        tmp[p]->data->amps[type][j].labels[2] = tmp[p]->data->amps[type][j].labels[3];
-                        tmp[p]->data->amps[type][j].labels[3] = tmp_label;
+                            tmp_label = tmp[p]->data->amps[type][j].labels[2];
+                            tmp[p]->data->amps[type][j].labels[2] = tmp[p]->data->amps[type][j].labels[3];
+                            tmp[p]->data->amps[type][j].labels[3] = tmp_label;
 
-                        tmp[p]->data->amps[type][j].spin_labels[2] = "a";
-                        tmp[p]->data->amps[type][j].spin_labels[3] = "b";
+                            tmp[p]->data->amps[type][j].spin_labels[2] = "a";
+                            tmp[p]->data->amps[type][j].spin_labels[3] = "b";
+
+                    }
+                }else if ( order == 3 ) {
+
+                    // target order: aaa, aab, abb, bbb
+                    int sign = 1;
+                    reorder_three_spins(tmp[p]->data->amps[type][j], 0, 1, 2, sign);
+                    reorder_three_spins(tmp[p]->data->amps[type][j], 3, 4, 5, sign);
+                    tmp[p]->sign *= sign;
 
                 }
             }
@@ -977,12 +1029,77 @@ void pq::spin_tracing(std::vector<std::shared_ptr<pq> > &spin_traced, std::vecto
     // 
     for (size_t i = 0; i < tmp.size(); i++) {
         if ( tmp[i]->skip ) continue;
-        spin_traced.push_back(tmp[i]);
+        spin_blocked.push_back(tmp[i]);
     }
 
     tmp.clear();
 
 }
+
+// reorder three spins ... cases to consider: aba/baa -> aab; bba/bab -> abb
+
+void pq::reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign) {
+
+    if (       amps.spin_labels[i1] == "a"
+            && amps.spin_labels[i2] == "b"
+            && amps.spin_labels[i3] == "a" ) {
+
+            std::string tmp_label = amps.labels[i3];
+
+            amps.labels[i3] = amps.labels[i2];
+            amps.labels[i2] = tmp_label;
+
+            amps.spin_labels[i2] = "a";
+            amps.spin_labels[i3] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "a"
+            && amps.spin_labels[i3] == "a" ) {
+
+            std::string tmp_label = amps.labels[i3];
+
+            amps.labels[i3] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i3] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "b"
+            && amps.spin_labels[i3] == "a" ) {
+
+            std::string tmp_label = amps.labels[i3];
+
+            amps.labels[i3] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i3] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "a"
+            && amps.spin_labels[i3] == "b" ) {
+
+            std::string tmp_label = amps.labels[i2];
+
+            amps.labels[i2] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i2] = "b";
+
+            sign *= -1;
+
+    }
+
+}
+
 
 bool pq::add_spins(std::vector<std::shared_ptr<pq> > &list) {
 
