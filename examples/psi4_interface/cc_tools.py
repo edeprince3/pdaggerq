@@ -383,7 +383,7 @@ def ccsd_with_spin(mol):
             e_aa_ai, e_bb_ai, e_aaaa_abij, e_bbbb_abij, e_abab_abij,
             hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
 
-    #cc_energy = coupled_cluster_energy_spatial(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+    cc_energy = ccsd_energy_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
 
     print("")
     print("    CCSD Correlation Energy: {: 20.12f}".format(cc_energy - hf_energy))
@@ -405,8 +405,7 @@ def ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True):
     """
 
     if not use_spin_orbital_basis : 
-        ccsd_with_spin(mol)
-        return
+        return ccsd_with_spin(mol)
 
     nsocc, nsvirt, fock, tei = get_integrals()
     
