@@ -38,7 +38,7 @@ def main():
     for my_term in singles_residual_terms:
         print("#\t", my_term)
         print("%s" % (my_term.einsum_string(update_val='singles_res',
-                                    output_variables=('e', 'm'))))
+                                    output_variables=('a', 'i'))))
         print()
 
     print('return singles_res')
@@ -60,7 +60,7 @@ def main():
     for my_term in singles_residual_terms:
         print("#\t", my_term)
         print("%s" % (my_term.einsum_string(update_val='singles_res',
-                                    output_variables=('e', 'm'))))
+                                    output_variables=('a', 'i'))))
         print()
 
     print('return singles_res')
@@ -92,7 +92,7 @@ def main():
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
         print("%s" % (my_term.einsum_string(update_val='doubles_res',
-                                    output_variables=('e', 'f', 'm', 'n'))))
+                                    output_variables=('a', 'b', 'i', 'j'))))
         print()
 
     print('return doubles_res')
@@ -113,7 +113,7 @@ def main():
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
         print("%s" % (my_term.einsum_string(update_val='doubles_res',
-                                    output_variables=('e', 'f', 'm', 'n'))))
+                                    output_variables=('a', 'b', 'i', 'j'))))
         print()
 
     print('return doubles_res')
@@ -134,7 +134,7 @@ def main():
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
         print("%s" % (my_term.einsum_string(update_val='doubles_res',
-                                    output_variables=('e', 'f', 'm', 'n'))))
+                                    output_variables=('a', 'b', 'i', 'j'))))
         print()
 
     print('return doubles_res')
