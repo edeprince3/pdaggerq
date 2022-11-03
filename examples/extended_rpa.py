@@ -24,7 +24,7 @@ def erpa_terms_to_einsum(tensor_terms: List[TensorTerm],
     k2_idx = [Index('i', 'all'), Index('j', 'all'), Index('k', 'all'), Index('l', 'all')]
     for tt in tensor_terms:
         # add the hamiltonian to contract with
-        tt.base_terms += (BaseTerm(indices=tuple(k2_idx), name=contract_d2_with),)
+        tt.base_terms += (BaseTerm(indices=tuple(k2_idx), name=contract_d2_with, spin=''),)
 
         print("# ", tt)
         print(tt.einsum_string(update_val='erpa_val',

@@ -386,7 +386,7 @@ def vacuum_normal_ordered_strings_to_tensor_terms(pdaggerq_list_of_strings):
         rdm_idx = [xx.replace('*', '') if '*' in xx else xx for xx in
                    rdm_strings]
         g_idx = [Index(xx, 'all') for xx in rdm_idx]
-        rdm_baseterm = BaseTerm(indices=tuple(g_idx),
+        rdm_baseterm = BaseTerm(indices=tuple(g_idx), spin='',
                                 name="d{}".format(len(g_idx) // 2))
         tensor_terms.append(
             TensorTerm(base_terms=tuple(delta_terms + [rdm_baseterm]),
