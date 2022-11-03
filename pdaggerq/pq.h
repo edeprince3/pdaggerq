@@ -255,8 +255,11 @@ class pq {
     /// set spin labels in integrals and amplitudes
     void set_spin_everywhere(std::string target, std::string spin);
 
-    /// reorder spin labels as aab and abb
+    /// reorder three spin labels as aab or abb
     void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
+
+    /// reorder four spin labels as aaab, aabb, or abbb
+    void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign);
 
 };
 

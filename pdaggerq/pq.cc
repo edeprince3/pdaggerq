@@ -946,9 +946,9 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
             char type = data->amplitude_types[i];
             for (size_t j = 0; j < tmp[p]->data->amps[type].size(); j++) {
                 size_t order = tmp[p]->data->amps[type][j].labels.size()/2;
-                if ( order > 3 ) {
+                if ( order > 4 ) {
                     printf("\n");
-                    printf("    error: spin tracing doesn't work for higher than triples yet\n");
+                    printf("    error: spin tracing doesn't work for higher than quadruples yet\n");
                     printf("\n");
                     exit(1);
                 }
@@ -1011,6 +1011,14 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
                     int sign = 1;
                     reorder_three_spins(tmp[p]->data->amps[type][j], 0, 1, 2, sign);
                     reorder_three_spins(tmp[p]->data->amps[type][j], 3, 4, 5, sign);
+                    tmp[p]->sign *= sign;
+
+                }else if ( order == 4 ) {
+
+                    // target order: aaaa, aaab, aabb, abbb, bbbb
+                    int sign = 1;
+                    reorder_four_spins(tmp[p]->data->amps[type][j], 0, 1, 2, 3, sign);
+                    reorder_four_spins(tmp[p]->data->amps[type][j], 4, 5, 6, 7, sign);
                     tmp[p]->sign *= sign;
 
                 }
@@ -1089,6 +1097,173 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
     }
 
     tmp.clear();
+
+}
+
+// reorder four spins ... cases to consider: aaba/abaa/baaa -> aaab; baab/abba/baba/bbaa -> aabb; babb/bbab/bbba -> abbb
+
+void pq::reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign) {
+
+    // aaba/abaa/baaa -> aaab
+    if (       amps.spin_labels[i1] == "a"
+            && amps.spin_labels[i2] == "a"
+            && amps.spin_labels[i3] == "b" 
+            && amps.spin_labels[i4] == "a" ) {
+
+            std::string tmp_label = amps.labels[i4];
+
+            amps.labels[i4] = amps.labels[i3];
+            amps.labels[i3] = tmp_label;
+
+            amps.spin_labels[i3] = "a";
+            amps.spin_labels[i4] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "a"
+            && amps.spin_labels[i2] == "b"
+            && amps.spin_labels[i3] == "a" 
+            && amps.spin_labels[i4] == "a" ) {
+
+            std::string tmp_label = amps.labels[i4];
+
+            amps.labels[i4] = amps.labels[i2];
+            amps.labels[i2] = tmp_label;
+
+            amps.spin_labels[i2] = "a";
+            amps.spin_labels[i4] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "a"
+            && amps.spin_labels[i3] == "a" 
+            && amps.spin_labels[i4] == "a" ) {
+
+            std::string tmp_label = amps.labels[i4];
+
+            amps.labels[i4] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i4] = "b";
+
+            sign *= -1;
+
+    // baab/abba/baba/bbaa -> aabb
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "a"
+            && amps.spin_labels[i3] == "a" 
+            && amps.spin_labels[i4] == "b" ) {
+
+            std::string tmp_label = amps.labels[i3];
+
+            amps.labels[i3] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i3] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "a"
+            && amps.spin_labels[i2] == "b"
+            && amps.spin_labels[i3] == "b" 
+            && amps.spin_labels[i4] == "a" ) {
+
+            std::string tmp_label = amps.labels[i4];
+
+            amps.labels[i4] = amps.labels[i2];
+            amps.labels[i2] = tmp_label;
+
+            amps.spin_labels[i2] = "a";
+            amps.spin_labels[i4] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "a"
+            && amps.spin_labels[i3] == "b" 
+            && amps.spin_labels[i4] == "a" ) {
+
+            std::string tmp_label = amps.labels[i4];
+
+            amps.labels[i4] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i4] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "b"
+            && amps.spin_labels[i3] == "a" 
+            && amps.spin_labels[i4] == "a" ) {
+
+            std::string tmp_label = amps.labels[i4];
+
+            amps.labels[i4] = amps.labels[i2];
+            amps.labels[i2] = tmp_label;
+
+            amps.spin_labels[i2] = "a";
+            amps.spin_labels[i4] = "b";
+
+            tmp_label = amps.labels[i3];
+
+            amps.labels[i3] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i3] = "b";
+
+    // babb/bbab/bbba -> abbb
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "a"
+            && amps.spin_labels[i3] == "b" 
+            && amps.spin_labels[i4] == "b" ) {
+
+            std::string tmp_label = amps.labels[i2];
+
+            amps.labels[i2] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i2] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "b"
+            && amps.spin_labels[i3] == "a" 
+            && amps.spin_labels[i4] == "b" ) {
+
+            std::string tmp_label = amps.labels[i3];
+
+            amps.labels[i3] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i3] = "b";
+
+            sign *= -1;
+
+    }else if ( amps.spin_labels[i1] == "b"
+            && amps.spin_labels[i2] == "b"
+            && amps.spin_labels[i3] == "b" 
+            && amps.spin_labels[i4] == "a" ) {
+
+            std::string tmp_label = amps.labels[i4];
+
+            amps.labels[i4] = amps.labels[i1];
+            amps.labels[i1] = tmp_label;
+
+            amps.spin_labels[i1] = "a";
+            amps.spin_labels[i4] = "b";
+
+            sign *= -1;
+
+    }
 
 }
 
