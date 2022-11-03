@@ -514,8 +514,8 @@ class TwoBody(BaseTerm):
 
 class Delta(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='kd'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, indices=Tuple[Index, ...], name='kd', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
 
     def __repr__(self):
         return "d({},{})".format(self.indices[0], self.indices[1])
