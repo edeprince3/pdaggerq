@@ -1100,7 +1100,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
 
 }
 
-// reorder four spins ... cases to consider: aaba/abaa/baaa -> aaab; baab/abba/baba/bbaa -> aabb; babb/bbab/bbba -> abbb
+// reorder four spins ... cases to consider: aaba/abaa/baaa -> aaab; baab/abba/baba/bbaa/abab -> aabb; babb/bbab/bbba -> abbb
 
 void pq::reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign) {
 
@@ -1150,7 +1150,7 @@ void pq::reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, i
 
             sign *= -1;
 
-    // baab/abba/baba/bbaa -> aabb
+    // baab/abba/baba/bbaa/abab -> aabb
     }else if ( amps.spin_labels[i1] == "b"
             && amps.spin_labels[i2] == "a"
             && amps.spin_labels[i3] == "a" 
@@ -1216,6 +1216,21 @@ void pq::reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, i
 
             amps.spin_labels[i1] = "a";
             amps.spin_labels[i3] = "b";
+
+    }else if ( amps.spin_labels[i1] == "a"
+            && amps.spin_labels[i2] == "b"
+            && amps.spin_labels[i3] == "a"
+            && amps.spin_labels[i4] == "b" ) {
+
+            std::string tmp_label = amps.labels[i3];
+
+            amps.labels[i3] = amps.labels[i2];
+            amps.labels[i2] = tmp_label;
+
+            amps.spin_labels[i2] = "a";
+            amps.spin_labels[i3] = "b";
+
+            sign *= -1;
 
     // babb/bbab/bbba -> abbb
     }else if ( amps.spin_labels[i1] == "b"

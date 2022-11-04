@@ -13,10 +13,6 @@ def main():
     
     pq.set_left_operators([['e1(i,a)']])
     
-    print('')
-    print('#    < 0 | i* a e(-T) H e(T) | 0> :')
-    print('')
-    
     pq.add_st_operator(1.0,['f'],['t1','t2','t3'])
     pq.add_st_operator(1.0,['v'],['t1','t2','t3'])
     
