@@ -215,7 +215,7 @@ def main():
     print('')
     
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'a')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'a'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -238,7 +238,7 @@ def main():
     print('')
     
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'b')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'b'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -260,7 +260,7 @@ def main():
     print('')
    
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'b', 'b')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'b', 'b'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -282,7 +282,7 @@ def main():
     print('')
   
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b', 'b', 'b')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b', 'b', 'b'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -304,7 +304,7 @@ def main():
     print('')
  
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b', 'b', 'b')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b', 'b', 'b')]
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
