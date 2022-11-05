@@ -17,7 +17,7 @@
 
 """
 
-example script for running ccsd, ccsdt, and eom-ccsdt using 
+example script for running ccsd, ccsdt, ccsdqt, and eom-ccsdt using 
 pdaggerq-generated equations. Integrals come from psi4.
 
 """
@@ -29,6 +29,7 @@ import psi4
 from cc_tools import ccsd
 from cc_tools import ccsd_t
 from cc_tools import ccsdt
+from cc_tools import ccsdtq
 
 def main():
 
@@ -103,7 +104,7 @@ def main():
     }
     psi4.set_options(psi4_options)
 
-    # run ccsdt with spin
+    # run ccsdt spin-blocked
     s1 = time.time()
     en = ccsdt(mol, use_spin_orbital_basis = False)
     e1 = time.time()
@@ -114,18 +115,27 @@ def main():
     print('    CCSDT Total Energy..........................................................PASSED')
     print('')
 
-    # run ccsdt
-    s2 = time.time()
-    en = ccsdt(mol)
-    e2 = time.time()
+    ## run spin-orbital ccsdt
+    #s2 = time.time()
+    #en = ccsdt(mol)
+    #e2 = time.time()
 
-    # check ccsdt energy against nwchem
-    assert np.isclose(en,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
+    ## check ccsdt energy against nwchem
+    #assert np.isclose(en,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
 
-    print('    CCSDT Total Energy..........................................................PASSED')
+    #print('    CCSDT Total Energy..........................................................PASSED')
+    #print('')
+
+    #print(e1-s1, e2-s2)
+
+    # run spin-blocked ccsdtq
+    en = ccsdtq(mol)
+
+    # check ccsdtq energy against nwchem
+    assert np.isclose(en,-100.009723511692869,rtol = 1e-8, atol = 1e-8)
+
+    print('    CCSDTQ Total Energy..........................................................PASSED')
     print('')
-
-    print(e1-s1, e2-s2)
 
 if __name__ == "__main__":
     main()

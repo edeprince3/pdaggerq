@@ -1,3 +1,305 @@
+# pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+# Copyright (C) 2020 A. Eugene DePrince III
+#
+# This file is part of the pdaggerq package.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+"""
+spin-blocked CCSDTQ amplitude equations
+"""
+import numpy as np
+from numpy import einsum
+
+from ccsd import coupled_cluster_energy
+
+def ccsdtq_iterations_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, 
+        t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb,
+        t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+        f_aa, f_bb, g_aaaa, g_bbbb, g_abab,
+        oa, ob, va, vb, e_aa_ai, e_bb_ai, e_aaaa_abij, e_bbbb_abij, e_abab_abij, 
+        e_aaaaaa_abcijk, e_aabaab_abcijk, e_abbabb_abcijk, e_bbbbbb_abcijk,
+        e_aaaaaaaa_abcdijkl, e_aaabaaab_abcdijkl, e_aabbaabb_abcdijkl, e_abbbabbb_abcdijkl, e_bbbbbbbb_abcdijkl,
+        hf_energy, max_iter=100,
+        e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
+
+    # initialize diis if diis_size is not None
+    # else normal scf iterate
+
+    if diis_size is not None:
+        from diis import DIIS
+        diis_update = DIIS(diis_size, start_iter=diis_start_cycle)
+        t1_aa_end = t1_aa.size
+        t1_bb_end = t1_aa_end + t1_bb.size
+        t2_aaaa_end = t1_bb_end + t2_aaaa.size
+        t2_bbbb_end = t2_aaaa_end + t2_bbbb.size
+        t2_abab_end = t2_bbbb_end + t2_abab.size
+        t3_aaaaaa_end = t2_abab_end + t3_aaaaaa.size
+        t3_aabaab_end = t3_aaaaaa_end + t3_aabaab.size
+        t3_abbabb_end = t3_aabaab_end + t3_abbabb.size
+        t3_bbbbbb_end = t3_abbabb_end + t3_bbbbbb.size
+        t4_aaaaaaaa_end = t3_bbbbbb_end + t4_aaaaaaaa.size
+        t4_aaabaaab_end = t4_aaaaaaaa_end + t4_aaabaaab.size
+        t4_aabbaabb_end = t4_aaabaaab_end + t4_aabbaabb.size
+        t4_abbbabbb_end = t4_aabbaabb_end + t4_abbbabbb.size
+        t4_bbbbbbbb_end = t4_abbbabbb_end + t4_bbbbbbbb.size
+
+        old_vec = np.hstack((t1_aa.flatten(), t1_bb.flatten(), 
+                             t2_aaaa.flatten(), t2_bbbb.flatten(), t2_abab.flatten(), 
+                             t3_aaaaaa.flatten(), t3_aabaab.flatten(), t3_abbabb.flatten(), t3_bbbbbb.flatten(), 
+                             t4_aaaaaaaa.flatten(), t4_aaabaaab.flatten(), t4_aabbaabb.flatten(), t4_abbbabbb.flatten(), t4_bbbbbbbb.flatten()))
+
+    fock_e_aa_ai = np.reciprocal(e_aa_ai)
+    fock_e_bb_ai = np.reciprocal(e_bb_ai)
+
+    fock_e_aaaa_abij = np.reciprocal(e_aaaa_abij)
+    fock_e_bbbb_abij = np.reciprocal(e_bbbb_abij)
+    fock_e_abab_abij = np.reciprocal(e_abab_abij)
+
+    fock_e_aaaaaa_abcijk = np.reciprocal(e_aaaaaa_abcijk)
+    fock_e_aabaab_abcijk = np.reciprocal(e_aabaab_abcijk)
+    fock_e_abbabb_abcijk = np.reciprocal(e_abbabb_abcijk)
+    fock_e_bbbbbb_abcijk = np.reciprocal(e_bbbbbb_abcijk)
+
+    fock_e_aaaaaaaa_abcdijkl = np.reciprocal(e_aaaaaaaa_abcdijkl)
+    fock_e_aaabaaab_abcdijkl = np.reciprocal(e_aaabaaab_abcdijkl)
+    fock_e_aabbaabb_abcdijkl = np.reciprocal(e_aabbaabb_abcdijkl)
+    fock_e_abbbabbb_abcdijkl = np.reciprocal(e_abbbabbb_abcdijkl)
+    fock_e_bbbbbbbb_abcdijkl = np.reciprocal(e_bbbbbbbb_abcdijkl)
+
+    from ccsd import ccsd_energy_with_spin
+    from ccsdt import ccsdt_t1_aa_residual
+    from ccsdt import ccsdt_t1_bb_residual
+
+    old_energy = ccsd_energy_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+    print("")
+    print("    ==> CCSDTQ amplitude equations <==")
+    print("")
+    print("     Iter               Energy                 |dE|                 |dT|")
+    for idx in range(max_iter):
+
+        residual_t1_aa = ccsdt_t1_aa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+        residual_t1_bb = ccsdt_t1_bb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t2_aaaa = ccsdtq_t2_aaaa_residual(t1_aa, t1_bb, 
+                                                   t2_aaaa, t2_bbbb, t2_abab, 
+                                                   t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                   t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                   f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t2_abab = ccsdtq_t2_abab_residual(t1_aa, t1_bb, 
+                                                   t2_aaaa, t2_bbbb, t2_abab, 
+                                                   t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                   t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                   f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t2_bbbb = ccsdtq_t2_bbbb_residual(t1_aa, t1_bb, 
+                                                   t2_aaaa, t2_bbbb, t2_abab, 
+                                                   t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                   t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                   f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t3_aaaaaa = ccsdtq_t3_aaaaaa_residual(t1_aa, t1_bb, 
+                                                       t2_aaaa, t2_bbbb, t2_abab, 
+                                                       t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                       t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                       f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t3_aabaab = ccsdtq_t3_aabaab_residual(t1_aa, t1_bb, 
+                                                       t2_aaaa, t2_bbbb, t2_abab, 
+                                                       t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                       t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                       f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t3_abbabb = ccsdtq_t3_abbabb_residual(t1_aa, t1_bb, 
+                                                       t2_aaaa, t2_bbbb, t2_abab, 
+                                                       t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                       t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                       f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t3_bbbbbb = ccsdtq_t3_bbbbbb_residual(t1_aa, t1_bb, 
+                                                       t2_aaaa, t2_bbbb, t2_abab, 
+                                                       t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                       t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                       f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t4_aaaaaaaa = ccsdtq_t4_aaaaaaaa_residual(t1_aa, t1_bb, 
+                                                           t2_aaaa, t2_bbbb, t2_abab, 
+                                                           t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                           t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                           f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t4_aaabaaab = ccsdtq_t4_aaabaaab_residual(t1_aa, t1_bb, 
+                                                           t2_aaaa, t2_bbbb, t2_abab, 
+                                                           t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                           t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                           f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t4_aabbaabb = ccsdtq_t4_aabbaabb_residual(t1_aa, t1_bb, 
+                                                           t2_aaaa, t2_bbbb, t2_abab, 
+                                                           t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                           t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                           f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t4_abbbabbb = ccsdtq_t4_abbbabbb_residual(t1_aa, t1_bb, 
+                                                           t2_aaaa, t2_bbbb, t2_abab, 
+                                                           t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                           t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                           f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        residual_t4_bbbbbbbb = ccsdtq_t4_bbbbbbbb_residual(t1_aa, t1_bb, 
+                                                           t2_aaaa, t2_bbbb, t2_abab, 
+                                                           t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
+                                                           t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb,
+                                                           f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        res_norm = ( np.linalg.norm(residual_t1_aa)
+                   + np.linalg.norm(residual_t1_bb)
+                   + np.linalg.norm(residual_t2_aaaa)
+                   + np.linalg.norm(residual_t2_bbbb)
+                   + np.linalg.norm(residual_t2_abab) 
+                   + np.linalg.norm(residual_t3_aaaaaa) 
+                   + np.linalg.norm(residual_t3_aabaab) 
+                   + np.linalg.norm(residual_t3_abbabb) 
+                   + np.linalg.norm(residual_t3_bbbbbb) 
+                   + np.linalg.norm(residual_t4_aaaaaaaa)
+                   + np.linalg.norm(residual_t4_aaabaaab)
+                   + np.linalg.norm(residual_t4_aabbaabb)
+                   + np.linalg.norm(residual_t4_abbbabbb)
+                   + np.linalg.norm(residual_t4_bbbbbbbb) )
+
+        t1_aa_res = residual_t1_aa + fock_e_aa_ai * t1_aa
+        t1_bb_res = residual_t1_bb + fock_e_bb_ai * t1_bb
+
+        t2_aaaa_res = residual_t2_aaaa + fock_e_aaaa_abij * t2_aaaa
+        t2_bbbb_res = residual_t2_bbbb + fock_e_bbbb_abij * t2_bbbb
+        t2_abab_res = residual_t2_abab + fock_e_abab_abij * t2_abab
+
+        t3_aaaaaa_res = residual_t3_aaaaaa + fock_e_aaaaaa_abcijk * t3_aaaaaa
+        t3_aabaab_res = residual_t3_aabaab + fock_e_aabaab_abcijk * t3_aabaab
+        t3_abbabb_res = residual_t3_abbabb + fock_e_abbabb_abcijk * t3_abbabb
+        t3_bbbbbb_res = residual_t3_bbbbbb + fock_e_bbbbbb_abcijk * t3_bbbbbb
+
+        t4_aaaaaaaa_res = residual_t4_aaaaaaaa + fock_e_aaaaaaaa_abcdijkl * t4_aaaaaaaa
+        t4_aaabaaab_res = residual_t4_aaabaaab + fock_e_aaabaaab_abcdijkl * t4_aaabaaab
+        t4_aabbaabb_res = residual_t4_aabbaabb + fock_e_aabbaabb_abcdijkl * t4_aabbaabb
+        t4_abbbabbb_res = residual_t4_abbbabbb + fock_e_abbbabbb_abcdijkl * t4_abbbabbb
+        t4_bbbbbbbb_res = residual_t4_bbbbbbbb + fock_e_bbbbbbbb_abcdijkl * t4_bbbbbbbb
+
+        new_t1_aa = t1_aa_res * e_aa_ai
+        new_t1_bb = t1_bb_res * e_bb_ai
+
+        new_t2_aaaa = t2_aaaa_res * e_aaaa_abij
+        new_t2_bbbb = t2_bbbb_res * e_bbbb_abij
+        new_t2_abab = t2_abab_res * e_abab_abij
+
+        new_t3_aaaaaa = t3_aaaaaa_res * e_aaaaaa_abcijk
+        new_t3_aabaab = t3_aabaab_res * e_aabaab_abcijk
+        new_t3_abbabb = t3_abbabb_res * e_abbabb_abcijk
+        new_t3_bbbbbb = t3_bbbbbb_res * e_bbbbbb_abcijk
+
+        new_t4_aaaaaaaa = t4_aaaaaaaa_res * e_aaaaaaaa_abcdijkl
+        new_t4_aaabaaab = t4_aaabaaab_res * e_aaabaaab_abcdijkl
+        new_t4_aabbaabb = t4_aabbaabb_res * e_aabbaabb_abcdijkl
+        new_t4_abbbabbb = t4_abbbabbb_res * e_abbbabbb_abcdijkl
+        new_t4_bbbbbbbb = t4_bbbbbbbb_res * e_bbbbbbbb_abcdijkl
+
+        # diis update
+        if diis_size is not None:
+            vectorized_iterate = np.hstack(
+                (new_t1_aa.flatten(), new_t1_bb.flatten(), 
+                 new_t2_aaaa.flatten(), new_t2_bbbb.flatten(), new_t2_abab.flatten(), 
+                 new_t3_aaaaaa.flatten(), new_t3_aabaab.flatten(), new_t3_abbabb.flatten(), new_t3_bbbbbb.flatten(), 
+                 new_t4_aaaaaaaa.flatten(), new_t4_aaabaaab.flatten(), new_t4_aabbaabb.flatten(), new_t4_abbbabbb.flatten(), new_t4_bbbbbbbb.flatten()))
+            error_vec = old_vec - vectorized_iterate
+            new_vectorized_iterate = diis_update.compute_new_vec(vectorized_iterate,
+                                                                 error_vec)
+            new_t1_aa = new_vectorized_iterate[:t1_aa_end].reshape(t1_aa.shape)
+            new_t1_bb = new_vectorized_iterate[t1_aa_end:t1_bb_end].reshape(t1_bb.shape)
+
+            new_t2_aaaa = new_vectorized_iterate[t1_bb_end:t2_aaaa_end].reshape(t2_aaaa.shape)
+            new_t2_bbbb = new_vectorized_iterate[t2_aaaa_end:t2_bbbb_end].reshape(t2_bbbb.shape)
+            new_t2_abab = new_vectorized_iterate[t2_bbbb_end:t2_abab_end].reshape(t2_abab.shape)
+
+            new_t3_aaaaaa = new_vectorized_iterate[t2_abab_end:t3_aaaaaa_end].reshape(t3_aaaaaa.shape)
+            new_t3_aabaab = new_vectorized_iterate[t3_aaaaaa_end:t3_aabaab_end].reshape(t3_aabaab.shape)
+            new_t3_abbabb = new_vectorized_iterate[t3_aabaab_end:t3_abbabb_end].reshape(t3_abbabb.shape)
+            new_t3_bbbbbb = new_vectorized_iterate[t3_abbabb_end:t3_bbbbbb_end].reshape(t3_bbbbbb.shape)
+
+            new_t4_aaaaaaaa = new_vectorized_iterate[t3_bbbbbb_end:t4_aaaaaaaa_end].reshape(t4_aaaaaaaa.shape)
+            new_t4_aaabaaab = new_vectorized_iterate[t4_aaaaaaaa_end:t4_aaabaaab_end].reshape(t4_aaabaaab.shape)
+            new_t4_aabbaabb = new_vectorized_iterate[t4_aaabaaab_end:t4_aabbaabb_end].reshape(t4_aabbaabb.shape)
+            new_t4_abbbabbb = new_vectorized_iterate[t4_aabbaabb_end:t4_abbbabbb_end].reshape(t4_abbbabbb.shape)
+            new_t4_bbbbbbbb = new_vectorized_iterate[t4_abbbabbb_end:t4_bbbbbbbb_end].reshape(t4_bbbbbbbb.shape)
+
+            old_vec = new_vectorized_iterate
+
+        current_energy = ccsd_energy_with_spin(new_t1_aa, new_t1_bb, new_t2_aaaa, new_t2_bbbb, new_t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        delta_e = np.abs(old_energy - current_energy)
+
+        print("    {: 5d} {: 20.12f} {: 20.12f} {: 20.12f}".format(idx, current_energy - hf_energy, delta_e, res_norm))
+        if delta_e < e_convergence and res_norm < r_convergence:
+            # assign t1 and t2 variables for future use before breaking
+            t1_aa = new_t1_aa
+            t1_bb = new_t1_bb
+
+            t2_aaaa = new_t2_aaaa
+            t2_bbbb = new_t2_bbbb
+            t2_abab = new_t2_abab
+
+            t3_aaaaaa = new_t3_aaaaaa
+            t3_aabaab = new_t3_aabaab
+            t3_abbabb = new_t3_abbabb
+            t3_bbbbbb = new_t3_bbbbbb
+
+            t4_aaaaaaaa = new_t4_aaaaaaaa
+            t4_aaabaaab = new_t4_aaabaaab
+            t4_aabbaabb = new_t4_aabbaabb
+            t4_abbbabbb = new_t4_abbbabbb
+            t4_bbbbbbbb = new_t4_bbbbbbbb
+
+            break
+        else:
+            # assign t1 and t2 and old_energy for next iteration
+            t1_aa = new_t1_aa
+            t1_bb = new_t1_bb
+
+            t2_aaaa = new_t2_aaaa
+            t2_bbbb = new_t2_bbbb
+            t2_abab = new_t2_abab
+
+            t3_aaaaaa = new_t3_aaaaaa
+            t3_aabaab = new_t3_aabaab
+            t3_abbabb = new_t3_abbabb
+            t3_bbbbbb = new_t3_bbbbbb
+
+            t4_aaaaaaaa = new_t4_aaaaaaaa
+            t4_aaabaaab = new_t4_aaabaaab
+            t4_aabbaabb = new_t4_aabbaabb
+            t4_abbbabbb = new_t4_abbbabbb
+            t4_bbbbbbbb = new_t4_bbbbbbbb
+
+            old_energy = current_energy
+
+    else:
+        raise ValueError("CCSDT iterations did not converge")
+
+
+    return t1_aa, t1_bb, \
+           t2_aaaa, t2_bbbb, t2_abab, \
+           t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, \
+           t4_aaaaaaaa, t4_aaabaaab, t4_aabbaabb, t4_abbbabbb, t4_bbbbbbbb
 
 def ccsdtq_t2_aaaa_residual(t1_aa, t1_bb, 
                             t2_aaaa, t2_bbbb, t2_abab, 
@@ -276,7 +578,6 @@ def ccsdtq_t2_aaaa_residual(t1_aa, t1_bb,
     doubles_res +=  1.000000000000000 * einsum('lkcd,cj,di,ak,bl->abij', g_aaaa[o, o, v, v], t1_aa, t1_aa, t1_aa, t1_aa, optimize=['einsum_path', (0, 1), (0, 3), (0, 2), (0, 1)])
 
     return doubles_res
-
 
 def ccsdtq_t2_abab_residual(t1_aa, t1_bb, 
                             t2_aaaa, t2_bbbb, t2_abab, 
@@ -702,7 +1003,6 @@ def ccsdtq_t2_abab_residual(t1_aa, t1_bb,
 
     return doubles_res
 
-
 def ccsdtq_t2_bbbb_residual(t1_aa, t1_bb, 
                             t2_aaaa, t2_bbbb, t2_abab, 
                             t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
@@ -978,7 +1278,8 @@ def ccsdtq_t2_bbbb_residual(t1_aa, t1_bb,
     
     #	  1.0000 <l,k||c,d>_bbbb*t1_bb(c,j)*t1_bb(d,i)*t1_bb(a,k)*t1_bb(b,l)
     doubles_res +=  1.000000000000000 * einsum('lkcd,cj,di,ak,bl->abij', g_bbbb[o, o, v, v], t1_bb, t1_bb, t1_bb, t1_bb, optimize=['einsum_path', (0, 1), (0, 3), (0, 2), (0, 1)])
-    
+
+    return doubles_res
     
 def ccsdtq_t3_aaaaaa_residual(t1_aa, t1_bb, 
                               t2_aaaa, t2_bbbb, t2_abab, 
@@ -2093,7 +2394,6 @@ def ccsdtq_t3_aaaaaa_residual(t1_aa, t1_bb,
     triples_res += -1.000000000000000 * einsum('mlde,di,bl,cm,eajk->abcijk', g_aaaa[o, o, v, v], t1_aa, t1_aa, t1_aa, t2_aaaa, optimize=['einsum_path', (0, 1), (0, 3), (0, 2), (0, 1)])
 
     return triples_res
-
 
 def ccsdtq_t3_aabaab_residual(t1_aa, t1_bb, 
                               t2_aaaa, t2_bbbb, t2_abab, 
@@ -3433,7 +3733,6 @@ def ccsdtq_t3_aabaab_residual(t1_aa, t1_bb,
     triples_res += -1.000000000000000 * einsum('lmde,di,bl,cm,aejk->abcijk', g_abab[o, o, v, v], t1_aa, t1_aa, t1_bb, t2_abab, optimize=['einsum_path', (0, 1), (0, 3), (0, 2), (0, 1)])
 
     return triples_res
-
 
 def ccsdtq_t3_abbabb_residual(t1_aa, t1_bb, 
                               t2_aaaa, t2_bbbb, t2_abab, 
@@ -4930,7 +5229,6 @@ def ccsdtq_t3_abbabb_residual(t1_aa, t1_bb,
 
     return triples_res
 
-
 def ccsdtq_t3_bbbbbb_residual(t1_aa, t1_bb, 
                               t2_aaaa, t2_bbbb, t2_abab, 
                               t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, 
@@ -6044,7 +6342,6 @@ def ccsdtq_t3_bbbbbb_residual(t1_aa, t1_bb,
     triples_res += -1.000000000000000 * einsum('mlde,di,bl,cm,eajk->abcijk', g_bbbb[o, o, v, v], t1_bb, t1_bb, t1_bb, t2_bbbb, optimize=['einsum_path', (0, 1), (0, 3), (0, 2), (0, 1)])
 
     return triples_res
-
 
 def ccsdtq_t4_aaaaaaaa_residual(t1_aa, t1_bb, 
                                 t2_aaaa, t2_bbbb, t2_abab, 
@@ -10154,7 +10451,6 @@ def ccsdtq_t4_aaaaaaaa_residual(t1_aa, t1_bb,
     quadruples_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('abcdijkl->abcdjikl', contracted_intermediate) 
 
     return quadruples_res
-
 
 def ccsdtq_t4_aaabaaab_residual(t1_aa, t1_bb, 
                                 t2_aaaa, t2_bbbb, t2_abab, 
