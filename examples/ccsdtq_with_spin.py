@@ -42,6 +42,9 @@ def main():
                                     output_variables=('a', 'b', 'i', 'j')))
         print(flush=True)
 
+    print('return doubles_res')
+    print('')
+
     print('')
     print('def ccsdtq_t2_abab_residual(t1_aa, t1_bb, \n \
                            t2_aaaa, t2_bbbb, t2_abab, \n \
@@ -64,6 +67,9 @@ def main():
                                     output_variables=('a', 'b', 'i', 'j')))
         print(flush=True)
 
+    print('return doubles_res')
+    print('')
+
     print('')
     print('def ccsdtq_t2_bbbb_residual(t1_aa, t1_bb, \n \
                            t2_aaaa, t2_bbbb, t2_abab, \n \
@@ -85,9 +91,11 @@ def main():
         print(my_term.einsum_string(update_val='doubles_res',
                                     output_variables=('a', 'b', 'i', 'j')))
         print(flush=True)
+
+    print('return doubles_res')
+    print('')
     
     pq.clear()
-
     
     # triples equations
     
@@ -124,6 +132,9 @@ def main():
                                     output_variables=('a', 'b', 'c', 'i', 'j', 'k')))
         print(flush=True)
     
+    print('return triples_res')
+    print('')
+
     print('')
     print('def ccsdtq_t3_aabaab_residual(t1_aa, t1_bb, \n \
                              t2_aaaa, t2_bbbb, t2_abab, \n \
@@ -146,6 +157,9 @@ def main():
                                     output_variables=('a', 'b', 'c', 'i', 'j', 'k')))
         print(flush=True)
     
+    print('return triples_res')
+    print('')
+
     print('')
     print('def ccsdtq_t3_abbabb_residual(t1_aa, t1_bb, \n \
                              t2_aaaa, t2_bbbb, t2_abab, \n \
@@ -168,6 +182,9 @@ def main():
                                     output_variables=('a', 'b', 'c', 'i', 'j', 'k')))
         print(flush=True)
     
+    print('return triples_res')
+    print('')
+
     print('')
     print('def ccsdtq_t3_bbbbbb_residual(t1_aa, t1_bb, \n \
                              t2_aaaa, t2_bbbb, t2_abab, \n \
@@ -190,6 +207,9 @@ def main():
                                     output_variables=('a', 'b', 'c', 'i', 'j', 'k')))
         print(flush=True)
     
+    print('return triples_res')
+    print('')
+
     pq.clear()
 
     # quadruples equations
@@ -215,7 +235,7 @@ def main():
     print('')
     
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'a')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'a'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -223,6 +243,8 @@ def main():
                                     output_variables=('a', 'b', 'c', 'd', 'i', 'j', 'k', 'l')))
         print(flush=True)
 
+    print('return quadruples_res')
+    print('')
 
     print('')
     print('def ccsdtq_t4_aaabaaab_residual(t1_aa, t1_bb, \n \
@@ -238,13 +260,16 @@ def main():
     print('')
     
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'b')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'b'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
         print(my_term.einsum_string(update_val='quadruples_res',
                                     output_variables=('a', 'b', 'c', 'd', 'i', 'j', 'k', 'l')))
         print(flush=True)
+
+    print('return quadruples_res')
+    print('')
 
     print('')
     print('def ccsdtq_t4_aabbaabb_residual(t1_aa, t1_bb, \n \
@@ -260,13 +285,16 @@ def main():
     print('')
    
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'b', 'b')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'b', 'b'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
         print(my_term.einsum_string(update_val='quadruples_res',
                                     output_variables=('a', 'b', 'c', 'd', 'i', 'j', 'k', 'l')))
         print(flush=True)
+
+    print('return quadruples_res')
+    print('')
 
     print('')
     print('def ccsdtq_t4_abbbabbb_residual(t1_aa, t1_bb, \n \
@@ -282,13 +310,16 @@ def main():
     print('')
   
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b', 'b', 'b')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b', 'b', 'b'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
         print(my_term.einsum_string(update_val='quadruples_res',
                                     output_variables=('a', 'b', 'c', 'd', 'i', 'j', 'k', 'l')))
         print(flush=True)
+
+    print('return quadruples_res')
+    print('')
 
     print('')
     print('def ccsdtq_t4_bbbbbbbb_residual(t1_aa, t1_bb, \n \
@@ -304,7 +335,7 @@ def main():
     print('')
  
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b', 'b', 'b')
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b', 'b', 'b'])
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -312,6 +343,9 @@ def main():
                                     output_variables=('a', 'b', 'c', 'd', 'i', 'j', 'k', 'l')))
         print(flush=True)
    
+    print('return quadruples_res')
+    print('')
+
     pq.clear()
     
 if __name__ == "__main__":
