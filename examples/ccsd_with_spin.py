@@ -18,7 +18,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-energy_terms = pq.fully_contracted_strings_with_spin([])
+energy_terms = pq.fully_contracted_strings_with_spin([], [])
 for my_term in energy_terms:
     print(my_term)
 
@@ -38,7 +38,7 @@ print('#    < 0 | m* e e(-T) H e(T) | 0> (aa):')
 print('')
 
 # grab list of fully-contracted strings, then print
-singles_residual_terms = pq.fully_contracted_strings_with_spin(['a'])
+singles_residual_terms = pq.fully_contracted_strings_with_spin(['a'], ['a'])
 for my_term in singles_residual_terms:
     print(my_term)
 
@@ -47,7 +47,7 @@ print('#    < 0 | m* e e(-T) H e(T) | 0> (bb):')
 print('')
 
 # grab list of fully-contracted strings, then print
-singles_residual_terms = pq.fully_contracted_strings_with_spin(['b'])
+singles_residual_terms = pq.fully_contracted_strings_with_spin(['b'], ['b'])
 for my_term in singles_residual_terms:
     print(my_term)
 
@@ -67,7 +67,7 @@ print('#    < 0 | m* n* f e e(-T) H e(T) | 0> (aaaa):')
 print('')
 
 # grab list of fully-contracted strings, then print
-doubles_residual_terms = pq.fully_contracted_strings_with_spin(['a','a'])
+doubles_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a'], ['a', 'a'])
 for my_term in doubles_residual_terms:
     print(my_term)
 
@@ -76,7 +76,7 @@ print('#    < 0 | m* n* f e e(-T) H e(T) | 0> (bbbb):')
 print('')
 
 # grab list of fully-contracted strings, then print
-doubles_residual_terms = pq.fully_contracted_strings_with_spin(['b','b'])
+doubles_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b'], ['b', 'b'])
 for my_term in doubles_residual_terms:
     print(my_term)
 
@@ -85,7 +85,7 @@ print('#    < 0 | m* n* f e e(-T) H e(T) | 0> (abab):')
 print('')
 
 # grab list of fully-contracted strings, then print
-doubles_residual_terms = pq.fully_contracted_strings_with_spin(['a','b'])
+doubles_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b'], ['a', 'b'])
 for my_term in doubles_residual_terms:
     print(my_term)
 

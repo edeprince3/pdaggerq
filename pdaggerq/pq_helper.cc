@@ -1866,7 +1866,7 @@ void pq_helper::print_fully_contracted() {
 }
 
 // get list of fully-contracted strings, after spin tracing
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::vector<std::string> spin_labels) {
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels) {
 
     // perform spin tracing
 
@@ -1876,7 +1876,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
         if ( ordered[i]->symbol.size() != 0 ) continue;
         if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         std::vector< std::shared_ptr<pq> > tmp;
-        ordered[i]->spin_blocking(tmp, spin_labels);
+        ordered[i]->spin_blocking(tmp, occ_spin_labels, vir_spin_labels);
         for (size_t j = 0; j < tmp.size(); j++) {
             spin_blocked.push_back(tmp[j]);
         }

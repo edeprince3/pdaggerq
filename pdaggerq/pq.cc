@@ -549,7 +549,7 @@ void pq::sort_labels() {
 }
 
 
-void pq::set_non_summed_spin_labels(std::vector<std::string> spin_labels) {
+void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels) {
  
     // TODO: there is alot of redundant code here ... much of this is done at the beginning of spin_blocking()
 
@@ -569,19 +569,19 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> spin_labels) {
         int found = index_in_anywhere(occ_labels[j]);
         if ( found == 1 ) {
             found_occ[occ_labels[j]] = true;
-            if ( count == spin_labels.size() ) {
+            if ( count == occ_spin_labels.size() ) {
                 printf("\n");
                 printf("    error: dimension of spin labels does not match the number of non-summed occupied labels\n");
                 printf("\n");
                 exit(1);
             }
-            found_occ_spin_labels[occ_labels[j]] = spin_labels[count];
+            found_occ_spin_labels[occ_labels[j]] = occ_spin_labels[count];
             count++;
         }else{
             found_occ[occ_labels[j]] = false;
         }
     }
-    if ( count != spin_labels.size() ) {
+    if ( count != occ_spin_labels.size() ) {
         printf("\n");
         printf("    error: dimension of spin labels does not match the number of non-summed occupied labels\n");
         printf("\n");
@@ -594,19 +594,19 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> spin_labels) {
         int found = index_in_anywhere(vir_labels[j]);
         if ( found == 1 ) {
             found_vir[vir_labels[j]] = true;
-            if ( count == spin_labels.size() ) {
+            if ( count == vir_spin_labels.size() ) {
                 printf("\n");
                 printf("    error: dimension of spin labels does not match the number of non-summed virtual labels\n");
                 printf("\n");
                 exit(1);
             }
-            found_vir_spin_labels[vir_labels[j]] = spin_labels[count];
+            found_vir_spin_labels[vir_labels[j]] = vir_spin_labels[count];
             count++;
         }else{
             found_vir[vir_labels[j]] = false;
         }
     }
-    if ( count != spin_labels.size() ) {
+    if ( count != vir_spin_labels.size() ) {
         printf("\n");
         printf("    error: dimension of spin labels does not match the number of non-summed virtual labels\n");
         printf("\n");
@@ -692,7 +692,7 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> spin_labels) {
 }
 
 // expand sums to include spin and zero terms where appropriate
-void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vector<std::string> spin_labels) {
+void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels) {
 
     // determine non-summed labels
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
@@ -710,19 +710,19 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
         int found = index_in_anywhere(occ_labels[j]);
         if ( found == 1 ) {
             found_occ[occ_labels[j]] = true;
-            if ( count == spin_labels.size() ) {
+            if ( count == occ_spin_labels.size() ) {
                 printf("\n");
                 printf("    error: dimension of spin labels does not match the number of non-summed occupied labels\n");
                 printf("\n");
                 exit(1);
             }
-            found_occ_spin_labels[occ_labels[j]] = spin_labels[count];
+            found_occ_spin_labels[occ_labels[j]] = occ_spin_labels[count];
             count++;
         }else{
             found_occ[occ_labels[j]] = false;
         }
     }
-    if ( count != spin_labels.size() ) {
+    if ( count != occ_spin_labels.size() ) {
         printf("\n");
         printf("    error: dimension of spin labels does not match the number of non-summed occupied labels\n");
         printf("\n");
@@ -735,19 +735,19 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
         int found = index_in_anywhere(vir_labels[j]);
         if ( found == 1 ) {
             found_vir[vir_labels[j]] = true;
-            if ( count == spin_labels.size() ) {
+            if ( count == vir_spin_labels.size() ) {
                 printf("\n");
                 printf("    error: dimension of spin labels does not match the number of non-summed virtual labels\n");
                 printf("\n");
                 exit(1);
             }
-            found_vir_spin_labels[vir_labels[j]] = spin_labels[count];
+            found_vir_spin_labels[vir_labels[j]] = vir_spin_labels[count];
             count++;
         }else{
             found_vir[vir_labels[j]] = false;
         }
     }
-    if ( count != spin_labels.size() ) {
+    if ( count != vir_spin_labels.size() ) {
         printf("\n");
         printf("    error: dimension of spin labels does not match the number of non-summed virtual labels\n");
         printf("\n");
@@ -759,7 +759,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
     std::shared_ptr<pq> newguy (new pq(vacuum));
     newguy->copy((void*)this);
 
-    newguy->set_non_summed_spin_labels(spin_labels);
+    newguy->set_non_summed_spin_labels(occ_spin_labels, vir_spin_labels);
 
     // list of expanded sums
     std::vector< std::shared_ptr<pq> > tmp;
@@ -805,7 +805,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
                 newguy2->sign *= -1;
 
                 // reset non-summed spins for this guy
-                newguy2->set_non_summed_spin_labels(spin_labels);
+                newguy2->set_non_summed_spin_labels(occ_spin_labels, vir_spin_labels);
 
                 // both guys need to have permutation lists adjusted
                 newguy1->data->permutations.clear();

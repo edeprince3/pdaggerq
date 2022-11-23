@@ -150,7 +150,7 @@ class pq {
     void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// expand sums to include spin and zero terms where appropriate
-    void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vector<std::string> spin_labels);
+    void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels);
 
     /// consolidate terms that differ by summed labels plus permutations
     void consolidate_permutations_plus_swap(
@@ -247,7 +247,7 @@ class pq {
     void reclassify_integrals();
 
     /// set non-summed spin labels
-    void set_non_summed_spin_labels(std::vector<std::string> spin_labels);
+    void set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels);
 
     /// add spin labels to a string
     bool add_spins(std::vector<std::shared_ptr<pq> > &list);
