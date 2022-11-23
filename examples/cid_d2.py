@@ -13,7 +13,7 @@ print('')
 print('    D2(i,j,k,l) = <0|(l0 + l2) e2(i,j,l,k) (r0 + r2)|0>')
 print('')
 
-pq.add_operator_product(1.0,['e2(i,j,k,l)'])
+pq.add_operator_product(1.0,['e2(i,j,l,k)'])
         
 pq.simplify()
 
