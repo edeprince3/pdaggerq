@@ -962,12 +962,12 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
         killit = false;
 
         // delta functions
-        for (size_t j = 0; j < data->deltas.size(); j++) {
-            if ( data->deltas[j].spin_labels[0] != data->deltas[j].spin_labels[1] ) {
-                killit = true;
-                break;
-            }
-        }
+        //for (size_t j = 0; j < data->deltas.size(); j++) {
+        //    if ( data->deltas[j].spin_labels[0] != data->deltas[j].spin_labels[1] ) {
+        //        killit = true;
+        //        break;
+        //    }
+        //}
 
         if ( killit ) {
             tmp[i]->skip = true;
