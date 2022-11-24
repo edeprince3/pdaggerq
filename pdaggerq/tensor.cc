@@ -423,7 +423,7 @@ std::string integrals::to_string_with_spin(std::string symbol) {
 
 
 /// sort deltas labels
-void deltas::sort() {
+void delta_functions::sort() {
 
     numerical_labels.clear();
 
@@ -444,9 +444,9 @@ void deltas::sort() {
 }
 
 /// copy deltas
-deltas deltas::operator=(const deltas& rhs) {
+delta_functions delta_functions::operator=(const delta_functions& rhs) {
 
-    deltas d;
+    delta_functions d;
 
     d.labels.clear();
     d.numerical_labels.clear();
@@ -463,7 +463,7 @@ deltas deltas::operator=(const deltas& rhs) {
 }
 
 /// print deltas 
-void deltas::print() {
+void delta_functions::print() {
 
     printf("d(");
     printf("%s",labels[0].c_str());
@@ -474,7 +474,7 @@ void deltas::print() {
 }
 
 /// print deltas to string
-std::string deltas::to_string() {
+std::string delta_functions::to_string() {
 
     std::string val;
 
@@ -488,7 +488,7 @@ std::string deltas::to_string() {
 }
 
 /// print deltas to string with spin labels
-std::string deltas::to_string_with_spin() {
+std::string delta_functions::to_string_with_spin() {
 
     std::string val;
 

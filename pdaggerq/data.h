@@ -59,6 +59,9 @@ class StringData {
     /// amplitudes
     std::map<char, std::vector<amplitudes> > amps;
 
+    /// delta functions
+    std::vector<delta_functions> deltas;
+
     /// list: labels permutation operators
     std::vector<std::string> permutations;
 

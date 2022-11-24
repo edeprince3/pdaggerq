@@ -154,19 +154,21 @@ class integrals: public tensor {
 
 };
 
-class deltas: public tensor {
+class delta_functions: public tensor {
+
+  public:
 
     /// constructor
-    deltas(){};
+    delta_functions(){};
 
     /// destructor
-    ~deltas(){};
+    ~delta_functions(){};
 
     /// sort deltas
     void sort();
 
     /// copy deltas
-    deltas operator=(const deltas& rhs);
+    delta_functions operator=(const delta_functions& rhs);
 
     /// print deltas
     void print();
