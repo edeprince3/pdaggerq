@@ -634,7 +634,13 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
             }
         }
     }
-    // deltas TODO
+    // deltas
+    for (size_t i = 0; i < data->deltas.size(); i++) {
+        data->deltas[i].spin_labels.clear();
+        for (size_t j = 0; j < data->deltas[i].labels.size(); j++) {
+            data->deltas[i].spin_labels.push_back("");
+        }
+    }
 
     // set spins for occupied non-summed labels
     for (size_t label = 0; label < occ_labels.size(); label++) {
@@ -658,6 +664,14 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
                         if ( data->ints[type][j].labels[k] == occ_labels[label] ) {
                             data->ints[type][j].spin_labels[k] = found_occ_spin_labels[occ_labels[label]];
                         }
+                    }
+                }
+            }
+            // deltas
+            for (size_t i = 0; i < data->deltas.size(); i++) {
+                for (size_t j = 0; j < data->deltas[i].labels.size(); j++) {
+                    if ( data->deltas[i].labels[j] == occ_labels[label] ) {
+                        data->deltas[i].spin_labels[j] = found_occ_spin_labels[occ_labels[label]];
                     }
                 }
             }
@@ -687,6 +701,14 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
                         }
                     }
                 }
+            }
+            // deltas
+            for (size_t i = 0; i < data->deltas.size(); i++) {
+                for (size_t j = 0; j < data->deltas[i].labels.size(); j++) {
+                    if ( data->deltas[i].labels[j] == vir_labels[label] ) {
+                        data->deltas[i].spin_labels[j] = found_vir_spin_labels[occ_labels[label]];
+                    }   
+                }   
             }
         }
     }
@@ -937,16 +959,20 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
             continue;
         }
 
-        //killit = false;
+        killit = false;
 
-        //// delta functions TODO
-        //for (size_t j = 0; j < data->deltas.size(); j++) {
-        //}
+        // delta functions
+        for (size_t j = 0; j < data->deltas.size(); j++) {
+            if ( data->deltas[j].spin_labels[0] != data->deltas[j].spin_labels[1] ) {
+                killit = true;
+                break;
+            }
+        }
 
-        //if ( killit ) {
-        //    tmp[i]->skip = true;
-        //    continue;
-        //}
+        if ( killit ) {
+            tmp[i]->skip = true;
+            continue;
+        }
     }
 
     
