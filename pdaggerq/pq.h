@@ -110,13 +110,7 @@ class pq {
     /// list: is fermionic operator creator or annihilator (relative to fermi vacuum)?
     std::vector<bool> is_dagger_fermi;
 
-    /// list of delta functions (index 1)
-    std::vector<std::string> delta1;
-
-    /// list of delta functions (index 2)
-    std::vector<std::string> delta2;
-
-    /// detailed information about string (t, R, L, amplitudes, bosons, etc.)
+    /// detailed information about string (amplitudes, bosons, integrals, deltas, etc.)
     std::shared_ptr<StringData> data;
 
     /// print string information

@@ -142,9 +142,10 @@ void pq::print() {
         }
         printf(" ");
     }
-    for (size_t i = 0; i < delta1.size(); i++) {
-        printf("d(%s,%s)",delta1[i].c_str(),delta2[i].c_str());
-        printf(" ");
+
+    // print deltas
+    for (size_t i = 0; i < data->deltas.size(); i++) {
+        data->deltas[i].print();
     }
 
     // print integrals
@@ -225,9 +226,9 @@ std::vector<std::string> pq::get_string_with_spin() {
         my_string.push_back(tmp);
     }
 
-    for (size_t i = 0; i < delta1.size(); i++) {
-        std::string tmp = "d(" + delta1[i] + "," + delta2[i] + ")";
-        my_string.push_back(tmp);
+    // deltas
+    for (size_t i = 0; i < data->deltas.size(); i++) {
+        my_string.push_back( data->deltas[i].to_string_with_spin() );
     }
 
     // integrals
@@ -306,9 +307,9 @@ std::vector<std::string> pq::get_string() {
         my_string.push_back(tmp);
     }
 
-    for (size_t i = 0; i < delta1.size(); i++) {
-        std::string tmp = "d(" + delta1[i] + "," + delta2[i] + ")";
-        my_string.push_back(tmp);
+    // deltas
+    for (size_t i = 0; i < data->deltas.size(); i++) {
+        my_string.push_back( data->deltas[i].to_string() );
     }
 
     // integrals
@@ -461,13 +462,13 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
 
     // alphabetize deltas
     for (size_t i = 0; i < ordered.size(); i++) {
-        for (size_t j = 0; j < ordered[i]->delta1.size(); j++) {
-            int val1 = ordered[i]->delta1[j].c_str()[0];
-            int val2 = ordered[i]->delta2[j].c_str()[0];
+        for (size_t j = 0; j < ordered[i]->data->deltas.size(); j++) {
+            int val1 = ordered[i]->data->deltas[j].labels[0].c_str()[0];
+            int val2 = ordered[i]->data->deltas[j].labels[1].c_str()[0];
             if ( val2 < val1 ) {
-                std::string dum = ordered[i]->delta1[j];
-                ordered[i]->delta1[j] = ordered[i]->delta2[j];
-                ordered[i]->delta2[j] = dum;
+                std::string dum = ordered[i]->data->deltas[j].labels[0];
+                ordered[i]->data->deltas[j].labels[0] = ordered[i]->data->deltas[j].labels[1];
+                ordered[i]->data->deltas[j].labels[1] = dum;
             }
         }
     }
@@ -939,7 +940,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
         //killit = false;
 
         //// delta functions TODO
-        //for (size_t j = 0; j < delta1.size(); j++) {
+        //for (size_t j = 0; j < data->deltas.size(); j++) {
         //}
 
         //if ( killit ) {
@@ -2790,18 +2791,20 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
 
     // same delta functions (recall these aren't sorted in any way)
     int nsame_d = 0;
-    for (size_t k = 0; k < ordered_1->delta1.size(); k++) {
-        for (size_t l = 0; l < ordered_2->delta1.size(); l++) {
-            if ( ordered_1->delta1[k] == ordered_2->delta1[l] && ordered_1->delta2[k] == ordered_2->delta2[l] ) {
+    for (size_t k = 0; k < ordered_1->data->deltas.size(); k++) {
+        for (size_t l = 0; l < ordered_2->data->deltas.size(); l++) {
+            if ( ordered_1->data->deltas[k].labels[0] == ordered_2->data->deltas[l].labels[0] 
+              && ordered_1->data->deltas[k].labels[1] == ordered_2->data->deltas[l].labels[1] ) {
                 nsame_d++;
                 //break;
-            }else if ( ordered_1->delta2[k] == ordered_2->delta1[l] && ordered_1->delta1[k] == ordered_2->delta2[l] ) {
+            }else if ( ordered_1->data->deltas[k].labels[0] == ordered_2->data->deltas[l].labels[1] 
+                    && ordered_1->data->deltas[k].labels[1] == ordered_2->data->deltas[l].labels[0] ) {
                 nsame_d++;
                 //break;
             }
         }
     }
-    if ( nsame_d != ordered_1->delta1.size() ) return false;
+    if ( nsame_d != ordered_1->data->deltas.size() ) return false;
 
     // amplitude comparisons, with permutations
     n_permute = 0;
@@ -2909,6 +2912,8 @@ bool pq::compare_amplitudes( std::vector<amplitudes> amps1,
 
 // copy all data, except symbols and daggers. 
 
+// TODO: should probably make sure all of the std::vectors
+//       (ints, amplitudes, deltas) have been cleared.
 void pq::shallow_copy(void * copy_me) { 
 
     pq * in = reinterpret_cast<pq * >(copy_me);
@@ -2922,10 +2927,9 @@ void pq::shallow_copy(void * copy_me) {
     // factor
     data->factor = in->data->factor;
 
-    // delta1, delta2
-    for (size_t i = 0; i < in->delta1.size(); i++) {
-        delta1.push_back(in->delta1[i]);
-        delta2.push_back(in->delta2[i]);
+    // deltas
+    for (size_t i = 0; i < in->data->deltas.size(); i++) {
+        data->deltas.push_back(in->data->deltas[i]);
     }
 
     // integrals
@@ -2969,13 +2973,11 @@ int pq::index_in_anywhere(std::string idx) {
 int pq::index_in_deltas(std::string idx) {
 
     int n = 0;
-    for (size_t i = 0; i < delta1.size(); i++) {
-        if ( delta1[i] == idx ) {
+    for (size_t i = 0; i < data->deltas.size(); i++) {
+        if ( data->deltas[i].labels[0] == idx ) {
             n++;
         }
-    }
-    for (size_t i = 0; i < delta2.size(); i++) {
-        if ( delta2[i] == idx ) {
+        if ( data->deltas[i].labels[1] == idx ) {
             n++;
         }
     }
@@ -3053,16 +3055,16 @@ void pq::set_spin_everywhere(std::string target, std::string spin) {
 
 void pq::replace_index_in_deltas(std::string old_idx, std::string new_idx) {
 
-    for (size_t i = 0; i < delta1.size(); i++) {
-        if ( delta1[i] == old_idx ) {
-            delta1[i] = new_idx;
+    for (size_t i = 0; i < data->deltas.size(); i++) {
+        if ( data->deltas[i].labels[0] == old_idx ) {
+            data->deltas[i].labels[0] = new_idx;
             // dont' return because indices may be repeated in two-electron integrals
             //return;
         }
     }
-    for (size_t i = 0; i < delta2.size(); i++) {
-        if ( delta2[i] == old_idx ) {
-            delta2[i] = new_idx;
+    for (size_t i = 0; i < data->deltas.size(); i++) {
+        if ( data->deltas[i].labels[1] == old_idx ) {
+            data->deltas[i].labels[1] = new_idx;
             // dont' return because indices may be repeated in two-electron integrals
             //return;
         }
@@ -3168,12 +3170,12 @@ void pq::gobble_deltas() {
         }
     }
 
-    for (size_t i = 0; i < delta1.size(); i++) {
+    for (size_t i = 0; i < data->deltas.size(); i++) {
 
         // is delta label 1 in list of summation labels?
         bool have_delta1 = false;
         for (size_t j = 0; j < sum_labels.size(); j++) {
-            if ( delta1[i] == sum_labels[j] ) {
+            if ( data->deltas[i].labels[0] == sum_labels[j] ) {
                 have_delta1 = true;
                 break;
             }
@@ -3181,7 +3183,7 @@ void pq::gobble_deltas() {
         // is delta label 2 in list of summation labels?
         bool have_delta2 = false;
         for (size_t j = 0; j < sum_labels.size(); j++) {
-            if ( delta2[i] == sum_labels[j] ) {
+            if ( data->deltas[i].labels[1] == sum_labels[j] ) {
                 have_delta2 = true;
                 break;
             }
@@ -3193,10 +3195,10 @@ void pq::gobble_deltas() {
         // like terms this way. requires swapping up to four 
         // labels.
         if ( have_delta1 ) {
-            replace_index_everywhere( delta1[i], delta2[i] );
+            replace_index_everywhere( data->deltas[i].labels[0], data->deltas[i].labels[1] );
             continue;
         }else if ( have_delta2 ) {
-            replace_index_everywhere( delta2[i], delta1[i] );
+            replace_index_everywhere( data->deltas[i].labels[1], data->deltas[i].labels[0] );
             continue;
         }
 */
@@ -3204,12 +3206,12 @@ void pq::gobble_deltas() {
         bool do_continue = false;
         for (size_t j = 0; j < data->integral_types.size(); j++) { 
             std::string type = data->integral_types[j];
-            if ( have_delta1 && index_in_integrals( delta1[i], data->ints[type] ) > 0 ) {
-               replace_index_in_integrals( delta1[i], delta2[i], data->ints[type] );
+            if ( have_delta1 && index_in_integrals( data->deltas[i].labels[0], data->ints[type] ) > 0 ) {
+               replace_index_in_integrals( data->deltas[i].labels[0], data->deltas[i].labels[1], data->ints[type] );
                do_continue = true;
                break;
-            }else if ( have_delta2 && index_in_integrals( delta2[i], data->ints[type] ) > 0 ) {
-               replace_index_in_integrals( delta2[i], delta1[i], data->ints[type] );
+            }else if ( have_delta2 && index_in_integrals( data->deltas[i].labels[1], data->ints[type] ) > 0 ) {
+               replace_index_in_integrals( data->deltas[i].labels[1], data->deltas[i].labels[0], data->ints[type] );
                do_continue = true;
                break;
             }
@@ -3223,12 +3225,12 @@ void pq::gobble_deltas() {
         std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
         for (size_t j = 0; j < types.size(); j++) { 
             char type = types[j];
-            if ( have_delta1 && index_in_amplitudes( delta1[i], data->amps[type] ) > 0 ) {
-               replace_index_in_amplitudes( delta1[i], delta2[i], data->amps[type] );
+            if ( have_delta1 && index_in_amplitudes( data->deltas[i].labels[0], data->amps[type] ) > 0 ) {
+               replace_index_in_amplitudes( data->deltas[i].labels[0], data->deltas[i].labels[1], data->amps[type] );
                do_continue = true;
                break;
-            }else if ( have_delta2 && index_in_amplitudes( delta2[i], data->amps[type] ) > 0 ) {
-               replace_index_in_amplitudes( delta2[i], delta1[i], data->amps[type] );
+            }else if ( have_delta2 && index_in_amplitudes( data->deltas[i].labels[1], data->amps[type] ) > 0 ) {
+               replace_index_in_amplitudes( data->deltas[i].labels[1], data->deltas[i].labels[0], data->amps[type] );
                do_continue = true;
                break;
             }
@@ -3236,17 +3238,21 @@ void pq::gobble_deltas() {
         if ( do_continue ) continue;
 
         // at this point, it is safe to assume the delta function must remain
-        tmp_delta1.push_back(delta1[i]);
-        tmp_delta2.push_back(delta2[i]);
+        tmp_delta1.push_back(data->deltas[i].labels[0]);
+        tmp_delta2.push_back(data->deltas[i].labels[1]);
 
     }
 
-    delta1.clear();
-    delta2.clear();
+    data->deltas.clear();
 
     for (size_t i = 0; i < tmp_delta1.size(); i++) {
-        delta1.push_back(tmp_delta1[i]);
-        delta2.push_back(tmp_delta2[i]);
+
+        delta_functions deltas;
+        deltas.labels.push_back(tmp_delta1[i]);
+        deltas.labels.push_back(tmp_delta2[i]);
+        deltas.sort();
+        data->deltas.push_back(deltas);
+
     }
 
 }
@@ -3314,8 +3320,12 @@ bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
 
         if ( swap ) {
 
-            s1->delta1.push_back(symbol[i]);
-            s1->delta2.push_back(symbol[i+1]);
+            std::vector<std::string> labels;
+            delta_functions deltas;
+            deltas.labels.push_back(symbol[i]);
+            deltas.labels.push_back(symbol[i+1]);
+            deltas.sort();
+            s1->data->deltas.push_back(deltas);
 
             s2->sign = -s2->sign;
             s2->symbol.push_back(symbol[i+1]);
@@ -3499,8 +3509,13 @@ bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
             // we're going to have two new strings
             n_new_strings = 2;
 
-            s1->delta1.push_back(symbol[i]);
-            s1->delta2.push_back(symbol[i+1]);
+            // delta function
+            std::vector<std::string> labels;
+            delta_functions deltas;
+            deltas.labels.push_back(symbol[i]);
+            deltas.labels.push_back(symbol[i+1]);
+            deltas.sort();
+            s1->data->deltas.push_back(deltas);
 
             s2->sign = -s2->sign;
             s2->symbol.push_back(symbol[i+1]);
