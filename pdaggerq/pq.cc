@@ -961,13 +961,13 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
 
         killit = false;
 
-        // delta functions
-        //for (size_t j = 0; j < data->deltas.size(); j++) {
-        //    if ( data->deltas[j].spin_labels[0] != data->deltas[j].spin_labels[1] ) {
-        //        killit = true;
-        //        break;
-        //    }
-        //}
+        // delta functions TODO: why aren't the spin labels populated
+        for (size_t j = 0; j < data->deltas.size(); j++) {
+            if ( tmp[i]->data->deltas[j].spin_labels[0] != tmp[i]->data->deltas[j].spin_labels[1] ) {
+                killit = true;
+                break;
+            }
+        }
 
         if ( killit ) {
             tmp[i]->skip = true;
@@ -3056,6 +3056,7 @@ void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
 void pq::set_spin_everywhere(std::string target, std::string spin) {
 
+    // integrals
     for (size_t i = 0; i < data->integral_types.size(); i++) {
         std::string type = data->integral_types[i];
         for (size_t j = 0; j < data->ints[type].size(); j++) {
@@ -3066,6 +3067,7 @@ void pq::set_spin_everywhere(std::string target, std::string spin) {
             }
         }
     }
+    // amplitudes
     for (size_t i = 0; i < data->amplitude_types.size(); i++) {
         char type = data->amplitude_types[i];
         for (size_t j = 0; j < data->amps[type].size(); j++) {
@@ -3073,6 +3075,14 @@ void pq::set_spin_everywhere(std::string target, std::string spin) {
                 if ( data->amps[type][j].labels[k] == target ) {
                     data->amps[type][j].spin_labels[k] = spin;
                 }
+            }
+        }
+    }
+    // deltas
+    for (size_t i = 0; i < data->deltas.size(); i++) {
+        for (size_t j = 0; j < data->deltas[i].labels.size(); j++) {
+            if ( data->deltas[i].labels[j] == target ) {
+                data->deltas[i].spin_labels[j] = spin;
             }
         }
     }
