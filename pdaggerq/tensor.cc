@@ -421,5 +421,90 @@ std::string integrals::to_string_with_spin(std::string symbol) {
     return val;
 }
 
+
+/// sort deltas labels
+void deltas::sort() {
+
+    numerical_labels.clear();
+
+    // convert labels to numerical labels
+    for (size_t i = 0; i < labels.size(); i++) {
+        int numerical_label = 0;
+        int factor = 1;
+        for (size_t j = 0; j < labels[i].size(); j++) {
+            numerical_label += factor * labels[i][j];
+            factor *= 128;
+        }
+        numerical_labels.push_back(numerical_label);
+    }
+
+    permutations = 0;
+
+    return;
+}
+
+/// copy deltas
+deltas deltas::operator=(const deltas& rhs) {
+
+    deltas d;
+
+    d.labels.clear();
+    d.numerical_labels.clear();
+    d.spin_labels.clear();
+
+    for (size_t i = 0; i < rhs.labels.size(); i++) {
+        d.labels.push_back(rhs.labels[i]);
+    }
+    for (size_t i = 0; i < rhs.spin_labels.size(); i++) {
+        d.spin_labels.push_back(rhs.spin_labels[i]);
+    }
+
+    return d;
+}
+
+/// print deltas 
+void deltas::print() {
+
+    printf("d(");
+    printf("%s",labels[0].c_str());
+    printf(",");
+    printf("%s",labels[1].c_str());
+    printf(")");
+    printf(" ");
+}
+
+/// print deltas to string
+std::string deltas::to_string() {
+
+    std::string val;
+
+    val = "d("
+        + labels[0]
+        + ","
+        + labels[1]
+        + ")";
+
+    return val;
+}
+
+/// print deltas to string with spin labels
+std::string deltas::to_string_with_spin() {
+
+    std::string val;
+
+    std::string spin = "_";
+    for (size_t k = 0; k < spin_labels.size(); k++) {
+        spin += spin_labels[k];
+    }
+
+    val = "d" + spin + "("
+        + labels[0]
+        + ","
+        + labels[1]
+        + ")";
+
+    return val;
+}
+
 }
 

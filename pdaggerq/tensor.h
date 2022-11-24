@@ -140,7 +140,7 @@ class integrals: public tensor {
     /// sort integrals, keep track of permutations
     void sort();
 
-    /// copy amplitudes
+    /// copy integrals
     integrals operator=(const integrals& rhs);
 
     /// print integrals
@@ -151,6 +151,31 @@ class integrals: public tensor {
 
     /// print integrals to string with spin labels
     std::string to_string_with_spin(std::string symbol);
+
+};
+
+class deltas: public tensor {
+
+    /// constructor
+    deltas(){};
+
+    /// destructor
+    ~deltas(){};
+
+    /// sort deltas
+    void sort();
+
+    /// copy deltas
+    deltas operator=(const deltas& rhs);
+
+    /// print deltas
+    void print();
+
+    /// print deltas to string
+    std::string to_string();
+
+    /// print deltas to string with spin labels
+    std::string to_string_with_spin();
 
 };
 

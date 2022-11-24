@@ -633,6 +633,7 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
             }
         }
     }
+    // deltas TODO
 
     // set spins for occupied non-summed labels
     for (size_t label = 0; label < occ_labels.size(); label++) {
@@ -862,6 +863,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
         bool killit = false;
 
         // amplitudes
+        // TODO: this logic only works for particle-conserving amplitudes
         for (size_t j = 0; j < data->amplitude_types.size(); j++) {
             char type = data->amplitude_types[j];
             for (size_t k = 0; k < tmp[i]->data->amps[type].size(); k++) {
@@ -933,6 +935,17 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
             tmp[i]->skip = true;
             continue;
         }
+
+        //killit = false;
+
+        //// delta functions TODO
+        //for (size_t j = 0; j < delta1.size(); j++) {
+        //}
+
+        //if ( killit ) {
+        //    tmp[i]->skip = true;
+        //    continue;
+        //}
     }
 
     
