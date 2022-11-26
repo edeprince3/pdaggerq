@@ -30,6 +30,11 @@ namespace pdaggerq {
 
 class pq {
 
+  public:
+
+    /// how many times does label "idx" appear in any term?
+    int index_in_anywhere(std::string idx);
+
   private:
 
     /// is the entire string (fermions+bosons) in normal order?
@@ -37,9 +42,6 @@ class pq {
 
     /// are bosonic operators in normal order?
     bool is_boson_normal_order();
-
-    /// how many times does label "idx" appear in any term?
-    int index_in_anywhere(std::string idx);
 
     /// how many times does label "idx" appear in delta terms?
     int index_in_deltas(std::string idx);

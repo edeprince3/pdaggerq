@@ -40,6 +40,15 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+std::vector<std::vector<std::string>> empty_spin_labels(){
+    std::vector<std::vector<std::string>> ret;
+    return ret;
+}
+std::vector<std::string> input_strings(){
+    std::vector<std::string> ret;
+    return ret;
+}
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -59,12 +68,6 @@ void export_pq_helper(py::module& m) {
         .def("set_factor", &pq_helper::set_factor)
         .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("add_new_string", &pq_helper::add_new_string)
-        .def("add_operator_product", &pq_helper::add_operator_product)
-        .def("add_st_operator", &pq_helper::add_st_operator)
-        .def("add_commutator", &pq_helper::add_commutator)
-        .def("add_double_commutator", &pq_helper::add_double_commutator)
-        .def("add_triple_commutator", &pq_helper::add_triple_commutator)
-        .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
         .def("print", &pq_helper::print)
@@ -73,7 +76,53 @@ void export_pq_helper(py::module& m) {
         .def("fully_contracted_strings_with_spin", &pq_helper::fully_contracted_strings_with_spin)
         .def("print_fully_contracted", &pq_helper::print_fully_contracted)
         .def("print_one_body", &pq_helper::print_one_body)
-        .def("print_two_body", &pq_helper::print_two_body);
+        .def("print_two_body", &pq_helper::print_two_body)
+        .def("add_st_operator", 
+            [](pq_helper& self, double factor, std::vector<std::string> targets, 
+                                               std::vector<std::string> ops,
+                                               std::vector<std::vector<std::string>> spin_labels) {
+                return self.add_st_operator(factor, targets, ops, spin_labels);
+            },
+            py::arg("factor"), py::arg("targets"),  py::arg("ops"), py::arg("spin_labels") = empty_spin_labels() )
+        .def("add_commutator", 
+            [](pq_helper& self, double factor, std::vector<std::string> op1, 
+                                               std::vector<std::string> op2,
+                                               std::vector<std::vector<std::string>> spin_labels) {
+                return self.add_commutator(factor, op1, op2, spin_labels);
+            },
+            py::arg("factor"), py::arg("op1"),  py::arg("op2"), py::arg("spin_labels") = empty_spin_labels() )
+        .def("add_double_commutator", 
+            [](pq_helper& self, double factor, std::vector<std::string> op1, 
+                                               std::vector<std::string> op2,
+                                               std::vector<std::string> op3,
+                                               std::vector<std::vector<std::string>> spin_labels) {
+                return self.add_double_commutator(factor, op1, op2, op3, spin_labels);
+            },
+            py::arg("factor"), py::arg("op1"),  py::arg("op2"), py::arg("op3"), py::arg("spin_labels") = empty_spin_labels() )
+        .def("add_triple_commutator", 
+            [](pq_helper& self, double factor, std::vector<std::string> op1, 
+                                               std::vector<std::string> op2,
+                                               std::vector<std::string> op3,
+                                               std::vector<std::string> op4,
+                                               std::vector<std::vector<std::string>> spin_labels) {
+                return self.add_triple_commutator(factor, op1, op2, op3, op4, spin_labels);
+            },
+            py::arg("factor"), py::arg("op1"),  py::arg("op2"), py::arg("op3"), py::arg("op4"), py::arg("spin_labels") = empty_spin_labels() )
+        .def("add_quadruple_commutator", 
+            [](pq_helper& self, double factor, std::vector<std::string> op1, 
+                                               std::vector<std::string> op2,
+                                               std::vector<std::string> op3,
+                                               std::vector<std::string> op4,
+                                               std::vector<std::string> op5,
+                                               std::vector<std::vector<std::string>> spin_labels) {
+                return self.add_quadruple_commutator(factor, op1, op2, op3, op4, op5, spin_labels);
+            },
+            py::arg("factor"), py::arg("op1"),  py::arg("op2"), py::arg("op3"), py::arg("op4"), py::arg("op5"), py::arg("spin_labels") = empty_spin_labels() )
+        .def("add_operator_product", 
+            [](pq_helper& self, double factor, std::vector<std::string> in, std::vector<std::vector<std::string>> spin_labels) {
+                return self.add_operator_product(factor, in, spin_labels);
+            },
+            py::arg("factor"), py::arg("in"),  py::arg("spin_labels") = empty_spin_labels() );
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {
@@ -187,19 +236,20 @@ void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
 
 void pq_helper::add_commutator(double factor,
                                  std::vector<std::string> op0,
-                                 std::vector<std::string> op1) {
+                                 std::vector<std::string> op1,
+                                 std::vector<std::vector<std::string>> spin_labels) {
 
     // op0 op1
     std::vector<std::string> tmp;
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     // op1 op0
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
 }
@@ -207,7 +257,8 @@ void pq_helper::add_commutator(double factor,
 void pq_helper::add_double_commutator(double factor,
                                         std::vector<std::string> op0, 
                                         std::vector<std::string> op1, 
-                                        std::vector<std::string> op2) {
+                                        std::vector<std::string> op2,
+                                        std::vector<std::vector<std::string>> spin_labels) {
 
     std::vector<std::string> tmp;
 
@@ -215,28 +266,28 @@ void pq_helper::add_double_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     // - op1 op0 op2
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     // - op2 op0 op1
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //   op2 op1 op0
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
 }
@@ -245,7 +296,8 @@ void pq_helper::add_triple_commutator(double factor,
                                         std::vector<std::string> op0,
                                         std::vector<std::string> op1,
                                         std::vector<std::string> op2,
-                                        std::vector<std::string> op3) {
+                                        std::vector<std::string> op3,
+                                        std::vector<std::vector<std::string>> spin_labels) {
 
     std::vector<std::string> tmp;
 
@@ -254,7 +306,7 @@ void pq_helper::add_triple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     //  - op1 op0 op2 op3
@@ -262,7 +314,7 @@ void pq_helper::add_triple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //  - op2 op0 op1 op3
@@ -270,7 +322,7 @@ void pq_helper::add_triple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //    op2 op1 op0 op3
@@ -278,7 +330,7 @@ void pq_helper::add_triple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     //  - op3 op0 op1 op2
@@ -286,7 +338,7 @@ void pq_helper::add_triple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //    op3 op1 op0 op2
@@ -294,7 +346,7 @@ void pq_helper::add_triple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     //    op3 op2 op0 op1
@@ -302,7 +354,7 @@ void pq_helper::add_triple_commutator(double factor,
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     //  - op3 op2 op1 op0
@@ -310,7 +362,7 @@ void pq_helper::add_triple_commutator(double factor,
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
 }
@@ -320,7 +372,8 @@ void pq_helper::add_quadruple_commutator(double factor,
                                            std::vector<std::string> op1,
                                            std::vector<std::string> op2,
                                            std::vector<std::string> op3,
-                                           std::vector<std::string> op4) {
+                                           std::vector<std::string> op4,
+                                           std::vector<std::vector<std::string>> spin_labels) {
 
     std::vector<std::string> tmp;
 
@@ -330,7 +383,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
     for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     // -op1 op0 op2 op3 op4
@@ -339,7 +392,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
     for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     // -op2 op0 op1 op3 op4
@@ -348,7 +401,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
     for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //  op2 op1 op0 op3 op4
@@ -357,7 +410,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
     for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     // -op3 op0 op1 op2 op4
@@ -366,7 +419,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //  op3 op1 op0 op2 op4
@@ -375,7 +428,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     //  op3 op2 op0 op1 op4
@@ -384,7 +437,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     // -op3 op2 op1 op0 op4
@@ -393,7 +446,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     // -op4 op0 op1 op2 op3
@@ -402,7 +455,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //  op4 op1 op0 op2 op3
@@ -411,7 +464,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     //  op4 op2 op0 op1 op3
@@ -420,7 +473,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     // -op4 op2 op1 op0 op3
@@ -429,7 +482,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //  op4 op3 op0 op1 op2
@@ -438,7 +491,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
     // -op4 op3 op1 op0 op2
@@ -447,7 +500,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     // -op4 op3 op2 op0 op1
@@ -456,7 +509,7 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product(-factor, tmp );
+    add_operator_product(-factor, tmp, spin_labels );
     tmp.clear();
 
     //  op4 op3 op2 op1 op0
@@ -465,14 +518,14 @@ void pq_helper::add_quadruple_commutator(double factor,
     for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
     for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
     for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product( factor, tmp );
+    add_operator_product( factor, tmp, spin_labels );
     tmp.clear();
 
 }
 
 // add a string of operators
 
-void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
+void pq_helper::add_operator_product(double factor, std::vector<std::string>  in, std::vector<std::vector<std::string> > spin_labels ){
 
     // check if there is a fluctuation potential operator 
     // that needs to be split into multiple terms
@@ -1957,15 +2010,15 @@ void pq_helper::clear() {
 
 }
 
-void pq_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops) {
+void pq_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops, std::vector<std::vector<std::string>> spin_labels) {
 
     int dim = (int)ops.size();
 
-    add_operator_product( factor, targets);
+    add_operator_product( factor, targets, spin_labels);
     simplify();
 
     for (int i = 0; i < dim; i++) {
-        add_commutator( factor, targets, {ops[i]});
+        add_commutator( factor, targets, {ops[i]}, spin_labels);
     }
     simplify();
 
@@ -1977,12 +2030,12 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
 
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
-                add_double_commutator(factor, targets, {ops[i]}, {ops[j]});
+                add_double_commutator(factor, targets, {ops[i]}, {ops[j]}, spin_labels);
             }
         }
         simplify();
         for (int i = 0; i < dim; i++) {
-            add_double_commutator(0.5 * factor, targets, {ops[i]}, {ops[i]});
+            add_double_commutator(0.5 * factor, targets, {ops[i]}, {ops[i]}, spin_labels);
         }
         simplify();
 
@@ -1990,7 +2043,7 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 for (int k = j + 1; k < dim; k++) {
-                    add_triple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+                    add_triple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, spin_labels);
                 }
             }
         }
@@ -1999,15 +2052,15 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         // ijj
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
-                add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
-                add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]});
+                add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, spin_labels);
+                add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, spin_labels);
             }
         }
         simplify();
 
          // iii
         for (int i = 0; i < dim; i++) {
-            add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
+            add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, spin_labels);
         }
         simplify();
 
@@ -2016,7 +2069,7 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
             for (int j = i + 1; j < dim; j++) {
                 for (int k = j + 1; k < dim; k++) {
                     for (int l = k + 1; l < dim; l++) {
-                        add_quadruple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                        add_quadruple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]}, spin_labels);
                     }
                 }
             }
@@ -2027,9 +2080,9 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 for (int k = j + 1; k < dim; k++) {
-                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]});
-                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]});
-                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]});
+                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]}, spin_labels);
+                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]}, spin_labels);
+                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]}, spin_labels);
                 }
             }
         }
@@ -2038,7 +2091,7 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         // iijj
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
-                add_quadruple_commutator( 0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
+                add_quadruple_commutator( 0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]}, spin_labels);
             }
         }
         simplify();
@@ -2046,22 +2099,22 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         // iiij
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
-                add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
-                add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]});
+                add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]}, spin_labels);
+                add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]}, spin_labels);
             }
         }
         simplify();
 
         // iiii
         for (int i = 0; i < dim; i++) {
-            add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
+            add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]}, spin_labels);
         }
         simplify();
     }else {
 
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
-                add_double_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]});
+                add_double_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, spin_labels);
             }
         }
         simplify();
@@ -2069,7 +2122,7 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
-                    add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+                    add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, spin_labels);
                 }
             }
         }
@@ -2079,7 +2132,7 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
                     for (int l = 0; l < dim; l++) {
-                        add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                        add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]}, spin_labels);
                     }
                 }
             }

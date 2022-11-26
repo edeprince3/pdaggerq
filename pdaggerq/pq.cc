@@ -547,6 +547,10 @@ void pq::sort_labels() {
             data->amps[type][j].sort();
         }
     }
+    for (size_t i = 0; i < data->deltas.size(); i++) { 
+        data->deltas[i].sort();
+    }
+
 }
 
 
@@ -2976,6 +2980,9 @@ void pq::shallow_copy(void * copy_me) {
 
     // w0 
     data->has_w0 = in->data->has_w0;
+
+    // non-summed spin labels
+    data->non_summed_spin_labels = in->data->non_summed_spin_labels;
 
 }
 
