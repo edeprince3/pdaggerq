@@ -2868,20 +2868,6 @@ void pq::shallow_copy(void * copy_me) {
 
 }
 
-// how many times does an index appear in the list of symbols (a_i, a*_j, etc)?
-int pq::index_in_symbols(std::string idx) {
-
-    int n = 0;
-
-    for (size_t i = 0; i < symbol.size(); i++) {
-        if ( symbol[i] == idx ) {
-            n++;
-        }
-    }
-
-    return n;
-}
-
 // how many times does an index appear amplitudes, deltas, and integrals?
 int pq::index_in_anywhere(std::string idx) {
 

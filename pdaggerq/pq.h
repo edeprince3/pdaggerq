@@ -40,9 +40,6 @@ class pq {
     /// are bosonic operators in normal order?
     bool is_boson_normal_order();
 
-    /// how many times does an index appear in the list of symbols (a_i, a*_j, etc)?
-    int index_in_symbols(std::string idx);
-
     /// how many times does label "idx" appear in deltas, amplitudes, or integrals?
     int index_in_anywhere(std::string idx);
 

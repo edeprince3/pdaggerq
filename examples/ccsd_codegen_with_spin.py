@@ -27,9 +27,7 @@ def main():
 
     # grab list of fully-contracted strings, then print
 
-    spin_labels = {
-    }
-    energy_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+    energy_terms = pq.fully_contracted_strings_with_spin()
     energy_terms = contracted_strings_to_tensor_terms(energy_terms)
 
     for my_term in energy_terms:

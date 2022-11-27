@@ -40,7 +40,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-std::map<std::string, std::string> empty_spin_map(){
+std::map<std::string, std::string> empty_spin_labels(){
     std::map<std::string, std::string> ret;
     return ret;
 }
@@ -69,6 +69,12 @@ void export_pq_helper(py::module& m) {
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings_with_spin", &pq_helper::fully_contracted_strings_with_spin)
+        .def("fully_contracted_strings_with_spin",
+             [](pq_helper& self, std::map<std::string, std::string> spin_labels) {
+                 return self.fully_contracted_strings_with_spin(spin_labels);
+             },
+             py::arg("spin_labels") = empty_spin_labels() )
+
         .def("print_fully_contracted", &pq_helper::print_fully_contracted)
         .def("print_one_body", &pq_helper::print_one_body)
         .def("print_two_body", &pq_helper::print_two_body)
