@@ -26,7 +26,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    energy_terms = pq.fully_contracted_strings_with_spin([], [])
+    energy_terms = pq.fully_contracted_strings_with_spin()
     energy_terms = contracted_strings_to_tensor_terms(energy_terms)
 
     for my_term in energy_terms:
@@ -41,14 +41,6 @@ def main():
 
     # CCSD singles equations
 
-    pq.set_left_operators([['e1(m,e)']])
-
-
-    pq.add_st_operator(1.0, ['f'], ['t1', 't2'])
-    pq.add_st_operator(1.0, ['v'], ['t1', 't2'])
-
-    pq.simplify()
-
     print('')
     print('def ccsd_t1_aa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
@@ -58,8 +50,16 @@ def main():
     print('v = va')
     print('')
 
+    pq.set_left_operators([['e1(m,e)']])
+
+    pq.add_st_operator(1.0, ['f'], ['t1', 't2'])
+    pq.add_st_operator(1.0, ['v'], ['t1', 't2'])
+
+    pq.simplify()
+
     # grab list of fully-contracted strings, then print
-    singles_residual_terms = pq.fully_contracted_strings_with_spin(['a'], ['a'])
+    pq.set_non_summed_spin_labels([['m', 'a'], ['e', 'a']])
+    singles_residual_terms = pq.fully_contracted_strings_with_spin()
     singles_residual_terms = contracted_strings_to_tensor_terms(
         singles_residual_terms)
     for my_term in singles_residual_terms:
@@ -81,7 +81,8 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    singles_residual_terms = pq.fully_contracted_strings_with_spin(['b'], ['b'])
+    pq.set_non_summed_spin_labels([['m', 'b'], ['e', 'b']])
+    singles_residual_terms = pq.fully_contracted_strings_with_spin()
     singles_residual_terms = contracted_strings_to_tensor_terms(
         singles_residual_terms)
     for my_term in singles_residual_terms:
@@ -99,7 +100,6 @@ def main():
 
     pq.set_left_operators([['e2(m,n,f,e)']])
 
-
     pq.add_st_operator(1.0, ['f'], ['t1', 't2'])
     pq.add_st_operator(1.0, ['v'], ['t1', 't2'])
 
@@ -115,7 +115,8 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a'], ['a', 'a'])
+    pq.set_non_summed_spin_labels([['m', 'a'], ['n', 'a'], ['e', 'a'], ['f', 'a']])
+    doubles_residual_terms = pq.fully_contracted_strings_with_spin()
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -136,7 +137,8 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b'], ['b', 'b'])
+    pq.set_non_summed_spin_labels([['m', 'b'], ['n', 'b'], ['e', 'b'], ['f', 'b']])
+    doubles_residual_terms = pq.fully_contracted_strings_with_spin()
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -157,7 +159,8 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b'], ['a', 'b'])
+    pq.set_non_summed_spin_labels([['m', 'a'], ['n', 'b'], ['e', 'a'], ['f', 'b']])
+    doubles_residual_terms = pq.fully_contracted_strings_with_spin()
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)

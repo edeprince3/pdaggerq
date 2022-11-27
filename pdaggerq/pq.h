@@ -32,9 +32,6 @@ class pq {
 
   public:
 
-    /// how many times does label "idx" appear in any term?
-    int index_in_anywhere(std::string idx);
-
   private:
 
     /// is the entire string (fermions+bosons) in normal order?
@@ -42,6 +39,12 @@ class pq {
 
     /// are bosonic operators in normal order?
     bool is_boson_normal_order();
+
+    /// how many times does an index appear in the list of symbols (a_i, a*_j, etc)?
+    int index_in_symbols(std::string idx);
+
+    /// how many times does label "idx" appear in deltas, amplitudes, or integrals?
+    int index_in_anywhere(std::string idx);
 
     /// how many times does label "idx" appear in delta terms?
     int index_in_deltas(std::string idx);
@@ -146,7 +149,7 @@ class pq {
     void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// expand sums to include spin and zero terms where appropriate
-    void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels);
+    void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
     /// consolidate terms that differ by summed labels plus permutations
     void consolidate_permutations_plus_swap(
@@ -241,6 +244,9 @@ class pq {
 
     /// re-classify fluctuation potential terms
     void reclassify_integrals();
+
+    /// reset spin labels (so only non-summed labels are set)
+    void reset_spin_labels();
 
     /// set non-summed spin labels
     void set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels);

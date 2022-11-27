@@ -90,13 +90,13 @@ class pq_helper {
     void set_factor(double in);
 
     /// add new completed string / integrals / amplitudes / factor
-    void add_new_string();
+    void add_new_string(std::vector<std::vector<std::string>> spin_labels);
 
     /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the true vacuum
-    void add_new_string_true_vacuum();
+    void add_new_string_true_vacuum(std::vector<std::vector<std::string>> spin_labels);
 
     /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the fermi vacuum
-    void add_new_string_fermi_vacuum();
+    void add_new_string_fermi_vacuum(std::vector<std::vector<std::string>> spin_labels);
 
     /// add new complete string as a product of operators (i.e., {'h(pq)','t1(ai)'} )
     void add_operator_product(double factor, std::vector<std::string> in, std::vector<std::vector<std::string> > spin_labels = { {}, {} });
@@ -151,7 +151,7 @@ class pq_helper {
     std::vector<std::vector<std::string> > fully_contracted_strings();
 
     /// get list of fully-contracted strings, after spin tracing
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels);
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin();
 
     /// print one-body strings
     void print_one_body();
@@ -167,6 +167,12 @@ class pq_helper {
 
     /// set right-hand operators type (EE, IP, EA)
     void set_left_operators_type(std::string type);
+
+    /// map of non-summed labels to their corresponding spins
+    std::map<std::string, std::string> non_summed_spin_labels;
+
+    void set_non_summed_spin_labels(std::vector<std::vector<std::string>> spin_labels);
+
 
 };
 

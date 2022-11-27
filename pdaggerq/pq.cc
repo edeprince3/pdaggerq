@@ -553,71 +553,9 @@ void pq::sort_labels() {
 
 }
 
-
-void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels) {
+// reset spin labels
+void pq::reset_spin_labels() {
  
-    // TODO: there is alot of redundant code here ... much of this is done at the beginning of spin_blocking()
-
-    // determine non-summed labels
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
-
-    std::map<std::string, bool> found_occ;
-    std::map<std::string, std::string> found_occ_spin_labels;
-
-    std::map<std::string, bool> found_vir;
-    std::map<std::string, std::string> found_vir_spin_labels;
-
-    // ok, what non-summed labels do we have in the occupied space? 
-    size_t count = 0;
-    for (size_t j = 0; j < occ_labels.size(); j++) {
-        int found = index_in_anywhere(occ_labels[j]);
-        if ( found == 1 ) {
-            found_occ[occ_labels[j]] = true;
-            if ( count == occ_spin_labels.size() ) {
-                printf("\n");
-                printf("    error: dimension of spin labels does not match the number of non-summed occupied labels\n");
-                printf("\n");
-                exit(1);
-            }
-            found_occ_spin_labels[occ_labels[j]] = occ_spin_labels[count];
-            count++;
-        }else{
-            found_occ[occ_labels[j]] = false;
-        }
-    }
-    if ( count != occ_spin_labels.size() ) {
-        printf("\n");
-        printf("    error: dimension of spin labels does not match the number of non-summed occupied labels\n");
-        printf("\n");
-        exit(1);
-    }
-
-    // ok, what non-summed labels do we have in the virtual space? 
-    count = 0;
-    for (size_t j = 0; j < vir_labels.size(); j++) {
-        int found = index_in_anywhere(vir_labels[j]);
-        if ( found == 1 ) {
-            found_vir[vir_labels[j]] = true;
-            if ( count == vir_spin_labels.size() ) {
-                printf("\n");
-                printf("    error: dimension of spin labels does not match the number of non-summed virtual labels\n");
-                printf("\n");
-                exit(1);
-            }
-            found_vir_spin_labels[vir_labels[j]] = vir_spin_labels[count];
-            count++;
-        }else{
-            found_vir[vir_labels[j]] = false;
-        }
-    }
-    if ( count != vir_spin_labels.size() ) {
-        printf("\n");
-        printf("    error: dimension of spin labels does not match the number of non-summed virtual labels\n");
-        printf("\n");
-        exit(1);
-    }
-
     // amplitudes
     for (size_t i = 0; i < data->amplitude_types.size(); i++) {
         char type = data->amplitude_types[i];
@@ -646,16 +584,20 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
         }
     }
 
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+
     // set spins for occupied non-summed labels
     for (size_t label = 0; label < occ_labels.size(); label++) {
-        if ( found_occ[occ_labels[label]] ){
+        std::string spin = data->non_summed_spin_labels[occ_labels[label]];
+        if ( spin == "a" || spin == "b" ) {
             // amplitudes
             for (size_t i = 0; i < data->amplitude_types.size(); i++) {
                 char type = data->amplitude_types[i];
                 for (size_t j = 0; j < data->amps[type].size(); j++) {
                     for (size_t k = 0; k < data->amps[type][j].labels.size(); k++) {
                         if ( data->amps[type][j].labels[k] == occ_labels[label] ) {
-                            data->amps[type][j].spin_labels[k] = found_occ_spin_labels[occ_labels[label]];
+                            data->amps[type][j].spin_labels[k] = spin;
                         }
                     }
                 }
@@ -666,7 +608,7 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
                 for (size_t j = 0; j < data->ints[type].size(); j++) {
                     for (size_t k = 0; k < data->ints[type][j].labels.size(); k++) {
                         if ( data->ints[type][j].labels[k] == occ_labels[label] ) {
-                            data->ints[type][j].spin_labels[k] = found_occ_spin_labels[occ_labels[label]];
+                            data->ints[type][j].spin_labels[k] = spin;
                         }
                     }
                 }
@@ -675,22 +617,24 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
             for (size_t i = 0; i < data->deltas.size(); i++) {
                 for (size_t j = 0; j < data->deltas[i].labels.size(); j++) {
                     if ( data->deltas[i].labels[j] == occ_labels[label] ) {
-                        data->deltas[i].spin_labels[j] = found_occ_spin_labels[occ_labels[label]];
+                        data->deltas[i].spin_labels[j] = spin;
                     }
                 }
             }
         }
     }
+
     // set spins for virtual non-summed labels
     for (size_t label = 0; label < vir_labels.size(); label++) {
-        if ( found_vir[vir_labels[label]] ){
+        std::string spin = data->non_summed_spin_labels[vir_labels[label]];
+        if ( spin == "a" || spin == "b" ) {
             // amplitudes
             for (size_t i = 0; i < data->amplitude_types.size(); i++) {
                 char type = data->amplitude_types[i];
                 for (size_t j = 0; j < data->amps[type].size(); j++) {
                     for (size_t k = 0; k < data->amps[type][j].labels.size(); k++) {
                         if ( data->amps[type][j].labels[k] == vir_labels[label] ) {
-                            data->amps[type][j].spin_labels[k] = found_vir_spin_labels[vir_labels[label]];
+                            data->amps[type][j].spin_labels[k] = spin;
                         }
                     }
                 }
@@ -701,7 +645,7 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
                 for (size_t j = 0; j < data->ints[type].size(); j++) {
                     for (size_t k = 0; k < data->ints[type][j].labels.size(); k++) {
                         if ( data->ints[type][j].labels[k] == vir_labels[label] ) {
-                            data->ints[type][j].spin_labels[k] = found_vir_spin_labels[vir_labels[label]];
+                            data->ints[type][j].spin_labels[k] = spin;
                         }
                     }
                 }
@@ -710,84 +654,30 @@ void pq::set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, st
             for (size_t i = 0; i < data->deltas.size(); i++) {
                 for (size_t j = 0; j < data->deltas[i].labels.size(); j++) {
                     if ( data->deltas[i].labels[j] == vir_labels[label] ) {
-                        data->deltas[i].spin_labels[j] = found_vir_spin_labels[occ_labels[label]];
+                        data->deltas[i].spin_labels[j] = spin;
                     }   
                 }   
             }
         }
     }
-
 }
 
 // expand sums to include spin and zero terms where appropriate
-void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels) {
+void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map) {
+
+    // non-summed spin labels
+    data->non_summed_spin_labels = spin_map;
 
     // determine non-summed labels
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
-
-    std::map<std::string, bool> found_occ;
-    std::map<std::string, std::string> found_occ_spin_labels;
-
-    std::map<std::string, bool> found_vir;
-    std::map<std::string, std::string> found_vir_spin_labels;
-
-    // ok, what non-summed labels do we have in the occupied space? 
-    size_t count = 0;
-    for (size_t j = 0; j < occ_labels.size(); j++) {
-        int found = index_in_anywhere(occ_labels[j]);
-        if ( found == 1 ) {
-            found_occ[occ_labels[j]] = true;
-            if ( count == occ_spin_labels.size() ) {
-                printf("\n");
-                printf("    error: dimension of spin labels does not match the number of non-summed occupied labels\n");
-                printf("\n");
-                exit(1);
-            }
-            found_occ_spin_labels[occ_labels[j]] = occ_spin_labels[count];
-            count++;
-        }else{
-            found_occ[occ_labels[j]] = false;
-        }
-    }
-    if ( count != occ_spin_labels.size() ) {
-        printf("\n");
-        printf("    error: dimension of spin labels does not match the number of non-summed occupied labels\n");
-        printf("\n");
-        exit(1);
-    }
-
-    // ok, what non-summed labels do we have in the virtual space? 
-    count = 0;
-    for (size_t j = 0; j < vir_labels.size(); j++) {
-        int found = index_in_anywhere(vir_labels[j]);
-        if ( found == 1 ) {
-            found_vir[vir_labels[j]] = true;
-            if ( count == vir_spin_labels.size() ) {
-                printf("\n");
-                printf("    error: dimension of spin labels does not match the number of non-summed virtual labels\n");
-                printf("\n");
-                exit(1);
-            }
-            found_vir_spin_labels[vir_labels[j]] = vir_spin_labels[count];
-            count++;
-        }else{
-            found_vir[vir_labels[j]] = false;
-        }
-    }
-    if ( count != vir_spin_labels.size() ) {
-        printf("\n");
-        printf("    error: dimension of spin labels does not match the number of non-summed virtual labels\n");
-        printf("\n");
-        exit(1);
-    }
 
     // copy this term and zero spins
 
     std::shared_ptr<pq> newguy (new pq(vacuum));
     newguy->copy((void*)this);
 
-    newguy->set_non_summed_spin_labels(occ_spin_labels, vir_spin_labels);
+    newguy->reset_spin_labels();
 
     // list of expanded sums
     std::vector< std::shared_ptr<pq> > tmp;
@@ -805,19 +695,11 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
 
             // spin 1
             std::string spin1 = "";
-            if ( found_occ[idx1] ) {
-                spin1 = found_occ_spin_labels[idx1];
-            }else {
-                spin1 = found_vir_spin_labels[idx1];
-            }
+            spin1 = tmp[i]->data->non_summed_spin_labels[idx1];
 
             // spin 2
             std::string spin2 = "";
-            if ( found_occ[idx2] ) {
-                spin2 = found_occ_spin_labels[idx2];
-            }else {
-                spin2 = found_vir_spin_labels[idx2];
-            }
+            spin2 = tmp[i]->data->non_summed_spin_labels[idx2];
 
             // if spins are not the same, then the permutation needs to be expanded explicitly and allowed spins redetermined
             if ( spin1 != spin2 ) {
@@ -833,7 +715,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::vec
                 newguy2->sign *= -1;
 
                 // reset non-summed spins for this guy
-                newguy2->set_non_summed_spin_labels(occ_spin_labels, vir_spin_labels);
+                newguy2->reset_spin_labels();
 
                 // both guys need to have permutation lists adjusted
                 newguy1->data->permutations.clear();
@@ -2944,7 +2826,7 @@ bool pq::compare_amplitudes( std::vector<amplitudes> amps1,
 
 // TODO: should probably make sure all of the std::vectors
 //       (ints, amplitudes, deltas) have been cleared.
-void pq::shallow_copy(void * copy_me) { 
+void pq::shallow_copy(void * copy_me) {
 
     pq * in = reinterpret_cast<pq * >(copy_me);
 
@@ -2986,6 +2868,21 @@ void pq::shallow_copy(void * copy_me) {
 
 }
 
+// how many times does an index appear in the list of symbols (a_i, a*_j, etc)?
+int pq::index_in_symbols(std::string idx) {
+
+    int n = 0;
+
+    for (size_t i = 0; i < symbol.size(); i++) {
+        if ( symbol[i] == idx ) {
+            n++;
+        }
+    }
+
+    return n;
+}
+
+// how many times does an index appear amplitudes, deltas, and integrals?
 int pq::index_in_anywhere(std::string idx) {
 
     int n = 0;
@@ -3003,6 +2900,7 @@ int pq::index_in_anywhere(std::string idx) {
     return n;
 }
 
+// how many times does an index appear deltas?
 int pq::index_in_deltas(std::string idx) {
 
     int n = 0;
@@ -3017,6 +2915,7 @@ int pq::index_in_deltas(std::string idx) {
     return n;
 }
 
+// how many times does an index appear integrals?
 int pq::index_in_integrals(std::string idx, std::vector<integrals> ints) {
 
     int n = 0;
