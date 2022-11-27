@@ -76,7 +76,6 @@ void export_pq_helper(py::module& m) {
         .def("print_fully_contracted", &pq_helper::print_fully_contracted)
         .def("print_one_body", &pq_helper::print_one_body)
         .def("print_two_body", &pq_helper::print_two_body)
-        .def("set_non_summed_spin_labels", &pq_helper::set_non_summed_spin_labels)
         .def("add_new_string",
             [](pq_helper& self, std::vector<std::vector<std::string>> spin_labels) {
                 return self.add_new_string(spin_labels);
@@ -1924,7 +1923,7 @@ void pq_helper::print_fully_contracted() {
 }
 
 // get list of fully-contracted strings, after spin tracing
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin() {
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::map<std::string, std::string> spin_labels) {
 
     // perform spin tracing
 
@@ -1934,7 +1933,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
         if ( ordered[i]->symbol.size() != 0 ) continue;
         if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         std::vector< std::shared_ptr<pq> > tmp;
-        ordered[i]->spin_blocking(tmp, non_summed_spin_labels);
+        ordered[i]->spin_blocking(tmp, spin_labels);
         for (size_t j = 0; j < tmp.size(); j++) {
             spin_blocked.push_back(tmp[j]);
         }
@@ -2151,15 +2150,6 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
 void pq_helper::set_cluster_operators_commute(bool cluster_operators_commute) {
 
     cluster_operators_commute_ = cluster_operators_commute;
-
-}
-
-void pq_helper::set_non_summed_spin_labels(std::vector<std::vector<std::string>> spin_labels) {
-
-    non_summed_spin_labels.clear();
-    for (size_t i = 0; i < spin_labels.size(); i++) {
-        non_summed_spin_labels[spin_labels[i][0]] = spin_labels[i][1];
-    }
 
 }
 

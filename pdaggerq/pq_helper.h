@@ -151,7 +151,7 @@ class pq_helper {
     std::vector<std::vector<std::string> > fully_contracted_strings();
 
     /// get list of fully-contracted strings, after spin tracing
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin();
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::map<std::string, std::string> spin_labels);
 
     /// print one-body strings
     void print_one_body();
@@ -167,12 +167,6 @@ class pq_helper {
 
     /// set right-hand operators type (EE, IP, EA)
     void set_left_operators_type(std::string type);
-
-    /// map of non-summed labels to their corresponding spins
-    std::map<std::string, std::string> non_summed_spin_labels;
-
-    void set_non_summed_spin_labels(std::vector<std::vector<std::string>> spin_labels);
-
 
 };
 
