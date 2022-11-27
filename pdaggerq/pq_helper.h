@@ -90,47 +90,42 @@ class pq_helper {
     void set_factor(double in);
 
     /// add new completed string / integrals / amplitudes / factor
-    void add_new_string(std::vector<std::vector<std::string>> spin_labels);
+    void add_new_string();
 
     /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the true vacuum
-    void add_new_string_true_vacuum(std::vector<std::vector<std::string>> spin_labels);
+    void add_new_string_true_vacuum();
 
     /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the fermi vacuum
-    void add_new_string_fermi_vacuum(std::vector<std::vector<std::string>> spin_labels);
+    void add_new_string_fermi_vacuum();
 
     /// add new complete string as a product of operators (i.e., {'h(pq)','t1(ai)'} )
-    void add_operator_product(double factor, std::vector<std::string> in, std::vector<std::vector<std::string> > spin_labels = { {}, {} });
+    void add_operator_product(double factor, std::vector<std::string> in);
 
     /// add similarity-transformed operator expansion of an operator
     void add_st_operator(double factor, std::vector<std::string> targets, 
-                                        std::vector<std::string> ops, 
-                                        std::vector<std::vector<std::string>> spin_labels = { {}, {} });
+                                        std::vector<std::string> ops);
 
     /// add commutator of two operators
     void add_commutator(double factor, std::vector<std::string> op0,
-                                       std::vector<std::string> op1, 
-                                       std::vector<std::vector<std::string>> spin_labels = { {}, {} });
+                                       std::vector<std::string> op1);
 
     /// add double commutator involving three operators
     void add_double_commutator(double factor, std::vector<std::string> op0,
                                               std::vector<std::string> op1,
-                                              std::vector<std::string> op2, 
-                                              std::vector<std::vector<std::string>> spin_labels = { {}, {} });
+                                              std::vector<std::string> op2);
 
     /// add triple commutator involving four operators
     void add_triple_commutator(double factor, std::vector<std::string> op0,
                                               std::vector<std::string> op1,
                                               std::vector<std::string> op2,
-                                              std::vector<std::string> op3, 
-                                              std::vector<std::vector<std::string>> spin_labels = { {}, {} });
+                                              std::vector<std::string> op3);
 
     /// add quadruple commutator involving five operators
     void add_quadruple_commutator(double factor, std::vector<std::string> op0,
                                                  std::vector<std::string> op1,
                                                  std::vector<std::string> op2,
                                                  std::vector<std::string> op3,
-                                                 std::vector<std::string> op4, 
-                                                 std::vector<std::vector<std::string>> spin_labels = { {}, {} });
+                                                 std::vector<std::string> op4);
 
     /// cancel terms, if possible
     void simplify();
