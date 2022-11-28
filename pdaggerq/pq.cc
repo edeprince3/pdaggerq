@@ -665,12 +665,55 @@ void pq::reset_spin_labels() {
 // expand sums to include spin and zero terms where appropriate
 void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map) {
 
-    // non-summed spin labels
-    data->non_summed_spin_labels = spin_map;
-
-    // determine non-summed labels
+    // check that non-summed spin labels match those specified
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+
+    std::map<std::string, bool> found_labels;
+    
+    // ok, what non-summed labels do we have in the occupied space? 
+    for (size_t j = 0; j < occ_labels.size(); j++) {
+        int found = index_in_anywhere(occ_labels[j]);
+        if ( found == 1 ) {
+            found_labels[occ_labels[j]] = true;
+        }else{
+            found_labels[occ_labels[j]] = false;
+        }
+    }
+    
+    // ok, what non-summed labels do we have in the virtual space? 
+    for (size_t j = 0; j < vir_labels.size(); j++) {
+        int found = index_in_anywhere(vir_labels[j]);
+        if ( found == 1 ) {
+            found_labels[vir_labels[j]] = true;
+        }else{
+            found_labels[vir_labels[j]] = false;
+        }
+    }
+
+    for (size_t j = 0; j < occ_labels.size(); j++) {
+        if ( found_labels[occ_labels[j]] ) {
+            if ( spin_map[occ_labels[j]] != "a" && spin_map[occ_labels[j]] != "b" ) {
+                printf("\n");
+                printf("    error: spin label for non-summed index %s is invalid\n", occ_labels[j].c_str());
+                printf("\n");
+                exit(1);
+            }
+        }
+    }
+    for (size_t j = 0; j < vir_labels.size(); j++) {
+        if ( found_labels[vir_labels[j]] ) {
+            if ( spin_map[vir_labels[j]] != "a" && spin_map[vir_labels[j]] != "b" ) {
+                printf("\n");
+                printf("    error: spin label for non-summed index %s is invalid\n", vir_labels[j].c_str());
+                printf("\n");
+                exit(1);
+            }
+        }
+    }
+
+    // non-summed spin labels
+    data->non_summed_spin_labels = spin_map;
 
     // copy this term and zero spins
 

@@ -63,7 +63,6 @@ def main():
         'm' : 'a',
         'e' : 'a'
     }
-
     singles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     singles_residual_terms = contracted_strings_to_tensor_terms(
         singles_residual_terms)
