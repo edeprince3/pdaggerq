@@ -34,7 +34,13 @@ def main():
     print('')
     
     # grab list of fully-contracted strings, then print
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a'], ['a', 'a'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'a',
+        'i' : 'a',
+        'j' : 'a'
+    }
+    doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -59,7 +65,13 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b'], ['a', 'b'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'b',
+        'i' : 'a',
+        'j' : 'b'
+    }
+    doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -84,7 +96,13 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b'], ['b', 'b'])
+    spin_labels = {
+        'a' : 'b',
+        'b' : 'b',
+        'i' : 'b',
+        'j' : 'b'
+    }
+    doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -124,7 +142,15 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    triples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a'], ['a', 'a', 'a'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'a',
+        'c' : 'a',
+        'i' : 'a',
+        'j' : 'a',
+        'k' : 'a'
+    }
+    triples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
     for my_term in triples_residual_terms:
         print("#\t", my_term)
@@ -149,7 +175,15 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    triples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'b'], ['a', 'a', 'b'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'a',
+        'c' : 'b',
+        'i' : 'a',
+        'j' : 'a',
+        'k' : 'b'
+    }
+    triples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
     for my_term in triples_residual_terms:
         print("#\t", my_term)
@@ -174,7 +208,15 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    triples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b', 'b'], ['a', 'b', 'b'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'b',
+        'c' : 'b',
+        'i' : 'a',
+        'j' : 'b',
+        'k' : 'b'
+    }
+    triples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
     for my_term in triples_residual_terms:
         print("#\t", my_term)
@@ -199,7 +241,15 @@ def main():
     print('')
 
     # grab list of fully-contracted strings, then print
-    triples_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b', 'b'], ['b', 'b', 'b'])
+    spin_labels = {
+        'a' : 'b',
+        'b' : 'b',
+        'c' : 'b',
+        'i' : 'b',
+        'j' : 'b',
+        'k' : 'b'
+    }
+    triples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
     for my_term in triples_residual_terms:
         print("#\t", my_term)
@@ -235,7 +285,17 @@ def main():
     print('')
     
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'a'], ['a', 'a', 'a', 'a'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'a',
+        'c' : 'a',
+        'd' : 'a',
+        'i' : 'a',
+        'j' : 'a',
+        'k' : 'a',
+        'l' : 'a'
+    }
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -260,7 +320,17 @@ def main():
     print('')
     
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'a', 'b'], ['a', 'a', 'a', 'b'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'a',
+        'c' : 'a',
+        'd' : 'b',
+        'i' : 'a',
+        'j' : 'a',
+        'k' : 'a',
+        'l' : 'b'
+    }
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -285,7 +355,17 @@ def main():
     print('')
    
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'a', 'b', 'b'], ['a', 'a', 'b', 'b'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'a',
+        'c' : 'b',
+        'd' : 'b',
+        'i' : 'a',
+        'j' : 'a',
+        'k' : 'b',
+        'l' : 'b'
+    }
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -310,7 +390,17 @@ def main():
     print('')
   
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['a', 'b', 'b', 'b'], ['a', 'b', 'b', 'b'])
+    spin_labels = {
+        'a' : 'a',
+        'b' : 'b',
+        'c' : 'b',
+        'd' : 'b',
+        'i' : 'a',
+        'j' : 'b',
+        'k' : 'b',
+        'l' : 'b'
+    }
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
@@ -335,7 +425,17 @@ def main():
     print('')
  
     # grab list of fully-contracted strings, then print
-    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(['b', 'b', 'b', 'b'], ['b', 'b', 'b', 'b'])
+    spin_labels = {
+        'a' : 'b',
+        'b' : 'b',
+        'c' : 'b',
+        'd' : 'b',
+        'i' : 'b',
+        'j' : 'b',
+        'k' : 'b',
+        'l' : 'b'
+    }
+    quadruples_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
     quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
     for my_term in quadruples_residual_terms:
         print("#\t", my_term)
