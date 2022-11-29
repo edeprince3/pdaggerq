@@ -890,7 +890,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
 
         killit = false;
 
-        // delta functions TODO: why aren't the spin labels populated
+        // delta functions 
         for (size_t j = 0; j < data->deltas.size(); j++) {
             if ( tmp[i]->data->deltas[j].spin_labels[0] != tmp[i]->data->deltas[j].spin_labels[1] ) {
                 killit = true;
