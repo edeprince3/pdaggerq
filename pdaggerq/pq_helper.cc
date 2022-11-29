@@ -21,7 +21,6 @@
 //  limitations under the License.
 //
 
-
 #ifndef _python_api2_h_
 #define _python_api2_h_
 
@@ -41,6 +40,11 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+std::map<std::string, std::string> empty_spin_labels(){
+    std::map<std::string, std::string> ret;
+    return ret;
+}
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -59,21 +63,28 @@ void export_pq_helper(py::module& m) {
         .def("set_right_operators_type", &pq_helper::set_right_operators_type)
         .def("set_factor", &pq_helper::set_factor)
         .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
-        .def("add_new_string", &pq_helper::add_new_string)
-        .def("add_operator_product", &pq_helper::add_operator_product)
-        .def("add_st_operator", &pq_helper::add_st_operator)
-        .def("add_commutator", &pq_helper::add_commutator)
-        .def("add_double_commutator", &pq_helper::add_double_commutator)
-        .def("add_triple_commutator", &pq_helper::add_triple_commutator)
-        .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
         .def("print", &pq_helper::print)
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
+        .def("fully_contracted_strings_with_spin", &pq_helper::fully_contracted_strings_with_spin)
+        .def("fully_contracted_strings_with_spin",
+             [](pq_helper& self, std::map<std::string, std::string> spin_labels) {
+                 return self.fully_contracted_strings_with_spin(spin_labels);
+             },
+             py::arg("spin_labels") = empty_spin_labels() )
+
         .def("print_fully_contracted", &pq_helper::print_fully_contracted)
         .def("print_one_body", &pq_helper::print_one_body)
-        .def("print_two_body", &pq_helper::print_two_body);
+        .def("print_two_body", &pq_helper::print_two_body)
+        .def("add_new_string", &pq_helper::add_new_string)
+        .def("add_st_operator", &pq_helper::add_st_operator)
+        .def("add_commutator", &pq_helper::add_commutator)
+        .def("add_double_commutator", &pq_helper::add_double_commutator)
+        .def("add_triple_commutator", &pq_helper::add_triple_commutator)
+        .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
+        .def("add_operator_product", &pq_helper::add_operator_product);
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {
@@ -96,7 +107,6 @@ void removeParentheses(std::string &x)
   x.erase(it, std::end(x));
 
 }
-
 
 pq_helper::pq_helper(std::string vacuum_type)
 {
@@ -187,8 +197,8 @@ void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
 }
 
 void pq_helper::add_commutator(double factor,
-                                 std::vector<std::string> op0,
-                                 std::vector<std::string> op1) {
+                               std::vector<std::string> op0,
+                               std::vector<std::string> op1){
 
     // op0 op1
     std::vector<std::string> tmp;
@@ -208,7 +218,7 @@ void pq_helper::add_commutator(double factor,
 void pq_helper::add_double_commutator(double factor,
                                         std::vector<std::string> op0, 
                                         std::vector<std::string> op1, 
-                                        std::vector<std::string> op2) {
+                                        std::vector<std::string> op2){
 
     std::vector<std::string> tmp;
 
@@ -246,7 +256,7 @@ void pq_helper::add_triple_commutator(double factor,
                                         std::vector<std::string> op0,
                                         std::vector<std::string> op1,
                                         std::vector<std::string> op2,
-                                        std::vector<std::string> op3) {
+                                        std::vector<std::string> op3){
 
     std::vector<std::string> tmp;
 
@@ -321,7 +331,7 @@ void pq_helper::add_quadruple_commutator(double factor,
                                            std::vector<std::string> op1,
                                            std::vector<std::string> op2,
                                            std::vector<std::string> op3,
-                                           std::vector<std::string> op4) {
+                                           std::vector<std::string> op4){
 
     std::vector<std::string> tmp;
 
@@ -475,20 +485,7 @@ void pq_helper::add_quadruple_commutator(double factor,
 
 void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
-    // first check if right-/left-hand operator type works with 
-    // chosen bra or ket
-/*
-    if ( bra != "VACUUM" || ket != "VACUUM" ) {
-        if ( right_operators_type != "EE" || left_operators_type != "EE" ) {
-            printf("\n");
-            printf("    error: invalid bra/ket/operator type combination\n");
-            printf("\n");
-            exit(1);
-        }
-    }
-*/
-
-    // now check if there is a fluctuation potential operator 
+    // check if there is a fluctuation potential operator 
     // that needs to be split into multiple terms
 
     std::vector<std::string> tmp;
@@ -581,7 +578,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         return;
     }
 
-
     // apply any extra operators on left or right:
     std::vector<std::string> save;
     for (int i = 0; i < (int)in.size(); i++) {
@@ -599,6 +595,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         right_operators.push_back(junk);
     }
 
+    // build strings
     double original_factor = factor;
 
     for (int left = 0; left < (int)left_operators.size(); left++) {
@@ -1331,7 +1328,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         }
     }
 
-
 }
 
 void pq_helper::set_string(std::vector<std::string> in) {
@@ -1453,7 +1449,7 @@ void pq_helper::add_new_string_true_vacuum(){
 
 }
 
-void pq_helper::add_new_string() {
+void pq_helper::add_new_string(){
 
     if ( vacuum == "TRUE" ) {
         add_new_string_true_vacuum();
@@ -1880,6 +1876,37 @@ void pq_helper::print_fully_contracted() {
 
 }
 
+// get list of fully-contracted strings, after spin tracing
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::map<std::string, std::string> spin_labels) {
+
+    // perform spin tracing
+
+    std::vector< std::shared_ptr<pq> > spin_blocked;
+
+    for (size_t i = 0; i < ordered.size(); i++) {
+        if ( ordered[i]->symbol.size() != 0 ) continue;
+        if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        std::vector< std::shared_ptr<pq> > tmp;
+        ordered[i]->spin_blocking(tmp, spin_labels);
+        for (size_t j = 0; j < tmp.size(); j++) {
+            spin_blocked.push_back(tmp[j]);
+        }
+    }
+
+    std::vector<std::vector<std::string> > list;
+    for (size_t i = 0; i < spin_blocked.size(); i++) {
+        if ( spin_blocked[i]->symbol.size() != 0 ) continue;
+        if ( spin_blocked[i]->data->is_boson_dagger.size() != 0 ) continue;
+        std::vector<std::string> my_string = spin_blocked[i]->get_string_with_spin();
+        if ( my_string.size() > 0 ) {
+            list.push_back(my_string);
+        }
+    }
+
+    return list;
+
+}
+
 std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() {
 
     std::vector<std::vector<std::string> > list;
@@ -1941,7 +1968,7 @@ void pq_helper::clear() {
 
 }
 
-void pq_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops) {
+void pq_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops){
 
     int dim = (int)ops.size();
 

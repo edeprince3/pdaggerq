@@ -102,7 +102,8 @@ class pq_helper {
     void add_operator_product(double factor, std::vector<std::string> in);
 
     /// add similarity-transformed operator expansion of an operator
-    void add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops);
+    void add_st_operator(double factor, std::vector<std::string> targets, 
+                                        std::vector<std::string> ops);
 
     /// add commutator of two operators
     void add_commutator(double factor, std::vector<std::string> op0,
@@ -126,7 +127,6 @@ class pq_helper {
                                                  std::vector<std::string> op3,
                                                  std::vector<std::string> op4);
 
-
     /// cancel terms, if possible
     void simplify();
 
@@ -144,6 +144,9 @@ class pq_helper {
 
     /// get list of fully-contracted strings
     std::vector<std::vector<std::string> > fully_contracted_strings();
+
+    /// get list of fully-contracted strings, after spin tracing
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::map<std::string, std::string> spin_labels);
 
     /// print one-body strings
     void print_one_body();

@@ -30,6 +30,8 @@ namespace pdaggerq {
 
 class pq {
 
+  public:
+
   private:
 
     /// is the entire string (fermions+bosons) in normal order?
@@ -38,7 +40,7 @@ class pq {
     /// are bosonic operators in normal order?
     bool is_boson_normal_order();
 
-    /// how many times does label "idx" appear in any term?
+    /// how many times does label "idx" appear in deltas, amplitudes, or integrals?
     int index_in_anywhere(std::string idx);
 
     /// how many times does label "idx" appear in delta terms?
@@ -110,13 +112,7 @@ class pq {
     /// list: is fermionic operator creator or annihilator (relative to fermi vacuum)?
     std::vector<bool> is_dagger_fermi;
 
-    /// list of delta functions (index 1)
-    std::vector<std::string> delta1;
-
-    /// list of delta functions (index 2)
-    std::vector<std::string> delta2;
-
-    /// detailed information about string (t, R, L, amplitudes, bosons, etc.)
+    /// detailed information about string (amplitudes, bosons, integrals, deltas, etc.)
     std::shared_ptr<StringData> data;
 
     /// print string information
@@ -124,6 +120,9 @@ class pq {
 
     /// get string information
     std::vector<std::string> get_string();
+
+    /// get string information (with spin)
+    std::vector<std::string> get_string_with_spin();
 
     /// apply delta functions to amplitude and integral labels
     void gobble_deltas();
@@ -145,6 +144,9 @@ class pq {
 
     /// cancel terms where appropriate
     void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
+
+    /// expand sums to include spin and zero terms where appropriate
+    void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
     /// consolidate terms that differ by summed labels plus permutations
     void consolidate_permutations_plus_swap(
@@ -239,6 +241,25 @@ class pq {
 
     /// re-classify fluctuation potential terms
     void reclassify_integrals();
+
+    /// reset spin labels (so only non-summed labels are set)
+    void reset_spin_labels();
+
+    /// set non-summed spin labels
+    void set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels);
+
+    /// add spin labels to a string
+    bool add_spins(std::vector<std::shared_ptr<pq> > &list);
+
+    /// set spin labels in integrals and amplitudes
+    void set_spin_everywhere(std::string target, std::string spin);
+
+    /// reorder three spin labels as aab or abb
+    void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
+
+    /// reorder four spin labels as aaab, aabb, or abbb
+    void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign);
+
 };
 
 }
