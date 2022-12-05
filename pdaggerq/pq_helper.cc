@@ -162,7 +162,7 @@ void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
 }
 
 void pq_helper::set_left_operators_type(std::string type) {
-    if ( type == "EE" || type == "IP" || type == "EA" ) {
+    if ( type == "EE" || type == "IP" || type == "EA" || type == "DIP" || type == "DEA" ) {
         left_operators_type = type;
     }else {
         printf("\n");
@@ -173,7 +173,7 @@ void pq_helper::set_left_operators_type(std::string type) {
 }
 
 void pq_helper::set_right_operators_type(std::string type) {
-    if ( type == "EE" || type == "IP" || type == "EA" ) {
+    if ( type == "EE" || type == "IP" || type == "EA" || type == "DIP" || type == "DEA" ) {
         right_operators_type = type;
     }else {
         printf("\n");
@@ -898,7 +898,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         int n_annihilate = n;
                         int n_create     = n;
                         if ( right_operators_type == "IP" ) n_create--;
+                        if ( right_operators_type == "DIP" ) n_create -= 2;
                         if ( right_operators_type == "EA" ) n_annihilate--;
+                        if ( right_operators_type == "DEA" ) n_annihilate -= 2;
 
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
@@ -962,7 +964,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         int n_annihilate = n;
                         int n_create     = n;
                         if ( right_operators_type == "IP" ) n_create--;
+                        if ( right_operators_type == "DIP" ) n_create -= 2;
                         if ( right_operators_type == "EA" ) n_annihilate--;
+                        if ( right_operators_type == "DEA" ) n_annihilate -= 2;
 
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
@@ -1026,7 +1030,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         int n_annihilate = n;
                         int n_create     = n;
                         if ( left_operators_type == "IP" ) n_annihilate--;
+                        if ( left_operators_type == "DIP" ) n_annihilate -= 2;
                         if ( left_operators_type == "EA" ) n_create--;
+                        if ( left_operators_type == "DEA" ) n_create -= 2;
 
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
@@ -1090,7 +1096,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         int n_annihilate = n;
                         int n_create     = n;
                         if ( left_operators_type == "IP" ) n_annihilate--;
+                        if ( left_operators_type == "DIP" ) n_annihilate -= 2;
                         if ( left_operators_type == "EA" ) n_create--;
+                        if ( left_operators_type == "DEA" ) n_create -= 2;
 
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
