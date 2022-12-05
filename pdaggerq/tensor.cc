@@ -89,7 +89,7 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
         amps.spin_labels.push_back(rhs.spin_labels[i]);
     }
 
-    amps.is_reference = rhs.is_reference;
+    amps.order = rhs.order;
 
     //amps.sort();
 
@@ -117,7 +117,7 @@ void amplitudes::print(char symbol) {
         printf(")");
         printf(" ");
 
-    }else if ( is_reference ) {
+    }else if ( order == 0 ) {
         printf("%c0", symbol);
         printf(" ");
     }
@@ -133,10 +133,10 @@ std::string amplitudes::to_string(char symbol) {
     if ( labels.size() > 0 ) {
 
         size_t size  = labels.size();
-        size_t order = labels.size() / 2;
-        if ( 2*order != size ) {
-            order++;
-        }
+        //size_t order = labels.size() / 2;
+        //if ( 2*order != size ) {
+        //    order++;
+        //}
         val = symbol_s + std::to_string(order) + "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
@@ -145,7 +145,7 @@ std::string amplitudes::to_string(char symbol) {
 
     }
 
-    if ( is_reference ) {
+    if ( order == 0 ) {
         val = symbol_s + "0";
     }
 
@@ -167,10 +167,10 @@ std::string amplitudes::to_string_with_spin(char symbol) {
     if ( labels.size() > 0 ) {
 
         size_t size  = labels.size();
-        size_t order = labels.size() / 2;
-        if ( 2*order != size ) {
-            order++;
-        }
+        //size_t order = labels.size() / 2;
+        //if ( 2*order != size ) {
+        //    order++;
+        //}
         val = symbol_s + std::to_string(order) + spin + "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
@@ -179,7 +179,7 @@ std::string amplitudes::to_string_with_spin(char symbol) {
 
     }
 
-    if ( is_reference ) {
+    if ( order == 0 ) {
         val = symbol_s + "0";
     }
 

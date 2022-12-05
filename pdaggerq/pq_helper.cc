@@ -162,7 +162,7 @@ void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
 }
 
 void pq_helper::set_left_operators_type(std::string type) {
-    if ( type == "EE" || type == "IP" || type == "EA" ) {
+    if ( type == "EE" || type == "IP" || type == "EA" || type == "DIP" || type == "DEA" ) {
         left_operators_type = type;
     }else {
         printf("\n");
@@ -173,7 +173,7 @@ void pq_helper::set_left_operators_type(std::string type) {
 }
 
 void pq_helper::set_right_operators_type(std::string type) {
-    if ( type == "EE" || type == "IP" || type == "EA" ) {
+    if ( type == "EE" || type == "IP" || type == "EA" || type == "DIP" || type == "DEA" ) {
         right_operators_type = type;
     }else {
         printf("\n");
@@ -793,7 +793,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     for (int id = n-1; id >= 0; id--) {
                         labels.push_back(label_right[id]);
                     }
-                    set_amplitudes('t', labels, false);
+                    set_amplitudes('t', n, labels);
 
                     // factor = 1/(n!)^2
                     double my_factor = 1.0;
@@ -833,7 +833,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('u', labels, true);
+                        set_amplitudes('u', n, labels);
 
                         data->is_boson_dagger.push_back(true);
 
@@ -871,7 +871,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('u', labels, false);
+                        set_amplitudes('u', n, labels);
                         
                         // factor = 1/(n!)^2
                         double my_factor = 1.0;
@@ -891,14 +891,16 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('r', labels, true);
+                        set_amplitudes('r', n, labels);
 
                     }else {
 
                         int n_annihilate = n;
                         int n_create     = n;
                         if ( right_operators_type == "IP" ) n_create--;
+                        if ( right_operators_type == "DIP" ) n_create -= 2;
                         if ( right_operators_type == "EA" ) n_annihilate--;
+                        if ( right_operators_type == "DEA" ) n_annihilate -= 2;
 
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
@@ -931,7 +933,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('r', labels, false);
+                        set_amplitudes('r', n, labels);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -953,7 +955,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('s', labels, true);
+                        set_amplitudes('s', n, labels);
 
                         data->is_boson_dagger.push_back(true);
 
@@ -962,7 +964,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         int n_annihilate = n;
                         int n_create     = n;
                         if ( right_operators_type == "IP" ) n_create--;
+                        if ( right_operators_type == "DIP" ) n_create -= 2;
                         if ( right_operators_type == "EA" ) n_annihilate--;
+                        if ( right_operators_type == "DEA" ) n_annihilate -= 2;
 
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
@@ -995,7 +999,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         } 
-                        set_amplitudes('s', labels, false);
+                        set_amplitudes('s', n, labels);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1019,14 +1023,16 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('l', labels, true);
+                        set_amplitudes('l', n, labels);
 
                     }else {
                         
                         int n_annihilate = n;
                         int n_create     = n;
                         if ( left_operators_type == "IP" ) n_annihilate--;
+                        if ( left_operators_type == "DIP" ) n_annihilate -= 2;
                         if ( left_operators_type == "EA" ) n_create--;
+                        if ( left_operators_type == "DEA" ) n_create -= 2;
 
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
@@ -1059,7 +1065,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('l', labels, false);
+                        set_amplitudes('l', n, labels);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1081,7 +1087,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes('m', labels, true);
+                        set_amplitudes('m', n, labels);
 
                         data->is_boson_dagger.push_back(false);
 
@@ -1090,7 +1096,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         int n_annihilate = n;
                         int n_create     = n;
                         if ( left_operators_type == "IP" ) n_annihilate--;
+                        if ( left_operators_type == "DIP" ) n_annihilate -= 2;
                         if ( left_operators_type == "EA" ) n_create--;
+                        if ( left_operators_type == "DEA" ) n_create -= 2;
 
                         std::vector<std::string> op_left;
                         std::vector<std::string> op_right;
@@ -1123,7 +1131,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes('m', labels, false);
+                        set_amplitudes('m', n, labels);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1345,12 +1353,12 @@ void pq_helper::set_integrals(std::string type, std::vector<std::string> in) {
     data->ints[type].push_back(ints);
 }
 
-void pq_helper::set_amplitudes(char type, std::vector<std::string> in, bool is_reference) {
+void pq_helper::set_amplitudes(char type, int order, std::vector<std::string> in) {
     amplitudes amps;
     for (int i = 0; i < (int)in.size(); i++) {
         amps.labels.push_back(in[i]);
     }
-    amps.is_reference = is_reference;
+    amps.order = order;
     amps.sort();
     data->amps[type].push_back(amps);
 }

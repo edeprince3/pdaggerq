@@ -84,7 +84,7 @@ class pq_helper {
     void set_integrals(std::string type, std::vector<std::string> in);
 
     /// set labels for amplitudes
-    void set_amplitudes(char type, std::vector<std::string> in, bool is_reference);
+    void set_amplitudes(char type, int order, std::vector<std::string> in);
 
     /// set a numerical factor
     void set_factor(double in);

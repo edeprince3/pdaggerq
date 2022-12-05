@@ -107,9 +107,6 @@ class amplitudes: public tensor {
     /// destructor
     ~amplitudes(){};
 
-    /// is this an amplitude for the reference (e.g., r0)?
-    bool is_reference = false;
-
     /// sort amplitudes, keep track of permutations, assign total numerical value
     void sort();
 
@@ -124,6 +121,9 @@ class amplitudes: public tensor {
 
     /// print amplitudes to string with spin labels
     std::string to_string_with_spin(char symbol);
+
+    /// operator order
+    int order = -1;
 
 };
 
