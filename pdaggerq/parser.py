@@ -328,7 +328,8 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
 
 def contracted_strings_to_tensor_terms(pdaggerq_list_of_strings):
     """
-    Take the output from pdaggerq.fully_contracted_strings() and generate
+    Take the output from pdaggerq.fully_contracted_strings() or
+    pdaggerq.fully_contracted_strings_spin() and generate
     TensorTerms
 
     :param pdaggerq_list_of_strings: List[List[str]] where the first item is

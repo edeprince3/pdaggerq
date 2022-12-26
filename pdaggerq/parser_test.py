@@ -30,8 +30,8 @@ def test_parse_strings_to_tensor():
    energy_tensor_terms = contracted_strings_to_tensor_terms(energy_strings)
    i, j, a, b = Index('i', 'occ'), Index('j', 'occ'), Index('a', 'virt'), Index(
       'b', 'virt')
-   h_ii = BaseTerm(indices=(i, i), name='f')
-   f_ia = BaseTerm(indices=(i, a), name='f')
+   h_ii = BaseTerm(indices=(i, i), name='f', spin='')
+   f_ia = BaseTerm(indices=(i, a), name='f', spin='')
    t1 = T1amps(indices=(a, i))
    g_ijab = TwoBody(indices=(i, j, a, b), name='g')
    t2_abij = T2amps(indices=(a, b, j, i), name='t2')
