@@ -209,7 +209,12 @@ the fluctuation potental operator
 ```
 'v' 
 ```
-up to four-body transition operators, i.e., p\*q, p\*q\*rs, etc
+creation / annihilation operators. e.g., <img src="https://render.githubusercontent.com/render/math?math=a^{\dagger}_i">, <img src="https://render.githubusercontent.com/render/math?math=a_j">, etc.
+```
+a*(i)
+a(j)
+```
+up to four-body transition operators, e.g., p\*q, p\*q\*rs, etc.
 ```
 'e1(p,q)' 
 'e2(p,q,r,s)' 
