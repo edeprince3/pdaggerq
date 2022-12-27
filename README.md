@@ -324,6 +324,22 @@ returns strings involving no creation / annihilation operators
 ```
 fully_contracted_strings()
 ```    
+
+<a name="spin"></a>
+#### fully_contracted_with_spin: 
+    
+returns strings involving no creation / annihilation operators. integrate spin, eliminating non-spin-conserving terms, given a dictionary of spins for non-summed labels.
+
+```
+spin_labels = {
+    'e' : 'a',
+    'f' : 'b',
+    'm' : 'a',
+    'n' : 'b'
+}
+fully_contracted_strings_with_spin(spin_labels)
+```
+
 #### print_fully_contracted: 
     
 print strings involving no creation / annihilation operators
@@ -331,6 +347,7 @@ print strings involving no creation / annihilation operators
 ```
 print_fully_contracted()
 ```
+
 #### clear: 
 clear the current set of strings
 
