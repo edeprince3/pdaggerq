@@ -209,51 +209,50 @@ the fluctuation potental operator
 ```
 'v' 
 ```
-a pair of creation/annihilation operators, i.e., p\*q
+up to four-body transition operators, i.e., p\*q, p\*q\*rs, etc
 ```
 'e1(p,q)' 
-```   
-a two-body transition operator, i.,e., p\*q\*rs
-```
 'e2(p,q,r,s)' 
 ```    
-a three-body transition operator, i.,e., p\*q\*r\*stu
-```
-'e3(p,q,r,s,t,u)' 
-```    
-singles and doubles t-amplitudes 
+singles, doubles, triples, and quadruples t-amplitudes 
 ```
 't1'
 't2' 
+'t3'
+'t4'
 ```
-reference, singles, and doubles left-hand amplitudes 
+reference, singles, doubles, triples, and quadruplesleft-hand amplitudes 
 
 ```
 'l0'
 'l1'  
-'l2'   
+'l2'  
+'l3'
+'l4'
 ```    
-reference, singles, and doubles right-hand amplitudes 
+reference, singles, doubles, triples, and quadruples right-hand amplitudes 
 ```
 'r0'
 'r1'  
-'r2'   
+'r2'
+'r3'
+'r4'
 ```    
-Note that factors such as the 1/4 associated with t2, l2, and r2 are handled internally.
+Note that all factors such as the 1/4 associated with t2, l2, and r2 are handled internally.
     
 #### add_commutator: 
 
 set strings corresponding to a commutator of operators. Note that the arguments are lists to allow for commutators of
 products of operators.
 ```
-add_commutator(1.0, ['f'],['t2'])
+add_commutator(1.0, ['f'], ['t2'])
 ```
 #### add_double_commutator: 
 
 set strings corresponding to a double commutator involving three operators. Note that the arguments are lists to allow
 for commutators of products of operators.
 ```
-add_double_commutator(1.0/2.0, ['f'],['t2'],['t1'])
+add_double_commutator(1.0/2.0, ['f'], ['t2'], ['t1'])
 ```    
 #### add_triple_commutator: 
 
@@ -261,7 +260,7 @@ set strings corresponding to a triple commutator involving four operators. Note 
 for commutators of products of operators.
 
 ```
-add_triple_commutator(1.0/6.0, ['f','t2','t1', 't1'])
+add_triple_commutator(1.0/6.0, ['f'], ['t2'], ['t1'], ['t1'])
 ```    
 #### add_quadruple_commutator: 
 
@@ -269,7 +268,7 @@ set strings corresponding to a quadruple commutator involving five operators. No
 for commutators of products of operators.
     
 ```
-add_quadruple_commutator(1.0/24.0, ['f','t2','t1', 't1', 't1'])
+add_quadruple_commutator(1.0/24.0, ['f'], ['t2'], ['t1'], ['t1'], ['t1'])
 ```
 
 #### add_st_operator: 
@@ -277,7 +276,7 @@ add_quadruple_commutator(1.0/24.0, ['f','t2','t1', 't1', 't1'])
 set strings corresponding to a similarity transformed operator commutator involving five operators. The first argument
 after the numerical value is a list of operators; the product of these operators will be similarity transformed. The
 next argument is a list of operators appearing as a sum the exponential function. The similarity transformation is
-performed by applying the BCH expansion up to four nested commutators.
+performed by applying the BCH expansion four nested commutators.
 
 ```
 add_st_operator(1.0, ['v'],['t1','t2'])
