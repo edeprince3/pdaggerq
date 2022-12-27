@@ -175,8 +175,7 @@ involving general labels are split into sums involving occupied and virtual orbi
 and o4 (occupied) or v1, v2, v3, and v4 (virtual). So, we recommend avoiding using these labels when specifying any
 other components of your strings.
 
-Orbital labels refer to spin orbitals. In principle, one could explicitly specify spin labels with labels such as ia,
-ib, etc., but no checks on delta functions involving alpha / beta spin components defined in this way are performed.
+Orbital labels refer to spin orbitals. There is functionality to integrate out spin in final expressions, [see below](#spin).
 
 ### Methods
 Strings are defined in Python using the pq_helper class, which has the following functions:
