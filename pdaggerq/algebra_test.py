@@ -40,12 +40,12 @@ def test_index():
 
 def test_baseterm():
     term = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='h')
+                    name='h', spin='')
     assert term.indices[0] == Index('i', 'occ')
     assert term.indices[1] == Index('j', 'occ')
 
     term2 = BaseTerm(indices=(Index('k', 'occ'), Index('l', 'occ')),
-                    name='t1')
+                    name='t1', spin='')
     tensort = term2 * term
     assert isinstance(tensort, TensorTerm)
 
@@ -58,22 +58,30 @@ def test_baseterm():
 
 def test_tensorterm():
     hij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='h')
+                    name='h', spin='')
     t1ij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='t')
+                    name='t', spin='')
     tensor_term = TensorTerm(base_terms=(hij, t1ij))
     assert tensor_term.coefficient == 1.0
 
     assert tensor_term.__repr__() == " 1.0000 h(i,j)*t(i,j)"
 
+    hij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
+                    name='h', spin='_aa')
+    t1ij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
+                    name='t', spin='_aa')
+    tensor_term = TensorTerm(base_terms=(hij, t1ij))
+    assert tensor_term.coefficient == 1.0
+
+    assert tensor_term.__repr__() == " 1.0000 h_aa(i,j)*t_aa(i,j)"
+
 
 def test_tensor_multiply():
     hij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='h')
+                    name='h', spin='')
     t1ij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='t')
+                    name='t', spin='')
     tensor_term = TensorTerm(base_terms=(hij, t1ij))
-
     test_tensor_term = tensor_term * 4
     assert isinstance(test_tensor_term, TensorTerm)
     assert np.isclose(test_tensor_term.coefficient, 4)
@@ -83,7 +91,7 @@ def test_tensor_multiply():
     assert np.isclose(test_tensor_term.coefficient, 4)
 
     t1kl = BaseTerm(indices=(Index('k', 'occ'), Index('l', 'virt')),
-                    name='t')
+                    name='t', spin='')
     test_tensor_term = tensor_term * t1kl
     assert test_tensor_term.base_terms[2] == t1kl
 

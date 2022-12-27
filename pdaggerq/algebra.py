@@ -93,6 +93,12 @@ class BaseTerm:
 
     These objects one can ONLY be composed by multiplication with other BaseTerms
     to produce new TensorTerms.  They can also be checked for equality.
+
+    :param indices: Tuple[Index, ...], tuple of indices for the tensor
+    :param str name: name of the tensor
+    :param str spin: spin sector associated with tensor. if spin orbital than leave as
+                     an empty string ``.  the alpha-alpha block is `_aa`, beta-beta block
+                     is `_bb`. etc.  Always start string with an underscore unless empty.
     """
 
     def __init__(self, *, indices: Tuple[Index, ...], name: str, spin: str):
