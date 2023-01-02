@@ -131,7 +131,7 @@ When using pdaggerq for research projects, please cite:
 
 ```
 @misc{pdaggerq_2021,
-    author       = {A. Eugene dePrince and Nicholas C. Rubin},
+    author       = {A. Eugene DePrince and Nicholas C. Rubin},
     title        = {{pdaggerq}: https://github.com/edeprince3/pdaggerq},
     month        = {June},
     year         = {2021},
