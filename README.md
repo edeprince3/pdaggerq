@@ -226,7 +226,7 @@ singles, doubles, triples, and quadruples t-amplitudes
 't3'
 't4'
 ```
-reference, singles, doubles, triples, and quadruplesleft-hand amplitudes 
+reference, singles, doubles, triples, and quadruples left-hand amplitudes 
 
 ```
 'l0'
