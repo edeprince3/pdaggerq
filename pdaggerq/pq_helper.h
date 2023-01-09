@@ -101,17 +101,9 @@ class pq_helper {
     /// get list of fully-contracted strings, after spin tracing
     std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::map<std::string, std::string> spin_labels);
 
-    /// print all strings
-    void print();
-
-    /// print fully-contracted strings
-    void print_fully_contracted();
-
-    /// print one-body strings
-    void print_one_body();
-
-    /// print two-body strings
-    void print_two_body();
+    /// print strings 
+    /// string_type = 'all', 'one-body', 'two-body', 'fully-contracted'; py-side default = 'fully-contracted'
+    void print(std::string string_type);
 
   private:
 

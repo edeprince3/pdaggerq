@@ -61,7 +61,11 @@ void export_pq_helper(py::module& m) {
         .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
-        .def("print", &pq_helper::print)
+        .def("print",
+             [](pq_helper& self, std::string string_type) {
+                 return self.print(string_type);
+             },
+             py::arg("string_type") = "fully-contracted" )
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings_with_spin", &pq_helper::fully_contracted_strings_with_spin)
@@ -71,9 +75,6 @@ void export_pq_helper(py::module& m) {
              },
              py::arg("spin_labels") = empty_spin_labels() )
 
-        .def("print_fully_contracted", &pq_helper::print_fully_contracted)
-        .def("print_one_body", &pq_helper::print_one_body)
-        .def("print_two_body", &pq_helper::print_two_body)
         .def("add_st_operator", &pq_helper::add_st_operator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
@@ -1845,27 +1846,37 @@ void pq_helper::simplify() {
 
 }
 
-void pq_helper::print_two_body() {
+void pq_helper::print(std::string string_type) {
 
     printf("\n");
     printf("    ");
-    printf("// two-body strings:\n");
-    for (int i = 0; i < (int)ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 4 ) continue;
-        ordered[i]->print();
+
+    int n = 0;
+
+    if ( string_type == "all" ) {
+
+        printf("// normal-ordered strings:\n");
+        for (int i = 0; i < (int)ordered.size(); i++) {
+            ordered[i]->print();
+        }
+        printf("\n");
+        return;
+
+    }else if ( string_type == "one-body" ) {
+        printf("// one-body strings:\n");
+        n = 1;
+    }else if ( string_type == "two-body" ) {
+        n = 2;
+        printf("// two-body strings:\n");
+    }else if ( string_type == "fully-contracted" ) {
+        printf("// fully-contracted strings:\n");
+        n = 0;
     }
-    printf("\n");
 
-}
-
-void pq_helper::print_fully_contracted() {
-
-    printf("\n");
-    printf("    ");
-    printf("// fully-contracted strings:\n");
     for (int i = 0; i < (int)ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 0 ) continue;
-        if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        // number of fermion + boson operators
+        int my_n = ordered[i]->symbol.size()/2 + ordered[i]->data->is_boson_dagger.size();
+        if ( my_n != n ) continue;
         ordered[i]->print();
     }
     printf("\n");
@@ -1930,31 +1941,6 @@ std::vector<std::vector<std::string> > pq_helper::strings() {
     }
 
     return list;
-
-}
-
-void pq_helper::print_one_body() {
-
-    printf("\n");
-    printf("    ");
-    printf("// one-body strings:\n");
-    for (int i = 0; i < (int)ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 2 ) continue;
-        ordered[i]->print();
-    }
-    printf("\n");
-
-}
-
-void pq_helper::print() {
-
-    printf("\n");
-    printf("    ");
-    printf("// normal-ordered strings:\n");
-    for (int i = 0; i < (int)ordered.size(); i++) {
-        ordered[i]->print();
-    }
-    printf("\n");
 
 }
 
