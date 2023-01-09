@@ -1326,11 +1326,14 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             data->has_w0       = has_w0;
 
-            add_new_string();
+            if ( vacuum == "TRUE" ) {
+                add_new_string_true_vacuum();
+            }else {
+                add_new_string_fermi_vacuum();
+            }
 
         }
     }
-
 }
 
 void pq_helper::set_string(std::vector<std::string> in) {
@@ -1449,16 +1452,6 @@ void pq_helper::add_new_string_true_vacuum(){
     // reset data object
     data.reset();
     data = (std::shared_ptr<StringData>)(new StringData());
-
-}
-
-void pq_helper::add_new_string(){
-
-    if ( vacuum == "TRUE" ) {
-        add_new_string_true_vacuum();
-    }else {
-        add_new_string_fermi_vacuum();
-    }
 
 }
 
