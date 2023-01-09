@@ -50,6 +50,21 @@ using namespace pybind11::literals;
 
 namespace pdaggerq {
 
+std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops) {
+
+    std::vector<std::string> ret;
+    size_t size = 0;
+    for (size_t i = 0; i < ops.size(); i++) {
+        size += ops[i].size();
+    }
+    ret.reserve(size);
+    for (size_t i = 0; i < ops.size(); i++) {
+        ret.insert(ret.end(), ops[i].begin(), ops[i].end());
+    }
+    return ret;
+    
+}
+
 void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
@@ -196,18 +211,8 @@ void pq_helper::add_commutator(double factor,
                                std::vector<std::string> op0,
                                std::vector<std::string> op1){
 
-    // op0 op1
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // op1 op0
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
+    add_operator_product( factor, concatinate_operators({op0, op1}) );
+    add_operator_product(-factor, concatinate_operators({op1, op0}) );
 
 }
 
@@ -216,35 +221,10 @@ void pq_helper::add_double_commutator(double factor,
                                         std::vector<std::string> op1, 
                                         std::vector<std::string> op2){
 
-    std::vector<std::string> tmp;
-
-    //   op0 op1 op2
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // - op1 op0 op2
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    // - op2 op0 op1
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //   op2 op1 op0
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
+    add_operator_product( factor, concatinate_operators({op0, op1, op2}) );
+    add_operator_product(-factor, concatinate_operators({op1, op0, op2}) );
+    add_operator_product(-factor, concatinate_operators({op2, op0, op1}) );
+    add_operator_product( factor, concatinate_operators({op2, op1, op0}) );
 
 }
 
@@ -254,71 +234,14 @@ void pq_helper::add_triple_commutator(double factor,
                                         std::vector<std::string> op2,
                                         std::vector<std::string> op3){
 
-    std::vector<std::string> tmp;
-
-    //    op0 op1 op2 op3
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  - op1 op0 op2 op3
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  - op2 op0 op1 op3
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //    op2 op1 op0 op3
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  - op3 op0 op1 op2
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //    op3 op1 op0 op2
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //    op3 op2 op0 op1
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  - op3 op2 op1 op0
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
+    add_operator_product( factor, concatinate_operators({op0, op1, op2, op3}) );
+    add_operator_product(-factor, concatinate_operators({op1, op0, op2, op3}) );
+    add_operator_product(-factor, concatinate_operators({op2, op0, op1, op3}) );
+    add_operator_product( factor, concatinate_operators({op2, op1, op0, op3}) );
+    add_operator_product(-factor, concatinate_operators({op3, op0, op1, op2}) );
+    add_operator_product( factor, concatinate_operators({op3, op1, op0, op2}) );
+    add_operator_product( factor, concatinate_operators({op3, op2, op0, op1}) );
+    add_operator_product(-factor, concatinate_operators({op3, op2, op1, op0}) );
 
 }
 
@@ -329,151 +252,23 @@ void pq_helper::add_quadruple_commutator(double factor,
                                            std::vector<std::string> op3,
                                            std::vector<std::string> op4){
 
-    std::vector<std::string> tmp;
 
-    //  op0 op1 op2 op3 op4
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op1 op0 op2 op3 op4
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    // -op2 op0 op1 op3 op4
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op2 op1 op0 op3 op4
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op3 op0 op1 op2 op4
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op3 op1 op0 op2 op4
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  op3 op2 op0 op1 op4
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op3 op2 op1 op0 op4
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    // -op4 op0 op1 op2 op3
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op4 op1 op0 op2 op3
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  op4 op2 op0 op1 op3
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op4 op2 op1 op0 op3
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op4 op3 op0 op1 op2
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op4 op3 op1 op0 op2
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    // -op4 op3 op2 op0 op1
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op4 op3 op2 op1 op0
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
+    add_operator_product( factor, concatinate_operators({op0, op1, op2, op3, op4}) );
+    add_operator_product(-factor, concatinate_operators({op1, op0, op2, op3, op4}) );
+    add_operator_product(-factor, concatinate_operators({op2, op0, op1, op3, op4}) );
+    add_operator_product( factor, concatinate_operators({op2, op1, op0, op3, op4}) );
+    add_operator_product(-factor, concatinate_operators({op3, op0, op1, op2, op4}) );
+    add_operator_product( factor, concatinate_operators({op3, op1, op0, op2, op4}) );
+    add_operator_product( factor, concatinate_operators({op3, op2, op0, op1, op4}) );
+    add_operator_product(-factor, concatinate_operators({op3, op2, op1, op0, op4}) );
+    add_operator_product(-factor, concatinate_operators({op4, op0, op1, op2, op3}) );
+    add_operator_product( factor, concatinate_operators({op4, op1, op0, op2, op3}) );
+    add_operator_product( factor, concatinate_operators({op4, op2, op0, op1, op3}) );
+    add_operator_product(-factor, concatinate_operators({op4, op2, op1, op0, op3}) );
+    add_operator_product( factor, concatinate_operators({op4, op3, op0, op1, op2}) );
+    add_operator_product(-factor, concatinate_operators({op4, op3, op1, op0, op2}) );
+    add_operator_product(-factor, concatinate_operators({op4, op3, op2, op0, op1}) );
+    add_operator_product( factor, concatinate_operators({op4, op3, op2, op1, op0}) );
 
 }
 

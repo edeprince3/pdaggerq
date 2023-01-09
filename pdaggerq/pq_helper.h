@@ -102,7 +102,8 @@ class pq_helper {
     std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::map<std::string, std::string> spin_labels);
 
     /// print strings 
-    /// string_type = 'all', 'one-body', 'two-body', 'fully-contracted'; py-side default = 'fully-contracted'
+    ///     string_type = 'all', 'one-body', 'two-body', 'fully-contracted'
+    ///     py-side default = 'fully-contracted'
     void print(std::string string_type);
 
   private:
