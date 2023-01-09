@@ -58,7 +58,6 @@ void export_pq_helper(py::module& m) {
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
         .def("set_right_operators_type", &pq_helper::set_right_operators_type)
-        .def("set_factor", &pq_helper::set_factor)
         .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
@@ -126,7 +125,7 @@ pq_helper::pq_helper(std::string vacuum_type)
 
     // assume operators entering a similarity transformation
     // commute. only relevant for the add_st_operator() function
-    cluster_operators_commute_ = true;
+    cluster_operators_commute = true;
 
     /// right operators type (EE, IP, EA)
     right_operators_type = "EE";
@@ -1988,7 +1987,7 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     // we only need to consider unique pairs/triples/quadruplets of
     // operators. need to add logic to handle cases where the operators
     // do not commute.
-    if ( cluster_operators_commute_ ) {
+    if ( cluster_operators_commute ) {
 
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
@@ -2105,9 +2104,9 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
 }
 
 // do operators entering similarity transformation commute? default true
-void pq_helper::set_cluster_operators_commute(bool cluster_operators_commute) {
+void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
 
-    cluster_operators_commute_ = cluster_operators_commute;
+    cluster_operators_commute = do_cluster_operators_commute;
 
 }
 

@@ -52,13 +52,34 @@ class pq_helper {
     std::vector<std::vector<std::string> > right_operators;
 
     /// do operators entering a similarity transformation commute?
-    bool cluster_operators_commute_;
+    bool cluster_operators_commute;
 
     /// right-hand operators type (EE, IP, EA)
     std::string right_operators_type;
 
     /// left-hand operators type (EE, IP, EA)
     std::string left_operators_type;
+
+    /// set a numerical factor
+    void set_factor(double in);
+
+    /// set a string of creation / annihilation operators
+    void set_string(std::vector<std::string> in);
+
+    /// set labels for integrals
+    void set_integrals(std::string type, std::vector<std::string> in);
+
+    /// set labels for amplitudes
+    void set_amplitudes(char type, int order, std::vector<std::string> in);
+
+    /// add new completed string / integrals / amplitudes / factor
+    void add_new_string();
+
+    /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the true vacuum
+    void add_new_string_true_vacuum();
+
+    /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the fermi vacuum
+    void add_new_string_fermi_vacuum();
 
   public:
 
@@ -74,31 +95,19 @@ class pq_helper {
     /// set operators to apply to the right of any operator products we add
     void set_right_operators(std::vector<std::vector<std::string> >in);
 
+    /// set right-hand operators type (EE, IP, EA)
+    void set_right_operators_type(std::string type);
+
+    /// set right-hand operators type (EE, IP, EA)
+    void set_left_operators_type(std::string type);
+
+    /// do operators entering similarity transformation commute? default true
+    void set_cluster_operators_commute(bool do_cluster_operators_commute);
+
     /// set print level (default zero)
     void set_print_level(int level);
 
-    /// set a string of creation / annihilation operators
-    void set_string(std::vector<std::string> in);
-
-    /// set labels for integrals
-    void set_integrals(std::string type, std::vector<std::string> in);
-
-    /// set labels for amplitudes
-    void set_amplitudes(char type, int order, std::vector<std::string> in);
-
-    /// set a numerical factor
-    void set_factor(double in);
-
-    /// add new completed string / integrals / amplitudes / factor
-    void add_new_string();
-
-    /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the true vacuum
-    void add_new_string_true_vacuum();
-
-    /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the fermi vacuum
-    void add_new_string_fermi_vacuum();
-
-    /// add new complete string as a product of operators (i.e., {'h(pq)','t1(ai)'} )
+    /// add new complete string as a product of operators (i.e., {'h','t1'} )
     void add_operator_product(double factor, std::vector<std::string> in);
 
     /// add similarity-transformed operator expansion of an operator
@@ -153,15 +162,6 @@ class pq_helper {
 
     /// print two-body strings
     void print_two_body();
-
-    /// do operators entering similarity transformation commute? default true
-    void set_cluster_operators_commute(bool cluster_operators_commute);
-
-    /// set right-hand operators type (EE, IP, EA)
-    void set_right_operators_type(std::string type);
-
-    /// set right-hand operators type (EE, IP, EA)
-    void set_left_operators_type(std::string type);
 
 };
 
