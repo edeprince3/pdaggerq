@@ -31,9 +31,12 @@
 #include <cctype>
 #include<algorithm>
 
-#include "data.h"
+
 #include "pq.h"
 #include "pq_helper.h"
+#include "pq_utils.h"
+
+#include "data.h"
 #include "tensor.h"
 
 #include <pybind11/pybind11.h>
@@ -49,21 +52,6 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 
 namespace pdaggerq {
-
-std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops) {
-
-    std::vector<std::string> ret;
-    size_t size = 0;
-    for (size_t i = 0; i < ops.size(); i++) {
-        size += ops[i].size();
-    }
-    ret.reserve(size);
-    for (size_t i = 0; i < ops.size(); i++) {
-        ret.insert(ret.end(), ops[i].begin(), ops[i].end());
-    }
-    return ret;
-    
-}
 
 void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
@@ -101,22 +89,6 @@ void export_pq_helper(py::module& m) {
 PYBIND11_MODULE(_pdaggerq, m) {
     m.doc() = "Python API of pdaggerq: A code for bringing strings of creation / annihilation operators to normal order.";
     export_pq_helper(m);
-}
-
-void removeStar(std::string &x)
-{ 
-  auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '*');});
-  x.erase(it, std::end(x));
-}
-
-void removeParentheses(std::string &x)
-{ 
-  auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '(');});
-  x.erase(it, std::end(x));
-
-  it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == ')');});
-  x.erase(it, std::end(x));
-
 }
 
 pq_helper::pq_helper(std::string vacuum_type)
