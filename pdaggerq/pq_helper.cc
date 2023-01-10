@@ -31,9 +31,12 @@
 #include <cctype>
 #include<algorithm>
 
-#include "data.h"
+
 #include "pq.h"
 #include "pq_helper.h"
+#include "pq_utils.h"
+
+#include "data.h"
 #include "tensor.h"
 
 #include <pybind11/pybind11.h>
@@ -54,18 +57,18 @@ void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
-        .def("set_string", &pq_helper::set_string)
-        .def("set_integrals", &pq_helper::set_integrals)
-        .def("set_amplitudes", &pq_helper::set_amplitudes)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
         .def("set_right_operators_type", &pq_helper::set_right_operators_type)
-        .def("set_factor", &pq_helper::set_factor)
         .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
-        .def("print", &pq_helper::print)
+        .def("print",
+             [](pq_helper& self, std::string string_type) {
+                 return self.print(string_type);
+             },
+             py::arg("string_type") = "fully-contracted" )
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings_with_spin", &pq_helper::fully_contracted_strings_with_spin)
@@ -75,10 +78,6 @@ void export_pq_helper(py::module& m) {
              },
              py::arg("spin_labels") = empty_spin_labels() )
 
-        .def("print_fully_contracted", &pq_helper::print_fully_contracted)
-        .def("print_one_body", &pq_helper::print_one_body)
-        .def("print_two_body", &pq_helper::print_two_body)
-        .def("add_new_string", &pq_helper::add_new_string)
         .def("add_st_operator", &pq_helper::add_st_operator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
@@ -90,22 +89,6 @@ void export_pq_helper(py::module& m) {
 PYBIND11_MODULE(_pdaggerq, m) {
     m.doc() = "Python API of pdaggerq: A code for bringing strings of creation / annihilation operators to normal order.";
     export_pq_helper(m);
-}
-
-void removeStar(std::string &x)
-{ 
-  auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '*');});
-  x.erase(it, std::end(x));
-}
-
-void removeParentheses(std::string &x)
-{ 
-  auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '(');});
-  x.erase(it, std::end(x));
-
-  it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == ')');});
-  x.erase(it, std::end(x));
-
 }
 
 pq_helper::pq_helper(std::string vacuum_type)
@@ -130,7 +113,7 @@ pq_helper::pq_helper(std::string vacuum_type)
 
     // assume operators entering a similarity transformation
     // commute. only relevant for the add_st_operator() function
-    cluster_operators_commute_ = true;
+    cluster_operators_commute = true;
 
     /// right operators type (EE, IP, EA)
     right_operators_type = "EE";
@@ -148,6 +131,18 @@ void pq_helper::set_print_level(int level) {
     print_level = level;
 }
 
+void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
+
+    right_operators.clear();
+    for (int i = 0; i < (int)in.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in[i].size(); j++) {
+            tmp.push_back(in[i][j]);
+        }
+        right_operators.push_back(tmp);
+    }
+}
+
 void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
 
     left_operators.clear();
@@ -158,7 +153,6 @@ void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
         }
         left_operators.push_back(tmp);
     }
-
 }
 
 void pq_helper::set_left_operators_type(std::string type) {
@@ -183,35 +177,12 @@ void pq_helper::set_right_operators_type(std::string type) {
     }
 }
 
-void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
-
-    right_operators.clear();
-    for (int i = 0; i < (int)in.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in[i].size(); j++) {
-            tmp.push_back(in[i][j]);
-        }
-        right_operators.push_back(tmp);
-    }
-
-}
-
 void pq_helper::add_commutator(double factor,
                                std::vector<std::string> op0,
                                std::vector<std::string> op1){
 
-    // op0 op1
-    std::vector<std::string> tmp;
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // op1 op0
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
+    add_operator_product( factor, concatinate_operators({op0, op1}) );
+    add_operator_product(-factor, concatinate_operators({op1, op0}) );
 
 }
 
@@ -220,35 +191,10 @@ void pq_helper::add_double_commutator(double factor,
                                         std::vector<std::string> op1, 
                                         std::vector<std::string> op2){
 
-    std::vector<std::string> tmp;
-
-    //   op0 op1 op2
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // - op1 op0 op2
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    // - op2 op0 op1
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //   op2 op1 op0
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
+    add_operator_product( factor, concatinate_operators({op0, op1, op2}) );
+    add_operator_product(-factor, concatinate_operators({op1, op0, op2}) );
+    add_operator_product(-factor, concatinate_operators({op2, op0, op1}) );
+    add_operator_product( factor, concatinate_operators({op2, op1, op0}) );
 
 }
 
@@ -258,71 +204,14 @@ void pq_helper::add_triple_commutator(double factor,
                                         std::vector<std::string> op2,
                                         std::vector<std::string> op3){
 
-    std::vector<std::string> tmp;
-
-    //    op0 op1 op2 op3
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  - op1 op0 op2 op3
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  - op2 op0 op1 op3
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //    op2 op1 op0 op3
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  - op3 op0 op1 op2
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //    op3 op1 op0 op2
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //    op3 op2 op0 op1
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  - op3 op2 op1 op0
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
+    add_operator_product( factor, concatinate_operators({op0, op1, op2, op3}) );
+    add_operator_product(-factor, concatinate_operators({op1, op0, op2, op3}) );
+    add_operator_product(-factor, concatinate_operators({op2, op0, op1, op3}) );
+    add_operator_product( factor, concatinate_operators({op2, op1, op0, op3}) );
+    add_operator_product(-factor, concatinate_operators({op3, op0, op1, op2}) );
+    add_operator_product( factor, concatinate_operators({op3, op1, op0, op2}) );
+    add_operator_product( factor, concatinate_operators({op3, op2, op0, op1}) );
+    add_operator_product(-factor, concatinate_operators({op3, op2, op1, op0}) );
 
 }
 
@@ -333,151 +222,23 @@ void pq_helper::add_quadruple_commutator(double factor,
                                            std::vector<std::string> op3,
                                            std::vector<std::string> op4){
 
-    std::vector<std::string> tmp;
 
-    //  op0 op1 op2 op3 op4
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op1 op0 op2 op3 op4
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    // -op2 op0 op1 op3 op4
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op2 op1 op0 op3 op4
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op3 op0 op1 op2 op4
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op3 op1 op0 op2 op4
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  op3 op2 op0 op1 op4
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op3 op2 op1 op0 op4
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    // -op4 op0 op1 op2 op3
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op4 op1 op0 op2 op3
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    //  op4 op2 op0 op1 op3
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op4 op2 op1 op0 op3
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op4 op3 op0 op1 op2
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
-
-    // -op4 op3 op1 op0 op2
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    // -op4 op3 op2 op0 op1
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    add_operator_product(-factor, tmp );
-    tmp.clear();
-
-    //  op4 op3 op2 op1 op0
-    for (int i = 0; i < (int)op4.size(); i++) tmp.push_back(op4[i]);
-    for (int i = 0; i < (int)op3.size(); i++) tmp.push_back(op3[i]);
-    for (int i = 0; i < (int)op2.size(); i++) tmp.push_back(op2[i]);
-    for (int i = 0; i < (int)op1.size(); i++) tmp.push_back(op1[i]);
-    for (int i = 0; i < (int)op0.size(); i++) tmp.push_back(op0[i]);
-    add_operator_product( factor, tmp );
-    tmp.clear();
+    add_operator_product( factor, concatinate_operators({op0, op1, op2, op3, op4}) );
+    add_operator_product(-factor, concatinate_operators({op1, op0, op2, op3, op4}) );
+    add_operator_product(-factor, concatinate_operators({op2, op0, op1, op3, op4}) );
+    add_operator_product( factor, concatinate_operators({op2, op1, op0, op3, op4}) );
+    add_operator_product(-factor, concatinate_operators({op3, op0, op1, op2, op4}) );
+    add_operator_product( factor, concatinate_operators({op3, op1, op0, op2, op4}) );
+    add_operator_product( factor, concatinate_operators({op3, op2, op0, op1, op4}) );
+    add_operator_product(-factor, concatinate_operators({op3, op2, op1, op0, op4}) );
+    add_operator_product(-factor, concatinate_operators({op4, op0, op1, op2, op3}) );
+    add_operator_product( factor, concatinate_operators({op4, op1, op0, op2, op3}) );
+    add_operator_product( factor, concatinate_operators({op4, op2, op0, op1, op3}) );
+    add_operator_product(-factor, concatinate_operators({op4, op2, op1, op0, op3}) );
+    add_operator_product( factor, concatinate_operators({op4, op3, op0, op1, op2}) );
+    add_operator_product(-factor, concatinate_operators({op4, op3, op1, op0, op2}) );
+    add_operator_product(-factor, concatinate_operators({op4, op3, op2, op0, op1}) );
+    add_operator_product( factor, concatinate_operators({op4, op3, op2, op1, op0}) );
 
 }
 
@@ -1331,11 +1092,14 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             data->has_w0       = has_w0;
 
-            add_new_string();
+            if ( vacuum == "TRUE" ) {
+                add_new_string_true_vacuum();
+            }else {
+                add_new_string_fermi_vacuum();
+            }
 
         }
     }
-
 }
 
 void pq_helper::set_string(std::vector<std::string> in) {
@@ -1366,6 +1130,12 @@ void pq_helper::set_amplitudes(char type, int order, std::vector<std::string> in
 void pq_helper::set_factor(double in) {
     data->factor = in;
 }
+
+// do operators entering similarity transformation commute? default true
+void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
+    cluster_operators_commute = do_cluster_operators_commute;
+}
+
 
 void pq_helper::add_new_string_true_vacuum(){
 
@@ -1454,16 +1224,6 @@ void pq_helper::add_new_string_true_vacuum(){
     // reset data object
     data.reset();
     data = (std::shared_ptr<StringData>)(new StringData());
-
-}
-
-void pq_helper::add_new_string(){
-
-    if ( vacuum == "TRUE" ) {
-        add_new_string_true_vacuum();
-    }else {
-        add_new_string_fermi_vacuum();
-    }
 
 }
 
@@ -1857,27 +1617,37 @@ void pq_helper::simplify() {
 
 }
 
-void pq_helper::print_two_body() {
+void pq_helper::print(std::string string_type) {
 
     printf("\n");
     printf("    ");
-    printf("// two-body strings:\n");
-    for (int i = 0; i < (int)ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 4 ) continue;
-        ordered[i]->print();
+
+    int n = 0;
+
+    if ( string_type == "all" ) {
+
+        printf("// normal-ordered strings:\n");
+        for (int i = 0; i < (int)ordered.size(); i++) {
+            ordered[i]->print();
+        }
+        printf("\n");
+        return;
+
+    }else if ( string_type == "one-body" ) {
+        printf("// one-body strings:\n");
+        n = 1;
+    }else if ( string_type == "two-body" ) {
+        n = 2;
+        printf("// two-body strings:\n");
+    }else if ( string_type == "fully-contracted" ) {
+        printf("// fully-contracted strings:\n");
+        n = 0;
     }
-    printf("\n");
 
-}
-
-void pq_helper::print_fully_contracted() {
-
-    printf("\n");
-    printf("    ");
-    printf("// fully-contracted strings:\n");
     for (int i = 0; i < (int)ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 0 ) continue;
-        if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        // number of fermion + boson operators
+        int my_n = ordered[i]->symbol.size()/2 + ordered[i]->data->is_boson_dagger.size();
+        if ( my_n != n ) continue;
         ordered[i]->print();
     }
     printf("\n");
@@ -1945,35 +1715,8 @@ std::vector<std::vector<std::string> > pq_helper::strings() {
 
 }
 
-void pq_helper::print_one_body() {
-
-    printf("\n");
-    printf("    ");
-    printf("// one-body strings:\n");
-    for (int i = 0; i < (int)ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 2 ) continue;
-        ordered[i]->print();
-    }
-    printf("\n");
-
-}
-
-void pq_helper::print() {
-
-    printf("\n");
-    printf("    ");
-    printf("// normal-ordered strings:\n");
-    for (int i = 0; i < (int)ordered.size(); i++) {
-        ordered[i]->print();
-    }
-    printf("\n");
-
-}
-
 void pq_helper::clear() {
-
     ordered.clear();
-
 }
 
 void pq_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops){
@@ -1992,7 +1735,7 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
     // we only need to consider unique pairs/triples/quadruplets of
     // operators. need to add logic to handle cases where the operators
     // do not commute.
-    if ( cluster_operators_commute_ ) {
+    if ( cluster_operators_commute ) {
 
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
@@ -2106,13 +1849,6 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         simplify();
 
     }
-}
-
-// do operators entering similarity transformation commute? default true
-void pq_helper::set_cluster_operators_commute(bool cluster_operators_commute) {
-
-    cluster_operators_commute_ = cluster_operators_commute;
-
 }
 
 } // End namespaces
