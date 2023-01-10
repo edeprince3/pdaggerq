@@ -65,9 +65,6 @@ class pq {
     /// copy all data, including symbols and daggers. 
     void copy(void * copy_me);
 
-    /// list: symbols for fermionic creation / annihilation operators
-    std::vector<std::string> symbol;
-
     /// detailed information about string (amplitudes, bosons, integrals, deltas, etc.)
     std::shared_ptr<StringData> data;
 

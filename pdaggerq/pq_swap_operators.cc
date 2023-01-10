@@ -55,7 +55,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
     // rearrange operators
 
     int n_new_strings = 1;
-    for (int i = 0; i < (int)in->symbol.size()-1; i++) {
+    for (int i = 0; i < (int)in->data->symbol.size()-1; i++) {
 
         bool swap = ( !in->data->is_dagger_fermi[i] && in->data->is_dagger_fermi[i+1] );
 
@@ -73,23 +73,23 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             // delta function
             std::vector<std::string> labels;
             delta_functions deltas;
-            deltas.labels.push_back(in->symbol[i]);
-            deltas.labels.push_back(in->symbol[i+1]);
+            deltas.labels.push_back(in->data->symbol[i]);
+            deltas.labels.push_back(in->data->symbol[i+1]);
             deltas.sort();
             s1->data->deltas.push_back(deltas);
 
             s2->data->sign = -s2->data->sign;
-            s2->symbol.push_back(in->symbol[i+1]);
-            s2->symbol.push_back(in->symbol[i]);
+            s2->data->symbol.push_back(in->data->symbol[i+1]);
+            s2->data->symbol.push_back(in->data->symbol[i]);
             s2->data->is_dagger.push_back(in->data->is_dagger[i+1]);
             s2->data->is_dagger.push_back(in->data->is_dagger[i]);
             s2->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i+1]);
             s2->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i]);
 
-            for (size_t j = i+2; j < in->symbol.size(); j++) {
+            for (size_t j = i+2; j < in->data->symbol.size(); j++) {
 
-                s1->symbol.push_back(in->symbol[j]);
-                s2->symbol.push_back(in->symbol[j]);
+                s1->data->symbol.push_back(in->data->symbol[j]);
+                s2->data->symbol.push_back(in->data->symbol[j]);
 
                 s1->data->is_dagger.push_back(in->data->is_dagger[j]);
                 s2->data->is_dagger.push_back(in->data->is_dagger[j]);
@@ -106,16 +106,16 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             n_new_strings = 1;
 
             s1->data->sign = -s1->data->sign;
-            s1->symbol.push_back(in->symbol[i+1]);
-            s1->symbol.push_back(in->symbol[i]);
+            s1->data->symbol.push_back(in->data->symbol[i+1]);
+            s1->data->symbol.push_back(in->data->symbol[i]);
             s1->data->is_dagger.push_back(in->data->is_dagger[i+1]);
             s1->data->is_dagger.push_back(in->data->is_dagger[i]);
             s1->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i+1]);
             s1->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i]);
 
-            for (size_t j = i+2; j < in->symbol.size(); j++) {
+            for (size_t j = i+2; j < in->data->symbol.size(); j++) {
 
-                s1->symbol.push_back(in->symbol[j]);
+                s1->data->symbol.push_back(in->data->symbol[j]);
 
                 s1->data->is_dagger.push_back(in->data->is_dagger[j]);
 
@@ -126,8 +126,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
 
         }else {
 
-            s1->symbol.push_back(in->symbol[i]);
-            s2->symbol.push_back(in->symbol[i]);
+            s1->data->symbol.push_back(in->data->symbol[i]);
+            s2->data->symbol.push_back(in->data->symbol[i]);
 
             s1->data->is_dagger.push_back(in->data->is_dagger[i]);
             s2->data->is_dagger.push_back(in->data->is_dagger[i]);
@@ -328,7 +328,7 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
     s2->shallow_copy(in.get());
 
     // rearrange operators
-    for (int i = 0; i < (int)in->symbol.size()-1; i++) {
+    for (int i = 0; i < (int)in->data->symbol.size()-1; i++) {
 
         bool swap = ( !in->data->is_dagger[i] && in->data->is_dagger[i+1] );
 
@@ -336,21 +336,21 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
 
             std::vector<std::string> labels;
             delta_functions deltas;
-            deltas.labels.push_back(in->symbol[i]);
-            deltas.labels.push_back(in->symbol[i+1]);
+            deltas.labels.push_back(in->data->symbol[i]);
+            deltas.labels.push_back(in->data->symbol[i+1]);
             deltas.sort();
             s1->data->deltas.push_back(deltas);
 
             s2->data->sign = -s2->data->sign;
-            s2->symbol.push_back(in->symbol[i+1]);
-            s2->symbol.push_back(in->symbol[i]);
+            s2->data->symbol.push_back(in->data->symbol[i+1]);
+            s2->data->symbol.push_back(in->data->symbol[i]);
             s2->data->is_dagger.push_back(in->data->is_dagger[i+1]);
             s2->data->is_dagger.push_back(in->data->is_dagger[i]);
 
-            for (size_t j = i+2; j < in->symbol.size(); j++) {
+            for (size_t j = i+2; j < in->data->symbol.size(); j++) {
 
-                s1->symbol.push_back(in->symbol[j]);
-                s2->symbol.push_back(in->symbol[j]);
+                s1->data->symbol.push_back(in->data->symbol[j]);
+                s2->data->symbol.push_back(in->data->symbol[j]);
 
                 s1->data->is_dagger.push_back(in->data->is_dagger[j]);
                 s2->data->is_dagger.push_back(in->data->is_dagger[j]);
@@ -360,8 +360,8 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
 
         }else {
 
-            s1->symbol.push_back(in->symbol[i]);
-            s2->symbol.push_back(in->symbol[i]);
+            s1->data->symbol.push_back(in->data->symbol[i]);
+            s2->data->symbol.push_back(in->data->symbol[i]);
 
             s1->data->is_dagger.push_back(in->data->is_dagger[i]);
             s2->data->is_dagger.push_back(in->data->is_dagger[i]);

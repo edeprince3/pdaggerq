@@ -57,9 +57,9 @@ void pq::print() {
 
     if ( data->skip ) return;
 
-    if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
+    if ( data->vacuum == "FERMI" && data->symbol.size() > 0 ) {
         // check if stings should be zero or not
-        bool is_dagger_right = data->is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_right = data->is_dagger_fermi[data->symbol.size()-1];
         bool is_dagger_left  = data->is_dagger_fermi[0];
         if ( !is_dagger_right || is_dagger_left ) {
             //return;
@@ -87,8 +87,8 @@ void pq::print() {
         }
     }
 
-    for (size_t i = 0; i < symbol.size(); i++) {
-        printf("%s",symbol[i].c_str());
+    for (size_t i = 0; i < data->symbol.size(); i++) {
+        printf("%s",data->symbol[i].c_str());
         if ( data->is_dagger[i] ) {
             printf("%c",'*');
         }
@@ -139,9 +139,9 @@ std::vector<std::string> pq::get_string_with_spin() {
 
     if ( data->skip ) return my_string;
 
-    if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
+    if ( data->vacuum == "FERMI" && data->symbol.size() > 0 ) {
         // check if stings should be zero or not
-        bool is_dagger_right = data->is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_right = data->is_dagger_fermi[data->symbol.size()-1];
         bool is_dagger_left  = data->is_dagger_fermi[0];
         if ( !is_dagger_right || is_dagger_left ) {
             //return;
@@ -171,8 +171,8 @@ std::vector<std::string> pq::get_string_with_spin() {
         }
     }
 
-    for (size_t i = 0; i < symbol.size(); i++) {
-        std::string tmp = symbol[i];
+    for (size_t i = 0; i < data->symbol.size(); i++) {
+        std::string tmp = data->symbol[i];
         if ( data->is_dagger[i] ) {
             tmp += "*";
         }
@@ -222,9 +222,9 @@ std::vector<std::string> pq::get_string() {
 
     if ( data->skip ) return my_string;
 
-    if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
+    if ( data->vacuum == "FERMI" && data->symbol.size() > 0 ) {
         // check if stings should be zero or not
-        bool is_dagger_right = data->is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_right = data->is_dagger_fermi[data->symbol.size()-1];
         bool is_dagger_left  = data->is_dagger_fermi[0];
         if ( !is_dagger_right || is_dagger_left ) {
             //return;
@@ -254,8 +254,8 @@ std::vector<std::string> pq::get_string() {
         }
     }
 
-    for (size_t i = 0; i < symbol.size(); i++) {
-        std::string tmp = symbol[i];
+    for (size_t i = 0; i < data->symbol.size(); i++) {
+        std::string tmp = data->symbol[i];
         if ( data->is_dagger[i] ) {
             tmp += "*";
         }
@@ -306,15 +306,15 @@ bool pq::is_normal_order() {
 
     // fermions
     if ( data->vacuum == "TRUE" ) {
-        for (int i = 0; i < (int)symbol.size()-1; i++) {
+        for (int i = 0; i < (int)data->symbol.size()-1; i++) {
             if ( !data->is_dagger[i] && data->is_dagger[i+1] ) {
                 return false;
             }
         }
     }else {
-        for (int i = 0; i < (int)symbol.size()-1; i++) {
+        for (int i = 0; i < (int)data->symbol.size()-1; i++) {
             // check if stings should be zero or not
-            bool is_dagger_right = data->is_dagger_fermi[symbol.size()-1];
+            bool is_dagger_right = data->is_dagger_fermi[data->symbol.size()-1];
             bool is_dagger_left  = data->is_dagger_fermi[0];
             if ( !is_dagger_right || is_dagger_left ) {
                 data->skip = true; // added 5/28/21
@@ -376,19 +376,19 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
         do {
             not_alphabetized = false;
             int ndagger = 0;
-            for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
+            for (size_t j = 0; j < ordered[i]->data->symbol.size(); j++) {
                 if ( ordered[i]->data->is_dagger[j] ) ndagger++;
             }
             for (int j = 0; j < ndagger-1; j++) {
-                int val1 = ordered[i]->symbol[j].c_str()[0];
-                int val2 = ordered[i]->symbol[j+1].c_str()[0];
+                int val1 = ordered[i]->data->symbol[j].c_str()[0];
+                int val2 = ordered[i]->data->symbol[j+1].c_str()[0];
                 if ( val2 < val1 ) {
-                    std::string dum = ordered[i]->symbol[j];
-                    ordered[i]->symbol[j] = ordered[i]->symbol[j+1];
-                    ordered[i]->symbol[j+1] = dum;
+                    std::string dum = ordered[i]->data->symbol[j];
+                    ordered[i]->data->symbol[j] = ordered[i]->data->symbol[j+1];
+                    ordered[i]->data->symbol[j+1] = dum;
                     ordered[i]->data->sign = -ordered[i]->data->sign;
                     not_alphabetized = true;
-                    j = ordered[i]->symbol.size() + 1;
+                    j = ordered[i]->data->symbol.size() + 1;
                     not_alphabetized = true;
                 }
             }
@@ -398,19 +398,19 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
         do {
             not_alphabetized = false;
             int ndagger = 0;
-            for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
+            for (size_t j = 0; j < ordered[i]->data->symbol.size(); j++) {
                 if ( ordered[i]->data->is_dagger[j] ) ndagger++;
             }
-            for (int j = ndagger; j < (int)ordered[i]->symbol.size()-1; j++) {
-                int val1 = ordered[i]->symbol[j].c_str()[0];
-                int val2 = ordered[i]->symbol[j+1].c_str()[0];
+            for (int j = ndagger; j < (int)ordered[i]->data->symbol.size()-1; j++) {
+                int val1 = ordered[i]->data->symbol[j].c_str()[0];
+                int val2 = ordered[i]->data->symbol[j+1].c_str()[0];
                 if ( val2 < val1 ) {
-                    std::string dum = ordered[i]->symbol[j];
-                    ordered[i]->symbol[j] = ordered[i]->symbol[j+1];
-                    ordered[i]->symbol[j+1] = dum;
+                    std::string dum = ordered[i]->data->symbol[j];
+                    ordered[i]->data->symbol[j] = ordered[i]->data->symbol[j+1];
+                    ordered[i]->data->symbol[j+1] = dum;
                     ordered[i]->data->sign = -ordered[i]->data->sign;
                     not_alphabetized = true;
-                    j = ordered[i]->symbol.size() + 1;
+                    j = ordered[i]->data->symbol.size() + 1;
                     not_alphabetized = true;
                 }
             }
@@ -1336,7 +1336,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
         if ( data->vacuum == "FERMI" ) {
-            if ( ordered[i]->symbol.size() != 0 ) continue;
+            if ( ordered[i]->data->symbol.size() != 0 ) continue;
             if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         }
 
@@ -1426,7 +1426,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
         if ( data->vacuum == "FERMI" ) {
-            if ( ordered[i]->symbol.size() != 0 ) continue;
+            if ( ordered[i]->data->symbol.size() != 0 ) continue;
             if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         }
 
@@ -2663,14 +2663,14 @@ bool pq::compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> orde
     }
 
     // are strings same?
-    if ( ordered_1->symbol.size() != ordered_2->symbol.size() ) return false;
+    if ( ordered_1->data->symbol.size() != ordered_2->data->symbol.size() ) return false;
     int nsame_s = 0;
-    for (size_t k = 0; k < ordered_1->symbol.size(); k++) {
-        if ( ordered_1->symbol[k] == ordered_2->symbol[k] ) {
+    for (size_t k = 0; k < ordered_1->data->symbol.size(); k++) {
+        if ( ordered_1->data->symbol[k] == ordered_2->data->symbol[k] ) {
             nsame_s++;
         }
     }
-    if ( nsame_s != ordered_1->symbol.size() ) return false;
+    if ( nsame_s != ordered_1->data->symbol.size() ) return false;
 
     // same delta functions (recall these aren't sorted in any way)
     int nsame_d = 0;
@@ -3045,8 +3045,8 @@ void pq::copy(void * copy_me) {
     pq * in = reinterpret_cast<pq * >(copy_me);
 
     // operators
-    for (size_t j = 0; j < in->symbol.size(); j++) {
-        symbol.push_back(in->symbol[j]);
+    for (size_t j = 0; j < in->data->symbol.size(); j++) {
+        data->symbol.push_back(in->data->symbol[j]);
 
         // dagger?
         data->is_dagger.push_back(in->data->is_dagger[j]);

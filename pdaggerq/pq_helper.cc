@@ -1160,7 +1160,7 @@ void pq_helper::add_new_string_true_vacuum(){
         }else {
             mystring->data->is_dagger.push_back(false);
         }
-        mystring->symbol.push_back(me);
+        mystring->data->symbol.push_back(me);
     }
 
     for (size_t i = 0; i < data->integral_types.size(); i++) {
@@ -1297,7 +1297,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                     mystrings[string_num]->data->is_dagger.push_back(false);
                     mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                 }
-                mystrings[string_num]->symbol.push_back(me_nostar);
+                mystrings[string_num]->data->symbol.push_back(me_nostar);
             }else if ( is_occ(me_nostar) ) {
                 if (me.find("*") != std::string::npos ){
                     mystrings[string_num]->data->is_dagger.push_back(true);
@@ -1306,7 +1306,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                     mystrings[string_num]->data->is_dagger.push_back(false);
                     mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                 }
-                mystrings[string_num]->symbol.push_back(me_nostar);
+                mystrings[string_num]->data->symbol.push_back(me_nostar);
             }else {
 
                 //two-index integrals
@@ -1323,7 +1323,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o1");
-                            mystrings[string_num]->symbol.push_back("o1");
+                            mystrings[string_num]->data->symbol.push_back("o1");
                         }else {
                             // first index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -1334,7 +1334,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger.push_back(false);
                             }
                             ints.labels.push_back("v1");
-                            mystrings[string_num]->symbol.push_back("v1");
+                            mystrings[string_num]->data->symbol.push_back("v1");
                         }
                     }else {
                         if ( string_num == 0 || string_num == 2 ) {
@@ -1347,7 +1347,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o2");
-                            mystrings[string_num]->symbol.push_back("o2");
+                            mystrings[string_num]->data->symbol.push_back("o2");
                         }else {
                             // second index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -1358,7 +1358,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v2");
-                            mystrings[string_num]->symbol.push_back("v2");
+                            mystrings[string_num]->data->symbol.push_back("v2");
                         }
                     }
                 }
@@ -1391,7 +1391,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o1");
-                            mystrings[string_num]->symbol.push_back("o1");
+                            mystrings[string_num]->data->symbol.push_back("o1");
                         }else {
                             // first index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -1402,7 +1402,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v1");
-                            mystrings[string_num]->symbol.push_back("v1");
+                            mystrings[string_num]->data->symbol.push_back("v1");
                         }
                     }else if ( my_gen_idx == 1 ) {
                         //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -1424,7 +1424,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o2");
-                            mystrings[string_num]->symbol.push_back("o2");
+                            mystrings[string_num]->data->symbol.push_back("o2");
                         }else {
                             // second index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -1435,7 +1435,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v2");
-                            mystrings[string_num]->symbol.push_back("v2");
+                            mystrings[string_num]->data->symbol.push_back("v2");
                         }
                     }else if ( my_gen_idx == 2 ) {
                         //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -1457,7 +1457,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o3");
-                            mystrings[string_num]->symbol.push_back("o3");
+                            mystrings[string_num]->data->symbol.push_back("o3");
                         }else {
                             // third index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -1468,7 +1468,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v3");
-                            mystrings[string_num]->symbol.push_back("v3");
+                            mystrings[string_num]->data->symbol.push_back("v3");
                         }
                     }else {
                         if ( string_num ==  0 || 
@@ -1488,7 +1488,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o4");
-                            mystrings[string_num]->symbol.push_back("o4");
+                            mystrings[string_num]->data->symbol.push_back("o4");
                         }else {
                             // fourth index vir
                             if ( me.find("*") != std::string::npos ) {
@@ -1499,7 +1499,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                                 mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v4");
-                            mystrings[string_num]->symbol.push_back("v4");
+                            mystrings[string_num]->data->symbol.push_back("v4");
                         }
                     }
                 }
@@ -1646,7 +1646,7 @@ void pq_helper::print(std::string string_type) {
 
     for (int i = 0; i < (int)ordered.size(); i++) {
         // number of fermion + boson operators
-        int my_n = ordered[i]->symbol.size()/2 + ordered[i]->data->is_boson_dagger.size();
+        int my_n = ordered[i]->data->symbol.size()/2 + ordered[i]->data->is_boson_dagger.size();
         if ( my_n != n ) continue;
         ordered[i]->print();
     }
@@ -1662,7 +1662,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
     std::vector< std::shared_ptr<pq> > spin_blocked;
 
     for (size_t i = 0; i < ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 0 ) continue;
+        if ( ordered[i]->data->symbol.size() != 0 ) continue;
         if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         std::vector< std::shared_ptr<pq> > tmp;
         ordered[i]->spin_blocking(tmp, spin_labels);
@@ -1673,7 +1673,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
 
     std::vector<std::vector<std::string> > list;
     for (size_t i = 0; i < spin_blocked.size(); i++) {
-        if ( spin_blocked[i]->symbol.size() != 0 ) continue;
+        if ( spin_blocked[i]->data->symbol.size() != 0 ) continue;
         if ( spin_blocked[i]->data->is_boson_dagger.size() != 0 ) continue;
         std::vector<std::string> my_string = spin_blocked[i]->get_string_with_spin();
         if ( my_string.size() > 0 ) {
@@ -1689,7 +1689,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() {
 
     std::vector<std::vector<std::string> > list;
     for (int i = 0; i < (int)ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 0 ) continue;
+        if ( ordered[i]->data->symbol.size() != 0 ) continue;
         if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         std::vector<std::string> my_string = ordered[i]->get_string();
         if ( (int)my_string.size() > 0 ) {
