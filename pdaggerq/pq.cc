@@ -59,8 +59,8 @@ void pq::print() {
 
     if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
-        bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
-        bool is_dagger_left  = is_dagger_fermi[0];
+        bool is_dagger_right = data->is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_left  = data->is_dagger_fermi[0];
         if ( !is_dagger_right || is_dagger_left ) {
             //return;
         }
@@ -89,7 +89,7 @@ void pq::print() {
 
     for (size_t i = 0; i < symbol.size(); i++) {
         printf("%s",symbol[i].c_str());
-        if ( is_dagger[i] ) {
+        if ( data->is_dagger[i] ) {
             printf("%c",'*');
         }
         printf(" ");
@@ -141,8 +141,8 @@ std::vector<std::string> pq::get_string_with_spin() {
 
     if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
-        bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
-        bool is_dagger_left  = is_dagger_fermi[0];
+        bool is_dagger_right = data->is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_left  = data->is_dagger_fermi[0];
         if ( !is_dagger_right || is_dagger_left ) {
             //return;
         }
@@ -173,7 +173,7 @@ std::vector<std::string> pq::get_string_with_spin() {
 
     for (size_t i = 0; i < symbol.size(); i++) {
         std::string tmp = symbol[i];
-        if ( is_dagger[i] ) {
+        if ( data->is_dagger[i] ) {
             tmp += "*";
         }
         my_string.push_back(tmp);
@@ -224,8 +224,8 @@ std::vector<std::string> pq::get_string() {
 
     if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
-        bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
-        bool is_dagger_left  = is_dagger_fermi[0];
+        bool is_dagger_right = data->is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_left  = data->is_dagger_fermi[0];
         if ( !is_dagger_right || is_dagger_left ) {
             //return;
         }
@@ -256,7 +256,7 @@ std::vector<std::string> pq::get_string() {
 
     for (size_t i = 0; i < symbol.size(); i++) {
         std::string tmp = symbol[i];
-        if ( is_dagger[i] ) {
+        if ( data->is_dagger[i] ) {
             tmp += "*";
         }
         my_string.push_back(tmp);
@@ -307,20 +307,20 @@ bool pq::is_normal_order() {
     // fermions
     if ( data->vacuum == "TRUE" ) {
         for (int i = 0; i < (int)symbol.size()-1; i++) {
-            if ( !is_dagger[i] && is_dagger[i+1] ) {
+            if ( !data->is_dagger[i] && data->is_dagger[i+1] ) {
                 return false;
             }
         }
     }else {
         for (int i = 0; i < (int)symbol.size()-1; i++) {
             // check if stings should be zero or not
-            bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
-            bool is_dagger_left  = is_dagger_fermi[0];
+            bool is_dagger_right = data->is_dagger_fermi[symbol.size()-1];
+            bool is_dagger_left  = data->is_dagger_fermi[0];
             if ( !is_dagger_right || is_dagger_left ) {
                 data->skip = true; // added 5/28/21
                 return true;
             }
-            if ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] ) {
+            if ( !data->is_dagger_fermi[i] && data->is_dagger_fermi[i+1] ) {
                 return false;
             }
         }
@@ -377,7 +377,7 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
             not_alphabetized = false;
             int ndagger = 0;
             for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
-                if ( ordered[i]->is_dagger[j] ) ndagger++;
+                if ( ordered[i]->data->is_dagger[j] ) ndagger++;
             }
             for (int j = 0; j < ndagger-1; j++) {
                 int val1 = ordered[i]->symbol[j].c_str()[0];
@@ -399,7 +399,7 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
             not_alphabetized = false;
             int ndagger = 0;
             for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
-                if ( ordered[i]->is_dagger[j] ) ndagger++;
+                if ( ordered[i]->data->is_dagger[j] ) ndagger++;
             }
             for (int j = ndagger; j < (int)ordered[i]->symbol.size()-1; j++) {
                 int val1 = ordered[i]->symbol[j].c_str()[0];
@@ -3049,11 +3049,11 @@ void pq::copy(void * copy_me) {
         symbol.push_back(in->symbol[j]);
 
         // dagger?
-        is_dagger.push_back(in->is_dagger[j]);
+        data->is_dagger.push_back(in->data->is_dagger[j]);
 
         // dagger (relative to fermi vacuum)?
         if ( data->vacuum == "FERMI" ) {
-            is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
+            data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[j]);
         }
     }
 

@@ -68,12 +68,6 @@ class pq {
     /// list: symbols for fermionic creation / annihilation operators
     std::vector<std::string> symbol;
 
-    /// list: is fermionic operator creator or annihilator (relative to true vacuum)?
-    std::vector<bool> is_dagger;
-
-    /// list: is fermionic operator creator or annihilator (relative to fermi vacuum)?
-    std::vector<bool> is_dagger_fermi;
-
     /// detailed information about string (amplitudes, bosons, integrals, deltas, etc.)
     std::shared_ptr<StringData> data;
 

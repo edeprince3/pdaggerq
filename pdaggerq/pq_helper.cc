@@ -1156,9 +1156,9 @@ void pq_helper::add_new_string_true_vacuum(){
         std::string me = data->string[i];
         if ( me.find("*") != std::string::npos ) {
             removeStar(me);
-            mystring->is_dagger.push_back(true);
+            mystring->data->is_dagger.push_back(true);
         }else {
-            mystring->is_dagger.push_back(false);
+            mystring->data->is_dagger.push_back(false);
         }
         mystring->symbol.push_back(me);
     }
@@ -1291,20 +1291,20 @@ void pq_helper::add_new_string_fermi_vacuum(){
             // fermi vacuum 
             if ( is_vir(me_nostar) ) {
                 if (me.find("*") != std::string::npos ){
-                    mystrings[string_num]->is_dagger.push_back(true);
-                    mystrings[string_num]->is_dagger_fermi.push_back(true);
+                    mystrings[string_num]->data->is_dagger.push_back(true);
+                    mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                 }else {
-                    mystrings[string_num]->is_dagger.push_back(false);
-                    mystrings[string_num]->is_dagger_fermi.push_back(false);
+                    mystrings[string_num]->data->is_dagger.push_back(false);
+                    mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                 }
                 mystrings[string_num]->symbol.push_back(me_nostar);
             }else if ( is_occ(me_nostar) ) {
                 if (me.find("*") != std::string::npos ){
-                    mystrings[string_num]->is_dagger.push_back(true);
-                    mystrings[string_num]->is_dagger_fermi.push_back(false);
+                    mystrings[string_num]->data->is_dagger.push_back(true);
+                    mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                 }else {
-                    mystrings[string_num]->is_dagger.push_back(false);
-                    mystrings[string_num]->is_dagger_fermi.push_back(true);
+                    mystrings[string_num]->data->is_dagger.push_back(false);
+                    mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                 }
                 mystrings[string_num]->symbol.push_back(me_nostar);
             }else {
@@ -1316,22 +1316,22 @@ void pq_helper::add_new_string_fermi_vacuum(){
                         if ( string_num == 0 || string_num == 1 ) {
                             // first index occ
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o1");
                             mystrings[string_num]->symbol.push_back("o1");
                         }else {
                             // first index vir
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }else {
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
-                                mystrings[string_num]->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
                             }
                             ints.labels.push_back("v1");
                             mystrings[string_num]->symbol.push_back("v1");
@@ -1340,22 +1340,22 @@ void pq_helper::add_new_string_fermi_vacuum(){
                         if ( string_num == 0 || string_num == 2 ) {
                             // second index occ
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o2");
                             mystrings[string_num]->symbol.push_back("o2");
                         }else {
                             // second index vir
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v2");
                             mystrings[string_num]->symbol.push_back("v2");
@@ -1384,22 +1384,22 @@ void pq_helper::add_new_string_fermi_vacuum(){
 
                             // first index occ
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o1");
                             mystrings[string_num]->symbol.push_back("o1");
                         }else {
                             // first index vir
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v1");
                             mystrings[string_num]->symbol.push_back("v1");
@@ -1417,22 +1417,22 @@ void pq_helper::add_new_string_fermi_vacuum(){
                              string_num == 11 ) {
                             // second index occ
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o2");
                             mystrings[string_num]->symbol.push_back("o2");
                         }else {
                             // second index vir
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v2");
                             mystrings[string_num]->symbol.push_back("v2");
@@ -1450,22 +1450,22 @@ void pq_helper::add_new_string_fermi_vacuum(){
                              string_num == 13 ) {
                             // third index occ
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o3");
                             mystrings[string_num]->symbol.push_back("o3");
                         }else {
                             // third index vir
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v3");
                             mystrings[string_num]->symbol.push_back("v3");
@@ -1481,22 +1481,22 @@ void pq_helper::add_new_string_fermi_vacuum(){
                              string_num == 14 ) {
                             // fourth index occ
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }
                             ints.labels.push_back("o4");
                             mystrings[string_num]->symbol.push_back("o4");
                         }else {
                             // fourth index vir
                             if ( me.find("*") != std::string::npos ) {
-                                mystrings[string_num]->is_dagger.push_back(true);
-                                mystrings[string_num]->is_dagger_fermi.push_back(true);
+                                mystrings[string_num]->data->is_dagger.push_back(true);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(true);
                             }else {
-                                mystrings[string_num]->is_dagger.push_back(false);
-                                mystrings[string_num]->is_dagger_fermi.push_back(false);
+                                mystrings[string_num]->data->is_dagger.push_back(false);
+                                mystrings[string_num]->data->is_dagger_fermi.push_back(false);
                             }
                             ints.labels.push_back("v4");
                             mystrings[string_num]->symbol.push_back("v4");

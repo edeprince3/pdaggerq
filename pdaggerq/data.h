@@ -85,6 +85,15 @@ class StringData {
     /// list: is bosonic operator creator or annihilator?
     std::vector<bool> is_boson_dagger;
 
+    /// list: is fermionic operator creator or annihilator (relative to true vacuum)?
+    std::vector<bool> is_dagger;
+
+    /// list: is fermionic operator creator or annihilator (relative to fermi vacuum)?
+    std::vector<bool> is_dagger_fermi;
+
+    /// list: symbols for fermionic creation / annihilation operators
+    std::vector<std::string> symbol;
+
 };
 
 }
