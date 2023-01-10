@@ -21,6 +21,7 @@
 //  limitations under the License.
 //
 
+#include "data.h"
 #include "pq_utils.h"
 
 namespace pdaggerq {
@@ -152,6 +153,24 @@ int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
     }
     return n;
 
+}
+
+// how many times does an index appear amplitudes, deltas, and integrals?
+int index_in_anywhere(std::shared_ptr<StringData> data, std::string idx) {
+
+    int n = 0;
+
+    n += index_in_deltas(idx, data->deltas);
+    for (size_t i = 0; i < data->integral_types.size(); i++) {
+        std::string type = data->integral_types[i];
+        n += index_in_integrals(idx, data->ints[type]);
+    }
+    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+        char type = data->amplitude_types[i];
+        n += index_in_amplitudes(idx, data->amps[type]);
+    }
+
+    return n;
 }
 
 /// replace one label with another (in a given set of deltas)

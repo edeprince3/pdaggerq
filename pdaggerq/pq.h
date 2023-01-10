@@ -32,9 +32,6 @@ class pq {
 
   private:
 
-    /// how many times does label "idx" appear in deltas, amplitudes, or integrals?
-    int index_in_anywhere(std::string idx);
-
     /// replace one label with another (everywhere)
     void replace_index_everywhere(std::string old_idx, std::string new_idx);
 

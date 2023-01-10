@@ -52,6 +52,9 @@ int index_in_integrals(std::string idx, std::vector<integrals> ints);
 // how many times does an index appear amplitudes?
 int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
 
+// how many times does an index appear amplitudes, deltas, and integrals?
+int index_in_anywhere(std::shared_ptr<StringData> data, std::string idx);
+
 /// replace one label with another (in delta functions)
 void replace_index_in_deltas(std::string old_idx, std::string new_idx, std::vector<delta_functions> &deltas);
 

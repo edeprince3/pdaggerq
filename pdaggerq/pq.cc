@@ -633,7 +633,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
     
     // ok, what non-summed labels do we have in the occupied space? 
     for (size_t j = 0; j < occ_labels.size(); j++) {
-        int found = index_in_anywhere(occ_labels[j]);
+        int found = index_in_anywhere(data, occ_labels[j]);
         if ( found == 1 ) {
             found_labels[occ_labels[j]] = true;
         }else{
@@ -643,7 +643,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
     
     // ok, what non-summed labels do we have in the virtual space? 
     for (size_t j = 0; j < vir_labels.size(); j++) {
-        int found = index_in_anywhere(vir_labels[j]);
+        int found = index_in_anywhere(data, vir_labels[j]);
         if ( found == 1 ) {
             found_labels[vir_labels[j]] = true;
         }else{
@@ -1486,7 +1486,7 @@ void pq::consolidate_permutations_non_summed(
 
         // ok, what labels do we have? 
         for (size_t j = 0; j < labels.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels[j]);
             // this is buggy when existing permutation labels belong to 
             // the same space as the labels we're permuting ... so skip those for now.
             bool same_space = false;
@@ -1595,49 +1595,49 @@ void pq::consolidate_permutations_plus_eight_swaps(
 
         // ok, what labels do we have? list 1
         for (size_t j = 0; j < labels_1.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_1[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_1[j]);
             find_1.push_back(found);
         }
 
         // ok, what labels do we have? list 2
         for (size_t j = 0; j < labels_2.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_2[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_2[j]);
             find_2.push_back(found);
         }
 
         // ok, what labels do we have? list 3
         for (size_t j = 0; j < labels_3.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_3[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_3[j]);
             find_3.push_back(found);
         }
 
         // ok, what labels do we have? list 4
         for (size_t j = 0; j < labels_4.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_4[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_4[j]);
             find_4.push_back(found);
         }
 
         // ok, what labels do we have? list 5
         for (size_t j = 0; j < labels_5.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_5[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_5[j]);
             find_5.push_back(found);
         }
 
         // ok, what labels do we have? list 6
         for (size_t j = 0; j < labels_6.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_6[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_6[j]);
             find_6.push_back(found);
         }
 
         // ok, what labels do we have? list 7
         for (size_t j = 0; j < labels_7.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_7[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_7[j]);
             find_7.push_back(found);
         }
 
         // ok, what labels do we have? list 8
         for (size_t j = 0; j < labels_8.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_8[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_8[j]);
             find_8.push_back(found);
         }
 
@@ -1794,43 +1794,43 @@ void pq::consolidate_permutations_plus_seven_swaps(
 
         // ok, what labels do we have? list 1
         for (size_t j = 0; j < labels_1.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_1[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_1[j]);
             find_1.push_back(found);
         }
 
         // ok, what labels do we have? list 2
         for (size_t j = 0; j < labels_2.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_2[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_2[j]);
             find_2.push_back(found);
         }
 
         // ok, what labels do we have? list 3
         for (size_t j = 0; j < labels_3.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_3[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_3[j]);
             find_3.push_back(found);
         }
 
         // ok, what labels do we have? list 4
         for (size_t j = 0; j < labels_4.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_4[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_4[j]);
             find_4.push_back(found);
         }
 
         // ok, what labels do we have? list 5
         for (size_t j = 0; j < labels_5.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_5[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_5[j]);
             find_5.push_back(found);
         }
 
         // ok, what labels do we have? list 6
         for (size_t j = 0; j < labels_6.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_6[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_6[j]);
             find_6.push_back(found);
         }
 
         // ok, what labels do we have? list 7
         for (size_t j = 0; j < labels_7.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_7[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_7[j]);
             find_7.push_back(found);
         }
 
@@ -1974,37 +1974,37 @@ void pq::consolidate_permutations_plus_six_swaps(
 
         // ok, what labels do we have? list 1
         for (size_t j = 0; j < labels_1.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_1[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_1[j]);
             find_1.push_back(found);
         }
 
         // ok, what labels do we have? list 2
         for (size_t j = 0; j < labels_2.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_2[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_2[j]);
             find_2.push_back(found);
         }
 
         // ok, what labels do we have? list 3
         for (size_t j = 0; j < labels_3.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_3[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_3[j]);
             find_3.push_back(found);
         }
 
         // ok, what labels do we have? list 4
         for (size_t j = 0; j < labels_4.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_4[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_4[j]);
             find_4.push_back(found);
         }
 
         // ok, what labels do we have? list 5
         for (size_t j = 0; j < labels_5.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_5[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_5[j]);
             find_5.push_back(found);
         }
 
         // ok, what labels do we have? list 6
         for (size_t j = 0; j < labels_6.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_6[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_6[j]);
             find_6.push_back(found);
         }
 
@@ -2135,31 +2135,31 @@ void pq::consolidate_permutations_plus_five_swaps(
 
         // ok, what labels do we have? list 1
         for (size_t j = 0; j < labels_1.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_1[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_1[j]);
             find_1.push_back(found);
         }
 
         // ok, what labels do we have? list 2
         for (size_t j = 0; j < labels_2.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_2[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_2[j]);
             find_2.push_back(found);
         }
 
         // ok, what labels do we have? list 3
         for (size_t j = 0; j < labels_3.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_3[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_3[j]);
             find_3.push_back(found);
         }
 
         // ok, what labels do we have? list 4
         for (size_t j = 0; j < labels_4.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_4[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_4[j]);
             find_4.push_back(found);
         }
 
         // ok, what labels do we have? list 5
         for (size_t j = 0; j < labels_5.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_5[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_5[j]);
             find_5.push_back(found);
         }
 
@@ -2277,25 +2277,25 @@ void pq::consolidate_permutations_plus_four_swaps(
 
         // ok, what labels do we have? list 1
         for (size_t j = 0; j < labels_1.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_1[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_1[j]);
             find_1.push_back(found);
         }
 
         // ok, what labels do we have? list 2
         for (size_t j = 0; j < labels_2.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_2[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_2[j]);
             find_2.push_back(found);
         }
 
         // ok, what labels do we have? list 3
         for (size_t j = 0; j < labels_3.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_3[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_3[j]);
             find_3.push_back(found);
         }
 
         // ok, what labels do we have? list 4
         for (size_t j = 0; j < labels_4.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_4[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_4[j]);
             find_4.push_back(found);
         }
 
@@ -2400,19 +2400,19 @@ void pq::consolidate_permutations_plus_three_swaps(
 
         // ok, what labels do we have? list 1
         for (size_t j = 0; j < labels_1.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_1[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_1[j]);
             find_1.push_back(found);
         }
 
         // ok, what labels do we have? list 2
         for (size_t j = 0; j < labels_2.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_2[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_2[j]);
             find_2.push_back(found);
         }
 
         // ok, what labels do we have? list 3
         for (size_t j = 0; j < labels_3.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_3[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_3[j]);
             find_3.push_back(found);
         }
 
@@ -2504,13 +2504,13 @@ void pq::consolidate_permutations_plus_two_swaps(
 
         // ok, what labels do we have? list 1
         for (size_t j = 0; j < labels_1.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_1[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_1[j]);
             find_1.push_back(found);
         }
 
         // ok, what labels do we have? list 2
         for (size_t j = 0; j < labels_2.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels_2[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels_2[j]);
             find_2.push_back(found);
         }
 
@@ -2590,7 +2590,7 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
 
         // ok, what labels do we have?
         for (size_t j = 0; j < labels.size(); j++) {
-            int found = ordered[i]->index_in_anywhere(labels[j]);
+            int found = index_in_anywhere(ordered[i]->data, labels[j]);
             find_idx.push_back(found);
         }
 
@@ -2871,25 +2871,6 @@ void pq::shallow_copy(void * copy_me) {
 
 }
 
-// how many times does an index appear amplitudes, deltas, and integrals?
-int pq::index_in_anywhere(std::string idx) {
-
-    int n = 0;
-
-    n += index_in_deltas(idx, data->deltas);
-    for (size_t i = 0; i < data->integral_types.size(); i++) {
-        std::string type = data->integral_types[i];
-        n += index_in_integrals(idx, data->ints[type]);
-    }
-    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
-        char type = data->amplitude_types[i];
-        n += index_in_amplitudes(idx, data->amps[type]);
-    }
-
-    return n;
-}
-
-
 void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
     //replace_index_in_deltas(old_idx,new_idx);
@@ -2953,11 +2934,11 @@ void pq::use_conventional_labels() {
 
     for (size_t i = 0; i < occ_in.size(); i++) {
 
-        if ( index_in_anywhere(occ_in[i]) > 0 ) {
+        if ( index_in_anywhere(data, occ_in[i]) > 0 ) {
 
             for (size_t j = 0; j < occ_out.size(); j++) {
 
-                if ( index_in_anywhere(occ_out[j]) == 0 ) {
+                if ( index_in_anywhere(data, occ_out[j]) == 0 ) {
 
                     replace_index_everywhere(occ_in[i],occ_out[j]);
                     break;
@@ -2976,11 +2957,11 @@ void pq::use_conventional_labels() {
 
     for (size_t i = 0; i < vir_in.size(); i++) {
 
-        if ( index_in_anywhere(vir_in[i]) > 0 ) {
+        if ( index_in_anywhere(data, vir_in[i]) > 0 ) {
 
             for (size_t j = 0; j < vir_out.size(); j++) {
 
-                if ( index_in_anywhere(vir_out[j]) == 0 ) {
+                if ( index_in_anywhere(data, vir_out[j]) == 0 ) {
 
                     replace_index_everywhere(vir_in[i],vir_out[j]);
                     break;
@@ -3006,13 +2987,13 @@ void pq::gobble_deltas() {
 
     std::vector<std::string> sum_labels;
     for (size_t i = 0; i < occ_labels.size(); i++) {
-        if ( index_in_anywhere( occ_labels[i] ) == 2 ) {
-            sum_labels.push_back( occ_labels[i] );
+        if ( index_in_anywhere(data, occ_labels[i]) == 2 ) {
+            sum_labels.push_back(occ_labels[i]);
         }
     }
     for (size_t i = 0; i < vir_labels.size(); i++) {
-        if ( index_in_anywhere( vir_labels[i] ) == 2 ) {
-            sum_labels.push_back( vir_labels[i] );
+        if ( index_in_anywhere(data, vir_labels[i]) == 2 ) {
+            sum_labels.push_back(vir_labels[i]);
         }
     }
 
@@ -3154,7 +3135,7 @@ void pq::reclassify_integrals() {
         int skip = -999;
 
         for (size_t i = 0; i < occ_out.size(); i++) {
-            if ( index_in_anywhere(occ_out[i]) == 0 ) {
+            if ( index_in_anywhere(data, occ_out[i]) == 0 ) {
                 idx = occ_out[i];
                 skip = i;
                 break;
