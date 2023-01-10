@@ -53,12 +53,6 @@ class pq {
     /// destructor
     ~pq();
 
-    /// copy all data, except symbols and daggers. 
-    void shallow_copy(void * copy_me);
-
-    /// copy all data, including symbols and daggers. 
-    void copy(void * copy_me);
-
     /// detailed information about string (amplitudes, bosons, integrals, deltas, etc.)
     std::shared_ptr<StringData> data;
 

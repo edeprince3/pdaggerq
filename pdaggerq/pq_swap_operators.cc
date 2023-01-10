@@ -37,7 +37,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
         // push current ordered operator onto running list
         std::shared_ptr<pq> newguy (new pq(in->data->vacuum));
 
-        newguy->copy(in.get());
+        newguy->data->copy(in.get());
 
         ordered.push_back(newguy);
 
@@ -49,8 +49,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
     std::shared_ptr<pq> s2 ( new pq(in->data->vacuum) );
 
     // copy data common to both new strings
-    s1->shallow_copy(in.get());
-    s2->shallow_copy(in.get());
+    s1->data->shallow_copy(in.get());
+    s2->data->shallow_copy(in.get());
 
     // rearrange operators
 
@@ -159,8 +159,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             std::shared_ptr<pq> s1b ( new pq(in->data->vacuum) );
 
             // copy data common to both new strings
-            s1a->copy((void*)s1.get());
-            s1b->copy((void*)s1.get());
+            s1a->data->copy((void*)s1.get());
+            s1b->data->copy((void*)s1.get());
 
             // ensure boson daggers are clear (they should be anyway)
             s1a->data->is_boson_dagger.clear();
@@ -220,8 +220,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             std::shared_ptr<pq> s2b ( new pq(in->data->vacuum) );
 
             // copy data common to new strings
-            s1a->copy((void*)s1.get());
-            s1b->copy((void*)s1.get());
+            s1a->data->copy((void*)s1.get());
+            s1b->data->copy((void*)s1.get());
 
             // ensure boson daggers are clear (they should be anyway)
             s1a->data->is_boson_dagger.clear();
@@ -256,8 +256,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             }
 
             // copy data common to new strings
-            s2a->copy((void*)s2.get());
-            s2b->copy((void*)s2.get());
+            s2a->data->copy((void*)s2.get());
+            s2b->data->copy((void*)s2.get());
 
             // ensure boson daggers are clear (they should be anyway)
             s2a->data->is_boson_dagger.clear();
@@ -312,7 +312,7 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
         // push current ordered operator onto running list
         std::shared_ptr<pq> newguy (new pq(in->data->vacuum));
 
-        newguy->copy(in.get());
+        newguy->data->copy(in.get());
 
         ordered.push_back(newguy);
 
@@ -324,8 +324,8 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
     std::shared_ptr<pq> s2 ( new pq(in->data->vacuum) );
 
     // copy data common to both new strings
-    s1->shallow_copy(in.get());
-    s2->shallow_copy(in.get());
+    s1->data->shallow_copy(in.get());
+    s2->data->shallow_copy(in.get());
 
     // rearrange operators
     for (int i = 0; i < (int)in->data->symbol.size()-1; i++) {
@@ -392,8 +392,8 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
         std::shared_ptr<pq> s2b ( new pq(in->data->vacuum) );
 
         // copy data common to new strings
-        s1a->copy((void*)s1.get());
-        s1b->copy((void*)s1.get());
+        s1a->data->copy((void*)s1.get());
+        s1b->data->copy((void*)s1.get());
 
         // ensure boson daggers are clear (they should be anyway)
         s1a->data->is_boson_dagger.clear();
@@ -428,8 +428,8 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
         }
 
         // copy data common to new strings
-        s2a->copy((void*)s2.get());
-        s2b->copy((void*)s2.get());
+        s2a->data->copy((void*)s2.get());
+        s2b->data->copy((void*)s2.get());
 
         // ensure boson daggers are clear (they should be anyway)
         s2a->data->is_boson_dagger.clear();

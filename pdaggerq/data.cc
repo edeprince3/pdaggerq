@@ -23,6 +23,7 @@
 
 #include "data.h"
 #include "tensor.h"
+#include "pq.h"
 
 #include<memory>
 #include<vector>
@@ -383,6 +384,82 @@ std::vector<std::string> StringData::get_string() {
     }
 
     return my_string;
+}
+
+// copy all data, except symbols and daggers. 
+
+// TODO: should probably make sure all of the std::vectors
+//       (ints, amplitudes, deltas) have been cleared.
+void StringData::shallow_copy(void * copy_me) {
+
+    pq * in = reinterpret_cast<pq * >(copy_me);
+
+    // skip string?
+    skip   = in->data->skip;
+
+    // sign
+    sign   = in->data->sign;
+
+    // factor
+    factor = in->data->factor;
+
+    // deltas
+    for (size_t i = 0; i < in->data->deltas.size(); i++) {
+        deltas.push_back(in->data->deltas[i]);
+    }
+
+    // integrals
+    for (size_t i = 0; i < integral_types.size(); i++) {
+        std::string type = integral_types[i];
+        for (size_t j = 0; j < in->data->ints[type].size(); j++) {
+            ints[type].push_back( in->data->ints[type][j] );
+        }
+    }
+
+    // amplitudes
+    for (size_t i = 0; i < amplitude_types.size(); i++) {
+        char type = amplitude_types[i];
+        for (size_t j = 0; j < in->data->amps[type].size(); j++) {
+            amps[type].push_back( in->data->amps[type][j] );
+        }
+    }
+
+    // w0 
+    has_w0 = in->data->has_w0;
+
+    // non-summed spin labels
+    non_summed_spin_labels = in->data->non_summed_spin_labels;
+}
+
+// copy all data, including symbols and daggers
+void StringData::copy(void * copy_me) {
+
+    shallow_copy(copy_me);
+
+    pq * in = reinterpret_cast<pq * >(copy_me);
+
+    // operators
+    for (size_t j = 0; j < in->data->symbol.size(); j++) {
+        symbol.push_back(in->data->symbol[j]);
+
+        // dagger?
+        is_dagger.push_back(in->data->is_dagger[j]);
+
+        // dagger (relative to fermi vacuum)?
+        if ( vacuum == "FERMI" ) {
+            is_dagger_fermi.push_back(in->data->is_dagger_fermi[j]);
+        }
+    }
+
+    // boson daggers
+    for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
+        is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+    }
+
+    // permutations
+    for (size_t i = 0; i < in->data->permutations.size(); i++) {
+        permutations.push_back(in->data->permutations[i]);
+    }
 }
 
 }

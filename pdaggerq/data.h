@@ -109,6 +109,12 @@ class StringData {
     /// return string information (with spin)
     std::vector<std::string> get_string_with_spin();
 
+    // copy all data, except symbols and daggers. 
+    void shallow_copy(void * copy_me);
+
+    /// copy all data, including symbols and daggers. 
+    void copy(void * copy_me);
+
 };
 
 }
