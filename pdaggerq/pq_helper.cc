@@ -131,6 +131,18 @@ void pq_helper::set_print_level(int level) {
     print_level = level;
 }
 
+void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
+
+    right_operators.clear();
+    for (int i = 0; i < (int)in.size(); i++) {
+        std::vector<std::string> tmp;
+        for (int j = 0; j < (int)in[i].size(); j++) {
+            tmp.push_back(in[i][j]);
+        }
+        right_operators.push_back(tmp);
+    }
+}
+
 void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
 
     left_operators.clear();
@@ -141,7 +153,6 @@ void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
         }
         left_operators.push_back(tmp);
     }
-
 }
 
 void pq_helper::set_left_operators_type(std::string type) {
@@ -164,19 +175,6 @@ void pq_helper::set_right_operators_type(std::string type) {
         printf("\n");
         exit(1);
     }
-}
-
-void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
-
-    right_operators.clear();
-    for (int i = 0; i < (int)in.size(); i++) {
-        std::vector<std::string> tmp;
-        for (int j = 0; j < (int)in[i].size(); j++) {
-            tmp.push_back(in[i][j]);
-        }
-        right_operators.push_back(tmp);
-    }
-
 }
 
 void pq_helper::add_commutator(double factor,
@@ -1133,6 +1131,12 @@ void pq_helper::set_factor(double in) {
     data->factor = in;
 }
 
+// do operators entering similarity transformation commute? default true
+void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
+    cluster_operators_commute = do_cluster_operators_commute;
+}
+
+
 void pq_helper::add_new_string_true_vacuum(){
 
     std::shared_ptr<pq> mystring (new pq(vacuum));
@@ -1712,9 +1716,7 @@ std::vector<std::vector<std::string> > pq_helper::strings() {
 }
 
 void pq_helper::clear() {
-
     ordered.clear();
-
 }
 
 void pq_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops){
@@ -1847,13 +1849,6 @@ void pq_helper::add_st_operator(double factor, std::vector<std::string> targets,
         simplify();
 
     }
-}
-
-// do operators entering similarity transformation commute? default true
-void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
-
-    cluster_operators_commute = do_cluster_operators_commute;
-
 }
 
 } // End namespaces

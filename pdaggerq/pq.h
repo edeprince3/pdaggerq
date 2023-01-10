@@ -30,8 +30,6 @@ namespace pdaggerq {
 
 class pq {
 
-  public:
-
   private:
 
     /// is the entire string (fermions+bosons) in normal order?

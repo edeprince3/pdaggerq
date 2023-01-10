@@ -126,14 +126,14 @@ class pq_helper {
     /// operators to apply to the right of any operator products we add
     std::vector<std::vector<std::string> > right_operators;
 
-    /// do operators entering a similarity transformation commute?
-    bool cluster_operators_commute;
-
     /// right-hand operators type (EE, IP, EA)
     std::string right_operators_type;
 
     /// left-hand operators type (EE, IP, EA)
     std::string left_operators_type;
+
+    /// do operators entering a similarity transformation commute?
+    bool cluster_operators_commute;
 
     /// set a numerical factor
     void set_factor(double in);
