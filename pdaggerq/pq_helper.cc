@@ -35,6 +35,7 @@
 #include "pq.h"
 #include "pq_helper.h"
 #include "pq_utils.h"
+#include "pq_swap_operators.h"
 
 #include "data.h"
 #include "tensor.h"
@@ -1190,7 +1191,6 @@ void pq_helper::add_new_string_true_vacuum(){
     }
 
     // rearrange strings
-    //mystring->normal_order(ordered);
 
     std::vector< std::shared_ptr<pq> > tmp;
     tmp.push_back(mystring);
@@ -1200,7 +1200,7 @@ void pq_helper::add_new_string_true_vacuum(){
         std::vector< std::shared_ptr<pq> > list;
         done_rearranging = true;
         for (int i = 0; i < (int)tmp.size(); i++) {
-            bool am_i_done = tmp[i]->normal_order(list);
+            bool am_i_done = swap_operators_true_vacuum(tmp[i], list);
             if ( !am_i_done ) done_rearranging = false;
         }
         tmp.clear();
@@ -1289,7 +1289,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
             }
 
             // fermi vacuum 
-            if ( mystrings[string_num]->is_vir(me_nostar) ) {
+            if ( is_vir(me_nostar) ) {
                 if (me.find("*") != std::string::npos ){
                     mystrings[string_num]->is_dagger.push_back(true);
                     mystrings[string_num]->is_dagger_fermi.push_back(true);
@@ -1298,7 +1298,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
                     mystrings[string_num]->is_dagger_fermi.push_back(false);
                 }
                 mystrings[string_num]->symbol.push_back(me_nostar);
-            }else if ( mystrings[string_num]->is_occ(me_nostar) ) {
+            }else if ( is_occ(me_nostar) ) {
                 if (me.find("*") != std::string::npos ){
                     mystrings[string_num]->is_dagger.push_back(true);
                     mystrings[string_num]->is_dagger_fermi.push_back(false);
@@ -1556,7 +1556,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
         }
 
         // rearrange strings
-        //mystrings[string_num]->normal_order(ordered);
+
         std::vector< std::shared_ptr<pq> > tmp;
         tmp.push_back(mystrings[string_num]);
 
@@ -1565,7 +1565,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
             std::vector< std::shared_ptr<pq> > list;
             done_rearranging = true;
             for (int i = 0; i < (int)tmp.size(); i++) {
-                bool am_i_done = tmp[i]->normal_order(list);
+                bool am_i_done = swap_operators_fermi_vacuum(tmp[i], list);
                 if ( !am_i_done ) done_rearranging = false;
             }
             tmp.clear();

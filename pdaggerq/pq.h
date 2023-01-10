@@ -32,35 +32,11 @@ class pq {
 
   private:
 
-    /// is the entire string (fermions+bosons) in normal order?
-    bool is_normal_order();
-
-    /// are bosonic operators in normal order?
-    bool is_boson_normal_order();
-
     /// how many times does label "idx" appear in deltas, amplitudes, or integrals?
     int index_in_anywhere(std::string idx);
 
-    /// how many times does label "idx" appear in delta terms?
-    int index_in_deltas(std::string idx);
-
-    /// how many times does label "idx" appear in a given set of integrals
-    int index_in_integrals(std::string idx, std::vector<integrals> ints);
-
-    /// how many times does label "idx" appear in a given set of amplitudes
-    int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
-
     /// replace one label with another (everywhere)
     void replace_index_everywhere(std::string old_idx, std::string new_idx);
-
-    /// replace one label with another (in delta functions)
-    void replace_index_in_deltas(std::string old_idx, std::string new_idx);
-
-    /// replace one label with another (in a given set of integrals)
-    void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::vector<integrals> &ints);
-
-    /// replace one label with another (in a given set of amplitudes)
-    void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps);
 
     /// are two strings the same? if so, how many permutations to relate them?
     bool compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute);
@@ -88,6 +64,12 @@ class pq {
 
     /// vacuum type (fermi, true)
     std::string vacuum;
+
+    /// is the entire string (fermions+bosons) in normal order?
+    bool is_normal_order();
+
+    /// are bosonic operators in normal order?
+    bool is_boson_normal_order();
 
     /// do skip because will evaluate to zero?
     bool skip     = false;
@@ -127,15 +109,6 @@ class pq {
 
     /// replace internal labels with conventional ones (o1 -> i, etc.)
     void use_conventional_labels();
-
-    /// bring string to normal order (relative to either vacuum)
-    bool normal_order(std::vector<std::shared_ptr<pq> > &ordered);
-
-    /// bring string to normal order relative to fermi vacuum
-    bool normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered);
-
-    /// bring string to normal order relative to true vacuum
-    bool normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered);
 
     /// alphabetize operators to simplify string comparisons
     void alphabetize(std::vector<std::shared_ptr<pq> > &ordered);
@@ -230,12 +203,6 @@ class pq {
 
     /// reorder t amplitudes as t1, t2, t3
     void reorder_t_amplitudes();
-
-    /// does label correspond to occupied orbital?
-    bool is_occ(std::string idx);
-
-    /// does label correspond to virtual orbital?
-    bool is_vir(std::string idx);
 
     /// re-classify fluctuation potential terms
     void reclassify_integrals();

@@ -27,15 +27,14 @@
 #include<string>
 #include<algorithm>
 #include<cstring>
-#include <math.h>
+#include<math.h>
 #include<sstream>
 
 #include "pq.h"
+#include "pq_utils.h"
 
 // work-around for finite precision of std::to_string
-template <typename T>
-std::string to_string_with_precision(const T a_value, const int n = 14)
-{
+template <typename T> std::string to_string_with_precision(const T a_value, const int n = 14) {
     std::ostringstream out;
     out.precision(n);
     out << std::fixed << a_value;
@@ -43,6 +42,15 @@ std::string to_string_with_precision(const T a_value, const int n = 14)
 }
 
 namespace pdaggerq {
+
+void pq::swap_two_labels(std::string label1, std::string label2) {
+
+    replace_index_everywhere(label1,"x");
+    replace_index_everywhere(label2,label1);
+    replace_index_everywhere("x",label2);
+
+}
+
 
 pq::pq(std::string vacuum_type) {
 
@@ -55,52 +63,7 @@ pq::pq(std::string vacuum_type) {
 pq::~pq() {
 }
 
-bool pq::is_occ(std::string idx) {
-    if ( idx == "I" || idx == "i") {
-        return true;
-    }else if ( idx == "J" || idx == "j") {
-        return true;
-    }else if ( idx == "K" || idx == "k") {
-        return true;
-    }else if ( idx == "L" || idx == "l") {
-        return true;
-    }else if ( idx == "M" || idx == "m") {
-        return true;
-    }else if ( idx == "N" || idx == "n") {
-        return true;
-    }else if ( idx == "N" || idx == "o") {
-        return true;
-    }else if ( idx.at(0) == 'O' || idx.at(0) == 'o') {
-        return true;
-    }else if ( idx.at(0) == 'I' || idx.at(0) == 'i') {
-        return true;
-    }
-    return false;
-}
-
-bool pq::is_vir(std::string idx) {
-    if ( idx == "A" || idx == "a") {
-        return true;
-    }else if ( idx == "B" || idx == "b") {
-        return true;
-    }else if ( idx == "C" || idx == "c") {
-        return true;
-    }else if ( idx == "D" || idx == "d") {
-        return true;
-    }else if ( idx == "E" || idx == "e") {
-        return true;
-    }else if ( idx == "F" || idx == "f") {
-        return true;
-    }else if ( idx == "F" || idx == "g") {
-        return true;
-    }else if ( idx.at(0) == 'V' || idx.at(0) == 'v') {
-        return true;
-    }else if ( idx.at(0) == 'A' || idx.at(0) == 'a') {
-        return true;
-    }
-    return false;
-}
-
+// TODO: should be part of StringData
 void pq::print() {
 
     if ( skip ) return;
@@ -180,6 +143,7 @@ void pq::print() {
     printf("\n");
 }
 
+// TODO: should be part of StringData
 std::vector<std::string> pq::get_string_with_spin() {
 
     std::vector<std::string> my_string;
@@ -202,7 +166,7 @@ std::vector<std::string> pq::get_string_with_spin() {
         tmp = "-";
     }
     //my_string.push_back(tmp + std::to_string(fabs(data->factor)));
-    my_string.push_back(tmp + to_string_with_precision(fabs(data->factor),14));
+    my_string.push_back(tmp + to_string_with_precision(fabs(data->factor), 14));
 
     if ( data->permutations.size() > 0 ) {
         // should have an even number of symbols...how many pairs?
@@ -261,6 +225,8 @@ std::vector<std::string> pq::get_string_with_spin() {
 
     return my_string;
 }
+
+// TODO: should be part of StringData
 std::vector<std::string> pq::get_string() {
 
     std::vector<std::string> my_string;
@@ -343,6 +309,7 @@ std::vector<std::string> pq::get_string() {
     return my_string;
 }
 
+// TODO: should be part of StringData
 bool pq::is_normal_order() {
 
     // don't bother bringing to normal order if we're going to skip this string
@@ -378,6 +345,7 @@ bool pq::is_normal_order() {
     return true;
 }
 
+// TODO: should be part of StringData
 bool pq::is_boson_normal_order() {
 
     if ( data->is_boson_dagger.size() == 1 ) {
@@ -472,14 +440,6 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
             }
         }
     }
-}
-
-void pq::swap_two_labels(std::string label1, std::string label2) {
-
-    replace_index_everywhere(label1,"x");
-    replace_index_everywhere(label2,label1);
-    replace_index_everywhere("x",label2);
-
 }
 
 void pq::reorder_t_amplitudes() {
@@ -2916,7 +2876,7 @@ int pq::index_in_anywhere(std::string idx) {
 
     int n = 0;
 
-    n += index_in_deltas(idx);
+    n += index_in_deltas(idx, data->deltas);
     for (size_t i = 0; i < data->integral_types.size(); i++) {
         std::string type = data->integral_types[i];
         n += index_in_integrals(idx, data->ints[type]);
@@ -2929,50 +2889,6 @@ int pq::index_in_anywhere(std::string idx) {
     return n;
 }
 
-// how many times does an index appear deltas?
-int pq::index_in_deltas(std::string idx) {
-
-    int n = 0;
-    for (size_t i = 0; i < data->deltas.size(); i++) {
-        if ( data->deltas[i].labels[0] == idx ) {
-            n++;
-        }
-        if ( data->deltas[i].labels[1] == idx ) {
-            n++;
-        }
-    }
-    return n;
-}
-
-// how many times does an index appear integrals?
-int pq::index_in_integrals(std::string idx, std::vector<integrals> ints) {
-
-    int n = 0;
-    for (size_t i = 0; i < ints.size(); i++) {
-        for (size_t j = 0; j < ints[i].labels.size(); j++) {
-            if ( ints[i].labels[j] == idx ) {
-                n++;
-            }
-           
-        }
-    }
-    return n;
-
-}
-int pq::index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
-
-    int n = 0;
-    for (size_t i = 0; i < amps.size(); i++) {
-        for (size_t j = 0; j < amps[i].labels.size(); j++) {
-            if ( amps[i].labels[j] == idx ) {
-                n++;
-            }
-           
-        }
-    }
-    return n;
-
-}
 
 void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
 
@@ -3022,47 +2938,6 @@ void pq::set_spin_everywhere(std::string target, std::string spin) {
         }
     }
 
-}
-
-void pq::replace_index_in_deltas(std::string old_idx, std::string new_idx) {
-
-    for (size_t i = 0; i < data->deltas.size(); i++) {
-        if ( data->deltas[i].labels[0] == old_idx ) {
-            data->deltas[i].labels[0] = new_idx;
-            // dont' return because indices may be repeated in two-electron integrals
-            //return;
-        }
-    }
-    for (size_t i = 0; i < data->deltas.size(); i++) {
-        if ( data->deltas[i].labels[1] == old_idx ) {
-            data->deltas[i].labels[1] = new_idx;
-            // dont' return because indices may be repeated in two-electron integrals
-            //return;
-        }
-    }
-
-}
-
-void pq::replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps) {
-
-    for (size_t i = 0; i < amps.size(); i++) {
-        for (size_t j = 0; j < amps[i].labels.size(); j++) {
-            if ( amps[i].labels[j] == old_idx ) {
-                amps[i].labels[j] = new_idx;
-            }
-        }
-    }
-}
-
-void pq::replace_index_in_integrals(std::string old_idx, std::string new_idx, std::vector<integrals> &ints) {
-
-    for (size_t i = 0; i < ints.size(); i++) {
-        for (size_t j = 0; j < ints[i].labels.size(); j++) {
-            if ( ints[i].labels[j] == old_idx ) {
-                ints[i].labels[j] = new_idx;
-            }
-        }
-    }
 }
 
 // find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a
@@ -3258,477 +3133,6 @@ void pq::copy(void * copy_me) {
         data->permutations.push_back(in->data->permutations[i]);
     }
 
-}
-
-bool pq::normal_order_true_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
-
-    if ( skip ) return true;
-
-    if ( is_normal_order() ) {
-
-        // push current ordered operator onto running list
-        std::shared_ptr<pq> newguy (new pq(vacuum));
-
-        newguy->copy((void*)this);
-
-        ordered.push_back(newguy);
-
-        return true;
-    }
-
-    // new strings
-    std::shared_ptr<pq> s1 ( new pq(vacuum) );
-    std::shared_ptr<pq> s2 ( new pq(vacuum) );
-
-    // copy data common to both new strings
-    s1->shallow_copy((void*)this);
-    s2->shallow_copy((void*)this);
-
-    // rearrange operators
-    for (int i = 0; i < (int)symbol.size()-1; i++) {
-
-        bool swap = ( !is_dagger[i] && is_dagger[i+1] );
-
-        if ( swap ) {
-
-            std::vector<std::string> labels;
-            delta_functions deltas;
-            deltas.labels.push_back(symbol[i]);
-            deltas.labels.push_back(symbol[i+1]);
-            deltas.sort();
-            s1->data->deltas.push_back(deltas);
-
-            s2->sign = -s2->sign;
-            s2->symbol.push_back(symbol[i+1]);
-            s2->symbol.push_back(symbol[i]);
-            s2->is_dagger.push_back(is_dagger[i+1]);
-            s2->is_dagger.push_back(is_dagger[i]);
-
-            for (size_t j = i+2; j < symbol.size(); j++) {
-
-                s1->symbol.push_back(symbol[j]);
-                s2->symbol.push_back(symbol[j]);
-
-                s1->is_dagger.push_back(is_dagger[j]);
-                s2->is_dagger.push_back(is_dagger[j]);
-
-            }
-            break;
-
-        }else {
-
-            s1->symbol.push_back(symbol[i]);
-            s2->symbol.push_back(symbol[i]);
-
-            s1->is_dagger.push_back(is_dagger[i]);
-            s2->is_dagger.push_back(is_dagger[i]);
-
-        }
-    }
-
-    // now, s1 and s2 are closer to normal order in the fermion space
-    // we should more toward normal order in the boson space, too
-
-    if ( is_boson_normal_order() ) {
-
-        // copy boson daggers 
-        for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
-            s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-            s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-        }
-        //s1->normal_order_true_vacuum(ordered);
-        //s2->normal_order_true_vacuum(ordered);
-        ordered.push_back(s1);
-        ordered.push_back(s2);
-        return false;
-
-    }else {
-
-        // new strings
-        std::shared_ptr<pq> s1a ( new pq(vacuum) );
-        std::shared_ptr<pq> s1b ( new pq(vacuum) );
-        std::shared_ptr<pq> s2a ( new pq(vacuum) );
-        std::shared_ptr<pq> s2b ( new pq(vacuum) );
-
-        // copy data common to new strings
-        s1a->copy((void*)s1.get());
-        s1b->copy((void*)s1.get());
-
-        // ensure boson daggers are clear (they should be anyway)
-        s1a->data->is_boson_dagger.clear();
-        s1b->data->is_boson_dagger.clear();
-
-        for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
-
-            // swap operators?
-            bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
-
-            if ( swap ) {
-
-                // nothing happens to s1a. add swapped operators to s1b
-                s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
-                s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-                // push remaining operators onto s1a and s1b
-                for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
-
-                    s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-
-                }
-                break;
-
-            }else {
-
-                s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-            }
-        }
-
-        // copy data common to new strings
-        s2a->copy((void*)s2.get());
-        s2b->copy((void*)s2.get());
-
-        // ensure boson daggers are clear (they should be anyway)
-        s2a->data->is_boson_dagger.clear();
-        s2b->data->is_boson_dagger.clear();
-
-        for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
-
-            // swap operators?
-            bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
-
-            if ( swap ) {
-
-                // nothing happens to s2a. add swapped operators to s2b
-                s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
-                s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-                // push remaining operators onto s2a and s2b
-                for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
-
-                    s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-                    s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-
-                }
-                break;
-
-            }else {
-
-                s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-            }
-        }
-
-        //s1a->normal_order_true_vacuum(ordered);
-        //s1b->normal_order_true_vacuum(ordered);
-        //s2a->normal_order_true_vacuum(ordered);
-        //s2b->normal_order_true_vacuum(ordered);
-        ordered.push_back(s1a);
-        ordered.push_back(s1b);
-        ordered.push_back(s2a);
-        ordered.push_back(s2b);
-        return false;
-
-    }
-
-    return false;
-}
-
-bool pq::normal_order_fermi_vacuum(std::vector<std::shared_ptr<pq> > &ordered) {
-
-    if ( skip ) return true;
-
-    if ( is_normal_order() ) {
-
-        // push current ordered operator onto running list
-        std::shared_ptr<pq> newguy (new pq(vacuum));
-
-        newguy->copy((void*)this);
-
-        ordered.push_back(newguy);
-
-        return true;
-    }
-
-    // new strings
-    std::shared_ptr<pq> s1 ( new pq(vacuum) );
-    std::shared_ptr<pq> s2 ( new pq(vacuum) );
-
-    // copy data common to both new strings
-    s1->shallow_copy((void*)this);
-    s2->shallow_copy((void*)this);
-
-    // rearrange operators
-
-    int n_new_strings = 1;
-
-    for (int i = 0; i < (int)symbol.size()-1; i++) {
-
-        bool swap = ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] );
-
-        // four cases: **, --, *-, -*
-        // **, --: change sign, swap labels
-        // *-, -*: standard swap
-
-        bool daggers_differ = ( is_dagger[i] != is_dagger[i+1] );
-
-        if ( swap && daggers_differ ) {
-
-            // we're going to have two new strings
-            n_new_strings = 2;
-
-            // delta function
-            std::vector<std::string> labels;
-            delta_functions deltas;
-            deltas.labels.push_back(symbol[i]);
-            deltas.labels.push_back(symbol[i+1]);
-            deltas.sort();
-            s1->data->deltas.push_back(deltas);
-
-            s2->sign = -s2->sign;
-            s2->symbol.push_back(symbol[i+1]);
-            s2->symbol.push_back(symbol[i]);
-            s2->is_dagger.push_back(is_dagger[i+1]);
-            s2->is_dagger.push_back(is_dagger[i]);
-            s2->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
-            s2->is_dagger_fermi.push_back(is_dagger_fermi[i]);
-
-            for (size_t j = i+2; j < symbol.size(); j++) {
-
-                s1->symbol.push_back(symbol[j]);
-                s2->symbol.push_back(symbol[j]);
-
-                s1->is_dagger.push_back(is_dagger[j]);
-                s2->is_dagger.push_back(is_dagger[j]);
-
-                s1->is_dagger_fermi.push_back(is_dagger_fermi[j]);
-                s2->is_dagger_fermi.push_back(is_dagger_fermi[j]);
-
-            }
-            break;
-
-        }else if ( swap && !daggers_differ )  {
-
-            // we're only going to have one new string, with a different sign
-            n_new_strings = 1;
-
-            s1->sign = -s1->sign;
-            s1->symbol.push_back(symbol[i+1]);
-            s1->symbol.push_back(symbol[i]);
-            s1->is_dagger.push_back(is_dagger[i+1]);
-            s1->is_dagger.push_back(is_dagger[i]);
-            s1->is_dagger_fermi.push_back(is_dagger_fermi[i+1]);
-            s1->is_dagger_fermi.push_back(is_dagger_fermi[i]);
-
-            for (size_t j = i+2; j < symbol.size(); j++) {
-
-                s1->symbol.push_back(symbol[j]);
-
-                s1->is_dagger.push_back(is_dagger[j]);
-
-                s1->is_dagger_fermi.push_back(is_dagger_fermi[j]);
-
-            }
-            break;
-
-        }else {
-
-            s1->symbol.push_back(symbol[i]);
-            s2->symbol.push_back(symbol[i]);
-
-            s1->is_dagger.push_back(is_dagger[i]);
-            s2->is_dagger.push_back(is_dagger[i]);
-
-            s1->is_dagger_fermi.push_back(is_dagger_fermi[i]);
-            s2->is_dagger_fermi.push_back(is_dagger_fermi[i]);
-
-        }
-    }
-
-    // now, s1 (and s2) are closer to normal order in the fermion space
-    // we should more toward normal order in the boson space, too
-
-    if ( n_new_strings == 1 ) {
-
-        if ( is_boson_normal_order() ) {
-            if ( !skip ) {
-                // copy boson daggers
-                for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
-                    s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                }
-                //s1->normal_order_fermi_vacuum(ordered);
-                ordered.push_back(s1);
-                return false;
-            }
-        }else {
-
-            // new strings
-            std::shared_ptr<pq> s1a ( new pq(vacuum) );
-            std::shared_ptr<pq> s1b ( new pq(vacuum) );
-
-            // copy data common to both new strings
-            s1a->copy((void*)s1.get());
-            s1b->copy((void*)s1.get());
-
-            // ensure boson daggers are clear (they should be anyway)
-            s1a->data->is_boson_dagger.clear();
-            s1b->data->is_boson_dagger.clear();
-
-            for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
-
-                // swap operators?
-                bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
-
-                if ( swap ) {
-
-                    // nothing happens to s1a. add swapped operators to s1b
-                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
-                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-                    // push remaining operators onto s1a and s1b
-                    for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
-        
-                        s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-                        s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-        
-                    }
-                    break;
-
-                }else {
-
-                    s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-                }
-            }
-            //s1a->normal_order_fermi_vacuum(ordered);
-            //s1b->normal_order_fermi_vacuum(ordered);
-            ordered.push_back(s1a);
-            ordered.push_back(s1b);
-            return false;
-        }
-
-    }else if ( n_new_strings == 2 ) {
-
-        if ( is_boson_normal_order() ) {
-            if ( !skip ) {
-                // copy boson daggers
-                for (size_t i = 0; i < data->is_boson_dagger.size(); i++) {
-                    s1->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                    s2->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                }
-                //s1->normal_order_fermi_vacuum(ordered);
-                //s2->normal_order_fermi_vacuum(ordered);
-                ordered.push_back(s1);
-                ordered.push_back(s2);
-                return false;
-            }
-        }else {
-
-            // new strings
-            std::shared_ptr<pq> s1a ( new pq(vacuum) );
-            std::shared_ptr<pq> s1b ( new pq(vacuum) );
-            std::shared_ptr<pq> s2a ( new pq(vacuum) );
-            std::shared_ptr<pq> s2b ( new pq(vacuum) );
-
-            // copy data common to new strings
-            s1a->copy((void*)s1.get());
-            s1b->copy((void*)s1.get());
-
-            // ensure boson daggers are clear (they should be anyway)
-            s1a->data->is_boson_dagger.clear();
-            s1b->data->is_boson_dagger.clear();
-
-            for (int i = 0; i < (int)data->is_boson_dagger.size()-1; i++) {
-
-                // swap operators?
-                bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
-
-                if ( swap ) {
-
-                    // nothing happens to s1a. add swapped operators to s1b
-                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
-                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-                    // push remaining operators onto s1a and s1b
-                    for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
-
-                        s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-                        s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-
-                    }
-                    break;
-
-                }else {
-
-                    s1a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                    s1b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-                }
-            }
-
-            // copy data common to new strings
-            s2a->copy((void*)s2.get());
-            s2b->copy((void*)s2.get());
-
-            // ensure boson daggers are clear (they should be anyway)
-            s2a->data->is_boson_dagger.clear();
-            s2b->data->is_boson_dagger.clear();
-
-            for (int i = 0; i < data->is_boson_dagger.size()-1; i++) {
-
-                // swap operators?
-                bool swap = ( !data->is_boson_dagger[i] && data->is_boson_dagger[i+1] );
-
-                if ( swap ) {
-
-                    // nothing happens to s2a. add swapped operators to s2b
-                    s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i+1]);
-                    s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-                    // push remaining operators onto s2a and s2b
-                    for (size_t j = i+2; j < data->is_boson_dagger.size(); j++) {
-
-                        s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-                        s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[j]);
-
-                    }
-                    break;
-
-                }else {
-
-                    s2a->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-                    s2b->data->is_boson_dagger.push_back(data->is_boson_dagger[i]);
-
-                }
-            }
-
-            //s1a->normal_order_fermi_vacuum(ordered);
-            //s1b->normal_order_fermi_vacuum(ordered);
-            //s2a->normal_order_fermi_vacuum(ordered);
-            //s2b->normal_order_fermi_vacuum(ordered);
-            ordered.push_back(s1a);
-            ordered.push_back(s1b);
-            ordered.push_back(s2a);
-            ordered.push_back(s2b);
-            return false;
-
-        }
-
-    }
-    return false;
-
-}
-
-bool pq::normal_order(std::vector<std::shared_ptr<pq> > &ordered) {
-    if ( vacuum == "TRUE" ) {
-        return normal_order_true_vacuum(ordered);
-    }else {
-        return normal_order_fermi_vacuum(ordered);
-    }
 }
 
 // re-classify fluctuation potential terms

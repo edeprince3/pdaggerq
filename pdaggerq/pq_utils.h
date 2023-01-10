@@ -24,10 +24,42 @@
 #ifndef PQ_UTILS_H
 #define PQ_UTILS_H
 
-#include<string>
+#include<memory>
 #include<vector>
+#include<iostream>
+#include<string>
+#include<algorithm>
+#include<cstring>
+#include<math.h>
+#include<sstream>
+
+#include "tensor.h"
 
 namespace pdaggerq {
+
+/// is a label classified as occupied?
+bool is_occ(std::string idx);
+
+/// is a label classified as virtual?
+bool is_vir(std::string idx);
+
+// how many times does an index appear deltas?
+int index_in_deltas(std::string idx, std::vector<delta_functions> deltas);
+
+// how many times does an index appear integrals?
+int index_in_integrals(std::string idx, std::vector<integrals> ints);
+
+// how many times does an index appear amplitudes?
+int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
+
+/// replace one label with another (in delta functions)
+void replace_index_in_deltas(std::string old_idx, std::string new_idx, std::vector<delta_functions> &deltas);
+
+/// replace one label with another (in a given set of integrals)
+void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::vector<integrals> &ints);
+
+/// replace one label with another (in a given set of amplitudes)
+void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
