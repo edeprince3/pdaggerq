@@ -316,10 +316,10 @@ simplify()
         
 #### print: 
     
-print current list of strings.
+print current list of strings. which strings is dictated by the string_type flag. the default value is string_type = 'fully-contracted'
 
 ```
-print()
+print(string_type = 'all/fully-contracted/one-body/two-body')
 ```        
 
 #### fully_contracted_strings: 
@@ -358,26 +358,6 @@ clear the current set of strings
 
 ```
 clear()
-```    
-
-### Ladder operator Algebra
-Strings of bare creation/annihilation operators may also be specified manually using the following commands. 
-
-#### set_string: 
-set the string of creation and annihiliation operators.
-
-```
-set_string(['p*','q','a*','i'])
-```    
-#### set_factor: 
-define a numerical factor to accompany the string. The default value is 1.0.
-```
-set_factor(0.5)
-```
-#### add_new_string: 
-bring string to normal order and add to existing list of strings.
-```
-add_new_string()
 ```    
                 
         
