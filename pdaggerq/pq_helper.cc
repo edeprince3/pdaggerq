@@ -1187,7 +1187,7 @@ void pq_helper::add_new_string_true_vacuum(){
         printf("\n");
         printf("    ");
         printf("// starting string:\n");
-        mystring->print();
+        mystring->data->print();
     }
 
     // rearrange strings
@@ -1552,7 +1552,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
             printf("\n");
             printf("    ");
             printf("// starting string:\n");
-            mystrings[string_num]->print();
+            mystrings[string_num]->data->print();
         }
 
         // rearrange strings
@@ -1628,7 +1628,7 @@ void pq_helper::print(std::string string_type) {
 
         printf("// normal-ordered strings:\n");
         for (int i = 0; i < (int)ordered.size(); i++) {
-            ordered[i]->print();
+            ordered[i]->data->print();
         }
         printf("\n");
         return;
@@ -1648,7 +1648,7 @@ void pq_helper::print(std::string string_type) {
         // number of fermion + boson operators
         int my_n = ordered[i]->data->symbol.size()/2 + ordered[i]->data->is_boson_dagger.size();
         if ( my_n != n ) continue;
-        ordered[i]->print();
+        ordered[i]->data->print();
     }
     printf("\n");
 
@@ -1675,7 +1675,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
     for (size_t i = 0; i < spin_blocked.size(); i++) {
         if ( spin_blocked[i]->data->symbol.size() != 0 ) continue;
         if ( spin_blocked[i]->data->is_boson_dagger.size() != 0 ) continue;
-        std::vector<std::string> my_string = spin_blocked[i]->get_string_with_spin();
+        std::vector<std::string> my_string = spin_blocked[i]->data->get_string_with_spin();
         if ( my_string.size() > 0 ) {
             list.push_back(my_string);
         }
@@ -1691,7 +1691,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() {
     for (int i = 0; i < (int)ordered.size(); i++) {
         if ( ordered[i]->data->symbol.size() != 0 ) continue;
         if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
-        std::vector<std::string> my_string = ordered[i]->get_string();
+        std::vector<std::string> my_string = ordered[i]->data->get_string();
         if ( (int)my_string.size() > 0 ) {
             list.push_back(my_string);
         }
@@ -1705,7 +1705,7 @@ std::vector<std::vector<std::string> > pq_helper::strings() {
 
     std::vector<std::vector<std::string> > list;
     for (int i = 0; i < (int)ordered.size(); i++) {
-        std::vector<std::string> my_string = ordered[i]->get_string();
+        std::vector<std::string> my_string = ordered[i]->data->get_string();
         if ( (int)my_string.size() > 0 ) {
             list.push_back(my_string);
         }

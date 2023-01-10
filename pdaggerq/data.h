@@ -100,6 +100,15 @@ class StringData {
     /// is boson part of string in normal order?
     bool is_boson_normal_order();
 
+    /// print string information
+    void print();
+
+    /// return string information
+    std::vector<std::string> get_string();
+
+    /// return string information (with spin)
+    std::vector<std::string> get_string_with_spin();
+
 };
 
 }

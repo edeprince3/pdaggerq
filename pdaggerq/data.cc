@@ -24,7 +24,24 @@
 #include "data.h"
 #include "tensor.h"
 
+#include<memory>
+#include<vector>
+#include<iostream>
+#include<string>
+#include<algorithm>
+#include<cstring>
+#include<math.h>
+#include<sstream>
+
 namespace pdaggerq {
+
+// work-around for finite precision of std::to_string
+template <typename T> std::string to_string_with_precision(const T a_value, const int n = 14) {
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
+}
 
 // constructor
 StringData::StringData(std::string vacuum_type){
@@ -120,7 +137,252 @@ bool StringData::is_boson_normal_order() {
         }
     }
     return true;
+}
 
+// print string information
+void StringData::print() {
+
+    if ( skip ) return;
+
+    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
+        // check if stings should be zero or not
+        bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_left  = is_dagger_fermi[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            //return;
+        }
+    }
+
+    printf("    ");
+    printf("//     ");
+    printf("%c", sign > 0 ? '+' : '-');
+    printf(" ");
+    printf("%20.14lf", fabs(factor));
+    printf(" ");
+
+    if ( permutations.size() > 0 ) {
+        // should have an even number of symbols...how many pairs?
+        size_t n = permutations.size() / 2;
+        int count = 0;
+        for (int i = 0; i < n; i++) {
+            printf("P(");
+            printf("%s",permutations[count++].c_str());
+            printf(",");
+            printf("%s",permutations[count++].c_str());
+            printf(")");
+            printf(" ");
+        }
+    }
+
+    for (size_t i = 0; i < symbol.size(); i++) {
+        printf("%s",symbol[i].c_str());
+        if ( is_dagger[i] ) {
+            printf("%c",'*');
+        }
+        printf(" ");
+    }
+
+    // print deltas
+    for (size_t i = 0; i < deltas.size(); i++) {
+        deltas[i].print();
+    }
+
+    // print integrals
+    for (size_t i = 0; i < integral_types.size(); i++) {
+        std::string type = integral_types[i];
+        for (size_t j = 0; j < ints[type].size(); j++) {
+            ints[type][j].print(type);
+        }
+    }
+
+    // print amplitudes
+    for (size_t i = 0; i < amplitude_types.size(); i++) {
+        char type = amplitude_types[i];
+        for (size_t j = 0; j < amps[type].size(); j++) {
+            amps[type][j].print(type);
+        }
+    }
+
+    // bosons:
+    for (size_t i = 0; i < is_boson_dagger.size(); i++) {
+        if ( is_boson_dagger[i] ) {
+            printf("B* ");
+        }else {
+            printf("B ");
+        }
+    }
+    if ( has_w0 ) {
+        printf("w0");
+        printf(" ");
+    }
+
+    printf("\n");
+}
+
+// return string information (with spin)
+std::vector<std::string> StringData::get_string_with_spin() {
+    
+    std::vector<std::string> my_string;
+        
+    if ( skip ) return my_string;
+        
+    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
+        // check if stings should be zero or not
+        bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_left  = is_dagger_fermi[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            //return;
+        }
+    }
+    
+    std::string tmp;
+    if ( sign > 0 ) {
+        tmp = "+";
+    }else {
+        tmp = "-"; 
+    }   
+    //my_string.push_back(tmp + std::to_string(fabs(factor)));
+    my_string.push_back(tmp + to_string_with_precision(fabs(factor), 14));
+            
+    if ( permutations.size() > 0 ) {
+        // should have an even number of symbols...how many pairs?
+        size_t n = permutations.size() / 2;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "P(";
+            tmp += permutations[count++];
+            tmp += ",";
+            tmp += permutations[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }   
+    
+    for (size_t i = 0; i < symbol.size(); i++) {
+        std::string tmp = symbol[i];
+        if ( is_dagger[i] ) {
+            tmp += "*";
+        }
+        my_string.push_back(tmp);
+    }
+    
+    // deltas
+    for (size_t i = 0; i < deltas.size(); i++) {
+        my_string.push_back( deltas[i].to_string_with_spin() );
+    }   
+    
+    // integrals
+    for (size_t i = 0; i < integral_types.size(); i++) {
+        std::string type = integral_types[i];
+        for (size_t j = 0; j < ints[type].size(); j++) {
+            my_string.push_back( ints[type][j].to_string_with_spin(type) );
+        }   
+    }
+
+    // amplitudes
+    for (size_t i = 0; i < amplitude_types.size(); i++) {
+        char type = amplitude_types[i];
+        for (size_t j = 0; j < amps[type].size(); j++) {
+            my_string.push_back( amps[type][j].to_string_with_spin(type));
+        }
+    }
+
+    // bosons:
+    for (size_t i = 0; i < is_boson_dagger.size(); i++) {
+        if ( is_boson_dagger[i] ) {
+            my_string.push_back("B*");
+        }else {
+            my_string.push_back("B");
+        }
+    }
+    if ( has_w0 ) {
+        my_string.push_back("w0");
+    }
+
+    return my_string;
+}
+
+// return string information
+std::vector<std::string> StringData::get_string() {
+
+    std::vector<std::string> my_string;
+
+    if ( skip ) return my_string;
+
+    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
+        // check if stings should be zero or not
+        bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
+        bool is_dagger_left  = is_dagger_fermi[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            //return;
+        }
+    }
+
+    std::string tmp;
+    if ( sign > 0 ) {
+        tmp = "+";
+    }else {
+        tmp = "-";
+    }
+    //my_string.push_back(tmp + std::to_string(fabs(factor)));
+    my_string.push_back(tmp + to_string_with_precision(fabs(factor), 14));
+
+    if ( permutations.size() > 0 ) {
+        // should have an even number of symbols...how many pairs?
+        size_t n = permutations.size() / 2;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "P(";
+            tmp += permutations[count++];
+            tmp += ",";
+            tmp += permutations[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }
+
+    for (size_t i = 0; i < symbol.size(); i++) {
+        std::string tmp = symbol[i];
+        if ( is_dagger[i] ) {
+            tmp += "*";
+        }
+        my_string.push_back(tmp);
+    }
+
+    // deltas
+    for (size_t i = 0; i < deltas.size(); i++) {
+        my_string.push_back( deltas[i].to_string() );
+    }
+
+    // integrals
+    for (size_t i = 0; i < integral_types.size(); i++) {
+        std::string type = integral_types[i];
+        for (size_t j = 0; j < ints[type].size(); j++) {
+            my_string.push_back( ints[type][j].to_string(type) );
+        }
+    }
+
+    // amplitudes
+    for (size_t i = 0; i < amplitude_types.size(); i++) {
+        char type = amplitude_types[i];
+        for (size_t j = 0; j < amps[type].size(); j++) {
+            my_string.push_back( amps[type][j].to_string(type) );
+        }
+    }
+
+    // bosons:
+    for (size_t i = 0; i < is_boson_dagger.size(); i++) {
+        if ( is_boson_dagger[i] ) {
+            my_string.push_back("B*");
+        }else {
+            my_string.push_back("B");
+        }
+    }
+    if ( has_w0 ) {
+        my_string.push_back("w0");
+    }
+
+    return my_string;
 }
 
 }

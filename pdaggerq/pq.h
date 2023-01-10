@@ -62,15 +62,6 @@ class pq {
     /// detailed information about string (amplitudes, bosons, integrals, deltas, etc.)
     std::shared_ptr<StringData> data;
 
-    /// print string information
-    void print();
-
-    /// get string information
-    std::vector<std::string> get_string();
-
-    /// get string information (with spin)
-    std::vector<std::string> get_string_with_spin();
-
     /// apply delta functions to amplitude and integral labels
     void gobble_deltas();
 
