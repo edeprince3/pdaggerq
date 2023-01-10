@@ -43,15 +43,6 @@ template <typename T> std::string to_string_with_precision(const T a_value, cons
 
 namespace pdaggerq {
 
-void pq::swap_two_labels(std::string label1, std::string label2) {
-
-    replace_index_everywhere(label1,"x");
-    replace_index_everywhere(label2,label1);
-    replace_index_everywhere("x",label2);
-
-}
-
-
 pq::pq(std::string vacuum_type) {
 
   vacuum = vacuum_type;
@@ -492,27 +483,6 @@ void pq::reorder_t_amplitudes() {
     
 }
 
-// sort amplitude and integral labels
-void pq::sort_labels() {
-
-    for (size_t i = 0; i < data->integral_types.size(); i++) { 
-        std::string type = data->integral_types[i];
-        for (size_t j = 0; j < data->ints[type].size(); j++) {
-            data->ints[type][j].sort();
-        }
-    }
-    for (size_t i = 0; i < data->amplitude_types.size(); i++) { 
-        char type = data->amplitude_types[i];
-        for (size_t j = 0; j < data->amps[type].size(); j++) {
-            data->amps[type][j].sort();
-        }
-    }
-    for (size_t i = 0; i < data->deltas.size(); i++) { 
-        data->deltas[i].sort();
-    }
-
-}
-
 // reset spin labels
 void pq::reset_spin_labels() {
  
@@ -714,7 +684,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
                 // second guy is a copy with permuted labels and change in sign
                 std::shared_ptr<pq> newguy2 (new pq(vacuum));
                 newguy2->copy((void*)tmp[i].get());
-                newguy2->swap_two_labels(idx1, idx2);
+                swap_two_labels(newguy2->data, idx1, idx2);
                 newguy2->sign *= -1;
 
                 // reset non-summed spins for this guy
@@ -1354,7 +1324,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
         ordered[i]->reorder_t_amplitudes();
 
         // sort amplitude labels
-        ordered[i]->sort_labels();
+        ordered[i]->data->sort_labels();
 
     }
 
@@ -1527,7 +1497,7 @@ void pq::consolidate_permutations_non_summed(
 
                     std::shared_ptr<pq> newguy (new pq(vacuum));
                     newguy->copy((void*)(ordered[i].get()));
-                    newguy->swap_two_labels(labels[id1],labels[id2]);
+                    swap_two_labels(newguy->data,labels[id1],labels[id2]);
 
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -1698,15 +1668,15 @@ void pq::consolidate_permutations_plus_eight_swaps(
 
                                                                             std::shared_ptr<pq> newguy (new pq(vacuum));
                                                                             newguy->copy((void*)(ordered[i].get()));
-                                                                            newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
-                                                                            newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                                                                            newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
-                                                                            newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
-                                                                            newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
-                                                                            newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
-                                                                            newguy->swap_two_labels(labels_7[id13],labels_7[id14]);
-                                                                            newguy->swap_two_labels(labels_8[id15],labels_8[id16]);
-                                                                            newguy->sort_labels();
+                                                                            swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
+                                                                            swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
+                                                                            swap_two_labels(newguy->data,labels_3[id5],labels_3[id6]);
+                                                                            swap_two_labels(newguy->data,labels_4[id7],labels_4[id8]);
+                                                                            swap_two_labels(newguy->data,labels_5[id9],labels_5[id10]);
+                                                                            swap_two_labels(newguy->data,labels_6[id11],labels_6[id12]);
+                                                                            swap_two_labels(newguy->data,labels_7[id13],labels_7[id14]);
+                                                                            swap_two_labels(newguy->data,labels_8[id15],labels_8[id16]);
+                                                                            newguy->data->sort_labels();
                                                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                                             if ( strings_same ) break;
@@ -1885,14 +1855,14 @@ void pq::consolidate_permutations_plus_seven_swaps(
 
                                                                     std::shared_ptr<pq> newguy (new pq(vacuum));
                                                                     newguy->copy((void*)(ordered[i].get()));
-                                                                    newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
-                                                                    newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                                                                    newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
-                                                                    newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
-                                                                    newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
-                                                                    newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
-                                                                    newguy->swap_two_labels(labels_7[id13],labels_7[id14]);
-                                                                    newguy->sort_labels();
+                                                                    swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
+                                                                    swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
+                                                                    swap_two_labels(newguy->data,labels_3[id5],labels_3[id6]);
+                                                                    swap_two_labels(newguy->data,labels_4[id7],labels_4[id8]);
+                                                                    swap_two_labels(newguy->data,labels_5[id9],labels_5[id10]);
+                                                                    swap_two_labels(newguy->data,labels_6[id11],labels_6[id12]);
+                                                                    swap_two_labels(newguy->data,labels_7[id13],labels_7[id14]);
+                                                                    newguy->data->sort_labels();
                                                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                                     if ( strings_same ) break;
@@ -2053,13 +2023,13 @@ void pq::consolidate_permutations_plus_six_swaps(
 
                                                             std::shared_ptr<pq> newguy (new pq(vacuum));
                                                             newguy->copy((void*)(ordered[i].get()));
-                                                            newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
-                                                            newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                                                            newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
-                                                            newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
-                                                            newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
-                                                            newguy->swap_two_labels(labels_6[id11],labels_6[id12]);
-                                                            newguy->sort_labels();
+                                                            swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
+                                                            swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
+                                                            swap_two_labels(newguy->data,labels_3[id5],labels_3[id6]);
+                                                            swap_two_labels(newguy->data,labels_4[id7],labels_4[id8]);
+                                                            swap_two_labels(newguy->data,labels_5[id9],labels_5[id10]);
+                                                            swap_two_labels(newguy->data,labels_6[id11],labels_6[id12]);
+                                                            newguy->data->sort_labels();
                                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                             if ( strings_same ) break;
@@ -2202,12 +2172,12 @@ void pq::consolidate_permutations_plus_five_swaps(
 
                                                     std::shared_ptr<pq> newguy (new pq(vacuum));
                                                     newguy->copy((void*)(ordered[i].get()));
-                                                    newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
-                                                    newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                                                    newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
-                                                    newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
-                                                    newguy->swap_two_labels(labels_5[id9],labels_5[id10]);
-                                                    newguy->sort_labels();
+                                                    swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
+                                                    swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
+                                                    swap_two_labels(newguy->data,labels_3[id5],labels_3[id6]);
+                                                    swap_two_labels(newguy->data,labels_4[id7],labels_4[id8]);
+                                                    swap_two_labels(newguy->data,labels_5[id9],labels_5[id10]);
+                                                    newguy->data->sort_labels();
                                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                                     if ( strings_same ) break;
@@ -2332,11 +2302,11 @@ void pq::consolidate_permutations_plus_four_swaps(
 
                                             std::shared_ptr<pq> newguy (new pq(vacuum));
                                             newguy->copy((void*)(ordered[i].get()));
-                                            newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
-                                            newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                                            newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
-                                            newguy->swap_two_labels(labels_4[id7],labels_4[id8]);
-                                            newguy->sort_labels();
+                                            swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
+                                            swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
+                                            swap_two_labels(newguy->data,labels_3[id5],labels_3[id6]);
+                                            swap_two_labels(newguy->data,labels_4[id7],labels_4[id8]);
+                                            newguy->data->sort_labels();
                                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                             if ( strings_same ) break;
@@ -2443,10 +2413,10 @@ void pq::consolidate_permutations_plus_three_swaps(
 
                                     std::shared_ptr<pq> newguy (new pq(vacuum));
                                     newguy->copy((void*)(ordered[i].get()));
-                                    newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
-                                    newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                                    newguy->swap_two_labels(labels_3[id5],labels_3[id6]);
-                                    newguy->sort_labels();
+                                    swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
+                                    swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
+                                    swap_two_labels(newguy->data,labels_3[id5],labels_3[id6]);
+                                    newguy->data->sort_labels();
                                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
                                     if ( strings_same ) break;
@@ -2535,9 +2505,9 @@ void pq::consolidate_permutations_plus_two_swaps(
 
                             std::shared_ptr<pq> newguy (new pq(vacuum));
                             newguy->copy((void*)(ordered[i].get()));
-                            newguy->swap_two_labels(labels_1[id1],labels_1[id2]);
-                            newguy->swap_two_labels(labels_2[id3],labels_2[id4]);
-                            newguy->sort_labels();
+                            swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
+                            swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
+                            newguy->data->sort_labels();
 
                             strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -2609,8 +2579,8 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
 
                     std::shared_ptr<pq> newguy (new pq(vacuum));
                     newguy->copy((void*)(ordered[i].get()));
-                    newguy->swap_two_labels(labels[id1],labels[id2]);
-                    newguy->sort_labels();
+                    swap_two_labels(newguy->data,labels[id1],labels[id2]);
+                    newguy->data->sort_labels();
 
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
 
@@ -2871,21 +2841,6 @@ void pq::shallow_copy(void * copy_me) {
 
 }
 
-void pq::replace_index_everywhere(std::string old_idx, std::string new_idx) {
-
-    //replace_index_in_deltas(old_idx,new_idx);
-    for (size_t i = 0; i < data->integral_types.size(); i++) {
-        std::string type = data->integral_types[i];
-        replace_index_in_integrals(old_idx, new_idx, data->ints[type]);
-    }
-    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
-        char type = data->amplitude_types[i];
-        replace_index_in_amplitudes(old_idx, new_idx, data->amps[type]);
-    }
-    sort_labels();
-
-}
-
 void pq::set_spin_everywhere(std::string target, std::string spin) {
 
     // integrals
@@ -2940,7 +2895,7 @@ void pq::use_conventional_labels() {
 
                 if ( index_in_anywhere(data, occ_out[j]) == 0 ) {
 
-                    replace_index_everywhere(occ_in[i],occ_out[j]);
+                    replace_index_everywhere(data, occ_in[i], occ_out[j]);
                     break;
                 }
             }
@@ -2963,7 +2918,7 @@ void pq::use_conventional_labels() {
 
                 if ( index_in_anywhere(data, vir_out[j]) == 0 ) {
 
-                    replace_index_everywhere(vir_in[i],vir_out[j]);
+                    replace_index_everywhere(data, vir_in[i], vir_out[j]);
                     break;
                 }
             }

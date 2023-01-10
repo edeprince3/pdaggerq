@@ -36,10 +36,13 @@ class StringData {
   public:
 
     /// constructor
-    StringData(){};
+    StringData();
 
     /// descructor
-    ~StringData(){};
+    ~StringData();
+
+    // sort amplitude, integral, and delta function labels
+    void sort_labels();
 
     /// factor
     double factor = 1.0;

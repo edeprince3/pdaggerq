@@ -212,4 +212,29 @@ void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::v
     }
 }
 
+// swap two labels
+void swap_two_labels(std::shared_ptr<StringData> data, std::string label1, std::string label2) {
+
+    replace_index_everywhere(data, label1, "x");
+    replace_index_everywhere(data, label2, label1);
+    replace_index_everywhere(data, "x", label2);
+
+}
+
+// replace one label with another (in integrals and amplitudes)
+void replace_index_everywhere(std::shared_ptr<StringData> data, std::string old_idx, std::string new_idx) {
+
+    //replace_index_in_deltas(old_idx,new_idx);
+    for (size_t i = 0; i < data->integral_types.size(); i++) {
+        std::string type = data->integral_types[i];
+        replace_index_in_integrals(old_idx, new_idx, data->ints[type]);
+    }
+    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
+        char type = data->amplitude_types[i];
+        replace_index_in_amplitudes(old_idx, new_idx, data->amps[type]);
+    }
+    data->sort_labels();
+
+}
+
 }

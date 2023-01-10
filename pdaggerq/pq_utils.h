@@ -64,6 +64,12 @@ void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::v
 /// replace one label with another (in a given set of amplitudes)
 void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps);
 
+/// replace one label with another (in integrals and amplitudes)
+void replace_index_everywhere(std::shared_ptr<StringData> data, std::string old_idx, std::string new_idx);
+
+/// swap two labels
+void swap_two_labels(std::shared_ptr<StringData> data, std::string label1, std::string label2);
+
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
 

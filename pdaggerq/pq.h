@@ -32,14 +32,8 @@ class pq {
 
   private:
 
-    /// replace one label with another (everywhere)
-    void replace_index_everywhere(std::string old_idx, std::string new_idx);
-
     /// are two strings the same? if so, how many permutations to relate them?
     bool compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute);
-
-    /// swap to labels
-    void swap_two_labels(std::string label1, std::string label2);
 
     /// compare two lists of amplitudes 
     bool compare_amplitudes( std::vector<amplitudes> amps1, 
@@ -194,9 +188,6 @@ class pq {
 
     /// consolidate terms that differ by permutations
     void consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered);
-
-    /// sort amplitude and integral labels
-    void sort_labels();
 
     /// reorder t amplitudes as t1, t2, t3
     void reorder_t_amplitudes();
