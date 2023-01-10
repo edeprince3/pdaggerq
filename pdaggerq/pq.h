@@ -53,12 +53,6 @@ class pq {
     /// destructor
     ~pq();
 
-    /// is the entire string (fermions+bosons) in normal order?
-    bool is_normal_order();
-
-    /// are bosonic operators in normal order?
-    bool is_boson_normal_order();
-
     /// copy all data, except symbols and daggers. 
     void shallow_copy(void * copy_me);
 

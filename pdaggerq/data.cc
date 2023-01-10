@@ -58,4 +58,69 @@ void StringData::sort_labels() {
 
 }
 
+// is fermion part of string in normal order?
+bool StringData::is_normal_order() {
+
+    // don't bother bringing to normal order if we're going to skip this string
+    if (skip) return true;
+
+    // fermions
+    if ( vacuum == "TRUE" ) {
+        for (int i = 0; i < (int)symbol.size()-1; i++) {
+            if ( !is_dagger[i] && is_dagger[i+1] ) {
+                return false;
+            }
+        }
+    }else {
+        for (int i = 0; i < (int)symbol.size()-1; i++) {
+            // check if stings should be zero or not
+            bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
+            bool is_dagger_left  = is_dagger_fermi[0];
+            if ( !is_dagger_right || is_dagger_left ) {
+                skip = true; // added 5/28/21
+                return true;
+            }
+            if ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] ) {
+                return false;
+            }
+        }
+    }
+
+    // bosons
+    if ( !is_boson_normal_order() ) {
+        return false;
+    }
+
+    return true;
+}
+
+// is boson part of string in normal order?
+bool StringData::is_boson_normal_order() {
+
+    if ( is_boson_dagger.size() == 1 ) {
+        bool is_dagger_right = is_boson_dagger[0];
+        bool is_dagger_left  = is_boson_dagger[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            skip = true;
+            return true;
+        }
+    }
+    for (int i = 0; i < (int)is_boson_dagger.size()-1; i++) {
+
+        // check if stings should be zero or not ... added 5/28/21
+        bool is_dagger_right = is_boson_dagger[is_boson_dagger.size()-1];
+        bool is_dagger_left  = is_boson_dagger[0];
+        if ( !is_dagger_right || is_dagger_left ) {
+            skip = true;
+            return true;
+        }
+
+        if ( !is_boson_dagger[i] && is_boson_dagger[i+1] ) {
+            return false;
+        }
+    }
+    return true;
+
+}
+
 }

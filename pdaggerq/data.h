@@ -94,6 +94,12 @@ class StringData {
     /// list: symbols for fermionic creation / annihilation operators
     std::vector<std::string> symbol;
 
+    /// is fermion part of string in normal order?
+    bool is_normal_order();
+
+    /// is boson part of string in normal order?
+    bool is_boson_normal_order();
+
 };
 
 }

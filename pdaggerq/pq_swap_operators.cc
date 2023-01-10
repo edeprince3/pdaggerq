@@ -32,7 +32,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
 
     if ( in->data->skip ) return true;
 
-    if ( in->is_normal_order() ) {
+    if ( in->data->is_normal_order() ) {
 
         // push current ordered operator onto running list
         std::shared_ptr<pq> newguy (new pq(in->data->vacuum));
@@ -143,7 +143,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
 
     if ( n_new_strings == 1 ) {
 
-        if ( in->is_boson_normal_order() ) {
+        if ( in->data->is_boson_normal_order() ) {
             if ( !in->data->skip ) {
                 // copy boson daggers
                 for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
@@ -200,7 +200,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
 
     }else if ( n_new_strings == 2 ) {
 
-        if ( in->is_boson_normal_order() ) {
+        if ( in->data->is_boson_normal_order() ) {
             if ( !in->data->skip ) {
                 // copy boson daggers
                 for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
@@ -307,7 +307,7 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
 
     if ( in->data->skip ) return true;
 
-    if ( in->is_normal_order() ) {
+    if ( in->data->is_normal_order() ) {
 
         // push current ordered operator onto running list
         std::shared_ptr<pq> newguy (new pq(in->data->vacuum));
@@ -372,7 +372,7 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
     // now, s1 and s2 are closer to normal order in the fermion space
     // we should more toward normal order in the boson space, too
 
-    if ( in->is_boson_normal_order() ) {
+    if ( in->data->is_boson_normal_order() ) {
 
         // copy boson daggers 
         for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
