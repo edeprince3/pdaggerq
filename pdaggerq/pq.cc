@@ -45,9 +45,7 @@ namespace pdaggerq {
 
 pq::pq(std::string vacuum_type) {
 
-  vacuum = vacuum_type;
-  skip = false;
-  data = (std::shared_ptr<StringData>)(new StringData());
+  data = (std::shared_ptr<StringData>)(new StringData(vacuum_type));
 
 }
 
@@ -57,9 +55,9 @@ pq::~pq() {
 // TODO: should be part of StringData
 void pq::print() {
 
-    if ( skip ) return;
+    if ( data->skip ) return;
 
-    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
+    if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
         bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
         bool is_dagger_left  = is_dagger_fermi[0];
@@ -70,7 +68,7 @@ void pq::print() {
 
     printf("    ");
     printf("//     ");
-    printf("%c", sign > 0 ? '+' : '-');
+    printf("%c", data->sign > 0 ? '+' : '-');
     printf(" ");
     printf("%20.14lf", fabs(data->factor));
     printf(" ");
@@ -139,9 +137,9 @@ std::vector<std::string> pq::get_string_with_spin() {
 
     std::vector<std::string> my_string;
 
-    if ( skip ) return my_string;
+    if ( data->skip ) return my_string;
 
-    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
+    if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
         bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
         bool is_dagger_left  = is_dagger_fermi[0];
@@ -151,7 +149,7 @@ std::vector<std::string> pq::get_string_with_spin() {
     }
 
     std::string tmp;
-    if ( sign > 0 ) {
+    if ( data->sign > 0 ) {
         tmp = "+";
     }else {
         tmp = "-";
@@ -222,9 +220,9 @@ std::vector<std::string> pq::get_string() {
 
     std::vector<std::string> my_string;
 
-    if ( skip ) return my_string;
+    if ( data->skip ) return my_string;
 
-    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
+    if ( data->vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
         bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
         bool is_dagger_left  = is_dagger_fermi[0];
@@ -234,7 +232,7 @@ std::vector<std::string> pq::get_string() {
     }
 
     std::string tmp;
-    if ( sign > 0 ) {
+    if ( data->sign > 0 ) {
         tmp = "+";
     }else {
         tmp = "-";
@@ -304,10 +302,10 @@ std::vector<std::string> pq::get_string() {
 bool pq::is_normal_order() {
 
     // don't bother bringing to normal order if we're going to skip this string
-    if (skip) return true;
+    if (data->skip) return true;
 
     // fermions
-    if ( vacuum == "TRUE" ) {
+    if ( data->vacuum == "TRUE" ) {
         for (int i = 0; i < (int)symbol.size()-1; i++) {
             if ( !is_dagger[i] && is_dagger[i+1] ) {
                 return false;
@@ -319,7 +317,7 @@ bool pq::is_normal_order() {
             bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
             bool is_dagger_left  = is_dagger_fermi[0];
             if ( !is_dagger_right || is_dagger_left ) {
-                skip = true; // added 5/28/21
+                data->skip = true; // added 5/28/21
                 return true;
             }
             if ( !is_dagger_fermi[i] && is_dagger_fermi[i+1] ) {
@@ -343,7 +341,7 @@ bool pq::is_boson_normal_order() {
         bool is_dagger_right = data->is_boson_dagger[0];
         bool is_dagger_left  = data->is_boson_dagger[0];
         if ( !is_dagger_right || is_dagger_left ) {
-            skip = true; 
+            data->skip = true; 
             return true;
         }
     }
@@ -353,7 +351,7 @@ bool pq::is_boson_normal_order() {
         bool is_dagger_right = data->is_boson_dagger[data->is_boson_dagger.size()-1];
         bool is_dagger_left  = data->is_boson_dagger[0];
         if ( !is_dagger_right || is_dagger_left ) {
-            skip = true; 
+            data->skip = true; 
             return true;
         }
 
@@ -388,7 +386,7 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
                     std::string dum = ordered[i]->symbol[j];
                     ordered[i]->symbol[j] = ordered[i]->symbol[j+1];
                     ordered[i]->symbol[j+1] = dum;
-                    ordered[i]->sign = -ordered[i]->sign;
+                    ordered[i]->data->sign = -ordered[i]->data->sign;
                     not_alphabetized = true;
                     j = ordered[i]->symbol.size() + 1;
                     not_alphabetized = true;
@@ -410,7 +408,7 @@ void pq::alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
                     std::string dum = ordered[i]->symbol[j];
                     ordered[i]->symbol[j] = ordered[i]->symbol[j+1];
                     ordered[i]->symbol[j+1] = dum;
-                    ordered[i]->sign = -ordered[i]->sign;
+                    ordered[i]->data->sign = -ordered[i]->data->sign;
                     not_alphabetized = true;
                     j = ordered[i]->symbol.size() + 1;
                     not_alphabetized = true;
@@ -647,7 +645,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
 
     // copy this term and zero spins
 
-    std::shared_ptr<pq> newguy (new pq(vacuum));
+    std::shared_ptr<pq> newguy (new pq(data->vacuum));
     newguy->copy((void*)this);
 
     newguy->reset_spin_labels();
@@ -678,14 +676,14 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
             if ( spin1 != spin2 ) {
 
                 // first guy is just a copy
-                std::shared_ptr<pq> newguy1 (new pq(vacuum));
+                std::shared_ptr<pq> newguy1 (new pq(data->vacuum));
                 newguy1->copy((void*)tmp[i].get());
 
                 // second guy is a copy with permuted labels and change in sign
-                std::shared_ptr<pq> newguy2 (new pq(vacuum));
+                std::shared_ptr<pq> newguy2 (new pq(data->vacuum));
                 newguy2->copy((void*)tmp[i].get());
                 swap_two_labels(newguy2->data, idx1, idx2);
-                newguy2->sign *= -1;
+                newguy2->data->sign *= -1;
 
                 // reset non-summed spins for this guy
                 newguy2->reset_spin_labels();
@@ -706,7 +704,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
                     newguy2->data->permutations.push_back(tmp[i]->data->permutations[2*k+1]);
                 }
 
-                tmp[i]->skip = true;
+                tmp[i]->data->skip = true;
                 tmp.push_back(newguy1);
                 tmp.push_back(newguy2);
 
@@ -729,7 +727,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
         if ( !done_adding_spins ) {
             tmp.clear();
             for (size_t i = 0; i < list.size(); i++) {
-                if ( !list[i]->skip ) {
+                if ( !list[i]->data->skip ) {
                     tmp.push_back(list[i]);
                 }
             }
@@ -740,7 +738,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
     // kill terms that have mismatched spin 
     for (size_t i = 0; i < tmp.size(); i++) {
 
-        if ( tmp[i]->skip ) continue;
+        if ( tmp[i]->data->skip ) continue;
 
         bool killit = false;
 
@@ -777,7 +775,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
             if ( killit ) break;
         }
         if ( killit ) {
-            tmp[i]->skip = true;
+            tmp[i]->data->skip = true;
             continue;
         }
 
@@ -814,7 +812,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
             if ( killit ) break;
         }
         if ( killit ) {
-            tmp[i]->skip = true;
+            tmp[i]->data->skip = true;
             continue;
         }
 
@@ -829,7 +827,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
         }
 
         if ( killit ) {
-            tmp[i]->skip = true;
+            tmp[i]->data->skip = true;
             continue;
         }
     }
@@ -838,7 +836,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
     // rearrange terms so that they have standard spin order (abba -> -abab, etc.)
     for (size_t p = 0; p < tmp.size(); p++) {
 
-        if ( tmp[p]->skip ) continue;
+        if ( tmp[p]->data->skip ) continue;
 
         // amplitudes
         for (size_t i = 0; i < data->amplitude_types.size(); i++) {
@@ -867,7 +865,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
                             tmp[p]->data->amps[type][j].spin_labels[2] = "a";
                             tmp[p]->data->amps[type][j].spin_labels[3] = "b";
 
-                            tmp[p]->sign *= -1;
+                            tmp[p]->data->sign *= -1;
 
                     }else if ( tmp[p]->data->amps[type][j].spin_labels[0] == "b"
                             && tmp[p]->data->amps[type][j].spin_labels[1] == "a"
@@ -881,7 +879,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
                             tmp[p]->data->amps[type][j].spin_labels[0] = "a";
                             tmp[p]->data->amps[type][j].spin_labels[1] = "b";
 
-                            tmp[p]->sign *= -1;
+                            tmp[p]->data->sign *= -1;
 
 
                     }else if ( tmp[p]->data->amps[type][j].spin_labels[0] == "b"
@@ -910,7 +908,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
                     int sign = 1;
                     reorder_three_spins(tmp[p]->data->amps[type][j], 0, 1, 2, sign);
                     reorder_three_spins(tmp[p]->data->amps[type][j], 3, 4, 5, sign);
-                    tmp[p]->sign *= sign;
+                    tmp[p]->data->sign *= sign;
 
                 }else if ( order == 4 ) {
 
@@ -918,7 +916,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
                     int sign = 1;
                     reorder_four_spins(tmp[p]->data->amps[type][j], 0, 1, 2, 3, sign);
                     reorder_four_spins(tmp[p]->data->amps[type][j], 4, 5, 6, 7, sign);
-                    tmp[p]->sign *= sign;
+                    tmp[p]->data->sign *= sign;
 
                 }
             }
@@ -948,7 +946,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
                         tmp[p]->data->ints[type][j].spin_labels[2] = "a";
                         tmp[p]->data->ints[type][j].spin_labels[3] = "b";
 
-                        tmp[p]->sign *= -1;
+                        tmp[p]->data->sign *= -1;
 
                 }else if ( tmp[p]->data->ints[type][j].spin_labels[0] == "b"
                         && tmp[p]->data->ints[type][j].spin_labels[1] == "a"
@@ -962,7 +960,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
                         tmp[p]->data->ints[type][j].spin_labels[0] = "a";
                         tmp[p]->data->ints[type][j].spin_labels[1] = "b";
 
-                        tmp[p]->sign *= -1;
+                        tmp[p]->data->sign *= -1;
 
 
                 }else if ( tmp[p]->data->ints[type][j].spin_labels[0] == "b"
@@ -991,7 +989,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
 
     // 
     for (size_t i = 0; i < tmp.size(); i++) {
-        if ( tmp[i]->skip ) continue;
+        if ( tmp[i]->data->skip ) continue;
         spin_blocked.push_back(tmp[i]);
     }
 
@@ -1248,7 +1246,7 @@ void pq::reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & si
 
 bool pq::add_spins(std::vector<std::shared_ptr<pq> > &list) {
 
-    if ( skip ) return true;
+    if ( data->skip ) return true;
 
     bool all_spins_added = false;
 
@@ -1259,8 +1257,8 @@ bool pq::add_spins(std::vector<std::shared_ptr<pq> > &list) {
             for (size_t k = 0; k < data->amps[type][j].labels.size(); k++) {
                 if ( data->amps[type][j].spin_labels[k] == "" ) {
 
-                    std::shared_ptr<pq> sa (new pq(vacuum));
-                    std::shared_ptr<pq> sb (new pq(vacuum));
+                    std::shared_ptr<pq> sa (new pq(data->vacuum));
+                    std::shared_ptr<pq> sb (new pq(data->vacuum));
 
                     sa->copy((void*)this);
                     sb->copy((void*)this);
@@ -1287,8 +1285,8 @@ bool pq::add_spins(std::vector<std::shared_ptr<pq> > &list) {
             for (size_t k = 0; k < data->ints[type][j].labels.size(); k++) {
                 if ( data->ints[type][j].spin_labels[k] == "" ) {
 
-                    std::shared_ptr<pq> sa (new pq(vacuum));
-                    std::shared_ptr<pq> sb (new pq(vacuum));
+                    std::shared_ptr<pq> sa (new pq(data->vacuum));
+                    std::shared_ptr<pq> sb (new pq(data->vacuum));
 
                     sa->copy((void*)this);
                     sb->copy((void*)this);
@@ -1332,12 +1330,12 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
     std::vector< std::shared_ptr<pq> > pruned;
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]-> skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
-        if ( vacuum == "FERMI" ) {
+        if ( data->vacuum == "FERMI" ) {
             if ( ordered[i]->symbol.size() != 0 ) continue;
             if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         }
@@ -1413,7 +1411,7 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
 */
 
     // probably only relevant for vacuum = fermi
-    if ( vacuum != "FERMI" ) return;
+    if ( data->vacuum != "FERMI" ) return;
 
     consolidate_permutations_non_summed(ordered,occ_labels);
     consolidate_permutations_non_summed(ordered,vir_labels);
@@ -1422,12 +1420,12 @@ void pq::cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
     pruned.clear();
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
-        if ( vacuum == "FERMI" ) {
+        if ( data->vacuum == "FERMI" ) {
             if ( ordered[i]->symbol.size() != 0 ) continue;
             if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         }
@@ -1450,7 +1448,7 @@ void pq::consolidate_permutations_non_summed(
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_idx;
 
@@ -1481,7 +1479,7 @@ void pq::consolidate_permutations_non_summed(
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -1495,7 +1493,7 @@ void pq::consolidate_permutations_non_summed(
                 for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 1 ) continue;
 
-                    std::shared_ptr<pq> newguy (new pq(vacuum));
+                    std::shared_ptr<pq> newguy (new pq(data->vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     swap_two_labels(newguy->data,labels[id1],labels[id2]);
 
@@ -1519,8 +1517,8 @@ void pq::consolidate_permutations_non_summed(
             // permutation operators differ
             //if ( permutation_1 == "" || permutation_2 == "" ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
@@ -1528,7 +1526,7 @@ void pq::consolidate_permutations_non_summed(
             if ( fabs(combined_factor) < 1e-12 ) {
                 ordered[i]->data->permutations.push_back(permutation_1);
                 ordered[i]->data->permutations.push_back(permutation_2);
-                ordered[j]->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
@@ -1552,7 +1550,7 @@ void pq::consolidate_permutations_plus_eight_swaps(
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_1;
         std::vector<int> find_2;
@@ -1613,7 +1611,7 @@ void pq::consolidate_permutations_plus_eight_swaps(
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -1666,7 +1664,7 @@ void pq::consolidate_permutations_plus_eight_swaps(
                                                                         for (size_t id16 = id15 + 1; id16 < labels_8.size(); id16++) {
                                                                             if ( find_8[id16] != 2 ) continue;
 
-                                                                            std::shared_ptr<pq> newguy (new pq(vacuum));
+                                                                            std::shared_ptr<pq> newguy (new pq(data->vacuum));
                                                                             newguy->copy((void*)(ordered[i].get()));
                                                                             swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
                                                                             swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
@@ -1714,26 +1712,26 @@ void pq::consolidate_permutations_plus_eight_swaps(
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
 
         }
     }
@@ -1752,7 +1750,7 @@ void pq::consolidate_permutations_plus_seven_swaps(
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_1;
         std::vector<int> find_2;
@@ -1806,7 +1804,7 @@ void pq::consolidate_permutations_plus_seven_swaps(
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -1853,7 +1851,7 @@ void pq::consolidate_permutations_plus_seven_swaps(
                                                                 for (size_t id14 = id13 + 1; id14 < labels_7.size(); id14++) {
                                                                     if ( find_7[id14] != 2 ) continue;
 
-                                                                    std::shared_ptr<pq> newguy (new pq(vacuum));
+                                                                    std::shared_ptr<pq> newguy (new pq(data->vacuum));
                                                                     newguy->copy((void*)(ordered[i].get()));
                                                                     swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
                                                                     swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
@@ -1896,26 +1894,26 @@ void pq::consolidate_permutations_plus_seven_swaps(
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
 
         }
     }
@@ -1933,7 +1931,7 @@ void pq::consolidate_permutations_plus_six_swaps(
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_1;
         std::vector<int> find_2;
@@ -1980,7 +1978,7 @@ void pq::consolidate_permutations_plus_six_swaps(
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -2021,7 +2019,7 @@ void pq::consolidate_permutations_plus_six_swaps(
                                                         for (size_t id12 = id11 + 1; id12 < labels_6.size(); id12++) {
                                                             if ( find_6[id12] != 2 ) continue;
 
-                                                            std::shared_ptr<pq> newguy (new pq(vacuum));
+                                                            std::shared_ptr<pq> newguy (new pq(data->vacuum));
                                                             newguy->copy((void*)(ordered[i].get()));
                                                             swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
                                                             swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
@@ -2059,26 +2057,26 @@ void pq::consolidate_permutations_plus_six_swaps(
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
 
         }
     }
@@ -2095,7 +2093,7 @@ void pq::consolidate_permutations_plus_five_swaps(
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_1;
         std::vector<int> find_2;
@@ -2135,7 +2133,7 @@ void pq::consolidate_permutations_plus_five_swaps(
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -2170,7 +2168,7 @@ void pq::consolidate_permutations_plus_five_swaps(
                                                 for (size_t id10 = id9 + 1; id10 < labels_5.size(); id10++) {
                                                     if ( find_5[id10] != 2 ) continue;
 
-                                                    std::shared_ptr<pq> newguy (new pq(vacuum));
+                                                    std::shared_ptr<pq> newguy (new pq(data->vacuum));
                                                     newguy->copy((void*)(ordered[i].get()));
                                                     swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
                                                     swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
@@ -2203,26 +2201,26 @@ void pq::consolidate_permutations_plus_five_swaps(
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
 
         }
     }
@@ -2238,7 +2236,7 @@ void pq::consolidate_permutations_plus_four_swaps(
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_1;
         std::vector<int> find_2;
@@ -2271,7 +2269,7 @@ void pq::consolidate_permutations_plus_four_swaps(
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -2300,7 +2298,7 @@ void pq::consolidate_permutations_plus_four_swaps(
                                         for (size_t id8 = id7 + 1; id8 < labels_4.size(); id8++) {
                                             if ( find_4[id8] != 2 ) continue;
 
-                                            std::shared_ptr<pq> newguy (new pq(vacuum));
+                                            std::shared_ptr<pq> newguy (new pq(data->vacuum));
                                             newguy->copy((void*)(ordered[i].get()));
                                             swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
                                             swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
@@ -2328,26 +2326,26 @@ void pq::consolidate_permutations_plus_four_swaps(
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
 
         }
     }
@@ -2362,7 +2360,7 @@ void pq::consolidate_permutations_plus_three_swaps(
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_1;
         std::vector<int> find_2;
@@ -2388,7 +2386,7 @@ void pq::consolidate_permutations_plus_three_swaps(
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -2411,7 +2409,7 @@ void pq::consolidate_permutations_plus_three_swaps(
                                 for (size_t id6 = id5 + 1; id6 < labels_3.size(); id6++) {
                                     if ( find_3[id6] != 2 ) continue;
 
-                                    std::shared_ptr<pq> newguy (new pq(vacuum));
+                                    std::shared_ptr<pq> newguy (new pq(data->vacuum));
                                     newguy->copy((void*)(ordered[i].get()));
                                     swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
                                     swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
@@ -2434,26 +2432,26 @@ void pq::consolidate_permutations_plus_three_swaps(
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
 
         }
     }
@@ -2467,7 +2465,7 @@ void pq::consolidate_permutations_plus_two_swaps(
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_1;
         std::vector<int> find_2;
@@ -2486,7 +2484,7 @@ void pq::consolidate_permutations_plus_two_swaps(
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -2503,7 +2501,7 @@ void pq::consolidate_permutations_plus_two_swaps(
                         for (size_t id4 = id3 + 1; id4 < labels_2.size(); id4++) {
                             if ( find_2[id4] != 2 ) continue;
 
-                            std::shared_ptr<pq> newguy (new pq(vacuum));
+                            std::shared_ptr<pq> newguy (new pq(data->vacuum));
                             newguy->copy((void*)(ordered[i].get()));
                             swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
                             swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
@@ -2522,26 +2520,26 @@ void pq::consolidate_permutations_plus_two_swaps(
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
 
         }
     }
@@ -2554,7 +2552,7 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         std::vector<int> find_idx;
 
@@ -2566,7 +2564,7 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
@@ -2577,7 +2575,7 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
                 for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 2 ) continue;
 
-                    std::shared_ptr<pq> newguy (new pq(vacuum));
+                    std::shared_ptr<pq> newguy (new pq(data->vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     swap_two_labels(newguy->data,labels[id1],labels[id2]);
                     newguy->data->sort_labels();
@@ -2591,26 +2589,26 @@ void pq::consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &o
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
 
         }
     }
@@ -2622,37 +2620,37 @@ void pq::consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered) {
     // consolidate terms that differ by permutations
     for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip ) continue;
+            if ( ordered[j]->data->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
             if ( !strings_same ) continue;
 
-            double factor_i = ordered[i]->data->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->data->factor * ordered[j]->sign;
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
                 break;
             }
 
             // otherwise, combine terms
             ordered[i]->data->factor = fabs(combined_factor);
             if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
+                ordered[i]->data->sign =  1;
             }else {
-                ordered[i]->sign = -1;
+                ordered[i]->data->sign = -1;
             }
-            ordered[j]->skip = true;
+            ordered[j]->data->skip = true;
         }
     }
 }
@@ -2804,10 +2802,10 @@ void pq::shallow_copy(void * copy_me) {
     pq * in = reinterpret_cast<pq * >(copy_me);
 
     // skip string?
-    skip   = in->skip;
+    data->skip   = in->data->skip;
     
     // sign
-    sign   = in->sign;
+    data->sign   = in->data->sign;
     
     // factor
     data->factor = in->data->factor;
@@ -3054,7 +3052,7 @@ void pq::copy(void * copy_me) {
         is_dagger.push_back(in->is_dagger[j]);
 
         // dagger (relative to fermi vacuum)?
-        if ( vacuum == "FERMI" ) {
+        if ( data->vacuum == "FERMI" ) {
             is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
         }
     }
@@ -3087,16 +3085,16 @@ void pq::reclassify_integrals() {
         std::vector<std::string> occ_out{"i","j","k","l","m","n","o","t","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
         std::string idx;
 
-        int skip = -999;
+        int do_skip = -999;
 
         for (size_t i = 0; i < occ_out.size(); i++) {
             if ( index_in_anywhere(data, occ_out[i]) == 0 ) {
                 idx = occ_out[i];
-                skip = i;
+                do_skip = i;
                 break;
             }
         }
-        if ( skip == -999 ) {
+        if ( do_skip == -999 ) {
             printf("\n");
             printf("    uh oh. no suitable summation index could be found.\n");
             printf("\n");

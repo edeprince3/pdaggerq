@@ -108,7 +108,7 @@ pq_helper::pq_helper(std::string vacuum_type)
         exit(1);
     }
 
-    data = (std::shared_ptr<StringData>)(new StringData());
+    data = (std::shared_ptr<StringData>)(new StringData(vacuum_type));
 
     print_level = 0;
 
@@ -1143,10 +1143,10 @@ void pq_helper::add_new_string_true_vacuum(){
     std::shared_ptr<pq> mystring (new pq(vacuum));
 
     if ( data->factor > 0.0 ) {
-        mystring->sign = 1;
+        mystring->data->sign = 1;
         mystring->data->factor = fabs(data->factor);
     }else {
-        mystring->sign = -1;
+        mystring->data->sign = -1;
         mystring->data->factor = fabs(data->factor);
     }
 
@@ -1223,7 +1223,7 @@ void pq_helper::add_new_string_true_vacuum(){
 
     // reset data object
     data.reset();
-    data = (std::shared_ptr<StringData>)(new StringData());
+    data = (std::shared_ptr<StringData>)(new StringData("TRUE"));
 
 }
 
@@ -1267,10 +1267,10 @@ void pq_helper::add_new_string_fermi_vacuum(){
 
         // factors:
         if ( data->factor > 0.0 ) {
-            mystrings[string_num]->sign = 1;
+            mystrings[string_num]->data->sign = 1;
             mystrings[string_num]->data->factor = fabs(data->factor);
         }else {
-            mystrings[string_num]->sign = -1;
+            mystrings[string_num]->data->sign = -1;
             mystrings[string_num]->data->factor = fabs(data->factor);
         }
 
@@ -1570,7 +1570,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
             }
             tmp.clear();
             for (int i = 0; i < (int)list.size(); i++) {
-                if ( !list[i]->skip ) {
+                if ( !list[i]->data->skip ) {
                     tmp.push_back(list[i]);
                 }
             }
@@ -1587,7 +1587,7 @@ void pq_helper::add_new_string_fermi_vacuum(){
 
     // reset data object
     data.reset();
-    data = (std::shared_ptr<StringData>)(new StringData());
+    data = (std::shared_ptr<StringData>)(new StringData("FERMI"));
  
 }
 
@@ -1598,7 +1598,7 @@ void pq_helper::simplify() {
     // eliminate strings based on delta functions and use delta functions to alter integral / amplitude labels
     for (int i = 0; i < (int)ordered.size(); i++) {
 
-        if ( ordered[i]->skip ) continue;
+        if ( ordered[i]->data->skip ) continue;
 
         // apply delta functions
         ordered[i]->gobble_deltas();

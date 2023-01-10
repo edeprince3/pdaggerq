@@ -30,12 +30,12 @@ namespace pdaggerq {
 
 bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_ptr<pq> > &ordered) {
 
-    if ( in->skip ) return true;
+    if ( in->data->skip ) return true;
 
     if ( in->is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<pq> newguy (new pq(in->vacuum));
+        std::shared_ptr<pq> newguy (new pq(in->data->vacuum));
 
         newguy->copy(in.get());
 
@@ -45,8 +45,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
     }
 
     // new strings
-    std::shared_ptr<pq> s1 ( new pq(in->vacuum) );
-    std::shared_ptr<pq> s2 ( new pq(in->vacuum) );
+    std::shared_ptr<pq> s1 ( new pq(in->data->vacuum) );
+    std::shared_ptr<pq> s2 ( new pq(in->data->vacuum) );
 
     // copy data common to both new strings
     s1->shallow_copy(in.get());
@@ -78,7 +78,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             deltas.sort();
             s1->data->deltas.push_back(deltas);
 
-            s2->sign = -s2->sign;
+            s2->data->sign = -s2->data->sign;
             s2->symbol.push_back(in->symbol[i+1]);
             s2->symbol.push_back(in->symbol[i]);
             s2->is_dagger.push_back(in->is_dagger[i+1]);
@@ -105,7 +105,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             // we're only going to have one new string, with a different sign
             n_new_strings = 1;
 
-            s1->sign = -s1->sign;
+            s1->data->sign = -s1->data->sign;
             s1->symbol.push_back(in->symbol[i+1]);
             s1->symbol.push_back(in->symbol[i]);
             s1->is_dagger.push_back(in->is_dagger[i+1]);
@@ -144,7 +144,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
     if ( n_new_strings == 1 ) {
 
         if ( in->is_boson_normal_order() ) {
-            if ( !in->skip ) {
+            if ( !in->data->skip ) {
                 // copy boson daggers
                 for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
                     s1->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
@@ -155,8 +155,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
         }else {
 
             // new strings
-            std::shared_ptr<pq> s1a ( new pq(in->vacuum) );
-            std::shared_ptr<pq> s1b ( new pq(in->vacuum) );
+            std::shared_ptr<pq> s1a ( new pq(in->data->vacuum) );
+            std::shared_ptr<pq> s1b ( new pq(in->data->vacuum) );
 
             // copy data common to both new strings
             s1a->copy((void*)s1.get());
@@ -201,7 +201,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
     }else if ( n_new_strings == 2 ) {
 
         if ( in->is_boson_normal_order() ) {
-            if ( !in->skip ) {
+            if ( !in->data->skip ) {
                 // copy boson daggers
                 for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
                     s1->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
@@ -214,10 +214,10 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
         }else {
 
             // new strings
-            std::shared_ptr<pq> s1a ( new pq(in->vacuum) );
-            std::shared_ptr<pq> s1b ( new pq(in->vacuum) );
-            std::shared_ptr<pq> s2a ( new pq(in->vacuum) );
-            std::shared_ptr<pq> s2b ( new pq(in->vacuum) );
+            std::shared_ptr<pq> s1a ( new pq(in->data->vacuum) );
+            std::shared_ptr<pq> s1b ( new pq(in->data->vacuum) );
+            std::shared_ptr<pq> s2a ( new pq(in->data->vacuum) );
+            std::shared_ptr<pq> s2b ( new pq(in->data->vacuum) );
 
             // copy data common to new strings
             s1a->copy((void*)s1.get());
@@ -305,12 +305,12 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
 
 bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_ptr<pq> > &ordered) {
 
-    if ( in->skip ) return true;
+    if ( in->data->skip ) return true;
 
     if ( in->is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<pq> newguy (new pq(in->vacuum));
+        std::shared_ptr<pq> newguy (new pq(in->data->vacuum));
 
         newguy->copy(in.get());
 
@@ -320,8 +320,8 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
     }
 
     // new strings
-    std::shared_ptr<pq> s1 ( new pq(in->vacuum) );
-    std::shared_ptr<pq> s2 ( new pq(in->vacuum) );
+    std::shared_ptr<pq> s1 ( new pq(in->data->vacuum) );
+    std::shared_ptr<pq> s2 ( new pq(in->data->vacuum) );
 
     // copy data common to both new strings
     s1->shallow_copy(in.get());
@@ -341,7 +341,7 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
             deltas.sort();
             s1->data->deltas.push_back(deltas);
 
-            s2->sign = -s2->sign;
+            s2->data->sign = -s2->data->sign;
             s2->symbol.push_back(in->symbol[i+1]);
             s2->symbol.push_back(in->symbol[i]);
             s2->is_dagger.push_back(in->is_dagger[i+1]);
@@ -386,10 +386,10 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
     }else {
 
         // new strings
-        std::shared_ptr<pq> s1a ( new pq(in->vacuum) );
-        std::shared_ptr<pq> s1b ( new pq(in->vacuum) );
-        std::shared_ptr<pq> s2a ( new pq(in->vacuum) );
-        std::shared_ptr<pq> s2b ( new pq(in->vacuum) );
+        std::shared_ptr<pq> s1a ( new pq(in->data->vacuum) );
+        std::shared_ptr<pq> s1b ( new pq(in->data->vacuum) );
+        std::shared_ptr<pq> s2a ( new pq(in->data->vacuum) );
+        std::shared_ptr<pq> s2b ( new pq(in->data->vacuum) );
 
         // copy data common to new strings
         s1a->copy((void*)s1.get());

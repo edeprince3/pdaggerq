@@ -27,7 +27,10 @@
 namespace pdaggerq {
 
 // constructor
-StringData::StringData(){
+StringData::StringData(std::string vacuum_type){
+
+    vacuum = vacuum_type;
+
 }
 
 // descructor

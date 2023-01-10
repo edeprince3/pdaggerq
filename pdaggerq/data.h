@@ -32,14 +32,22 @@ class StringData {
 
   private:
 
-
   public:
 
     /// constructor
-    StringData();
+    StringData(std::string vacuum_type);
 
     /// descructor
     ~StringData();
+
+    // vacuum type ("TRUE", "FERMI")
+    std::string vacuum;
+
+    // sign associated with string
+    int sign = 1;
+
+    // skip this term when moving toward normal order and printing
+    bool skip = false;
 
     // sort amplitude, integral, and delta function labels
     void sort_labels();
