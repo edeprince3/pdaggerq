@@ -44,16 +44,16 @@ bool is_occ(std::string idx);
 /// is a label classified as virtual?
 bool is_vir(std::string idx);
 
-// how many times does an index appear deltas?
+/// how many times does an index appear deltas?
 int index_in_deltas(std::string idx, std::vector<delta_functions> deltas);
 
-// how many times does an index appear integrals?
+/// how many times does an index appear integrals?
 int index_in_integrals(std::string idx, std::vector<integrals> ints);
 
-// how many times does an index appear amplitudes?
+/// how many times does an index appear amplitudes?
 int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
 
-// how many times does an index appear amplitudes, deltas, and integrals?
+/// how many times does an index appear amplitudes, deltas, and integrals?
 int index_in_anywhere(std::shared_ptr<StringData> data, std::string idx);
 
 /// replace one label with another (in delta functions)
@@ -112,6 +112,14 @@ void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
 /// reorder four spin labels as aaab, aabb, or abbb
 void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign);
 
+/// re-classify fluctuation potential terms
+void reclassify_integrals(std::shared_ptr<pq> in);
+
+/// apply delta functions to amplitude and integral labels
+void gobble_deltas(std::shared_ptr<pq> in);
+
+/// replace internal labels with conventional ones (o1 -> i, etc.)
+void use_conventional_labels(std::shared_ptr<pq> in);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);

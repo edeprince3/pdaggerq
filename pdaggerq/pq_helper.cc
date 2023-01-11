@@ -1601,14 +1601,14 @@ void pq_helper::simplify() {
         if ( ordered[i]->data->skip ) continue;
 
         // apply delta functions
-        ordered[i]->gobble_deltas();
+        gobble_deltas(ordered[i]);
 
         // re-classify fluctuation potential terms
-        ordered[i]->reclassify_integrals();
+        reclassify_integrals(ordered[i]);
 
         // replace any funny labels that were added with conventional ones (fermi vacumm only)
         if ( vacuum == "FERMI" ) {
-            ordered[i]->use_conventional_labels();
+            use_conventional_labels(ordered[i]);
         }
     }
 

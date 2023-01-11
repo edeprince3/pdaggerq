@@ -43,17 +43,8 @@ class pq {
     /// detailed information about string (amplitudes, bosons, integrals, deltas, etc.)
     std::shared_ptr<StringData> data;
 
-    /// apply delta functions to amplitude and integral labels
-    void gobble_deltas();
-
-    /// replace internal labels with conventional ones (o1 -> i, etc.)
-    void use_conventional_labels();
-
     /// expand sums to include spin and zero terms where appropriate
     void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map);
-
-    /// re-classify fluctuation potential terms
-    void reclassify_integrals();
 
     /// set non-summed spin labels
     void set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels);
