@@ -52,9 +52,6 @@ class pq {
     /// expand sums to include spin and zero terms where appropriate
     void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
-    /// reorder t amplitudes as t1, t2, t3
-    void reorder_t_amplitudes();
-
     /// re-classify fluctuation potential terms
     void reclassify_integrals();
 
@@ -63,12 +60,6 @@ class pq {
 
     /// add spin labels to a string
     bool add_spins(std::vector<std::shared_ptr<pq> > &list);
-
-    /// reorder three spin labels as aab or abb
-    void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
-
-    /// reorder four spin labels as aaab, aabb, or abbb
-    void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign);
 
 };
 

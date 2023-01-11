@@ -103,6 +103,16 @@ void alphabetize(std::vector<std::shared_ptr<pq> > &ordered);
 /// cancel terms where appropriate
 void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
 
+/// reorder t amplitudes as t1, t2, t3, t4
+void reorder_t_amplitudes(std::shared_ptr<pq> in);
+
+/// reorder three spin labels as aab or abb
+void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
+
+/// reorder four spin labels as aaab, aabb, or abbb
+void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign);
+
+
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
 
