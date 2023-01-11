@@ -127,6 +127,12 @@ bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_str
 /// expand sums to include spin and zero terms where appropriate
 void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
+// bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
+void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level);
+
+// bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
+void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level);
+
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
 
