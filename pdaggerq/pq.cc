@@ -175,7 +175,7 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
         std::vector< std::shared_ptr<pq> > list;
         done_adding_spins = true;
         for (size_t i = 0; i < tmp.size(); i++) {
-            bool am_i_done = tmp[i]->add_spins(list);
+            bool am_i_done = add_spins(tmp[i], list);
             if ( !am_i_done ) done_adding_spins = false;
         }
         if ( !done_adding_spins ) {
@@ -450,74 +450,6 @@ void pq::spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map
     tmp.clear();
 
 }
-
-bool pq::add_spins(std::vector<std::shared_ptr<pq> > &list) {
-
-    if ( data->skip ) return true;
-
-    bool all_spins_added = false;
-
-    // amplitudes
-    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
-        char type = data->amplitude_types[i];
-        for (size_t j = 0; j < data->amps[type].size(); j++) {
-            for (size_t k = 0; k < data->amps[type][j].labels.size(); k++) {
-                if ( data->amps[type][j].spin_labels[k] == "" ) {
-
-                    std::shared_ptr<pq> sa (new pq(data->vacuum));
-                    std::shared_ptr<pq> sb (new pq(data->vacuum));
-
-                    sa->data->copy((void*)this);
-                    sb->data->copy((void*)this);
-
-                    sa->data->set_spin_everywhere(data->amps[type][j].labels[k], "a");
-                    sb->data->set_spin_everywhere(data->amps[type][j].labels[k], "b");
-
-                    //sa->data->amps[type][j].spin_labels[k] = "a";
-                    //sb->data->amps[type][j].spin_labels[k] = "b";
-
-                    list.push_back(sa);
-                    list.push_back(sb);
-                    return false;
-
-                }
-            }
-        }
-    }
-
-    // integrals
-    for (size_t i = 0; i < data->integral_types.size(); i++) {
-        std::string type = data->integral_types[i];
-        for (size_t j = 0; j < data->ints[type].size(); j++) {
-            for (size_t k = 0; k < data->ints[type][j].labels.size(); k++) {
-                if ( data->ints[type][j].spin_labels[k] == "" ) {
-
-                    std::shared_ptr<pq> sa (new pq(data->vacuum));
-                    std::shared_ptr<pq> sb (new pq(data->vacuum));
-
-                    sa->data->copy((void*)this);
-                    sb->data->copy((void*)this);
-
-                    sa->data->set_spin_everywhere(data->ints[type][j].labels[k], "a");
-                    sb->data->set_spin_everywhere(data->ints[type][j].labels[k], "b");
-
-                    //sa->data->ints[type][j].spin_labels[k] = "a";
-                    //sb->data->ints[type][j].spin_labels[k] = "b";
-
-                    list.push_back(sa);
-                    list.push_back(sb);
-                    return false;
-
-                }
-            }
-        }
-    }
-
-    // must be done.
-    return true;
-
-}
-
 
 } // End namespaces
 

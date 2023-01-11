@@ -1381,5 +1381,73 @@ void gobble_deltas(std::shared_ptr<pq> in) {
     }
 }
 
+// add spin labels to a string
+bool add_spins(std::shared_ptr<pq> in, std::vector<std::shared_ptr<pq> > &list) {
+
+    if ( in->data->skip ) return true;
+
+    bool all_spins_added = false;
+
+    // amplitudes
+    for (size_t i = 0; i < in->data->amplitude_types.size(); i++) {
+        char type = in->data->amplitude_types[i];
+        for (size_t j = 0; j < in->data->amps[type].size(); j++) {
+            for (size_t k = 0; k < in->data->amps[type][j].labels.size(); k++) {
+                if ( in->data->amps[type][j].spin_labels[k] == "" ) {
+
+                    std::shared_ptr<pq> sa (new pq(in->data->vacuum));
+                    std::shared_ptr<pq> sb (new pq(in->data->vacuum));
+
+                    sa->data->copy(in.get());
+                    sb->data->copy(in.get());
+
+                    sa->data->set_spin_everywhere(in->data->amps[type][j].labels[k], "a");
+                    sb->data->set_spin_everywhere(in->data->amps[type][j].labels[k], "b");
+
+                    //sa->data->amps[type][j].spin_labels[k] = "a";
+                    //sb->data->amps[type][j].spin_labels[k] = "b";
+
+                    list.push_back(sa);
+                    list.push_back(sb);
+                    return false;
+
+                }
+            }
+        }
+    }
+
+    // integrals
+    for (size_t i = 0; i < in->data->integral_types.size(); i++) {
+        std::string type = in->data->integral_types[i];
+        for (size_t j = 0; j < in->data->ints[type].size(); j++) {
+            for (size_t k = 0; k < in->data->ints[type][j].labels.size(); k++) {
+                if ( in->data->ints[type][j].spin_labels[k] == "" ) {
+
+                    std::shared_ptr<pq> sa (new pq(in->data->vacuum));
+                    std::shared_ptr<pq> sb (new pq(in->data->vacuum));
+
+                    sa->data->copy(in.get());
+                    sb->data->copy(in.get());
+
+                    sa->data->set_spin_everywhere(in->data->ints[type][j].labels[k], "a");
+                    sb->data->set_spin_everywhere(in->data->ints[type][j].labels[k], "b");
+
+                    //sa->data->ints[type][j].spin_labels[k] = "a";
+                    //sb->data->ints[type][j].spin_labels[k] = "b";
+
+                    list.push_back(sa);
+                    list.push_back(sb);
+                    return false;
+
+                }
+            }
+        }
+    }
+
+    // must be done.
+    return true;
+
+}
+
 
 }

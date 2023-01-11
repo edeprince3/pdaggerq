@@ -46,12 +46,6 @@ class pq {
     /// expand sums to include spin and zero terms where appropriate
     void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
-    /// set non-summed spin labels
-    void set_non_summed_spin_labels(std::vector<std::string> occ_spin_labels, std::vector<std::string> vir_spin_labels);
-
-    /// add spin labels to a string
-    bool add_spins(std::vector<std::shared_ptr<pq> > &list);
-
 };
 
 }

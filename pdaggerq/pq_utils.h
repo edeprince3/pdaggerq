@@ -121,6 +121,9 @@ void gobble_deltas(std::shared_ptr<pq> in);
 /// replace internal labels with conventional ones (o1 -> i, etc.)
 void use_conventional_labels(std::shared_ptr<pq> in);
 
+/// add spin labels to a string
+bool add_spins(std::shared_ptr<pq> in, std::vector<std::shared_ptr<pq> > &list);
+
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
 
