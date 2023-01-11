@@ -22,6 +22,7 @@
 //
 
 #include "data.h"
+#include "pq.h"
 #include "pq_utils.h"
 
 namespace pdaggerq {
@@ -235,6 +236,340 @@ void replace_index_everywhere(std::shared_ptr<StringData> data, std::string old_
     }
     data->sort_labels();
 
+}
+
+/// compare two lists of integrals
+bool compare_integrals( std::vector<integrals> ints1,
+                        std::vector<integrals> ints2,
+                        int & n_permute ) {
+
+    if ( ints1.size() != ints2.size() ) return false;
+
+    size_t nsame_ints = 0;
+    for (size_t i = 0; i < ints1.size(); i++) {
+        for (size_t j = 0; j < ints2.size(); j++) {
+
+            if ( ints1[i] == ints2[j] ) {
+
+                n_permute += ints1[i].permutations + ints2[j].permutations;
+
+                nsame_ints++;
+                break;
+            }
+
+        }
+    }
+
+    if ( nsame_ints != ints1.size() ) return false;
+
+    return true;
+}
+
+/// compare two lists of amplitudes
+bool compare_amplitudes( std::vector<amplitudes> amps1,
+                         std::vector<amplitudes> amps2,
+                         int & n_permute ) {
+
+    if ( amps1.size() != amps2.size() ) return false;
+   
+    size_t nsame_amps = 0;
+    for (size_t i = 0; i < amps1.size(); i++) {
+        for (size_t j = 0; j < amps2.size(); j++) {
+
+            if ( amps1[i] == amps2[j] ) {
+
+                n_permute += amps1[i].permutations + amps2[j].permutations;
+
+                nsame_amps++;
+                break;
+            }
+        }
+    }
+
+    if ( nsame_amps != amps1.size() ) return false;
+
+    return true;
+}
+
+// compare two strings
+bool compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute) {
+
+    // don't forget w0
+    if ( ordered_1->data->has_w0 != ordered_2->data->has_w0 ) {
+        return false;
+    }
+
+    // are strings same?
+    if ( ordered_1->data->symbol.size() != ordered_2->data->symbol.size() ) return false;
+    int nsame_s = 0;
+    for (size_t k = 0; k < ordered_1->data->symbol.size(); k++) {
+        if ( ordered_1->data->symbol[k] == ordered_2->data->symbol[k] ) {
+            nsame_s++;
+        }
+    }
+    if ( nsame_s != ordered_1->data->symbol.size() ) return false;
+
+    // same delta functions (recall these aren't sorted in any way)
+    int nsame_d = 0;
+    for (size_t k = 0; k < ordered_1->data->deltas.size(); k++) {
+        for (size_t l = 0; l < ordered_2->data->deltas.size(); l++) {
+            if ( ordered_1->data->deltas[k].labels[0] == ordered_2->data->deltas[l].labels[0]
+              && ordered_1->data->deltas[k].labels[1] == ordered_2->data->deltas[l].labels[1] ) {
+                nsame_d++;
+                //break;
+            }else if ( ordered_1->data->deltas[k].labels[0] == ordered_2->data->deltas[l].labels[1]
+                    && ordered_1->data->deltas[k].labels[1] == ordered_2->data->deltas[l].labels[0] ) {
+                nsame_d++;
+                //break;
+            }
+        }
+    }
+    if ( nsame_d != ordered_1->data->deltas.size() ) return false;
+
+    // amplitude comparisons, with permutations
+    n_permute = 0;
+
+    bool same_string = false;
+    for (size_t i = 0; i < ordered_1->data->amplitude_types.size(); i++) {
+        char type = ordered_1->data->amplitude_types[i];
+        same_string = compare_amplitudes( ordered_1->data->amps[type], ordered_2->data->amps[type], n_permute);
+        if ( !same_string ) return false;
+    }
+
+    // integral comparisons, with permutations
+    for (size_t i = 0; i < ordered_1->data->integral_types.size(); i++) {
+        std::string type = ordered_1->data->integral_types[i];
+        same_string = compare_integrals( ordered_1->data->ints[type], ordered_2->data->ints[type], n_permute);
+        if ( !same_string ) return false;
+    }
+
+    // permutations should be the same, too wtf
+    // also need to check if the permutations are the same...
+    // otherwise, we shouldn't be combining these terms
+    if ( ordered_1->data->permutations.size() != ordered_2->data->permutations.size() ) {
+        return false;
+    }
+
+    int nsame_permutations = 0;
+    // remember, permutations come in pairs
+    size_t n = ordered_1->data->permutations.size() / 2;
+    int count = 0;
+    for (int i = 0; i < n; i++) {
+
+        if ( ordered_1->data->permutations[count] == ordered_2->data->permutations[count] ) {
+            nsame_permutations++;
+        }else if (  ordered_1->data->permutations[count]   == ordered_2->data->permutations[count+1] ) {
+            nsame_permutations++;
+        }else if (  ordered_1->data->permutations[count+1] == ordered_2->data->permutations[count]   ) {
+            nsame_permutations++;
+        }else if (  ordered_1->data->permutations[count+1] == ordered_2->data->permutations[count+1] ) {
+            nsame_permutations++;
+        }
+        count += 2;
+
+    }
+    if ( nsame_permutations != n ) {
+        return false;
+    }
+
+    return true;
+}
+
+// consolidate terms that differ by permutations
+void consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered) {
+
+    // consolidate terms that differ by permutations
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->data->skip ) continue;
+
+        for (size_t j = i+1; j < ordered.size(); j++) {
+
+            if ( ordered[j]->data->skip ) continue;
+
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            if ( !strings_same ) continue;
+
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
+
+            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+
+            // if terms exactly cancel, do so
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
+                break;
+            }
+
+            // otherwise, combine terms
+            ordered[i]->data->factor = fabs(combined_factor);
+            if ( combined_factor > 0.0 ) {
+                ordered[i]->data->sign =  1;
+            }else {
+                ordered[i]->data->sign = -1;
+            }
+            ordered[j]->data->skip = true;
+        }
+    }
+}
+
+// consolidate terms that differ by summed labels plus permutations
+void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &ordered,
+                                        std::vector<std::string> labels) {
+
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->data->skip ) continue;
+
+        std::vector<int> find_idx;
+
+        // ok, what labels do we have?
+        for (size_t j = 0; j < labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i]->data, labels[j]);
+            find_idx.push_back(found);
+        }
+
+        for (size_t j = i+1; j < ordered.size(); j++) {
+
+            if ( ordered[j]->data->skip ) continue;
+
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            // try swapping non-summed labels
+            for (size_t id1 = 0; id1 < labels.size(); id1++) {
+                if ( find_idx[id1] != 2 ) continue;
+                for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
+                    if ( find_idx[id2] != 2 ) continue;
+
+                    std::shared_ptr<pq> newguy (new pq(ordered[i]->data->vacuum));
+                    newguy->data->copy((void*)(ordered[i].get()));
+                    swap_two_labels(newguy->data,labels[id1],labels[id2]);
+                    newguy->data->sort_labels();
+
+                    strings_same = compare_strings(ordered[j],newguy,n_permute);
+
+                    if ( strings_same ) break;
+                }
+                if ( strings_same ) break;
+            }
+
+            if ( !strings_same ) continue;
+
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
+
+            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+
+            // if terms exactly cancel, do so
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
+                break;
+            }
+
+            // otherwise, combine terms
+            ordered[i]->data->factor = fabs(combined_factor);
+            if ( combined_factor > 0.0 ) {
+                ordered[i]->data->sign =  1;
+            }else {
+                ordered[i]->data->sign = -1;
+            }
+            ordered[j]->data->skip = true;
+
+        }
+    }
+}
+
+// consolidate terms that differ by two summed labels plus permutations
+void consolidate_permutations_plus_two_swaps(
+    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::string> labels_1,
+    std::vector<std::string> labels_2) {
+
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->data->skip ) continue;
+
+        std::vector<int> find_1;
+        std::vector<int> find_2;
+
+        // ok, what labels do we have? list 1
+        for (size_t j = 0; j < labels_1.size(); j++) {
+            int found = index_in_anywhere(ordered[i]->data, labels_1[j]);
+            find_1.push_back(found);
+        }
+
+        // ok, what labels do we have? list 2
+        for (size_t j = 0; j < labels_2.size(); j++) {
+            int found = index_in_anywhere(ordered[i]->data, labels_2[j]);
+            find_2.push_back(found);
+        }
+
+        for (size_t j = i+1; j < ordered.size(); j++) {
+
+            if ( ordered[j]->data->skip ) continue;
+
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            // try swapping non-summed labels 1
+            for (size_t id1 = 0; id1 < labels_1.size(); id1++) {
+                if ( find_1[id1] != 2 ) continue;
+                for (size_t id2 = id1 + 1; id2 < labels_1.size(); id2++) {
+                    if ( find_1[id2] != 2 ) continue;
+
+                    // try swapping non-summed labels 2
+                    for (size_t id3 = 0; id3 < labels_2.size(); id3++) {
+                        if ( find_2[id3] != 2 ) continue;
+                        for (size_t id4 = id3 + 1; id4 < labels_2.size(); id4++) {
+                            if ( find_2[id4] != 2 ) continue;
+
+                            std::shared_ptr<pq> newguy (new pq(ordered[i]->data->vacuum));
+                            newguy->data->copy((void*)(ordered[i].get()));
+                            swap_two_labels(newguy->data,labels_1[id1],labels_1[id2]);
+                            swap_two_labels(newguy->data,labels_2[id3],labels_2[id4]);
+                            newguy->data->sort_labels();
+
+                            strings_same = compare_strings(ordered[j],newguy,n_permute);
+
+                            if ( strings_same ) break;
+                        }
+                        if ( strings_same ) break;
+                    }
+                    if ( strings_same ) break;
+                }
+                if ( strings_same ) break;
+            }
+
+            if ( !strings_same ) continue;
+
+           double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
+
+            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+
+            // if terms exactly cancel, do so
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->data->skip = true;
+                ordered[j]->data->skip = true;
+                break;
+            }
+
+            // otherwise, combine terms
+            ordered[i]->data->factor = fabs(combined_factor);
+            if ( combined_factor > 0.0 ) {
+                ordered[i]->data->sign =  1;
+            }else {
+                ordered[i]->data->sign = -1;
+            }
+            ordered[j]->data->skip = true;
+
+        }
+    }
 }
 
 }

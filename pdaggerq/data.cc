@@ -48,7 +48,6 @@ template <typename T> std::string to_string_with_precision(const T a_value, cons
 StringData::StringData(std::string vacuum_type){
 
     vacuum = vacuum_type;
-
 }
 
 // descructor
@@ -73,7 +72,6 @@ void StringData::sort_labels() {
     for (size_t i = 0; i < deltas.size(); i++) {
         deltas[i].sort();
     }
-
 }
 
 // is fermion part of string in normal order?

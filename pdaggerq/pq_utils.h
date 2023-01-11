@@ -34,6 +34,7 @@
 #include<sstream>
 
 #include "tensor.h"
+#include "pq.h"
 
 namespace pdaggerq {
 
@@ -69,6 +70,32 @@ void replace_index_everywhere(std::shared_ptr<StringData> data, std::string old_
 
 /// swap two labels
 void swap_two_labels(std::shared_ptr<StringData> data, std::string label1, std::string label2);
+
+/// compare two strings
+bool compare_strings(std::shared_ptr<pq> ordered_1, std::shared_ptr<pq> ordered_2, int & n_permute);
+
+/// compare two lists of amplitudes
+bool compare_amplitudes( std::vector<amplitudes> amps1,
+                         std::vector<amplitudes> amps2,
+                         int & n_permute );
+
+/// compare two lists of integrals
+bool compare_integrals( std::vector<integrals> ints1,
+                        std::vector<integrals> ints2,
+                        int & n_permute );
+
+/// consolidate terms that differ by permutations
+void consolidate_permutations(std::vector<std::shared_ptr<pq> > &ordered);
+
+/// consolidate terms that differ by summed labels plus permutations
+void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq> > &ordered,
+                                        std::vector<std::string> labels);
+
+/// consolidate terms that differ by two summed labels plus permutations
+void consolidate_permutations_plus_two_swaps(
+    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::string> labels_1,
+    std::vector<std::string> labels_2);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
