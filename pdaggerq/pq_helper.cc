@@ -173,6 +173,11 @@ void pq_helper::set_right_operators_type(std::string type) {
     }
 }
 
+// do operators entering similarity transformation commute? default true
+void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
+    cluster_operators_commute = do_cluster_operators_commute;
+}
+
 void pq_helper::add_commutator(double factor,
                                std::vector<std::string> op0,
                                std::vector<std::string> op1){
@@ -247,7 +252,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     std::vector<std::string> tmp;
 
     // left operators 
-    // this is not handled correectly now that left operators can be sums of products of operators ... just exit with an error
+    // this is not handled correctly now that left operators can be sums of products of operators ... just exit with an error
     for (int i = 0; i < (int)left_operators.size(); i++) {
         tmp.clear();
         for (int j = 0; j < (int)left_operators[i].size(); j++) {
@@ -370,7 +375,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             int occ_label_count = 5;
             int vir_label_count = 5;
             int gen_label_count = 0;
-
 
             // apply any extra operators on left or right:
             std::vector<std::string> tmp;
@@ -1101,15 +1105,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     }
 }
 
-// do operators entering similarity transformation commute? default true
-void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
-    cluster_operators_commute = do_cluster_operators_commute;
-}
-
-
 void pq_helper::simplify() {
-
-    std::shared_ptr<pq_string> mystring (new pq_string(vacuum));
 
     // eliminate strings based on delta functions and use delta functions to alter integral / amplitude labels
     for (int i = 0; i < (int)ordered.size(); i++) {
