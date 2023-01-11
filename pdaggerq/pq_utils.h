@@ -97,6 +97,12 @@ void consolidate_permutations_plus_two_swaps(
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2);
 
+/// alphabetize operators to simplify string comparisons (for true vacuum only)
+void alphabetize(std::vector<std::shared_ptr<pq> > &ordered);
+
+/// cancel terms where appropriate
+void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
+
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
 

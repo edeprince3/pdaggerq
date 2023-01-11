@@ -49,19 +49,8 @@ class pq {
     /// replace internal labels with conventional ones (o1 -> i, etc.)
     void use_conventional_labels();
 
-    /// alphabetize operators to simplify string comparisons
-    void alphabetize(std::vector<std::shared_ptr<pq> > &ordered);
-
-    /// cancel terms where appropriate
-    void cleanup(std::vector<std::shared_ptr<pq> > &ordered);
-
     /// expand sums to include spin and zero terms where appropriate
     void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map);
-
-    /// consolidate terms that differ by permutations of non-summed labels
-    void consolidate_permutations_non_summed(
-        std::vector<std::shared_ptr<pq> > &ordered,
-        std::vector<std::string> labels);
 
     /// reorder t amplitudes as t1, t2, t3
     void reorder_t_amplitudes();

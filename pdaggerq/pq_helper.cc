@@ -1216,10 +1216,10 @@ void pq_helper::add_new_string_true_vacuum(){
     tmp.clear();
 
     // alphabetize
-    mystring->alphabetize(ordered);
+    alphabetize(ordered);
 
-    // cancel terms
-    mystring->cleanup(ordered);
+    // try to cancel similar terms
+    cleanup(ordered);
 
     // reset data object
     data.reset();
@@ -1613,7 +1613,7 @@ void pq_helper::simplify() {
     }
 
     // try to cancel similar terms
-    mystring->cleanup(ordered);
+    cleanup(ordered);
 
 }
 

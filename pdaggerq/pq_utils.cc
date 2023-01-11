@@ -572,4 +572,294 @@ void consolidate_permutations_plus_two_swaps(
     }
 }
 
+// consolidate terms that differ by permutations of non-summed labels
+void consolidate_permutations_non_summed(
+    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::string> labels) {
+        
+
+    for (size_t i = 0; i < ordered.size(); i++) {
+        
+        if ( ordered[i]->data->skip ) continue;
+    
+        std::vector<int> find_idx;
+    
+        // ok, what labels do we have? 
+        for (size_t j = 0; j < labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i]->data, labels[j]);
+            // this is buggy when existing permutation labels belong to 
+            // the same space as the labels we're permuting ... so skip those for now.
+            bool same_space = false;
+            bool is_occ1 = is_occ(labels[j]);
+            for (size_t k = 0; k < ordered[i]->data->permutations.size(); k++) {
+                bool is_occ2 = is_occ(ordered[i]->data->permutations[k]);
+                if ( is_occ1 && is_occ2 ) {
+                    same_space = true;
+                    break;
+                }else if ( !is_occ1 && !is_occ2 ) {
+                    same_space = true;
+                    break;
+                }
+            }
+        
+            if ( !same_space ) {
+                find_idx.push_back(found);
+            }else{
+                find_idx.push_back(0);
+            }
+        }
+
+        for (size_t j = i+1; j < ordered.size(); j++) {
+
+            if ( ordered[j]->data->skip ) continue;
+
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            std::string permutation_1 = "";
+            std::string permutation_2 = "";
+
+            // try swapping non-summed labels
+            for (size_t id1 = 0; id1 < labels.size(); id1++) {
+                if ( find_idx[id1] != 1 ) continue;
+                for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
+                    if ( find_idx[id2] != 1 ) continue;
+
+                    std::shared_ptr<pq> newguy (new pq(ordered[i]->data->vacuum));
+                    newguy->data->copy((void*)(ordered[i].get()));
+                    swap_two_labels(newguy->data,labels[id1],labels[id2]);
+
+                    strings_same = compare_strings(ordered[j],newguy,n_permute);
+
+                    if ( strings_same ) {
+
+                        permutation_1 = labels[id1];
+                        permutation_2 = labels[id2];
+                        break;
+                    }
+                }
+                if ( strings_same ) break;
+            }
+
+            if ( !strings_same ) continue;
+
+            // it is possible to have made it through the previous logic without 
+            // assigning permutation labels, if strings are identical but 
+            // permutation operators differ
+            //if ( permutation_1 == "" || permutation_2 == "" ) continue;
+
+            double factor_i = ordered[i]->data->factor * ordered[i]->data->sign;
+            double factor_j = ordered[j]->data->factor * ordered[j]->data->sign;
+
+            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+
+            // if terms exactly cancel, then this is a permutation
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->data->permutations.push_back(permutation_1);
+                ordered[i]->data->permutations.push_back(permutation_2);
+                ordered[j]->data->skip = true;
+                break;
+            }
+
+            // otherwise, something has gone wrong in the previous consolidation step...
+        }
+    }
+}
+
+/// alphabetize operators to simplify string comparisons (for true vacuum only)
+void alphabetize(std::vector<std::shared_ptr<pq> > &ordered) {
+
+    // alphabetize string
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        // creation
+        bool not_alphabetized = false;
+        do {
+            not_alphabetized = false;
+            int ndagger = 0;
+            for (size_t j = 0; j < ordered[i]->data->symbol.size(); j++) {
+                if ( ordered[i]->data->is_dagger[j] ) ndagger++;
+            }
+            for (int j = 0; j < ndagger-1; j++) {
+                int val1 = ordered[i]->data->symbol[j].c_str()[0];
+                int val2 = ordered[i]->data->symbol[j+1].c_str()[0];
+                if ( val2 < val1 ) {
+                    std::string dum = ordered[i]->data->symbol[j];
+                    ordered[i]->data->symbol[j] = ordered[i]->data->symbol[j+1];
+                    ordered[i]->data->symbol[j+1] = dum;
+                    ordered[i]->data->sign = -ordered[i]->data->sign;
+                    not_alphabetized = true;
+                    j = ordered[i]->data->symbol.size() + 1;
+                    not_alphabetized = true;
+                }
+            }
+        }while(not_alphabetized);
+        // annihilation
+        not_alphabetized = false;
+        do {
+            not_alphabetized = false;
+            int ndagger = 0;
+            for (size_t j = 0; j < ordered[i]->data->symbol.size(); j++) {
+                if ( ordered[i]->data->is_dagger[j] ) ndagger++;
+            }
+            for (int j = ndagger; j < (int)ordered[i]->data->symbol.size()-1; j++) {
+                int val1 = ordered[i]->data->symbol[j].c_str()[0];
+                int val2 = ordered[i]->data->symbol[j+1].c_str()[0];
+                if ( val2 < val1 ) {
+                    std::string dum = ordered[i]->data->symbol[j];
+                    ordered[i]->data->symbol[j] = ordered[i]->data->symbol[j+1];
+                    ordered[i]->data->symbol[j+1] = dum;
+                    ordered[i]->data->sign = -ordered[i]->data->sign;
+                    not_alphabetized = true;
+                    j = ordered[i]->data->symbol.size() + 1;
+                    not_alphabetized = true;
+                }
+            }
+        }while(not_alphabetized);
+    }
+
+    // alphabetize deltas
+    for (size_t i = 0; i < ordered.size(); i++) {
+        for (size_t j = 0; j < ordered[i]->data->deltas.size(); j++) {
+            int val1 = ordered[i]->data->deltas[j].labels[0].c_str()[0];
+            int val2 = ordered[i]->data->deltas[j].labels[1].c_str()[0];
+            if ( val2 < val1 ) {
+                std::string dum = ordered[i]->data->deltas[j].labels[0];
+                ordered[i]->data->deltas[j].labels[0] = ordered[i]->data->deltas[j].labels[1];
+                ordered[i]->data->deltas[j].labels[1] = dum;
+            }
+        }
+    }
+}
+
+// compare strings and remove terms that cancel
+
+void cleanup(std::vector<std::shared_ptr<pq> > &ordered) {
+
+
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        // order amplitudes such that they're ordered t1, t2, t3, etc.
+        ordered[i]->reorder_t_amplitudes();
+
+        // sort amplitude labels
+        ordered[i]->data->sort_labels();
+
+    }
+
+    // prune list so it only contains non-skipped ones
+    std::vector< std::shared_ptr<pq> > pruned;
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->data->skip ) continue;
+
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
+        // about terms that aren't fully contracted. so, skip those because this
+        // function is time consuming
+        if ( ordered[i]->data->vacuum == "FERMI" ) {
+            if ( ordered[i]->data->symbol.size() != 0 ) continue;
+            if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        }
+
+        pruned.push_back(ordered[i]);
+    }
+    ordered.clear();
+    for (size_t i = 0; i < pruned.size(); i++) {
+        ordered.push_back(pruned[i]);
+    }
+    pruned.clear();
+
+    //printf("starting string comparisons\n");fflush(stdout);
+
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+
+    consolidate_permutations(ordered);
+
+    consolidate_permutations_plus_swap(ordered,occ_labels);
+    consolidate_permutations_plus_swap(ordered,vir_labels);
+
+    consolidate_permutations_plus_two_swaps(ordered,occ_labels,occ_labels);
+    consolidate_permutations_plus_two_swaps(ordered,vir_labels,vir_labels);
+    consolidate_permutations_plus_two_swaps(ordered,occ_labels,vir_labels);
+
+    // these don't seem to be necessary for test cases up to ccsdtq
+/*
+    consolidate_permutations_plus_three_swaps(ordered,occ_labels,occ_labels,occ_labels);
+    consolidate_permutations_plus_three_swaps(ordered,occ_labels,occ_labels,vir_labels);
+    consolidate_permutations_plus_three_swaps(ordered,occ_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_three_swaps(ordered,vir_labels,vir_labels,vir_labels);
+
+    consolidate_permutations_plus_four_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels);
+    consolidate_permutations_plus_four_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels);
+    consolidate_permutations_plus_four_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_four_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_four_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels);
+
+    consolidate_permutations_plus_five_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels);
+    consolidate_permutations_plus_five_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels);
+    consolidate_permutations_plus_five_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_five_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_five_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_five_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+
+    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels);
+    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels);
+    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_six_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_six_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+
+    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels);
+    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels);
+    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_seven_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+
+    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels);
+    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels);
+    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_eight_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+*/
+
+    // probably only relevant for vacuum = fermi
+    if ( ordered.size() == 0 ) return;
+    if ( ordered[0]->data->vacuum != "FERMI" ) return;
+
+    consolidate_permutations_non_summed(ordered,occ_labels);
+    consolidate_permutations_non_summed(ordered,vir_labels);
+
+    // re-prune
+    pruned.clear();
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->data->skip ) continue;
+
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
+        // about terms that aren't fully contracted. so, skip those because this
+        // function is time consuming
+        if ( ordered[i]->data->vacuum == "FERMI" ) {
+            if ( ordered[i]->data->symbol.size() != 0 ) continue;
+            if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
+        }
+
+        pruned.push_back(ordered[i]);
+    }
+    ordered.clear();
+    for (size_t i = 0; i < pruned.size(); i++) {
+        ordered.push_back(pruned[i]);
+    }
+    pruned.clear();
+
+}
+
 }
