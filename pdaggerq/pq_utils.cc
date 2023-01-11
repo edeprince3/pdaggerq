@@ -2273,7 +2273,6 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
         tmp.clear();
 
     }
-
 }
 
 } // End namespaces

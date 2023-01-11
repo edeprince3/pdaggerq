@@ -131,12 +131,6 @@ class pq_helper {
     /// do operators entering a similarity transformation commute?
     bool cluster_operators_commute;
 
-    /// set labels for integrals
-    void set_integrals(std::shared_ptr<pq_string> data, std::string type, std::vector<std::string> in);
-
-    /// set labels for amplitudes
-    void set_amplitudes(std::shared_ptr<pq_string> data, char type, int order, std::vector<std::string> in);
-
 };
 
 }

@@ -413,7 +413,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    set_integrals(newguy, "core", {idx1,idx2});
+                    newguy->set_integrals("core", {idx1,idx2});
 
                 }else if ( in[i].substr(0,1) == "f" ) { // fock operator
 
@@ -427,7 +427,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    set_integrals(newguy, "fock", {idx1,idx2});
+                    newguy->set_integrals("fock", {idx1,idx2});
 
                 }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
 
@@ -441,7 +441,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    set_integrals(newguy, "d+", {idx1,idx2});
+                    newguy->set_integrals("d+", {idx1,idx2});
 
                     // boson operator
                     newguy->is_boson_dagger.push_back(true);
@@ -458,7 +458,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    set_integrals(newguy, "d-", {idx1,idx2});
+                    newguy->set_integrals("d-", {idx1,idx2});
 
                     // boson operator
                     newguy->is_boson_dagger.push_back(false);
@@ -477,7 +477,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx3);
                     tmp_string.push_back(idx4);
 
-                    set_integrals(newguy, "two_body", {idx1,idx2,idx4,idx3});
+                    newguy->set_integrals("two_body", {idx1,idx2,idx4,idx3});
 
                 }else if ( in[i].substr(0,1) == "j" ) { // fluctuation potential
 
@@ -495,7 +495,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(idx2);
 
                         // integrals
-                        set_integrals(newguy, "occ_repulsion", {idx1,idx2});
+                        newguy->set_integrals("occ_repulsion", {idx1,idx2});
 
                     }else if ( in[i].substr(1,1) == "2" ){
 
@@ -511,7 +511,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(idx3);
                         tmp_string.push_back(idx4);
 
-                        set_integrals(newguy, "eri", {idx1,idx2,idx4,idx3});
+                        newguy->set_integrals("eri", {idx1,idx2,idx4,idx3});
 
                     }
 
@@ -551,7 +551,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     for (int id = n-1; id >= 0; id--) {
                         labels.push_back(label_right[id]);
                     }
-                    set_amplitudes(newguy, 't', n, labels);
+                    newguy->set_amplitudes('t', n, labels);
 
                     // factor = 1/(n!)^2
                     double my_factor = 1.0;
@@ -591,7 +591,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes(newguy, 'u', n, labels);
+                        newguy->set_amplitudes('u', n, labels);
 
                         newguy->is_boson_dagger.push_back(true);
 
@@ -629,7 +629,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes(newguy, 'u', n, labels);
+                        newguy->set_amplitudes('u', n, labels);
                         
                         // factor = 1/(n!)^2
                         double my_factor = 1.0;
@@ -649,7 +649,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes(newguy, 'r', n, labels);
+                        newguy->set_amplitudes('r', n, labels);
 
                     }else {
 
@@ -691,7 +691,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes(newguy, 'r', n, labels);
+                        newguy->set_amplitudes('r', n, labels);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -713,7 +713,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes(newguy, 's', n, labels);
+                        newguy->set_amplitudes('s', n, labels);
 
                         newguy->is_boson_dagger.push_back(true);
 
@@ -757,7 +757,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         } 
-                        set_amplitudes(newguy, 's', n, labels);
+                        newguy->set_amplitudes('s', n, labels);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -781,7 +781,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes(newguy, 'l', n, labels);
+                        newguy->set_amplitudes('l', n, labels);
 
                     }else {
                         
@@ -823,7 +823,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes(newguy, 'l', n, labels);
+                        newguy->set_amplitudes('l', n, labels);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -845,7 +845,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if ( n == 0 ){
 
                         std::vector<std::string> labels;
-                        set_amplitudes(newguy, 'm', n, labels);
+                        newguy->set_amplitudes('m', n, labels);
 
                         newguy->is_boson_dagger.push_back(false);
 
@@ -889,7 +889,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        set_amplitudes(newguy, 'm', n, labels);
+                        newguy->set_amplitudes('m', n, labels);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -1099,27 +1099,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
         }
     }
-}
-
-// TODO: move to utils? or pq_string?
-void pq_helper::set_integrals(std::shared_ptr<pq_string> data, std::string type, std::vector<std::string> in) {
-    integrals ints;
-    for (int i = 0; i < (int)in.size(); i++) {
-        ints.labels.push_back(in[i]);
-    }
-    ints.sort();
-    data->ints[type].push_back(ints);
-}
-
-// TODO: move to utils? or pq_string?
-void pq_helper::set_amplitudes(std::shared_ptr<pq_string> data, char type, int order, std::vector<std::string> in) {
-    amplitudes amps;
-    for (int i = 0; i < (int)in.size(); i++) {
-        amps.labels.push_back(in[i]);
-    }
-    amps.order = order;
-    amps.sort();
-    data->amps[type].push_back(amps);
 }
 
 // do operators entering similarity transformation commute? default true

@@ -121,6 +121,12 @@ class pq_string {
     /// reset spin labels (so only non-summed labels are set)
     void reset_spin_labels();
 
+    /// set labels for integrals
+    void set_integrals(std::string type, std::vector<std::string> in);
+
+    /// set labels for amplitudes
+    void set_amplitudes(char type, int order, std::vector<std::string> in);
+
 };
 
 }

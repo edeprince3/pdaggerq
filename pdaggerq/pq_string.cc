@@ -602,4 +602,25 @@ void pq_string::reset_spin_labels() {
     }
 }
 
+// set labels for integrals
+void pq_string::set_integrals(std::string type, std::vector<std::string> in) {
+    integrals new_ints;
+    for (int i = 0; i < (int)in.size(); i++) {
+        new_ints.labels.push_back(in[i]);
+    }
+    new_ints.sort();
+    ints[type].push_back(new_ints);
+}
+
+// set labels for amplitudes
+void pq_string::set_amplitudes(char type, int order, std::vector<std::string> in) {
+    amplitudes new_amps;
+    for (int i = 0; i < (int)in.size(); i++) {
+        new_amps.labels.push_back(in[i]);
+    }
+    new_amps.order = order;
+    new_amps.sort();
+    amps[type].push_back(new_amps);
+}
+
 }
