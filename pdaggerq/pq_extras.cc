@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: pq.cc
+// Filename: pq_extras.cc
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -30,7 +30,7 @@
 #include<math.h>
 #include<sstream>
 
-#include "data.h"
+#include "pq_string.h"
 #include "pq_utils.h"
 #include "pq_extras.h"
 
@@ -38,7 +38,7 @@ namespace pdaggerq {
 
 // consolidate terms that differ by eight summed labels plus permutations
 void consolidate_permutations_plus_eight_swaps(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2, 
     std::vector<std::string> labels_3,
@@ -164,7 +164,7 @@ void consolidate_permutations_plus_eight_swaps(
                                                                         for (size_t id16 = id15 + 1; id16 < labels_8.size(); id16++) {
                                                                             if ( find_8[id16] != 2 ) continue;
 
-                                                                            std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                                                                            std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                                                                             newguy->copy((void*)(ordered[i].get()));
                                                                             swap_two_labels(newguy,labels_1[id1],labels_1[id2]);
                                                                             swap_two_labels(newguy,labels_2[id3],labels_2[id4]);
@@ -239,7 +239,7 @@ void consolidate_permutations_plus_eight_swaps(
 
 // consolidate terms that differ by seven summed labels plus permutations
 void consolidate_permutations_plus_seven_swaps(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2, 
     std::vector<std::string> labels_3,
@@ -351,7 +351,7 @@ void consolidate_permutations_plus_seven_swaps(
                                                                 for (size_t id14 = id13 + 1; id14 < labels_7.size(); id14++) {
                                                                     if ( find_7[id14] != 2 ) continue;
 
-                                                                    std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                                                                    std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                                                                     newguy->copy((void*)(ordered[i].get()));
                                                                     swap_two_labels(newguy,labels_1[id1],labels_1[id2]);
                                                                     swap_two_labels(newguy,labels_2[id3],labels_2[id4]);
@@ -421,7 +421,7 @@ void consolidate_permutations_plus_seven_swaps(
 
 // consolidate terms that differ by six summed labels plus permutations
 void consolidate_permutations_plus_six_swaps(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2, 
     std::vector<std::string> labels_3,
@@ -519,7 +519,7 @@ void consolidate_permutations_plus_six_swaps(
                                                         for (size_t id12 = id11 + 1; id12 < labels_6.size(); id12++) {
                                                             if ( find_6[id12] != 2 ) continue;
 
-                                                            std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                                                            std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                                                             newguy->copy((void*)(ordered[i].get()));
                                                             swap_two_labels(newguy,labels_1[id1],labels_1[id2]);
                                                             swap_two_labels(newguy,labels_2[id3],labels_2[id4]);
@@ -584,7 +584,7 @@ void consolidate_permutations_plus_six_swaps(
 
 // consolidate terms that differ by five summed labels plus permutations
 void consolidate_permutations_plus_five_swaps(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2, 
     std::vector<std::string> labels_3,
@@ -668,7 +668,7 @@ void consolidate_permutations_plus_five_swaps(
                                                 for (size_t id10 = id9 + 1; id10 < labels_5.size(); id10++) {
                                                     if ( find_5[id10] != 2 ) continue;
 
-                                                    std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                                                    std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                                                     newguy->copy((void*)(ordered[i].get()));
                                                     swap_two_labels(newguy,labels_1[id1],labels_1[id2]);
                                                     swap_two_labels(newguy,labels_2[id3],labels_2[id4]);
@@ -728,7 +728,7 @@ void consolidate_permutations_plus_five_swaps(
 
 // consolidate terms that differ by four summed labels plus permutations
 void consolidate_permutations_plus_four_swaps(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2, 
     std::vector<std::string> labels_3,
@@ -798,7 +798,7 @@ void consolidate_permutations_plus_four_swaps(
                                         for (size_t id8 = id7 + 1; id8 < labels_4.size(); id8++) {
                                             if ( find_4[id8] != 2 ) continue;
 
-                                            std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                                            std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                                             newguy->copy((void*)(ordered[i].get()));
                                             swap_two_labels(newguy,labels_1[id1],labels_1[id2]);
                                             swap_two_labels(newguy,labels_2[id3],labels_2[id4]);
@@ -853,7 +853,7 @@ void consolidate_permutations_plus_four_swaps(
 
 // consolidate terms that differ by three summed labels plus permutations
 void consolidate_permutations_plus_three_swaps(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2, 
     std::vector<std::string> labels_3) {
@@ -909,7 +909,7 @@ void consolidate_permutations_plus_three_swaps(
                                 for (size_t id6 = id5 + 1; id6 < labels_3.size(); id6++) {
                                     if ( find_3[id6] != 2 ) continue;
 
-                                    std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                                    std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                                     newguy->copy((void*)(ordered[i].get()));
                                     swap_two_labels(newguy,labels_1[id1],labels_1[id2]);
                                     swap_two_labels(newguy,labels_2[id3],labels_2[id4]);

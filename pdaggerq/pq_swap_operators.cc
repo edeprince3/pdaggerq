@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: pq_helper.cc
+// Filename: pq_swap_operators.cc
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -22,19 +22,19 @@
 //
 
 #include "pq_tensor.h"
-#include "data.h"
+#include "pq_string.h"
 #include "pq_utils.h"
 
 namespace pdaggerq {
 
-bool swap_operators_fermi_vacuum(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<StringData> > &ordered) {
+bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered) {
 
     if ( in->skip ) return true;
 
     if ( in->is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<StringData> newguy (new StringData(in->vacuum));
+        std::shared_ptr<pq_string> newguy (new pq_string(in->vacuum));
 
         newguy->copy(in.get());
 
@@ -44,8 +44,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<StringData> in, std::vector<std
     }
 
     // new strings
-    std::shared_ptr<StringData> s1 ( new StringData(in->vacuum) );
-    std::shared_ptr<StringData> s2 ( new StringData(in->vacuum) );
+    std::shared_ptr<pq_string> s1 ( new pq_string(in->vacuum) );
+    std::shared_ptr<pq_string> s2 ( new pq_string(in->vacuum) );
 
     // copy data common to both new strings
     s1->shallow_copy(in.get());
@@ -154,8 +154,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<StringData> in, std::vector<std
         }else {
 
             // new strings
-            std::shared_ptr<StringData> s1a ( new StringData(in->vacuum) );
-            std::shared_ptr<StringData> s1b ( new StringData(in->vacuum) );
+            std::shared_ptr<pq_string> s1a ( new pq_string(in->vacuum) );
+            std::shared_ptr<pq_string> s1b ( new pq_string(in->vacuum) );
 
             // copy data common to both new strings
             s1a->copy((void*)s1.get());
@@ -213,10 +213,10 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<StringData> in, std::vector<std
         }else {
 
             // new strings
-            std::shared_ptr<StringData> s1a ( new StringData(in->vacuum) );
-            std::shared_ptr<StringData> s1b ( new StringData(in->vacuum) );
-            std::shared_ptr<StringData> s2a ( new StringData(in->vacuum) );
-            std::shared_ptr<StringData> s2b ( new StringData(in->vacuum) );
+            std::shared_ptr<pq_string> s1a ( new pq_string(in->vacuum) );
+            std::shared_ptr<pq_string> s1b ( new pq_string(in->vacuum) );
+            std::shared_ptr<pq_string> s2a ( new pq_string(in->vacuum) );
+            std::shared_ptr<pq_string> s2b ( new pq_string(in->vacuum) );
 
             // copy data common to new strings
             s1a->copy((void*)s1.get());
@@ -302,14 +302,14 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<StringData> in, std::vector<std
     return false;
 }
 
-bool swap_operators_true_vacuum(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<StringData> > &ordered) {
+bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered) {
 
     if ( in->skip ) return true;
 
     if ( in->is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<StringData> newguy (new StringData(in->vacuum));
+        std::shared_ptr<pq_string> newguy (new pq_string(in->vacuum));
 
         newguy->copy(in.get());
 
@@ -319,8 +319,8 @@ bool swap_operators_true_vacuum(std::shared_ptr<StringData> in, std::vector<std:
     }
 
     // new strings
-    std::shared_ptr<StringData> s1 ( new StringData(in->vacuum) );
-    std::shared_ptr<StringData> s2 ( new StringData(in->vacuum) );
+    std::shared_ptr<pq_string> s1 ( new pq_string(in->vacuum) );
+    std::shared_ptr<pq_string> s2 ( new pq_string(in->vacuum) );
 
     // copy data common to both new strings
     s1->shallow_copy(in.get());
@@ -385,10 +385,10 @@ bool swap_operators_true_vacuum(std::shared_ptr<StringData> in, std::vector<std:
     }else {
 
         // new strings
-        std::shared_ptr<StringData> s1a ( new StringData(in->vacuum) );
-        std::shared_ptr<StringData> s1b ( new StringData(in->vacuum) );
-        std::shared_ptr<StringData> s2a ( new StringData(in->vacuum) );
-        std::shared_ptr<StringData> s2b ( new StringData(in->vacuum) );
+        std::shared_ptr<pq_string> s1a ( new pq_string(in->vacuum) );
+        std::shared_ptr<pq_string> s1b ( new pq_string(in->vacuum) );
+        std::shared_ptr<pq_string> s2a ( new pq_string(in->vacuum) );
+        std::shared_ptr<pq_string> s2b ( new pq_string(in->vacuum) );
 
         // copy data common to new strings
         s1a->copy((void*)s1.get());

@@ -24,19 +24,18 @@
 #ifndef _python_api2_h_
 #define _python_api2_h_
 
-#include<memory>
-#include<vector>
-#include<iostream>
-#include<string>
+#include <memory>
+#include <vector>
+#include <iostream>
+#include <string>
 #include <cctype>
-#include<algorithm>
+#include <algorithm>
 
 
 #include "pq_helper.h"
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
-
-#include "data.h"
+#include "pq_string.h"
 #include "pq_tensor.h"
 
 #include <pybind11/pybind11.h>
@@ -360,7 +359,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
         for (int right = 0; right < (int)right_operators.size(); right++) {
 
-            std::shared_ptr<StringData> newguy (new StringData(vacuum));
+            std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
 
             factor = original_factor;
 
@@ -1103,8 +1102,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     }
 }
 
-// TODO: move to utils? or StringData?
-void pq_helper::set_integrals(std::shared_ptr<StringData> data, std::string type, std::vector<std::string> in) {
+// TODO: move to utils? or pq_string?
+void pq_helper::set_integrals(std::shared_ptr<pq_string> data, std::string type, std::vector<std::string> in) {
     integrals ints;
     for (int i = 0; i < (int)in.size(); i++) {
         ints.labels.push_back(in[i]);
@@ -1113,8 +1112,8 @@ void pq_helper::set_integrals(std::shared_ptr<StringData> data, std::string type
     data->ints[type].push_back(ints);
 }
 
-// TODO: move to utils? or StringData?
-void pq_helper::set_amplitudes(std::shared_ptr<StringData> data, char type, int order, std::vector<std::string> in) {
+// TODO: move to utils? or pq_string?
+void pq_helper::set_amplitudes(std::shared_ptr<pq_string> data, char type, int order, std::vector<std::string> in) {
     amplitudes amps;
     for (int i = 0; i < (int)in.size(); i++) {
         amps.labels.push_back(in[i]);
@@ -1130,7 +1129,7 @@ void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute)
 }
 
 
-void pq_helper::add_new_string_true_vacuum(std::shared_ptr<StringData> in){
+void pq_helper::add_new_string_true_vacuum(std::shared_ptr<pq_string> in){
 
     if ( in->factor > 0.0 ) {
         in->sign = 1;
@@ -1160,12 +1159,12 @@ void pq_helper::add_new_string_true_vacuum(std::shared_ptr<StringData> in){
 
     // rearrange strings
 
-    std::vector< std::shared_ptr<StringData> > tmp;
+    std::vector< std::shared_ptr<pq_string> > tmp;
     tmp.push_back(in);
 
     bool done_rearranging = false;
     do {  
-        std::vector< std::shared_ptr<StringData> > list;
+        std::vector< std::shared_ptr<pq_string> > list;
         done_rearranging = true;
         for (int i = 0; i < (int)tmp.size(); i++) {
             bool am_i_done = swap_operators_true_vacuum(tmp[i], list);
@@ -1190,7 +1189,7 @@ void pq_helper::add_new_string_true_vacuum(std::shared_ptr<StringData> in){
 
 }
 
-void pq_helper::add_new_string_fermi_vacuum(std::shared_ptr<StringData> in){
+void pq_helper::add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in){
 
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators
@@ -1216,9 +1215,9 @@ void pq_helper::add_new_string_fermi_vacuum(std::shared_ptr<StringData> in){
     }
 
     // need number of strings to be square of number of general indices  (or one)
-    std::vector<std::shared_ptr<StringData> > mystrings;
+    std::vector<std::shared_ptr<pq_string> > mystrings;
     for (int i = 0; i < n_gen_idx * n_gen_idx; i++) {
-        mystrings.push_back( (std::shared_ptr<StringData>)(new StringData(vacuum)) );
+        mystrings.push_back( (std::shared_ptr<pq_string>)(new pq_string(vacuum)) );
     }
 
     // TODO: this function only works correctly if you go through the
@@ -1520,12 +1519,12 @@ void pq_helper::add_new_string_fermi_vacuum(std::shared_ptr<StringData> in){
 
         // rearrange strings
 
-        std::vector< std::shared_ptr<StringData> > tmp;
+        std::vector< std::shared_ptr<pq_string> > tmp;
         tmp.push_back(mystrings[string_num]);
 
         bool done_rearranging = false;
         do { 
-            std::vector< std::shared_ptr<StringData> > list;
+            std::vector< std::shared_ptr<pq_string> > list;
             done_rearranging = true;
             for (int i = 0; i < (int)tmp.size(); i++) {
                 bool am_i_done = swap_operators_fermi_vacuum(tmp[i], list);
@@ -1552,7 +1551,7 @@ void pq_helper::add_new_string_fermi_vacuum(std::shared_ptr<StringData> in){
 
 void pq_helper::simplify() {
 
-    std::shared_ptr<StringData> mystring (new StringData(vacuum));
+    std::shared_ptr<pq_string> mystring (new pq_string(vacuum));
 
     // eliminate strings based on delta functions and use delta functions to alter integral / amplitude labels
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -1618,12 +1617,12 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
 
     // perform spin tracing
 
-    std::vector< std::shared_ptr<StringData> > spin_blocked;
+    std::vector< std::shared_ptr<pq_string> > spin_blocked;
 
     for (size_t i = 0; i < ordered.size(); i++) {
         if ( ordered[i]->symbol.size() != 0 ) continue;
         if ( ordered[i]->is_boson_dagger.size() != 0 ) continue;
-        std::vector< std::shared_ptr<StringData> > tmp;
+        std::vector< std::shared_ptr<pq_string> > tmp;
         spin_blocking(ordered[i], tmp, spin_labels);
         for (size_t j = 0; j < tmp.size(); j++) {
             spin_blocked.push_back(tmp[j]);

@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: pq_helper.cc
+// Filename: pq_utils.cc
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -21,7 +21,7 @@
 //  limitations under the License.
 //
 
-#include "data.h"
+#include "pq_string.h"
 #include "pq_utils.h"
 
 namespace pdaggerq {
@@ -156,7 +156,7 @@ int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
 }
 
 // how many times does an index appear amplitudes, deltas, and integrals?
-int index_in_anywhere(std::shared_ptr<StringData> in, std::string idx) {
+int index_in_anywhere(std::shared_ptr<pq_string> in, std::string idx) {
 
     int n = 0;
 
@@ -213,7 +213,7 @@ void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::v
 }
 
 // swap two labels
-void swap_two_labels(std::shared_ptr<StringData> in, std::string label1, std::string label2) {
+void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::string label2) {
 
     replace_index_everywhere(in, label1, "x");
     replace_index_everywhere(in, label2, label1);
@@ -222,7 +222,7 @@ void swap_two_labels(std::shared_ptr<StringData> in, std::string label1, std::st
 }
 
 // replace one label with another (in integrals and amplitudes)
-void replace_index_everywhere(std::shared_ptr<StringData> in, std::string old_idx, std::string new_idx) {
+void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx, std::string new_idx) {
 
     //replace_index_in_deltas(old_idx,new_idx);
     for (size_t i = 0; i < in->integral_types.size(); i++) {
@@ -291,7 +291,7 @@ bool compare_amplitudes( std::vector<amplitudes> amps1,
 }
 
 // compare two strings
-bool compare_strings(std::shared_ptr<StringData> ordered_1, std::shared_ptr<StringData> ordered_2, int & n_permute) {
+bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_string> ordered_2, int & n_permute) {
 
     // don't forget w0
     if ( ordered_1->has_w0 != ordered_2->has_w0 ) {
@@ -375,7 +375,7 @@ bool compare_strings(std::shared_ptr<StringData> ordered_1, std::shared_ptr<Stri
 }
 
 // consolidate terms that differ by permutations
-void consolidate_permutations(std::vector<std::shared_ptr<StringData> > &ordered) {
+void consolidate_permutations(std::vector<std::shared_ptr<pq_string> > &ordered) {
 
     // consolidate terms that differ by permutations
     for (size_t i = 0; i < ordered.size(); i++) {
@@ -416,7 +416,7 @@ void consolidate_permutations(std::vector<std::shared_ptr<StringData> > &ordered
 }
 
 // consolidate terms that differ by summed labels plus permutations
-void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<StringData> > &ordered,
+void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> > &ordered,
                                         std::vector<std::string> labels) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
@@ -444,7 +444,7 @@ void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<StringData> 
                 for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 2 ) continue;
 
-                    std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                    std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     swap_two_labels(newguy,labels[id1],labels[id2]);
                     newguy->sort_labels();
@@ -485,7 +485,7 @@ void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<StringData> 
 
 // consolidate terms that differ by two summed labels plus permutations
 void consolidate_permutations_plus_two_swaps(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2) {
 
@@ -527,7 +527,7 @@ void consolidate_permutations_plus_two_swaps(
                         for (size_t id4 = id3 + 1; id4 < labels_2.size(); id4++) {
                             if ( find_2[id4] != 2 ) continue;
 
-                            std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                            std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                             newguy->copy((void*)(ordered[i].get()));
                             swap_two_labels(newguy,labels_1[id1],labels_1[id2]);
                             swap_two_labels(newguy,labels_2[id3],labels_2[id4]);
@@ -573,7 +573,7 @@ void consolidate_permutations_plus_two_swaps(
 
 // consolidate terms that differ by permutations of non-summed labels
 void consolidate_permutations_non_summed(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels) {
         
 
@@ -624,7 +624,7 @@ void consolidate_permutations_non_summed(
                 for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 1 ) continue;
 
-                    std::shared_ptr<StringData> newguy (new StringData(ordered[i]->vacuum));
+                    std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                     newguy->copy((void*)(ordered[i].get()));
                     swap_two_labels(newguy,labels[id1],labels[id2]);
 
@@ -666,7 +666,7 @@ void consolidate_permutations_non_summed(
 }
 
 /// alphabetize operators to simplify string comparisons (for true vacuum only)
-void alphabetize(std::vector<std::shared_ptr<StringData> > &ordered) {
+void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 
     // alphabetize string
     for (size_t i = 0; i < ordered.size(); i++) {
@@ -733,7 +733,7 @@ void alphabetize(std::vector<std::shared_ptr<StringData> > &ordered) {
 
 // compare strings and remove terms that cancel
 
-void cleanup(std::vector<std::shared_ptr<StringData> > &ordered) {
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
 
 
     for (size_t i = 0; i < ordered.size(); i++) {
@@ -747,7 +747,7 @@ void cleanup(std::vector<std::shared_ptr<StringData> > &ordered) {
     }
 
     // prune list so it only contains non-skipped ones
-    std::vector< std::shared_ptr<StringData> > pruned;
+    std::vector< std::shared_ptr<pq_string> > pruned;
     for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -862,7 +862,7 @@ void cleanup(std::vector<std::shared_ptr<StringData> > &ordered) {
 }
 
 // reorder t amplitudes as t1, t2, t3, t4
-void reorder_t_amplitudes(std::shared_ptr<StringData> in) {
+void reorder_t_amplitudes(std::shared_ptr<pq_string> in) {
 
     size_t dim = in->amps['t'].size();
 
@@ -1157,7 +1157,7 @@ void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int &
 }
 
 // re-classify fluctuation potential terms
-void reclassify_integrals(std::shared_ptr<StringData> in) {
+void reclassify_integrals(std::shared_ptr<pq_string> in) {
     
     if ( in->ints["occ_repulsion"].size() > 1 ) {
        printf("\n");
@@ -1218,7 +1218,7 @@ void reclassify_integrals(std::shared_ptr<StringData> in) {
 }
 
 // find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a
-void use_conventional_labels(std::shared_ptr<StringData> in) {
+void use_conventional_labels(std::shared_ptr<pq_string> in) {
 
     // occupied first:
     std::vector<std::string> occ_in{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
@@ -1268,7 +1268,7 @@ void use_conventional_labels(std::shared_ptr<StringData> in) {
 }
 
 /// apply delta functions to amplitude and integral labels
-void gobble_deltas(std::shared_ptr<StringData> in) {
+void gobble_deltas(std::shared_ptr<pq_string> in) {
     
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
@@ -1381,7 +1381,7 @@ void gobble_deltas(std::shared_ptr<StringData> in) {
 }
 
 // add spin labels to a string
-bool add_spins(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<StringData> > &list) {
+bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list) {
 
     if ( in->skip ) return true;
 
@@ -1394,8 +1394,8 @@ bool add_spins(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<Strin
             for (size_t k = 0; k < in->amps[type][j].labels.size(); k++) {
                 if ( in->amps[type][j].spin_labels[k] == "" ) {
 
-                    std::shared_ptr<StringData> sa (new StringData(in->vacuum));
-                    std::shared_ptr<StringData> sb (new StringData(in->vacuum));
+                    std::shared_ptr<pq_string> sa (new pq_string(in->vacuum));
+                    std::shared_ptr<pq_string> sb (new pq_string(in->vacuum));
 
                     sa->copy(in.get());
                     sb->copy(in.get());
@@ -1422,8 +1422,8 @@ bool add_spins(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<Strin
             for (size_t k = 0; k < in->ints[type][j].labels.size(); k++) {
                 if ( in->ints[type][j].spin_labels[k] == "" ) {
 
-                    std::shared_ptr<StringData> sa (new StringData(in->vacuum));
-                    std::shared_ptr<StringData> sb (new StringData(in->vacuum));
+                    std::shared_ptr<pq_string> sa (new pq_string(in->vacuum));
+                    std::shared_ptr<pq_string> sb (new pq_string(in->vacuum));
 
                     sa->copy(in.get());
                     sb->copy(in.get());
@@ -1449,7 +1449,7 @@ bool add_spins(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<Strin
 }
 
 // expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<StringData> > &spin_blocked, std::map<std::string, std::string> spin_map) {
+void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map) {
 
     // check that non-summed spin labels match those specified
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
@@ -1503,13 +1503,13 @@ void spin_blocking(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<S
 
     // copy this term and zero spins
 
-    std::shared_ptr<StringData> newguy (new StringData(in->vacuum));
+    std::shared_ptr<pq_string> newguy (new pq_string(in->vacuum));
     newguy->copy(in.get());
 
     newguy->reset_spin_labels();
 
     // list of expanded sums
-    std::vector< std::shared_ptr<StringData> > tmp;
+    std::vector< std::shared_ptr<pq_string> > tmp;
     tmp.push_back(newguy);
 
     for (size_t i = 0; i < tmp.size(); i++) {
@@ -1534,11 +1534,11 @@ void spin_blocking(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<S
             if ( spin1 != spin2 ) {
 
                 // first guy is just a copy
-                std::shared_ptr<StringData> newguy1 (new StringData(in->vacuum));
+                std::shared_ptr<pq_string> newguy1 (new pq_string(in->vacuum));
                 newguy1->copy((void*)tmp[i].get());
 
                 // second guy is a copy with permuted labels and change in sign
-                std::shared_ptr<StringData> newguy2 (new StringData(in->vacuum));
+                std::shared_ptr<pq_string> newguy2 (new pq_string(in->vacuum));
                 newguy2->copy((void*)tmp[i].get());
                 swap_two_labels(newguy2, idx1, idx2);
                 newguy2->sign *= -1;
@@ -1576,7 +1576,7 @@ void spin_blocking(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<S
 
     bool done_adding_spins = false;
     do {
-        std::vector< std::shared_ptr<StringData> > list;
+        std::vector< std::shared_ptr<pq_string> > list;
         done_adding_spins = true;
         for (size_t i = 0; i < tmp.size(); i++) {
             bool am_i_done = add_spins(tmp[i], list);

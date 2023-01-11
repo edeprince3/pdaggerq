@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: data.h
+// Filename: pq_string.h
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -20,25 +20,25 @@
 //  limitations under the License./>.
 //
 
-#ifndef DATA_H
-#define DATA_H
+#ifndef PQ_STRING_H
+#define PQ_STRING_H
 
 #include "pq_tensor.h"
 #include <map>
 
 namespace pdaggerq {
 
-class StringData {
+class pq_string {
 
   private:
 
   public:
 
     /// constructor
-    StringData(std::string vacuum_type);
+    pq_string(std::string vacuum_type);
 
     /// descructor
-    ~StringData();
+    ~pq_string();
 
     // vacuum type ("TRUE", "FERMI")
     std::string vacuum;

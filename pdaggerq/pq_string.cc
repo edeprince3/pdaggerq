@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: pq_helper.cc
+// Filename: pq_string.cc
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -21,7 +21,7 @@
 //  limitations under the License.
 //
 
-#include "data.h"
+#include "pq_string.h"
 #include "pq_tensor.h"
 
 #include<memory>
@@ -44,17 +44,17 @@ template <typename T> std::string to_string_with_precision(const T a_value, cons
 }
 
 // constructor
-StringData::StringData(std::string vacuum_type){
+pq_string::pq_string(std::string vacuum_type){
 
     vacuum = vacuum_type;
 }
 
 // descructor
-StringData::~StringData(){
+pq_string::~pq_string(){
 }
 
 // sort amplitude, integral, and delta function labels
-void StringData::sort_labels() {
+void pq_string::sort_labels() {
 
     for (size_t i = 0; i < integral_types.size(); i++) {
         std::string type = integral_types[i];
@@ -74,7 +74,7 @@ void StringData::sort_labels() {
 }
 
 // is fermion part of string in normal order?
-bool StringData::is_normal_order() {
+bool pq_string::is_normal_order() {
 
     // don't bother bringing to normal order if we're going to skip this string
     if (skip) return true;
@@ -110,7 +110,7 @@ bool StringData::is_normal_order() {
 }
 
 // is boson part of string in normal order?
-bool StringData::is_boson_normal_order() {
+bool pq_string::is_boson_normal_order() {
 
     if ( is_boson_dagger.size() == 1 ) {
         bool is_dagger_right = is_boson_dagger[0];
@@ -138,7 +138,7 @@ bool StringData::is_boson_normal_order() {
 }
 
 // print string information
-void StringData::print() {
+void pq_string::print() {
 
     if ( skip ) return;
 
@@ -218,7 +218,7 @@ void StringData::print() {
 }
 
 // return string information (with spin)
-std::vector<std::string> StringData::get_string_with_spin() {
+std::vector<std::string> pq_string::get_string_with_spin() {
     
     std::vector<std::string> my_string;
         
@@ -301,7 +301,7 @@ std::vector<std::string> StringData::get_string_with_spin() {
 }
 
 // return string information
-std::vector<std::string> StringData::get_string() {
+std::vector<std::string> pq_string::get_string() {
 
     std::vector<std::string> my_string;
 
@@ -387,9 +387,9 @@ std::vector<std::string> StringData::get_string() {
 
 // TODO: should probably make sure all of the std::vectors
 //       (ints, amplitudes, deltas) have been cleared.
-void StringData::shallow_copy(void * copy_me) {
+void pq_string::shallow_copy(void * copy_me) {
 
-    StringData * in = reinterpret_cast<StringData * >(copy_me);
+    pq_string * in = reinterpret_cast<pq_string * >(copy_me);
 
     // skip string?
     skip   = in->skip;
@@ -429,11 +429,11 @@ void StringData::shallow_copy(void * copy_me) {
 }
 
 // copy all data, including symbols and daggers
-void StringData::copy(void * copy_me) {
+void pq_string::copy(void * copy_me) {
 
     shallow_copy(copy_me);
 
-    StringData * in = reinterpret_cast<StringData * >(copy_me);
+    pq_string * in = reinterpret_cast<pq_string * >(copy_me);
 
     // operators
     for (size_t j = 0; j < in->symbol.size(); j++) {
@@ -459,7 +459,7 @@ void StringData::copy(void * copy_me) {
     }
 }
 
-void StringData::set_spin_everywhere(std::string target, std::string spin) {
+void pq_string::set_spin_everywhere(std::string target, std::string spin) {
 
     // integrals
     for (size_t i = 0; i < integral_types.size(); i++) {
@@ -494,7 +494,7 @@ void StringData::set_spin_everywhere(std::string target, std::string spin) {
 }
 
 // reset spin labels
-void StringData::reset_spin_labels() {
+void pq_string::reset_spin_labels() {
 
     // amplitudes
     for (size_t i = 0; i < amplitude_types.size(); i++) {

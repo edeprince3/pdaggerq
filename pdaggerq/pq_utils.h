@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: pq_helper.cc
+// Filename: pq_utils.h
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -34,7 +34,7 @@
 #include<sstream>
 
 #include "pq_tensor.h"
-#include "data.h"
+#include "pq_string.h"
 
 namespace pdaggerq {
 
@@ -54,7 +54,7 @@ int index_in_integrals(std::string idx, std::vector<integrals> ints);
 int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
 
 /// how many times does an index appear amplitudes, deltas, and integrals?
-int index_in_anywhere(std::shared_ptr<StringData> in, std::string idx);
+int index_in_anywhere(std::shared_ptr<pq_string> in, std::string idx);
 
 /// replace one label with another (in delta functions)
 void replace_index_in_deltas(std::string old_idx, std::string new_idx, std::vector<delta_functions> &deltas);
@@ -66,13 +66,13 @@ void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::v
 void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps);
 
 /// replace one label with another (in integrals and amplitudes)
-void replace_index_everywhere(std::shared_ptr<StringData> in, std::string old_idx, std::string new_idx);
+void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx, std::string new_idx);
 
 /// swap two labels
-void swap_two_labels(std::shared_ptr<StringData> in, std::string label1, std::string label2);
+void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::string label2);
 
 /// compare two strings
-bool compare_strings(std::shared_ptr<StringData> ordered_1, std::shared_ptr<StringData> ordered_2, int & n_permute);
+bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_string> ordered_2, int & n_permute);
 
 /// compare two lists of amplitudes
 bool compare_amplitudes( std::vector<amplitudes> amps1,
@@ -85,26 +85,26 @@ bool compare_integrals( std::vector<integrals> ints1,
                         int & n_permute );
 
 /// consolidate terms that differ by permutations
-void consolidate_permutations(std::vector<std::shared_ptr<StringData> > &ordered);
+void consolidate_permutations(std::vector<std::shared_ptr<pq_string> > &ordered);
 
 /// consolidate terms that differ by summed labels plus permutations
-void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<StringData> > &ordered,
+void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> > &ordered,
                                         std::vector<std::string> labels);
 
 /// consolidate terms that differ by two summed labels plus permutations
 void consolidate_permutations_plus_two_swaps(
-    std::vector<std::shared_ptr<StringData> > &ordered,
+    std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2);
 
 /// alphabetize operators to simplify string comparisons (for true vacuum only)
-void alphabetize(std::vector<std::shared_ptr<StringData> > &ordered);
+void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 
 /// cancel terms where appropriate
-void cleanup(std::vector<std::shared_ptr<StringData> > &ordered);
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered);
 
 /// reorder t amplitudes as t1, t2, t3, t4
-void reorder_t_amplitudes(std::shared_ptr<StringData> in);
+void reorder_t_amplitudes(std::shared_ptr<pq_string> in);
 
 /// reorder three spin labels as aab or abb
 void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
@@ -113,19 +113,19 @@ void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
 void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign);
 
 /// re-classify fluctuation potential terms
-void reclassify_integrals(std::shared_ptr<StringData> in);
+void reclassify_integrals(std::shared_ptr<pq_string> in);
 
 /// apply delta functions to amplitude and integral labels
-void gobble_deltas(std::shared_ptr<StringData> in);
+void gobble_deltas(std::shared_ptr<pq_string> in);
 
 /// replace internal labels with conventional ones (o1 -> i, etc.)
-void use_conventional_labels(std::shared_ptr<StringData> in);
+void use_conventional_labels(std::shared_ptr<pq_string> in);
 
 /// add spin labels to a string
-bool add_spins(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<StringData> > &list);
+bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list);
 
 /// expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<StringData> > &spin_blocked, std::map<std::string, std::string> spin_map);
+void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);

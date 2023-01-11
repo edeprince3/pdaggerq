@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: pq_helper.cc
+// Filename: pq_swap_operators.h
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -27,13 +27,13 @@
 #include<string>
 #include<vector>
 
-#include "data.h"
+#include "pq_string.h"
 
 namespace pdaggerq {
 
-bool swap_operators_fermi_vacuum(std::shared_ptr<StringData>, std::vector<std::shared_ptr<StringData> > &ordered);
+bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string>, std::vector<std::shared_ptr<pq_string> > &ordered);
 
-bool swap_operators_true_vacuum(std::shared_ptr<StringData>, std::vector<std::shared_ptr<StringData> > &ordered);
+bool swap_operators_true_vacuum(std::shared_ptr<pq_string>, std::vector<std::shared_ptr<pq_string> > &ordered);
 
 }
 
