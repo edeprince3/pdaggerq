@@ -24,7 +24,6 @@
 #ifndef PQ_HELPER_H
 #define PQ_HELPER_H
 
-#include "pq.h"
 #include "data.h"
 
 namespace pdaggerq {
@@ -108,11 +107,8 @@ class pq_helper {
 
   private:
 
-    /// list of strings of operators
-    std::vector< std::shared_ptr<pq> > ordered;
-
-    /// strings, amplitudes, integrals, etc.
-    std::shared_ptr<StringData> data;
+    /// list of strings of operators/amplitudes/integrals/deltas
+    std::vector< std::shared_ptr<StringData> > ordered;
 
     /// vacuum (fermi or true)
     std::string vacuum;
@@ -135,23 +131,17 @@ class pq_helper {
     /// do operators entering a similarity transformation commute?
     bool cluster_operators_commute;
 
-    /// set a numerical factor
-    void set_factor(double in);
-
-    /// set a string of creation / annihilation operators
-    void set_string(std::vector<std::string> in);
-
     /// set labels for integrals
-    void set_integrals(std::string type, std::vector<std::string> in);
+    void set_integrals(std::shared_ptr<StringData> data, std::string type, std::vector<std::string> in);
 
     /// set labels for amplitudes
-    void set_amplitudes(char type, int order, std::vector<std::string> in);
+    void set_amplitudes(std::shared_ptr<StringData> data, char type, int order, std::vector<std::string> in);
 
     /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the true vacuum
-    void add_new_string_true_vacuum();
+    void add_new_string_true_vacuum(std::shared_ptr<StringData> newguy);
 
     /// add new completed string / integrals / amplitudes / factor (assuming normal order is definied relative to the fermi vacuum
-    void add_new_string_fermi_vacuum();
+    void add_new_string_fermi_vacuum(std::shared_ptr<StringData> newguy);
 
 };
 

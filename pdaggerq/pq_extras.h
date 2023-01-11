@@ -34,20 +34,20 @@
 #include<sstream>
 
 #include "tensor.h"
-#include "pq.h"
+#include "data.h"
 
 namespace pdaggerq {
 
 /// consolidate terms that differ by three summed labels plus permutations
 void consolidate_permutations_plus_three_swaps(
-    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::shared_ptr<StringData> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2,
     std::vector<std::string> labels_3);
 
 /// consolidate terms that differ by four summed labels plus permutations
 void consolidate_permutations_plus_four_swaps(
-    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::shared_ptr<StringData> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2,
     std::vector<std::string> labels_3,
@@ -55,7 +55,7 @@ void consolidate_permutations_plus_four_swaps(
 
 /// consolidate terms that differ by five summed labels plus permutations
 void consolidate_permutations_plus_five_swaps(
-    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::shared_ptr<StringData> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2,
     std::vector<std::string> labels_3,
@@ -64,7 +64,7 @@ void consolidate_permutations_plus_five_swaps(
 
 /// consolidate terms that differ by six summed labels plus permutations
 void consolidate_permutations_plus_six_swaps(
-    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::shared_ptr<StringData> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2,
     std::vector<std::string> labels_3,
@@ -74,7 +74,7 @@ void consolidate_permutations_plus_six_swaps(
 
 /// consolidate terms that differ by seven summed labels plus permutations
 void consolidate_permutations_plus_seven_swaps(
-    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::shared_ptr<StringData> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2,
     std::vector<std::string> labels_3,
@@ -85,7 +85,7 @@ void consolidate_permutations_plus_seven_swaps(
 
 /// consolidate terms that differ by eight summed labels plus permutations
 void consolidate_permutations_plus_eight_swaps(
-    std::vector<std::shared_ptr<pq> > &ordered,
+    std::vector<std::shared_ptr<StringData> > &ordered,
     std::vector<std::string> labels_1,
     std::vector<std::string> labels_2,
     std::vector<std::string> labels_3,

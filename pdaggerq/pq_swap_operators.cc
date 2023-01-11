@@ -24,20 +24,19 @@
 #include "tensor.h"
 #include "data.h"
 #include "pq_utils.h"
-#include "pq.h"
 
 namespace pdaggerq {
 
-bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_ptr<pq> > &ordered) {
+bool swap_operators_fermi_vacuum(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<StringData> > &ordered) {
 
-    if ( in->data->skip ) return true;
+    if ( in->skip ) return true;
 
-    if ( in->data->is_normal_order() ) {
+    if ( in->is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<pq> newguy (new pq(in->data->vacuum));
+        std::shared_ptr<StringData> newguy (new StringData(in->vacuum));
 
-        newguy->data->copy(in.get());
+        newguy->copy(in.get());
 
         ordered.push_back(newguy);
 
@@ -45,25 +44,25 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
     }
 
     // new strings
-    std::shared_ptr<pq> s1 ( new pq(in->data->vacuum) );
-    std::shared_ptr<pq> s2 ( new pq(in->data->vacuum) );
+    std::shared_ptr<StringData> s1 ( new StringData(in->vacuum) );
+    std::shared_ptr<StringData> s2 ( new StringData(in->vacuum) );
 
     // copy data common to both new strings
-    s1->data->shallow_copy(in.get());
-    s2->data->shallow_copy(in.get());
+    s1->shallow_copy(in.get());
+    s2->shallow_copy(in.get());
 
     // rearrange operators
 
     int n_new_strings = 1;
-    for (int i = 0; i < (int)in->data->symbol.size()-1; i++) {
+    for (int i = 0; i < (int)in->symbol.size()-1; i++) {
 
-        bool swap = ( !in->data->is_dagger_fermi[i] && in->data->is_dagger_fermi[i+1] );
+        bool swap = ( !in->is_dagger_fermi[i] && in->is_dagger_fermi[i+1] );
 
         // four cases: **, --, *-, -*
         // **, --: change sign, swap labels
         // *-, -*: standard swap
 
-        bool daggers_differ = ( in->data->is_dagger[i] != in->data->is_dagger[i+1] );
+        bool daggers_differ = ( in->is_dagger[i] != in->is_dagger[i+1] );
 
         if ( swap && daggers_differ ) {
 
@@ -73,29 +72,29 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             // delta function
             std::vector<std::string> labels;
             delta_functions deltas;
-            deltas.labels.push_back(in->data->symbol[i]);
-            deltas.labels.push_back(in->data->symbol[i+1]);
+            deltas.labels.push_back(in->symbol[i]);
+            deltas.labels.push_back(in->symbol[i+1]);
             deltas.sort();
-            s1->data->deltas.push_back(deltas);
+            s1->deltas.push_back(deltas);
 
-            s2->data->sign = -s2->data->sign;
-            s2->data->symbol.push_back(in->data->symbol[i+1]);
-            s2->data->symbol.push_back(in->data->symbol[i]);
-            s2->data->is_dagger.push_back(in->data->is_dagger[i+1]);
-            s2->data->is_dagger.push_back(in->data->is_dagger[i]);
-            s2->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i+1]);
-            s2->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i]);
+            s2->sign = -s2->sign;
+            s2->symbol.push_back(in->symbol[i+1]);
+            s2->symbol.push_back(in->symbol[i]);
+            s2->is_dagger.push_back(in->is_dagger[i+1]);
+            s2->is_dagger.push_back(in->is_dagger[i]);
+            s2->is_dagger_fermi.push_back(in->is_dagger_fermi[i+1]);
+            s2->is_dagger_fermi.push_back(in->is_dagger_fermi[i]);
 
-            for (size_t j = i+2; j < in->data->symbol.size(); j++) {
+            for (size_t j = i+2; j < in->symbol.size(); j++) {
 
-                s1->data->symbol.push_back(in->data->symbol[j]);
-                s2->data->symbol.push_back(in->data->symbol[j]);
+                s1->symbol.push_back(in->symbol[j]);
+                s2->symbol.push_back(in->symbol[j]);
 
-                s1->data->is_dagger.push_back(in->data->is_dagger[j]);
-                s2->data->is_dagger.push_back(in->data->is_dagger[j]);
+                s1->is_dagger.push_back(in->is_dagger[j]);
+                s2->is_dagger.push_back(in->is_dagger[j]);
 
-                s1->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[j]);
-                s2->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[j]);
+                s1->is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
+                s2->is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
 
             }
             break;
@@ -105,35 +104,35 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
             // we're only going to have one new string, with a different sign
             n_new_strings = 1;
 
-            s1->data->sign = -s1->data->sign;
-            s1->data->symbol.push_back(in->data->symbol[i+1]);
-            s1->data->symbol.push_back(in->data->symbol[i]);
-            s1->data->is_dagger.push_back(in->data->is_dagger[i+1]);
-            s1->data->is_dagger.push_back(in->data->is_dagger[i]);
-            s1->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i+1]);
-            s1->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i]);
+            s1->sign = -s1->sign;
+            s1->symbol.push_back(in->symbol[i+1]);
+            s1->symbol.push_back(in->symbol[i]);
+            s1->is_dagger.push_back(in->is_dagger[i+1]);
+            s1->is_dagger.push_back(in->is_dagger[i]);
+            s1->is_dagger_fermi.push_back(in->is_dagger_fermi[i+1]);
+            s1->is_dagger_fermi.push_back(in->is_dagger_fermi[i]);
 
-            for (size_t j = i+2; j < in->data->symbol.size(); j++) {
+            for (size_t j = i+2; j < in->symbol.size(); j++) {
 
-                s1->data->symbol.push_back(in->data->symbol[j]);
+                s1->symbol.push_back(in->symbol[j]);
 
-                s1->data->is_dagger.push_back(in->data->is_dagger[j]);
+                s1->is_dagger.push_back(in->is_dagger[j]);
 
-                s1->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[j]);
+                s1->is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
 
             }
             break;
 
         }else {
 
-            s1->data->symbol.push_back(in->data->symbol[i]);
-            s2->data->symbol.push_back(in->data->symbol[i]);
+            s1->symbol.push_back(in->symbol[i]);
+            s2->symbol.push_back(in->symbol[i]);
 
-            s1->data->is_dagger.push_back(in->data->is_dagger[i]);
-            s2->data->is_dagger.push_back(in->data->is_dagger[i]);
+            s1->is_dagger.push_back(in->is_dagger[i]);
+            s2->is_dagger.push_back(in->is_dagger[i]);
 
-            s1->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i]);
-            s2->data->is_dagger_fermi.push_back(in->data->is_dagger_fermi[i]);
+            s1->is_dagger_fermi.push_back(in->is_dagger_fermi[i]);
+            s2->is_dagger_fermi.push_back(in->is_dagger_fermi[i]);
 
         }
     }
@@ -143,11 +142,11 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
 
     if ( n_new_strings == 1 ) {
 
-        if ( in->data->is_boson_normal_order() ) {
-            if ( !in->data->skip ) {
+        if ( in->is_boson_normal_order() ) {
+            if ( !in->skip ) {
                 // copy boson daggers
-                for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
-                    s1->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
+                    s1->is_boson_dagger.push_back(in->is_boson_dagger[i]);
                 }
                 ordered.push_back(s1);
                 return false;
@@ -155,41 +154,41 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
         }else {
 
             // new strings
-            std::shared_ptr<pq> s1a ( new pq(in->data->vacuum) );
-            std::shared_ptr<pq> s1b ( new pq(in->data->vacuum) );
+            std::shared_ptr<StringData> s1a ( new StringData(in->vacuum) );
+            std::shared_ptr<StringData> s1b ( new StringData(in->vacuum) );
 
             // copy data common to both new strings
-            s1a->data->copy((void*)s1.get());
-            s1b->data->copy((void*)s1.get());
+            s1a->copy((void*)s1.get());
+            s1b->copy((void*)s1.get());
 
             // ensure boson daggers are clear (they should be anyway)
-            s1a->data->is_boson_dagger.clear();
-            s1b->data->is_boson_dagger.clear();
+            s1a->is_boson_dagger.clear();
+            s1b->is_boson_dagger.clear();
 
-            for (int i = 0; i < (int)in->data->is_boson_dagger.size()-1; i++) {
+            for (int i = 0; i < (int)in->is_boson_dagger.size()-1; i++) {
 
                 // swap operators?
-                bool swap = ( !in->data->is_boson_dagger[i] && in->data->is_boson_dagger[i+1] );
+                bool swap = ( !in->is_boson_dagger[i] && in->is_boson_dagger[i+1] );
 
                 if ( swap ) {
 
                     // nothing happens to s1a. add swapped operators to s1b
-                    s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i+1]);
-                    s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                    s1b->is_boson_dagger.push_back(in->is_boson_dagger[i+1]);
+                    s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
                     // push remaining operators onto s1a and s1b
-                    for (size_t j = i+2; j < in->data->is_boson_dagger.size(); j++) {
+                    for (size_t j = i+2; j < in->is_boson_dagger.size(); j++) {
 
-                        s1a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
-                        s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
+                        s1a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
+                        s1b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
 
                     }
                     break;
 
                 }else {
 
-                    s1a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
-                    s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                    s1a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
+                    s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
                 }
             }
@@ -200,12 +199,12 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
 
     }else if ( n_new_strings == 2 ) {
 
-        if ( in->data->is_boson_normal_order() ) {
-            if ( !in->data->skip ) {
+        if ( in->is_boson_normal_order() ) {
+            if ( !in->skip ) {
                 // copy boson daggers
-                for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
-                    s1->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
-                    s2->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
+                    s1->is_boson_dagger.push_back(in->is_boson_dagger[i]);
+                    s2->is_boson_dagger.push_back(in->is_boson_dagger[i]);
                 }
                 ordered.push_back(s1);
                 ordered.push_back(s2);
@@ -214,79 +213,79 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
         }else {
 
             // new strings
-            std::shared_ptr<pq> s1a ( new pq(in->data->vacuum) );
-            std::shared_ptr<pq> s1b ( new pq(in->data->vacuum) );
-            std::shared_ptr<pq> s2a ( new pq(in->data->vacuum) );
-            std::shared_ptr<pq> s2b ( new pq(in->data->vacuum) );
+            std::shared_ptr<StringData> s1a ( new StringData(in->vacuum) );
+            std::shared_ptr<StringData> s1b ( new StringData(in->vacuum) );
+            std::shared_ptr<StringData> s2a ( new StringData(in->vacuum) );
+            std::shared_ptr<StringData> s2b ( new StringData(in->vacuum) );
 
             // copy data common to new strings
-            s1a->data->copy((void*)s1.get());
-            s1b->data->copy((void*)s1.get());
+            s1a->copy((void*)s1.get());
+            s1b->copy((void*)s1.get());
 
             // ensure boson daggers are clear (they should be anyway)
-            s1a->data->is_boson_dagger.clear();
-            s1b->data->is_boson_dagger.clear();
+            s1a->is_boson_dagger.clear();
+            s1b->is_boson_dagger.clear();
 
-            for (int i = 0; i < (int)in->data->is_boson_dagger.size()-1; i++) {
+            for (int i = 0; i < (int)in->is_boson_dagger.size()-1; i++) {
 
                 // swap operators?
-                bool swap = ( !in->data->is_boson_dagger[i] && in->data->is_boson_dagger[i+1] );
+                bool swap = ( !in->is_boson_dagger[i] && in->is_boson_dagger[i+1] );
 
                 if ( swap ) {
 
                     // nothing happens to s1a. add swapped operators to s1b
-                    s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i+1]);
-                    s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                    s1b->is_boson_dagger.push_back(in->is_boson_dagger[i+1]);
+                    s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
                     // push remaining operators onto s1a and s1b
-                    for (size_t j = i+2; j < in->data->is_boson_dagger.size(); j++) {
+                    for (size_t j = i+2; j < in->is_boson_dagger.size(); j++) {
 
-                        s1a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
-                        s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
+                        s1a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
+                        s1b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
 
                     }
                     break;
 
                 }else {
 
-                    s1a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
-                    s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                    s1a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
+                    s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
                 }
             }
 
             // copy data common to new strings
-            s2a->data->copy((void*)s2.get());
-            s2b->data->copy((void*)s2.get());
+            s2a->copy((void*)s2.get());
+            s2b->copy((void*)s2.get());
 
             // ensure boson daggers are clear (they should be anyway)
-            s2a->data->is_boson_dagger.clear();
-            s2b->data->is_boson_dagger.clear();
+            s2a->is_boson_dagger.clear();
+            s2b->is_boson_dagger.clear();
 
-            for (int i = 0; i < in->data->is_boson_dagger.size()-1; i++) {
+            for (int i = 0; i < in->is_boson_dagger.size()-1; i++) {
 
                 // swap operators?
-                bool swap = ( !in->data->is_boson_dagger[i] && in->data->is_boson_dagger[i+1] );
+                bool swap = ( !in->is_boson_dagger[i] && in->is_boson_dagger[i+1] );
 
                 if ( swap ) {
 
                     // nothing happens to s2a. add swapped operators to s2b
-                    s2b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i+1]);
-                    s2b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                    s2b->is_boson_dagger.push_back(in->is_boson_dagger[i+1]);
+                    s2b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
                     // push remaining operators onto s2a and s2b
-                    for (size_t j = i+2; j < in->data->is_boson_dagger.size(); j++) {
+                    for (size_t j = i+2; j < in->is_boson_dagger.size(); j++) {
 
-                        s2a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
-                        s2b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
+                        s2a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
+                        s2b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
 
                     }
                     break;
 
                 }else {
 
-                    s2a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
-                    s2b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                    s2a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
+                    s2b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
                 }
             }
@@ -303,16 +302,16 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq> in, std::vector<std::shared
     return false;
 }
 
-bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_ptr<pq> > &ordered) {
+bool swap_operators_true_vacuum(std::shared_ptr<StringData> in, std::vector<std::shared_ptr<StringData> > &ordered) {
 
-    if ( in->data->skip ) return true;
+    if ( in->skip ) return true;
 
-    if ( in->data->is_normal_order() ) {
+    if ( in->is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<pq> newguy (new pq(in->data->vacuum));
+        std::shared_ptr<StringData> newguy (new StringData(in->vacuum));
 
-        newguy->data->copy(in.get());
+        newguy->copy(in.get());
 
         ordered.push_back(newguy);
 
@@ -320,51 +319,51 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
     }
 
     // new strings
-    std::shared_ptr<pq> s1 ( new pq(in->data->vacuum) );
-    std::shared_ptr<pq> s2 ( new pq(in->data->vacuum) );
+    std::shared_ptr<StringData> s1 ( new StringData(in->vacuum) );
+    std::shared_ptr<StringData> s2 ( new StringData(in->vacuum) );
 
     // copy data common to both new strings
-    s1->data->shallow_copy(in.get());
-    s2->data->shallow_copy(in.get());
+    s1->shallow_copy(in.get());
+    s2->shallow_copy(in.get());
 
     // rearrange operators
-    for (int i = 0; i < (int)in->data->symbol.size()-1; i++) {
+    for (int i = 0; i < (int)in->symbol.size()-1; i++) {
 
-        bool swap = ( !in->data->is_dagger[i] && in->data->is_dagger[i+1] );
+        bool swap = ( !in->is_dagger[i] && in->is_dagger[i+1] );
 
         if ( swap ) {
 
             std::vector<std::string> labels;
             delta_functions deltas;
-            deltas.labels.push_back(in->data->symbol[i]);
-            deltas.labels.push_back(in->data->symbol[i+1]);
+            deltas.labels.push_back(in->symbol[i]);
+            deltas.labels.push_back(in->symbol[i+1]);
             deltas.sort();
-            s1->data->deltas.push_back(deltas);
+            s1->deltas.push_back(deltas);
 
-            s2->data->sign = -s2->data->sign;
-            s2->data->symbol.push_back(in->data->symbol[i+1]);
-            s2->data->symbol.push_back(in->data->symbol[i]);
-            s2->data->is_dagger.push_back(in->data->is_dagger[i+1]);
-            s2->data->is_dagger.push_back(in->data->is_dagger[i]);
+            s2->sign = -s2->sign;
+            s2->symbol.push_back(in->symbol[i+1]);
+            s2->symbol.push_back(in->symbol[i]);
+            s2->is_dagger.push_back(in->is_dagger[i+1]);
+            s2->is_dagger.push_back(in->is_dagger[i]);
 
-            for (size_t j = i+2; j < in->data->symbol.size(); j++) {
+            for (size_t j = i+2; j < in->symbol.size(); j++) {
 
-                s1->data->symbol.push_back(in->data->symbol[j]);
-                s2->data->symbol.push_back(in->data->symbol[j]);
+                s1->symbol.push_back(in->symbol[j]);
+                s2->symbol.push_back(in->symbol[j]);
 
-                s1->data->is_dagger.push_back(in->data->is_dagger[j]);
-                s2->data->is_dagger.push_back(in->data->is_dagger[j]);
+                s1->is_dagger.push_back(in->is_dagger[j]);
+                s2->is_dagger.push_back(in->is_dagger[j]);
 
             }
             break;
 
         }else {
 
-            s1->data->symbol.push_back(in->data->symbol[i]);
-            s2->data->symbol.push_back(in->data->symbol[i]);
+            s1->symbol.push_back(in->symbol[i]);
+            s2->symbol.push_back(in->symbol[i]);
 
-            s1->data->is_dagger.push_back(in->data->is_dagger[i]);
-            s2->data->is_dagger.push_back(in->data->is_dagger[i]);
+            s1->is_dagger.push_back(in->is_dagger[i]);
+            s2->is_dagger.push_back(in->is_dagger[i]);
 
         }
     }
@@ -372,12 +371,12 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
     // now, s1 and s2 are closer to normal order in the fermion space
     // we should more toward normal order in the boson space, too
 
-    if ( in->data->is_boson_normal_order() ) {
+    if ( in->is_boson_normal_order() ) {
 
         // copy boson daggers 
-        for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
-            s1->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
-            s2->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+        for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
+            s1->is_boson_dagger.push_back(in->is_boson_dagger[i]);
+            s2->is_boson_dagger.push_back(in->is_boson_dagger[i]);
         }
         ordered.push_back(s1);
         ordered.push_back(s2);
@@ -386,79 +385,79 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq> in, std::vector<std::shared_
     }else {
 
         // new strings
-        std::shared_ptr<pq> s1a ( new pq(in->data->vacuum) );
-        std::shared_ptr<pq> s1b ( new pq(in->data->vacuum) );
-        std::shared_ptr<pq> s2a ( new pq(in->data->vacuum) );
-        std::shared_ptr<pq> s2b ( new pq(in->data->vacuum) );
+        std::shared_ptr<StringData> s1a ( new StringData(in->vacuum) );
+        std::shared_ptr<StringData> s1b ( new StringData(in->vacuum) );
+        std::shared_ptr<StringData> s2a ( new StringData(in->vacuum) );
+        std::shared_ptr<StringData> s2b ( new StringData(in->vacuum) );
 
         // copy data common to new strings
-        s1a->data->copy((void*)s1.get());
-        s1b->data->copy((void*)s1.get());
+        s1a->copy((void*)s1.get());
+        s1b->copy((void*)s1.get());
 
         // ensure boson daggers are clear (they should be anyway)
-        s1a->data->is_boson_dagger.clear();
-        s1b->data->is_boson_dagger.clear();
+        s1a->is_boson_dagger.clear();
+        s1b->is_boson_dagger.clear();
 
-        for (int i = 0; i < (int)in->data->is_boson_dagger.size()-1; i++) {
+        for (int i = 0; i < (int)in->is_boson_dagger.size()-1; i++) {
 
             // swap operators?
-            bool swap = ( !in->data->is_boson_dagger[i] && in->data->is_boson_dagger[i+1] );
+            bool swap = ( !in->is_boson_dagger[i] && in->is_boson_dagger[i+1] );
 
             if ( swap ) {
 
                 // nothing happens to s1a. add swapped operators to s1b
-                s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i+1]);
-                s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                s1b->is_boson_dagger.push_back(in->is_boson_dagger[i+1]);
+                s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
                 // push remaining operators onto s1a and s1b
-                for (size_t j = i+2; j < in->data->is_boson_dagger.size(); j++) {
+                for (size_t j = i+2; j < in->is_boson_dagger.size(); j++) {
 
-                    s1a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
-                    s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
+                    s1a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
+                    s1b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
 
                 }
                 break;
 
             }else {
 
-                s1a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
-                s1b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                s1a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
+                s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
             }
         }
 
         // copy data common to new strings
-        s2a->data->copy((void*)s2.get());
-        s2b->data->copy((void*)s2.get());
+        s2a->copy((void*)s2.get());
+        s2b->copy((void*)s2.get());
 
         // ensure boson daggers are clear (they should be anyway)
-        s2a->data->is_boson_dagger.clear();
-        s2b->data->is_boson_dagger.clear();
+        s2a->is_boson_dagger.clear();
+        s2b->is_boson_dagger.clear();
 
-        for (int i = 0; i < (int)in->data->is_boson_dagger.size()-1; i++) {
+        for (int i = 0; i < (int)in->is_boson_dagger.size()-1; i++) {
 
             // swap operators?
-            bool swap = ( !in->data->is_boson_dagger[i] && in->data->is_boson_dagger[i+1] );
+            bool swap = ( !in->is_boson_dagger[i] && in->is_boson_dagger[i+1] );
 
             if ( swap ) {
 
                 // nothing happens to s2a. add swapped operators to s2b
-                s2b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i+1]);
-                s2b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                s2b->is_boson_dagger.push_back(in->is_boson_dagger[i+1]);
+                s2b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
                 // push remaining operators onto s2a and s2b
-                for (size_t j = i+2; j < in->data->is_boson_dagger.size(); j++) {
+                for (size_t j = i+2; j < in->is_boson_dagger.size(); j++) {
 
-                    s2a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
-                    s2b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[j]);
+                    s2a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
+                    s2b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
 
                 }
                 break;
 
             }else {
 
-                s2a->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
-                s2b->data->is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+                s2a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
+                s2b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
 
             }
         }

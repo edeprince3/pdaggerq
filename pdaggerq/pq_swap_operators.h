@@ -27,13 +27,13 @@
 #include<string>
 #include<vector>
 
-#include "pq.h"
+#include "data.h"
 
 namespace pdaggerq {
 
-bool swap_operators_fermi_vacuum(std::shared_ptr<pq>, std::vector<std::shared_ptr<pq> > &ordered);
+bool swap_operators_fermi_vacuum(std::shared_ptr<StringData>, std::vector<std::shared_ptr<StringData> > &ordered);
 
-bool swap_operators_true_vacuum(std::shared_ptr<pq>, std::vector<std::shared_ptr<pq> > &ordered);
+bool swap_operators_true_vacuum(std::shared_ptr<StringData>, std::vector<std::shared_ptr<StringData> > &ordered);
 
 }
 

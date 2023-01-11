@@ -23,7 +23,6 @@
 
 #include "data.h"
 #include "tensor.h"
-#include "pq.h"
 
 #include<memory>
 #include<vector>
@@ -390,43 +389,43 @@ std::vector<std::string> StringData::get_string() {
 //       (ints, amplitudes, deltas) have been cleared.
 void StringData::shallow_copy(void * copy_me) {
 
-    pq * in = reinterpret_cast<pq * >(copy_me);
+    StringData * in = reinterpret_cast<StringData * >(copy_me);
 
     // skip string?
-    skip   = in->data->skip;
+    skip   = in->skip;
 
     // sign
-    sign   = in->data->sign;
+    sign   = in->sign;
 
     // factor
-    factor = in->data->factor;
+    factor = in->factor;
 
     // deltas
-    for (size_t i = 0; i < in->data->deltas.size(); i++) {
-        deltas.push_back(in->data->deltas[i]);
+    for (size_t i = 0; i < in->deltas.size(); i++) {
+        deltas.push_back(in->deltas[i]);
     }
 
     // integrals
     for (size_t i = 0; i < integral_types.size(); i++) {
         std::string type = integral_types[i];
-        for (size_t j = 0; j < in->data->ints[type].size(); j++) {
-            ints[type].push_back( in->data->ints[type][j] );
+        for (size_t j = 0; j < in->ints[type].size(); j++) {
+            ints[type].push_back( in->ints[type][j] );
         }
     }
 
     // amplitudes
     for (size_t i = 0; i < amplitude_types.size(); i++) {
         char type = amplitude_types[i];
-        for (size_t j = 0; j < in->data->amps[type].size(); j++) {
-            amps[type].push_back( in->data->amps[type][j] );
+        for (size_t j = 0; j < in->amps[type].size(); j++) {
+            amps[type].push_back( in->amps[type][j] );
         }
     }
 
     // w0 
-    has_w0 = in->data->has_w0;
+    has_w0 = in->has_w0;
 
     // non-summed spin labels
-    non_summed_spin_labels = in->data->non_summed_spin_labels;
+    non_summed_spin_labels = in->non_summed_spin_labels;
 }
 
 // copy all data, including symbols and daggers
@@ -434,29 +433,29 @@ void StringData::copy(void * copy_me) {
 
     shallow_copy(copy_me);
 
-    pq * in = reinterpret_cast<pq * >(copy_me);
+    StringData * in = reinterpret_cast<StringData * >(copy_me);
 
     // operators
-    for (size_t j = 0; j < in->data->symbol.size(); j++) {
-        symbol.push_back(in->data->symbol[j]);
+    for (size_t j = 0; j < in->symbol.size(); j++) {
+        symbol.push_back(in->symbol[j]);
 
         // dagger?
-        is_dagger.push_back(in->data->is_dagger[j]);
+        is_dagger.push_back(in->is_dagger[j]);
 
         // dagger (relative to fermi vacuum)?
         if ( vacuum == "FERMI" ) {
-            is_dagger_fermi.push_back(in->data->is_dagger_fermi[j]);
+            is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
         }
     }
 
     // boson daggers
-    for (size_t i = 0; i < in->data->is_boson_dagger.size(); i++) {
-        is_boson_dagger.push_back(in->data->is_boson_dagger[i]);
+    for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
+        is_boson_dagger.push_back(in->is_boson_dagger[i]);
     }
 
     // permutations
-    for (size_t i = 0; i < in->data->permutations.size(); i++) {
-        permutations.push_back(in->data->permutations[i]);
+    for (size_t i = 0; i < in->permutations.size(); i++) {
+        permutations.push_back(in->permutations[i]);
     }
 }
 
