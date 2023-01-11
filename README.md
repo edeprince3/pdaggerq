@@ -161,10 +161,6 @@ or
 pq = pdaggerq.pq_helper("fermi")
 ```
 
-Note than full functionality is not yet available for manual string specification when normal order is defined relative
-to the fermi vacuum. In this case, it is better to use the functions defined below that add complete strings in a single
-command.
-
 ### Label convention
 
 We follow the usual convention for labeling orbitals: i, j, k, l, m, and n represent occupied orbitals and a, b, c, d,
