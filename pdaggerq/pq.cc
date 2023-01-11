@@ -944,8 +944,8 @@ bool pq::add_spins(std::vector<std::shared_ptr<pq> > &list) {
                     sa->data->copy((void*)this);
                     sb->data->copy((void*)this);
 
-                    sa->set_spin_everywhere(data->amps[type][j].labels[k], "a");
-                    sb->set_spin_everywhere(data->amps[type][j].labels[k], "b");
+                    sa->data->set_spin_everywhere(data->amps[type][j].labels[k], "a");
+                    sb->data->set_spin_everywhere(data->amps[type][j].labels[k], "b");
 
                     //sa->data->amps[type][j].spin_labels[k] = "a";
                     //sb->data->amps[type][j].spin_labels[k] = "b";
@@ -972,8 +972,8 @@ bool pq::add_spins(std::vector<std::shared_ptr<pq> > &list) {
                     sa->data->copy((void*)this);
                     sb->data->copy((void*)this);
 
-                    sa->set_spin_everywhere(data->ints[type][j].labels[k], "a");
-                    sb->set_spin_everywhere(data->ints[type][j].labels[k], "b");
+                    sa->data->set_spin_everywhere(data->ints[type][j].labels[k], "a");
+                    sb->data->set_spin_everywhere(data->ints[type][j].labels[k], "b");
 
                     //sa->data->ints[type][j].spin_labels[k] = "a";
                     //sb->data->ints[type][j].spin_labels[k] = "b";
@@ -2136,41 +2136,6 @@ void pq::consolidate_permutations_plus_three_swaps(
 
         }
     }
-}
-
-void pq::set_spin_everywhere(std::string target, std::string spin) {
-
-    // integrals
-    for (size_t i = 0; i < data->integral_types.size(); i++) {
-        std::string type = data->integral_types[i];
-        for (size_t j = 0; j < data->ints[type].size(); j++) {
-            for (size_t k = 0; k < data->ints[type][j].labels.size(); k++) {
-                if ( data->ints[type][j].labels[k] == target ) {
-                    data->ints[type][j].spin_labels[k] = spin;
-                }
-            }
-        }
-    }
-    // amplitudes
-    for (size_t i = 0; i < data->amplitude_types.size(); i++) {
-        char type = data->amplitude_types[i];
-        for (size_t j = 0; j < data->amps[type].size(); j++) {
-            for (size_t k = 0; k < data->amps[type][j].labels.size(); k++) {
-                if ( data->amps[type][j].labels[k] == target ) {
-                    data->amps[type][j].spin_labels[k] = spin;
-                }
-            }
-        }
-    }
-    // deltas
-    for (size_t i = 0; i < data->deltas.size(); i++) {
-        for (size_t j = 0; j < data->deltas[i].labels.size(); j++) {
-            if ( data->deltas[i].labels[j] == target ) {
-                data->deltas[i].spin_labels[j] = spin;
-            }
-        }
-    }
-
 }
 
 // find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a

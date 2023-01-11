@@ -115,6 +115,9 @@ class StringData {
     /// copy all data, including symbols and daggers. 
     void copy(void * copy_me);
 
+    /// set spin labels in integrals and amplitudes
+    void set_spin_everywhere(std::string target, std::string spin);
+
 };
 
 }

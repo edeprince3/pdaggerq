@@ -460,4 +460,38 @@ void StringData::copy(void * copy_me) {
     }
 }
 
+void StringData::set_spin_everywhere(std::string target, std::string spin) {
+
+    // integrals
+    for (size_t i = 0; i < integral_types.size(); i++) {
+        std::string type = integral_types[i];
+        for (size_t j = 0; j < ints[type].size(); j++) {
+            for (size_t k = 0; k < ints[type][j].labels.size(); k++) {
+                if ( ints[type][j].labels[k] == target ) {
+                    ints[type][j].spin_labels[k] = spin;
+                }
+            }
+        }
+    }
+    // amplitudes
+    for (size_t i = 0; i < amplitude_types.size(); i++) {
+        char type = amplitude_types[i];
+        for (size_t j = 0; j < amps[type].size(); j++) {
+            for (size_t k = 0; k < amps[type][j].labels.size(); k++) {
+                if ( amps[type][j].labels[k] == target ) {
+                    amps[type][j].spin_labels[k] = spin;
+                }
+            }
+        }
+    }
+    // deltas
+    for (size_t i = 0; i < deltas.size(); i++) {
+        for (size_t j = 0; j < deltas[i].labels.size(); j++) {
+            if ( deltas[i].labels[j] == target ) {
+                deltas[i].spin_labels[j] = spin;
+            }
+        }
+    }
+}
+
 }
