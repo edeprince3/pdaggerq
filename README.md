@@ -277,7 +277,7 @@ add_quadruple_commutator(1.0/24.0, ['f'], ['t2'], ['t1'], ['t1'], ['t1'])
 set strings corresponding to a similarity transformed operator commutator involving five operators. The first argument
 after the numerical value is a list of operators; the product of these operators will be similarity transformed. The
 next argument is a list of operators appearing as a sum the exponential function. The similarity transformation is
-performed by applying the BCH expansion four nested commutators.
+performed by applying the BCH expansion with four nested commutators.
 
 ```
 add_st_operator(1.0, ['v'],['t1','t2'])
@@ -312,7 +312,7 @@ simplify()
         
 #### print: 
     
-print current list of strings. which strings is dictated by the string_type flag. the default value is string_type = 'fully-contracted'
+print current list of strings. the type of strings is dictated by the string_type flag. the default value is string_type = 'fully-contracted'
 
 ```
 print(string_type = 'all/fully-contracted/one-body/two-body')
@@ -330,7 +330,7 @@ fully_contracted_strings()
 
 #### fully_contracted_with_spin: 
     
-returns strings involving no creation / annihilation operators. integrate spin, eliminating non-spin-conserving terms, given a dictionary of spins for non-summed labels.
+returns strings involving no creation / annihilation operators. Terms are spin integrated to eliminate non-spin-conserving terms, given a dictionary of spins for non-summed labels.
 
 ```
 spin_labels = {
