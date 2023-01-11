@@ -494,4 +494,113 @@ void StringData::set_spin_everywhere(std::string target, std::string spin) {
     }
 }
 
+// reset spin labels
+void StringData::reset_spin_labels() {
+
+    // amplitudes
+    for (size_t i = 0; i < amplitude_types.size(); i++) {
+        char type = amplitude_types[i];
+        for (size_t j = 0; j < amps[type].size(); j++) {
+            amps[type][j].spin_labels.clear();
+            for (size_t k = 0; k < amps[type][j].labels.size(); k++) {
+                amps[type][j].spin_labels.push_back("");
+            }
+        }
+    }
+    // integrals
+    for (size_t i = 0; i < integral_types.size(); i++) {
+        std::string type = integral_types[i];
+        for (size_t j = 0; j < ints[type].size(); j++) {
+            ints[type][j].spin_labels.clear();
+            for (size_t k = 0; k < ints[type][j].labels.size(); k++) {
+                ints[type][j].spin_labels.push_back("");
+            }
+        }
+    }
+    // deltas
+    for (size_t i = 0; i < deltas.size(); i++) {
+        deltas[i].spin_labels.clear();
+        for (size_t j = 0; j < deltas[i].labels.size(); j++) {
+            deltas[i].spin_labels.push_back("");
+        }
+    }
+
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+
+    // set spins for occupied non-summed labels
+    for (size_t label = 0; label < occ_labels.size(); label++) {
+        std::string spin = non_summed_spin_labels[occ_labels[label]];
+        if ( spin == "a" || spin == "b" ) {
+            // amplitudes
+            for (size_t i = 0; i < amplitude_types.size(); i++) {
+                char type = amplitude_types[i];
+                for (size_t j = 0; j < amps[type].size(); j++) {
+                    for (size_t k = 0; k < amps[type][j].labels.size(); k++) {
+                        if ( amps[type][j].labels[k] == occ_labels[label] ) {
+                            amps[type][j].spin_labels[k] = spin;
+                        }
+                    }
+                }
+            }
+            // integrals
+            for (size_t i = 0; i < integral_types.size(); i++) {
+                std::string type = integral_types[i];
+                for (size_t j = 0; j < ints[type].size(); j++) {
+                    for (size_t k = 0; k < ints[type][j].labels.size(); k++) {
+                        if ( ints[type][j].labels[k] == occ_labels[label] ) {
+                            ints[type][j].spin_labels[k] = spin;
+                        }
+                    }
+                }
+            }
+            // deltas
+            for (size_t i = 0; i < deltas.size(); i++) {
+                for (size_t j = 0; j < deltas[i].labels.size(); j++) {
+                    if ( deltas[i].labels[j] == occ_labels[label] ) {
+                        deltas[i].spin_labels[j] = spin;
+                    }
+                }
+            }
+        }
+    }
+
+    // set spins for virtual non-summed labels
+    for (size_t label = 0; label < vir_labels.size(); label++) {
+        std::string spin = non_summed_spin_labels[vir_labels[label]];
+        if ( spin == "a" || spin == "b" ) {
+            // amplitudes
+            for (size_t i = 0; i < amplitude_types.size(); i++) {
+                char type = amplitude_types[i];
+                for (size_t j = 0; j < amps[type].size(); j++) {
+                    for (size_t k = 0; k < amps[type][j].labels.size(); k++) {
+                        if ( amps[type][j].labels[k] == vir_labels[label] ) {
+                            amps[type][j].spin_labels[k] = spin;
+                        }
+                    }
+                }
+            }
+            // integrals
+            for (size_t i = 0; i < integral_types.size(); i++) {
+                std::string type = integral_types[i];
+                for (size_t j = 0; j < ints[type].size(); j++) {
+                    for (size_t k = 0; k < ints[type][j].labels.size(); k++) {
+                        if ( ints[type][j].labels[k] == vir_labels[label] ) {
+                            ints[type][j].spin_labels[k] = spin;
+                        }
+                    }
+                }
+            }
+            // deltas
+            for (size_t i = 0; i < deltas.size(); i++) {
+                for (size_t j = 0; j < deltas[i].labels.size(); j++) {
+                    if ( deltas[i].labels[j] == vir_labels[label] ) {
+                        deltas[i].spin_labels[j] = spin;
+                    }
+                }
+            }
+        }
+    }
+}
+
 }

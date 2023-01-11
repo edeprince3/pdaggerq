@@ -118,6 +118,9 @@ class StringData {
     /// set spin labels in integrals and amplitudes
     void set_spin_everywhere(std::string target, std::string spin);
 
+    /// reset spin labels (so only non-summed labels are set)
+    void reset_spin_labels();
+
 };
 
 }
