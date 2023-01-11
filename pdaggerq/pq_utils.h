@@ -124,6 +124,9 @@ void use_conventional_labels(std::shared_ptr<pq> in);
 /// add spin labels to a string
 bool add_spins(std::shared_ptr<pq> in, std::vector<std::shared_ptr<pq> > &list);
 
+/// expand sums to include spin and zero terms where appropriate
+void spin_blocking(std::shared_ptr<pq> in, std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map);
+
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
 

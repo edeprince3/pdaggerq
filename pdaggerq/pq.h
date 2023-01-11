@@ -43,9 +43,6 @@ class pq {
     /// detailed information about string (amplitudes, bosons, integrals, deltas, etc.)
     std::shared_ptr<StringData> data;
 
-    /// expand sums to include spin and zero terms where appropriate
-    void spin_blocking(std::vector<std::shared_ptr<pq> > &spin_blocked, std::map<std::string, std::string> spin_map);
-
 };
 
 }

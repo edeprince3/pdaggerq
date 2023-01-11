@@ -1665,7 +1665,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
         if ( ordered[i]->data->symbol.size() != 0 ) continue;
         if ( ordered[i]->data->is_boson_dagger.size() != 0 ) continue;
         std::vector< std::shared_ptr<pq> > tmp;
-        ordered[i]->spin_blocking(tmp, spin_labels);
+        spin_blocking(ordered[i], tmp, spin_labels);
         for (size_t j = 0; j < tmp.size(); j++) {
             spin_blocked.push_back(tmp[j]);
         }
