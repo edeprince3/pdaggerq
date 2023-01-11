@@ -22,7 +22,7 @@
 //
 
 #include "data.h"
-#include "tensor.h"
+#include "pq_tensor.h"
 
 #include<memory>
 #include<vector>

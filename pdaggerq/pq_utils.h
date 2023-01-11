@@ -33,7 +33,7 @@
 #include<math.h>
 #include<sstream>
 
-#include "tensor.h"
+#include "pq_tensor.h"
 #include "data.h"
 
 namespace pdaggerq {

@@ -23,7 +23,7 @@
 #ifndef DATA_H
 #define DATA_H
 
-#include "tensor.h"
+#include "pq_tensor.h"
 #include <map>
 
 namespace pdaggerq {

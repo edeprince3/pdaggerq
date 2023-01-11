@@ -20,7 +20,7 @@
 //  limitations under the License./>.
 //
 
-#include"tensor.h"
+#include"pq_tensor.h"
 
 #include<string>
 

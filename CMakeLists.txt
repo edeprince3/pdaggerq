@@ -41,7 +41,7 @@ set(PYBIND11_CPP_STANDARD -std=c++14)
 
 # we are adding a private module _pdaggerq so we don't have a naming collision
 pybind11_add_module(_pdaggerq
-                    pdaggerq/tensor.cc
+                    pdaggerq/pq_tensor.cc
                     pdaggerq/data.cc 
                     pdaggerq/pq_utils.cc
                     pdaggerq/pq_extras.cc

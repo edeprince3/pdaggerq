@@ -37,7 +37,7 @@
 #include "pq_swap_operators.h"
 
 #include "data.h"
-#include "tensor.h"
+#include "pq_tensor.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>

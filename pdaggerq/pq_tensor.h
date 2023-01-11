@@ -20,8 +20,8 @@
 //  limitations under the License./>.
 //
 
-#ifndef TENSOR_H
-#define TENSOR_H
+#ifndef PQ_TENSOR_H
+#define PQ_TENSOR_H
 
 #include<vector>
 #include<string>
