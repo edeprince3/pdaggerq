@@ -23,6 +23,8 @@
 
 #include "pq_utils.h"
 
+#include <algorithm>
+
 namespace pdaggerq {
 
 /// concatinate a list of operators (a list of strings) into a single list
