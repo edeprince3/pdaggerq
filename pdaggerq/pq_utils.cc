@@ -363,6 +363,35 @@ bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_st
     return true;
 }
 
+/// compare two strings when swapping (multiple) summed labels
+void compare_strings_with_swapped_summed_labels(std::vector<std::vector<std::string> > labels,
+                                                size_t iter,
+                                                std::shared_ptr<pq_string> in1,
+                                                std::shared_ptr<pq_string> in2,
+                                                int & n_permute, 
+                                                bool & strings_same) {
+ 
+    if ( iter == labels.size() ) {
+        strings_same = compare_strings(in2, in1, n_permute);
+        return;
+    }
+
+    // try swapping non-summed labels
+    for (size_t id1 = 0; id1 < labels[iter].size(); id1++) {
+        for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
+    
+            std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
+            newguy->copy((void*)(in1.get()));
+            swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
+            newguy->sort_labels();
+
+            compare_strings_with_swapped_summed_labels(labels, iter+1, newguy, in2, n_permute, strings_same);
+            if ( strings_same ) return;
+        }
+    }
+
+}
+
 // consolidate terms that differ by permutations
 void consolidate_permutations(std::vector<std::shared_ptr<pq_string> > &ordered) {
 
@@ -404,22 +433,26 @@ void consolidate_permutations(std::vector<std::shared_ptr<pq_string> > &ordered)
     }
 }
 
-// consolidate terms that differ by summed labels plus permutations
-void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> > &ordered,
-                                        std::vector<std::string> labels) {
+// consolidate terms that differ may differ by permutations of summed labels
+void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
+                                         std::vector<std::vector<std::string> > labels) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
 
-        std::vector<std::string> found_labels;
+        std::vector<std::vector<std::string> > found_labels;
 
         // ok, what summed / repeated labels do we have?
         for (size_t j = 0; j < labels.size(); j++) {
-            int found = index_in_anywhere(ordered[i], labels[j]);
-            if ( found == 2 ) {
-                found_labels.push_back(labels[j]);
+            std::vector<std::string> tmp;
+            for (size_t k = 0; k < labels[j].size(); k++) {
+                int found = index_in_anywhere(ordered[i], labels[j][k]);
+                if ( found == 2 ) {
+                    tmp.push_back(labels[j][k]);
+                }
             }
+            found_labels.push_back(tmp);
         }
 
         for (size_t j = i+1; j < ordered.size(); j++) {
@@ -429,21 +462,7 @@ void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> >
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
-            // try swapping non-summed labels
-            for (size_t id1 = 0; id1 < found_labels.size(); id1++) {
-                for (size_t id2 = id1 + 1; id2 < found_labels.size(); id2++) {
-
-                    std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
-                    newguy->copy((void*)(ordered[i].get()));
-                    swap_two_labels(newguy, found_labels[id1], found_labels[id2]);
-                    newguy->sort_labels();
-
-                    strings_same = compare_strings(ordered[j], newguy, n_permute);
-
-                    if ( strings_same ) break;
-                }
-                if ( strings_same ) break;
-            }
+            compare_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], ordered[j], n_permute, strings_same);
 
             if ( !strings_same ) continue;
 
@@ -451,93 +470,6 @@ void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> >
             double factor_j = ordered[j]->factor * ordered[j]->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
-
-            // if terms exactly cancel, do so
-            if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
-                break;
-            }
-
-            // otherwise, combine terms
-            ordered[i]->factor = fabs(combined_factor);
-            if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
-            }else {
-                ordered[i]->sign = -1;
-            }
-            ordered[j]->skip = true;
-        }
-    }
-}
-
-// consolidate terms that differ by two summed labels plus permutations
-void consolidate_permutations_plus_two_swaps(
-    std::vector<std::shared_ptr<pq_string> > &ordered,
-    std::vector<std::string> labels_1,
-    std::vector<std::string> labels_2) {
-
-    for (size_t i = 0; i < ordered.size(); i++) {
-
-        if ( ordered[i]->skip ) continue;
-
-        std::vector<std::string> found_labels_1;
-        std::vector<std::string> found_labels_2;
-
-        // ok, what labels do we have? list 1
-        for (size_t j = 0; j < labels_1.size(); j++) {
-            int found = index_in_anywhere(ordered[i], labels_1[j]);
-            if (found == 2 ) {
-                found_labels_1.push_back(labels_1[j]);
-            }
-        }
-
-        // ok, what labels do we have? list 2
-        for (size_t j = 0; j < labels_2.size(); j++) {
-            int found = index_in_anywhere(ordered[i], labels_2[j]);
-            if (found == 2 ) {
-                found_labels_2.push_back(labels_2[j]);
-            }
-        }
-
-        for (size_t j = i+1; j < ordered.size(); j++) {
-
-            if ( ordered[j]->skip ) continue;
-
-            int n_permute;
-            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
-
-            // try swapping non-summed labels 1
-            for (size_t id1 = 0; id1 < found_labels_1.size(); id1++) {
-                for (size_t id2 = id1 + 1; id2 < found_labels_1.size(); id2++) {
-
-                    // try swapping non-summed labels 2
-                    for (size_t id3 = 0; id3 < found_labels_2.size(); id3++) {
-                        for (size_t id4 = id3 + 1; id4 < found_labels_2.size(); id4++) {
-
-                            std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
-                            newguy->copy((void*)(ordered[i].get()));
-                            swap_two_labels(newguy,found_labels_1[id1],found_labels_1[id2]);
-                            swap_two_labels(newguy,found_labels_2[id3],found_labels_2[id4]);
-                            newguy->sort_labels();
-
-                            strings_same = compare_strings(ordered[j],newguy,n_permute);
-
-                            if ( strings_same ) break;
-                        }
-                        if ( strings_same ) break;
-                    }
-                    if ( strings_same ) break;
-                }
-                if ( strings_same ) break;
-            }
-
-            if ( !strings_same ) continue;
-
-            double factor_i = ordered[i]->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->factor * ordered[j]->sign;
-
-            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
@@ -757,61 +689,61 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
 
-    consolidate_permutations(ordered);
+    consolidate_permutations_plus_swaps(ordered, {});
 
-    consolidate_permutations_plus_swap(ordered,occ_labels);
-    consolidate_permutations_plus_swap(ordered,vir_labels);
+    consolidate_permutations_plus_swaps(ordered, {occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels});
 
-    consolidate_permutations_plus_two_swaps(ordered,occ_labels,occ_labels);
-    consolidate_permutations_plus_two_swaps(ordered,vir_labels,vir_labels);
-    consolidate_permutations_plus_two_swaps(ordered,occ_labels,vir_labels);
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
 
     // these don't seem to be necessary for test cases up to ccsdtq
 /*
-    consolidate_permutations_plus_three_swaps(ordered,occ_labels,occ_labels,occ_labels);
-    consolidate_permutations_plus_three_swaps(ordered,occ_labels,occ_labels,vir_labels);
-    consolidate_permutations_plus_three_swaps(ordered,occ_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_three_swaps(ordered,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels});
 
-    consolidate_permutations_plus_four_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels);
-    consolidate_permutations_plus_four_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels);
-    consolidate_permutations_plus_four_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_four_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_four_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels});
 
-    consolidate_permutations_plus_five_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels);
-    consolidate_permutations_plus_five_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels);
-    consolidate_permutations_plus_five_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_five_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_five_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_five_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
 
-    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels);
-    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels);
-    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_six_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_six_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_six_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
 
-    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels);
-    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels);
-    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_seven_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_seven_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
 
-    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels);
-    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels);
-    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_eight_swaps(ordered,occ_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
-    consolidate_permutations_plus_eight_swaps(ordered,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels,vir_labels);
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
 */
 
     // probably only relevant for vacuum = fermi
