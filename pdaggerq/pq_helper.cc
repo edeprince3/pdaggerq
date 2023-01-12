@@ -910,42 +910,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }
 
-                }else if ( in[i].substr(0,2) == "2p" ){ // particle-particle 
-
-                    // find comma
-                    size_t pos = in[i].find(",");
-                    if ( pos == std::string::npos ) {
-                        printf("\n");
-                        printf("    error in particle-particle operator definition\n");
-                        printf("\n");
-                        exit(1);
-                    }
-                    size_t len = pos - 2; 
-
-                    // index 1
-                    tmp_string.push_back(in[i].substr(2,len)+"*");
-
-                    // index 2
-                    tmp_string.push_back(in[i].substr(pos+1)+"*");
-
-                }else if ( in[i].substr(0,2) == "2h" ){ // hole-hole 
-
-                    // find comma
-                    size_t pos = in[i].find(",");
-                    if ( pos == std::string::npos ) {
-                        printf("\n");
-                        printf("    error in particle-particle operator definition\n");
-                        printf("\n");
-                        exit(1);
-                    }
-                    size_t len = pos - 2; 
-
-                    // index 1
-                    tmp_string.push_back(in[i].substr(2,len));
-
-                    // index 2
-                    tmp_string.push_back(in[i].substr(pos+1));
-
                 }else if ( in[i].substr(0,1) == "e" ){
 
 
@@ -968,11 +932,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(in[i].substr(pos+1));
 
                     }else if ( in[i].substr(1,1) == "2" ){
-
-                        //printf("\n");
-                        //printf("    error: e2 operator not yet implemented.\n");
-                        //printf("\n");
-                        //exit(1);
 
                         // count indices
                         size_t pos = 0;
@@ -1084,7 +1043,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         printf("\n");
                         exit(1);
                 }
-                
             }
 
             newguy->factor = factor;
@@ -1100,7 +1058,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             }else {
                 add_new_string_fermi_vacuum(newguy, ordered, print_level);
             }
-
         }
     }
 }
