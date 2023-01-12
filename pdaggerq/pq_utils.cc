@@ -40,7 +40,6 @@ std::vector<std::string> concatinate_operators(std::vector<std::vector<std::stri
         ret.insert(ret.end(), ops[i].begin(), ops[i].end());
     }
     return ret;
-
 }
 
 /// remove "*" from std::string
@@ -58,54 +57,51 @@ void removeParentheses(std::string &x) {
 
   it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == ')');});
   x.erase(it, std::end(x));
-
 }
 
 // is a label classified as occupied?
 bool is_occ(std::string idx) {
-    if ( idx == "I" || idx == "i") {
-        return true;
-    }else if ( idx == "J" || idx == "j") {
-        return true;
-    }else if ( idx == "K" || idx == "k") {
-        return true;
-    }else if ( idx == "L" || idx == "l") {
-        return true;
-    }else if ( idx == "M" || idx == "m") {
-        return true;
-    }else if ( idx == "N" || idx == "n") {
-        return true;
-    }else if ( idx == "N" || idx == "o") {
-        return true;
-    }else if ( idx.at(0) == 'O' || idx.at(0) == 'o') {
-        return true;
-    }else if ( idx.at(0) == 'I' || idx.at(0) == 'i') {
-        return true;
-    }
+    if ( idx == "i" ) return true;
+    else if (idx == "j") return true;
+    else if (idx == "k") return true;
+    else if (idx == "l") return true;
+    else if (idx == "m") return true;
+    else if (idx == "n") return true;
+    else if (idx == "o") return true;
+    else if (idx == "I") return true;
+    else if (idx == "J") return true;
+    else if (idx == "K") return true;
+    else if (idx == "L") return true;
+    else if (idx == "M") return true;
+    else if (idx == "N") return true;
+    else if (idx == "O") return true;
+    else if (idx.at(0) == 'O' ) return true;
+    else if (idx.at(0) == 'o') return true;
+    else if (idx.at(0) == 'I') return true;
+    else if (idx.at(0) == 'i') return true;
     return false;
 }
 
 // is a label classified as virtual?
 bool is_vir(std::string idx) {
-    if ( idx == "A" || idx == "a") {
-        return true;
-    }else if ( idx == "B" || idx == "b") {
-        return true;
-    }else if ( idx == "C" || idx == "c") {
-        return true;
-    }else if ( idx == "D" || idx == "d") {
-        return true;
-    }else if ( idx == "E" || idx == "e") {
-        return true;
-    }else if ( idx == "F" || idx == "f") {
-        return true;
-    }else if ( idx == "F" || idx == "g") {
-        return true;
-    }else if ( idx.at(0) == 'V' || idx.at(0) == 'v') {
-        return true;
-    }else if ( idx.at(0) == 'A' || idx.at(0) == 'a') {
-        return true;
-    }
+    if ( idx == "a" ) return true;
+    else if (idx == "b") return true;
+    else if (idx == "c") return true;
+    else if (idx == "d") return true;
+    else if (idx == "e") return true;
+    else if (idx == "f") return true;
+    else if (idx == "g") return true;
+    else if (idx == "A") return true;
+    else if (idx == "B") return true;
+    else if (idx == "C") return true;
+    else if (idx == "D") return true;
+    else if (idx == "E") return true;
+    else if (idx == "F") return true;
+    else if (idx == "G") return true;
+    else if (idx.at(0) == 'V' ) return true;
+    else if (idx.at(0) == 'v') return true;
+    else if (idx.at(0) == 'A') return true;
+    else if (idx.at(0) == 'a') return true;
     return false;
 }
 
@@ -137,7 +133,6 @@ int index_in_integrals(std::string idx, std::vector<integrals> ints) {
         }
     }
     return n;
-
 }
 
 // how many times does an index appear in amplitudes?
@@ -153,7 +148,6 @@ int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
         }
     }
     return n;
-
 }
 
 // how many times does an index appear amplitudes, deltas, and integrals?
@@ -219,7 +213,6 @@ void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::str
     replace_index_everywhere(in, label1, "xyz");
     replace_index_everywhere(in, label2, label1);
     replace_index_everywhere(in, "xyz", label2);
-
 }
 
 // replace one label with another (in integrals and amplitudes)
@@ -235,7 +228,6 @@ void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx
         replace_index_in_amplitudes(old_idx, new_idx, in->amps[type]);
     }
     in->sort_labels();
-
 }
 
 /// compare two lists of integrals
@@ -479,7 +471,6 @@ void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> >
                 ordered[i]->sign = -1;
             }
             ordered[j]->skip = true;
-
         }
     }
 }
@@ -576,7 +567,6 @@ void consolidate_permutations_plus_two_swaps(
 void consolidate_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels) {
-        
 
     for (size_t i = 0; i < ordered.size(); i++) {
         
@@ -733,9 +723,7 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 }
 
 // compare strings and remove terms that cancel
-
 void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
-
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
@@ -859,7 +847,6 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
         ordered.push_back(pruned[i]);
     }
     pruned.clear();
-
 }
 
 // reorder t amplitudes as t1, t2, t3, t4
@@ -910,7 +897,6 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> in) {
     }
 
     free(nope);
-
 }
 
 // reorder three spins ... cases to consider: aba/baa -> aab; bba/bab -> abb
@@ -1365,7 +1351,6 @@ void gobble_deltas(std::shared_ptr<pq_string> in) {
         // at this point, it is safe to assume the delta function must remain
         tmp_delta1.push_back(in->deltas[i].labels[0]);
         tmp_delta2.push_back(in->deltas[i].labels[1]);
-
     }
 
     in->deltas.clear();
@@ -1377,7 +1362,6 @@ void gobble_deltas(std::shared_ptr<pq_string> in) {
         deltas.labels.push_back(tmp_delta2[i]);
         deltas.sort();
         in->deltas.push_back(deltas);
-
     }
 }
 
@@ -1446,7 +1430,6 @@ bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_str
 
     // must be done.
     return true;
-
 }
 
 // expand sums to include spin and zero terms where appropriate
@@ -2262,7 +2245,6 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
         }
         //printf("current list size: %zu\n",ordered.size());
         tmp.clear();
-
     }
 }
 
