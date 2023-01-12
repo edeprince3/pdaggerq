@@ -216,9 +216,9 @@ void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::v
 // swap two labels
 void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::string label2) {
 
-    replace_index_everywhere(in, label1, "x");
+    replace_index_everywhere(in, label1, "xyz");
     replace_index_everywhere(in, label2, label1);
-    replace_index_everywhere(in, "x", label2);
+    replace_index_everywhere(in, "xyz", label2);
 
 }
 
@@ -1866,7 +1866,7 @@ void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
         in->factor = fabs(in->factor);
     }
 
-    for (int i = 0; i < (int)in->string.size(); i++) {
+    for (size_t i = 0; i < in->string.size(); i++) {
         std::string me = in->string[i];
         if ( me.find("*") != std::string::npos ) {
             removeStar(me);
@@ -1885,7 +1885,6 @@ void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
     }
 
     // rearrange strings
-
     std::vector< std::shared_ptr<pq_string> > tmp;
     tmp.push_back(in);
 
@@ -1893,17 +1892,17 @@ void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
     do { 
         std::vector< std::shared_ptr<pq_string> > list;
         done_rearranging = true;
-        for (int i = 0; i < (int)tmp.size(); i++) {
+        for (size_t i = 0; i < tmp.size(); i++) {
             bool am_i_done = swap_operators_true_vacuum(tmp[i], list);
             if ( !am_i_done ) done_rearranging = false;
         }
         tmp.clear();
-        for (int i = 0; i < (int)list.size(); i++) {
+        for (size_t i = 0; i < list.size(); i++) {
             tmp.push_back(list[i]);
         }
     }while(!done_rearranging);
 
-    for (int i = 0; i < (int)tmp.size(); i++) {
+    for (size_t i = 0; i < tmp.size(); i++) {
         ordered.push_back(tmp[i]);
     }
     tmp.clear();
@@ -1960,7 +1959,7 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
         integrals ints;
 
         int my_gen_idx = 0;
-        for (int i = 0; i < (int)in->string.size(); i++) {
+        for (size_t i = 0; i < in->string.size(); i++) {
             std::string me = in->string[i];
     
 
@@ -2225,7 +2224,7 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
 
         }
 
-        for (int i = 0; i < (int)in->is_boson_dagger.size(); i++) {
+        for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
             mystring->is_boson_dagger.push_back(in->is_boson_dagger[i]);
         }
 
@@ -2245,12 +2244,12 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
         do {
             std::vector< std::shared_ptr<pq_string> > list;
             done_rearranging = true;
-            for (int i = 0; i < (int)tmp.size(); i++) {
+            for (size_t i = 0; i < tmp.size(); i++) {
                 bool am_i_done = swap_operators_fermi_vacuum(tmp[i], list);
                 if ( !am_i_done ) done_rearranging = false;
             }
             tmp.clear();
-            for (int i = 0; i < (int)list.size(); i++) {
+            for (size_t i = 0; i < list.size(); i++) {
                 if ( !list[i]->skip ) {
                     tmp.push_back(list[i]);
                 }
@@ -2258,7 +2257,7 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
         }while(!done_rearranging);
 
         //ordered.clear();
-        for (int i = 0; i < (int)tmp.size(); i++) {
+        for (size_t i = 0; i < tmp.size(); i++) {
             ordered.push_back(tmp[i]);
         }
         //printf("current list size: %zu\n",ordered.size());
