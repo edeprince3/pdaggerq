@@ -129,7 +129,6 @@ int index_in_integrals(std::string idx, std::vector<integrals> ints) {
             if ( ints[i].labels[j] == idx ) {
                 n++;
             }
-
         }
     }
     return n;
@@ -144,7 +143,6 @@ int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
             if ( amps[i].labels[j] == idx ) {
                 n++;
             }
-
         }
     }
     return n;
@@ -248,7 +246,6 @@ bool compare_integrals( std::vector<integrals> ints1,
                 nsame_ints++;
                 break;
             }
-
         }
     }
 
@@ -358,7 +355,6 @@ bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_st
             nsame_permutations++;
         }
         count += 2;
-
     }
     if ( nsame_permutations != n ) {
         return false;
@@ -416,12 +412,14 @@ void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> >
 
         if ( ordered[i]->skip ) continue;
 
-        std::vector<int> find_idx;
+        std::vector<std::string> found_labels;
 
-        // ok, what labels do we have?
+        // ok, what summed / repeated labels do we have?
         for (size_t j = 0; j < labels.size(); j++) {
             int found = index_in_anywhere(ordered[i], labels[j]);
-            find_idx.push_back(found);
+            if ( found == 2 ) {
+                found_labels.push_back(labels[j]);
+            }
         }
 
         for (size_t j = i+1; j < ordered.size(); j++) {
@@ -432,17 +430,15 @@ void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> >
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
             // try swapping non-summed labels
-            for (size_t id1 = 0; id1 < labels.size(); id1++) {
-                if ( find_idx[id1] != 2 ) continue;
-                for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
-                    if ( find_idx[id2] != 2 ) continue;
+            for (size_t id1 = 0; id1 < found_labels.size(); id1++) {
+                for (size_t id2 = id1 + 1; id2 < found_labels.size(); id2++) {
 
                     std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                     newguy->copy((void*)(ordered[i].get()));
-                    swap_two_labels(newguy,labels[id1],labels[id2]);
+                    swap_two_labels(newguy, found_labels[id1], found_labels[id2]);
                     newguy->sort_labels();
 
-                    strings_same = compare_strings(ordered[j],newguy,n_permute);
+                    strings_same = compare_strings(ordered[j], newguy, n_permute);
 
                     if ( strings_same ) break;
                 }
@@ -454,7 +450,7 @@ void consolidate_permutations_plus_swap(std::vector<std::shared_ptr<pq_string> >
             double factor_i = ordered[i]->factor * ordered[i]->sign;
             double factor_j = ordered[j]->factor * ordered[j]->sign;
 
-            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+            double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
 
             // if terms exactly cancel, do so
             if ( fabs(combined_factor) < 1e-12 ) {
@@ -485,19 +481,23 @@ void consolidate_permutations_plus_two_swaps(
 
         if ( ordered[i]->skip ) continue;
 
-        std::vector<int> find_1;
-        std::vector<int> find_2;
+        std::vector<std::string> found_labels_1;
+        std::vector<std::string> found_labels_2;
 
         // ok, what labels do we have? list 1
         for (size_t j = 0; j < labels_1.size(); j++) {
             int found = index_in_anywhere(ordered[i], labels_1[j]);
-            find_1.push_back(found);
+            if (found == 2 ) {
+                found_labels_1.push_back(labels_1[j]);
+            }
         }
 
         // ok, what labels do we have? list 2
         for (size_t j = 0; j < labels_2.size(); j++) {
             int found = index_in_anywhere(ordered[i], labels_2[j]);
-            find_2.push_back(found);
+            if (found == 2 ) {
+                found_labels_2.push_back(labels_2[j]);
+            }
         }
 
         for (size_t j = i+1; j < ordered.size(); j++) {
@@ -508,21 +508,17 @@ void consolidate_permutations_plus_two_swaps(
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
             // try swapping non-summed labels 1
-            for (size_t id1 = 0; id1 < labels_1.size(); id1++) {
-                if ( find_1[id1] != 2 ) continue;
-                for (size_t id2 = id1 + 1; id2 < labels_1.size(); id2++) {
-                    if ( find_1[id2] != 2 ) continue;
+            for (size_t id1 = 0; id1 < found_labels_1.size(); id1++) {
+                for (size_t id2 = id1 + 1; id2 < found_labels_1.size(); id2++) {
 
                     // try swapping non-summed labels 2
-                    for (size_t id3 = 0; id3 < labels_2.size(); id3++) {
-                        if ( find_2[id3] != 2 ) continue;
-                        for (size_t id4 = id3 + 1; id4 < labels_2.size(); id4++) {
-                            if ( find_2[id4] != 2 ) continue;
+                    for (size_t id3 = 0; id3 < found_labels_2.size(); id3++) {
+                        for (size_t id4 = id3 + 1; id4 < found_labels_2.size(); id4++) {
 
                             std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                             newguy->copy((void*)(ordered[i].get()));
-                            swap_two_labels(newguy,labels_1[id1],labels_1[id2]);
-                            swap_two_labels(newguy,labels_2[id3],labels_2[id4]);
+                            swap_two_labels(newguy,found_labels_1[id1],found_labels_1[id2]);
+                            swap_two_labels(newguy,found_labels_2[id3],found_labels_2[id4]);
                             newguy->sort_labels();
 
                             strings_same = compare_strings(ordered[j],newguy,n_permute);
@@ -538,7 +534,7 @@ void consolidate_permutations_plus_two_swaps(
 
             if ( !strings_same ) continue;
 
-           double factor_i = ordered[i]->factor * ordered[i]->sign;
+            double factor_i = ordered[i]->factor * ordered[i]->sign;
             double factor_j = ordered[j]->factor * ordered[j]->sign;
 
             double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
@@ -558,7 +554,6 @@ void consolidate_permutations_plus_two_swaps(
                 ordered[i]->sign = -1;
             }
             ordered[j]->skip = true;
-
         }
     }
 }
