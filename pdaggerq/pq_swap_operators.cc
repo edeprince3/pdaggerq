@@ -109,9 +109,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
             for (size_t j = i+2; j < in->symbol.size(); j++) {
 
                 s1->symbol.push_back(in->symbol[j]);
-
                 s1->is_dagger.push_back(in->is_dagger[j]);
-
                 s1->is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
 
             }
@@ -152,8 +150,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
             std::shared_ptr<pq_string> s1b ( new pq_string(in->vacuum) );
 
             // copy data common to both new strings
-            s1a->copy((void*)s1.get());
-            s1b->copy((void*)s1.get());
+            s1a->copy(s1.get());
+            s1b->copy(s1.get());
 
             // ensure boson daggers are clear (they should be anyway)
             s1a->is_boson_dagger.clear();
@@ -175,7 +173,6 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
 
                         s1a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
                         s1b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
-
                     }
                     break;
 
@@ -183,7 +180,6 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
 
                     s1a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
                     s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
-
                 }
             }
             ordered.push_back(s1a);
@@ -213,8 +209,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
             std::shared_ptr<pq_string> s2b ( new pq_string(in->vacuum) );
 
             // copy data common to new strings
-            s1a->copy((void*)s1.get());
-            s1b->copy((void*)s1.get());
+            s1a->copy(s1.get());
+            s1b->copy(s1.get());
 
             // ensure boson daggers are clear (they should be anyway)
             s1a->is_boson_dagger.clear();
@@ -236,7 +232,6 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
 
                         s1a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
                         s1b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
-
                     }
                     break;
 
@@ -244,13 +239,12 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
 
                     s1a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
                     s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
-
                 }
             }
 
             // copy data common to new strings
-            s2a->copy((void*)s2.get());
-            s2b->copy((void*)s2.get());
+            s2a->copy(s2.get());
+            s2b->copy(s2.get());
 
             // ensure boson daggers are clear (they should be anyway)
             s2a->is_boson_dagger.clear();
@@ -272,7 +266,6 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
 
                         s2a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
                         s2b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
-
                     }
                     break;
 
@@ -280,7 +273,6 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
 
                     s2a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
                     s2b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
-
                 }
             }
 
@@ -289,9 +281,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
             ordered.push_back(s2a);
             ordered.push_back(s2b);
             return false;
-
         }
-
     }
     return false;
 }
@@ -343,7 +333,6 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
 
                 s1->is_dagger.push_back(in->is_dagger[j]);
                 s2->is_dagger.push_back(in->is_dagger[j]);
-
             }
             break;
 
@@ -354,7 +343,6 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
 
             s1->is_dagger.push_back(in->is_dagger[i]);
             s2->is_dagger.push_back(in->is_dagger[i]);
-
         }
     }
 
@@ -381,8 +369,8 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
         std::shared_ptr<pq_string> s2b ( new pq_string(in->vacuum) );
 
         // copy data common to new strings
-        s1a->copy((void*)s1.get());
-        s1b->copy((void*)s1.get());
+        s1a->copy(s1.get());
+        s1b->copy(s1.get());
 
         // ensure boson daggers are clear (they should be anyway)
         s1a->is_boson_dagger.clear();
@@ -404,7 +392,6 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
 
                     s1a->is_boson_dagger.push_back(in->is_boson_dagger[j]);
                     s1b->is_boson_dagger.push_back(in->is_boson_dagger[j]);
-
                 }
                 break;
 
@@ -412,13 +399,12 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
 
                 s1a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
                 s1b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
-
             }
         }
 
         // copy data common to new strings
-        s2a->copy((void*)s2.get());
-        s2b->copy((void*)s2.get());
+        s2a->copy(s2.get());
+        s2b->copy(s2.get());
 
         // ensure boson daggers are clear (they should be anyway)
         s2a->is_boson_dagger.clear();
@@ -448,7 +434,6 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
 
                 s2a->is_boson_dagger.push_back(in->is_boson_dagger[i]);
                 s2b->is_boson_dagger.push_back(in->is_boson_dagger[i]);
-
             }
         }
 
@@ -457,7 +442,6 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
         ordered.push_back(s2a);
         ordered.push_back(s2b);
         return false;
-
     }
 
     return false;

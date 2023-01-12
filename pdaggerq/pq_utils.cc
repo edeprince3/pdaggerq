@@ -27,7 +27,7 @@
 
 namespace pdaggerq {
 
-/// concatinate a list of operators (a list of strings) into a single list
+// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops) {
 
     std::vector<std::string> ret;
@@ -42,14 +42,14 @@ std::vector<std::string> concatinate_operators(std::vector<std::vector<std::stri
     return ret;
 }
 
-/// remove "*" from std::string
+// remove "*" from std::string
 void removeStar(std::string &x) {
 
   auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '*');});
   x.erase(it, std::end(x));
 }
 
-/// remove "(" and ")" from std::string
+// remove "(" and ")" from std::string
 void removeParentheses(std::string &x) {
 
   auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '(');});
@@ -381,7 +381,7 @@ void compare_strings_with_swapped_summed_labels(std::vector<std::vector<std::str
         for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
     
             std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
-            newguy->copy((void*)(in1.get()));
+            newguy->copy(in1.get());
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
             newguy->sort_labels();
 
@@ -502,7 +502,7 @@ void consolidate_permutations_non_summed(
                     if ( find_idx[id2] != 1 ) continue;
 
                     std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
-                    newguy->copy((void*)(ordered[i].get()));
+                    newguy->copy(ordered[i].get());
                     swap_two_labels(newguy,labels[id1],labels[id2]);
 
                     strings_same = compare_strings(ordered[j],newguy,n_permute);
@@ -1405,11 +1405,11 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
 
                 // first guy is just a copy
                 std::shared_ptr<pq_string> newguy1 (new pq_string(in->vacuum));
-                newguy1->copy((void*)tmp[i].get());
+                newguy1->copy(tmp[i].get());
 
                 // second guy is a copy with permuted labels and change in sign
                 std::shared_ptr<pq_string> newguy2 (new pq_string(in->vacuum));
-                newguy2->copy((void*)tmp[i].get());
+                newguy2->copy(tmp[i].get());
                 swap_two_labels(newguy2, idx1, idx2);
                 newguy2->sign *= -1;
 
