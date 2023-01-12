@@ -73,7 +73,7 @@ void pq_string::sort_labels() {
     }
 }
 
-// is fermion part of string in normal order?
+// is string in normal order? both fermion and boson parts
 bool pq_string::is_normal_order() {
 
     // don't bother bringing to normal order if we're going to skip this string
