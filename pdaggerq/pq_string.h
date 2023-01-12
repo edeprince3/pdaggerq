@@ -109,11 +109,8 @@ class pq_string {
     /// return string information (with spin)
     std::vector<std::string> get_string_with_spin();
 
-    // copy all data, except symbols and daggers. 
-    void shallow_copy(void * copy_me);
-
-    /// copy all data, including symbols and daggers. 
-    void copy(void * copy_me);
+    /// copy string data, possibly excluding symbols and daggers. 
+    void copy(void * copy_me, bool copy_daggers_and_symbols = true);
 
     /// set spin labels in integrals and amplitudes
     void set_spin_everywhere(std::string target, std::string spin);

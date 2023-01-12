@@ -383,11 +383,12 @@ std::vector<std::string> pq_string::get_string() {
     return my_string;
 }
 
-// copy all data, except symbols and daggers. 
 
 // TODO: should probably make sure all of the std::vectors
 //       (ints, amplitudes, deltas) have been cleared.
-void pq_string::shallow_copy(void * copy_me) {
+
+// copy string data, possibly excluding symbols and daggers
+void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
 
     pq_string * in = reinterpret_cast<pq_string * >(copy_me);
 
@@ -426,37 +427,33 @@ void pq_string::shallow_copy(void * copy_me) {
 
     // non-summed spin labels
     non_summed_spin_labels = in->non_summed_spin_labels;
-}
-
-// copy all data, including symbols and daggers
-void pq_string::copy(void * copy_me) {
-
-    shallow_copy(copy_me);
-
-    pq_string * in = reinterpret_cast<pq_string * >(copy_me);
-
-    // operators
-    for (size_t j = 0; j < in->symbol.size(); j++) {
-        symbol.push_back(in->symbol[j]);
-
-        // dagger?
-        is_dagger.push_back(in->is_dagger[j]);
-
-        // dagger (relative to fermi vacuum)?
-        if ( vacuum == "FERMI" ) {
-            is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
-        }
-    }
-
-    // boson daggers
-    for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
-        is_boson_dagger.push_back(in->is_boson_dagger[i]);
-    }
 
     // permutations
     for (size_t i = 0; i < in->permutations.size(); i++) {
         permutations.push_back(in->permutations[i]);
     }
+
+    if ( copy_daggers_and_symbols ) {
+
+        // operators
+        for (size_t j = 0; j < in->symbol.size(); j++) {
+            symbol.push_back(in->symbol[j]);
+
+            // dagger?
+            is_dagger.push_back(in->is_dagger[j]);
+
+            // dagger (relative to fermi vacuum)?
+            if ( vacuum == "FERMI" ) {
+                is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
+            }
+        }
+
+        // boson daggers
+        for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
+            is_boson_dagger.push_back(in->is_boson_dagger[i]);
+        }
+    }
+
 }
 
 void pq_string::set_spin_everywhere(std::string target, std::string spin) {

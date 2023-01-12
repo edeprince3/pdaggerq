@@ -42,8 +42,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
     std::shared_ptr<pq_string> s2 ( new pq_string(in->vacuum) );
 
     // copy data common to both new strings
-    s1->shallow_copy(in.get());
-    s2->shallow_copy(in.get());
+    s1->copy(in.get(), false);
+    s2->copy(in.get(), false);
 
     // rearrange operators
 
@@ -303,8 +303,8 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
     std::shared_ptr<pq_string> s2 ( new pq_string(in->vacuum) );
 
     // copy data common to both new strings
-    s1->shallow_copy(in.get());
-    s2->shallow_copy(in.get());
+    s1->copy(in.get(), false);
+    s2->copy(in.get(), false);
 
     // rearrange operators
     for (int i = 0; i < (int)in->symbol.size()-1; i++) {
