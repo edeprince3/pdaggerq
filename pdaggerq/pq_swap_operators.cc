@@ -32,14 +32,8 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
     if ( in->skip ) return true;
 
     if ( in->is_normal_order() ) {
-
         // push current ordered operator onto running list
-        std::shared_ptr<pq_string> newguy (new pq_string(in->vacuum));
-
-        newguy->copy(in.get());
-
-        ordered.push_back(newguy);
-
+        ordered.push_back(in);
         return true;
     }
 
@@ -309,11 +303,7 @@ bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
     if ( in->is_normal_order() ) {
 
         // push current ordered operator onto running list
-        std::shared_ptr<pq_string> newguy (new pq_string(in->vacuum));
-
-        newguy->copy(in.get());
-
-        ordered.push_back(newguy);
+        ordered.push_back(in);
 
         return true;
     }
