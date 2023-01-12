@@ -392,47 +392,6 @@ void compare_strings_with_swapped_summed_labels(std::vector<std::vector<std::str
 
 }
 
-// consolidate terms that differ by permutations
-void consolidate_permutations(std::vector<std::shared_ptr<pq_string> > &ordered) {
-
-    // consolidate terms that differ by permutations
-    for (size_t i = 0; i < ordered.size(); i++) {
-
-        if ( ordered[i]->skip ) continue;
-
-        for (size_t j = i+1; j < ordered.size(); j++) {
-
-            if ( ordered[j]->skip ) continue;
-
-            int n_permute;
-            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
-
-            if ( !strings_same ) continue;
-
-            double factor_i = ordered[i]->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->factor * ordered[j]->sign;
-
-            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
-
-            // if terms exactly cancel, do so
-            if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
-                break;
-            }
-
-            // otherwise, combine terms
-            ordered[i]->factor = fabs(combined_factor);
-            if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
-            }else {
-                ordered[i]->sign = -1;
-            }
-            ordered[j]->skip = true;
-        }
-    }
-}
-
 // consolidate terms that differ may differ by permutations of summed labels
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
                                          std::vector<std::vector<std::string> > labels) {
