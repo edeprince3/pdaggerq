@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: data.h
+// Filename: pq_tensor.h
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -20,8 +20,8 @@
 //  limitations under the License./>.
 //
 
-#ifndef TENSOR_H
-#define TENSOR_H
+#ifndef PQ_TENSOR_H
+#define PQ_TENSOR_H
 
 #include<vector>
 #include<string>

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-tests=(cc3 ccsd_codegen ccsd_d1 ccsd_d2 ccsd_doubles ccsd_energy ccsd ccsd_singles ccsd_t ccsdt cid_d1 cid_d2 cisd_hamiltonian ea_eom_ccsd ea_eom_ccsdt eom_ccsd_d1_by_hand eom_ccsd_d1 eom_ccsd_hamiltonian eom_ccsd eom_ccsd_sigma extended_rpa ip_eom_ccsd ip_eom_ccsdt lambda_doubles_codegen lambda_doubles lambda_singles_codegen lambda_singles rdm_mappings)
+tests=(rdm_mappings extended_rpa ccsd_with_spin cc3 ccsd_codegen ccsd_d1 ccsd_d2 ccsd_doubles ccsd_energy ccsd ccsd_singles ccsd_t ccsdt cid_d1 cid_d2 cisd_hamiltonian ea_eom_ccsd ea_eom_ccsdt eom_ccsd_d1_by_hand eom_ccsd_d1 eom_ccsd_hamiltonian eom_ccsd eom_ccsd_sigma ip_eom_ccsd ip_eom_ccsdt lambda_doubles_codegen lambda_doubles lambda_singles_codegen lambda_singles ccsdt_with_spin )
 
 quick_tests=(cc3 ccsd eom_ccsd_sigma)
 

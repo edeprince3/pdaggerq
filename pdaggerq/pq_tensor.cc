@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: data.h
+// Filename: pq_tensor.cc
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -20,7 +20,7 @@
 //  limitations under the License./>.
 //
 
-#include"tensor.h"
+#include"pq_tensor.h"
 
 #include<string>
 
@@ -106,14 +106,14 @@ void amplitudes::print(char symbol) {
         if ( 2*order != size ) {
             order++;
         }
-        printf("%c",symbol);
-        printf("%zu",order);
+        printf("%c", symbol);
+        printf("%zu", order);
         printf("(");
         for (size_t j = 0; j < size-1; j++) {
-            printf("%s",labels[j].c_str());
+            printf("%s", labels[j].c_str());
             printf(",");
         }
-        printf("%s",labels[size-1].c_str());
+        printf("%s", labels[size-1].c_str());
         printf(")");
         printf(" ");
 
@@ -251,52 +251,52 @@ void integrals::print(std::string symbol) {
 
     if ( symbol == "two_body") {
         printf("g(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(",");
-        printf("%s",labels[2].c_str());
+        printf("%s", labels[2].c_str());
         printf(",");
-        printf("%s",labels[3].c_str());
+        printf("%s", labels[3].c_str());
         printf(")");
         printf(" ");
     }else if (symbol == "eri" ) {
         printf("<");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf("||");
-        printf("%s",labels[2].c_str());
+        printf("%s", labels[2].c_str());
         printf(",");
-        printf("%s",labels[3].c_str());
+        printf("%s", labels[3].c_str());
         printf(">");
         printf(" ");
     }else if ( symbol == "core") {
         printf("h(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
     }else if ( symbol == "fock") {
         printf("f(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
     }else if ( symbol == "d+") {
         printf("d+(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
     }else if ( symbol == "d-") {
         printf("d-(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
     }else {
@@ -466,9 +466,9 @@ delta_functions delta_functions::operator=(const delta_functions& rhs) {
 void delta_functions::print() {
 
     printf("d(");
-    printf("%s",labels[0].c_str());
+    printf("%s", labels[0].c_str());
     printf(",");
-    printf("%s",labels[1].c_str());
+    printf("%s", labels[1].c_str());
     printf(")");
     printf(" ");
 }

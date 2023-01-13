@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: data.h
+// Filename: pq_string.h
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -20,26 +20,37 @@
 //  limitations under the License./>.
 //
 
-#ifndef DATA_H
-#define DATA_H
+#ifndef PQ_STRING_H
+#define PQ_STRING_H
 
-#include "tensor.h"
+#include "pq_tensor.h"
 #include <map>
 
 namespace pdaggerq {
 
-class StringData {
+class pq_string {
 
   private:
-
 
   public:
 
     /// constructor
-    StringData(){};
+    pq_string(std::string vacuum_type);
 
     /// descructor
-    ~StringData(){};
+    ~pq_string();
+
+    // vacuum type ("TRUE", "FERMI")
+    std::string vacuum;
+
+    // sign associated with string
+    int sign = 1;
+
+    // skip this term when moving toward normal order and printing
+    bool skip = false;
+
+    // sort amplitude, integral, and delta function labels
+    void sort_labels();
 
     /// factor
     double factor = 1.0;
@@ -73,6 +84,45 @@ class StringData {
 
     /// list: is bosonic operator creator or annihilator?
     std::vector<bool> is_boson_dagger;
+
+    /// list: is fermionic operator creator or annihilator (relative to true vacuum)?
+    std::vector<bool> is_dagger;
+
+    /// list: is fermionic operator creator or annihilator (relative to fermi vacuum)?
+    std::vector<bool> is_dagger_fermi;
+
+    /// list: symbols for fermionic creation / annihilation operators
+    std::vector<std::string> symbol;
+
+    /// is fermion part of string in normal order?
+    bool is_normal_order();
+
+    /// is boson part of string in normal order?
+    bool is_boson_normal_order();
+
+    /// print string information
+    void print();
+
+    /// return string information
+    std::vector<std::string> get_string();
+
+    /// return string information (with spin)
+    std::vector<std::string> get_string_with_spin();
+
+    /// copy string data, possibly excluding symbols and daggers. 
+    void copy(void * copy_me, bool copy_daggers_and_symbols = true);
+
+    /// set spin labels in integrals and amplitudes
+    void set_spin_everywhere(std::string target, std::string spin);
+
+    /// reset spin labels (so only non-summed labels are set)
+    void reset_spin_labels();
+
+    /// set labels for integrals
+    void set_integrals(std::string type, std::vector<std::string> in);
+
+    /// set labels for amplitudes
+    void set_amplitudes(char type, int order, std::vector<std::string> in);
 
 };
 
