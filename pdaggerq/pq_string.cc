@@ -164,18 +164,18 @@ void pq_string::print() {
         int count = 0;
         for (int i = 0; i < n; i++) {
             printf("P(");
-            printf("%s",permutations[count++].c_str());
+            printf("%s", permutations[count++].c_str());
             printf(",");
-            printf("%s",permutations[count++].c_str());
+            printf("%s", permutations[count++].c_str());
             printf(")");
             printf(" ");
         }
     }
 
     for (size_t i = 0; i < symbol.size(); i++) {
-        printf("%s",symbol[i].c_str());
+        printf("%s", symbol[i].c_str());
         if ( is_dagger[i] ) {
-            printf("%c",'*');
+            printf("%c", '*');
         }
         printf(" ");
     }

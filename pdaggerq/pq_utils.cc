@@ -45,17 +45,17 @@ std::vector<std::string> concatinate_operators(std::vector<std::vector<std::stri
 // remove "*" from std::string
 void removeStar(std::string &x) {
 
-  auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '*');});
+  auto it = std::remove_if(std::begin(x), std::end(x), [](char c){return (c == '*');});
   x.erase(it, std::end(x));
 }
 
 // remove "(" and ")" from std::string
 void removeParentheses(std::string &x) {
 
-  auto it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == '(');});
+  auto it = std::remove_if(std::begin(x), std::end(x), [](char c){return (c == '(');});
   x.erase(it, std::end(x));
 
-  it = std::remove_if(std::begin(x),std::end(x),[](char c){return (c == ')');});
+  it = std::remove_if(std::begin(x), std::end(x), [](char c){return (c == ')');});
   x.erase(it, std::end(x));
 }
 
@@ -216,7 +216,6 @@ void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::str
 // replace one label with another (in integrals and amplitudes)
 void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx, std::string new_idx) {
 
-    //replace_index_in_deltas(old_idx,new_idx);
     for (size_t i = 0; i < in->integral_types.size(); i++) {
         std::string type = in->integral_types[i];
         replace_index_in_integrals(old_idx, new_idx, in->ints[type]);
@@ -229,9 +228,9 @@ void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx
 }
 
 /// compare two lists of integrals
-bool compare_integrals( std::vector<integrals> ints1,
-                        std::vector<integrals> ints2,
-                        int & n_permute ) {
+bool compare_integrals(std::vector<integrals> ints1,
+                       std::vector<integrals> ints2,
+                       int & n_permute ) {
 
     if ( ints1.size() != ints2.size() ) return false;
 
@@ -332,7 +331,6 @@ bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_st
         if ( !same_string ) return false;
     }
 
-    // permutations should be the same, too wtf
     // also need to check if the permutations are the same...
     // otherwise, we shouldn't be combining these terms
     if ( ordered_1->permutations.size() != ordered_2->permutations.size() ) {
@@ -419,7 +417,7 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
             if ( ordered[j]->skip ) continue;
 
             int n_permute;
-            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+            bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
             compare_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], ordered[j], n_permute, strings_same);
 
@@ -490,7 +488,7 @@ void consolidate_permutations_non_summed(
             if ( ordered[j]->skip ) continue;
 
             int n_permute;
-            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+            bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
             std::string permutation_1 = "";
             std::string permutation_2 = "";
@@ -503,9 +501,9 @@ void consolidate_permutations_non_summed(
 
                     std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
                     newguy->copy(ordered[i].get());
-                    swap_two_labels(newguy,labels[id1],labels[id2]);
+                    swap_two_labels(newguy, labels[id1], labels[id2]);
 
-                    strings_same = compare_strings(ordered[j],newguy,n_permute);
+                    strings_same = compare_strings(ordered[j], newguy, n_permute);
 
                     if ( strings_same ) {
 
@@ -527,7 +525,7 @@ void consolidate_permutations_non_summed(
             double factor_i = ordered[i]->factor * ordered[i]->sign;
             double factor_j = ordered[j]->factor * ordered[j]->sign;
 
-            double combined_factor = factor_i + factor_j * pow(-1.0,n_permute);
+            double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
 
             // if terms exactly cancel, then this is a permutation
             if ( fabs(combined_factor) < 1e-12 ) {
@@ -643,10 +641,10 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
     }
     pruned.clear();
 
-    //printf("starting string comparisons\n");fflush(stdout);
-
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+
+    // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 
     consolidate_permutations_plus_swaps(ordered, {});
 
@@ -657,60 +655,12 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
     consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
 
-    // these don't seem to be necessary for test cases up to ccsdtq
-/*
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels});
-
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels});
-
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
-*/
-
     // probably only relevant for vacuum = fermi
     if ( ordered.size() == 0 ) return;
     if ( ordered[0]->vacuum != "FERMI" ) return;
 
-    consolidate_permutations_non_summed(ordered,occ_labels);
-    consolidate_permutations_non_summed(ordered,vir_labels);
+    consolidate_permutations_non_summed(ordered, occ_labels);
+    consolidate_permutations_non_summed(ordered, vir_labels);
 
     // re-prune
     pruned.clear();
@@ -743,7 +693,7 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> in) {
     if ( dim == 0 ) return;
 
     bool* nope = (bool*)malloc(dim * sizeof(bool));
-    memset((void*)nope,'\0',dim * sizeof(bool));
+    memset((void*)nope, '\0', dim * sizeof(bool));
 
     std::vector<std::vector<std::string> > tmp;
 
@@ -1042,7 +992,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> in) {
     if ( in->ints["occ_repulsion"].size() > 0 ) {
         
         // pick summation label not included in string already
-        std::vector<std::string> occ_out{"i","j","k","l","m","n","o","t","i0","i1","i2","i3","i4","i5","i6","i7","i8","i9"};
+        std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "o", "t", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
         std::string idx;
         
         int do_skip = -999;
@@ -1094,12 +1044,12 @@ void reclassify_integrals(std::shared_ptr<pq_string> in) {
 void use_conventional_labels(std::shared_ptr<pq_string> in) {
 
     // occupied first:
-    std::vector<std::string> occ_in{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
-                                    "o10","o11","o12","o13","o14","o15","o16","o17","o18","o19",
-                                    "o20","o21","o22","o23","o24","o25","o26","o27","o28","o29"};
-    std::vector<std::string> occ_out{"i","j","k","l","m","n","o","t",
-                                     "i0","i1","i2","i3","i4","i5","i6","i7","i8","i9",
-                                     "i10","i11","i12","i13","i14","i15","i16","i17","i18","i19"};
+    std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
+                                    "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
+                                    "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
+    std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "o", "t",
+                                     "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9",
+                                     "i10", "i11", "i12", "i13", "i14", "i15", "i16", "i17", "i18", "i19"};
 
     for (size_t i = 0; i < occ_in.size(); i++) {
 
@@ -1117,12 +1067,12 @@ void use_conventional_labels(std::shared_ptr<pq_string> in) {
     }
 
     // now virtual
-    std::vector<std::string> vir_in{"v0","v1","v2","v3","v4","v5","v6","v7","v8","v9",
-                                    "v10","v11","v12","v13","v14","v15","v16","v17","v18","v19",
-                                    "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
-    std::vector<std::string> vir_out{"a","b","c","d","e","f","g","h",
-                                     "a0","a1","a2","a3","a4","a5","a6","a7","a8","a9",
-                                     "a10","a11","a12","a13","a14","a15","a16","a17","a18","a19"};
+    std::vector<std::string> vir_in{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
+                                    "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
+                                    "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
+    std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "g",
+                                     "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9",
+                                     "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19"};
 
     for (size_t i = 0; i < vir_in.size(); i++) {
 
@@ -1148,12 +1098,12 @@ void gobble_deltas(std::shared_ptr<pq_string> in) {
     
     // create list of summation labels. only consider internally-created labels
                                      
-    std::vector<std::string> occ_labels{"o0","o1","o2","o3","o4","o5","o6","o7","o8","o9",
-                                    "o10","o11","o12","o13","o14","o15","o16","o17","o18","o19",
-                                    "o20","o21","o22","o23","o24","o25","o26","o27","o28","o29"};
-    std::vector<std::string> vir_labels{"v0","v1","v2","v3","v4","v5","v6","v7","v8","v9",
-                                    "v10","v11","v12","v13","v14","v15","v16","v17","v18","v19",
-                                    "v20","v21","v22","v23","v24","v25","v26","v27","v28","v29"};
+    std::vector<std::string> occ_labels{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
+                                    "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
+                                    "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
+    std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
+                                    "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
+                                    "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
 
     std::vector<std::string> sum_labels;
     for (size_t i = 0; i < occ_labels.size(); i++) {
@@ -1274,13 +1224,9 @@ bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_str
                     sa->set_spin_everywhere(in->amps[type][j].labels[k], "a");
                     sb->set_spin_everywhere(in->amps[type][j].labels[k], "b");
 
-                    //sa->amps[type][j].spin_labels[k] = "a";
-                    //sb->amps[type][j].spin_labels[k] = "b";
-
                     list.push_back(sa);
                     list.push_back(sb);
                     return false;
-
                 }
             }
         }
@@ -1302,13 +1248,9 @@ bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_str
                     sa->set_spin_everywhere(in->ints[type][j].labels[k], "a");
                     sb->set_spin_everywhere(in->ints[type][j].labels[k], "b");
 
-                    //sa->ints[type][j].spin_labels[k] = "a";
-                    //sb->ints[type][j].spin_labels[k] = "b";
-
                     list.push_back(sa);
                     list.push_back(sb);
                     return false;
-
                 }
             }
         }
@@ -1462,7 +1404,6 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
         }
     }while(!done_adding_spins);
 
-
     // kill terms that have mismatched spin 
     for (size_t i = 0; i < tmp.size(); i++) {
 
@@ -1559,7 +1500,6 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
             continue;
         }
     }
-
     
     // rearrange terms so that they have standard spin order (abba -> -abab, etc.)
     for (size_t p = 0; p < tmp.size(); p++) {
@@ -1580,7 +1520,6 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
                 if ( order == 2 ) {
 
                     // three cases that require attention: ab;ba, ba;ab, and ba;ba
-
                     if (       tmp[p]->amps[type][j].spin_labels[0] == "a"
                             && tmp[p]->amps[type][j].spin_labels[1] == "b"
                             && tmp[p]->amps[type][j].spin_labels[2] == "b"
@@ -1609,7 +1548,6 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
 
                             tmp[p]->sign *= -1;
 
-
                     }else if ( tmp[p]->amps[type][j].spin_labels[0] == "b"
                             && tmp[p]->amps[type][j].spin_labels[1] == "a"
                             && tmp[p]->amps[type][j].spin_labels[2] == "b"
@@ -1628,7 +1566,6 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
 
                             tmp[p]->amps[type][j].spin_labels[2] = "a";
                             tmp[p]->amps[type][j].spin_labels[3] = "b";
-
                     }
                 }else if ( order == 3 ) {
 
@@ -1645,7 +1582,6 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
                     reorder_four_spins(tmp[p]->amps[type][j], 0, 1, 2, 3, sign);
                     reorder_four_spins(tmp[p]->amps[type][j], 4, 5, 6, 7, sign);
                     tmp[p]->sign *= sign;
-
                 }
             }
         }
@@ -1690,7 +1626,6 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
 
                         tmp[p]->sign *= -1;
 
-
                 }else if ( tmp[p]->ints[type][j].spin_labels[0] == "b"
                         && tmp[p]->ints[type][j].spin_labels[1] == "a"
                         && tmp[p]->ints[type][j].spin_labels[2] == "b"
@@ -1709,18 +1644,15 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
 
                         tmp[p]->ints[type][j].spin_labels[2] = "a";
                         tmp[p]->ints[type][j].spin_labels[3] = "b";
-
                 }
             }
         }
     }
 
-    // 
     for (size_t i = 0; i < tmp.size(); i++) {
         if ( tmp[i]->skip ) continue;
         spin_blocked.push_back(tmp[i]);
     }
-
     tmp.clear();
 }
 
@@ -1788,8 +1720,8 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
         
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators
-    // (h, g). If it does, then the string must be split to account explicitly
-    // for sums over 
+    // (h, g, f, and v). If it does, then the string must be split to account 
+    // explicitly for sums over occupied and virtual labels
     
     int n_gen_idx = 1;
     int n_integral_objects = 0;
@@ -2052,11 +1984,8 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
                         }
                     }
                 }
-
                 my_gen_idx++;
-
             }
-
         }
 
         for (size_t i = 0; i < in->amplitude_types.size(); i++) {
@@ -2090,7 +2019,6 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
         }else if ( integral_type != "none" ) {
 
             mystring->ints[integral_type].push_back(ints);
-
         }
 
         for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
@@ -2129,10 +2057,8 @@ void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
         for (size_t i = 0; i < tmp.size(); i++) {
             ordered.push_back(tmp[i]);
         }
-        //printf("current list size: %zu\n",ordered.size());
         tmp.clear();
     }
 }
 
 } // End namespaces
-

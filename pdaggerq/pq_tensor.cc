@@ -106,14 +106,14 @@ void amplitudes::print(char symbol) {
         if ( 2*order != size ) {
             order++;
         }
-        printf("%c",symbol);
-        printf("%zu",order);
+        printf("%c", symbol);
+        printf("%zu", order);
         printf("(");
         for (size_t j = 0; j < size-1; j++) {
-            printf("%s",labels[j].c_str());
+            printf("%s", labels[j].c_str());
             printf(",");
         }
-        printf("%s",labels[size-1].c_str());
+        printf("%s", labels[size-1].c_str());
         printf(")");
         printf(" ");
 
@@ -251,52 +251,52 @@ void integrals::print(std::string symbol) {
 
     if ( symbol == "two_body") {
         printf("g(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(",");
-        printf("%s",labels[2].c_str());
+        printf("%s", labels[2].c_str());
         printf(",");
-        printf("%s",labels[3].c_str());
+        printf("%s", labels[3].c_str());
         printf(")");
         printf(" ");
     }else if (symbol == "eri" ) {
         printf("<");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf("||");
-        printf("%s",labels[2].c_str());
+        printf("%s", labels[2].c_str());
         printf(",");
-        printf("%s",labels[3].c_str());
+        printf("%s", labels[3].c_str());
         printf(">");
         printf(" ");
     }else if ( symbol == "core") {
         printf("h(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
     }else if ( symbol == "fock") {
         printf("f(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
     }else if ( symbol == "d+") {
         printf("d+(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
     }else if ( symbol == "d-") {
         printf("d-(");
-        printf("%s",labels[0].c_str());
+        printf("%s", labels[0].c_str());
         printf(",");
-        printf("%s",labels[1].c_str());
+        printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
     }else {
@@ -466,9 +466,9 @@ delta_functions delta_functions::operator=(const delta_functions& rhs) {
 void delta_functions::print() {
 
     printf("d(");
-    printf("%s",labels[0].c_str());
+    printf("%s", labels[0].c_str());
     printf(",");
-    printf("%s",labels[1].c_str());
+    printf("%s", labels[1].c_str());
     printf(")");
     printf(" ");
 }

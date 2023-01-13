@@ -100,7 +100,7 @@ pq_helper::pq_helper(std::string vacuum_type)
         vacuum = "FERMI";
     }else {
         printf("\n");
-        printf("    error: invalid vacuum type (%s)\n",vacuum_type.c_str());
+        printf("    error: invalid vacuum type (%s)\n", vacuum_type.c_str());
         printf("\n");
         exit(1);
     }
@@ -156,7 +156,7 @@ void pq_helper::set_left_operators_type(std::string type) {
         left_operators_type = type;
     }else {
         printf("\n");
-        printf("    error: invalid left-hand operator type (%s)\n",type.c_str());
+        printf("    error: invalid left-hand operator type (%s)\n", type.c_str());
         printf("\n");
         exit(1);
     }
@@ -167,7 +167,7 @@ void pq_helper::set_right_operators_type(std::string type) {
         right_operators_type = type;
     }else {
         printf("\n");
-        printf("    error: invalid right-hand operator type (%s)\n",type.c_str());
+        printf("    error: invalid right-hand operator type (%s)\n", type.c_str());
         printf("\n");
         exit(1);
     }
@@ -323,7 +323,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         for (int i = 0; i < (int)tmp.size(); i++) {
             in.push_back(tmp[i]);
         }
-        add_operator_product(factor,in);
+        add_operator_product(factor, in);
 
         // term 2
         in.clear();
@@ -334,7 +334,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         for (int i = count + 1; i < (int)tmp.size(); i++) {
             in.push_back(tmp[i]);
         }
-        add_operator_product(factor,in);
+        add_operator_product(factor, in);
         
         return;
     }
@@ -405,7 +405,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 // remove parentheses
                 removeParentheses(in[i]);
 
-                if ( in[i].substr(0,1) == "h" ) { // one-electron operator
+                if ( in[i].substr(0, 1) == "h" ) { // one-electron operator
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -417,23 +417,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    newguy->set_integrals("core", {idx1,idx2});
+                    newguy->set_integrals("core", {idx1, idx2});
 
-                }else if ( in[i].substr(0,1) == "f" ) { // fock operator
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
-
-                    // index 2
-                    tmp_string.push_back(idx2);
-
-                    // integrals
-                    newguy->set_integrals("fock", {idx1,idx2});
-
-                }else if ( in[i].substr(0,2) == "d+" ) { // one-electron operator (dipole + boson creator)
+                }else if ( in[i].substr(0, 1) == "f" ) { // fock operator
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -445,12 +431,26 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    newguy->set_integrals("d+", {idx1,idx2});
+                    newguy->set_integrals("fock", {idx1, idx2});
+
+                }else if ( in[i].substr(0, 2) == "d+" ) { // one-electron operator (dipole + boson creator)
+
+                    std::string idx1 = "p" + std::to_string(gen_label_count++);
+                    std::string idx2 = "p" + std::to_string(gen_label_count++);
+
+                    // index 1
+                    tmp_string.push_back(idx1+"*");
+
+                    // index 2
+                    tmp_string.push_back(idx2);
+
+                    // integrals
+                    newguy->set_integrals("d+", {idx1, idx2});
 
                     // boson operator
                     newguy->is_boson_dagger.push_back(true);
 
-                }else if ( in[i].substr(0,2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
+                }else if ( in[i].substr(0, 2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -462,12 +462,12 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    newguy->set_integrals("d-", {idx1,idx2});
+                    newguy->set_integrals("d-", {idx1, idx2});
 
                     // boson operator
                     newguy->is_boson_dagger.push_back(false);
 
-                }else if ( in[i].substr(0,1) == "g" ) { // general two-electron operator
+                }else if ( in[i].substr(0, 1) == "g" ) { // general two-electron operator
 
                     //factor *= 0.25;
 
@@ -481,11 +481,11 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx3);
                     tmp_string.push_back(idx4);
 
-                    newguy->set_integrals("two_body", {idx1,idx2,idx4,idx3});
+                    newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3});
 
-                }else if ( in[i].substr(0,1) == "j" ) { // fluctuation potential
+                }else if ( in[i].substr(0, 1) == "j" ) { // fluctuation potential
 
-                    if ( in[i].substr(1,1) == "1" ){
+                    if ( in[i].substr(1, 1) == "1" ){
 
                         factor *= -1.0;
 
@@ -499,9 +499,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(idx2);
 
                         // integrals
-                        newguy->set_integrals("occ_repulsion", {idx1,idx2});
+                        newguy->set_integrals("occ_repulsion", {idx1, idx2});
 
-                    }else if ( in[i].substr(1,1) == "2" ){
+                    }else if ( in[i].substr(1, 1) == "2" ){
 
                         factor *= 0.25;
 
@@ -515,11 +515,11 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(idx3);
                         tmp_string.push_back(idx4);
 
-                        newguy->set_integrals("eri", {idx1,idx2,idx4,idx3});
+                        newguy->set_integrals("eri", {idx1, idx2, idx4, idx3});
 
                     }
 
-                }else if ( in[i].substr(0,1) == "t" ){
+                }else if ( in[i].substr(0, 1) == "t" ){
 
                     int n = std::stoi(in[i].substr(1));
 
@@ -564,9 +564,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     }
                     factor *= 1.0 / my_factor / my_factor;
 
-                }else if ( in[i].substr(0,1) == "w" ){ // w0 B*B
+                }else if ( in[i].substr(0, 1) == "w" ){ // w0 B*B
 
-                    if ( in[i].substr(1,1) == "0" ){
+                    if ( in[i].substr(1, 1) == "0" ){
 
                         has_w0 = true;
 
@@ -580,15 +580,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         exit(1);
                     }
 
-                }else if ( in[i].substr(0,2) == "b+" ){ // B*
+                }else if ( in[i].substr(0, 2) == "b+" ){ // B*
 
                         newguy->is_boson_dagger.push_back(true);
 
-                }else if ( in[i].substr(0,2) == "b-" ){ // B
+                }else if ( in[i].substr(0, 2) == "b-" ){ // B
 
                         newguy->is_boson_dagger.push_back(false);
 
-                }else if ( in[i].substr(0,1) == "u" ){ // t-amplitudes + boson creator
+                }else if ( in[i].substr(0, 1) == "u" ){ // t-amplitudes + boson creator
 
                     int n = std::stoi(in[i].substr(1));
 
@@ -645,7 +645,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         newguy->is_boson_dagger.push_back(true);
                     }
 
-                }else if ( in[i].substr(0,1) == "r" ){
+                }else if ( in[i].substr(0, 1) == "r" ){
 
 
                     int n = std::stoi(in[i].substr(1));
@@ -710,7 +710,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }
 
-                }else if ( in[i].substr(0,1) == "s" ){ // r amplitudes + boson creator
+                }else if ( in[i].substr(0, 1) == "s" ){ // r amplitudes + boson creator
 
                     int n = std::stoi(in[i].substr(1));
 
@@ -778,7 +778,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }
 
-                }else if ( in[i].substr(0,1) == "l" ){
+                }else if ( in[i].substr(0, 1) == "l" ){
 
                     int n = std::stoi(in[i].substr(1));
 
@@ -842,7 +842,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     
                     }
 
-                }else if ( in[i].substr(0,1) == "m" ){ // l amplitudes plus boson annihilator
+                }else if ( in[i].substr(0, 1) == "m" ){ // l amplitudes plus boson annihilator
 
                     int n = std::stoi(in[i].substr(1));
 
@@ -910,10 +910,10 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }
 
-                }else if ( in[i].substr(0,1) == "e" ){
+                }else if ( in[i].substr(0, 1) == "e" ){
 
 
-                    if ( in[i].substr(1,1) == "1" ){
+                    if ( in[i].substr(1, 1) == "1" ){
 
                         // find comma
                         size_t pos = in[i].find(",");
@@ -926,12 +926,12 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         size_t len = pos - 2; 
 
                         // index 1
-                        tmp_string.push_back(in[i].substr(2,len)+"*");
+                        tmp_string.push_back(in[i].substr(2, len)+"*");
 
                         // index 2
                         tmp_string.push_back(in[i].substr(pos+1));
 
-                    }else if ( in[i].substr(1,1) == "2" ){
+                    }else if ( in[i].substr(1, 1) == "2" ){
 
                         // count indices
                         size_t pos = 0;
@@ -952,12 +952,12 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                             exit(1);
                         }
 
-                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1));
+                        tmp_string.push_back(in[i].substr(2, commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1, commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[1]+1, commas[2]-commas[1]-1));
                         tmp_string.push_back(in[i].substr(commas[2]+1));
 
-                    }else if ( in[i].substr(1,1) == "3" ){
+                    }else if ( in[i].substr(1, 1) == "3" ){
 
                         // count indices
                         size_t pos = 0;
@@ -978,14 +978,14 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                             exit(1);
                         }
 
-                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[2]+1,commas[3]-commas[2]-1));
-                        tmp_string.push_back(in[i].substr(commas[3]+1,commas[4]-commas[3]-1));
+                        tmp_string.push_back(in[i].substr(2, commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1, commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[1]+1, commas[2]-commas[1]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[2]+1, commas[3]-commas[2]-1));
+                        tmp_string.push_back(in[i].substr(commas[3]+1, commas[4]-commas[3]-1));
                         tmp_string.push_back(in[i].substr(commas[4]+1));
 
-                    }else if ( in[i].substr(1,1) == "4" ){
+                    }else if ( in[i].substr(1, 1) == "4" ){
 
                         // count indices
                         size_t pos = 0;
@@ -1006,13 +1006,13 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                             exit(1);
                         }
 
-                        tmp_string.push_back(in[i].substr(2,commas[0]-2)+"*");
-                        tmp_string.push_back(in[i].substr(commas[0]+1,commas[1]-commas[0]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[1]+1,commas[2]-commas[1]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[2]+1,commas[3]-commas[2]-1)+"*");
-                        tmp_string.push_back(in[i].substr(commas[3]+1,commas[4]-commas[3]-1));
-                        tmp_string.push_back(in[i].substr(commas[4]+1,commas[5]-commas[4]-1));
-                        tmp_string.push_back(in[i].substr(commas[5]+1,commas[6]-commas[5]-1));
+                        tmp_string.push_back(in[i].substr(2, commas[0]-2)+"*");
+                        tmp_string.push_back(in[i].substr(commas[0]+1, commas[1]-commas[0]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[1]+1, commas[2]-commas[1]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[2]+1, commas[3]-commas[2]-1)+"*");
+                        tmp_string.push_back(in[i].substr(commas[3]+1, commas[4]-commas[3]-1));
+                        tmp_string.push_back(in[i].substr(commas[4]+1, commas[5]-commas[4]-1));
+                        tmp_string.push_back(in[i].substr(commas[5]+1, commas[6]-commas[5]-1));
                         tmp_string.push_back(in[i].substr(commas[6]+1));
 
                     }else {
@@ -1022,12 +1022,12 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         exit(1);
                     }
 
-                }else if ( in[i].substr(0,1) == "1" ) { // unit operator ... do nothing
+                }else if ( in[i].substr(0, 1) == "1" ) { // unit operator ... do nothing
 
-                }else if ( in[i].substr(0,1) == "a" ){ // single creator / annihilator
+                }else if ( in[i].substr(0, 1) == "a" ){ // single creator / annihilator
 
 
-                    if ( in[i].substr(1,1) == "*" ){ // creator
+                    if ( in[i].substr(1, 1) == "*" ){ // creator
 
                         tmp_string.push_back(in[i].substr(1)+"*");
 
