@@ -31,9 +31,23 @@
 
 namespace pdaggerq {
 
-bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string>, std::vector<std::shared_ptr<pq_string> > &ordered);
+/**
+ *
+ * swap two operators in a string to bring that string toward normal order with respect to the fermi vacuum
+ *
+ * @param in: the input string
+ * @param ordered: a list of strings to which the new strings will be added after applying appropriate rules for the swap
+ */
+bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered);
 
-bool swap_operators_true_vacuum(std::shared_ptr<pq_string>, std::vector<std::shared_ptr<pq_string> > &ordered);
+/**
+ *
+ * swap two operators in a string to bring that string toward normal order with respect to the true vacuum
+ *
+ * @param in: the input string
+ * @param ordered: a list of strings to which the new strings will be added after applying appropriate rules for the swap
+ */
+bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered);
 
 }
 

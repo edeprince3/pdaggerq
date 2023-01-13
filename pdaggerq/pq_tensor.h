@@ -32,25 +32,53 @@ class tensor {
 
   public:
 
-    /// constructor
+    /**
+     *
+     * constructor
+     *
+     */
     tensor(){};
 
-    /// destructor
+    /**
+     *
+     * destructor
+     *
+     */
     ~tensor(){};
 
-    /// tensor labels (human readable)
+    /**
+     *
+     * human readable tensor labels
+     *
+     */
     std::vector<std::string> labels;
 
-    /// tensor numerical labels
+    /**
+     *
+     * numerical representation of tensor labels
+     *
+     */
     std::vector<int> numerical_labels;
 
-    /// spin labels (human readable)
+    /**
+     *
+     * human readable spin labels
+     *
+     */
     std::vector<std::string> spin_labels;
 
-    /// number of permutations required to sort tensor labels
+    /**
+     *
+     * number of permutations required to sort tensor labels
+     *
+     */
     int permutations = 0;
 
-    /// sort tensor, keep track of permutations
+    /**
+     *
+     * sort numerical tensor labels, keep track of permutations
+     *
+     */
     virtual void sort() {
         printf("\n");
         printf("    sort() has not been implemented for this tensor type\n");
@@ -58,12 +86,22 @@ class tensor {
         exit(1);
     }
 
-    /// comparison between two tensors (warning: ignores spin)
+    /**
+     *
+     * compare two tensors (warning: ignores spin)
+     *
+     * @param rhs: the tensor against which this one is compared
+     */
     bool operator==(const tensor& rhs) {
         return ( numerical_labels == rhs.numerical_labels );
     }
 
-    /// copy tensors
+    /**
+     *
+     * copy a target tensor into this one
+     *
+     * @param rhs: the target tensor
+     */
     virtual tensor operator=(const tensor& rhs) {
         printf("\n");
         printf("    operator '=' has not been implemented for this tensor type\n");
@@ -71,7 +109,12 @@ class tensor {
         exit(1);
     }
 
-    /// print tensor
+    /**
+     *
+     * print tensor information to stdout
+     *
+     * @param symbol: the tensor type
+     */
     virtual void print(std::string symbol) {
         printf("\n");
         printf("    print() has not been implemented for this tensor type\n");
@@ -79,7 +122,12 @@ class tensor {
         exit(1);
     }
 
-    /// print tensor to string
+    /**
+     *
+     * print tensor information to a string
+     *
+     * @param symbol: the tensor type
+     */
     virtual std::string to_string(std::string symbol) {
         printf("\n");
         printf("    to_string() has not been implemented for this tensor type\n");
@@ -87,7 +135,12 @@ class tensor {
         exit(1);
     }
 
-    /// print tensor to string with spin labels
+    /**
+     *
+     * print tensor information to a string, including spin information
+     *
+     * @param symbol: the tensor type
+     */
     virtual std::string to_string_with_spin(std::string symbol) {
         printf("\n");
         printf("    to_string_with_spin() has not been implemented for this tensor type\n");
@@ -101,28 +154,64 @@ class amplitudes: public tensor {
 
   public:
 
-    /// constructor
+    /**
+     * 
+     * constructor 
+     * 
+     */
     amplitudes(){};
 
-    /// destructor
+    /**
+     *
+     * destructor
+     *
+     */
     ~amplitudes(){};
 
-    /// sort amplitudes, keep track of permutations, assign total numerical value
+    /**
+     *
+     * sort numerical amplitudes labels, keep track of permutations
+     *
+     */
     void sort();
 
-    /// copy amplitudes
+    /**
+     *
+     * copy target amplitudes into this one
+     *
+     * @param rhs: the target amplitudes
+     */
     amplitudes operator=(const amplitudes& rhs);
 
-    /// print amplitudes
+    /**
+     *
+     * print amplitudes information to stdout
+     *
+     * @param symbol: the amplitudes type
+     */
     void print(char symbol);
 
-    /// print amplitudes to string
+    /**
+     *
+     * print amplitudes information to a string
+     *
+     * @param symbol: the amplitudes type
+     */
     std::string to_string(char symbol);
 
-    /// print amplitudes to string with spin labels
+    /**
+     *
+     * print amplitudes information to a string, including spin information
+     *
+     * @param symbol: the amplitudes type
+     */
     std::string to_string_with_spin(char symbol);
 
-    /// operator order
+    /**
+     *
+     * the order of the amplitudes, e.g., 2 for t2
+     *
+     */
     int order = -1;
 
 };
@@ -131,25 +220,57 @@ class integrals: public tensor {
 
   public:
 
-    /// constructor
+    /**
+     * 
+     * constructor 
+     * 
+     */
     integrals(){};
 
-    /// destructor
+    /**
+     *
+     * destructor
+     *
+     */
     ~integrals(){};
 
-    /// sort integrals, keep track of permutations
+    /**
+     *
+     * sort numerical integrals labels, keep track of permutations
+     *
+     */
     void sort();
 
-    /// copy integrals
+    /**
+     *
+     * copy target integrals into this one
+     *
+     * @param rhs: the target integrals
+     */
     integrals operator=(const integrals& rhs);
 
-    /// print integrals
+    /**
+     *
+     * print integrals information to stdout
+     *
+     * @param symbol: the integrals type
+     */
     void print(std::string symbol);
 
-    /// print integrals to string
+    /**
+     *
+     * print integrals information to a string
+     *
+     * @param symbol: the integrals type
+     */
     std::string to_string(std::string symbol);
 
-    /// print integrals to string with spin labels
+    /**
+     *
+     * print integrals information to a string, including spin information
+     *
+     * @param symbol: the integrals type
+     */
     std::string to_string_with_spin(std::string symbol);
 
 };
@@ -158,25 +279,54 @@ class delta_functions: public tensor {
 
   public:
 
-    /// constructor
+    /**
+     * 
+     * constructor 
+     * 
+     */
     delta_functions(){};
 
-    /// destructor
+    /**
+     * 
+     * destructor
+     * 
+     */
     ~delta_functions(){};
 
-    /// sort deltas
+    /**
+     *
+     * sort numerical deltas labels
+     *
+     */
     void sort();
 
-    /// copy deltas
+    /**
+     *
+     * copy target deltas into this one
+     *
+     * @param rhs: the target deltas
+     */
     delta_functions operator=(const delta_functions& rhs);
 
-    /// print deltas
+    /**
+     *
+     * print deltas information to stdout
+     *
+     */
     void print();
 
-    /// print deltas to string
+    /**
+     *
+     * print deltas information to a string
+     *
+     */
     std::string to_string();
 
-    /// print deltas to string with spin labels
+    /**
+     *
+     * print deltas information to a string, including spin information
+     *
+     */
     std::string to_string_with_spin();
 
 };

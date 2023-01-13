@@ -34,94 +34,224 @@ class pq_string {
 
   public:
 
-    /// constructor
+    /**
+     *
+     * constructor
+     *
+     * @param vacuum_type: normal order is defined with respect to the TRUE vacuum or the FERMI vacuum
+     *
+     */
     pq_string(std::string vacuum_type);
 
-    /// descructor
+    /**
+     *
+     * destructor
+     *
+     */
     ~pq_string();
 
-    // vacuum type ("TRUE", "FERMI")
+    /**
+     *
+     * the vacuum type ("TRUE", "FERMI")
+     *
+     */
     std::string vacuum;
 
-    // sign associated with string
+    /**
+     *
+     * the sign associated with string
+     *
+     */
     int sign = 1;
 
-    // skip this term when moving toward normal order and printing
+    /**
+     *
+     * should we skip this term when moving toward normal order and printing?
+     *
+     */
     bool skip = false;
 
-    // sort amplitude, integral, and delta function labels
+    /**
+     *
+     * sort amplitude, integral, and delta function labels (useful when comparing strings)
+     *
+     */
     void sort_labels();
 
-    /// factor
+    /**
+     *
+     * a numerical factor associated with the string
+     *
+     */
     double factor = 1.0;
 
-    /// list: labels for fermionic creation / annihilation operators 
+    /**
+     *
+     * a list of labels for fermionic creation / annihilation operators 
+     *
+     */
     std::vector<std::string> string;
 
-    /// integral types
+    /**
+     *
+     * supported integral types
+     *
+     */
     std::vector<std::string> integral_types = {"fock", "core", "two_body", "eri", "d+", "d-", "occ_repulsion"};
 
-    /// integrals
+    /**
+     *
+     * map integral_types onto lists of integrals
+     *
+     */
     std::map<std::string, std::vector<integrals> > ints;
 
-    /// amplitude types
+    /**
+     *
+     * supported amplitude types
+     *
+     */
     std::vector<char> amplitude_types = {'l', 'r', 't', 'u', 'm', 's'};
 
-    /// amplitudes
+    /**
+     *
+     * map amplitude_types onto lists of amplitudes
+     *
+     */
     std::map<char, std::vector<amplitudes> > amps;
 
-    /// non-summed spin labels
+    /**
+     *
+     * non-summed spin labels
+     *
+     */
     std::map<std::string, std::string> non_summed_spin_labels;
 
-    /// delta functions
+    /**
+     *
+     * a list of delta functions
+     *
+     */
     std::vector<delta_functions> deltas;
 
-    /// list: labels permutation operators
+    /**
+     *
+     * a list of permutation operators
+     *
+     */
     std::vector<std::string> permutations;
 
-    /// should we account for w0?
+    /**
+     *
+     * should we account for w0?
+     *
+     */
     bool has_w0 = false;
 
-    /// list: is bosonic operator creator or annihilator?
+    /**
+     *
+     * a list indicating if bosonic operators are creators or annihilators
+     *
+     */
     std::vector<bool> is_boson_dagger;
 
-    /// list: is fermionic operator creator or annihilator (relative to true vacuum)?
+    /**
+     *
+     * a list indicating if fermionic operators are creators or annihilators (relative to the true vacuum)
+     *
+     */
     std::vector<bool> is_dagger;
 
-    /// list: is fermionic operator creator or annihilator (relative to fermi vacuum)?
+    /**
+     *
+     * a list indicating if fermionic operators are creators or annihilators (relative to the fermi vacuum)
+     *
+     */
     std::vector<bool> is_dagger_fermi;
 
-    /// list: symbols for fermionic creation / annihilation operators
+    /**
+     *
+     * a list of symbols indicating the labels on fermionic creation / annihilation operators
+     *
+     */
     std::vector<std::string> symbol;
 
-    /// is fermion part of string in normal order?
+    /**
+     *
+     * is the string in normal order? checks both fermion and boson parts
+     *
+     */
     bool is_normal_order();
 
-    /// is boson part of string in normal order?
+    /**
+     *
+     * is the bosonic part of the string in normal order?
+     *
+     */
     bool is_boson_normal_order();
 
-    /// print string information
+    /**
+     *
+     * print string information to stdout
+     *
+     */
     void print();
 
-    /// return string information
+    /**
+     *
+     * return string information as list of std::string
+     *
+     */
     std::vector<std::string> get_string();
 
-    /// return string information (with spin)
+    /**
+     *
+     * return string information as list of std::string (includes spin labels)
+     *
+     */
     std::vector<std::string> get_string_with_spin();
 
-    /// copy string data, possibly excluding symbols and daggers. 
+    /**
+     *
+     * copy string data, possibly excluding symbols and daggers. 
+     *
+     * @param copy_me: pointer to pq_string to be copied
+     * @param copy_daggers_and_symbols: copy the dagers and symbols?
+     */
     void copy(void * copy_me, bool copy_daggers_and_symbols = true);
 
-    /// set spin labels in integrals and amplitudes
+    /**
+     *
+     * set spin labels in the integrals and amplitudes
+     *
+     * @param target: a target label in the integrals or amplitudes
+     * @param spin: the spin label to be added to target
+     */
     void set_spin_everywhere(std::string target, std::string spin);
 
-    /// reset spin labels (so only non-summed labels are set)
+    /**
+     *
+     * reset spin labels (so only non-summed labels are set)
+     *
+     */
     void reset_spin_labels();
 
-    /// set labels for integrals
+    /**
+     *
+     * set labels for integrals
+     *
+     * @param type: the integrals_type
+     * @param in: the list of labels for the integrals
+     */
     void set_integrals(std::string type, std::vector<std::string> in);
 
-    /// set labels for amplitudes
+    /**
+     *
+     * set labels for amplitudes
+     *
+     * @param type: the amplitudes_type
+     * @param in: the list of labels for the amplitudes
+     */
     void set_amplitudes(char type, int order, std::vector<std::string> in);
 
 };
