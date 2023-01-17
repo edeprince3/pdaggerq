@@ -69,7 +69,6 @@ void export_pq_helper(py::module& m) {
              py::arg("string_type") = "fully-contracted" )
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
-        .def("fully_contracted_strings_with_spin", &pq_helper::fully_contracted_strings_with_spin)
         .def("fully_contracted_strings_with_spin",
              [](pq_helper& self, std::map<std::string, std::string> spin_labels) {
                  return self.fully_contracted_strings_with_spin(spin_labels);
