@@ -19,7 +19,9 @@ from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, T3amps, T4amps,
                               Left2amps, Left3amps, Left4amps, Right0amps,
                               Right1amps, Right2amps, Right3amps, Right4amps,
                               FockMat, BaseTerm, ContractionPermuter,
-                              TensorTermAction, )
+                              FockMat, BaseTerm, ContractionPermuter, 
+                              ContractionPairPermuter3, ContractionPairPermuter6,
+                              ContractionPairPermuter2, TensorTermAction, )
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
 
 
@@ -322,6 +324,21 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
                  in index_string.split(',')]
         return ContractionPermuter(indices=tuple(g_idx))
+    elif 'PP2(' in term_string:
+        index_string = term_string.replace('PP2(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return ContractionPairPermuter2(indices=tuple(g_idx))
+    elif 'PP3(' in term_string:
+        index_string = term_string.replace('PP3(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return ContractionPairPermuter3(indices=tuple(g_idx))
+    elif 'PP6(' in term_string:
+        index_string = term_string.replace('PP6(', '').replace(')', '')
+        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
+                 in index_string.split(',')]
+        return ContractionPairPermuter6(indices=tuple(g_idx))
     else:
         raise TypeError("{} not recognized".format(term_string))
 
@@ -329,7 +346,7 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
 def contracted_strings_to_tensor_terms(pdaggerq_list_of_strings):
     """
     Take the output from pdaggerq.fully_contracted_strings() or
-    pdaggerq.fully_contracted_strings_spin() and generate
+    pdaggerq.fully_contracted_strings_with_spin() and generate
     TensorTerms
 
     :param pdaggerq_list_of_strings: List[List[str]] where the first item is
