@@ -88,6 +88,11 @@ bool compare_integrals( std::vector<integrals> ints1,
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
                                          std::vector<std::vector<std::string> > labels);
 
+// consolidate terms that differ by permutations of non-summed labels
+void consolidate_permutations_non_summed(
+    std::vector<std::shared_ptr<pq_string> > &ordered,
+    std::vector<std::string> labels);
+
 /// alphabetize operators to simplify string comparisons (for true vacuum only)
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 
