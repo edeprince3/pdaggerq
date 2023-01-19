@@ -171,6 +171,65 @@ void pq_string::print() {
             printf(" ");
         }
     }
+    if ( paired_permutations_2.size() > 0 ) {
+        // should have an number of symbols divisible by 4
+        size_t n = paired_permutations_2.size() / 4;
+        int count = 0;
+        for (int i = 0; i < n; i++) {
+            printf("PP2(");
+            printf("%s",paired_permutations_2[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_2[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_2[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_2[count++].c_str());
+            printf(")");
+            printf(" ");
+        }
+    }
+    if ( paired_permutations_6.size() > 0 ) {
+        // should have an number of symbols divisible by 6
+        size_t n = paired_permutations_6.size() / 6;
+        int count = 0;
+        for (int i = 0; i < n; i++) {
+            printf("PP6(");
+            printf("%s",paired_permutations_6[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_6[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_6[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_6[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_6[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_6[count++].c_str());
+            printf(")");
+            printf(" ");
+        }
+    }
+    if ( paired_permutations_3.size() > 0 ) {
+        // should have an number of symbols divisible by 6
+        size_t n = paired_permutations_3.size() / 6;
+        int count = 0;
+        for (int i = 0; i < n; i++) {
+            printf("PP3(");
+            printf("%s",paired_permutations_3[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_3[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_3[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_3[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_3[count++].c_str());
+            printf(",");
+            printf("%s",paired_permutations_3[count++].c_str());
+            printf(")");
+            printf(" ");
+        }
+    }
 
     for (size_t i = 0; i < symbol.size(); i++) {
         printf("%s", symbol[i].c_str());
@@ -255,6 +314,68 @@ std::vector<std::string> pq_string::get_string_with_spin() {
             my_string.push_back(tmp);
         }
     }   
+
+    if ( paired_permutations_2.size() > 0 ) {
+        // should have a number of symbols divisible by 4
+        size_t n = paired_permutations_2.size() / 4;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP2(";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }
+
+    if ( paired_permutations_6.size() > 0 ) {
+        // should have a number of symbols divisible by 6
+        size_t n = paired_permutations_6.size() / 6;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP6(";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }
+
+    if ( paired_permutations_3.size() > 0 ) {
+        // should have a number of symbols divisible by 6
+        size_t n = paired_permutations_3.size() / 6;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP3(";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }
     
     for (size_t i = 0; i < symbol.size(); i++) {
         std::string tmp = symbol[i];
@@ -334,6 +455,68 @@ std::vector<std::string> pq_string::get_string() {
             tmp += permutations[count++];
             tmp += ",";
             tmp += permutations[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }
+
+    if ( paired_permutations_2.size() > 0 ) {
+        // should have a number of symbols divisible by 4
+        size_t n = paired_permutations_2.size() / 4;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP2(";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }
+
+    if ( paired_permutations_6.size() > 0 ) {
+        // should have a number of symbols divisible by 6
+        size_t n = paired_permutations_6.size() / 6;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP6(";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ")";
+            my_string.push_back(tmp);
+        }
+    }
+
+    if ( paired_permutations_3.size() > 0 ) {
+        // should have a number of symbols divisible by 6
+        size_t n = paired_permutations_3.size() / 6;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP3(";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
             tmp += ")";
             my_string.push_back(tmp);
         }
@@ -431,6 +614,21 @@ void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
     // permutations
     for (size_t i = 0; i < in->permutations.size(); i++) {
         permutations.push_back(in->permutations[i]);
+    }
+
+    // paired permutations (2)
+    for (size_t i = 0; i < in->paired_permutations_2.size(); i++) {
+        paired_permutations_2.push_back(in->paired_permutations_2[i]);
+    }
+
+    // paired permutations (3)
+    for (size_t i = 0; i < in->paired_permutations_3.size(); i++) {
+        paired_permutations_3.push_back(in->paired_permutations_3[i]);
+    }
+
+    // paired permutations (6)
+    for (size_t i = 0; i < in->paired_permutations_6.size(); i++) {
+        paired_permutations_6.push_back(in->paired_permutations_6[i]);
     }
 
     if ( copy_daggers_and_symbols ) {

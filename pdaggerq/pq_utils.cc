@@ -389,7 +389,6 @@ void compare_strings_with_swapped_summed_labels(std::vector<std::vector<std::str
             if ( strings_same ) return;
         }
     }
-
 }
 
 // consolidate terms that differ may differ by permutations of summed labels
@@ -455,6 +454,11 @@ void consolidate_permutations_non_summed(
     std::vector<std::string> labels) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
+
+        // not sure if this logic works with existing permutation operators ... skip those for now
+        if ( ordered[i]->paired_permutations_2.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_3.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_6.size() > 0 ) continue;
         
         if ( ordered[i]->skip ) continue;
     
@@ -542,6 +546,327 @@ void consolidate_permutations_non_summed(
     }
 }
 
+/// compare two strings when swapping (multiple) summed labels and ov pairs of nonsumed labels
+void compare_strings_with_swapped_summed_and_nonsummed_labels(
+    std::vector<std::vector<std::string> > labels,
+    std::vector<std::vector<std::string>> pairs,
+    size_t iter,
+    std::shared_ptr<pq_string> in1,
+    std::shared_ptr<pq_string> in2,
+    size_t in2_id,
+    std::vector<size_t> &my_permutations,
+    std::vector<bool> &permutation_types,
+    int n_permutation_type,
+    int & n_permute, 
+    bool & strings_same,
+    bool & found_paired_permutation) {
+ 
+    if ( iter == labels.size() ) {
+
+        strings_same = compare_strings(in2, in1, n_permute);
+
+        // try swapping three pairs of non-summed labels
+        for (size_t pair1 = 0; pair1 < pairs.size(); pair1++) {
+            std::string o1 = pairs[pair1][0];
+            std::string v1 = pairs[pair1][1];
+            for (size_t pair2 = pair1 + 1; pair2 < pairs.size(); pair2++) {
+                std::string o2 = pairs[pair2][0];
+                if ( o2 == o1 ) continue;
+                std::string v2 = pairs[pair2][1];
+                if ( v2 == v1 ) continue;
+                for (size_t pair3 = pair2 + 1; pair3 < pairs.size(); pair3++) {
+                    std::string o3 = pairs[pair3][0];
+                    if ( o3 == o2 ) continue;
+                    if ( o3 == o1 ) continue;
+                    std::string v3 = pairs[pair3][1];
+                    if ( v3 == v2 ) continue;
+                    if ( v3 == v1 ) continue;
+
+                    bool paired_permutation = false;
+
+                    // for determining type PP3 permutations
+                    int found_permutation_type = -1;
+
+                    for (size_t permutation_type = 0; permutation_type < n_permutation_type; permutation_type++) {
+
+                        std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
+                        newguy->copy(in1.get());
+
+                        if ( permutation_type == 0 ) {
+
+                            // 1 <-> 2
+                            swap_two_labels(newguy, o1, o2);
+                            swap_two_labels(newguy, v1, v2);
+
+                        }else if ( permutation_type == 1 ) {
+
+                            // 1 <-> 3
+                            swap_two_labels(newguy, o1, o3);
+                            swap_two_labels(newguy, v1, v3);
+
+                        }else if ( permutation_type == 2 ) {
+
+                            // 2 <-> 3
+                            swap_two_labels(newguy, o2, o3);
+                            swap_two_labels(newguy, v2, v3);
+
+                        }else if ( permutation_type == 3 ) {
+
+                            // only relevant for 6-fold permutations:
+
+                            // 1 <-> 2
+                            swap_two_labels(newguy, o1, o2);
+                            swap_two_labels(newguy, v1, v2);
+
+                            // 1 <-> 3
+                            swap_two_labels(newguy, o1, o3);
+                            swap_two_labels(newguy, v1, v3);
+
+                        }else if ( permutation_type == 4 ) {
+
+                            // only relevant for 6-fold permutations:
+
+                            // 1 <-> 2
+                            swap_two_labels(newguy, o1, o2);
+                            swap_two_labels(newguy, v1, v2);
+
+                            // 2 <-> 3
+                            swap_two_labels(newguy, o2, o3);
+                            swap_two_labels(newguy, v2, v3);
+
+                        }
+                        newguy->sort_labels();
+
+                        strings_same = compare_strings(in2, newguy, n_permute);
+
+                        if ( strings_same ) {
+                            paired_permutation = true;
+                            found_permutation_type = permutation_type;
+                            break;
+                        }
+                    }
+
+                    if ( !paired_permutation ) break;
+
+                    double factor_i = in1->factor * in1->sign;
+                    double factor_j = in2->factor * in2->sign;
+
+                    double combined_factor = factor_i - factor_j * pow(-1.0,n_permute);
+
+                    // if factors are identical, then this is a paired permutation
+                    if ( fabs(combined_factor) < 1e-12 ) {
+                        //ordered[j]->print();
+
+                        // keep track of which term this is
+                        my_permutations.push_back(in2_id);
+
+                        found_paired_permutation = true;
+
+                        // keep track of which labels were swapped (for 3-fold)
+                        permutation_types[found_permutation_type] = true;
+                    }
+                    if ( found_paired_permutation ) break;
+                }
+                if ( found_paired_permutation ) break;
+            }
+            if ( found_paired_permutation ) break;
+        }
+        return;
+    }
+
+    // try swapping non-summed labels
+    for (size_t id1 = 0; id1 < labels[iter].size(); id1++) {
+        for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
+    
+            std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
+            newguy->copy(in1.get());
+            swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
+            newguy->sort_labels();
+
+            compare_strings_with_swapped_summed_and_nonsummed_labels(labels, 
+                                                                     pairs, 
+                                                                     iter+1, 
+                                                                     newguy, 
+                                                                     in2, 
+                                                                     in2_id, 
+                                                                     my_permutations, 
+                                                                     permutation_types, 
+                                                                     n_permutation_type, 
+                                                                     n_permute, 
+                                                                     strings_same, 
+                                                                     found_paired_permutation);
+            if ( strings_same ) return;
+        }
+    }
+}
+
+
+// look for paired permutations:
+// a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
+// b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+void consolidate_paired_permutations_non_summed(
+    std::vector<std::shared_ptr<pq_string> > &ordered,
+    std::vector<std::string> occ_labels,
+    std::vector<std::string> vir_labels,
+    int n_fold) {
+
+    if ( n_fold != 3 && n_fold !=6 ) {
+        printf("\n");
+        printf("    error: consolidate_paired_permutations_non_summed only searches for 3- or 6-fold paired permutations.\n");
+        printf("\n");
+        exit(1);
+    }
+
+    int n_permutation_type = 5;
+    if ( n_fold == 3 ) {
+        n_permutation_type = 3;
+    }
+
+    // look for n-fold permutations
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->skip ) continue;
+
+        // not sure if this logic works with existing permutation operators ... skip those for now
+        if ( ordered[i]->permutations.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_2.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_3.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_6.size() > 0 ) continue;
+
+        std::vector<std::string> found_occ;
+        std::vector<std::string> found_vir;
+        std::vector<std::string> found_summed_occ;
+        std::vector<std::string> found_summed_vir;
+
+        // ok, what non-summed occupied labels do we have? 
+        for (size_t j = 0; j < occ_labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], occ_labels[j]);
+            if ( found == 1 ) {
+                found_occ.push_back(occ_labels[j]);
+            }
+        }
+
+        // ok, what non-summed virtual labels do we have? 
+        for (size_t j = 0; j < vir_labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], vir_labels[j]);
+            if ( found == 1 ) {
+                found_vir.push_back(vir_labels[j]);
+            }
+        }
+
+        // ok, what summed labels (occupied and virtual) do we have? 
+        for (size_t j = 0; j < occ_labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], occ_labels[j]);
+            if ( found == 2 ) {
+                found_summed_occ.push_back(occ_labels[j]);
+            }
+        }
+        for (size_t j = 0; j < vir_labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], vir_labels[j]);
+            if ( found == 2 ) {
+                found_summed_vir.push_back(vir_labels[j]);
+            }
+        }
+
+        // this function only works for swapping exactly three ov pairs
+        if ( found_occ.size() != 3 || found_vir.size() != 3 ) continue;
+
+        // ov pairs to swap
+        std::vector<std::vector<std::string>> pairs;
+        pairs.push_back({found_occ[0], found_vir[0]});
+        pairs.push_back({found_occ[1], found_vir[1]});
+        pairs.push_back({found_occ[2], found_vir[2]});
+
+        // which labels are involve in the permutation?
+        std::vector<size_t> my_permutations;
+
+        // which pairs are swapped ( 12, 13, 23 ) ... this affects how we label 3-fold permutations
+        std::vector<bool> permutation_types = { false, false, false };
+
+        // loop over other strings
+        for (size_t j = i+1; j < ordered.size(); j++) {
+
+            if ( ordered[j]->skip ) continue;
+
+            // not sure if this logic works with existing permutation operators ... skip those for now
+            if ( ordered[j]->permutations.size() > 0 ) continue;
+            if ( ordered[i]->paired_permutations_2.size() > 0 ) continue;
+            if ( ordered[i]->paired_permutations_3.size() > 0 ) continue;
+            if ( ordered[i]->paired_permutations_6.size() > 0 ) continue;
+
+            int n_permute;
+            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
+
+            bool found_paired_permutation = false;
+            std::vector<std::vector<std::vector<std::string> > > labels;
+            labels.push_back({});
+            labels.push_back({found_summed_occ});
+            labels.push_back({found_summed_vir});
+            for (size_t k = 0; k < labels.size(); k++) {
+                compare_strings_with_swapped_summed_and_nonsummed_labels(labels[k], 
+                                                                         pairs, 
+                                                                         0, 
+                                                                         ordered[i], 
+                                                                         ordered[j], 
+                                                                         j, 
+                                                                         my_permutations, 
+                                                                         permutation_types, 
+                                                                         n_permutation_type, 
+                                                                         n_permute, 
+                                                                         strings_same, 
+                                                                         found_paired_permutation);
+                if ( found_paired_permutation ) break;
+            }
+        }
+
+        if ( my_permutations.size() == 5 && n_fold == 6) {
+            // 6-fold permutations
+            for (size_t j = 0; j < my_permutations.size(); j++ ) {
+                ordered[my_permutations[j]]->skip = true;
+            }
+            ordered[i]->paired_permutations_6.push_back(found_occ[0]);
+            ordered[i]->paired_permutations_6.push_back(found_vir[0]);
+            ordered[i]->paired_permutations_6.push_back(found_occ[1]);
+            ordered[i]->paired_permutations_6.push_back(found_vir[1]);
+            ordered[i]->paired_permutations_6.push_back(found_occ[2]);
+            ordered[i]->paired_permutations_6.push_back(found_vir[2]);
+        }else if ( my_permutations.size() == 2 && n_fold == 3 ) {
+            // 3-fold permutations
+            for (size_t j = 0; j < my_permutations.size(); j++ ) {
+                ordered[my_permutations[j]]->skip = true;
+            }
+            if ( permutation_types[0] && permutation_types[1] && permutation_types[2] ) {
+                printf("\n");
+                printf("    something has gone terribly wrong in consolidate_paired_permutations_non_summed()\n");
+                printf("\n");
+                exit(1);
+            }
+            if ( permutation_types[0] && permutation_types[1] ) {
+                ordered[i]->paired_permutations_3.push_back(found_occ[0]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[0]);
+                ordered[i]->paired_permutations_3.push_back(found_occ[1]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[1]);
+                ordered[i]->paired_permutations_3.push_back(found_occ[2]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[2]);
+            }else if ( permutation_types[0] && permutation_types[2] ) {
+                ordered[i]->paired_permutations_3.push_back(found_occ[1]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[1]);
+                ordered[i]->paired_permutations_3.push_back(found_occ[0]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[0]);
+                ordered[i]->paired_permutations_3.push_back(found_occ[2]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[2]);
+            }else if ( permutation_types[1] && permutation_types[2] ) {
+                ordered[i]->paired_permutations_3.push_back(found_occ[2]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[2]);
+                ordered[i]->paired_permutations_3.push_back(found_occ[0]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[0]);
+                ordered[i]->paired_permutations_3.push_back(found_occ[1]);
+                ordered[i]->paired_permutations_3.push_back(found_vir[1]);
+            }
+        }
+    }
+}
+
 /// alphabetize operators to simplify string comparisons (for true vacuum only)
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 
@@ -609,7 +934,7 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 }
 
 // compare strings and remove terms that cancel
-void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
@@ -660,6 +985,17 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
     // probably only relevant for vacuum = fermi
     if ( ordered.size() == 0 ) return;
     if ( ordered[0]->vacuum != "FERMI" ) return;
+
+    // look for paired permutations of non-summed labels:
+    if ( find_paired_permutations ) {
+
+        // a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
+        consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 6);
+
+        // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+        consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 3);
+
+    }
 
     consolidate_permutations_non_summed(ordered, occ_labels);
     consolidate_permutations_non_summed(ordered, vir_labels);
@@ -1326,9 +1662,9 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
     std::vector< std::shared_ptr<pq_string> > tmp;
     tmp.push_back(newguy);
 
+    // but first expand single permutations where spins don't match 
     for (size_t i = 0; i < tmp.size(); i++) {
 
-        // but first expand permutations where spins don't match 
         size_t n = tmp[i]->permutations.size() / 2;
 
         for (size_t j = 0; j < n; j++) {
@@ -1348,11 +1684,11 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
             if ( spin1 != spin2 ) {
 
                 // first guy is just a copy
-                std::shared_ptr<pq_string> newguy1 (new pq_string(in->vacuum));
+                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
                 newguy1->copy(tmp[i].get());
 
                 // second guy is a copy with permuted labels and change in sign
-                std::shared_ptr<pq_string> newguy2 (new pq_string(in->vacuum));
+                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
                 newguy2->copy(tmp[i].get());
                 swap_two_labels(newguy2, idx1, idx2);
                 newguy2->sign *= -1;
@@ -1379,6 +1715,529 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
                 tmp[i]->skip = true;
                 tmp.push_back(newguy1);
                 tmp.push_back(newguy2);
+
+                // break loop over permutations because this above logic only works on one permutation at a time
+                break;
+            }
+        }
+    }
+
+    // now expand paired permutations (3) where spins don't match 
+    for (size_t i = 0; i < tmp.size(); i++) {
+        size_t n = tmp[i]->paired_permutations_3.size() / 6;
+
+        for (size_t j = 0; j < n; j++) {
+
+            std::string o1 = tmp[i]->paired_permutations_3[6*j];
+            std::string v1 = tmp[i]->paired_permutations_3[6*j+1];
+            std::string o2 = tmp[i]->paired_permutations_3[6*j+2];
+            std::string v2 = tmp[i]->paired_permutations_3[6*j+3];
+            std::string o3 = tmp[i]->paired_permutations_3[6*j+4];
+            std::string v3 = tmp[i]->paired_permutations_3[6*j+5];
+
+            // spin 1
+            std::string spin1 = "";
+            spin1 = tmp[i]->non_summed_spin_labels[o1];
+            if ( spin1 != tmp[i]->non_summed_spin_labels[v1] ) {
+                printf("\n");
+                printf("    error: spin label mismatch between occupied and virtual orbitals (1)\n");
+                printf("\n");
+                exit(1);
+            }
+
+            // spin 2
+            std::string spin2 = "";
+            spin2 = tmp[i]->non_summed_spin_labels[o2];
+            if ( spin2 != tmp[i]->non_summed_spin_labels[v2] ) {
+                printf("\n");
+                printf("    error: spin label mismatch between occupied and virtual orbitals (2)\n");
+                printf("\n");
+                exit(1);
+            }
+
+            // spin 3
+            std::string spin3 = "";
+            spin3 = tmp[i]->non_summed_spin_labels[o3];
+            if ( spin3 != tmp[i]->non_summed_spin_labels[v3] ) {
+                printf("\n");
+                printf("    error: spin label mismatch between occupied and virtual orbitals (3)\n");
+                printf("\n");
+                exit(1);
+            }
+
+            // if spins are not the same, then the permutation needs to be expanded explicitly and allowed spins redetermined
+
+            // aab or bba -> PP2[ab](abc) + cba
+            if ( spin1 == spin2 && spin1 != spin3 ) {
+
+                // first guy is just a copy plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
+                newguy1->copy(tmp[i].get());
+
+                // adjust permutations. no more PP3, but we have PP2
+                newguy1->paired_permutations_3.clear();
+                newguy1->paired_permutations_2.push_back(o1);
+                newguy1->paired_permutations_2.push_back(v1);
+                newguy1->paired_permutations_2.push_back(o2);
+                newguy1->paired_permutations_2.push_back(v2);
+
+                // second guy is a copy with permuted pair labels and no change in sign
+                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
+                newguy2->copy(tmp[i].get());
+                swap_two_labels(newguy2, o1, o3);
+                swap_two_labels(newguy2, v1, v3);
+
+                // reset non-summed spins for this guy
+                newguy2->reset_spin_labels();
+
+                // no more PP3
+                newguy2->paired_permutations_3.clear();
+
+                for (size_t k = 0; k < n; k++) {
+
+                    // skip jth permutation, which is the one we expanded
+                    if ( j == k ) continue;
+
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
+
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
+
+                }
+
+                tmp[i]->skip = true;
+                tmp.push_back(newguy1);
+                tmp.push_back(newguy2);
+
+                // break loop over permutations because this above logic only works on one permutation at a time
+                break;
+            }
+            // abb or baa -> abc + bac + cba
+            else if ( spin1 != spin2 && spin2 == spin3 ) {
+
+                // first guy is just a copy 
+                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
+                newguy1->copy(tmp[i].get());
+
+                // adjust permutations. no more PP3.
+                newguy1->paired_permutations_3.clear();
+
+                // second guy is a copy with permuted pair labels and no change in sign
+                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
+                newguy2->copy(tmp[i].get());
+                swap_two_labels(newguy2, o1, o2);
+                swap_two_labels(newguy2, v1, v2);
+
+                // reset non-summed spins for this guy
+                newguy2->reset_spin_labels();
+
+                // no more PP3
+                newguy2->paired_permutations_3.clear();
+
+                // third guy is a copy with permuted pair labels and no change in sign
+                std::shared_ptr<pq_string> newguy3 (new pq_string(tmp[i]->vacuum));
+                newguy3->copy(tmp[i].get());
+                swap_two_labels(newguy3, o1, o3);
+                swap_two_labels(newguy3, v1, v3);
+
+                // reset non-summed spins for this guy
+                newguy3->reset_spin_labels();
+
+                // no more PP3
+                newguy3->paired_permutations_3.clear();
+
+                for (size_t k = 0; k < n; k++) {
+
+                    // skip jth permutation, which is the one we expanded
+                    if ( j == k ) continue;
+
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
+
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
+
+                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
+                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
+                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
+                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
+                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
+                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
+
+                }
+
+                tmp[i]->skip = true;
+                tmp.push_back(newguy1);
+                tmp.push_back(newguy2);
+                tmp.push_back(newguy3);
+
+                // break loop over permutations because this above logic only works on one permutation at a time
+                break;
+            }
+            // aba or bab -> PP2[ac](abc) + bac
+            else if ( spin1 != spin2 && spin1 == spin3 ) {
+
+                // first guy is just a copy plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
+                newguy1->copy(tmp[i].get());
+
+                // adjust permutations. no more PP3, but we have PP2
+                newguy1->paired_permutations_3.clear();
+                newguy1->paired_permutations_2.push_back(o1);
+                newguy1->paired_permutations_2.push_back(v1);
+                newguy1->paired_permutations_2.push_back(o3);
+                newguy1->paired_permutations_2.push_back(v3);
+
+                // second guy is a copy with permuted pair labels and no change in sign
+                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
+                newguy2->copy(tmp[i].get());
+                swap_two_labels(newguy2, o1, o2);
+                swap_two_labels(newguy2, v1, v2);
+
+                // reset non-summed spins for this guy
+                newguy2->reset_spin_labels();
+
+                // no more PP3
+                newguy2->paired_permutations_3.clear();
+
+                for (size_t k = 0; k < n; k++) {
+
+                    // skip jth permutation, which is the one we expanded
+                    if ( j == k ) continue;
+
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
+                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
+
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
+                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
+
+                }
+
+                tmp[i]->skip = true;
+                tmp.push_back(newguy1);
+                tmp.push_back(newguy2);
+
+                // break loop over permutations because this above logic only works on one permutation at a time
+                break;
+            }
+        }
+    }
+
+    // now expand paired permutations (6) where spins don't match 
+    for (size_t i = 0; i < tmp.size(); i++) {
+        size_t n = tmp[i]->paired_permutations_6.size() / 6;
+
+        for (size_t j = 0; j < n; j++) {
+
+            std::string o1 = tmp[i]->paired_permutations_6[6*j];
+            std::string v1 = tmp[i]->paired_permutations_6[6*j+1];
+            std::string o2 = tmp[i]->paired_permutations_6[6*j+2];
+            std::string v2 = tmp[i]->paired_permutations_6[6*j+3];
+            std::string o3 = tmp[i]->paired_permutations_6[6*j+4];
+            std::string v3 = tmp[i]->paired_permutations_6[6*j+5];
+
+            // spin 1
+            std::string spin1 = "";
+            spin1 = tmp[i]->non_summed_spin_labels[o1];
+            if ( spin1 != tmp[i]->non_summed_spin_labels[v1] ) {
+                printf("\n");
+                printf("    error: spin label mismatch between occupied and virtual orbitals (1)\n");
+                printf("\n");
+                exit(1);
+            }
+
+            // spin 2
+            std::string spin2 = "";
+            spin2 = tmp[i]->non_summed_spin_labels[o2];
+            if ( spin2 != tmp[i]->non_summed_spin_labels[v2] ) {
+                printf("\n");
+                printf("    error: spin label mismatch between occupied and virtual orbitals (2)\n");
+                printf("\n");
+                exit(1);
+            }
+
+            // spin 3
+            std::string spin3 = "";
+            spin3 = tmp[i]->non_summed_spin_labels[o3];
+            if ( spin3 != tmp[i]->non_summed_spin_labels[v3] ) {
+                printf("\n");
+                printf("    error: spin label mismatch between occupied and virtual orbitals (3)\n");
+                printf("\n");
+                exit(1);
+            }
+
+            // if spins are not the same, then the permutation needs to be expanded explicitly and allowed spins redetermined
+
+            // aab or bba -> PP2[ab](abc) + PP2[ab](acb) + PP2[ab](cab)
+            if ( spin1 == spin2 && spin1 != spin3 ) {
+
+                // first guy is just a copy plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
+                newguy1->copy(tmp[i].get());
+
+                // adjust permutations. no more PP6, but we have PP2
+                newguy1->paired_permutations_6.clear();
+                newguy1->paired_permutations_2.push_back(o1);
+                newguy1->paired_permutations_2.push_back(v1);
+                newguy1->paired_permutations_2.push_back(o2);
+                newguy1->paired_permutations_2.push_back(v2);
+
+                // second guy is a copy with permuted pair labels, plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
+                newguy2->copy(tmp[i].get());
+                swap_two_labels(newguy2, o2, o3);
+                swap_two_labels(newguy2, v2, v3);
+
+                // reset non-summed spins for this guy
+                newguy2->reset_spin_labels();
+
+                // no more PP6, but we have PP2
+                newguy2->paired_permutations_6.clear();
+                newguy2->paired_permutations_2.push_back(o1);
+                newguy2->paired_permutations_2.push_back(v1);
+                newguy2->paired_permutations_2.push_back(o2);
+                newguy2->paired_permutations_2.push_back(v2);
+
+                // third guy is another copy with permuted pair labels, plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy3 (new pq_string(tmp[i]->vacuum));
+                newguy3->copy(tmp[i].get());
+                swap_two_labels(newguy3, o1, o2);
+                swap_two_labels(newguy3, v1, v2);
+                swap_two_labels(newguy3, o2, o3);
+                swap_two_labels(newguy3, v2, v3);
+
+                // reset non-summed spins for this guy
+                newguy3->reset_spin_labels();
+
+                // no more PP6, but we have PP2
+                newguy3->paired_permutations_6.clear();
+                newguy3->paired_permutations_2.push_back(o1);
+                newguy3->paired_permutations_2.push_back(v1);
+                newguy3->paired_permutations_2.push_back(o2);
+                newguy3->paired_permutations_2.push_back(v2);
+
+                for (size_t k = 0; k < n; k++) {
+
+                    // skip jth permutation, which is the one we expanded
+                    if ( j == k ) continue;
+
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+
+                }
+
+                tmp[i]->skip = true;
+                tmp.push_back(newguy1);
+                tmp.push_back(newguy2);
+                tmp.push_back(newguy3);
+
+                // break loop over permutations because this above logic only works on one permutation at a time
+                break;
+            }
+            // abb or baa -> PP2[bc](abc) + PP2[bc](bac) + PP2[bc](bca)
+            else if ( spin1 != spin2 && spin2 == spin3 ) {
+
+                // first guy is just a copy plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
+                newguy1->copy(tmp[i].get());
+
+                // adjust permutations. no more PP6, but we have PP2
+                newguy1->paired_permutations_6.clear();
+                newguy1->paired_permutations_2.push_back(o2);
+                newguy1->paired_permutations_2.push_back(v2);
+                newguy1->paired_permutations_2.push_back(o3);
+                newguy1->paired_permutations_2.push_back(v3);
+
+                // second guy is a copy with permuted pair labels, plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
+                newguy2->copy(tmp[i].get());
+                swap_two_labels(newguy2, o1, o2);
+                swap_two_labels(newguy2, v1, v2);
+
+                // reset non-summed spins for this guy
+                newguy2->reset_spin_labels();
+
+                // no more PP6, but we have PP2
+                newguy2->paired_permutations_6.clear();
+                newguy2->paired_permutations_2.push_back(o2);
+                newguy2->paired_permutations_2.push_back(v2);
+                newguy2->paired_permutations_2.push_back(o3);
+                newguy2->paired_permutations_2.push_back(v3);
+
+                // third guy is another copy with permuted pair labels, plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy3 (new pq_string(tmp[i]->vacuum));
+                newguy3->copy(tmp[i].get());
+                swap_two_labels(newguy3, o1, o2);
+                swap_two_labels(newguy3, v1, v2);
+                swap_two_labels(newguy3, o1, o3);
+                swap_two_labels(newguy3, v1, v3);
+
+                // reset non-summed spins for this guy
+                newguy3->reset_spin_labels();
+
+                // no more PP6, but we have PP2
+                newguy3->paired_permutations_6.clear();
+                newguy3->paired_permutations_2.push_back(o2);
+                newguy3->paired_permutations_2.push_back(v2);
+                newguy3->paired_permutations_2.push_back(o3);
+                newguy3->paired_permutations_2.push_back(v3);
+
+                for (size_t k = 0; k < n; k++) {
+
+                    // skip jth permutation, which is the one we expanded
+                    if ( j == k ) continue;
+
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+                }
+
+                tmp[i]->skip = true;
+                tmp.push_back(newguy1);
+                tmp.push_back(newguy2);
+                tmp.push_back(newguy3);
+
+                // break loop over permutations because this above logic only works on one permutation at a time
+                break;
+            }
+            // aba or bab -> PP2[ac](abc) + PP2[ac](bac) + PP2[ac](acb)
+            else if ( spin1 == spin2 && spin1 != spin3 ) {
+
+                // first guy is just a copy plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
+                newguy1->copy(tmp[i].get());
+
+                // adjust permutations. no more PP6, but we have PP2
+                newguy1->paired_permutations_6.clear();
+                newguy1->paired_permutations_2.push_back(o1);
+                newguy1->paired_permutations_2.push_back(v1);
+                newguy1->paired_permutations_2.push_back(o3);
+                newguy1->paired_permutations_2.push_back(v3);
+
+                // second guy is a copy with permuted pair labels, plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
+                newguy2->copy(tmp[i].get());
+                swap_two_labels(newguy2, o1, o2);
+                swap_two_labels(newguy2, v1, v2);
+
+                // reset non-summed spins for this guy
+                newguy2->reset_spin_labels();
+
+                // no more PP6, but we have PP2
+                newguy2->paired_permutations_6.clear();
+                newguy2->paired_permutations_2.push_back(o1);
+                newguy2->paired_permutations_2.push_back(v1);
+                newguy2->paired_permutations_2.push_back(o3);
+                newguy2->paired_permutations_2.push_back(v3);
+
+                // third guy is another copy with permuted pair labels, plus a PP2 permutation
+                std::shared_ptr<pq_string> newguy3 (new pq_string(tmp[i]->vacuum));
+                newguy3->copy(tmp[i].get());
+                swap_two_labels(newguy3, o2, o3);
+                swap_two_labels(newguy3, v2, v3);
+
+                // reset non-summed spins for this guy
+                newguy3->reset_spin_labels();
+
+                // no more PP6, but we have PP2
+                newguy3->paired_permutations_6.clear();
+                newguy3->paired_permutations_2.push_back(o1);
+                newguy3->paired_permutations_2.push_back(v1);
+                newguy3->paired_permutations_2.push_back(o3);
+                newguy3->paired_permutations_2.push_back(v3);
+
+                for (size_t k = 0; k < n; k++) {
+
+                    // skip jth permutation, which is the one we expanded
+                    if ( j == k ) continue;
+
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
+                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
+
+                }
+
+                tmp[i]->skip = true;
+                tmp.push_back(newguy1);
+                tmp.push_back(newguy2);
+                tmp.push_back(newguy3);
 
                 // break loop over permutations because this above logic only works on one permutation at a time
                 break;
@@ -1659,7 +2518,7 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level){
+void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
 
     if ( in->factor > 0.0 ) {
         in->sign = 1;
@@ -1714,11 +2573,11 @@ void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
     alphabetize(ordered);
 
     // try to cancel similar terms
-    cleanup(ordered);
+    cleanup(ordered, find_paired_permutations);
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level){
+void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
         
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators

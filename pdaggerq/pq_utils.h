@@ -88,11 +88,40 @@ bool compare_integrals( std::vector<integrals> ints1,
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
                                          std::vector<std::vector<std::string> > labels);
 
+// consolidate terms that differ by permutations of non-summed labels
+void consolidate_permutations_non_summed(
+    std::vector<std::shared_ptr<pq_string> > &ordered,
+    std::vector<std::string> labels);
+
+// look for paired permutations of non-summed labels
+// a) P3a(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
+// b) P3b(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+void consolidate_paired_permutations_non_summed(
+    std::vector<std::shared_ptr<pq_string> > &ordered,
+    std::vector<std::string> occ_labels,
+    std::vector<std::string> vir_labels,
+    int n_fold);
+
+/// compare two strings when swapping (multiple) summed labels and ov pairs of nonsumed labels
+void compare_strings_with_swapped_summed_and_nonsummed_labels(
+    std::vector<std::vector<std::string> > labels,
+    std::vector<std::vector<std::string>> pairs,
+    size_t iter,
+    std::shared_ptr<pq_string> in1,
+    std::shared_ptr<pq_string> in2,
+    size_t in2_id,
+    std::vector<size_t> &my_permutations,
+    std::vector<bool> &permutation_types,
+    int n_permutation_type,
+    int & n_permute,
+    bool & strings_same,
+    bool & found_paired_permutation);
+
 /// alphabetize operators to simplify string comparisons (for true vacuum only)
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 
 /// cancel terms where appropriate
-void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered);
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations);
 
 /// reorder t amplitudes as t1, t2, t3, t4
 void reorder_t_amplitudes(std::shared_ptr<pq_string> in);
@@ -119,10 +148,10 @@ bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_str
 void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level);
+void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level);
+void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);

@@ -136,10 +136,31 @@ class pq_string {
 
     /**
      *
-     * a list of permutation operators
+     * a list of permutation operators: P(i,j) R(ijab) = R(ijab) - R(jiab)
      *
      */
     std::vector<std::string> permutations;
+
+    /**
+     *
+     * a list of permutation operators: PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
+     *
+     */
+    std::vector<std::string> paired_permutations_6;
+
+    /**
+     *
+     * a list of permutation operators: PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+     *
+     */
+    std::vector<std::string> paired_permutations_3;
+
+    /**
+     *
+     * a list of permutation operators: PP2(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac)
+     *
+     */
+    std::vector<std::string> paired_permutations_2;
 
     /**
      *

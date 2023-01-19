@@ -288,6 +288,9 @@ class TensorTerm:
                 einsum_tensors) + ")"
         if update_val is not None and self.actions is None:
             teinsum_string = update_val + " " + '+' + teinsum_string
+
+        # TODO: need logic for paired permutations PP2(ia,jb), PP3(ia,jb,kc), and PP6(ia,jb,kc)
+
         elif update_val is not None and self.actions is not None:
             # now generate logic for single permutation
             original_out = list(filter(None,
@@ -539,3 +542,27 @@ class ContractionPermuter(TensorTermAction):
 
     def __repr__(self):
         return "P({},{})".format(self.indices[0], self.indices[1])
+
+class ContractionPairPermuter6(TensorTermAction):
+
+    def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP6'):
+        super().__init__(indices=indices, name=name, spin=spin)
+
+    def __repr__(self):
+        return "PP6({},{},{},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3], self.indices[4], self.indices[5])
+
+class ContractionPairPermuter2(TensorTermAction):
+
+    def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP2'):
+        super().__init__(indices=indices, name=name, spin=spin)
+
+    def __repr__(self):
+        return "PP2({},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3])
+
+class ContractionPairPermuter3(TensorTermAction):
+
+    def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP3'):
+        super().__init__(indices=indices, name=name, spin=spin)
+
+    def __repr__(self):
+        return "PP3({},{},{},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3], self.indices[4], self.indices[5])
