@@ -99,7 +99,8 @@ void consolidate_permutations_non_summed(
 void consolidate_paired_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> occ_labels,
-    std::vector<std::string> vir_labels);
+    std::vector<std::string> vir_labels,
+    int n_fold);
 
 /// alphabetize operators to simplify string comparisons (for true vacuum only)
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
