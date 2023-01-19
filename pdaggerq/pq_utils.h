@@ -93,6 +93,14 @@ void consolidate_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
     std::vector<std::string> labels);
 
+// look for paired permutations of non-summed labels
+// a) P3a(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
+// b) P3b(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+void consolidate_paired_permutations_non_summed(
+    std::vector<std::shared_ptr<pq_string> > &ordered,
+    std::vector<std::string> occ_labels,
+    std::vector<std::string> vir_labels);
+
 /// alphabetize operators to simplify string comparisons (for true vacuum only)
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 
