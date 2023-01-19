@@ -1099,7 +1099,7 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 }
 
 // compare strings and remove terms that cancel
-void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
@@ -1152,12 +1152,15 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered) {
     if ( ordered[0]->vacuum != "FERMI" ) return;
 
     // look for paired permutations of non-summed labels:
+    if ( find_paired_permutations ) {
 
-    // a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
-    consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 6);
+        // a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
+        consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 6);
 
-    // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
-    consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 3);
+        // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+        consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 3);
+
+    }
 
     consolidate_permutations_non_summed(ordered, occ_labels);
     consolidate_permutations_non_summed(ordered, vir_labels);
@@ -2680,7 +2683,7 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level){
+void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
 
     if ( in->factor > 0.0 ) {
         in->sign = 1;
@@ -2735,11 +2738,11 @@ void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
     alphabetize(ordered);
 
     // try to cancel similar terms
-    cleanup(ordered);
+    cleanup(ordered, find_paired_permutations);
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level){
+void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
         
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators

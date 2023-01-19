@@ -88,10 +88,19 @@ class pq_helper {
      *
      * set whether operators entering similarity transformation commute
      *
-     * @param do_cluster_operators_commute: true/false (default true)
+     * @param do_cluster_operators_commute: true/false
      *
      */
     void set_cluster_operators_commute(bool do_cluster_operators_commute);
+
+    /**
+     *
+     * set whether we should search for paired ov permutations that arise in ccsdt
+     *
+     * @param do_find_paired_permutations: true/false
+     *
+     */
+    void set_find_paired_permutations(bool do_find_paired_permutations);
 
     /**
      *
@@ -283,6 +292,13 @@ class pq_helper {
      *
      */
     bool cluster_operators_commute;
+
+    /**
+     *
+     * should we look for paired ov permutations that arise in ccsdt?
+     *
+     */
+    bool find_paired_permutations;
 
 };
 

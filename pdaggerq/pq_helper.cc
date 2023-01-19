@@ -60,6 +60,7 @@ void export_pq_helper(py::module& m) {
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
         .def("set_right_operators_type", &pq_helper::set_right_operators_type)
         .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
+        .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
         .def("print",
@@ -110,6 +111,9 @@ pq_helper::pq_helper(std::string vacuum_type)
     // commute. only relevant for the add_st_operator() function
     cluster_operators_commute = true;
 
+    // by default, do not look for paired permutations (until parsers catch up)
+    find_paired_permutations = false;
+
     /// right operators type (EE, IP, EA)
     right_operators_type = "EE";
 
@@ -120,6 +124,10 @@ pq_helper::pq_helper(std::string vacuum_type)
 
 pq_helper::~pq_helper()
 {
+}
+
+void pq_helper::set_find_paired_permutations(bool do_find_paired_permutations) {
+    find_paired_permutations = do_find_paired_permutations;
 }
 
 void pq_helper::set_print_level(int level) {
@@ -1053,9 +1061,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             newguy->has_w0 = has_w0;
 
             if ( vacuum == "TRUE" ) {
-                add_new_string_true_vacuum(newguy, ordered, print_level);
+                add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
             }else {
-                add_new_string_fermi_vacuum(newguy, ordered, print_level);
+                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations);
             }
         }
     }
@@ -1081,7 +1089,7 @@ void pq_helper::simplify() {
     }
 
     // try to cancel similar terms
-    cleanup(ordered);
+    cleanup(ordered, find_paired_permutations);
 
 }
 

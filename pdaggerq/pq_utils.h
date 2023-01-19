@@ -106,7 +106,7 @@ void consolidate_paired_permutations_non_summed(
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 
 /// cancel terms where appropriate
-void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered);
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations);
 
 /// reorder t amplitudes as t1, t2, t3, t4
 void reorder_t_amplitudes(std::shared_ptr<pq_string> in);
@@ -133,10 +133,10 @@ bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_str
 void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level);
+void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level);
+void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
