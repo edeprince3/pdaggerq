@@ -152,6 +152,44 @@ std::string amplitudes::to_string(char symbol) {
     return val;
 }
 
+/// print amplitudes to string with label ranges
+std::string amplitudes::to_string_with_label_ranges(char symbol) {
+
+    std::string val;
+
+    std::string symbol_s(1, symbol);
+
+    std::string range = "_";
+    for (size_t k = 0; k < label_ranges.size(); k++) {
+        if ( label_ranges[k] == "act" ) {
+            range += "1";
+        }else {
+            range += "0";
+        }
+    }
+
+    if ( labels.size() > 0 ) {
+
+        size_t size  = labels.size();
+        //size_t order = labels.size() / 2;
+        //if ( 2*order != size ) {
+        //    order++;
+        //}
+        val = symbol_s + std::to_string(order) + range + "(";
+        for (int j = 0; j < size-1; j++) {
+            val += labels[j] + ",";
+        }
+        val += labels[size-1] + ")";
+
+    }
+
+    if ( order == 0 ) {
+        val = symbol_s + "0";
+    }
+
+    return val;
+}
+
 /// print amplitudes to string with spin labels
 std::string amplitudes::to_string_with_spin(char symbol) {
 
@@ -362,6 +400,69 @@ std::string integrals::to_string(std::string symbol) {
     return val;
 }
 
+/// print integrals to string with label ranges
+std::string integrals::to_string_with_label_ranges(std::string symbol) {
+
+    std::string val;
+
+    std::string range = "_";
+    for (size_t k = 0; k < label_ranges.size(); k++) {
+        if ( label_ranges[k] == "act" ) {
+            range += "1";
+        }else {
+            range += "0";
+        }
+    }
+
+    if ( symbol == "two_body") {
+        val = "g" + range + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ","
+            + labels[2]
+            + ","
+            + labels[3]
+            + ")";
+    }else if ( symbol == "eri" ) {
+        val = "<"
+            + labels[0]
+            + ","
+            + labels[1]
+            + "||"
+            + labels[2]
+            + ","
+            + labels[3]
+            + ">" + range;
+    }else if ( symbol == "core") {
+        val = "h" + range + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "fock") {
+        val = "f" + range + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "d+") {
+        val = "d+" + range + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }else if ( symbol == "d-") {
+        val = "d-" + range + "("
+            + labels[0]
+            + ","
+            + labels[1]
+            + ")";
+    }
+
+    return val;
+}
+
 /// print integrals to string with spin labels
 std::string integrals::to_string_with_spin(std::string symbol) {
 
@@ -479,6 +580,29 @@ std::string delta_functions::to_string() {
     std::string val;
 
     val = "d("
+        + labels[0]
+        + ","
+        + labels[1]
+        + ")";
+
+    return val;
+}
+
+/// print deltas to string with label ranges
+std::string delta_functions::to_string_with_label_ranges() {
+
+    std::string val;
+
+    std::string range = "_";
+    for (size_t k = 0; k < label_ranges.size(); k++) {
+        if ( label_ranges[k] == "act" ) {
+            range += "1";
+        }else {
+            range += "0";
+        }
+    }
+
+    val = "d" + range + "("
         + labels[0]
         + ","
         + labels[1]

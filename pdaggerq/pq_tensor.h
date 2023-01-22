@@ -148,6 +148,26 @@ class tensor {
         exit(1);
     }
 
+    /**
+     *
+     * print tensor information to a string, including range information
+     *
+     * @param symbol: the tensor type
+     */
+    virtual std::string to_string_with_label_ranges(std::string symbol) {
+        printf("\n");
+        printf("    to_string_with_label_ranges() has not been implemented for this tensor type\n");
+        printf("\n");
+        exit(1);
+    }
+
+    /**
+     *
+     * ranges that labels span ("act", "ext")
+     *
+     */
+    std::vector<std::string> label_ranges;
+
 };
 
 class amplitudes: public tensor {
@@ -209,11 +229,18 @@ class amplitudes: public tensor {
 
     /**
      *
+     * print amplitudes information to a string, including range information
+     *
+     * @param symbol: the amplitudes type
+     */
+    std::string to_string_with_label_ranges(char symbol);
+
+    /**
+     *
      * the order of the amplitudes, e.g., 2 for t2
      *
      */
     int order = -1;
-
 };
 
 class integrals: public tensor {
@@ -273,6 +300,14 @@ class integrals: public tensor {
      */
     std::string to_string_with_spin(std::string symbol);
 
+    /**
+     *
+     * print integrals information to a string, including range information
+     *
+     * @param symbol: the integrals type
+     */
+    std::string to_string_with_label_ranges(std::string symbol);
+
 };
 
 class delta_functions: public tensor {
@@ -328,6 +363,13 @@ class delta_functions: public tensor {
      *
      */
     std::string to_string_with_spin();
+
+    /**
+     *
+     * print deltas information to a string, including range information
+     *
+     */
+    std::string to_string_with_label_ranges();
 
 };
 

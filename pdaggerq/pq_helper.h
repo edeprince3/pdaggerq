@@ -228,6 +228,14 @@ class pq_helper {
 
     /**
      *
+     * get list of fully-contracted strings, after assigning ranges to the labels
+     *
+     * @param label_ranges: a map/dictionary mapping non-summed labels onto ranges ("all", "active", or "external")
+     */
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_ranges(std::map<std::string, std::vector<std::string> > label_ranges);
+
+    /**
+     *
      * print strings to stdout
      *
      * @param string_type: a string specifying which strings to print ("all", "one-body", "two-body", "fully-contracted").

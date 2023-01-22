@@ -45,4 +45,5 @@ pybind11_add_module(_pdaggerq
                     pdaggerq/pq_string.cc 
                     pdaggerq/pq_utils.cc
                     pdaggerq/pq_swap_operators.cc
+                    pdaggerq/pq_add_label_ranges.cc
                     pdaggerq/pq_helper.cc)
