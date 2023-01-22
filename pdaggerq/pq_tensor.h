@@ -252,6 +252,14 @@ class amplitudes: public tensor {
 
     /**
      *
+     * print amplitudes information to a string, including range information
+     *
+     * @param symbol: the amplitudes type
+     */
+    std::string to_string_with_label_ranges(char symbol);
+
+    /**
+     *
      * the order of the amplitudes, e.g., 2 for t2
      *
      */
@@ -323,6 +331,14 @@ class integrals: public tensor {
      */
     std::string to_string_with_label_ranges(std::string symbol);
 
+    /**
+     *
+     * print integrals information to a string, including range information
+     *
+     * @param symbol: the integrals type
+     */
+    std::string to_string_with_label_ranges(std::string symbol);
+
 };
 
 class delta_functions: public tensor {
@@ -384,6 +400,13 @@ class delta_functions: public tensor {
     std::string to_string_with_spin(const std::string &symbol) const {
         return to_string_with_spin();
     }
+
+    /**
+     *
+     * print deltas information to a string, including range information
+     *
+     */
+    std::string to_string_with_label_ranges();
 
     /**
      *
