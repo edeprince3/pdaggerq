@@ -585,24 +585,21 @@ void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
     factor = in->factor;
 
     // deltas
-    for (size_t i = 0; i < in->deltas.size(); i++) {
-        deltas.push_back(in->deltas[i]);
-    }
+    deltas.clear();
+    deltas.assign(in->deltas.begin(), in->deltas.end());
 
     // integrals
     for (size_t i = 0; i < integral_types.size(); i++) {
         std::string type = integral_types[i];
-        for (size_t j = 0; j < in->ints[type].size(); j++) {
-            ints[type].push_back( in->ints[type][j] );
-        }
+        ints[type].clear();
+        ints[type].assign(in->ints[type].begin(), in->ints[type].end());
     }
 
     // amplitudes
     for (size_t i = 0; i < amplitude_types.size(); i++) {
         char type = amplitude_types[i];
-        for (size_t j = 0; j < in->amps[type].size(); j++) {
-            amps[type].push_back( in->amps[type][j] );
-        }
+        amps[type].clear();
+        amps[type].assign(in->amps[type].begin(), in->amps[type].end());
     }
 
     // w0 
@@ -612,46 +609,41 @@ void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
     non_summed_spin_labels = in->non_summed_spin_labels;
 
     // permutations
-    for (size_t i = 0; i < in->permutations.size(); i++) {
-        permutations.push_back(in->permutations[i]);
-    }
+    permutations.clear();
+    permutations.assign(in->permutations.begin(), in->permutations.end());
 
     // paired permutations (2)
-    for (size_t i = 0; i < in->paired_permutations_2.size(); i++) {
-        paired_permutations_2.push_back(in->paired_permutations_2[i]);
-    }
+    paired_permutations_2.clear();
+    paired_permutations_2.assign(in->paired_permutations_2.begin(), in->paired_permutations_2.end());
 
     // paired permutations (3)
-    for (size_t i = 0; i < in->paired_permutations_3.size(); i++) {
-        paired_permutations_3.push_back(in->paired_permutations_3[i]);
-    }
+    paired_permutations_3.clear();
+    paired_permutations_3.assign(in->paired_permutations_3.begin(), in->paired_permutations_3.end());
 
     // paired permutations (6)
-    for (size_t i = 0; i < in->paired_permutations_6.size(); i++) {
-        paired_permutations_6.push_back(in->paired_permutations_6[i]);
-    }
+    paired_permutations_6.clear();
+    paired_permutations_6.assign(in->paired_permutations_6.begin(), in->paired_permutations_6.end());
 
     if ( copy_daggers_and_symbols ) {
 
-        // operators
-        for (size_t j = 0; j < in->symbol.size(); j++) {
-            symbol.push_back(in->symbol[j]);
+        // fermion operator symbols
+        symbol.clear();
+        symbol.assign(in->symbol.begin(), in->symbol.end());
 
-            // dagger?
-            is_dagger.push_back(in->is_dagger[j]);
+        // fermion daggers
+        is_dagger.clear();
+        is_dagger.assign(in->is_dagger.begin(), in->is_dagger.end());
 
-            // dagger (relative to fermi vacuum)?
-            if ( vacuum == "FERMI" ) {
-                is_dagger_fermi.push_back(in->is_dagger_fermi[j]);
-            }
+        // fermion daggers with respect to fermi vacuum
+        if ( vacuum == "FERMI" ) {
+            is_dagger_fermi.clear();
+            is_dagger_fermi.assign(in->is_dagger_fermi.begin(), in->is_dagger_fermi.end());
         }
 
         // boson daggers
-        for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
-            is_boson_dagger.push_back(in->is_boson_dagger[i]);
-        }
+        is_boson_dagger.clear();
+        is_boson_dagger.assign(in->is_boson_dagger.begin(), in->is_boson_dagger.end());
     }
-
 }
 
 void pq_string::set_spin_everywhere(std::string target, std::string spin) {
@@ -800,9 +792,7 @@ void pq_string::reset_spin_labels() {
 // set labels for integrals
 void pq_string::set_integrals(std::string type, std::vector<std::string> in) {
     integrals new_ints;
-    for (int i = 0; i < (int)in.size(); i++) {
-        new_ints.labels.push_back(in[i]);
-    }
+    new_ints.labels.assign(in.begin(), in.end());
     new_ints.sort();
     ints[type].push_back(new_ints);
 }
@@ -810,9 +800,7 @@ void pq_string::set_integrals(std::string type, std::vector<std::string> in) {
 // set labels for amplitudes
 void pq_string::set_amplitudes(char type, int order, std::vector<std::string> in) {
     amplitudes new_amps;
-    for (int i = 0; i < (int)in.size(); i++) {
-        new_amps.labels.push_back(in[i]);
-    }
+    new_amps.labels.assign(in.begin(), in.end());
     new_amps.order = order;
     new_amps.sort();
     amps[type].push_back(new_amps);
