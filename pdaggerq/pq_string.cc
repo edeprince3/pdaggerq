@@ -1107,10 +1107,11 @@ void pq_string::set_integrals(std::string type, std::vector<std::string> in) {
 }
 
 // set labels for amplitudes
-void pq_string::set_amplitudes(char type, int order, std::vector<std::string> in) {
+void pq_string::set_amplitudes(char type, int order_left, int order_right, std::vector<std::string> in) {
     amplitudes new_amps;
     new_amps.labels.assign(in.begin(), in.end());
-    new_amps.order = order;
+    new_amps.order_left = order_left;
+    new_amps.order_right = order_right;
     new_amps.sort();
     amps[type].push_back(new_amps);
 }
