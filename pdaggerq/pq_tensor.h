@@ -260,10 +260,17 @@ class amplitudes: public tensor {
 
     /**
      *
-     * the order of the amplitudes, e.g., 2 for t2
+     * the order of the left part of the amplitudes, e.g., 2 for t2(ab,ij), 1 for r2(a,ij)
      *
      */
-    int order = -1;
+    int order_left = -1;
+
+    /**
+     *
+     * the order of the right part of the amplitudes, e.g., 2 for t2(ab,ij), 2 for r2(a,ij)
+     *
+     */
+    int order_right = -1;
 };
 
 class integrals: public tensor {

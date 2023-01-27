@@ -25,8 +25,6 @@
 
 #include "pq_tensor.h"
 #include <map>
-#include <unordered_map>
-#include <memory>
 
 namespace pdaggerq {
 
@@ -36,8 +34,6 @@ class pq_string {
 
   public:
 
-    static inline bool is_spin_blocked = false;
-
     /**
      *
      * constructor
@@ -45,51 +41,14 @@ class pq_string {
      * @param vacuum_type: normal order is defined with respect to the TRUE vacuum or the FERMI vacuum
      *
      */
-    explicit pq_string(const std::string &vacuum_type);
-
-    /**
-     *
-     * copy constructor
-     *
-     */
-    pq_string(const pq_string &copy_me) = default;
-
-    /**
-     *
-     * copy constructor without copying symbols and daggers
-     *
-     */
-    pq_string(pq_string* copy_me, bool copy_daggers_and_symbols) {
-        copy(copy_me, copy_daggers_and_symbols);
-    }
-
-    /**
-     *
-     * assignment operator
-     *
-     */
-    pq_string &operator=(const pq_string &copy_me) = default;
-
-    /**
-     *
-     * move constructor
-     *
-     */
-    pq_string(pq_string &&move_me) = default;
-
-    /**
-     *
-     * move assignment operator
-     *
-     */
-    pq_string &operator=(pq_string &&move_me) = default;
+    pq_string(std::string vacuum_type);
 
     /**
      *
      * destructor
      *
      */
-    ~pq_string() = default;
+    ~pq_string();
 
     /**
      *
@@ -138,7 +97,6 @@ class pq_string {
      * supported integral types
      *
      */
-    static inline
     std::vector<std::string> integral_types = {"fock", "core", "two_body", "eri", "d+", "d-", "occ_repulsion"};
 
     /**
@@ -146,14 +104,13 @@ class pq_string {
      * map integral_types onto lists of integrals
      *
      */
-    std::unordered_map<std::string, std::vector<integrals> > ints;
+    std::map<std::string, std::vector<integrals> > ints;
 
     /**
      *
      * supported amplitude types
      *
      */
-    static inline
     std::vector<char> amplitude_types = {'l', 'r', 't', 'u', 'm', 's'};
 
     /**
@@ -161,14 +118,14 @@ class pq_string {
      * map amplitude_types onto lists of amplitudes
      *
      */
-    std::unordered_map<char, std::vector<amplitudes> > amps;
+    std::map<char, std::vector<amplitudes> > amps;
 
     /**
      *
      * non-summed spin labels
      *
      */
-    std::unordered_map<std::string, std::string> non_summed_spin_labels;
+    std::map<std::string, std::string> non_summed_spin_labels;
 
     /**
      *
@@ -298,7 +255,7 @@ class pq_string {
      * @param target: a target label in the integrals or amplitudes
      * @param spin: the spin label to be added to target
      */
-    void set_spin_everywhere(const std::string &target, const std::string &spin);
+    void set_spin_everywhere(std::string target, std::string spin);
 
     /**
      *
@@ -330,16 +287,18 @@ class pq_string {
      * @param type: the integrals_type
      * @param in: the list of labels for the integrals
      */
-    void set_integrals(const std::string &type, const std::vector<std::string> &in);
+    void set_integrals(std::string type, std::vector<std::string> in);
 
     /**
      *
      * set labels for amplitudes
      *
      * @param type: the amplitudes_type
+     * @param order_left: the order of the left part of the amplitudes
+     * @param order_right: the order of the right part of the amplitudes
      * @param in: the list of labels for the amplitudes
      */
-    void set_amplitudes(char type, int order, const std::vector<std::string> &in);
+    void set_amplitudes(char type, int order_left, int order_right, std::vector<std::string> in);
 
 };
 

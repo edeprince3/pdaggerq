@@ -253,7 +253,11 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
                 // amplitude type+order (ie 't' + '2' = "t2")
                 std::string amp;
                 amp.push_back(type);
-                amp += std::to_string(tmp[i]->amps[type][k].order);
+                int order = tmp[i]->amps[type][k].order_left;
+                if (tmp[i]->amps[type][k].order_right > order) {
+                    order = tmp[i]->amps[type][k].order_right;
+                }
+                amp += std::to_string(order);
                 
                 // is this amplitude in the map? if not, we can assume full ranges are desired
                 if ( label_ranges.find(amp) == label_ranges.end() ) continue;
