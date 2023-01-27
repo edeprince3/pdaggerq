@@ -37,6 +37,7 @@
 #include "pq_string.h"
 #include "pq_tensor.h"
 #include "pq_add_label_ranges.h"
+#include "pq_add_spin_labels.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>

@@ -126,12 +126,6 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 /// reorder t amplitudes as t1, t2, t3, t4
 void reorder_t_amplitudes(std::shared_ptr<pq_string> in);
 
-/// reorder three spin labels as aab or abb
-void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
-
-/// reorder four spin labels as aaab, aabb, or abbb
-void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign);
-
 /// re-classify fluctuation potential terms
 void reclassify_integrals(std::shared_ptr<pq_string> in);
 
@@ -140,12 +134,6 @@ void gobble_deltas(std::shared_ptr<pq_string> in);
 
 /// replace internal labels with conventional ones (o1 -> i, etc.)
 void use_conventional_labels(std::shared_ptr<pq_string> in);
-
-/// add spin labels to a string
-bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list);
-
-/// expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
 void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
