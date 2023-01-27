@@ -24,29 +24,23 @@
 #include "pq_string.h"
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
-#include "pq_helper.h"
 
 #include <algorithm>
-#include <omp.h>
-#include <numeric>
 
 namespace pdaggerq {
 
 // concatinate a list of operators (a list of strings) into a single list
-std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops) {
+std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops) {
 
     std::vector<std::string> ret;
-    // determine size to reserve when concatenating
-    size_t size = std::accumulate(ops.begin(), ops.end(), 0,
-                                  [](size_t sum, const std::vector<std::string> & op){
-        return sum + op.size();
-    });
-
+    size_t size = 0;
+    for (size_t i = 0; i < ops.size(); i++) {
+        size += ops[i].size();
+    }
     ret.reserve(size);
-    std::for_each(ops.begin(), ops.end(), [&ret](const std::vector<std::string> & op){
-        ret.insert(ret.end(), op.begin(), op.end());
-    });
-
+    for (size_t i = 0; i < ops.size(); i++) {
+        ret.insert(ret.end(), ops[i].begin(), ops[i].end());
+    }
     return ret;
 }
 
@@ -68,40 +62,60 @@ void removeParentheses(std::string &x) {
 }
 
 // is a label classified as occupied?
-bool is_occ(const std::string &idx) {
-
-    // replacing above with comparison along char range
-    if (idx.empty()) return false;
-
-    // use integer comparison for speed
-    char c_idx = idx.at(0);
-    if ( c_idx >= 'i' && c_idx <= 'n' ) return true;
-    else if ( c_idx >= 'I' && c_idx <= 'N' ) return true;
-    else if ( c_idx == 'O' || c_idx == 'o' ) return true;
+bool is_occ(std::string idx) {
+    if ( idx == "i" ) return true;
+    else if (idx == "j") return true;
+    else if (idx == "k") return true;
+    else if (idx == "l") return true;
+    else if (idx == "m") return true;
+    else if (idx == "n") return true;
+    else if (idx == "o") return true;
+    else if (idx == "I") return true;
+    else if (idx == "J") return true;
+    else if (idx == "K") return true;
+    else if (idx == "L") return true;
+    else if (idx == "M") return true;
+    else if (idx == "N") return true;
+    else if (idx == "O") return true;
+    else if (idx.at(0) == 'O' ) return true;
+    else if (idx.at(0) == 'o') return true;
+    else if (idx.at(0) == 'I') return true;
+    else if (idx.at(0) == 'i') return true;
     return false;
 }
 
 // is a label classified as virtual?
-bool is_vir(const std::string &idx) {
-    if (idx.empty()) return false;
-
-    // use integer comparison for speed
-    char c_idx = idx.at(0);
-    if ( c_idx >= 'a' && c_idx <= 'f' ) return true;
-    else if ( c_idx >= 'A' && c_idx <= 'F' ) return true;
-    else if ( c_idx == 'V' || c_idx == 'v' ) return true;
+bool is_vir(std::string idx) {
+    if ( idx == "a" ) return true;
+    else if (idx == "b") return true;
+    else if (idx == "c") return true;
+    else if (idx == "d") return true;
+    else if (idx == "e") return true;
+    else if (idx == "f") return true;
+    else if (idx == "g") return true;
+    else if (idx == "A") return true;
+    else if (idx == "B") return true;
+    else if (idx == "C") return true;
+    else if (idx == "D") return true;
+    else if (idx == "E") return true;
+    else if (idx == "F") return true;
+    else if (idx == "G") return true;
+    else if (idx.at(0) == 'V' ) return true;
+    else if (idx.at(0) == 'v') return true;
+    else if (idx.at(0) == 'A') return true;
+    else if (idx.at(0) == 'a') return true;
     return false;
 }
 
 // how many times does an index appear deltas?
-int index_in_deltas(const std::string &idx, const std::vector<delta_functions> &deltas) {
+int index_in_deltas(std::string idx, std::vector<delta_functions> deltas) {
 
     int n = 0;
-    for (const delta_functions & delta : deltas) {
-        if ( delta.labels[0] == idx ) {
+    for (size_t i = 0; i < deltas.size(); i++) {
+        if ( deltas[i].labels[0] == idx ) {
             n++;
         }
-        if ( delta.labels[1] == idx ) {
+        if ( deltas[i].labels[1] == idx ) {
             n++;
         }
     }
@@ -109,12 +123,12 @@ int index_in_deltas(const std::string &idx, const std::vector<delta_functions> &
 }
 
 // how many times does an index appear integrals?
-int index_in_integrals(const std::string &idx, const std::vector<integrals> &ints) {
+int index_in_integrals(std::string idx, std::vector<integrals> ints) {
 
     int n = 0;
-    for (const integrals & integral : ints) {
-        for (const std::string & label : integral.labels) {
-            if (label == idx ) {
+    for (size_t i = 0; i < ints.size(); i++) {
+        for (size_t j = 0; j < ints[i].labels.size(); j++) {
+            if ( ints[i].labels[j] == idx ) {
                 n++;
             }
         }
@@ -123,12 +137,12 @@ int index_in_integrals(const std::string &idx, const std::vector<integrals> &int
 }
 
 // how many times does an index appear in amplitudes?
-int index_in_amplitudes(const std::string &idx, const std::vector<amplitudes> &amps) {
+int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
 
     int n = 0;
-    for (const amplitudes & amp : amps) {
-        for (const std::string & label : amp.labels) {
-            if ( label == idx ) {
+    for (size_t i = 0; i < amps.size(); i++) {
+        for (size_t j = 0; j < amps[i].labels.size(); j++) {
+            if ( amps[i].labels[j] == idx ) {
                 n++;
             }
         }
@@ -137,69 +151,64 @@ int index_in_amplitudes(const std::string &idx, const std::vector<amplitudes> &a
 }
 
 // how many times does an index appear amplitudes, deltas, and integrals?
-int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx) {
+int index_in_anywhere(std::shared_ptr<pq_string> in, std::string idx) {
 
-    // find index in deltas
-    int n = index_in_deltas(idx, in->deltas);
+    int n = 0;
 
-    // find index in integrals
-    for (const auto & int_pair : in->ints) {
-        const std::string &type = int_pair.first;
-        const std::vector<integrals> &ints = int_pair.second;
-        n += index_in_integrals(idx, ints);
+    n += index_in_deltas(idx, in->deltas);
+    for (size_t i = 0; i < in->integral_types.size(); i++) {
+        std::string type = in->integral_types[i];
+        n += index_in_integrals(idx, in->ints[type]);
     }
-
-    // find index in amplitudes
-    for (const auto & amp_pair : in->amps) {
-        const char &type = amp_pair.first;
-        const std::vector<amplitudes> &amps = amp_pair.second;
-        n += index_in_amplitudes(idx, amps);
+    for (size_t i = 0; i < in->amplitude_types.size(); i++) {
+        char type = in->amplitude_types[i];
+        n += index_in_amplitudes(idx, in->amps[type]);
     }
 
     return n;
 }
 
 /// replace one label with another (in a given set of deltas)
-void replace_index_in_deltas(const std::string &old_idx, const std::string &new_idx, std::vector<delta_functions> &deltas) {
+void replace_index_in_deltas(std::string old_idx, std::string new_idx, std::vector<delta_functions> &deltas) {
 
-    for (delta_functions & delta : deltas) {
-        if ( delta.labels[0] == old_idx ) {
-            delta.labels[0] = new_idx;
+    for (size_t i = 0; i < deltas.size(); i++) {
+        if ( deltas[i].labels[0] == old_idx ) {
+            deltas[i].labels[0] = new_idx;
         }
     }
-    for (delta_functions & delta : deltas) {
-        if ( delta.labels[1] == old_idx ) {
-            delta.labels[1] = new_idx;
+    for (size_t i = 0; i < deltas.size(); i++) {
+        if ( deltas[i].labels[1] == old_idx ) {
+            deltas[i].labels[1] = new_idx;
         }
     }
 }
 
 /// replace one label with another (in a given set of amplitudes)
-void replace_index_in_amplitudes(const std::string &old_idx, const std::string &new_idx, std::vector<amplitudes> &amps) {
+void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps) {
 
-    for (amplitudes & amp : amps) {
-        for (std::string & label : amp.labels) {
-            if ( label == old_idx ) {
-                label = new_idx;
+    for (size_t i = 0; i < amps.size(); i++) {
+        for (size_t j = 0; j < amps[i].labels.size(); j++) {
+            if ( amps[i].labels[j] == old_idx ) {
+                amps[i].labels[j] = new_idx;
             }
         }
     }
 }
 
 /// replace one label with another (in a given set of integrals)
-void replace_index_in_integrals(const std::string &old_idx, const std::string &new_idx, std::vector<integrals> &ints) {
+void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::vector<integrals> &ints) {
 
-    for (integrals & integral : ints) {
-        for (std::string & label : integral.labels) {
-            if (label == old_idx ) {
-                label = new_idx;
+    for (size_t i = 0; i < ints.size(); i++) {
+        for (size_t j = 0; j < ints[i].labels.size(); j++) {
+            if ( ints[i].labels[j] == old_idx ) {
+                ints[i].labels[j] = new_idx;
             }
         }
     }
 }
 
 // swap two labels
-void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, const std::string &label2) {
+void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::string label2) {
 
     replace_index_everywhere(in, label1, "xyz");
     replace_index_everywhere(in, label2, label1);
@@ -207,35 +216,33 @@ void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, 
 }
 
 // replace one label with another (in integrals and amplitudes)
-void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string &old_idx, const std::string &new_idx) {
+void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx, std::string new_idx) {
 
-    for (auto &int_pair : in->ints) {
-        std::string type = int_pair.first;
-        std::vector<integrals> &ints = int_pair.second;
-        replace_index_in_integrals(old_idx, new_idx, ints);
+    for (size_t i = 0; i < in->integral_types.size(); i++) {
+        std::string type = in->integral_types[i];
+        replace_index_in_integrals(old_idx, new_idx, in->ints[type]);
     }
-    for (auto &amp_pair : in->amps) {
-        char type = amp_pair.first;
-        std::vector<amplitudes> &amps = amp_pair.second;
-        replace_index_in_amplitudes(old_idx, new_idx, amps);
+    for (size_t i = 0; i < in->amplitude_types.size(); i++) {
+        char type = in->amplitude_types[i];
+        replace_index_in_amplitudes(old_idx, new_idx, in->amps[type]);
     }
     in->sort_labels();
 }
 
 /// compare two lists of integrals
-bool compare_integrals(const std::vector<integrals> &ints1,
-                       const std::vector<integrals> &ints2,
+bool compare_integrals(std::vector<integrals> ints1,
+                       std::vector<integrals> ints2,
                        int & n_permute ) {
 
     if ( ints1.size() != ints2.size() ) return false;
 
     size_t nsame_ints = 0;
-    for (const integrals & int1 : ints1) {
-        for (const integrals & int2 : ints2) {
+    for (size_t i = 0; i < ints1.size(); i++) {
+        for (size_t j = 0; j < ints2.size(); j++) {
 
-            if (int1 == int2 ) {
+            if ( ints1[i] == ints2[j] ) {
 
-                n_permute += int1.permutations + int2.permutations;
+                n_permute += ints1[i].permutations + ints2[j].permutations;
 
                 nsame_ints++;
                 break;
@@ -249,19 +256,19 @@ bool compare_integrals(const std::vector<integrals> &ints1,
 }
 
 /// compare two lists of amplitudes
-bool compare_amplitudes( const std::vector<amplitudes> &amps1,
-                         const std::vector<amplitudes> &amps2,
+bool compare_amplitudes( std::vector<amplitudes> amps1,
+                         std::vector<amplitudes> amps2,
                          int & n_permute ) {
 
     if ( amps1.size() != amps2.size() ) return false;
    
     size_t nsame_amps = 0;
-    for (const amplitudes & amp1 : amps1) {
-        for (const amplitudes & amp2 : amps2) {
+    for (size_t i = 0; i < amps1.size(); i++) {
+        for (size_t j = 0; j < amps2.size(); j++) {
 
-            if (amp1 == amp2 ) {
+            if ( amps1[i] == amps2[j] ) {
 
-                n_permute += amp1.permutations + amp2.permutations;
+                n_permute += amps1[i].permutations + amps2[j].permutations;
 
                 nsame_amps++;
                 break;
@@ -275,7 +282,7 @@ bool compare_amplitudes( const std::vector<amplitudes> &amps1,
 }
 
 // compare two strings
-bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::shared_ptr<pq_string> &ordered_2, int & n_permute) {
+bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_string> ordered_2, int & n_permute) {
 
     // don't forget w0
     if ( ordered_1->has_w0 != ordered_2->has_w0 ) {
@@ -294,14 +301,14 @@ bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::sha
 
     // same delta functions (recall these aren't sorted in any way)
     int nsame_d = 0;
-    for (const delta_functions & deltas1 : ordered_1->deltas) {
-        for (const delta_functions & deltas2 : ordered_2->deltas) {
-            if ( deltas1.labels[0] == deltas2.labels[0]
-              && deltas1.labels[1] == deltas2.labels[1] ) {
+    for (size_t k = 0; k < ordered_1->deltas.size(); k++) {
+        for (size_t l = 0; l < ordered_2->deltas.size(); l++) {
+            if ( ordered_1->deltas[k].labels[0] == ordered_2->deltas[l].labels[0]
+              && ordered_1->deltas[k].labels[1] == ordered_2->deltas[l].labels[1] ) {
                 nsame_d++;
                 //break;
-            }else if ( deltas1.labels[0] == deltas2.labels[1]
-                    && deltas1.labels[1] == deltas2.labels[0] ) {
+            }else if ( ordered_1->deltas[k].labels[0] == ordered_2->deltas[l].labels[1]
+                    && ordered_1->deltas[k].labels[1] == ordered_2->deltas[l].labels[0] ) {
                 nsame_d++;
                 //break;
             }
@@ -313,34 +320,16 @@ bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::sha
     n_permute = 0;
 
     bool same_string = false;
-    for (const auto &amp_pair : ordered_1->amps) {
-        char type = amp_pair.first;
-        const std::vector<amplitudes> &amps1 = amp_pair.second;
-
-        // ensure that the same amplitude type exists in both strings
-        if ( ordered_2->amps.find(type) == ordered_2->amps.end() ) {
-            return false; // nope
-        }
-
-        // compare amplitudes
-        const std::vector<amplitudes> &amps2 = ordered_2->amps.at(type);
-        same_string = compare_amplitudes(amps1, amps2, n_permute);
+    for (size_t i = 0; i < ordered_1->amplitude_types.size(); i++) {
+        char type = ordered_1->amplitude_types[i];
+        same_string = compare_amplitudes( ordered_1->amps[type], ordered_2->amps[type], n_permute);
         if ( !same_string ) return false;
     }
 
     // integral comparisons, with permutations
-    for (const auto &int_pair : ordered_1->ints) {
-        std::string type = int_pair.first;
-        const std::vector<integrals> &ints1 = int_pair.second;
-
-        // ensure that the same integral type exists in both strings
-        if ( ordered_2->ints.find(type) == ordered_2->ints.end() ) {
-            return false; // nope
-        }
-
-        // compare integrals
-        const std::vector<integrals> &ints2 = ordered_2->ints.at(type);
-        same_string = compare_integrals(ints1, ints2, n_permute);
+    for (size_t i = 0; i < ordered_1->integral_types.size(); i++) {
+        std::string type = ordered_1->integral_types[i];
+        same_string = compare_integrals( ordered_1->ints[type], ordered_2->ints[type], n_permute);
         if ( !same_string ) return false;
     }
 
@@ -375,10 +364,10 @@ bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::sha
 }
 
 /// compare two strings when swapping (multiple) summed labels
-void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<std::string> > &labels,
+void compare_strings_with_swapped_summed_labels(std::vector<std::vector<std::string> > labels,
                                                 size_t iter,
-                                                const std::shared_ptr<pq_string> &in1,
-                                                const std::shared_ptr<pq_string> &in2,
+                                                std::shared_ptr<pq_string> in1,
+                                                std::shared_ptr<pq_string> in2,
                                                 int & n_permute, 
                                                 bool & strings_same) {
  
@@ -391,7 +380,8 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
     for (size_t id1 = 0; id1 < labels[iter].size(); id1++) {
         for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
     
-            std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
+            std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
+            newguy->copy(in1.get());
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
             newguy->sort_labels();
 
@@ -403,13 +393,7 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
 
 // consolidate terms that differ may differ by permutations of summed labels
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
-                                     const std::vector<std::vector<std::string> > &labels) {
-
-    //TODO:
-    // Currently the implementation of this function runs in O(N^2) time complexity and is the limiting bottleneck by far.
-    // This can be remedied by reformulating the logic to run in O(N) time complexity using a hash table.
-    // However, that would require us to define a hash function for pq_string (doable, but not trivial).
-    // For now, we'll just live with the O(N^2) time complexity.
+                                         std::vector<std::vector<std::string> > labels) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
@@ -418,13 +402,12 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
         std::vector<std::vector<std::string> > found_labels;
 
         // ok, what summed / repeated labels do we have?
-        for (const std::vector<std::string> & label : labels) {
+        for (size_t j = 0; j < labels.size(); j++) {
             std::vector<std::string> tmp;
-            tmp.reserve(label.size());
-            for (const auto & index : label) {
-                int found = index_in_anywhere(ordered[i], index);
+            for (size_t k = 0; k < labels[j].size(); k++) {
+                int found = index_in_anywhere(ordered[i], labels[j][k]);
                 if ( found == 2 ) {
-                    tmp.push_back(index);
+                    tmp.push_back(labels[j][k]);
                 }
             }
             found_labels.push_back(tmp);
@@ -468,28 +451,28 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
 // consolidate terms that differ by permutations of non-summed labels
 void consolidate_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
-    const std::vector<std::string> &labels) {
+    std::vector<std::string> labels) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
         // not sure if this logic works with existing permutation operators ... skip those for now
-        if ( !ordered[i]->paired_permutations_2.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_3.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_6.empty() ) continue;
+        if ( ordered[i]->paired_permutations_2.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_3.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_6.size() > 0 ) continue;
         
         if ( ordered[i]->skip ) continue;
     
         std::vector<int> find_idx;
     
         // ok, what labels do we have? 
-        for (const auto & label : labels) {
-            int found = index_in_anywhere(ordered[i], label);
+        for (size_t j = 0; j < labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], labels[j]);
             // this is buggy when existing permutation labels belong to 
             // the same space as the labels we're permuting ... so skip those for now.
             bool same_space = false;
-            bool is_occ1 = is_occ(label);
-            for (const auto & permutation : ordered[i]->permutations) {
-                bool is_occ2 = is_occ(permutation);
+            bool is_occ1 = is_occ(labels[j]);
+            for (size_t k = 0; k < ordered[i]->permutations.size(); k++) {
+                bool is_occ2 = is_occ(ordered[i]->permutations[k]);
                 if ( is_occ1 && is_occ2 ) {
                     same_space = true;
                     break;
@@ -513,8 +496,8 @@ void consolidate_permutations_non_summed(
             int n_permute;
             bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
-            std::string permutation_1;
-            std::string permutation_2;
+            std::string permutation_1 = "";
+            std::string permutation_2 = "";
 
             // try swapping non-summed labels
             for (size_t id1 = 0; id1 < labels.size(); id1++) {
@@ -522,7 +505,8 @@ void consolidate_permutations_non_summed(
                 for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 1 ) continue;
 
-                    std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
+                    std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
+                    newguy->copy(ordered[i].get());
                     swap_two_labels(newguy, labels[id1], labels[id2]);
 
                     strings_same = compare_strings(ordered[j], newguy, n_permute);
@@ -564,11 +548,11 @@ void consolidate_permutations_non_summed(
 
 /// compare two strings when swapping (multiple) summed labels and ov pairs of nonsumed labels
 void compare_strings_with_swapped_summed_and_nonsummed_labels(
-    const std::vector<std::vector<std::string> > &labels,
-    const std::vector<std::vector<std::string>> &pairs,
+    std::vector<std::vector<std::string> > labels,
+    std::vector<std::vector<std::string>> pairs,
     size_t iter,
-    const std::shared_ptr<pq_string> &in1,
-    const std::shared_ptr<pq_string> &in2,
+    std::shared_ptr<pq_string> in1,
+    std::shared_ptr<pq_string> in2,
     size_t in2_id,
     std::vector<size_t> &my_permutations,
     std::vector<bool> &permutation_types,
@@ -605,7 +589,8 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
 
                     for (size_t permutation_type = 0; permutation_type < n_permutation_type; permutation_type++) {
 
-                        std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
+                        std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
+                        newguy->copy(in1.get());
 
                         if ( permutation_type == 0 ) {
 
@@ -656,7 +641,7 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
 
                         if ( strings_same ) {
                             paired_permutation = true;
-                            found_permutation_type = (int)permutation_type;
+                            found_permutation_type = permutation_type;
                             break;
                         }
                     }
@@ -693,7 +678,8 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
     for (size_t id1 = 0; id1 < labels[iter].size(); id1++) {
         for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
     
-            std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
+            std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
+            newguy->copy(in1.get());
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
             newguy->sort_labels();
 
@@ -720,8 +706,8 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
 // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
 void consolidate_paired_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
-    const std::vector<std::string> &occ_labels,
-    const std::vector<std::string> &vir_labels,
+    std::vector<std::string> occ_labels,
+    std::vector<std::string> vir_labels,
     int n_fold) {
 
     if ( n_fold != 3 && n_fold !=6 ) {
@@ -742,10 +728,10 @@ void consolidate_paired_permutations_non_summed(
         if ( ordered[i]->skip ) continue;
 
         // not sure if this logic works with existing permutation operators ... skip those for now
-        if ( !ordered[i]->permutations.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_2.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_3.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_6.empty() ) continue;
+        if ( ordered[i]->permutations.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_2.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_3.size() > 0 ) continue;
+        if ( ordered[i]->paired_permutations_6.size() > 0 ) continue;
 
         std::vector<std::string> found_occ;
         std::vector<std::string> found_vir;
@@ -753,32 +739,32 @@ void consolidate_paired_permutations_non_summed(
         std::vector<std::string> found_summed_vir;
 
         // ok, what non-summed occupied labels do we have? 
-        for (const std::string & occ_label : occ_labels) {
-            int found = index_in_anywhere(ordered[i], occ_label);
+        for (size_t j = 0; j < occ_labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], occ_labels[j]);
             if ( found == 1 ) {
-                found_occ.push_back(occ_label);
+                found_occ.push_back(occ_labels[j]);
             }
         }
 
         // ok, what non-summed virtual labels do we have? 
-        for (const std::string & vir_label : vir_labels) {
-            int found = index_in_anywhere(ordered[i], vir_label);
+        for (size_t j = 0; j < vir_labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], vir_labels[j]);
             if ( found == 1 ) {
-                found_vir.push_back(vir_label);
+                found_vir.push_back(vir_labels[j]);
             }
         }
 
         // ok, what summed labels (occupied and virtual) do we have? 
-        for (const std::string & occ_label : occ_labels) {
-            int found = index_in_anywhere(ordered[i], occ_label);
+        for (size_t j = 0; j < occ_labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], occ_labels[j]);
             if ( found == 2 ) {
-                found_summed_occ.push_back(occ_label);
+                found_summed_occ.push_back(occ_labels[j]);
             }
         }
-        for (const std::string & vir_label : vir_labels) {
-            int found = index_in_anywhere(ordered[i], vir_label);
+        for (size_t j = 0; j < vir_labels.size(); j++) {
+            int found = index_in_anywhere(ordered[i], vir_labels[j]);
             if ( found == 2 ) {
-                found_summed_vir.push_back(vir_label);
+                found_summed_vir.push_back(vir_labels[j]);
             }
         }
 
@@ -803,21 +789,21 @@ void consolidate_paired_permutations_non_summed(
             if ( ordered[j]->skip ) continue;
 
             // not sure if this logic works with existing permutation operators ... skip those for now
-            if ( !ordered[j]->permutations.empty() ) continue;
-            if ( !ordered[i]->paired_permutations_2.empty() ) continue;
-            if ( !ordered[i]->paired_permutations_3.empty() ) continue;
-            if ( !ordered[i]->paired_permutations_6.empty() ) continue;
+            if ( ordered[j]->permutations.size() > 0 ) continue;
+            if ( ordered[i]->paired_permutations_2.size() > 0 ) continue;
+            if ( ordered[i]->paired_permutations_3.size() > 0 ) continue;
+            if ( ordered[i]->paired_permutations_6.size() > 0 ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
 
             bool found_paired_permutation = false;
             std::vector<std::vector<std::vector<std::string> > > labels;
-            labels.emplace_back();
+            labels.push_back({});
             labels.push_back({found_summed_occ});
             labels.push_back({found_summed_vir});
-            for (const std::vector<std::vector<std::string>> & label : labels) {
-                compare_strings_with_swapped_summed_and_nonsummed_labels(label,
+            for (size_t k = 0; k < labels.size(); k++) {
+                compare_strings_with_swapped_summed_and_nonsummed_labels(labels[k], 
                                                                          pairs, 
                                                                          0, 
                                                                          ordered[i], 
@@ -835,8 +821,8 @@ void consolidate_paired_permutations_non_summed(
 
         if ( my_permutations.size() == 5 && n_fold == 6) {
             // 6-fold permutations
-            for (unsigned long my_permutation : my_permutations) {
-                ordered[my_permutation]->skip = true;
+            for (size_t j = 0; j < my_permutations.size(); j++ ) {
+                ordered[my_permutations[j]]->skip = true;
             }
             ordered[i]->paired_permutations_6.push_back(found_occ[0]);
             ordered[i]->paired_permutations_6.push_back(found_vir[0]);
@@ -846,8 +832,8 @@ void consolidate_paired_permutations_non_summed(
             ordered[i]->paired_permutations_6.push_back(found_vir[2]);
         }else if ( my_permutations.size() == 2 && n_fold == 3 ) {
             // 3-fold permutations
-            for (unsigned long my_permutation : my_permutations) {
-                ordered[my_permutation]->skip = true;
+            for (size_t j = 0; j < my_permutations.size(); j++ ) {
+                ordered[my_permutations[j]]->skip = true;
             }
             if ( permutation_types[0] && permutation_types[1] && permutation_types[2] ) {
                 printf("\n");
@@ -885,26 +871,26 @@ void consolidate_paired_permutations_non_summed(
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 
     // alphabetize string
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         // creation
         bool not_alphabetized = false;
         do {
             not_alphabetized = false;
             int ndagger = 0;
-            for (size_t j = 0; j < pq_str->symbol.size(); j++) {
-                if ( pq_str->is_dagger[j] ) ndagger++;
+            for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
+                if ( ordered[i]->is_dagger[j] ) ndagger++;
             }
             for (int j = 0; j < ndagger-1; j++) {
-                int val1 = pq_str->symbol[j].c_str()[0];
-                int val2 = pq_str->symbol[j + 1].c_str()[0];
+                int val1 = ordered[i]->symbol[j].c_str()[0];
+                int val2 = ordered[i]->symbol[j+1].c_str()[0];
                 if ( val2 < val1 ) {
-                    std::string dum = pq_str->symbol[j];
-                    pq_str->symbol[j] = pq_str->symbol[j + 1];
-                    pq_str->symbol[j + 1] = dum;
-                    pq_str->sign = -pq_str->sign;
+                    std::string dum = ordered[i]->symbol[j];
+                    ordered[i]->symbol[j] = ordered[i]->symbol[j+1];
+                    ordered[i]->symbol[j+1] = dum;
+                    ordered[i]->sign = -ordered[i]->sign;
                     not_alphabetized = true;
-                    j = pq_str->symbol.size() + 1;
+                    j = ordered[i]->symbol.size() + 1;
                     not_alphabetized = true;
                 }
             }
@@ -914,34 +900,34 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
         do {
             not_alphabetized = false;
             int ndagger = 0;
-            for (size_t j = 0; j < pq_str->symbol.size(); j++) {
-                if ( pq_str->is_dagger[j] ) ndagger++;
+            for (size_t j = 0; j < ordered[i]->symbol.size(); j++) {
+                if ( ordered[i]->is_dagger[j] ) ndagger++;
             }
-            for (int j = ndagger; j < (int)pq_str->symbol.size() - 1; j++) {
-                int val1 = pq_str->symbol[j].c_str()[0];
-                int val2 = pq_str->symbol[j + 1].c_str()[0];
+            for (int j = ndagger; j < (int)ordered[i]->symbol.size()-1; j++) {
+                int val1 = ordered[i]->symbol[j].c_str()[0];
+                int val2 = ordered[i]->symbol[j+1].c_str()[0];
                 if ( val2 < val1 ) {
-                    std::string dum = pq_str->symbol[j];
-                    pq_str->symbol[j] = pq_str->symbol[j + 1];
-                    pq_str->symbol[j + 1] = dum;
-                    pq_str->sign = -pq_str->sign;
+                    std::string dum = ordered[i]->symbol[j];
+                    ordered[i]->symbol[j] = ordered[i]->symbol[j+1];
+                    ordered[i]->symbol[j+1] = dum;
+                    ordered[i]->sign = -ordered[i]->sign;
                     not_alphabetized = true;
-                    j = pq_str->symbol.size() + 1;
+                    j = ordered[i]->symbol.size() + 1;
                     not_alphabetized = true;
                 }
             }
         }while(not_alphabetized);
     }
-        
+
     // alphabetize deltas
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        for (delta_functions & delta : pq_str->deltas) {
-            int val1 = delta.labels[0].c_str()[0];
-            int val2 = delta.labels[1].c_str()[0];
+    for (size_t i = 0; i < ordered.size(); i++) {
+        for (size_t j = 0; j < ordered[i]->deltas.size(); j++) {
+            int val1 = ordered[i]->deltas[j].labels[0].c_str()[0];
+            int val2 = ordered[i]->deltas[j].labels[1].c_str()[0];
             if ( val2 < val1 ) {
-                std::string dum = delta.labels[0];
-                delta.labels[0] = delta.labels[1];
-                delta.labels[1] = dum;
+                std::string dum = ordered[i]->deltas[j].labels[0];
+                ordered[i]->deltas[j].labels[0] = ordered[i]->deltas[j].labels[1];
+                ordered[i]->deltas[j].labels[1] = dum;
             }
         }
     }
@@ -950,40 +936,40 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 // compare strings and remove terms that cancel
 void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations) {
 
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         // order amplitudes such that they're ordered t1, t2, t3, etc.
-        reorder_t_amplitudes(pq_str);
+        reorder_t_amplitudes(ordered[i]);
 
         // sort amplitude labels
-        pq_str->sort_labels();
+        ordered[i]->sort_labels();
 
     }
 
     // prune list so it only contains non-skipped ones
     std::vector< std::shared_ptr<pq_string> > pruned;
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( pq_str->skip ) continue;
+        if ( ordered[i]->skip ) continue;
 
-        // for normal order relative to fermi vacuum, pq_str doubt anyone will care 
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
-        if (pq_str->vacuum == "FERMI" ) {
-            if ( !pq_str->symbol.empty() ) continue;
-            if ( !pq_str->is_boson_dagger.empty() ) continue;
+        if ( ordered[i]->vacuum == "FERMI" ) {
+            if ( ordered[i]->symbol.size() != 0 ) continue;
+            if ( ordered[i]->is_boson_dagger.size() != 0 ) continue;
         }
 
-        pruned.push_back(pq_str);
+        pruned.push_back(ordered[i]);
     }
     ordered.clear();
-    for (const std::shared_ptr<pq_string> & pq_str : pruned) {
-        ordered.push_back(pq_str);
+    for (size_t i = 0; i < pruned.size(); i++) {
+        ordered.push_back(pruned[i]);
     }
     pruned.clear();
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 
@@ -997,7 +983,7 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
 
     // probably only relevant for vacuum = fermi
-    if ( ordered.empty() ) return;
+    if ( ordered.size() == 0 ) return;
     if ( ordered[0]->vacuum != "FERMI" ) return;
 
     // look for paired permutations of non-summed labels:
@@ -1016,43 +1002,39 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     // re-prune
     pruned.clear();
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
-        if ( pq_str->skip ) continue;
+        if ( ordered[i]->skip ) continue;
 
-        // for normal order relative to fermi vacuum, pq_str doubt anyone will care 
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
-        if (pq_str->vacuum == "FERMI" ) {
-            if ( !pq_str->symbol.empty() ) continue;
-            if ( !pq_str->is_boson_dagger.empty() ) continue;
+        if ( ordered[i]->vacuum == "FERMI" ) {
+            if ( ordered[i]->symbol.size() != 0 ) continue;
+            if ( ordered[i]->is_boson_dagger.size() != 0 ) continue;
         }
 
-        pruned.push_back(pq_str);
+        pruned.push_back(ordered[i]);
     }
     ordered.clear();
-    for (std::shared_ptr<pq_string> & pq_str : pruned) {
-        ordered.push_back(pq_str);
+    for (size_t i = 0; i < pruned.size(); i++) {
+        ordered.push_back(pruned[i]);
     }
     pruned.clear();
 }
 
 // reorder t amplitudes as t1, t2, t3, t4
-void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
+void reorder_t_amplitudes(std::shared_ptr<pq_string> in) {
 
-    // get t amplitudes
-    auto amp_pos = in->amps.find('t');
-    if ( amp_pos == in->amps.end() ) return; // no t amplitudes
-    
-    std::vector<amplitudes> & t_amps = amp_pos->second;
-        
-    size_t dim = t_amps.size();
+    size_t dim = in->amps['t'].size();
+
     if ( dim == 0 ) return;
-    
+
     bool* nope = (bool*)malloc(dim * sizeof(bool));
     memset((void*)nope, '\0', dim * sizeof(bool));
 
     std::vector<std::vector<std::string> > tmp;
+
     std::vector<amplitudes> tmp_new;
 
     for (size_t order = 1; order < 7; order++) {
@@ -1060,8 +1042,8 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
             for (int j = 0; j < dim; j++) {
                 if ( nope[j] ) continue;
 
-                if ( t_amps[j].labels.size() == 2 * order ) {
-                    tmp_new.push_back(t_amps[j]);
+                if ( in->amps['t'][j].labels.size() == 2 * order ) {
+                    tmp_new.push_back(in->amps['t'][j]);
                     nope[j] = true;
                     break;
                 }
@@ -1078,276 +1060,33 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
         printf("\n");
         exit(1);
     }
-    
-    t_amps = tmp_new;
+
+    for (int i = 0; i < dim; i++) {
+        in->amps['t'][i].labels.clear();
+        in->amps['t'][i].numerical_labels.clear();
+    }
+    in->amps['t'].clear();
+    for (size_t i = 0; i < tmp_new.size(); i++) {
+        in->amps['t'].push_back(tmp_new[i]);
+    }
+
     free(nope);
 }
 
-// reorder three spins ... cases to consider: aba/baa -> aab; bba/bab -> abb
-void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign) {
-            
-    if (       amps.spin_labels[i1] == "a" 
-            && amps.spin_labels[i2] == "b"
-            && amps.spin_labels[i3] == "a" ) {
-
-            std::string tmp_label = amps.labels[i3];
-            
-            amps.labels[i3] = amps.labels[i2];
-            amps.labels[i2] = tmp_label;
-            
-            amps.spin_labels[i2] = "a";
-            amps.spin_labels[i3] = "b";
-
-            sign *= -1;
-            
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "a" 
-            && amps.spin_labels[i3] == "a" ) {
-            
-            std::string tmp_label = amps.labels[i3];
-            
-            amps.labels[i3] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-            
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i3] = "b";
-            
-            sign *= -1;
-    
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "b"
-            && amps.spin_labels[i3] == "a" ) {
-
-            std::string tmp_label = amps.labels[i3];
-
-            amps.labels[i3] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i3] = "b";
-
-            sign *= -1;
-
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "a"
-            && amps.spin_labels[i3] == "b" ) {
-
-            std::string tmp_label = amps.labels[i2];
-
-            amps.labels[i2] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i2] = "b";
-
-            sign *= -1;
-
-    }
-
-}
-
-// reorder four spins ... cases to consider: aaba/abaa/baaa -> aaab; baab/abba/baba/bbaa/abab -> aabb; babb/bbab/bbba -> abbb
-void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign) {
-
-    // aaba/abaa/baaa -> aaab
-    if (       amps.spin_labels[i1] == "a"
-            && amps.spin_labels[i2] == "a"
-            && amps.spin_labels[i3] == "b"
-            && amps.spin_labels[i4] == "a" ) {
-
-            std::string tmp_label = amps.labels[i4];
-
-            amps.labels[i4] = amps.labels[i3];
-            amps.labels[i3] = tmp_label;
-
-            amps.spin_labels[i3] = "a";
-            amps.spin_labels[i4] = "b";
-
-            sign *= -1;
-
-    }else if ( amps.spin_labels[i1] == "a"
-            && amps.spin_labels[i2] == "b"
-            && amps.spin_labels[i3] == "a"
-            && amps.spin_labels[i4] == "a" ) {
-
-            std::string tmp_label = amps.labels[i4];
-
-            amps.labels[i4] = amps.labels[i2];
-            amps.labels[i2] = tmp_label;
-
-            amps.spin_labels[i2] = "a";
-            amps.spin_labels[i4] = "b";
-
-            sign *= -1;
-
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "a"
-            && amps.spin_labels[i3] == "a"
-            && amps.spin_labels[i4] == "a" ) {
-
-            std::string tmp_label = amps.labels[i4];
-
-            amps.labels[i4] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i4] = "b";
-
-            sign *= -1;
-
-    // baab/abba/baba/bbaa/abab -> aabb
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "a"
-            && amps.spin_labels[i3] == "a"
-            && amps.spin_labels[i4] == "b" ) {
-
-            std::string tmp_label = amps.labels[i3];
-
-            amps.labels[i3] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i3] = "b";
-
-            sign *= -1;
-
-    }else if ( amps.spin_labels[i1] == "a"
-            && amps.spin_labels[i2] == "b"
-            && amps.spin_labels[i3] == "b"
-            && amps.spin_labels[i4] == "a" ) {
-
-            std::string tmp_label = amps.labels[i4];
-
-            amps.labels[i4] = amps.labels[i2];
-            amps.labels[i2] = tmp_label;
-
-            amps.spin_labels[i2] = "a";
-            amps.spin_labels[i4] = "b";
-
-            sign *= -1;
-
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "a"
-            && amps.spin_labels[i3] == "b"
-            && amps.spin_labels[i4] == "a" ) {
-
-            std::string tmp_label = amps.labels[i4];
-
-            amps.labels[i4] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i4] = "b";
-
-            sign *= -1;
-
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "b"
-            && amps.spin_labels[i3] == "a"
-            && amps.spin_labels[i4] == "a" ) {
-
-            std::string tmp_label = amps.labels[i4];
-
-            amps.labels[i4] = amps.labels[i2];
-            amps.labels[i2] = tmp_label;
-
-            amps.spin_labels[i2] = "a";
-            amps.spin_labels[i4] = "b";
-
-            tmp_label = amps.labels[i3];
-
-            amps.labels[i3] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i3] = "b";
-
-    }else if ( amps.spin_labels[i1] == "a"
-            && amps.spin_labels[i2] == "b"
-            && amps.spin_labels[i3] == "a"
-            && amps.spin_labels[i4] == "b" ) {
-
-            std::string tmp_label = amps.labels[i3];
-
-            amps.labels[i3] = amps.labels[i2];
-            amps.labels[i2] = tmp_label;
-
-            amps.spin_labels[i2] = "a";
-            amps.spin_labels[i3] = "b";
-
-            sign *= -1;
-
-    // babb/bbab/bbba -> abbb
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "a"
-            && amps.spin_labels[i3] == "b"
-            && amps.spin_labels[i4] == "b" ) {
-
-            std::string tmp_label = amps.labels[i2];
-
-            amps.labels[i2] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i2] = "b";
-
-            sign *= -1;
-
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "b"
-            && amps.spin_labels[i3] == "a"
-            && amps.spin_labels[i4] == "b" ) {
-
-            std::string tmp_label = amps.labels[i3];
-
-            amps.labels[i3] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i3] = "b";
-
-            sign *= -1;
-
-    }else if ( amps.spin_labels[i1] == "b"
-            && amps.spin_labels[i2] == "b"
-            && amps.spin_labels[i3] == "b"
-            && amps.spin_labels[i4] == "a" ) {
-
-            std::string tmp_label = amps.labels[i4];
-
-            amps.labels[i4] = amps.labels[i1];
-            amps.labels[i1] = tmp_label;
-
-            amps.spin_labels[i1] = "a";
-            amps.spin_labels[i4] = "b";
-
-            sign *= -1;
-
-    }
-
-}
-
 // re-classify fluctuation potential terms
-void reclassify_integrals(std::shared_ptr<pq_string> &in) {
+void reclassify_integrals(std::shared_ptr<pq_string> in) {
     
-    // find if occ_repulsion is present
-    auto occ_pos = in->ints.find("occ_repulsion");
-    if ( occ_pos == in->ints.end() ) return;
-    
-    std::vector<integrals> & occ_repulsion = occ_pos->second;
-    
-    
-    if ( occ_repulsion.size() > 1 ) {
+    if ( in->ints["occ_repulsion"].size() > 1 ) {
        printf("\n");
        printf("only support for one integral type object per string\n");
        printf("\n");
        exit(1);
     }
     
-    if ( !occ_repulsion.empty() ) {
+    if ( in->ints["occ_repulsion"].size() > 0 ) {
         
         // pick summation label not included in string already
-        static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
+        std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "o", "t", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
         std::string idx;
         
         int do_skip = -999;
@@ -1366,10 +1105,10 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
             exit(1);
         }
         
-        std::string idx1 = occ_repulsion[0].labels[0];
-        std::string idx2 = occ_repulsion[0].labels[1];
-
-        occ_repulsion.clear();
+        std::string idx1 = in->ints["occ_repulsion"][0].labels[0];
+        std::string idx2 = in->ints["occ_repulsion"][0].labels[1];
+        
+        in->ints["occ_repulsion"].clear();
         
         integrals ints;
         
@@ -1383,48 +1122,38 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
         
         ints.sort();
         
-        // check if the eri is already present in the map
-        auto eri_pos = in->ints.find("eri");
-        if ( eri_pos == in->ints.end() ) {
-            // create eri
-            in->ints["eri"].push_back(ints);
-            return;
-        }
-        
-        // else, check if any eris are in the vector
-        std::vector<integrals> & eri = eri_pos->second;
-        
-        if ( !eri.empty() ) {
+        if ( in->ints["eri"].size() > 0 ) {
            printf("\n");
            printf("only support for one integral type object per string\n");
            printf("\n");
            exit(1);
         }
-        eri.clear();
-        eri.push_back(ints);
+        in->ints["eri"].clear();
+        in->ints["eri"].push_back(ints);
+    
     }
 }
 
 // find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a
-void use_conventional_labels(std::shared_ptr<pq_string> &in) {
+void use_conventional_labels(std::shared_ptr<pq_string> in) {
 
     // occupied first:
-    static std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
+    std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
                                     "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
                                     "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
-    static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N",
+    std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "o", "t",
                                      "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9",
                                      "i10", "i11", "i12", "i13", "i14", "i15", "i16", "i17", "i18", "i19"};
 
-    for (const std::string & in_idx : occ_in) {
+    for (size_t i = 0; i < occ_in.size(); i++) {
 
-        if (index_in_anywhere(in, in_idx) > 0 ) {
+        if ( index_in_anywhere(in, occ_in[i]) > 0 ) {
 
-            for (const std::string & out_idx : occ_out) {
+            for (size_t j = 0; j < occ_out.size(); j++) {
 
-                if (index_in_anywhere(in, out_idx) == 0 ) {
+                if ( index_in_anywhere(in, occ_out[j]) == 0 ) {
 
-                    replace_index_everywhere(in, in_idx, out_idx);
+                    replace_index_everywhere(in, occ_in[i], occ_out[j]);
                     break;
                 }
             }
@@ -1432,22 +1161,22 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
     }
 
     // now virtual
-    static std::vector<std::string> vir_in{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
+    std::vector<std::string> vir_in{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
                                     "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
-    static std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F",
+    std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "g",
                                      "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9",
                                      "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19"};
 
-    for (const std::string & in_idx : vir_in) {
+    for (size_t i = 0; i < vir_in.size(); i++) {
 
-        if (index_in_anywhere(in, in_idx) > 0 ) {
+        if ( index_in_anywhere(in, vir_in[i]) > 0 ) {
 
-            for (const std::string & out_idx : vir_out) {
+            for (size_t j = 0; j < vir_out.size(); j++) {
 
-                if (index_in_anywhere(in, out_idx) == 0 ) {
+                if ( index_in_anywhere(in, vir_out[j]) == 0 ) {
 
-                    replace_index_everywhere(in, in_idx, out_idx);
+                    replace_index_everywhere(in, vir_in[i], vir_out[j]);
                     break;
                 }
             }
@@ -1456,47 +1185,46 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
 }
 
 /// apply delta functions to amplitude and integral labels
-void gobble_deltas(std::shared_ptr<pq_string> &in) {
+void gobble_deltas(std::shared_ptr<pq_string> in) {
     
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
     
     // create list of summation labels. only consider internally-created labels
                                      
-    static std::vector<std::string> occ_labels{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
+    std::vector<std::string> occ_labels{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
                                     "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
                                     "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
-    static std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
+    std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
                                     "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
 
     std::vector<std::string> sum_labels;
-    for (const std::string & occ_label : occ_labels) {
-        if ( index_in_anywhere(in, occ_label) == 2 ) {
-            sum_labels.push_back(occ_label);
+    for (size_t i = 0; i < occ_labels.size(); i++) {
+        if ( index_in_anywhere(in, occ_labels[i]) == 2 ) {
+            sum_labels.push_back(occ_labels[i]);
         }       
     }       
-    for (const std::string & vir_label : vir_labels) {
-        if ( index_in_anywhere(in, vir_label) == 2 ) {
-            sum_labels.push_back(vir_label);
+    for (size_t i = 0; i < vir_labels.size(); i++) {
+        if ( index_in_anywhere(in, vir_labels[i]) == 2 ) {
+            sum_labels.push_back(vir_labels[i]);
         }
     }
                                     
-//    for (size_t i = 0; i < in->deltas.size(); i++) {
-    for ( delta_functions & delta : in->deltas ) {
+    for (size_t i = 0; i < in->deltas.size(); i++) {
     
         // is delta label 1 in list of summation labels?
         bool have_delta1 = false;    
-        for (const std::string & sum_label : sum_labels) {
-            if ( delta.labels[0] == sum_label ) {
+        for (size_t j = 0; j < sum_labels.size(); j++) {
+            if ( in->deltas[i].labels[0] == sum_labels[j] ) {
                 have_delta1 = true;
                 break;
             }
         }   
         // is delta label 2 in list of summation labels?
         bool have_delta2 = false;
-        for (const std::string & sum_label : sum_labels) {
-            if ( delta.labels[1] == sum_label ) {
+        for (size_t j = 0; j < sum_labels.size(); j++) {
+            if ( in->deltas[i].labels[1] == sum_labels[j] ) {
                 have_delta2 = true;
                 break;
             }
@@ -1516,17 +1244,15 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         }                           
 */
 
-        bool do_continue = false;
-        for (auto & int_pair : in->ints) {
-            std::string type = int_pair.first;
-            std::vector<integrals> & ints = int_pair.second;
-            
-            if ( have_delta1 && index_in_integrals( delta.labels[0], ints ) > 0 ) {
-               replace_index_in_integrals( delta.labels[0], delta.labels[1], ints );
+        bool do_continue = false;   
+        for (size_t j = 0; j < in->integral_types.size(); j++) {
+            std::string type = in->integral_types[j];
+            if ( have_delta1 && index_in_integrals( in->deltas[i].labels[0], in->ints[type] ) > 0 ) {
+               replace_index_in_integrals( in->deltas[i].labels[0], in->deltas[i].labels[1], in->ints[type] );
                do_continue = true;
                break;
-            }else if ( have_delta2 && index_in_integrals( delta.labels[1], ints ) > 0 ) {
-               replace_index_in_integrals( delta.labels[1], delta.labels[0], ints );
+            }else if ( have_delta2 && index_in_integrals( in->deltas[i].labels[1], in->ints[type] ) > 0 ) {
+               replace_index_in_integrals( in->deltas[i].labels[1], in->deltas[i].labels[0], in->ints[type] );
                do_continue = true;
                break;
             }
@@ -1537,16 +1263,15 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         // list is ordered as {'t', 'l', 'r', 'u', 'm', 's'} ... i don't know why, but
         // i do know that this is the problematic part of the code
         do_continue = false;
-        static std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
-        for (auto & type : types) {
-            std::vector<amplitudes> & amps = in->amps[type];
-            
-            if ( have_delta1 && index_in_amplitudes( delta.labels[0], amps ) > 0 ) {
-               replace_index_in_amplitudes( delta.labels[0], delta.labels[1], amps );
+        std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
+        for (size_t j = 0; j < types.size(); j++) {
+            char type = types[j];
+            if ( have_delta1 && index_in_amplitudes( in->deltas[i].labels[0], in->amps[type] ) > 0 ) {
+               replace_index_in_amplitudes( in->deltas[i].labels[0], in->deltas[i].labels[1], in->amps[type] );
                do_continue = true;
                break;
-            }else if ( have_delta2 && index_in_amplitudes( delta.labels[1], in->amps[type] ) > 0 ) {
-               replace_index_in_amplitudes( delta.labels[1], delta.labels[0], amps );
+            }else if ( have_delta2 && index_in_amplitudes( in->deltas[i].labels[1], in->amps[type] ) > 0 ) {
+               replace_index_in_amplitudes( in->deltas[i].labels[1], in->deltas[i].labels[0], in->amps[type] );
                do_continue = true;
                break;
             }
@@ -1554,8 +1279,8 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         if ( do_continue ) continue;
 
         // at this point, it is safe to assume the delta function must remain
-        tmp_delta1.push_back(delta.labels[0]);
-        tmp_delta2.push_back(delta.labels[1]);
+        tmp_delta1.push_back(in->deltas[i].labels[0]);
+        tmp_delta2.push_back(in->deltas[i].labels[1]);
     }
 
     in->deltas.clear();
@@ -1570,1012 +1295,8 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
     }
 }
 
-// add spin labels to a string
-bool add_spins(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &list) {
-
-    if ( in->skip ) return true;
-
-    bool all_spins_added = false;
-
-    // amplitudes
-//    for (size_t i = 0; i < in->amplitude_types.size(); i++) {
-//        char type = in->amplitude_types[i];
-//        for (size_t j = 0; j < in->amps[type].size(); j++) {
-    for (auto & amp_pair : in->amps) {
-        char type = amp_pair.first;
-        std::vector<amplitudes> &amps = amp_pair.second;
-        for (amplitudes &amp: amps) {
-            for (size_t k = 0; k < amp.labels.size(); k++) {
-                if (amp.spin_labels[k].empty()) {
-
-                    std::shared_ptr<pq_string> sa = std::make_shared<pq_string>(*in);
-                    std::shared_ptr<pq_string> sb = std::make_shared<pq_string>(*in);
-
-                    sa->set_spin_everywhere(amp.labels[k], "a");
-                    sb->set_spin_everywhere(amp.labels[k], "b");
-
-                    list.push_back(sa);
-                    list.push_back(sb);
-                    return false;
-                }
-            }
-        }
-    }
-    
-
-    // integrals
-        for (auto & int_pair : in->ints) {
-            const std::string &type = int_pair.first;
-            std::vector<integrals> &ints = int_pair.second;
-            for (integrals &integral: ints) {
-                for (size_t k = 0; k < integral.labels.size(); k++) {
-                if ( integral.spin_labels[k].empty() ) {
-
-                    std::shared_ptr<pq_string> sa = std::make_shared<pq_string>(*in);
-                    std::shared_ptr<pq_string> sb = std::make_shared<pq_string>(*in);
-
-                    sa->set_spin_everywhere(integral.labels[k], "a");
-                    sb->set_spin_everywhere(integral.labels[k], "b");
-
-                    list.push_back(sa);
-                    list.push_back(sb);
-                    return false;
-                }
-            }
-        }
-    }
-
-    // must be done.
-    return true;
-}
-
-// expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, const std::unordered_map<std::string, std::string> &spin_map) {
-
-    // check that non-summed spin labels match those specified
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
-
-    std::map<std::string, bool> found_labels;
-    
-    // ok, what non-summed labels do we have in the occupied space? 
-    for (const std::string & occ_label : occ_labels) {
-        int found = index_in_anywhere(in, occ_label);
-        if ( found == 1 ) {
-            found_labels[occ_label] = true;
-        }else{
-            found_labels[occ_label] = false;
-        }
-    }
-    
-    // ok, what non-summed labels do we have in the virtual space? 
-    for (const std::string & vir_label : vir_labels) {
-        int found = index_in_anywhere(in, vir_label);
-        if ( found == 1 ) {
-            found_labels[vir_label] = true;
-        }else{
-            found_labels[vir_label] = false;
-        }
-    }
-
-    for (const std::string & occ_label : occ_labels) {
-        if ( found_labels[occ_label] ) {
-            // find spin label
-            auto pos = spin_map.find(occ_label);
-            std::string spin_label = pos == spin_map.end() ? "" : pos->second;
-
-            // check if spin label is valid
-            if ( spin_label != "a" && spin_label != "b" ) {
-                printf("\n");
-                printf("    error: spin label for non-summed index %s is invalid\n", occ_label.c_str());
-                printf("\n");
-                exit(1);
-            }
-        }
-    }
-    for (const std::string & vir_label : vir_labels) {
-        if ( found_labels[vir_label] ) {
-            // find spin label
-            auto pos = spin_map.find(vir_label);
-            std::string spin_label = pos == spin_map.end() ? "" : pos->second;
-
-            // check if spin label is valid
-            if ( spin_label != "a" && spin_label != "b" ) {
-                printf("\n");
-                printf("    error: spin label for non-summed index %s is invalid\n", vir_label.c_str());
-                printf("\n");
-                exit(1);
-            }
-        }
-    }
-
-    // non-summed spin labels
-    in->non_summed_spin_labels = spin_map;
-
-    // copy this term and zero spins
-
-    std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in);
-    newguy->reset_spin_labels();
-
-    // list of expanded sums
-    std::vector< std::shared_ptr<pq_string> > tmp;
-    tmp.push_back(newguy);
-
-    // but first expand single permutations where spins don't match 
-    for (size_t i = 0; i < tmp.size(); i++) {
-
-        size_t n = tmp[i]->permutations.size() / 2;
-
-        for (size_t j = 0; j < n; j++) {
-
-            std::string idx1 = tmp[i]->permutations[2*j];
-            std::string idx2 = tmp[i]->permutations[2*j+1];
-
-            // spin 1
-            std::string spin1;
-            spin1 = tmp[i]->non_summed_spin_labels[idx1];
-
-            // spin 2
-            std::string spin2;
-            spin2 = tmp[i]->non_summed_spin_labels[idx2];
-
-            // if spins are not the same, then the permutation needs to be expanded explicitly and allowed spins redetermined
-            if ( spin1 != spin2 ) {
-
-                // first guy is just a copy
-                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
-
-                // second guy is a copy with permuted labels and change in sign
-                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy2, idx1, idx2);
-                newguy2->sign *= -1;
-
-                // reset non-summed spins for this guy
-                newguy2->reset_spin_labels();
-
-                // both guys need to have permutation lists adjusted
-                newguy1->permutations.clear();
-                newguy2->permutations.clear();
-
-                for (size_t k = 0; k < n; k++) {
-
-                    // skip jth permutation, which is the one we expanded
-                    if ( j == k ) continue;
-
-                    newguy1->permutations.push_back(tmp[i]->permutations[2*k]);
-                    newguy1->permutations.push_back(tmp[i]->permutations[2*k+1]);
-
-                    newguy2->permutations.push_back(tmp[i]->permutations[2*k]);
-                    newguy2->permutations.push_back(tmp[i]->permutations[2*k+1]);
-                }
-
-                tmp[i]->skip = true;
-                tmp.push_back(newguy1);
-                tmp.push_back(newguy2);
-
-                // break loop over permutations because this above logic only works on one permutation at a time
-                break;
-            }
-        }
-    }
-
-    // now expand paired permutations (3) where spins don't match 
-    for (size_t i = 0; i < tmp.size(); i++) {
-        size_t n = tmp[i]->paired_permutations_3.size() / 6;
-
-        for (size_t j = 0; j < n; j++) {
-
-            std::string o1 = tmp[i]->paired_permutations_3[6*j];
-            std::string v1 = tmp[i]->paired_permutations_3[6*j+1];
-            std::string o2 = tmp[i]->paired_permutations_3[6*j+2];
-            std::string v2 = tmp[i]->paired_permutations_3[6*j+3];
-            std::string o3 = tmp[i]->paired_permutations_3[6*j+4];
-            std::string v3 = tmp[i]->paired_permutations_3[6*j+5];
-
-            // spin 1
-            std::string spin1;
-            spin1 = tmp[i]->non_summed_spin_labels[o1];
-            if ( spin1 != tmp[i]->non_summed_spin_labels[v1] ) {
-                printf("\n");
-                printf("    error: spin label mismatch between occupied and virtual orbitals (1)\n");
-                printf("\n");
-                exit(1);
-            }
-
-            // spin 2
-            std::string spin2;
-            spin2 = tmp[i]->non_summed_spin_labels[o2];
-            if ( spin2 != tmp[i]->non_summed_spin_labels[v2] ) {
-                printf("\n");
-                printf("    error: spin label mismatch between occupied and virtual orbitals (2)\n");
-                printf("\n");
-                exit(1);
-            }
-
-            // spin 3
-            std::string spin3;
-            spin3 = tmp[i]->non_summed_spin_labels[o3];
-            if ( spin3 != tmp[i]->non_summed_spin_labels[v3] ) {
-                printf("\n");
-                printf("    error: spin label mismatch between occupied and virtual orbitals (3)\n");
-                printf("\n");
-                exit(1);
-            }
-
-            // if spins are not the same, then the permutation needs to be expanded explicitly and allowed spins redetermined
-
-            // aab or bba -> PP2[ab](abc) + cba
-            if ( spin1 == spin2 && spin1 != spin3 ) {
-
-                // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
-
-                // adjust permutations. no more PP3, but we have PP2
-                newguy1->paired_permutations_3.clear();
-                newguy1->paired_permutations_2.push_back(o1);
-                newguy1->paired_permutations_2.push_back(v1);
-                newguy1->paired_permutations_2.push_back(o2);
-                newguy1->paired_permutations_2.push_back(v2);
-
-                // second guy is a copy with permuted pair labels and no change in sign
-                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy2, o1, o3);
-                swap_two_labels(newguy2, v1, v3);
-
-                // reset non-summed spins for this guy
-                newguy2->reset_spin_labels();
-
-                // no more PP3
-                newguy2->paired_permutations_3.clear();
-
-                for (size_t k = 0; k < n; k++) {
-
-                    // skip jth permutation, which is the one we expanded
-                    if ( j == k ) continue;
-
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
-
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
-
-                }
-
-                tmp[i]->skip = true;
-                tmp.push_back(newguy1);
-                tmp.push_back(newguy2);
-
-                // break loop over permutations because this above logic only works on one permutation at a time
-                break;
-            }
-            // abb or baa -> abc + bac + cba
-            else if ( spin1 != spin2 && spin2 == spin3 ) {
-
-                // first guy is just a copy 
-                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
-
-                // adjust permutations. no more PP3.
-                newguy1->paired_permutations_3.clear();
-
-                // second guy is a copy with permuted pair labels and no change in sign
-                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy2, o1, o2);
-                swap_two_labels(newguy2, v1, v2);
-
-                // reset non-summed spins for this guy
-                newguy2->reset_spin_labels();
-
-                // no more PP3
-                newguy2->paired_permutations_3.clear();
-
-                // third guy is a copy with permuted pair labels and no change in sign
-                std::shared_ptr<pq_string> newguy3 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy3, o1, o3);
-                swap_two_labels(newguy3, v1, v3);
-
-                // reset non-summed spins for this guy
-                newguy3->reset_spin_labels();
-
-                // no more PP3
-                newguy3->paired_permutations_3.clear();
-
-                for (size_t k = 0; k < n; k++) {
-
-                    // skip jth permutation, which is the one we expanded
-                    if ( j == k ) continue;
-
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
-
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
-
-                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
-                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
-                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
-                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
-                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
-                    newguy3->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
-
-                }
-
-                tmp[i]->skip = true;
-                tmp.push_back(newguy1);
-                tmp.push_back(newguy2);
-                tmp.push_back(newguy3);
-
-                // break loop over permutations because this above logic only works on one permutation at a time
-                break;
-            }
-            // aba or bab -> PP2[ac](abc) + bac
-            else if ( spin1 != spin2 && spin1 == spin3 ) {
-
-                // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
-
-                // adjust permutations. no more PP3, but we have PP2
-                newguy1->paired_permutations_3.clear();
-                newguy1->paired_permutations_2.push_back(o1);
-                newguy1->paired_permutations_2.push_back(v1);
-                newguy1->paired_permutations_2.push_back(o3);
-                newguy1->paired_permutations_2.push_back(v3);
-
-                // second guy is a copy with permuted pair labels and no change in sign
-                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy2, o1, o2);
-                swap_two_labels(newguy2, v1, v2);
-
-                // reset non-summed spins for this guy
-                newguy2->reset_spin_labels();
-
-                // no more PP3
-                newguy2->paired_permutations_3.clear();
-
-                for (size_t k = 0; k < n; k++) {
-
-                    // skip jth permutation, which is the one we expanded
-                    if ( j == k ) continue;
-
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
-                    newguy1->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
-
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+1]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+2]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+3]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+4]);
-                    newguy2->paired_permutations_3.push_back(tmp[i]->paired_permutations_3[6*k+5]);
-
-                }
-
-                tmp[i]->skip = true;
-                tmp.push_back(newguy1);
-                tmp.push_back(newguy2);
-
-                // break loop over permutations because this above logic only works on one permutation at a time
-                break;
-            }
-        }
-    }
-
-    // now expand paired permutations (6) where spins don't match 
-    for (size_t i = 0; i < tmp.size(); i++) {
-        size_t n = tmp[i]->paired_permutations_6.size() / 6;
-
-        for (size_t j = 0; j < n; j++) {
-
-            std::string o1 = tmp[i]->paired_permutations_6[6*j];
-            std::string v1 = tmp[i]->paired_permutations_6[6*j+1];
-            std::string o2 = tmp[i]->paired_permutations_6[6*j+2];
-            std::string v2 = tmp[i]->paired_permutations_6[6*j+3];
-            std::string o3 = tmp[i]->paired_permutations_6[6*j+4];
-            std::string v3 = tmp[i]->paired_permutations_6[6*j+5];
-
-            // spin 1
-            std::string spin1;
-            spin1 = tmp[i]->non_summed_spin_labels[o1];
-            if ( spin1 != tmp[i]->non_summed_spin_labels[v1] ) {
-                printf("\n");
-                printf("    error: spin label mismatch between occupied and virtual orbitals (1)\n");
-                printf("\n");
-                exit(1);
-            }
-
-            // spin 2
-            std::string spin2;
-            spin2 = tmp[i]->non_summed_spin_labels[o2];
-            if ( spin2 != tmp[i]->non_summed_spin_labels[v2] ) {
-                printf("\n");
-                printf("    error: spin label mismatch between occupied and virtual orbitals (2)\n");
-                printf("\n");
-                exit(1);
-            }
-
-            // spin 3
-            std::string spin3;
-            spin3 = tmp[i]->non_summed_spin_labels[o3];
-            if ( spin3 != tmp[i]->non_summed_spin_labels[v3] ) {
-                printf("\n");
-                printf("    error: spin label mismatch between occupied and virtual orbitals (3)\n");
-                printf("\n");
-                exit(1);
-            }
-
-            // if spins are not the same, then the permutation needs to be expanded explicitly and allowed spins redetermined
-
-            // aab or bba -> PP2[ab](abc) + PP2[ab](acb) + PP2[ab](cab)
-            if ( spin1 == spin2 && spin1 != spin3 ) {
-
-                // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
-
-                // adjust permutations. no more PP6, but we have PP2
-                newguy1->paired_permutations_6.clear();
-                newguy1->paired_permutations_2.push_back(o1);
-                newguy1->paired_permutations_2.push_back(v1);
-                newguy1->paired_permutations_2.push_back(o2);
-                newguy1->paired_permutations_2.push_back(v2);
-
-                // second guy is a copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy2, o2, o3);
-                swap_two_labels(newguy2, v2, v3);
-
-                // reset non-summed spins for this guy
-                newguy2->reset_spin_labels();
-
-                // no more PP6, but we have PP2
-                newguy2->paired_permutations_6.clear();
-                newguy2->paired_permutations_2.push_back(o1);
-                newguy2->paired_permutations_2.push_back(v1);
-                newguy2->paired_permutations_2.push_back(o2);
-                newguy2->paired_permutations_2.push_back(v2);
-
-                // third guy is another copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy3 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy3, o1, o2);
-                swap_two_labels(newguy3, v1, v2);
-                swap_two_labels(newguy3, o2, o3);
-                swap_two_labels(newguy3, v2, v3);
-
-                // reset non-summed spins for this guy
-                newguy3->reset_spin_labels();
-
-                // no more PP6, but we have PP2
-                newguy3->paired_permutations_6.clear();
-                newguy3->paired_permutations_2.push_back(o1);
-                newguy3->paired_permutations_2.push_back(v1);
-                newguy3->paired_permutations_2.push_back(o2);
-                newguy3->paired_permutations_2.push_back(v2);
-
-                for (size_t k = 0; k < n; k++) {
-
-                    // skip jth permutation, which is the one we expanded
-                    if ( j == k ) continue;
-
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-
-                }
-
-                tmp[i]->skip = true;
-                tmp.push_back(newguy1);
-                tmp.push_back(newguy2);
-                tmp.push_back(newguy3);
-
-                // break loop over permutations because this above logic only works on one permutation at a time
-                break;
-            }
-            // abb or baa -> PP2[bc](abc) + PP2[bc](bac) + PP2[bc](bca)
-            else if ( spin1 != spin2 && spin2 == spin3 ) {
-
-                // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
-
-                // adjust permutations. no more PP6, but we have PP2
-                newguy1->paired_permutations_6.clear();
-                newguy1->paired_permutations_2.push_back(o2);
-                newguy1->paired_permutations_2.push_back(v2);
-                newguy1->paired_permutations_2.push_back(o3);
-                newguy1->paired_permutations_2.push_back(v3);
-
-                // second guy is a copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy2, o1, o2);
-                swap_two_labels(newguy2, v1, v2);
-
-                // reset non-summed spins for this guy
-                newguy2->reset_spin_labels();
-
-                // no more PP6, but we have PP2
-                newguy2->paired_permutations_6.clear();
-                newguy2->paired_permutations_2.push_back(o2);
-                newguy2->paired_permutations_2.push_back(v2);
-                newguy2->paired_permutations_2.push_back(o3);
-                newguy2->paired_permutations_2.push_back(v3);
-
-                // third guy is another copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy3 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy3, o1, o2);
-                swap_two_labels(newguy3, v1, v2);
-                swap_two_labels(newguy3, o1, o3);
-                swap_two_labels(newguy3, v1, v3);
-
-                // reset non-summed spins for this guy
-                newguy3->reset_spin_labels();
-
-                // no more PP6, but we have PP2
-                newguy3->paired_permutations_6.clear();
-                newguy3->paired_permutations_2.push_back(o2);
-                newguy3->paired_permutations_2.push_back(v2);
-                newguy3->paired_permutations_2.push_back(o3);
-                newguy3->paired_permutations_2.push_back(v3);
-
-                for (size_t k = 0; k < n; k++) {
-
-                    // skip jth permutation, which is the one we expanded
-                    if ( j == k ) continue;
-
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-                }
-
-                tmp[i]->skip = true;
-                tmp.push_back(newguy1);
-                tmp.push_back(newguy2);
-                tmp.push_back(newguy3);
-
-                // break loop over permutations because this above logic only works on one permutation at a time
-                break;
-            }
-            // aba or bab -> PP2[ac](abc) + PP2[ac](bac) + PP2[ac](acb)
-            else if ( spin1 == spin2 && spin1 != spin3 ) {
-
-                // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
-
-                // adjust permutations. no more PP6, but we have PP2
-                newguy1->paired_permutations_6.clear();
-                newguy1->paired_permutations_2.push_back(o1);
-                newguy1->paired_permutations_2.push_back(v1);
-                newguy1->paired_permutations_2.push_back(o3);
-                newguy1->paired_permutations_2.push_back(v3);
-
-                // second guy is a copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy2, o1, o2);
-                swap_two_labels(newguy2, v1, v2);
-
-                // reset non-summed spins for this guy
-                newguy2->reset_spin_labels();
-
-                // no more PP6, but we have PP2
-                newguy2->paired_permutations_6.clear();
-                newguy2->paired_permutations_2.push_back(o1);
-                newguy2->paired_permutations_2.push_back(v1);
-                newguy2->paired_permutations_2.push_back(o3);
-                newguy2->paired_permutations_2.push_back(v3);
-
-                // third guy is another copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy3 = std::make_shared<pq_string>(*tmp[i]);
-                swap_two_labels(newguy3, o2, o3);
-                swap_two_labels(newguy3, v2, v3);
-
-                // reset non-summed spins for this guy
-                newguy3->reset_spin_labels();
-
-                // no more PP6, but we have PP2
-                newguy3->paired_permutations_6.clear();
-                newguy3->paired_permutations_2.push_back(o1);
-                newguy3->paired_permutations_2.push_back(v1);
-                newguy3->paired_permutations_2.push_back(o3);
-                newguy3->paired_permutations_2.push_back(v3);
-
-                for (size_t k = 0; k < n; k++) {
-
-                    // skip jth permutation, which is the one we expanded
-                    if ( j == k ) continue;
-
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy1->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy2->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+1]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+2]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+3]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+4]);
-                    newguy3->paired_permutations_6.push_back(tmp[i]->paired_permutations_6[6*k+5]);
-
-                }
-
-                tmp[i]->skip = true;
-                tmp.push_back(newguy1);
-                tmp.push_back(newguy2);
-                tmp.push_back(newguy3);
-
-                // break loop over permutations because this above logic only works on one permutation at a time
-                break;
-            }
-        }
-    }
-
-    // now, expand sums 
-
-    bool done_adding_spins = false;
-    do {
-        std::vector< std::shared_ptr<pq_string> > list;
-        done_adding_spins = true;
-        for (std::shared_ptr<pq_string> & pq_str : tmp) {
-            bool am_i_done = add_spins(pq_str, list);
-            if ( !am_i_done ) done_adding_spins = false;
-        }
-        if ( !done_adding_spins ) {
-            tmp.clear();
-            for (std::shared_ptr<pq_string> & pq_str : list) {
-                if ( !pq_str->skip ) {
-                    tmp.push_back(pq_str);
-                }
-            }
-        }
-    }while(!done_adding_spins);
-
-    // kill terms that have mismatched spin 
-    for (std::shared_ptr<pq_string> & pq_str : tmp) {
-
-        if ( pq_str->skip ) continue;
-
-        bool killit = false;
-
-        // amplitudes
-        // TODO: this logic only works for particle-conserving amplitudes
-        for (size_t j = 0; j < in->amplitude_types.size(); j++) {
-            char type = in->amplitude_types[j];
-            
-            // check if amp_type exists in this pq_str
-            auto amps_pos = pq_str->amps.find(type); 
-            if ( amps_pos == pq_str->amps.end() ) {
-                // create empty vector for this type
-                pq_str->amps[type];
-                amps_pos = pq_str->amps.find(type);
-            }
-            
-            for (amplitudes & amp : amps_pos->second) {
-
-                size_t order = amp.labels.size() / 2;
-
-                int left_a = 0;
-                int left_b = 0;
-                int right_a = 0;
-                int right_b = 0;
-                for (size_t l = 0; l < order; l++) {
-                    if (amp.spin_labels[l] == "a" ) {
-                        left_a++;
-                    }else {
-                        left_b++;
-                    }
-                    if (amp.spin_labels[l + order] == "a" ) {
-                        right_a++;
-                    }else {
-                        right_b++;
-                    }
-                }
-                if (left_a != right_a || left_b != right_b ) {
-                    killit = true;
-                    break;
-                }
-
-            }
-            if ( killit ) break;
-        }
-        if ( killit ) {
-            pq_str->skip = true;
-            continue;
-        }
-
-        killit = false;
-
-        // integrals
-        for (size_t j = 0; j < in->integral_types.size(); j++) {
-            std::string type = in->integral_types[j];
-
-            // check if int_type exists in this pq_str
-            auto ints_pos =  pq_str->ints.find(type);
-            if ( ints_pos == pq_str->ints.end() ) {
-                // create empty vector for this type
-                pq_str->ints[type];
-                ints_pos = pq_str->ints.find(type);
-            }
-            
-            for (integrals & integral : ints_pos->second) {
-                size_t order = integral.labels.size() / 2;
-
-                int left_a = 0;
-                int left_b = 0;
-                int right_a = 0;
-                int right_b = 0;
-                for (size_t l = 0; l < order; l++) {
-                    if (integral.spin_labels[l] == "a" ) {
-                        left_a++;
-                    }else {
-                        left_b++;
-                    }
-                    if (integral.spin_labels[l + order] == "a" ) {
-                        right_a++;
-                    }else {
-                        right_b++;
-                    }
-                }
-                if (left_a != right_a || left_b != right_b ) {
-                    killit = true;
-                    break;
-                }
-
-            }
-            if ( killit ) break;
-        }
-        if ( killit ) {
-            pq_str->skip = true;
-            continue;
-        }
-
-        killit = false;
-
-        // delta functions 
-        for (size_t j = 0; j < in->deltas.size(); j++) {
-            if (pq_str->deltas[j].spin_labels[0] != pq_str->deltas[j].spin_labels[1] ) {
-                killit = true;
-                break;
-            }
-        }
-
-        if ( killit ) {
-            pq_str->skip = true;
-            continue;
-        }
-    }
-    
-    // rearrange terms so that they have standard spin order (abba -> -abab, etc.)
-    for (std::shared_ptr<pq_string> & pq_str : tmp) {
-
-        if ( pq_str->skip ) continue;
-
-        // amplitudes
-        for (size_t i = 0; i < in->amplitude_types.size(); i++) {
-            char type = in->amplitude_types[i];
-
-            // check if amp_type exists in this pq_str
-            auto amps_pos = pq_str->amps.find(type);
-            if ( amps_pos == pq_str->amps.end() ) {
-                // create empty vector for this type
-                pq_str->amps[type];
-                amps_pos = pq_str->amps.find(type);
-            }
-
-            for (amplitudes & amp : amps_pos->second) {
-                size_t order = amp.labels.size() / 2;
-                if ( order > 4 ) {
-                    printf("\n");
-                    printf("    error: spin tracing doesn't work for higher than quadruples yet\n");
-                    printf("\n");
-                    exit(1);
-                }
-                if ( order == 2 ) {
-
-                    // three cases that require attention: ab;ba, ba;ab, and ba;ba
-                    if (amp.spin_labels[0] == "a"
-                        && amp.spin_labels[1] == "b"
-                        && amp.spin_labels[2] == "b"
-                        && amp.spin_labels[3] == "a" ) {
-
-                            std::string tmp_label = amp.labels[2];
-                        amp.labels[2] = amp.labels[3];
-                        amp.labels[3] = tmp_label;
-
-                        amp.spin_labels[2] = "a";
-                        amp.spin_labels[3] = "b";
-
-                        pq_str->sign *= -1;
-
-                    }else if (amp.spin_labels[0] == "b"
-                              && amp.spin_labels[1] == "a"
-                              && amp.spin_labels[2] == "a"
-                              && amp.spin_labels[3] == "b" ) {
-
-                            std::string tmp_label = amp.labels[0];
-                        amp.labels[0] = amp.labels[1];
-                        amp.labels[1] = tmp_label;
-
-                        amp.spin_labels[0] = "a";
-                        amp.spin_labels[1] = "b";
-
-                        pq_str->sign *= -1;
-
-                    }else if (amp.spin_labels[0] == "b"
-                              && amp.spin_labels[1] == "a"
-                              && amp.spin_labels[2] == "b"
-                              && amp.spin_labels[3] == "a" ) {
-
-                            std::string tmp_label = amp.labels[0];
-                        amp.labels[0] = amp.labels[1];
-                        amp.labels[1] = tmp_label;
-
-                        amp.spin_labels[0] = "a";
-                        amp.spin_labels[1] = "b";
-
-                            tmp_label = amp.labels[2];
-                        amp.labels[2] = amp.labels[3];
-                        amp.labels[3] = tmp_label;
-
-                        amp.spin_labels[2] = "a";
-                        amp.spin_labels[3] = "b";
-                    }
-                }else if ( order == 3 ) {
-
-                    // target order: aaa, aab, abb, bbb
-                    int sign = 1;
-                    reorder_three_spins(amp, 0, 1, 2, sign);
-                    reorder_three_spins(amp, 3, 4, 5, sign);
-                    pq_str->sign *= sign;
-
-                }else if ( order == 4 ) {
-
-                    // target order: aaaa, aaab, aabb, abbb, bbbb
-                    int sign = 1;
-                    reorder_four_spins(amp, 0, 1, 2, 3, sign);
-                    reorder_four_spins(amp, 4, 5, 6, 7, sign);
-                    pq_str->sign *= sign;
-                }
-            }
-        }
-
-        // integrals
-        for (size_t i = 0; i < in->integral_types.size(); i++) {
-            std::string type = in->integral_types[i];
-            
-            // check if int_type exists in this pq_str
-            auto ints_pos =  pq_str->ints.find(type);
-            if ( ints_pos == pq_str->ints.end() ) {
-                // create empty vector for this type
-                pq_str->ints[type];
-                ints_pos = pq_str->ints.find(type);
-            }
-
-            for (integrals & integral : ints_pos->second) {
-
-                size_t order = integral.labels.size() / 2;
-
-                if ( order != 2 ) continue;
-
-                // three cases that require attention: ab;ba, ba;ab, and ba;ba
-
-                // integrals
-                if (integral.spin_labels[0] == "a"
-                    && integral.spin_labels[1] == "b"
-                    && integral.spin_labels[2] == "b"
-                    && integral.spin_labels[3] == "a" ) {
-
-                        std::string tmp_label = integral.labels[2];
-                    integral.labels[2] = integral.labels[3];
-                    integral.labels[3] = tmp_label;
-
-                    integral.spin_labels[2] = "a";
-                    integral.spin_labels[3] = "b";
-
-                    pq_str->sign *= -1;
-
-                }else if (integral.spin_labels[0] == "b"
-                          && integral.spin_labels[1] == "a"
-                          && integral.spin_labels[2] == "a"
-                          && integral.spin_labels[3] == "b" ) {
-
-                        std::string tmp_label = integral.labels[0];
-                    integral.labels[0] = integral.labels[1];
-                    integral.labels[1] = tmp_label;
-
-                    integral.spin_labels[0] = "a";
-                    integral.spin_labels[1] = "b";
-
-                    pq_str->sign *= -1;
-
-                }else if (integral.spin_labels[0] == "b"
-                          && integral.spin_labels[1] == "a"
-                          && integral.spin_labels[2] == "b"
-                          && integral.spin_labels[3] == "a" ) {
-
-                        std::string tmp_label = integral.labels[0];
-                    integral.labels[0] = integral.labels[1];
-                    integral.labels[1] = tmp_label;
-
-                    integral.spin_labels[0] = "a";
-                    integral.spin_labels[1] = "b";
-
-                        tmp_label = integral.labels[2];
-                    integral.labels[2] = integral.labels[3];
-                    integral.labels[3] = tmp_label;
-
-                    integral.spin_labels[2] = "a";
-                    integral.spin_labels[3] = "b";
-                }
-            }
-        }
-    }
-
-    for (std::shared_ptr<pq_string> & pq_str : tmp) {
-        if ( pq_str->skip ) continue;
-        spin_blocked.push_back(pq_str);
-    }
-    tmp.clear();
-}
-
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
 
     if ( in->factor > 0.0 ) {
         in->sign = 1;
@@ -2587,7 +1308,7 @@ void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
 
     for (size_t i = 0; i < in->string.size(); i++) {
         std::string me = in->string[i];
-        if ( me.find('*') != std::string::npos ) {
+        if ( me.find("*") != std::string::npos ) {
             removeStar(me);
             in->is_dagger.push_back(true);
         }else {
@@ -2611,18 +1332,18 @@ void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
     do { 
         std::vector< std::shared_ptr<pq_string> > list;
         done_rearranging = true;
-        for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-            bool am_i_done = swap_operators_true_vacuum(pq_str, list);
+        for (size_t i = 0; i < tmp.size(); i++) {
+            bool am_i_done = swap_operators_true_vacuum(tmp[i], list);
             if ( !am_i_done ) done_rearranging = false;
         }
         tmp.clear();
-        for (const std::shared_ptr<pq_string> & pq_str : list) {
-            tmp.push_back(pq_str);
+        for (size_t i = 0; i < list.size(); i++) {
+            tmp.push_back(list[i]);
         }
     }while(!done_rearranging);
 
-    for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-        ordered.push_back(pq_str);
+    for (size_t i = 0; i < tmp.size(); i++) {
+        ordered.push_back(tmp[i]);
     }
     tmp.clear();
 
@@ -2634,7 +1355,7 @@ void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
         
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators
@@ -2644,12 +1365,11 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
     int n_gen_idx = 1;
     int n_integral_objects = 0;
     std::string integral_type = "none";
-    for (auto & ints_pair : in->ints) {
-        std::string type = ints_pair.first;
-        std::vector<integrals> & ints = ints_pair.second;
-        for (integrals & integral : ints) {
+    for (size_t i = 0; i < in->integral_types.size(); i++) {
+        std::string type = in->integral_types[i];
+        for (size_t j = 0; j < in->ints[type].size(); j++) {
             n_integral_objects++;
-            n_gen_idx = integral.labels.size();
+            n_gen_idx = in->ints[type][j].labels.size();
             integral_type = type;
         }
     }
@@ -2684,13 +1404,13 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
     
 
             std::string me_nostar = me;
-            if (me_nostar.find('*') != std::string::npos ){
+            if (me_nostar.find("*") != std::string::npos ){
                 removeStar(me_nostar);
             }
 
             // fermi vacuum 
             if ( is_vir(me_nostar) ) {
-                if (me.find('*') != std::string::npos ){
+                if (me.find("*") != std::string::npos ){
                     mystring->is_dagger.push_back(true);
                     mystring->is_dagger_fermi.push_back(true);
                 }else {
@@ -2699,7 +1419,7 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                 }
                 mystring->symbol.push_back(me_nostar);
             }else if ( is_occ(me_nostar) ) {
-                if (me.find('*') != std::string::npos ){
+                if (me.find("*") != std::string::npos ){
                     mystring->is_dagger.push_back(true);
                     mystring->is_dagger_fermi.push_back(false);
                 }else {
@@ -2715,50 +1435,50 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                     if ( my_gen_idx == 0 ) {
                         if ( string_num == 0 || string_num == 1 ) {
                             // first index occ
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.emplace_back("o1");
-                            mystring->symbol.emplace_back("o1");
+                            ints.labels.push_back("o1");
+                            mystring->symbol.push_back("o1");
                         }else {
                             // first index vir
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger_fermi.push_back(false);
                                 mystring->is_dagger.push_back(false);
                             }
-                            ints.labels.emplace_back("v1");
-                            mystring->symbol.emplace_back("v1");
+                            ints.labels.push_back("v1");
+                            mystring->symbol.push_back("v1");
                         }
                     }else {
                         if ( string_num == 0 || string_num == 2 ) {
                             // second index occ
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.emplace_back("o2");
-                            mystring->symbol.emplace_back("o2");
+                            ints.labels.push_back("o2");
+                            mystring->symbol.push_back("o2");
                         }else {
                             // second index vir
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.emplace_back("v2");
-                            mystring->symbol.emplace_back("v2");
+                            ints.labels.push_back("v2");
+                            mystring->symbol.push_back("v2");
                         }
                     }
                 }
@@ -2783,26 +1503,26 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                              string_num == 7 ) {
 
                             // first index occ
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.emplace_back("o1");
-                            mystring->symbol.emplace_back("o1");
+                            ints.labels.push_back("o1");
+                            mystring->symbol.push_back("o1");
                         }else {
                             // first index vir
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.emplace_back("v1");
-                            mystring->symbol.emplace_back("v1");
+                            ints.labels.push_back("v1");
+                            mystring->symbol.push_back("v1");
                         }
                     }else if ( my_gen_idx == 1 ) {
                         //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -2816,26 +1536,26 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                              string_num == 10 ||
                              string_num == 11 ) {
                             // second index occ
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.emplace_back("o2");
-                            mystring->symbol.emplace_back("o2");
+                            ints.labels.push_back("o2");
+                            mystring->symbol.push_back("o2");
                         }else {
                             // second index vir
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.emplace_back("v2");
-                            mystring->symbol.emplace_back("v2");
+                            ints.labels.push_back("v2");
+                            mystring->symbol.push_back("v2");
                         }
                     }else if ( my_gen_idx == 2 ) {
                         //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -2849,26 +1569,26 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                              string_num == 12 ||
                              string_num == 13 ) {
                             // third index occ
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.emplace_back("o3");
-                            mystring->symbol.emplace_back("o3");
+                            ints.labels.push_back("o3");
+                            mystring->symbol.push_back("o3");
                         }else {
                             // third index vir
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.emplace_back("v3");
-                            mystring->symbol.emplace_back("v3");
+                            ints.labels.push_back("v3");
+                            mystring->symbol.push_back("v3");
                         }
                     }else {
                         if ( string_num ==  0 ||
@@ -2880,26 +1600,26 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                              string_num == 12 ||
                              string_num == 14 ) {
                             // fourth index occ
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.emplace_back("o4");
-                            mystring->symbol.emplace_back("o4");
+                            ints.labels.push_back("o4");
+                            mystring->symbol.push_back("o4");
                         }else {
                             // fourth index vir
-                            if ( me.find('*') != std::string::npos ) {
+                            if ( me.find("*") != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.emplace_back("v4");
-                            mystring->symbol.emplace_back("v4");
+                            ints.labels.push_back("v4");
+                            mystring->symbol.push_back("v4");
                         }
                     }
                 }
@@ -2907,20 +1627,11 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
             }
         }
 
-        for (auto & amps_pair : in->amps) {
-            char type = amps_pair.first;
-            std::vector<amplitudes> & amps = amps_pair.second;
-
-            // find amplitudes of this type in mystring
-            auto amps_pos = mystring->amps.find(type);
-            if ( amps_pos == mystring->amps.end() ) {
-                // create empty vector for this type
-                mystring->amps[type];
-                amps_pos = mystring->amps.find(type);
-            }
-            std::vector<amplitudes> & myamps = amps_pos->second;
-            for (const amplitudes & amp : amps) {
-                myamps.push_back( amp );
+        for (size_t i = 0; i < in->amplitude_types.size(); i++) {
+            char type = in->amplitude_types[i];
+            mystring->amps[type].clear();
+            for (size_t j = 0; j < in->amps[type].size(); j++) {
+                mystring->amps[type].push_back( in->amps[type][j] );
             }
         }
 
@@ -2969,21 +1680,21 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
         do {
             std::vector< std::shared_ptr<pq_string> > list;
             done_rearranging = true;
-            for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-                bool am_i_done = swap_operators_fermi_vacuum(pq_str, list);
+            for (size_t i = 0; i < tmp.size(); i++) {
+                bool am_i_done = swap_operators_fermi_vacuum(tmp[i], list);
                 if ( !am_i_done ) done_rearranging = false;
             }
             tmp.clear();
-            for (std::shared_ptr<pq_string> & pq_str : list) {
-                if ( !pq_str->skip ) {
-                    tmp.push_back(pq_str);
+            for (size_t i = 0; i < list.size(); i++) {
+                if ( !list[i]->skip ) {
+                    tmp.push_back(list[i]);
                 }
             }
         }while(!done_rearranging);
 
         //ordered.clear();
-        for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-            ordered.push_back(pq_str);
+        for (size_t i = 0; i < tmp.size(); i++) {
+            ordered.push_back(tmp[i]);
         }
         tmp.clear();
     }
