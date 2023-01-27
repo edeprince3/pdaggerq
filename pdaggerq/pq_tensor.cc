@@ -89,8 +89,8 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
         amps.spin_labels.push_back(rhs.spin_labels[i]);
     }
 
-    amps.order_left = rhs.order_left;
-    amps.order_right = rhs.order_right;
+    amps.n_create = rhs.n_create;
+    amps.n_annihilate = rhs.n_annihilate;
 
     //amps.sort();
 
@@ -100,9 +100,9 @@ amplitudes amplitudes::operator=(const amplitudes& rhs) {
 /// print amplitudes 
 void amplitudes::print(char symbol) {
 
-    size_t order = order_left;
-    if ( order_right > order_left ) {
-        order = order_right;
+    size_t order = n_create;
+    if ( n_annihilate > n_create ) {
+        order = n_annihilate;
     }
 
     if ( labels.size() > 0 ) {
@@ -136,9 +136,9 @@ std::string amplitudes::to_string(char symbol) {
 
     std::string symbol_s(1, symbol);
 
-    size_t order = order_left;
-    if ( order_right > order_left ) {
-        order = order_right;
+    size_t order = n_create;
+    if ( n_annihilate > n_create ) {
+        order = n_annihilate;
     }
 
     if ( labels.size() > 0 ) {
@@ -179,9 +179,9 @@ std::string amplitudes::to_string_with_label_ranges(char symbol) {
         }
     }
 
-    size_t order = order_left;
-    if ( order_right > order_left ) {
-        order = order_right;
+    size_t order = n_create;
+    if ( n_annihilate > n_create ) {
+        order = n_annihilate;
     }
 
     if ( labels.size() > 0 ) {
@@ -218,9 +218,9 @@ std::string amplitudes::to_string_with_spin(char symbol) {
         spin += spin_labels[k];
     }
 
-    size_t order = order_left;
-    if ( order_right > order_left ) {
-        order = order_right;
+    size_t order = n_create;
+    if ( n_annihilate > n_create ) {
+        order = n_annihilate;
     }
 
     if ( labels.size() > 0 ) {

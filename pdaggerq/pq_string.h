@@ -294,11 +294,11 @@ class pq_string {
      * set labels for amplitudes
      *
      * @param type: the amplitudes_type
-     * @param order_left: the order of the left part of the amplitudes
-     * @param order_right: the order of the right part of the amplitudes
+     * @param n_create: the number of labels corresponding to creation operators
+     * @param n_annihilate: the number of labels corresponding to annihilation operators
      * @param in: the list of labels for the amplitudes
      */
-    void set_amplitudes(char type, int order_left, int order_right, std::vector<std::string> in);
+    void set_amplitudes(char type, int n_create, int n_annihilate, std::vector<std::string> in);
 
 };
 

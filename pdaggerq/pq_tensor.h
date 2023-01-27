@@ -237,17 +237,17 @@ class amplitudes: public tensor {
 
     /**
      *
-     * the order of the left part of the amplitudes, e.g., 2 for t2(ab,ij), 1 for r2(a,ij)
+     * the number of labels corresponding to creation operators, e.g., 2 for t2(ab,ij), 1 for r2(a,ij)
      *
      */
-    int order_left = -1;
+    int n_create = -1;
 
     /**
      *
-     * the order of the right part of the amplitudes, e.g., 2 for t2(ab,ij), 2 for r2(a,ij)
+     * the number of labels corresponding to annihilation operators, e.g., 2 for t2(ab,ij), 1 for r2(a,ij)
      *
      */
-    int order_right = -1;
+    int n_annihilate = -1;
 };
 
 class integrals: public tensor {

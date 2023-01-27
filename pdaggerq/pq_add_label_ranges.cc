@@ -253,9 +253,9 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
                 // amplitude type+order (ie 't' + '2' = "t2")
                 std::string amp;
                 amp.push_back(type);
-                int order = tmp[i]->amps[type][k].order_left;
-                if (tmp[i]->amps[type][k].order_right > order) {
-                    order = tmp[i]->amps[type][k].order_right;
+                int order = tmp[i]->amps[type][k].n_create;
+                if (tmp[i]->amps[type][k].n_annihilate > order) {
+                    order = tmp[i]->amps[type][k].n_annihilate;
                 }
                 amp += std::to_string(order);
                 
