@@ -271,16 +271,16 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
                 }
 
                 // check label ranges
-                killit = do_ranges_differ("left", "act", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
+                killit = do_ranges_differ(0, tmp[i]->amps[type][k].n_create, "act", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
                 if ( killit ) break;
 
-                killit = do_ranges_differ("left", "ext", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
+                killit = do_ranges_differ(0, tmp[i]->amps[type][k].n_create, "ext", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
                 if ( killit ) break;
 
-                killit = do_ranges_differ("right", "act", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
+                killit = do_ranges_differ(tmp[i]->amps[type][k].n_create, tmp[i]->amps[type][k].n_create + tmp[i]->amps[type][k].n_annihilate, "act", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
                 if ( killit ) break;
 
-                killit = do_ranges_differ("right", "ext", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
+                killit = do_ranges_differ(tmp[i]->amps[type][k].n_create, tmp[i]->amps[type][k].n_create + tmp[i]->amps[type][k].n_annihilate, "ext", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
                 if ( killit ) break;
             }
             if ( killit ) break;
@@ -292,7 +292,7 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
         }
     }
 
-    // TODO: rearrange terms so that they have standard range order ( ae;ea -> -ae;ae etc. )
+    // rearrange terms so that they have standard range order ( ae;ea -> -ae;ae etc. )
     for (size_t p = 0; p < tmp.size(); p++) {
 
         if ( tmp[p]->skip ) continue;
@@ -301,34 +301,44 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
         for (size_t i = 0; i < in->amplitude_types.size(); i++) {
             char type = in->amplitude_types[i];
             for (size_t j = 0; j < tmp[p]->amps[type].size(); j++) {
-                size_t order = tmp[p]->amps[type][j].labels.size()/2;
-                if ( order > 4 ) {
+
+                size_t n_create = tmp[p]->amps[type][j].n_create;
+                size_t n_annihilate = tmp[p]->amps[type][j].n_annihilate;
+
+                if ( n_create > 4 || n_annihilate > 4) {
                     printf("\n");
                     printf("    error: label ranges don't work for higher than quadruples yet\n");
                     printf("\n");
                     exit(1);
                 }
-                if ( order == 2 ) {
+
+                int sign = 1;
+
+                // reorder creation labels
+                if ( n_create == 2 ) {
                     // target order: aa, ae, ee
-                    int sign = 1;
                     reorder_two_ranges(tmp[p]->amps[type][j], 0, 1, sign);
-                    reorder_two_ranges(tmp[p]->amps[type][j], 2, 3, sign);
-                    tmp[p]->sign *= sign;
-                }else if ( order == 3 ) {
+                }else if ( n_create == 3 ) {
                     // target order: aaa, aae, aee, eee
-                    int sign = 1;
                     reorder_three_ranges(tmp[p]->amps[type][j], 0, 1, 2, sign);
-                    reorder_three_ranges(tmp[p]->amps[type][j], 3, 4, 5, sign);
-                    tmp[p]->sign *= sign;
-
-                }else if ( order == 4 ) {
-
+                }else if ( n_create == 4 ) {
                     // target order: aaaa, aaae, aaee, aeee, eeee
-                    int sign = 1;
                     reorder_four_ranges(tmp[p]->amps[type][j], 0, 1, 2, 3, sign);
-                    reorder_four_ranges(tmp[p]->amps[type][j], 4, 5, 6, 7, sign);
-                    tmp[p]->sign *= sign;
                 }
+
+                // signs for annihilation labels
+                if ( n_annihilate == 2 ) {
+                    // target order: aa, ae, ee
+                    reorder_two_ranges(tmp[p]->amps[type][j], n_create, n_create + 1, sign);
+                }else if ( n_annihilate == 3 ) {
+                    // target order: aaa, aae, aee, eee
+                    reorder_three_ranges(tmp[p]->amps[type][j], n_create, n_create + 1, n_create + 2, sign);
+                }else if ( n_annihilate == 4 ) {
+                    // target order: aaaa, aaae, aaee, aeee, eeee
+                    reorder_four_ranges(tmp[p]->amps[type][j], n_create, n_create + 1, n_create + 2, n_create + 3, sign);
+                }
+
+                tmp[p]->sign *= sign;
             }
         }
 
@@ -440,17 +450,7 @@ void reorder_three_ranges(amplitudes & amps, int i1, int i2, int i3, int & sign)
 }
 
 // do ranges in two strings differ? second string should be the map that could contain "all"
-// TODO: this logic only works for particle-conserving amplitudes
-bool do_ranges_differ(std::string portion, std::string range, std::vector<std::string> in1, std::vector<std::string> in2) {
-
-    size_t order = in1.size() / 2;
-
-    size_t start = 0;
-    size_t end = order;
-    if ( portion == "right" ) {
-        start = order;
-        end = 2 * order;
-    }
+bool do_ranges_differ(size_t start, size_t end, std::string range, std::vector<std::string> in1, std::vector<std::string> in2) {
 
     // number of input ranges in current amplitude
     int n1 = 0;
