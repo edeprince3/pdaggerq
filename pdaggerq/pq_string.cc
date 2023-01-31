@@ -1054,7 +1054,7 @@ void pq_string::reset_label_ranges(std::map<std::string, std::vector<std::string
     for (size_t label = 0; label < vir_labels.size(); label++) {
 
         // check that this label is in the map
-        if ( label_ranges.find(occ_labels[label]) == label_ranges.end() ) continue;
+        if ( label_ranges.find(vir_labels[label]) == label_ranges.end() ) continue;
 
         std::string range = label_ranges[vir_labels[label]][0];
 
