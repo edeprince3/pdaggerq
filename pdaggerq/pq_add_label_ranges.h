@@ -45,7 +45,7 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
 bool add_ranges_to_string(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list);
 
 /// do ranges in two strings differ?
-bool do_ranges_differ(std::string portion, std::string range, std::vector<std::string> in1, std::vector<std::string> in2);
+bool do_ranges_differ(size_t start, size_t end, std::string range, std::vector<std::string> in1, std::vector<std::string> in2);
 
 // reorder two ranges ... only one case to consider: ba -> ab
 void reorder_two_ranges(tensor & tens, int i1, int i2, int & sign);
