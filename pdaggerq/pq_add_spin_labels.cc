@@ -1121,78 +1121,81 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
         for (size_t i = 0; i < in->amplitude_types.size(); i++) {
             char type = in->amplitude_types[i];
             for (size_t j = 0; j < tmp[p]->amps[type].size(); j++) {
-                size_t order = tmp[p]->amps[type][j].labels.size()/2;
-                if ( order > 4 ) {
+
+                size_t n_create = tmp[p]->amps[type][j].n_create;
+                size_t n_annihilate = tmp[p]->amps[type][j].n_annihilate;
+
+                if ( n_create > 4 || n_annihilate > 4 ) {
                     printf("\n");
                     printf("    error: spin tracing doesn't work for higher than quadruples yet\n");
                     printf("\n");
                     exit(1);
                 }
-                if ( order == 2 ) {
 
-                    // three cases that require attention: ab;ba, ba;ab, and ba;ba
-                    if (       tmp[p]->amps[type][j].spin_labels[0] == "a"
-                            && tmp[p]->amps[type][j].spin_labels[1] == "b"
-                            && tmp[p]->amps[type][j].spin_labels[2] == "b"
-                            && tmp[p]->amps[type][j].spin_labels[3] == "a" ) {
+                // order creator labels
+                if ( n_create == 2 ) {
 
-                            std::string tmp_label = tmp[p]->amps[type][j].labels[2];
-                            tmp[p]->amps[type][j].labels[2] = tmp[p]->amps[type][j].labels[3];
-                            tmp[p]->amps[type][j].labels[3] = tmp_label;
+                    // only one case to worry about
+                    if (   tmp[p]->amps[type][j].spin_labels[0] == "b" 
+                        && tmp[p]->amps[type][j].spin_labels[1] == "a" ) {
 
-                            tmp[p]->amps[type][j].spin_labels[2] = "a";
-                            tmp[p]->amps[type][j].spin_labels[3] = "b";
+                        tmp[p]->amps[type][j].spin_labels[0] = "a";
+                        tmp[p]->amps[type][j].spin_labels[1] = "b";
 
-                            tmp[p]->sign *= -1;
+                        std::string tmp_label = tmp[p]->amps[type][j].labels[0];
+                        tmp[p]->amps[type][j].labels[0] = tmp[p]->amps[type][j].labels[1];
+                        tmp[p]->amps[type][j].labels[1] = tmp_label;
 
-                    }else if ( tmp[p]->amps[type][j].spin_labels[0] == "b"
-                            && tmp[p]->amps[type][j].spin_labels[1] == "a"
-                            && tmp[p]->amps[type][j].spin_labels[2] == "a"
-                            && tmp[p]->amps[type][j].spin_labels[3] == "b" ) {
-
-                            std::string tmp_label = tmp[p]->amps[type][j].labels[0];
-                            tmp[p]->amps[type][j].labels[0] = tmp[p]->amps[type][j].labels[1];
-                            tmp[p]->amps[type][j].labels[1] = tmp_label;
-
-                            tmp[p]->amps[type][j].spin_labels[0] = "a";
-                            tmp[p]->amps[type][j].spin_labels[1] = "b";
-
-                            tmp[p]->sign *= -1;
-
-                    }else if ( tmp[p]->amps[type][j].spin_labels[0] == "b"
-                            && tmp[p]->amps[type][j].spin_labels[1] == "a"
-                            && tmp[p]->amps[type][j].spin_labels[2] == "b"
-                            && tmp[p]->amps[type][j].spin_labels[3] == "a" ) {
-
-                            std::string tmp_label = tmp[p]->amps[type][j].labels[0];
-                            tmp[p]->amps[type][j].labels[0] = tmp[p]->amps[type][j].labels[1];
-                            tmp[p]->amps[type][j].labels[1] = tmp_label;
-
-                            tmp[p]->amps[type][j].spin_labels[0] = "a";
-                            tmp[p]->amps[type][j].spin_labels[1] = "b";
-
-                            tmp_label = tmp[p]->amps[type][j].labels[2];
-                            tmp[p]->amps[type][j].labels[2] = tmp[p]->amps[type][j].labels[3];
-                            tmp[p]->amps[type][j].labels[3] = tmp_label;
-
-                            tmp[p]->amps[type][j].spin_labels[2] = "a";
-                            tmp[p]->amps[type][j].spin_labels[3] = "b";
+                        tmp[p]->sign *= -1;
                     }
-                }else if ( order == 3 ) {
+
+                }else if ( n_create == 3 ) {
 
                     // target order: aaa, aab, abb, bbb
                     int sign = 1;
                     reorder_three_spins(tmp[p]->amps[type][j], 0, 1, 2, sign);
-                    reorder_three_spins(tmp[p]->amps[type][j], 3, 4, 5, sign);
                     tmp[p]->sign *= sign;
 
-                }else if ( order == 4 ) {
+                }else if ( n_create == 4 ) {
 
                     // target order: aaaa, aaab, aabb, abbb, bbbb
                     int sign = 1;
                     reorder_four_spins(tmp[p]->amps[type][j], 0, 1, 2, 3, sign);
-                    reorder_four_spins(tmp[p]->amps[type][j], 4, 5, 6, 7, sign);
                     tmp[p]->sign *= sign;
+
+                }
+
+                // order annihilator labels
+                if ( n_annihilate == 2 ) {
+
+                    // only one case to worry about
+                    if (   tmp[p]->amps[type][j].spin_labels[n_create + 0] == "b" 
+                        && tmp[p]->amps[type][j].spin_labels[n_create + 1] == "a" ) {
+
+                        tmp[p]->amps[type][j].spin_labels[n_create + 0] = "a";
+                        tmp[p]->amps[type][j].spin_labels[n_create + 1] = "b";
+
+                        std::string tmp_label = tmp[p]->amps[type][j].labels[n_create + 0];
+                        tmp[p]->amps[type][j].labels[n_create + 0] = tmp[p]->amps[type][j].labels[n_create + 1];
+                        tmp[p]->amps[type][j].labels[n_create + 1] = tmp_label;
+
+                        tmp[p]->sign *= -1;
+                    }
+
+                }else if ( n_annihilate == 3 ) {
+
+                    // target order: aaa, aab, abb, bbb
+                    int sign = 1;
+                    reorder_three_spins(tmp[p]->amps[type][j], n_create + 0, n_create + 1, n_create + 2, sign);
+                    tmp[p]->sign *= sign;
+
+                }else if ( n_annihilate == 4 ) {
+
+                    // target order: aaaa, aaab, aabb, abbb, bbbb
+                    int sign = 1;
+                    reorder_four_spins(tmp[p]->amps[type][j], n_create + 0, n_create + 1, n_create + 2, n_create + 3, sign);
+                    tmp[p]->sign *= sign;
+
                 }
             }
         }
