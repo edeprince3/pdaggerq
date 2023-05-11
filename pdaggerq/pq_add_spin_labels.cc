@@ -1004,32 +1004,50 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
         bool killit = false;
 
         // amplitudes
-        // TODO: this logic only works for particle-conserving amplitudes
         for (size_t j = 0; j < in->amplitude_types.size(); j++) {
             char type = in->amplitude_types[j];
             for (size_t k = 0; k < tmp[i]->amps[type].size(); k++) {
 
-                size_t order = tmp[i]->amps[type][k].labels.size()/2;
+                size_t n_create_a = 0;
+                size_t n_create_b = 0;
 
-                int left_a = 0;
-                int left_b = 0;
-                int right_a = 0;
-                int right_b = 0;
-                for (size_t l = 0; l < order; l++) {
+                for (size_t l = 0; l < tmp[i]->amps[type][k].n_create; l++) {
                     if ( tmp[i]->amps[type][k].spin_labels[l] == "a" ) {
-                        left_a++;
+                        n_create_a++;
                     }else {
-                        left_b++;
-                    }
-                    if ( tmp[i]->amps[type][k].spin_labels[l+order] == "a" ) {
-                        right_a++;
-                    }else {
-                        right_b++;
+                        n_create_b++;
                     }
                 }
-                if (left_a != right_a || left_b != right_b ) {
-                    killit = true;
-                    break;
+
+                size_t n_annihilate_a = 0;
+                size_t n_annihilate_b = 0;
+
+                for (size_t l = 0; l < tmp[i]->amps[type][k].n_annihilate; l++) {
+                    if ( tmp[i]->amps[type][k].spin_labels[l+ tmp[i]->amps[type][k].n_create] == "a" ) {
+                        n_annihilate_a++;
+                    }else {
+                        n_annihilate_b++;
+                    }
+                }
+
+                // particle conserving excitations:
+                if (tmp[i]->amps[type][k].n_create == tmp[i]->amps[type][k].n_annihilate) {
+                    if (n_create_a != n_annihilate_a || n_create_b != n_annihilate_b ) {
+                        killit = true;
+                        break;
+                    }
+                // particle non-conserving excitations:
+                }else if (tmp[i]->amps[type][k].n_create > tmp[i]->amps[type][k].n_annihilate) {
+                    if (n_create_a < n_annihilate_a || n_create_b < n_annihilate_b ) {
+                        killit = true;
+                        break;
+                    }
+                // particle non-conserving excitations:
+                }else if (tmp[i]->amps[type][k].n_create < tmp[i]->amps[type][k].n_annihilate) {
+                    if (n_create_a > n_annihilate_a || n_create_b > n_annihilate_b ) {
+                        killit = true;
+                        break;
+                    }
                 }
 
             }
@@ -1099,6 +1117,7 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
         if ( tmp[p]->skip ) continue;
 
         // amplitudes
+        // TODO: this logic only works for particle-conserving amplitudes
         for (size_t i = 0; i < in->amplitude_types.size(); i++) {
             char type = in->amplitude_types[i];
             for (size_t j = 0; j < tmp[p]->amps[type].size(); j++) {
