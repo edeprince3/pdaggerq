@@ -34,7 +34,7 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
 
     // check that non-summed label ranges match those specified
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "act", "ext", "c", "d", "e", "f", "g" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
 
     std::map<std::string, bool> found_labels;
    
@@ -708,9 +708,7 @@ void reorder_four_ranges(amplitudes & amps, int i1, int i2, int i3, int i4, int 
             amps.label_ranges[i4] = "ext";
 
             sign *= -1;
-
     }
-
 }
 
 } // End namespaces
