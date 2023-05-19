@@ -1023,7 +1023,7 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
                 size_t n_annihilate_b = 0;
 
                 for (size_t l = 0; l < tmp[i]->amps[type][k].n_annihilate; l++) {
-                    if ( tmp[i]->amps[type][k].spin_labels[l+ tmp[i]->amps[type][k].n_create] == "a" ) {
+                    if ( tmp[i]->amps[type][k].spin_labels[l+tmp[i]->amps[type][k].n_create] == "a" ) {
                         n_annihilate_a++;
                     }else {
                         n_annihilate_b++;
@@ -1117,7 +1117,6 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
         if ( tmp[p]->skip ) continue;
 
         // amplitudes
-        // TODO: this logic only works for particle-conserving amplitudes
         for (size_t i = 0; i < in->amplitude_types.size(); i++) {
             char type = in->amplitude_types[i];
             for (size_t j = 0; j < tmp[p]->amps[type].size(); j++) {
