@@ -1072,7 +1072,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 void pq_helper::simplify() {
 
     // eliminate strings based on delta functions and use delta functions to alter integral / amplitude labels
-    for (int i = 0; i < (int)ordered.size(); i++) {
+    for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
 

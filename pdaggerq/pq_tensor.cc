@@ -301,7 +301,7 @@ void integrals::print(std::string symbol) {
         printf(" ");
     }else {
         printf("\n");
-        printf("    unknown integral type\n");
+        printf("    unknown integral type: %s\n", symbol.c_str());
         printf("\n");
         exit(1);
     }
