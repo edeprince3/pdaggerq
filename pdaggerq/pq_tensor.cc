@@ -357,6 +357,11 @@ std::string integrals::to_string(std::string symbol) {
             + ","
             + labels[1]
             + ")";
+    }else {
+        printf("\n");
+        printf("    unknown integral type: %s\n", symbol.c_str());
+        printf("\n");
+        exit(1);
     }
 
     return val;
