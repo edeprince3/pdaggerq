@@ -58,7 +58,7 @@ from pdaggerq.config import (o, v, h, f, g, t1, t2, t3, t4, l1, l2, l3, l4, r1,
                              l4_aaabaaab,
                              l4_aabbaabb,
                              l4_abbbabbb,
-                             l4_bbbbbbbb)
+                             l4_bbbbbbbb, r0, l0)
 
 class Index:
 
@@ -257,7 +257,7 @@ class TensorTerm:
                 else:  # route to output with ->
                     tensor_index_ranges.append(idx_type)
 
-            if bt.name in ['t1', 't2', 't3', 'l2', 'l1', 'r1', 'r2']:
+            if bt.name in ['t1', 't2', 't3', 'l2', 'l1', 'r1', 'r2', 'r0', 'l0']:
                 einsum_tensors.append(bt.name + bt.spin)
             else:
                 einsum_tensors.append(
@@ -343,15 +343,13 @@ class TensorTerm:
             teinsum_string += " + ".join(update_val_line)
         return teinsum_string
 
-
 class Right0amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='r0', spin=''):
+    def __init__(self, *, indices=(), name='r0', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
     def __repr__(self):
         return "r0"
-
 
 class Right1amps(BaseTerm):
 
@@ -360,7 +358,6 @@ class Right1amps(BaseTerm):
 
     def __repr__(self):
         return "r1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
 
 class Right2amps(BaseTerm):
 
@@ -397,12 +394,20 @@ class Right4amps(BaseTerm):
                                                     self.indices[7])
 class Left0amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='l0', spin=''):
+    def __init__(self, *, indices=(), name='l0', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
     def __repr__(self):
         return "l0"
 
+
+class Left1amps(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
+
+    def __repr__(self):
+        return "l1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
 
 class Left1amps(BaseTerm):
 
