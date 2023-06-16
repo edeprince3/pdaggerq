@@ -370,7 +370,7 @@ class Right2amps(BaseTerm):
 
 class Right3amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='r3'):
+    def __init__(self, *, indices=Tuple[Index, ...], name='r3', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
     def __repr__(self):
