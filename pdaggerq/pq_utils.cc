@@ -69,14 +69,12 @@ bool is_occ(std::string idx) {
     else if (idx == "l") return true;
     else if (idx == "m") return true;
     else if (idx == "n") return true;
-    else if (idx == "o") return true;
     else if (idx == "I") return true;
     else if (idx == "J") return true;
     else if (idx == "K") return true;
     else if (idx == "L") return true;
     else if (idx == "M") return true;
     else if (idx == "N") return true;
-    else if (idx == "O") return true;
     else if (idx.at(0) == 'O' ) return true;
     else if (idx.at(0) == 'o') return true;
     else if (idx.at(0) == 'I') return true;
@@ -92,14 +90,12 @@ bool is_vir(std::string idx) {
     else if (idx == "d") return true;
     else if (idx == "e") return true;
     else if (idx == "f") return true;
-    else if (idx == "g") return true;
     else if (idx == "A") return true;
     else if (idx == "B") return true;
     else if (idx == "C") return true;
     else if (idx == "D") return true;
     else if (idx == "E") return true;
     else if (idx == "F") return true;
-    else if (idx == "G") return true;
     else if (idx.at(0) == 'V' ) return true;
     else if (idx.at(0) == 'v') return true;
     else if (idx.at(0) == 'A') return true;
@@ -968,8 +964,8 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     }
     pruned.clear();
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 
@@ -1330,7 +1326,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> in) {
     if ( in->ints["occ_repulsion"].size() > 0 ) {
         
         // pick summation label not included in string already
-        std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "o", "t", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
+        std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
         std::string idx;
         
         int do_skip = -999;
@@ -1385,7 +1381,7 @@ void use_conventional_labels(std::shared_ptr<pq_string> in) {
     std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
                                     "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
                                     "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
-    std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "o", "t",
+    std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", 
                                      "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9",
                                      "i10", "i11", "i12", "i13", "i14", "i15", "i16", "i17", "i18", "i19"};
 
@@ -1408,7 +1404,7 @@ void use_conventional_labels(std::shared_ptr<pq_string> in) {
     std::vector<std::string> vir_in{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
                                     "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
-    std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "g",
+    std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F",
                                      "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9",
                                      "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19"};
 
@@ -1602,8 +1598,8 @@ bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_str
 void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map) {
 
     // check that non-summed spin labels match those specified
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
     std::map<std::string, bool> found_labels;
     

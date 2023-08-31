@@ -219,8 +219,8 @@ class TensorTerm:
 
     def einsum_string(self, update_val,
                       output_variables=None,
-                      occupied=['i', 'j', 'k', 'l', 'm', 'n','o','t'],
-                      virtual=['a', 'b', 'c', 'd', 'e', 'f','g','h'],
+                      occupied=['i', 'j', 'k', 'l', 'm', 'n', 'I', 'J', 'K', 'L', 'M', 'N'],
+                      virtual=['a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F'],
                       occ_char=None,
                       virt_char=None,
                       optimize=True):
