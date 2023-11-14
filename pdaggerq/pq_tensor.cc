@@ -30,13 +30,14 @@ namespace pdaggerq {
 void amplitudes::sort() {
 
     numerical_labels.clear();
+    numerical_labels.reserve(labels.size());
 
     // convert labels to numerical labels
-    for (size_t i = 0; i < labels.size(); i++) {
+    for (std::string & label : labels) {
         int numerical_label = 0;
         int factor = 1;
-        for (size_t j = 0; j < labels[i].size(); j++) {
-            numerical_label += factor * labels[i][j];
+        for (char letter : label) {
+            numerical_label += factor * letter;
             factor *= 128;
         }
         numerical_labels.push_back(numerical_label);
@@ -70,44 +71,30 @@ void amplitudes::sort() {
         }
     }
 
-    return;
 }
 
 /// copy amplitudes
-amplitudes amplitudes::operator=(const amplitudes& rhs) {
+amplitudes& amplitudes::operator=(const amplitudes& rhs) {
 
-    amplitudes amps;
+    labels = rhs.labels;
+    spin_labels = rhs.spin_labels;
+    order = rhs.order;
 
-    amps.labels.clear();
-    amps.numerical_labels.clear();
-    amps.spin_labels.clear();
-
-    for (size_t i = 0; i < rhs.labels.size(); i++) {
-        amps.labels.push_back(rhs.labels[i]);
-    }
-    for (size_t i = 0; i < rhs.spin_labels.size(); i++) {
-        amps.spin_labels.push_back(rhs.spin_labels[i]);
-    }
-
-    amps.order = rhs.order;
-
-    //amps.sort();
-
-    return amps;
+    return *this;
 }
 
 /// print amplitudes 
-void amplitudes::print(char symbol) {
+void amplitudes::print(char symbol) const {
 
-    if ( labels.size() > 0 ) {
+    if ( !labels.empty() ) {
 
         size_t size  = labels.size();
-        size_t order = labels.size() / 2;
-        if ( 2*order != size ) {
-            order++;
+        size_t norder = labels.size() / 2;
+        if ( 2*norder != size ) {
+            norder++;
         }
         printf("%c", symbol);
-        printf("%zu", order);
+        printf("%zu", norder);
         printf("(");
         for (size_t j = 0; j < size-1; j++) {
             printf("%s", labels[j].c_str());
@@ -124,13 +111,13 @@ void amplitudes::print(char symbol) {
 }
 
 /// print amplitudes to string 
-std::string amplitudes::to_string(char symbol) {
+std::string amplitudes::to_string(char symbol) const {
 
     std::string val;
 
     std::string symbol_s(1, symbol);
 
-    if ( labels.size() > 0 ) {
+    if ( !labels.empty() ) {
 
         size_t size  = labels.size();
         //size_t order = labels.size() / 2;
@@ -153,18 +140,18 @@ std::string amplitudes::to_string(char symbol) {
 }
 
 /// print amplitudes to string with spin labels
-std::string amplitudes::to_string_with_spin(char symbol) {
+std::string amplitudes::to_string_with_spin(char symbol) const {
 
     std::string val;
 
     std::string symbol_s(1, symbol);
 
     std::string spin = "_";
-    for (size_t k = 0; k < spin_labels.size(); k++) {
-        spin += spin_labels[k];
+    for (const std::string & spin_label : spin_labels) {
+        spin += spin_label;
     }
 
-    if ( labels.size() > 0 ) {
+    if ( !labels.empty() ) {
 
         size_t size  = labels.size();
         //size_t order = labels.size() / 2;
@@ -192,11 +179,11 @@ void integrals::sort() {
     numerical_labels.clear();
 
     // convert labels to numerical labels
-    for (size_t i = 0; i < labels.size(); i++) {
+    for (std::string & label : labels) {
         int numerical_label = 0;
         int factor = 1;
-        for (size_t j = 0; j < labels[i].size(); j++) {
-            numerical_label += factor * labels[i][j];
+        for (char letter : label) {
+            numerical_label += factor * letter;
             factor *= 128;
         }
         numerical_labels.push_back(numerical_label);
@@ -223,31 +210,20 @@ void integrals::sort() {
         }
 
     }
-
-    return;
 }
 
 /// copy integrals
-integrals integrals::operator=(const integrals& rhs) {
+integrals& integrals::operator=(const integrals& rhs) {
 
-    integrals ints;
+    labels = rhs.labels;
+    numerical_labels = rhs.numerical_labels;
+    spin_labels = rhs.spin_labels;
 
-    ints.labels.clear();
-    ints.numerical_labels.clear();
-    ints.spin_labels.clear();
-
-    for (size_t i = 0; i < rhs.labels.size(); i++) {
-        ints.labels.push_back(rhs.labels[i]);
-    }
-    for (size_t i = 0; i < rhs.spin_labels.size(); i++) {
-        ints.spin_labels.push_back(rhs.spin_labels[i]);
-    }
-
-    return ints;
+    return *this;
 }
 
 /// print integrals 
-void integrals::print(std::string symbol) {
+void integrals::print(const std::string &symbol) const {
 
     if ( symbol == "two_body") {
         printf("g(");
@@ -309,7 +285,7 @@ void integrals::print(std::string symbol) {
 }
 
 /// print integrals to string
-std::string integrals::to_string(std::string symbol) {
+std::string integrals::to_string(const std::string &symbol) const {
 
     std::string val;
 
@@ -368,13 +344,13 @@ std::string integrals::to_string(std::string symbol) {
 }
 
 /// print integrals to string with spin labels
-std::string integrals::to_string_with_spin(std::string symbol) {
+std::string integrals::to_string_with_spin(const std::string &symbol) const {
 
     std::string val;
 
     std::string spin = "_";
-    for (size_t k = 0; k < spin_labels.size(); k++) {
-        spin += spin_labels[k];
+    for (const std::string & spin_label : spin_labels) {
+        spin += spin_label;
     }
 
     if ( symbol == "two_body") {
@@ -433,42 +409,31 @@ void delta_functions::sort() {
     numerical_labels.clear();
 
     // convert labels to numerical labels
-    for (size_t i = 0; i < labels.size(); i++) {
+    for (std::string & label : labels) {
         int numerical_label = 0;
         int factor = 1;
-        for (size_t j = 0; j < labels[i].size(); j++) {
-            numerical_label += factor * labels[i][j];
+        for (char letter : label) {
+            numerical_label += factor * letter;
             factor *= 128;
         }
         numerical_labels.push_back(numerical_label);
     }
 
     permutations = 0;
-
-    return;
 }
 
 /// copy deltas
-delta_functions delta_functions::operator=(const delta_functions& rhs) {
+delta_functions& delta_functions::operator=(const delta_functions& rhs) {
 
-    delta_functions d;
+    labels = rhs.labels;
+    numerical_labels = rhs.numerical_labels;
+    spin_labels = rhs.spin_labels;
 
-    d.labels.clear();
-    d.numerical_labels.clear();
-    d.spin_labels.clear();
-
-    for (size_t i = 0; i < rhs.labels.size(); i++) {
-        d.labels.push_back(rhs.labels[i]);
-    }
-    for (size_t i = 0; i < rhs.spin_labels.size(); i++) {
-        d.spin_labels.push_back(rhs.spin_labels[i]);
-    }
-
-    return d;
+    return *this;
 }
 
 /// print deltas 
-void delta_functions::print() {
+void delta_functions::print() const {
 
     printf("d(");
     printf("%s", labels[0].c_str());
@@ -479,7 +444,7 @@ void delta_functions::print() {
 }
 
 /// print deltas to string
-std::string delta_functions::to_string() {
+std::string delta_functions::to_string() const {
 
     std::string val;
 
@@ -493,13 +458,13 @@ std::string delta_functions::to_string() {
 }
 
 /// print deltas to string with spin labels
-std::string delta_functions::to_string_with_spin() {
+std::string delta_functions::to_string_with_spin() const {
 
     std::string val;
 
     std::string spin = "_";
-    for (size_t k = 0; k < spin_labels.size(); k++) {
-        spin += spin_labels[k];
+    for (const std::string & spin_label : spin_labels) {
+        spin += spin_label;
     }
 
     val = "d" + spin + "("

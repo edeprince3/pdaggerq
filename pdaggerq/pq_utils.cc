@@ -30,7 +30,7 @@
 namespace pdaggerq {
 
 // concatinate a list of operators (a list of strings) into a single list
-std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops) {
+std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops) {
 
     std::vector<std::string> ret;
     size_t size = 0;
@@ -62,7 +62,7 @@ void removeParentheses(std::string &x) {
 }
 
 // is a label classified as occupied?
-bool is_occ(std::string idx) {
+bool is_occ(const std::string &idx) {
     if ( idx == "i" ) return true;
     else if (idx == "j") return true;
     else if (idx == "k") return true;
@@ -83,7 +83,7 @@ bool is_occ(std::string idx) {
 }
 
 // is a label classified as virtual?
-bool is_vir(std::string idx) {
+bool is_vir(const std::string &idx) {
     if ( idx == "a" ) return true;
     else if (idx == "b") return true;
     else if (idx == "c") return true;
@@ -104,7 +104,7 @@ bool is_vir(std::string idx) {
 }
 
 // how many times does an index appear deltas?
-int index_in_deltas(std::string idx, std::vector<delta_functions> deltas) {
+int index_in_deltas(const std::string &idx, const std::vector<delta_functions> &deltas) {
 
     int n = 0;
     for (size_t i = 0; i < deltas.size(); i++) {
@@ -119,7 +119,7 @@ int index_in_deltas(std::string idx, std::vector<delta_functions> deltas) {
 }
 
 // how many times does an index appear integrals?
-int index_in_integrals(std::string idx, std::vector<integrals> ints) {
+int index_in_integrals(const std::string &idx, const std::vector<integrals> &ints) {
 
     int n = 0;
     for (size_t i = 0; i < ints.size(); i++) {
@@ -133,7 +133,7 @@ int index_in_integrals(std::string idx, std::vector<integrals> ints) {
 }
 
 // how many times does an index appear in amplitudes?
-int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
+int index_in_amplitudes(const std::string &idx, const std::vector<amplitudes> &amps) {
 
     int n = 0;
     for (size_t i = 0; i < amps.size(); i++) {
@@ -147,7 +147,7 @@ int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps) {
 }
 
 // how many times does an index appear amplitudes, deltas, and integrals?
-int index_in_anywhere(std::shared_ptr<pq_string> in, std::string idx) {
+int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx) {
 
     int n = 0;
 
@@ -165,7 +165,7 @@ int index_in_anywhere(std::shared_ptr<pq_string> in, std::string idx) {
 }
 
 /// replace one label with another (in a given set of deltas)
-void replace_index_in_deltas(std::string old_idx, std::string new_idx, std::vector<delta_functions> &deltas) {
+void replace_index_in_deltas(const std::string &old_idx, const std::string &new_idx, std::vector<delta_functions> &deltas) {
 
     for (size_t i = 0; i < deltas.size(); i++) {
         if ( deltas[i].labels[0] == old_idx ) {
@@ -180,7 +180,7 @@ void replace_index_in_deltas(std::string old_idx, std::string new_idx, std::vect
 }
 
 /// replace one label with another (in a given set of amplitudes)
-void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps) {
+void replace_index_in_amplitudes(const std::string &old_idx, const std::string &new_idx, std::vector<amplitudes> &amps) {
 
     for (size_t i = 0; i < amps.size(); i++) {
         for (size_t j = 0; j < amps[i].labels.size(); j++) {
@@ -192,7 +192,7 @@ void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::
 }
 
 /// replace one label with another (in a given set of integrals)
-void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::vector<integrals> &ints) {
+void replace_index_in_integrals(const std::string &old_idx, const std::string &new_idx, std::vector<integrals> &ints) {
 
     for (size_t i = 0; i < ints.size(); i++) {
         for (size_t j = 0; j < ints[i].labels.size(); j++) {
@@ -204,7 +204,7 @@ void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::v
 }
 
 // swap two labels
-void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::string label2) {
+void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, const std::string &label2) {
 
     replace_index_everywhere(in, label1, "xyz");
     replace_index_everywhere(in, label2, label1);
@@ -212,7 +212,7 @@ void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::str
 }
 
 // replace one label with another (in integrals and amplitudes)
-void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx, std::string new_idx) {
+void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string &old_idx, const std::string &new_idx) {
 
     for (size_t i = 0; i < in->integral_types.size(); i++) {
         std::string type = in->integral_types[i];
@@ -226,8 +226,8 @@ void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx
 }
 
 /// compare two lists of integrals
-bool compare_integrals(std::vector<integrals> ints1,
-                       std::vector<integrals> ints2,
+bool compare_integrals(const std::vector<integrals> &ints1,
+                       const std::vector<integrals> &ints2,
                        int & n_permute ) {
 
     if ( ints1.size() != ints2.size() ) return false;
@@ -252,8 +252,8 @@ bool compare_integrals(std::vector<integrals> ints1,
 }
 
 /// compare two lists of amplitudes
-bool compare_amplitudes( std::vector<amplitudes> amps1,
-                         std::vector<amplitudes> amps2,
+bool compare_amplitudes( const std::vector<amplitudes> &amps1,
+                         const std::vector<amplitudes> &amps2,
                          int & n_permute ) {
 
     if ( amps1.size() != amps2.size() ) return false;
@@ -278,7 +278,7 @@ bool compare_amplitudes( std::vector<amplitudes> amps1,
 }
 
 // compare two strings
-bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_string> ordered_2, int & n_permute) {
+bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::shared_ptr<pq_string> &ordered_2, int & n_permute) {
 
     // don't forget w0
     if ( ordered_1->has_w0 != ordered_2->has_w0 ) {
@@ -360,10 +360,10 @@ bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_st
 }
 
 /// compare two strings when swapping (multiple) summed labels
-void compare_strings_with_swapped_summed_labels(std::vector<std::vector<std::string> > labels,
+void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<std::string> > &labels,
                                                 size_t iter,
-                                                std::shared_ptr<pq_string> in1,
-                                                std::shared_ptr<pq_string> in2,
+                                                const std::shared_ptr<pq_string> &in1,
+                                                const std::shared_ptr<pq_string> &in2,
                                                 int & n_permute, 
                                                 bool & strings_same) {
  
@@ -389,7 +389,7 @@ void compare_strings_with_swapped_summed_labels(std::vector<std::vector<std::str
 
 // consolidate terms that differ may differ by permutations of summed labels
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
-                                         std::vector<std::vector<std::string> > labels) {
+                                         const std::vector<std::vector<std::string> > &labels) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
@@ -447,7 +447,7 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
 // consolidate terms that differ by permutations of non-summed labels
 void consolidate_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
-    std::vector<std::string> labels) {
+    const std::vector<std::string> &labels) {
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
@@ -544,11 +544,11 @@ void consolidate_permutations_non_summed(
 
 /// compare two strings when swapping (multiple) summed labels and ov pairs of nonsumed labels
 void compare_strings_with_swapped_summed_and_nonsummed_labels(
-    std::vector<std::vector<std::string> > labels,
-    std::vector<std::vector<std::string>> pairs,
+    const std::vector<std::vector<std::string> > &labels,
+    const std::vector<std::vector<std::string>> &pairs,
     size_t iter,
-    std::shared_ptr<pq_string> in1,
-    std::shared_ptr<pq_string> in2,
+    const std::shared_ptr<pq_string> &in1,
+    const std::shared_ptr<pq_string> &in2,
     size_t in2_id,
     std::vector<size_t> &my_permutations,
     std::vector<bool> &permutation_types,
@@ -637,7 +637,7 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
 
                         if ( strings_same ) {
                             paired_permutation = true;
-                            found_permutation_type = permutation_type;
+                            found_permutation_type = (int)permutation_type;
                             break;
                         }
                     }
@@ -702,8 +702,8 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
 // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
 void consolidate_paired_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
-    std::vector<std::string> occ_labels,
-    std::vector<std::string> vir_labels,
+    const std::vector<std::string> &occ_labels,
+    const std::vector<std::string> &vir_labels,
     int n_fold) {
 
     if ( n_fold != 3 && n_fold !=6 ) {
@@ -1020,7 +1020,7 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 }
 
 // reorder t amplitudes as t1, t2, t3, t4
-void reorder_t_amplitudes(std::shared_ptr<pq_string> in) {
+void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
 
     size_t dim = in->amps['t'].size();
 
@@ -1314,7 +1314,7 @@ void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int &
 }
 
 // re-classify fluctuation potential terms
-void reclassify_integrals(std::shared_ptr<pq_string> in) {
+void reclassify_integrals(std::shared_ptr<pq_string> &in) {
     
     if ( in->ints["occ_repulsion"].size() > 1 ) {
        printf("\n");
@@ -1375,7 +1375,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> in) {
 }
 
 // find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a
-void use_conventional_labels(std::shared_ptr<pq_string> in) {
+void use_conventional_labels(std::shared_ptr<pq_string> &in) {
 
     // occupied first:
     std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
@@ -1425,7 +1425,7 @@ void use_conventional_labels(std::shared_ptr<pq_string> in) {
 }
 
 /// apply delta functions to amplitude and integral labels
-void gobble_deltas(std::shared_ptr<pq_string> in) {
+void gobble_deltas(std::shared_ptr<pq_string> &in) {
     
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
@@ -1536,7 +1536,7 @@ void gobble_deltas(std::shared_ptr<pq_string> in) {
 }
 
 // add spin labels to a string
-bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list) {
+bool add_spins(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &list) {
 
     if ( in->skip ) return true;
 
@@ -1595,7 +1595,7 @@ bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_str
 }
 
 // expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map) {
+void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> &spin_map) {
 
     // check that non-summed spin labels match those specified
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
@@ -2514,7 +2514,7 @@ void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
 
     if ( in->factor > 0.0 ) {
         in->sign = 1;
@@ -2573,7 +2573,7 @@ void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
         
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators

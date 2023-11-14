@@ -27,7 +27,7 @@
 
 namespace pdaggerq {
 
-bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered) {
+bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered) {
 
     if ( in->skip ) return true;
 
@@ -286,7 +286,7 @@ bool swap_operators_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std:
     return false;
 }
 
-bool swap_operators_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered) {
+bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered) {
 
     if ( in->skip ) return true;
 

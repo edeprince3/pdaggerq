@@ -39,7 +39,7 @@ class pq_helper {
      * @param vacuum_type: normal order is defined with respect to the TRUE vacuum or the FERMI vacuum
      *
      */
-    pq_helper(std::string vacuum_type);
+    explicit pq_helper(const std::string &vacuum_type);
 
     /**
      *
@@ -55,7 +55,7 @@ class pq_helper {
      * @param in: strings indicating a sum (outer list) of products (inner lists) of operators that define the bra state
      *
      */
-    void set_left_operators(std::vector<std::vector<std::string> > in);
+    void set_left_operators(const std::vector<std::vector<std::string>> &in);
 
     /**
      *
@@ -64,7 +64,7 @@ class pq_helper {
      * @param in: strings indicating a sum (outer list) of products (inner lists) of operators that define the ket state
      *
      */
-    void set_right_operators(std::vector<std::vector<std::string> >in);
+    void set_right_operators(const std::vector<std::vector<std::string>> &in);
 
     /**
      *
@@ -73,7 +73,7 @@ class pq_helper {
      * @param type: a string specifying the type of operators that define the ket state ("EE", "IP", "EA", "DEA", "DIP")
      *
      */
-    void set_right_operators_type(std::string type);
+    void set_right_operators_type(const std::string& type);
 
     /**
      *
@@ -82,7 +82,7 @@ class pq_helper {
      * @param type: a string specifying the type of operators that define the bra state ("EE", "IP", "EA", "DEA", "DIP")
      *
      */
-    void set_left_operators_type(std::string type);
+    void set_left_operators_type(const std::string& type);
 
     /**
      *
@@ -129,8 +129,8 @@ class pq_helper {
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
      *
      */
-    void add_st_operator(double factor, std::vector<std::string> targets, 
-                                        std::vector<std::string> ops);
+    void add_st_operator(double factor, const std::vector<std::string> &targets,
+                                        const std::vector<std::string> &ops);
 
     /**
      *
@@ -140,8 +140,8 @@ class pq_helper {
      * @param op1: a list of strings defining an operator product
      *
      */
-    void add_commutator(double factor, std::vector<std::string> op0,
-                                       std::vector<std::string> op1);
+    void add_commutator(double factor, const std::vector<std::string> &op0,
+                                       const std::vector<std::string> &op1);
 
     /**
      *
@@ -152,9 +152,9 @@ class pq_helper {
      * @param op2: a list of strings defining an operator product
      *
      */
-    void add_double_commutator(double factor, std::vector<std::string> op0,
-                                              std::vector<std::string> op1,
-                                              std::vector<std::string> op2);
+    void add_double_commutator(double factor, const std::vector<std::string> &op0,
+                                              const std::vector<std::string> &op1,
+                                              const std::vector<std::string> &op2);
 
     /**
      *
@@ -166,10 +166,10 @@ class pq_helper {
      * @param op3: a list of strings defining an operator product
      *
      */
-    void add_triple_commutator(double factor, std::vector<std::string> op0,
-                                              std::vector<std::string> op1,
-                                              std::vector<std::string> op2,
-                                              std::vector<std::string> op3);
+    void add_triple_commutator(double factor, const std::vector<std::string> &op0,
+                                              const std::vector<std::string> &op1,
+                                              const std::vector<std::string> &op2,
+                                              const std::vector<std::string> &op3);
 
     /**
      *
@@ -182,11 +182,11 @@ class pq_helper {
      * @param op4: a list of strings defining an operator product
      *
      */
-    void add_quadruple_commutator(double factor, std::vector<std::string> op0,
-                                                 std::vector<std::string> op1,
-                                                 std::vector<std::string> op2,
-                                                 std::vector<std::string> op3,
-                                                 std::vector<std::string> op4);
+    void add_quadruple_commutator(double factor, const std::vector<std::string> &op0,
+                                                 const std::vector<std::string> &op1,
+                                                 const std::vector<std::string> &op2,
+                                                 const std::vector<std::string> &op3,
+                                                 const std::vector<std::string> &op4);
 
     /**
      *
@@ -209,14 +209,14 @@ class pq_helper {
      * get a list of all strings 
      *
      */
-    std::vector<std::vector<std::string> > strings();
+    std::vector<std::vector<std::string> > strings() const;
 
     /**
      *
      * get list of fully-contracted strings
      *
      */
-    std::vector<std::vector<std::string> > fully_contracted_strings();
+    std::vector<std::vector<std::string> > fully_contracted_strings() const;
 
     /**
      *
@@ -224,7 +224,7 @@ class pq_helper {
      *
      * @param spin_labels: a map/dictionary mapping non-summed labels onto spins ("a" or "b")
      */
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::map<std::string, std::string> spin_labels);
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::map<std::string, std::string> &spin_labels) const;
 
     /**
      *
@@ -233,7 +233,7 @@ class pq_helper {
      * @param string_type: a string specifying which strings to print ("all", "one-body", "two-body", "fully-contracted").
      *                     on the python side, the default value is "fully-contracted"
      */
-    void print(std::string string_type);
+    void print(const std::string &string_type) const;
 
   private:
 

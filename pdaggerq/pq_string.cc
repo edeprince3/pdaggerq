@@ -44,7 +44,7 @@ template <typename T> std::string to_string_with_precision(const T a_value, cons
 }
 
 // constructor
-pq_string::pq_string(std::string vacuum_type){
+pq_string::pq_string(const std::string &vacuum_type){
 
     vacuum = vacuum_type;
 }
@@ -573,7 +573,7 @@ std::vector<std::string> pq_string::get_string() {
 // copy string data, possibly excluding symbols and daggers
 void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
 
-    pq_string * in = reinterpret_cast<pq_string * >(copy_me);
+    auto * in = reinterpret_cast<pq_string * >(copy_me);
 
     // skip string?
     skip   = in->skip;
@@ -585,68 +585,51 @@ void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
     factor = in->factor;
 
     // deltas
-    deltas.clear();
-    deltas.assign(in->deltas.begin(), in->deltas.end());
+    deltas = in->deltas;
 
     // integrals
-    for (size_t i = 0; i < integral_types.size(); i++) {
-        std::string type = integral_types[i];
-        ints[type].clear();
-        ints[type].assign(in->ints[type].begin(), in->ints[type].end());
-    }
+    ints = in->ints;
 
     // amplitudes
-    for (size_t i = 0; i < amplitude_types.size(); i++) {
-        char type = amplitude_types[i];
-        amps[type].clear();
-        amps[type].assign(in->amps[type].begin(), in->amps[type].end());
-    }
+    amps = in->amps;
 
-    // w0 
+    // w0
     has_w0 = in->has_w0;
 
     // non-summed spin labels
     non_summed_spin_labels = in->non_summed_spin_labels;
 
     // permutations
-    permutations.clear();
-    permutations.assign(in->permutations.begin(), in->permutations.end());
+    permutations = in->permutations;
 
     // paired permutations (2)
-    paired_permutations_2.clear();
-    paired_permutations_2.assign(in->paired_permutations_2.begin(), in->paired_permutations_2.end());
+    paired_permutations_2 = in->paired_permutations_2;
 
     // paired permutations (3)
-    paired_permutations_3.clear();
-    paired_permutations_3.assign(in->paired_permutations_3.begin(), in->paired_permutations_3.end());
+    paired_permutations_3 = in->paired_permutations_3;
 
     // paired permutations (6)
-    paired_permutations_6.clear();
-    paired_permutations_6.assign(in->paired_permutations_6.begin(), in->paired_permutations_6.end());
+    paired_permutations_6 = in->paired_permutations_6;
 
     if ( copy_daggers_and_symbols ) {
 
         // fermion operator symbols
-        symbol.clear();
-        symbol.assign(in->symbol.begin(), in->symbol.end());
+        symbol = in->symbol;
 
         // fermion daggers
-        is_dagger.clear();
-        is_dagger.assign(in->is_dagger.begin(), in->is_dagger.end());
+        is_dagger = in->is_dagger;
 
         // fermion daggers with respect to fermi vacuum
         if ( vacuum == "FERMI" ) {
-            is_dagger_fermi.clear();
-            is_dagger_fermi.assign(in->is_dagger_fermi.begin(), in->is_dagger_fermi.end());
+            is_dagger_fermi = in->is_dagger_fermi;
         }
 
         // boson daggers
-        is_boson_dagger.clear();
-        is_boson_dagger.assign(in->is_boson_dagger.begin(), in->is_boson_dagger.end());
+        is_boson_dagger = in->is_boson_dagger;
     }
 }
 
-void pq_string::set_spin_everywhere(std::string target, std::string spin) {
+void pq_string::set_spin_everywhere(const std::string &target, const std::string &spin) {
 
     // integrals
     for (size_t i = 0; i < integral_types.size(); i++) {
@@ -790,7 +773,7 @@ void pq_string::reset_spin_labels() {
 }
 
 // set labels for integrals
-void pq_string::set_integrals(std::string type, std::vector<std::string> in) {
+void pq_string::set_integrals(const std::string &type, const std::vector<std::string> &in) {
     integrals new_ints;
     new_ints.labels.assign(in.begin(), in.end());
     new_ints.sort();
@@ -798,7 +781,7 @@ void pq_string::set_integrals(std::string type, std::vector<std::string> in) {
 }
 
 // set labels for amplitudes
-void pq_string::set_amplitudes(char type, int order, std::vector<std::string> in) {
+void pq_string::set_amplitudes(char type, int order, const std::vector<std::string> &in) {
     amplitudes new_amps;
     new_amps.labels.assign(in.begin(), in.end());
     new_amps.order = order;

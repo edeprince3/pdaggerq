@@ -71,7 +71,7 @@ void export_pq_helper(py::module& m) {
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings_with_spin",
-             [](pq_helper& self, std::map<std::string, std::string> spin_labels) {
+             [](pq_helper& self, const std::map<std::string, std::string> &spin_labels) {
                  return self.fully_contracted_strings_with_spin(spin_labels);
              },
              py::arg("spin_labels") = empty_spin_labels() )
@@ -89,7 +89,7 @@ PYBIND11_MODULE(_pdaggerq, m) {
     export_pq_helper(m);
 }
 
-pq_helper::pq_helper(std::string vacuum_type)
+pq_helper::pq_helper(const std::string &vacuum_type)
 {
 
     if ( vacuum_type == "" ) {
@@ -134,7 +134,7 @@ void pq_helper::set_print_level(int level) {
     print_level = level;
 }
 
-void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
+void pq_helper::set_right_operators(const std::vector<std::vector<std::string>> &in) {
 
     right_operators.clear();
     for (int i = 0; i < (int)in.size(); i++) {
@@ -146,7 +146,7 @@ void pq_helper::set_right_operators(std::vector<std::vector<std::string> >in) {
     }
 }
 
-void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
+void pq_helper::set_left_operators(const std::vector<std::vector<std::string>> &in) {
 
     left_operators.clear();
     for (int i = 0; i < (int)in.size(); i++) {
@@ -158,7 +158,7 @@ void pq_helper::set_left_operators(std::vector<std::vector<std::string> >in) {
     }
 }
 
-void pq_helper::set_left_operators_type(std::string type) {
+void pq_helper::set_left_operators_type(const  std::string &type) {
     if ( type == "EE" || type == "IP" || type == "EA" || type == "DIP" || type == "DEA" ) {
         left_operators_type = type;
     }else {
@@ -169,7 +169,7 @@ void pq_helper::set_left_operators_type(std::string type) {
     }
 }
 
-void pq_helper::set_right_operators_type(std::string type) {
+void pq_helper::set_right_operators_type(const std::string &type) {
     if ( type == "EE" || type == "IP" || type == "EA" || type == "DIP" || type == "DEA" ) {
         right_operators_type = type;
     }else {
@@ -186,8 +186,8 @@ void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute)
 }
 
 void pq_helper::add_commutator(double factor,
-                               std::vector<std::string> op0,
-                               std::vector<std::string> op1){
+                               const std::vector<std::string> &op0,
+                               const std::vector<std::string> &op1){
 
     add_operator_product( factor, concatinate_operators({op0, op1}) );
     add_operator_product(-factor, concatinate_operators({op1, op0}) );
@@ -195,9 +195,9 @@ void pq_helper::add_commutator(double factor,
 }
 
 void pq_helper::add_double_commutator(double factor,
-                                        std::vector<std::string> op0, 
-                                        std::vector<std::string> op1, 
-                                        std::vector<std::string> op2){
+                                        const std::vector<std::string> &op0,
+                                        const std::vector<std::string> &op1,
+                                        const std::vector<std::string> &op2){
 
     add_operator_product( factor, concatinate_operators({op0, op1, op2}) );
     add_operator_product(-factor, concatinate_operators({op1, op0, op2}) );
@@ -207,10 +207,10 @@ void pq_helper::add_double_commutator(double factor,
 }
 
 void pq_helper::add_triple_commutator(double factor,
-                                        std::vector<std::string> op0,
-                                        std::vector<std::string> op1,
-                                        std::vector<std::string> op2,
-                                        std::vector<std::string> op3){
+                                        const std::vector<std::string> &op0,
+                                        const std::vector<std::string> &op1,
+                                        const std::vector<std::string> &op2,
+                                        const std::vector<std::string> &op3){
 
     add_operator_product( factor, concatinate_operators({op0, op1, op2, op3}) );
     add_operator_product(-factor, concatinate_operators({op1, op0, op2, op3}) );
@@ -224,11 +224,11 @@ void pq_helper::add_triple_commutator(double factor,
 }
 
 void pq_helper::add_quadruple_commutator(double factor,
-                                           std::vector<std::string> op0,
-                                           std::vector<std::string> op1,
-                                           std::vector<std::string> op2,
-                                           std::vector<std::string> op3,
-                                           std::vector<std::string> op4){
+                                           const std::vector<std::string> &op0,
+                                           const std::vector<std::string> &op1,
+                                           const std::vector<std::string> &op2,
+                                           const std::vector<std::string> &op3,
+                                           const std::vector<std::string> &op4){
 
 
     add_operator_product( factor, concatinate_operators({op0, op1, op2, op3, op4}) );
@@ -1093,7 +1093,7 @@ void pq_helper::simplify() {
 
 }
 
-void pq_helper::print(std::string string_type) {
+void pq_helper::print(const std::string &string_type) const {
 
     printf("\n");
     printf("    ");
@@ -1131,7 +1131,7 @@ void pq_helper::print(std::string string_type) {
 }
 
 // get list of fully-contracted strings, after spin tracing
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::map<std::string, std::string> spin_labels) {
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(const std::map<std::string, std::string> &spin_labels) const{
 
     // perform spin tracing
 
@@ -1161,7 +1161,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
 
 }
 
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() {
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() const {
 
     std::vector<std::vector<std::string> > list;
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -1177,7 +1177,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() {
 
 }
 
-std::vector<std::vector<std::string> > pq_helper::strings() {
+std::vector<std::vector<std::string> > pq_helper::strings() const {
 
     std::vector<std::vector<std::string> > list;
     for (int i = 0; i < (int)ordered.size(); i++) {
@@ -1195,7 +1195,8 @@ void pq_helper::clear() {
     ordered.clear();
 }
 
-void pq_helper::add_st_operator(double factor, std::vector<std::string> targets, std::vector<std::string> ops){
+void pq_helper::add_st_operator(double factor, const std::vector<std::string> &targets,
+                                               const std::vector<std::string> &ops){
 
     int dim = (int)ops.size();
 

@@ -41,7 +41,7 @@ class pq_string {
      * @param vacuum_type: normal order is defined with respect to the TRUE vacuum or the FERMI vacuum
      *
      */
-    pq_string(std::string vacuum_type);
+    explicit pq_string(const std::string &vacuum_type);
 
     /**
      *
@@ -97,6 +97,7 @@ class pq_string {
      * supported integral types
      *
      */
+    static inline
     std::vector<std::string> integral_types = {"fock", "core", "two_body", "eri", "d+", "d-", "occ_repulsion"};
 
     /**
@@ -111,6 +112,7 @@ class pq_string {
      * supported amplitude types
      *
      */
+    static inline
     std::vector<char> amplitude_types = {'l', 'r', 't', 'u', 'm', 's'};
 
     /**
@@ -248,7 +250,7 @@ class pq_string {
      * @param target: a target label in the integrals or amplitudes
      * @param spin: the spin label to be added to target
      */
-    void set_spin_everywhere(std::string target, std::string spin);
+    void set_spin_everywhere(const std::string &target, const std::string &spin);
 
     /**
      *
@@ -264,7 +266,7 @@ class pq_string {
      * @param type: the integrals_type
      * @param in: the list of labels for the integrals
      */
-    void set_integrals(std::string type, std::vector<std::string> in);
+    void set_integrals(const std::string &type, const std::vector<std::string> &in);
 
     /**
      *
@@ -273,7 +275,7 @@ class pq_string {
      * @param type: the amplitudes_type
      * @param in: the list of labels for the amplitudes
      */
-    void set_amplitudes(char type, int order, std::vector<std::string> in);
+    void set_amplitudes(char type, int order, const std::vector<std::string> &in);
 
 };
 

@@ -39,76 +39,84 @@
 namespace pdaggerq {
 
 /// is a label classified as occupied?
-bool is_occ(std::string idx);
+bool is_occ(const std::string &idx);
 
 /// is a label classified as virtual?
-bool is_vir(std::string idx);
+bool is_vir(const std::string &idx);
 
 /// how many times does an index appear deltas?
-int index_in_deltas(std::string idx, std::vector<delta_functions> deltas);
+int index_in_deltas(const std::string &idx, const std::vector<delta_functions> &deltas);
 
 /// how many times does an index appear integrals?
-int index_in_integrals(std::string idx, std::vector<integrals> ints);
+int index_in_integrals(const std::string &idx, const std::vector<integrals> &ints);
 
 /// how many times does an index appear amplitudes?
-int index_in_amplitudes(std::string idx, std::vector<amplitudes> amps);
+int index_in_amplitudes(const std::string &idx, const std::vector<amplitudes> &amps);
 
 /// how many times does an index appear amplitudes, deltas, and integrals?
-int index_in_anywhere(std::shared_ptr<pq_string> in, std::string idx);
+int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx);
 
 /// replace one label with another (in delta functions)
-void replace_index_in_deltas(std::string old_idx, std::string new_idx, std::vector<delta_functions> &deltas);
+void replace_index_in_deltas(const std::string &old_idx, const std::string &new_idx, std::vector<delta_functions> &deltas);
 
 /// replace one label with another (in a given set of integrals)
-void replace_index_in_integrals(std::string old_idx, std::string new_idx, std::vector<integrals> &ints);
+void replace_index_in_integrals(const std::string &old_idx, const std::string &new_idx, std::vector<integrals> &ints);
 
 /// replace one label with another (in a given set of amplitudes)
-void replace_index_in_amplitudes(std::string old_idx, std::string new_idx, std::vector<amplitudes> &amps);
+void replace_index_in_amplitudes(const std::string &old_idx, const std::string &new_idx, std::vector<amplitudes> &amps);
 
 /// replace one label with another (in integrals and amplitudes)
-void replace_index_everywhere(std::shared_ptr<pq_string> in, std::string old_idx, std::string new_idx);
+void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string &old_idx, const std::string &new_idx);
 
 /// swap two labels
-void swap_two_labels(std::shared_ptr<pq_string> in, std::string label1, std::string label2);
+void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, const std::string &label2);
 
 /// compare two strings
-bool compare_strings(std::shared_ptr<pq_string> ordered_1, std::shared_ptr<pq_string> ordered_2, int & n_permute);
+bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::shared_ptr<pq_string> &ordered_2, int & n_permute);
 
 /// compare two lists of amplitudes
-bool compare_amplitudes( std::vector<amplitudes> amps1,
-                         std::vector<amplitudes> amps2,
+bool compare_amplitudes( const std::vector<amplitudes> &amps1,
+                         const std::vector<amplitudes> &amps2,
                          int & n_permute );
 
 /// compare two lists of integrals
-bool compare_integrals( std::vector<integrals> ints1,
-                        std::vector<integrals> ints2,
+bool compare_integrals( const std::vector<integrals> &ints1,
+                        const std::vector<integrals> &ints2,
                         int & n_permute );
 
 // consolidate terms that differ may differ by permutations of summed labels
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
-                                         std::vector<std::vector<std::string> > labels);
+                                          const std::vector<std::vector<std::string> > &labels);
 
 // consolidate terms that differ by permutations of non-summed labels
 void consolidate_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
-    std::vector<std::string> labels);
+    const std::vector<std::string> &labels);
 
 // look for paired permutations of non-summed labels
 // a) P3a(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
 // b) P3b(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
 void consolidate_paired_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
-    std::vector<std::string> occ_labels,
-    std::vector<std::string> vir_labels,
+    const std::vector<std::string> &occ_labels,
+    const std::vector<std::string> &vir_labels,
     int n_fold);
+
+/// compare two strings when swapping (multiple) summed labels
+void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<std::string> > &labels,
+                                                size_t iter,
+                                                const std::shared_ptr<pq_string> &in1,
+                                                const std::shared_ptr<pq_string> &in2,
+                                                int & n_permute,
+                                                bool & strings_same);
 
 /// compare two strings when swapping (multiple) summed labels and ov pairs of nonsumed labels
 void compare_strings_with_swapped_summed_and_nonsummed_labels(
-    std::vector<std::vector<std::string> > labels,
-    std::vector<std::vector<std::string>> pairs,
+    const std::vector<std::vector<std::string> > &labels,
+    const std::vector<std::vector<std::string>> &pairs,
     size_t iter,
-    std::shared_ptr<pq_string> in1,
-    std::shared_ptr<pq_string> in2,
+    const std::shared_ptr<pq_string> &in1,
+    const std::shared_ptr<pq_string> &in2,
     size_t in2_id,
     std::vector<size_t> &my_permutations,
     std::vector<bool> &permutation_types,
@@ -124,7 +132,7 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations);
 
 /// reorder t amplitudes as t1, t2, t3, t4
-void reorder_t_amplitudes(std::shared_ptr<pq_string> in);
+void reorder_t_amplitudes(std::shared_ptr<pq_string> &in);
 
 /// reorder three spin labels as aab or abb
 void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
@@ -133,28 +141,28 @@ void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);
 void reorder_four_spins(amplitudes & amps, int i1, int i2, int i3, int i4, int & sign);
 
 /// re-classify fluctuation potential terms
-void reclassify_integrals(std::shared_ptr<pq_string> in);
+void reclassify_integrals(std::shared_ptr<pq_string> &in);
 
 /// apply delta functions to amplitude and integral labels
-void gobble_deltas(std::shared_ptr<pq_string> in);
+void gobble_deltas(std::shared_ptr<pq_string> &in);
 
 /// replace internal labels with conventional ones (o1 -> i, etc.)
-void use_conventional_labels(std::shared_ptr<pq_string> in);
+void use_conventional_labels(std::shared_ptr<pq_string> &in);
 
 /// add spin labels to a string
-bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list);
+bool add_spins(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &list);
 
 /// expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map);
+void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> &spin_map);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
+void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
+void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
 /// concatinate a list of operators (a list of strings) into a single list
-std::vector<std::string> concatinate_operators(std::vector<std::vector<std::string>> ops);
+std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops);
 
 /// remove "*" from std::string
 void removeStar(std::string &x);
