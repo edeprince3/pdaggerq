@@ -63,43 +63,27 @@ void removeParentheses(std::string &x) {
 
 // is a label classified as occupied?
 bool is_occ(const std::string &idx) {
-    if ( idx == "i" ) return true;
-    else if (idx == "j") return true;
-    else if (idx == "k") return true;
-    else if (idx == "l") return true;
-    else if (idx == "m") return true;
-    else if (idx == "n") return true;
-    else if (idx == "I") return true;
-    else if (idx == "J") return true;
-    else if (idx == "K") return true;
-    else if (idx == "L") return true;
-    else if (idx == "M") return true;
-    else if (idx == "N") return true;
-    else if (idx.at(0) == 'O' ) return true;
-    else if (idx.at(0) == 'o') return true;
-    else if (idx.at(0) == 'I') return true;
-    else if (idx.at(0) == 'i') return true;
+
+    // replacing above with comparison along char range
+    if (idx.empty()) return false;
+
+    // use integer comparison for speed
+    char c_idx = idx.at(0);
+    if ( c_idx >= 'i' && c_idx <= 'n' ) return true;
+    else if ( c_idx >= 'I' && c_idx <= 'N' ) return true;
+    else if ( c_idx == 'O' || c_idx == 'o' ) return true;
     return false;
 }
 
 // is a label classified as virtual?
 bool is_vir(const std::string &idx) {
-    if ( idx == "a" ) return true;
-    else if (idx == "b") return true;
-    else if (idx == "c") return true;
-    else if (idx == "d") return true;
-    else if (idx == "e") return true;
-    else if (idx == "f") return true;
-    else if (idx == "A") return true;
-    else if (idx == "B") return true;
-    else if (idx == "C") return true;
-    else if (idx == "D") return true;
-    else if (idx == "E") return true;
-    else if (idx == "F") return true;
-    else if (idx.at(0) == 'V' ) return true;
-    else if (idx.at(0) == 'v') return true;
-    else if (idx.at(0) == 'A') return true;
-    else if (idx.at(0) == 'a') return true;
+    if (idx.empty()) return false;
+
+    // use integer comparison for speed
+    char c_idx = idx.at(0);
+    if ( c_idx >= 'a' && c_idx <= 'f' ) return true;
+    else if ( c_idx >= 'A' && c_idx <= 'F' ) return true;
+    else if ( c_idx == 'V' || c_idx == 'v' ) return true;
     return false;
 }
 
