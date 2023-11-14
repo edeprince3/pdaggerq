@@ -46,7 +46,7 @@ class pq_helper {
      * destructor
      *
      */
-    ~pq_helper();
+    ~pq_helper() = default;
 
     /**
      *
@@ -224,7 +224,7 @@ class pq_helper {
      *
      * @param spin_labels: a map/dictionary mapping non-summed labels onto spins ("a" or "b")
      */
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::map<std::string, std::string> &spin_labels) const;
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::map<std::string, std::string> &spin_labels);
 
     /**
      *
