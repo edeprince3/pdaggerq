@@ -46,7 +46,7 @@ class pq_helper {
      * destructor
      *
      */
-    ~pq_helper() = default;
+    ~pq_helper();
 
     /**
      *
@@ -224,22 +224,7 @@ class pq_helper {
      *
      * @param spin_labels: a map/dictionary mapping non-summed labels onto spins ("a" or "b")
      */
-    [[deprecated("use pq_helper::block_by_spin(spin_labels) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels);
-
-    /**
-     * this function is used to block strings by spin
-     * @param spin_labels a map/dictionary mapping non-summed labels onto spins ("a" or "b")
-     */
-    void block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels);
-
-    /**
-     *
-     * get list of fully-contracted strings, after assigning ranges to the labels
-     *
-     * @param label_ranges: a map/dictionary mapping non-summed labels onto ranges ("all", "active", or "external")
-     */
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_ranges(std::map<std::string, std::vector<std::string> > label_ranges);
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::map<std::string, std::string> &spin_labels) const;
 
     /**
      *
@@ -258,14 +243,7 @@ class pq_helper {
      */
     void print(const std::string &string_type) const;
 
-    /**
-     *
-     * the number of threads
-     *
-     */
-    static inline int nthreads = 1;
-
-private:
+  private:
 
     /**
      *
@@ -273,7 +251,6 @@ private:
      *
      */
     std::vector< std::shared_ptr<pq_string> > ordered;
-    std::vector< std::shared_ptr<pq_string> > ordered_blocked;
 
     /**
      *

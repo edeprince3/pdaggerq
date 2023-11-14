@@ -46,12 +46,6 @@ class tensor {
      */
     ~tensor() = default;
 
-    //TODO:
-    // The creation and destruction of the std::vector objects are a performance bottleneck (32% of runtime for ccsdt).
-    // This is because the std::vector objects are created and destroyed many times during the execution.
-    // These objects should be replaced with stack-allocated arrays like std::array, rather than heap-allocated arrays.
-    // This would require a significant refactoring of the code base, however.
-
     /**
      *
      * human readable tensor labels
@@ -252,14 +246,6 @@ class amplitudes: public tensor {
 
     /**
      *
-     * print amplitudes information to a string, including range information
-     *
-     * @param symbol: the amplitudes type
-     */
-    std::string to_string_with_label_ranges(char symbol);
-
-    /**
-     *
      * the number of labels corresponding to creation operators, e.g., 2 for t2(ab,ij), 1 for r2(a,ij)
      *
      */
@@ -338,14 +324,6 @@ class integrals: public tensor {
      */
     std::string to_string_with_label_ranges(std::string symbol);
 
-    /**
-     *
-     * print integrals information to a string, including range information
-     *
-     * @param symbol: the integrals type
-     */
-    std::string to_string_with_label_ranges(std::string symbol);
-
 };
 
 class delta_functions: public tensor {
@@ -407,13 +385,6 @@ class delta_functions: public tensor {
     std::string to_string_with_spin(const std::string &symbol) const {
         return to_string_with_spin();
     }
-
-    /**
-     *
-     * print deltas information to a string, including range information
-     *
-     */
-    std::string to_string_with_label_ranges();
 
     /**
      *

@@ -44,7 +44,7 @@ template <typename T> std::string to_string_with_precision(const T a_value, cons
 }
 
 // constructor
-pq_string::pq_string(std::string vacuum_type){
+pq_string::pq_string(const std::string &vacuum_type){
 
     vacuum = vacuum_type;
 }
@@ -278,11 +278,11 @@ void pq_string::print() {
 
 // return string information (with label ranges)
 std::vector<std::string> pq_string::get_string_with_label_ranges() {
-    
+
     std::vector<std::string> my_string;
-        
+
     if ( skip ) return my_string;
-        
+
     if ( vacuum == "FERMI" && symbol.size() > 0 ) {
         // check if stings should be zero or not
         bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
@@ -291,16 +291,16 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
             //return;
         }
     }
-    
+
     std::string tmp;
     if ( sign > 0 ) {
         tmp = "+";
     }else {
-        tmp = "-"; 
-    }   
+        tmp = "-";
+    }
     //my_string.push_back(tmp + std::to_string(fabs(factor)));
     my_string.push_back(tmp + to_string_with_precision(fabs(factor), 14));
-            
+
     if ( permutations.size() > 0 ) {
         // should have an even number of symbols...how many pairs?
         size_t n = permutations.size() / 2;
@@ -313,7 +313,7 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
             tmp += ")";
             my_string.push_back(tmp);
         }
-    }   
+    }
 
     if ( paired_permutations_2.size() > 0 ) {
         // should have a number of symbols divisible by 4
@@ -376,7 +376,7 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
             my_string.push_back(tmp);
         }
     }
-    
+
     for (size_t i = 0; i < symbol.size(); i++) {
         std::string tmp = symbol[i];
         if ( is_dagger[i] ) {
@@ -384,18 +384,18 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
         }
         my_string.push_back(tmp);
     }
-    
+
     // deltas
     for (size_t i = 0; i < deltas.size(); i++) {
         my_string.push_back( deltas[i].to_string_with_label_ranges() );
-    }   
-    
+    }
+
     // integrals
     for (size_t i = 0; i < integral_types.size(); i++) {
         std::string type = integral_types[i];
         for (size_t j = 0; j < ints[type].size(); j++) {
             my_string.push_back( ints[type][j].to_string_with_label_ranges(type) );
-        }   
+        }
     }
 
     // amplitudes
@@ -730,69 +730,51 @@ void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
     factor = in->factor;
 
     // deltas
-    deltas.clear();
-    deltas.assign(in->deltas.begin(), in->deltas.end());
+    deltas = in->deltas;
 
     // integrals
-    for (size_t i = 0; i < integral_types.size(); i++) {
-        std::string type = integral_types[i];
-        ints[type].clear();
-        ints[type].assign(in->ints[type].begin(), in->ints[type].end());
-    }
+    ints = in->ints;
 
     // amplitudes
-    for (size_t i = 0; i < amplitude_types.size(); i++) {
-        char type = amplitude_types[i];
-        amps[type].clear();
-        amps[type].assign(in->amps[type].begin(), in->amps[type].end());
-    }
+    amps = in->amps;
 
-    // w0 
+    // w0
     has_w0 = in->has_w0;
 
     // non-summed spin labels
     non_summed_spin_labels = in->non_summed_spin_labels;
 
     // permutations
-    permutations.clear();
-    permutations.assign(in->permutations.begin(), in->permutations.end());
+    permutations = in->permutations;
 
     // paired permutations (2)
-    paired_permutations_2.clear();
-    paired_permutations_2.assign(in->paired_permutations_2.begin(), in->paired_permutations_2.end());
+    paired_permutations_2 = in->paired_permutations_2;
 
     // paired permutations (3)
-    paired_permutations_3.clear();
-    paired_permutations_3.assign(in->paired_permutations_3.begin(), in->paired_permutations_3.end());
+    paired_permutations_3 = in->paired_permutations_3;
 
     // paired permutations (6)
-    paired_permutations_6.clear();
-    paired_permutations_6.assign(in->paired_permutations_6.begin(), in->paired_permutations_6.end());
+    paired_permutations_6 = in->paired_permutations_6;
 
     if ( copy_daggers_and_symbols ) {
 
         // fermion operator symbols
-        symbol.clear();
-        symbol.assign(in->symbol.begin(), in->symbol.end());
+        symbol = in->symbol;
 
         // fermion daggers
-        is_dagger.clear();
-        is_dagger.assign(in->is_dagger.begin(), in->is_dagger.end());
+        is_dagger = in->is_dagger;
 
         // fermion daggers with respect to fermi vacuum
         if ( vacuum == "FERMI" ) {
-            is_dagger_fermi.clear();
-            is_dagger_fermi.assign(in->is_dagger_fermi.begin(), in->is_dagger_fermi.end());
+            is_dagger_fermi = in->is_dagger_fermi;
         }
 
         // boson daggers
-        is_boson_dagger.clear();
-        is_boson_dagger.assign(in->is_boson_dagger.begin(), in->is_boson_dagger.end());
+        is_boson_dagger = in->is_boson_dagger;
     }
 }
 
-// set spin for target label in string
-void pq_string::set_spin_everywhere(std::string target, std::string spin) {
+void pq_string::set_spin_everywhere(const std::string &target, const std::string &spin) {
 
     // integrals
     for (size_t i = 0; i < integral_types.size(); i++) {
@@ -1099,7 +1081,7 @@ void pq_string::reset_label_ranges(std::map<std::string, std::vector<std::string
 }
 
 // set labels for integrals
-void pq_string::set_integrals(std::string type, std::vector<std::string> in) {
+void pq_string::set_integrals(const std::string &type, const std::vector<std::string> &in) {
     integrals new_ints;
     new_ints.labels.assign(in.begin(), in.end());
     new_ints.sort();
@@ -1107,7 +1089,7 @@ void pq_string::set_integrals(std::string type, std::vector<std::string> in) {
 }
 
 // set labels for amplitudes
-void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, std::vector<std::string> in) {
+    void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, std::vector<std::string> in) {
     amplitudes new_amps;
     new_amps.labels.assign(in.begin(), in.end());
     new_amps.n_create = n_create;
