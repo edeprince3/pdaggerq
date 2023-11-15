@@ -720,6 +720,9 @@ void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
 
     pq_string * in = reinterpret_cast<pq_string * >(copy_me);
 
+    // set vacuum type
+    vacuum = in->vacuum;
+
     // skip string?
     skip   = in->skip;
 

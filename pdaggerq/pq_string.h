@@ -26,6 +26,7 @@
 #include "pq_tensor.h"
 #include <map>
 #include <unordered_map>
+#include <memory>
 
 namespace pdaggerq {
 
@@ -46,10 +47,47 @@ class pq_string {
 
     /**
      *
+     * copy constructor
+     *
+     */
+    pq_string(const pq_string &copy_me) = default;
+
+    /**
+     *
+     * copy constructor without copying symbols and daggers
+     *
+     */
+    pq_string(pq_string* copy_me, bool copy_daggers_and_symbols) {
+        copy(copy_me, copy_daggers_and_symbols);
+    }
+
+    /**
+     *
+     * assignment operator
+     *
+     */
+    pq_string &operator=(const pq_string &copy_me) = default;
+
+    /**
+     *
+     * move constructor
+     *
+     */
+    pq_string(pq_string &&move_me) = default;
+
+    /**
+     *
+     * move assignment operator
+     *
+     */
+    pq_string &operator=(pq_string &&move_me) = default;
+
+    /**
+     *
      * destructor
      *
      */
-    ~pq_string();
+    ~pq_string() = default;
 
     /**
      *
