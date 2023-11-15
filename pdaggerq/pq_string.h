@@ -25,6 +25,7 @@
 
 #include "pq_tensor.h"
 #include <map>
+#include <unordered_map>
 
 namespace pdaggerq {
 
@@ -105,7 +106,7 @@ class pq_string {
      * map integral_types onto lists of integrals
      *
      */
-    std::map<std::string, std::vector<integrals> > ints;
+    std::unordered_map<std::string, std::vector<integrals> > ints;
 
     /**
      *
@@ -120,14 +121,14 @@ class pq_string {
      * map amplitude_types onto lists of amplitudes
      *
      */
-    std::map<char, std::vector<amplitudes> > amps;
+    std::unordered_map<char, std::vector<amplitudes> > amps;
 
     /**
      *
      * non-summed spin labels
      *
      */
-    std::map<std::string, std::string> non_summed_spin_labels;
+    std::unordered_map<std::string, std::string> non_summed_spin_labels;
 
     /**
      *
