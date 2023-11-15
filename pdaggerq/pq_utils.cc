@@ -399,6 +399,12 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
                                          const std::vector<std::vector<std::string> > &labels) {
 
+    //TODO:
+    // Currently the implementation of this function runs in O(N^2) time complexity and is the limiting bottleneck by far.
+    // This can be remedied by reformulating the logic to run in O(N) time complexity using a hash table.
+    // However, that would require us to define a hash function for pq_string (doable, but not trivial).
+    // For now, we'll just live with the O(N^2) time complexity.
+
     for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
