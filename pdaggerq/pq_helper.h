@@ -235,7 +235,14 @@ class pq_helper {
      */
     void print(const std::string &string_type) const;
 
-  private:
+    /**
+     *
+     * the number of threads
+     *
+     */
+    static inline int nthreads = 1;
+
+private:
 
     /**
      *
