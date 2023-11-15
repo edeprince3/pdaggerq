@@ -46,6 +46,12 @@ class tensor {
      */
     ~tensor() = default;
 
+    //TODO:
+    // The creation and destruction of the std::vector objects are a performance bottleneck (32% of runtime for ccsdt).
+    // This is because the std::vector objects are created and destroyed many times during the execution.
+    // These objects should be replaced with stack-allocated arrays like std::array, rather than heap-allocated arrays.
+    // This would require a significant refactoring of the code base, however.
+
     /**
      *
      * human readable tensor labels
