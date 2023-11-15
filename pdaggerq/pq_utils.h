@@ -153,7 +153,7 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in);
 bool add_spins(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &list);
 
 /// expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::unordered_map<std::string, std::string> &spin_map);
+void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, const std::unordered_map<std::string, std::string> &spin_map);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
 void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);

@@ -426,6 +426,10 @@ std::vector<std::string> pq_string::get_string_with_spin() {
 // return string information
 std::vector<std::string> pq_string::get_string() {
 
+    if (is_spin_blocked) {
+        return get_string_with_spin();
+    }
+
     std::vector<std::string> my_string;
 
     if ( skip ) return my_string;

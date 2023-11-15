@@ -224,7 +224,14 @@ class pq_helper {
      *
      * @param spin_labels: a map/dictionary mapping non-summed labels onto spins ("a" or "b")
      */
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(std::unordered_map<std::string, std::string> &spin_labels);
+    [[deprecated("use pq_helper::block_by_spin(spin_labels) instead")]]
+    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels);
+
+    /**
+     * this function is used to block strings by spin
+     * @param spin_labels a map/dictionary mapping non-summed labels onto spins ("a" or "b")
+     */
+    void block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels);
 
     /**
      *
@@ -250,6 +257,7 @@ private:
      *
      */
     std::vector< std::shared_ptr<pq_string> > ordered;
+    std::vector< std::shared_ptr<pq_string> > ordered_blocked;
 
     /**
      *

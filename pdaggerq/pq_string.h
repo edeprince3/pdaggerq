@@ -36,6 +36,8 @@ class pq_string {
 
   public:
 
+    static inline bool is_spin_blocked = false;
+
     /**
      *
      * constructor
