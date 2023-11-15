@@ -71,7 +71,7 @@ void export_pq_helper(py::module& m) {
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings_with_spin",
-             [](pq_helper& self, std::map<std::string, std::string> &spin_labels) {
+             [](pq_helper& self, std::unordered_map<std::string, std::string> &spin_labels) {
                  return self.fully_contracted_strings_with_spin(spin_labels);
              },
              py::arg("spin_labels") = empty_spin_labels() )
@@ -1118,7 +1118,7 @@ void pq_helper::print(const std::string &string_type) const {
 }
 
 // get list of fully-contracted strings, after spin tracing
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::map<std::string, std::string> &spin_labels) {
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::unordered_map<std::string, std::string> &spin_labels) {
 
     // perform spin tracing
 
