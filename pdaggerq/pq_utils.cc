@@ -385,8 +385,7 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
     for (size_t id1 = 0; id1 < labels[iter].size(); id1++) {
         for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
     
-            std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
-            newguy->copy(in1.get());
+            std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
             newguy->sort_labels();
 
@@ -511,8 +510,7 @@ void consolidate_permutations_non_summed(
                 for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 1 ) continue;
 
-                    std::shared_ptr<pq_string> newguy (new pq_string(ordered[i]->vacuum));
-                    newguy->copy(ordered[i].get());
+                    std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
                     swap_two_labels(newguy, labels[id1], labels[id2]);
 
                     strings_same = compare_strings(ordered[j], newguy, n_permute);
@@ -595,8 +593,7 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
 
                     for (size_t permutation_type = 0; permutation_type < n_permutation_type; permutation_type++) {
 
-                        std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
-                        newguy->copy(in1.get());
+                        std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
 
                         if ( permutation_type == 0 ) {
 
@@ -684,8 +681,7 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
     for (size_t id1 = 0; id1 < labels[iter].size(); id1++) {
         for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
     
-            std::shared_ptr<pq_string> newguy (new pq_string(in1->vacuum));
-            newguy->copy(in1.get());
+            std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
             newguy->sort_labels();
 
@@ -1583,11 +1579,8 @@ bool add_spins(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_st
             for (size_t k = 0; k < amp.labels.size(); k++) {
                 if (amp.spin_labels[k].empty()) {
 
-                    std::shared_ptr<pq_string> sa(new pq_string(in->vacuum));
-                    std::shared_ptr<pq_string> sb(new pq_string(in->vacuum));
-
-                    sa->copy(in.get());
-                    sb->copy(in.get());
+                    std::shared_ptr<pq_string> sa = std::make_shared<pq_string>(*in);
+                    std::shared_ptr<pq_string> sb = std::make_shared<pq_string>(*in);
 
                     sa->set_spin_everywhere(amp.labels[k], "a");
                     sb->set_spin_everywhere(amp.labels[k], "b");
@@ -1609,11 +1602,8 @@ bool add_spins(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_st
                 for (size_t k = 0; k < integral.labels.size(); k++) {
                 if ( integral.spin_labels[k].empty() ) {
 
-                    std::shared_ptr<pq_string> sa (new pq_string(in->vacuum));
-                    std::shared_ptr<pq_string> sb (new pq_string(in->vacuum));
-
-                    sa->copy(in.get());
-                    sb->copy(in.get());
+                    std::shared_ptr<pq_string> sa = std::make_shared<pq_string>(*in);
+                    std::shared_ptr<pq_string> sb = std::make_shared<pq_string>(*in);
 
                     sa->set_spin_everywhere(integral.labels[k], "a");
                     sb->set_spin_everywhere(integral.labels[k], "b");
@@ -1685,9 +1675,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
 
     // copy this term and zero spins
 
-    std::shared_ptr<pq_string> newguy (new pq_string(in->vacuum));
-    newguy->copy(in.get());
-
+    std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in);
     newguy->reset_spin_labels();
 
     // list of expanded sums
@@ -1716,12 +1704,10 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
             if ( spin1 != spin2 ) {
 
                 // first guy is just a copy
-                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
-                newguy1->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
 
                 // second guy is a copy with permuted labels and change in sign
-                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
-                newguy2->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy2, idx1, idx2);
                 newguy2->sign *= -1;
 
@@ -1803,8 +1789,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
             if ( spin1 == spin2 && spin1 != spin3 ) {
 
                 // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
-                newguy1->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
 
                 // adjust permutations. no more PP3, but we have PP2
                 newguy1->paired_permutations_3.clear();
@@ -1814,8 +1799,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy1->paired_permutations_2.push_back(v2);
 
                 // second guy is a copy with permuted pair labels and no change in sign
-                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
-                newguy2->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy2, o1, o3);
                 swap_two_labels(newguy2, v1, v3);
 
@@ -1857,15 +1841,13 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
             else if ( spin1 != spin2 && spin2 == spin3 ) {
 
                 // first guy is just a copy 
-                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
-                newguy1->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
 
                 // adjust permutations. no more PP3.
                 newguy1->paired_permutations_3.clear();
 
                 // second guy is a copy with permuted pair labels and no change in sign
-                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
-                newguy2->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy2, o1, o2);
                 swap_two_labels(newguy2, v1, v2);
 
@@ -1876,8 +1858,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy2->paired_permutations_3.clear();
 
                 // third guy is a copy with permuted pair labels and no change in sign
-                std::shared_ptr<pq_string> newguy3 (new pq_string(tmp[i]->vacuum));
-                newguy3->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy3 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy3, o1, o3);
                 swap_two_labels(newguy3, v1, v3);
 
@@ -1927,8 +1908,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
             else if ( spin1 != spin2 && spin1 == spin3 ) {
 
                 // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
-                newguy1->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
 
                 // adjust permutations. no more PP3, but we have PP2
                 newguy1->paired_permutations_3.clear();
@@ -1938,8 +1918,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy1->paired_permutations_2.push_back(v3);
 
                 // second guy is a copy with permuted pair labels and no change in sign
-                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
-                newguy2->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy2, o1, o2);
                 swap_two_labels(newguy2, v1, v2);
 
@@ -2029,8 +2008,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
             if ( spin1 == spin2 && spin1 != spin3 ) {
 
                 // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
-                newguy1->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
 
                 // adjust permutations. no more PP6, but we have PP2
                 newguy1->paired_permutations_6.clear();
@@ -2040,8 +2018,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy1->paired_permutations_2.push_back(v2);
 
                 // second guy is a copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
-                newguy2->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy2, o2, o3);
                 swap_two_labels(newguy2, v2, v3);
 
@@ -2056,8 +2033,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy2->paired_permutations_2.push_back(v2);
 
                 // third guy is another copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy3 (new pq_string(tmp[i]->vacuum));
-                newguy3->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy3 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy3, o1, o2);
                 swap_two_labels(newguy3, v1, v2);
                 swap_two_labels(newguy3, o2, o3);
@@ -2113,8 +2089,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
             else if ( spin1 != spin2 && spin2 == spin3 ) {
 
                 // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
-                newguy1->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
 
                 // adjust permutations. no more PP6, but we have PP2
                 newguy1->paired_permutations_6.clear();
@@ -2124,8 +2099,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy1->paired_permutations_2.push_back(v3);
 
                 // second guy is a copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
-                newguy2->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy2, o1, o2);
                 swap_two_labels(newguy2, v1, v2);
 
@@ -2140,8 +2114,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy2->paired_permutations_2.push_back(v3);
 
                 // third guy is another copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy3 (new pq_string(tmp[i]->vacuum));
-                newguy3->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy3 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy3, o1, o2);
                 swap_two_labels(newguy3, v1, v2);
                 swap_two_labels(newguy3, o1, o3);
@@ -2196,8 +2169,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
             else if ( spin1 == spin2 && spin1 != spin3 ) {
 
                 // first guy is just a copy plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
-                newguy1->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy1 = std::make_shared<pq_string>(*tmp[i]);
 
                 // adjust permutations. no more PP6, but we have PP2
                 newguy1->paired_permutations_6.clear();
@@ -2207,8 +2179,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy1->paired_permutations_2.push_back(v3);
 
                 // second guy is a copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
-                newguy2->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy2 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy2, o1, o2);
                 swap_two_labels(newguy2, v1, v2);
 
@@ -2223,8 +2194,7 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
                 newguy2->paired_permutations_2.push_back(v3);
 
                 // third guy is another copy with permuted pair labels, plus a PP2 permutation
-                std::shared_ptr<pq_string> newguy3 (new pq_string(tmp[i]->vacuum));
-                newguy3->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy3 = std::make_shared<pq_string>(*tmp[i]);
                 swap_two_labels(newguy3, o2, o3);
                 swap_two_labels(newguy3, v2, v3);
 
