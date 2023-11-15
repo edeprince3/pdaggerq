@@ -42,6 +42,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <omp.h>
 
 // empty map of spin labels for fully_contracted_strings_with_spin
 std::map<std::string, std::string> empty_spin_labels(){
@@ -64,6 +65,9 @@ void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
+        .def("set_nthreads", [](pq_helper& self, int nthreads) {
+                self.nthreads = nthreads;
+            })
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
@@ -366,8 +370,11 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     // build strings
     double original_factor = factor;
 
+    // set number of threads to use
+    omp_set_num_threads(nthreads);
+#pragma omp parallel for schedule(dynamic,1) default(none) \
+shared(original_factor, factor, save, left_operators, right_operators, vacuum) firstprivate(in)
     for (std::vector<std::string> & left_operator : left_operators) {
-
         for (std::vector<std::string> & right_operator : right_operators) {
 
             std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
@@ -384,24 +391,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             int gen_label_count = 0;
 
             // apply any extra operators on left or right:
-            std::vector<std::string> tmp;
-            for (const auto & op : left_operator) {
+            std::vector<std::string> tmp = left_operator;
+            for (const std::string & op : save) {
                 tmp.push_back(op);
             }
-            for (const auto & op : save) {
+            for (const std::string & op : right_operator) {
                 tmp.push_back(op);
             }
-            for (const auto & op : right_operator) {
-                tmp.push_back(op);
-            }
-            in.clear();
-            for (const auto & i : tmp) {
-                in.push_back(i);
-            }
-            tmp.clear();
 
-
-            for (auto & op : in) {
+            for (std::string & op : tmp) {
 
                 // blank string
                 if ( op.empty() ) continue;
@@ -1060,13 +1058,19 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             newguy->has_w0 = has_w0;
 
-            if ( vacuum == "TRUE" ) {
-                add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
-            }else {
-                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations);
-            }
+#pragma omp critical
+{
+                if (vacuum == "TRUE") {
+                    add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
+                } else {
+                    add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations);
+                }
+}
         }
     }
+
+    // reset number of threads for other parts of code
+    omp_set_num_threads(1);
 }
 
 void pq_helper::simplify() {
