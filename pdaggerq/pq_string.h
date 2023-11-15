@@ -46,6 +46,34 @@ class pq_string {
 
     /**
      *
+     * copy constructor
+     *
+     */
+    pq_string(const pq_string &copy_me) = default;
+
+    /**
+     *
+     * assignment operator
+     *
+     */
+    pq_string &operator=(const pq_string &copy_me) = default;
+
+    /**
+     *
+     * move constructor
+     *
+     */
+    pq_string(pq_string &&move_me) = default;
+
+    /**
+     *
+     * move assignment operator
+     *
+     */
+    pq_string &operator=(pq_string &&move_me) = default;
+
+    /**
+     *
      * destructor
      *
      */
