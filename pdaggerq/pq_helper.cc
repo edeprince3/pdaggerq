@@ -44,18 +44,6 @@
 #include <pybind11/stl.h>
 #include <omp.h>
 
-// empty map of spin labels for fully_contracted_strings_with_spin
-std::map<std::string, std::string> empty_spin_labels(){
-    std::map<std::string, std::string> ret;
-    return ret;
-}
-
-// empty map of spin labels for fully_contracted_strings_with_ranges
-std::map<std::string, std::vector<std::string> > empty_label_ranges(){
-    std::map<std::string, std::vector<std::string> > ret;
-    return ret;
-}
-
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -84,15 +72,20 @@ void export_pq_helper(py::module& m) {
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings_with_spin",
-             [](pq_helper& self, std::unordered_map<std::string, std::string> &spin_labels) {
+             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
                  return self.fully_contracted_strings_with_spin(spin_labels);
              },
-             py::arg("spin_labels") = empty_spin_labels() )
+             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+        .def("block_by_spin",
+             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
+                 self.block_by_spin(spin_labels);
+             },
+                py::arg("spin_labels") = empty_spin_labels() )
         .def("fully_contracted_strings_with_ranges",
              [](pq_helper& self, std::map<std::string, std::vector<std::string> > label_ranges) {
                  return self.fully_contracted_strings_with_ranges(label_ranges);
              },
-             py::arg("label_ranges") = empty_label_ranges() )
+             py::arg("label_ranges") = std::unordered_map<std::string, std::string>() )
         .def("add_st_operator", &pq_helper::add_st_operator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
@@ -1099,6 +1092,9 @@ void pq_helper::simplify() {
 
 void pq_helper::print(const std::string &string_type) const {
 
+    bool is_blocked = pq_string::is_spin_blocked;
+    const auto reference = is_blocked ? ordered_blocked : ordered;
+
     printf("\n");
     printf("    ");
 
@@ -1107,7 +1103,7 @@ void pq_helper::print(const std::string &string_type) const {
     if ( string_type == "all" ) {
 
         printf("// normal-ordered strings:\n");
-        for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+        for (const std::shared_ptr<pq_string> & pq_str : reference) {
             pq_str->print();
         }
         printf("\n");
@@ -1124,7 +1120,7 @@ void pq_helper::print(const std::string &string_type) const {
         n = 0;
     }
 
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+    for (const std::shared_ptr<pq_string> & pq_str : reference) {
         // number of fermion + boson operators
         int my_n = pq_str->symbol.size() / 2 + pq_str->is_boson_dagger.size();
         if ( my_n != n ) continue;
@@ -1181,7 +1177,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
                 std::string amp;
                 amp.push_back(type);
                 amp += std::to_string(ordered[i]->amps[type][k].order);
-                
+
                 // is this amplitude in the map?
                 if ( label_ranges.find(amp) == label_ranges.end() ) {
                     printf("\n");
@@ -1200,8 +1196,8 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
             }
         }
 
-        // now, consider amplitudes again, but make ranges consistent. if two labels have 
-        // different ranges, change one to be the more restrictive case (e.g., "all" v "act" 
+        // now, consider amplitudes again, but make ranges consistent. if two labels have
+        // different ranges, change one to be the more restrictive case (e.g., "all" v "act"
         // -> both "act" ). also, zero terms where ranges are inconsistent ("act" v "ext")
         bool kill_term = false;
         for (size_t j = 0; j < ordered[i]->amplitude_types.size(); j++) {
@@ -1297,7 +1293,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
             std::string ints_type = ordered[i]->integral_types[l];
             for (size_t m = 0; m < ordered[i]->ints[ints_type].size(); m++) {
 
-                // clear 
+                // clear
                 ordered[i]->ints[ints_type][m].label_ranges.clear();
                 for (size_t mm = 0; mm < ordered[i]->ints[ints_type][m].labels.size(); mm++) {
                     ordered[i]->ints[ints_type][m].label_ranges.push_back("all");
@@ -1374,7 +1370,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
             continue;
         }
 
-        // now permutation operators: 
+        // now permutation operators:
         // 1. default to "all"
         // 2. set to whatever value shows up in the map
         // 3. if ranges within permutation operator are not consistent, expand the term explicitly
@@ -1413,7 +1409,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
             }
         }
 
-        // now permutation operators: 
+        // now permutation operators:
         // 1. default to "all"
         // 2. set to whatever value shows up in the map
         for (size_t j = 0; j < tmp->permutations.size(); j++) {
@@ -1452,9 +1448,10 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
 */
 
 // get list of fully-contracted strings, after spin tracing
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(std::unordered_map<std::string, std::string> &spin_labels) {
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
 
     // perform spin tracing
+    pq_string::is_spin_blocked = true;
 
     std::vector< std::shared_ptr<pq_string> > spin_blocked;
 
@@ -1482,10 +1479,30 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
 
 }
 
+void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
+    ordered_blocked.clear();
+
+    // perform spin tracing
+    pq_string::is_spin_blocked = true;
+
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        if (!pq_str->symbol.empty()) continue;
+        if (!pq_str->is_boson_dagger.empty()) continue;
+        std::vector<std::shared_ptr<pq_string> > tmp_ordered;
+        spin_blocking(pq_str, tmp_ordered, spin_labels);
+        for (const std::shared_ptr<pq_string> & tmp_pq_str : tmp_ordered) {
+            ordered_blocked.push_back(tmp_pq_str);
+        }
+    }
+}
+
 std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() const {
 
+    bool is_blocked = pq_string::is_spin_blocked;
+    const auto reference = is_blocked ? ordered_blocked : ordered;
+
     std::vector<std::vector<std::string> > list;
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+    for (const std::shared_ptr<pq_string> & pq_str : reference) {
         if ( !pq_str->symbol.empty() ) continue;
         if ( !pq_str->is_boson_dagger.empty() ) continue;
         std::vector<std::string> my_string = pq_str->get_string();
@@ -1500,8 +1517,11 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() con
 
 std::vector<std::vector<std::string> > pq_helper::strings() const {
 
+    bool is_blocked = pq_string::is_spin_blocked;
+    const auto reference = is_blocked ? ordered_blocked : ordered;
+
     std::vector<std::vector<std::string> > list;
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+    for (const std::shared_ptr<pq_string> & pq_str : reference) {
         std::vector<std::string> my_string = pq_str->get_string();
         if ( (int)my_string.size() > 0 ) {
             list.push_back(my_string);
@@ -1514,6 +1534,8 @@ std::vector<std::vector<std::string> > pq_helper::strings() const {
 
 void pq_helper::clear() {
     ordered.clear();
+    ordered_blocked.clear();
+    pq_string::is_spin_blocked = false;
 }
 
 void pq_helper::add_st_operator(double factor, const std::vector<std::string> &targets,

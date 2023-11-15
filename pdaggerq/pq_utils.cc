@@ -1400,7 +1400,7 @@ bool add_spins(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_st
 }
 
 // expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::unordered_map<std::string, std::string> &spin_map) {
+void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, const std::unordered_map<std::string, std::string> &spin_map) {
 
     // check that non-summed spin labels match those specified
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
@@ -1430,7 +1430,12 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
 
     for (const std::string & occ_label : occ_labels) {
         if ( found_labels[occ_label] ) {
-            if ( spin_map[occ_label] != "a" && spin_map[occ_label] != "b" ) {
+            // find spin label
+            auto pos = spin_map.find(occ_label);
+            std::string spin_label = pos == spin_map.end() ? "" : pos->second;
+
+            // check if spin label is valid
+            if ( spin_label != "a" && spin_label != "b" ) {
                 printf("\n");
                 printf("    error: spin label for non-summed index %s is invalid\n", occ_label.c_str());
                 printf("\n");
@@ -1440,7 +1445,12 @@ void spin_blocking(std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<p
     }
     for (const std::string & vir_label : vir_labels) {
         if ( found_labels[vir_label] ) {
-            if ( spin_map[vir_label] != "a" && spin_map[vir_label] != "b" ) {
+            // find spin label
+            auto pos = spin_map.find(vir_label);
+            std::string spin_label = pos == spin_map.end() ? "" : pos->second;
+
+            // check if spin label is valid
+            if ( spin_label != "a" && spin_label != "b" ) {
                 printf("\n");
                 printf("    error: spin label for non-summed index %s is invalid\n", vir_label.c_str());
                 printf("\n");
