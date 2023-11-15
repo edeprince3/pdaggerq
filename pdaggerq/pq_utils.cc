@@ -462,23 +462,23 @@ void consolidate_permutations_non_summed(
     for (size_t i = 0; i < ordered.size(); i++) {
 
         // not sure if this logic works with existing permutation operators ... skip those for now
-        if ( ordered[i]->paired_permutations_2.size() > 0 ) continue;
-        if ( ordered[i]->paired_permutations_3.size() > 0 ) continue;
-        if ( ordered[i]->paired_permutations_6.size() > 0 ) continue;
+        if ( !ordered[i]->paired_permutations_2.empty() ) continue;
+        if ( !ordered[i]->paired_permutations_3.empty() ) continue;
+        if ( !ordered[i]->paired_permutations_6.empty() ) continue;
         
         if ( ordered[i]->skip ) continue;
     
         std::vector<int> find_idx;
     
         // ok, what labels do we have? 
-        for (size_t j = 0; j < labels.size(); j++) {
-            int found = index_in_anywhere(ordered[i], labels[j]);
+        for (const auto & label : labels) {
+            int found = index_in_anywhere(ordered[i], label);
             // this is buggy when existing permutation labels belong to 
             // the same space as the labels we're permuting ... so skip those for now.
             bool same_space = false;
-            bool is_occ1 = is_occ(labels[j]);
-            for (size_t k = 0; k < ordered[i]->permutations.size(); k++) {
-                bool is_occ2 = is_occ(ordered[i]->permutations[k]);
+            bool is_occ1 = is_occ(label);
+            for (const auto & permutation : ordered[i]->permutations) {
+                bool is_occ2 = is_occ(permutation);
                 if ( is_occ1 && is_occ2 ) {
                     same_space = true;
                     break;
@@ -502,8 +502,8 @@ void consolidate_permutations_non_summed(
             int n_permute;
             bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
-            std::string permutation_1 = "";
-            std::string permutation_2 = "";
+            std::string permutation_1;
+            std::string permutation_2;
 
             // try swapping non-summed labels
             for (size_t id1 = 0; id1 < labels.size(); id1++) {
@@ -2655,8 +2655,6 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
     int n_gen_idx = 1;
     int n_integral_objects = 0;
     std::string integral_type = "none";
-//    for (size_t i = 0; i < in->integral_types.size(); i++) {
-//        std::string type = in->integral_types[i];
     for (auto & ints_pair : in->ints) {
         std::string type = ints_pair.first;
         std::vector<integrals> & ints = ints_pair.second;
@@ -2728,50 +2726,50 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                     if ( my_gen_idx == 0 ) {
                         if ( string_num == 0 || string_num == 1 ) {
                             // first index occ
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.push_back("o1");
-                            mystring->symbol.push_back("o1");
+                            ints.labels.emplace_back("o1");
+                            mystring->symbol.emplace_back("o1");
                         }else {
                             // first index vir
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger_fermi.push_back(false);
                                 mystring->is_dagger.push_back(false);
                             }
-                            ints.labels.push_back("v1");
-                            mystring->symbol.push_back("v1");
+                            ints.labels.emplace_back("v1");
+                            mystring->symbol.emplace_back("v1");
                         }
                     }else {
                         if ( string_num == 0 || string_num == 2 ) {
                             // second index occ
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.push_back("o2");
-                            mystring->symbol.push_back("o2");
+                            ints.labels.emplace_back("o2");
+                            mystring->symbol.emplace_back("o2");
                         }else {
                             // second index vir
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.push_back("v2");
-                            mystring->symbol.push_back("v2");
+                            ints.labels.emplace_back("v2");
+                            mystring->symbol.emplace_back("v2");
                         }
                     }
                 }
@@ -2796,26 +2794,26 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                              string_num == 7 ) {
 
                             // first index occ
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.push_back("o1");
-                            mystring->symbol.push_back("o1");
+                            ints.labels.emplace_back("o1");
+                            mystring->symbol.emplace_back("o1");
                         }else {
                             // first index vir
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.push_back("v1");
-                            mystring->symbol.push_back("v1");
+                            ints.labels.emplace_back("v1");
+                            mystring->symbol.emplace_back("v1");
                         }
                     }else if ( my_gen_idx == 1 ) {
                         //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -2829,26 +2827,26 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                              string_num == 10 ||
                              string_num == 11 ) {
                             // second index occ
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.push_back("o2");
-                            mystring->symbol.push_back("o2");
+                            ints.labels.emplace_back("o2");
+                            mystring->symbol.emplace_back("o2");
                         }else {
                             // second index vir
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.push_back("v2");
-                            mystring->symbol.push_back("v2");
+                            ints.labels.emplace_back("v2");
+                            mystring->symbol.emplace_back("v2");
                         }
                     }else if ( my_gen_idx == 2 ) {
                         //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -2862,26 +2860,26 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                              string_num == 12 ||
                              string_num == 13 ) {
                             // third index occ
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.push_back("o3");
-                            mystring->symbol.push_back("o3");
+                            ints.labels.emplace_back("o3");
+                            mystring->symbol.emplace_back("o3");
                         }else {
                             // third index vir
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.push_back("v3");
-                            mystring->symbol.push_back("v3");
+                            ints.labels.emplace_back("v3");
+                            mystring->symbol.emplace_back("v3");
                         }
                     }else {
                         if ( string_num ==  0 ||
@@ -2893,26 +2891,26 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                              string_num == 12 ||
                              string_num == 14 ) {
                             // fourth index occ
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(false);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(true);
                             }
-                            ints.labels.push_back("o4");
-                            mystring->symbol.push_back("o4");
+                            ints.labels.emplace_back("o4");
+                            mystring->symbol.emplace_back("o4");
                         }else {
                             // fourth index vir
-                            if ( me.find("*") != std::string::npos ) {
+                            if ( me.find('*') != std::string::npos ) {
                                 mystring->is_dagger.push_back(true);
                                 mystring->is_dagger_fermi.push_back(true);
                             }else {
                                 mystring->is_dagger.push_back(false);
                                 mystring->is_dagger_fermi.push_back(false);
                             }
-                            ints.labels.push_back("v4");
-                            mystring->symbol.push_back("v4");
+                            ints.labels.emplace_back("v4");
+                            mystring->symbol.emplace_back("v4");
                         }
                     }
                 }

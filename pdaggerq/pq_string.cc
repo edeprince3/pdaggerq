@@ -570,10 +570,6 @@ std::vector<std::string> pq_string::get_string() {
     return my_string;
 }
 
-
-// TODO: should probably make sure all of the std::vectors
-//       (ints, amplitudes, deltas) have been cleared.
-
 // copy string data, possibly excluding symbols and daggers
 void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
 
