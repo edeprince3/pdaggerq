@@ -49,7 +49,7 @@ class pq_string {
      * destructor
      *
      */
-    ~pq_string();
+    ~pq_string() = default;
 
     /**
      *
