@@ -44,6 +44,11 @@
 #include <pybind11/stl.h>
 #include <omp.h>
 
+std::map<std::string, std::string> empty_spin_labels(){
+    std::map<std::string, std::string> ret;
+    return ret;
+}
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -80,12 +85,12 @@ void export_pq_helper(py::module& m) {
              [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
                  self.block_by_spin(spin_labels);
              },
-                py::arg("spin_labels") = empty_spin_labels() )
+                py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("fully_contracted_strings_with_ranges",
-             [](pq_helper& self, std::map<std::string, std::vector<std::string> > label_ranges) {
+             [](pq_helper& self, const std::map<std::string, std::vector<std::string> > &label_ranges) {
                  return self.fully_contracted_strings_with_ranges(label_ranges);
              },
-             py::arg("label_ranges") = std::unordered_map<std::string, std::string>() )
+             py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>() )
         .def("add_st_operator", &pq_helper::add_st_operator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
@@ -1093,7 +1098,7 @@ void pq_helper::simplify() {
 void pq_helper::print(const std::string &string_type) const {
 
     bool is_blocked = pq_string::is_spin_blocked;
-    const auto reference = is_blocked ? ordered_blocked : ordered;
+    const auto &reference = is_blocked ? ordered_blocked : ordered;
 
     printf("\n");
     printf("    ");
@@ -1499,7 +1504,7 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
 std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() const {
 
     bool is_blocked = pq_string::is_spin_blocked;
-    const auto reference = is_blocked ? ordered_blocked : ordered;
+    const auto &reference = is_blocked ? ordered_blocked : ordered;
 
     std::vector<std::vector<std::string> > list;
     for (const std::shared_ptr<pq_string> & pq_str : reference) {
@@ -1518,7 +1523,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() con
 std::vector<std::vector<std::string> > pq_helper::strings() const {
 
     bool is_blocked = pq_string::is_spin_blocked;
-    const auto reference = is_blocked ? ordered_blocked : ordered;
+    const auto &reference = is_blocked ? ordered_blocked : ordered;
 
     std::vector<std::vector<std::string> > list;
     for (const std::shared_ptr<pq_string> & pq_str : reference) {
