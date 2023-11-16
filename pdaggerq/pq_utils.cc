@@ -1049,7 +1049,7 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
     size_t dim = t_amps.size();
     if ( dim == 0 ) return;
     
-    bool nope[dim];
+    bool* nope = (bool*)malloc(dim * sizeof(bool));
     memset((void*)nope, '\0', dim * sizeof(bool));
 
     std::vector<std::vector<std::string> > tmp;
@@ -1077,13 +1077,10 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
         printf("    you want that, anyway?\n");
         printf("\n");
         exit(1);
-        
-        //TODO: (MDL 11/14/23) 
-        // likely this was because of the implementation of the assignment operator for the amplitude class. 
-        // This could be fixed now, but requires running that expensive test again
     }
     
     t_amps = tmp_new;
+    free(nope);
 }
 
 // reorder three spins ... cases to consider: aba/baa -> aab; bba/bab -> abb
@@ -1541,9 +1538,8 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         // i do know that this is the problematic part of the code
         do_continue = false;
         static std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
-        for (auto & amp_pair : in->amps) {
-            char type = amp_pair.first;
-            std::vector<amplitudes> & amps = amp_pair.second;
+        for (auto & type : types) {
+            std::vector<amplitudes> & amps = in->amps[type];
             
             if ( have_delta1 && index_in_amplitudes( delta.labels[0], amps ) > 0 ) {
                replace_index_in_amplitudes( delta.labels[0], delta.labels[1], amps );

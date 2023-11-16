@@ -3,6 +3,7 @@ import pdaggerq
 import subprocess
 import pytest
 import os
+import re
 
 # clear files in test_outputs if they exist
 script_path = os.path.dirname(os.path.realpath(__file__))
@@ -13,27 +14,47 @@ def read_file(file_path):
     with open(file_path) as file:
         return file.read()
 
-def write_file(file_path, content, title=None):
+def write_file(file_path, output, title=None):
+    content = "\n".join([" ".join(line) for line in output])
     if title is not None:
         content = f"# {title}\n{content}"
+
     with open(file_path, "w") as file:
         file.write(content)
 
 def process_output(output):
-    processed = [line.split() for line in output.strip().split("\n") if isinstance(line, list)]
+    processed = output.strip().split("\n")
+
+    # use regex to find all items within ''
+    pq_regex = re.compile(r"'(.*?)'")
+
+    tmp = []
+    for i, line in enumerate(processed):
+        # skip lines that do not end with ] (i.e. lines that do not contain pq output)
+        # note: this does not check the output of the einsum parser
+        if not line.endswith("]"):
+            continue
+
+        # extract elements within ''
+        elements = pq_regex.findall(line)
+
+        tmp.append(elements)
+
+    processed = tmp
+    del tmp
+
     for line in processed:
-        # Format floats
+        # Format floats to 6 decimal places (avoids mismatch due to rounding)
         for i, word in enumerate(line):
-            print(word, flush=True)
             try:
                 line[i] = f"{float(word):.6f}"
             except ValueError:
                 pass
 
-        # sort the line
+        # sort the elements within each line alphabetically
         line.sort()
 
-    # sort the output
+    # sort each line alphabetically
     processed.sort()
 
     return processed
@@ -77,8 +98,8 @@ def test_script_output(test_name):
     expected_set = process_output(read_file(f"{script_path}/../examples/reference_outputs/{test_name}.ref"))
 
     # Write actual and expected output to files
-    write_file(f"{script_path}/test_outputs/actual/{test_name}_result.out", result.stdout)
-    write_file(f"{script_path}/test_outputs/expected/{test_name}_expected.out", read_file(f"{script_path}/../examples/reference_outputs/{test_name}.ref"))
+    write_file(f"{script_path}/test_outputs/actual/{test_name}_result.out", result_set)
+    write_file(f"{script_path}/test_outputs/expected/{test_name}_expected.out", expected_set)
 
     # Compare outputs
     compare_outputs(test_name, script_path)
