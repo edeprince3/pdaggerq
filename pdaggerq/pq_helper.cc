@@ -40,7 +40,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-#include <omp.h>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -51,9 +50,6 @@ void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
-        .def("set_nthreads", [](pq_helper& self, int nthreads) {
-                pq_helper::nthreads = nthreads;
-            })
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
@@ -358,10 +354,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     // build strings
     double original_factor = factor;
 
-    // set number of threads to use
-    omp_set_num_threads(nthreads);
-#pragma omp parallel for schedule(dynamic,1) default(none) \
-shared(original_factor, factor, save, left_operators, right_operators, vacuum) firstprivate(in)
     for (std::vector<std::string> & left_operator : left_operators) {
         for (std::vector<std::string> & right_operator : right_operators) {
 
@@ -1045,20 +1037,13 @@ shared(original_factor, factor, save, left_operators, right_operators, vacuum) f
             }
 
             newguy->has_w0 = has_w0;
-
-#pragma omp critical
-{
-                if (vacuum == "TRUE") {
-                    add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
-                } else {
-                    add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations);
-                }
-}
+            if (vacuum == "TRUE") {
+                add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
+            } else {
+                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations);
+            }
         }
     }
-
-    // reset number of threads for other parts of code
-    omp_set_num_threads(1);
 }
 
 void pq_helper::simplify() {
