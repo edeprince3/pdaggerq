@@ -49,12 +49,16 @@ def compare_outputs(result_set, expected_set, test_name, script_path):
         assert len(diff) == 0
 
 # Tests
-tests=("ccsd", "eom_ccsd_sigma", "cc3", "rdm_mappings", "extended_rpa", "ccsd_with_spin", "cc3", 
-       "ccsd_codegen", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "ccsd", "ccsd_singles", 
-       "ccsd_t", "ccsdt", "cid_d1", "cid_d2", "cisd_hamiltonian", "ea_eom_ccsd", "ea_eom_ccsdt", 
-       "eom_ccsd_d1_by_hand", "eom_ccsd_d1", "eom_ccsd_hamiltonian","eom_ccsd", "eom_ccsd_sigma", 
-       "ip_eom_ccsd", "ip_eom_ccsdt", "lambda_doubles_codegen", "lambda_doubles", "lambda_singles_codegen", 
-       "lambda_singles", "ccsdt_with_spin")
+ccsd_tests     = ("ccsd", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "ccsd", "ccsd_singles", "ccsd_t",
+                  "eom_ccsd_sigma", "ea_eom_ccsd", "eom_ccsd_d1_by_hand", "eom_ccsd_d1", "eom_ccsd_hamiltonian","eom_ccsd", "ip_eom_ccsd", 
+                  "lambda_singles", "lambda_doubles", "ccsd_with_spin")
+ci_tests       = ("cid_d1", "cid_d2", "cisd_hamiltonian")
+other_tests    = ("rdm_mappings", "extended_rpa")
+ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "ccsdt_with_spin", "ea_eom_ccsdt", "ip_eom_ccsdt", "ccsdt_with_spin")
+code_gen_tests = ("ccsd_codegen", "lambda_singles_codegen", "lambda_doubles_codegen")
+
+# Combine all tests
+tests = ccsd_tests + ci_tests + other_tests + ccsdt_tests + code_gen_tests
 
 @pytest.mark.parametrize("test_name", tests)
 def test_script_output(test_name):
