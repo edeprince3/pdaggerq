@@ -569,9 +569,10 @@ std::vector<std::string> pq_string::get_string_with_spin() {
 // return string information
 std::vector<std::string> pq_string::get_string() {
 
-    if (is_spin_blocked) {
+    if (is_spin_blocked)
         return get_string_with_spin();
-    }
+    if (is_range_blocked)
+        return get_string_with_label_ranges();
 
     std::vector<std::string> my_string;
 

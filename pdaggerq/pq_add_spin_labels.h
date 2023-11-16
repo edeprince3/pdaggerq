@@ -30,7 +30,7 @@
 #include<string>
 #include<algorithm>
 #include<cstring>
-#include<math.h>
+#include<cmath>
 #include<sstream>
 
 #include "pq_tensor.h"
@@ -39,10 +39,10 @@
 namespace pdaggerq {
 
 /// add spin labels to a string
-bool add_spins(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list);
+bool add_spins(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &list);
 
 /// expand sums to include spin and zero terms where appropriate
-void spin_blocking(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::map<std::string, std::string> spin_map);
+void spin_blocking(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::unordered_map<std::string, std::string> spin_map);
 
 /// reorder three spin labels as aab or abb
 void reorder_three_spins(amplitudes & amps, int i1, int i2, int i3, int & sign);

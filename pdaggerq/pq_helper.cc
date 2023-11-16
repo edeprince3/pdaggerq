@@ -43,11 +43,6 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-std::map<std::string, std::string> empty_spin_labels(){
-    std::map<std::string, std::string> ret;
-    return ret;
-}
-
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -85,10 +80,17 @@ void export_pq_helper(py::module& m) {
              },
                 py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("fully_contracted_strings_with_ranges",
-             [](pq_helper& self, const std::map<std::string, std::vector<std::string> > &label_ranges) {
-                 return self.fully_contracted_strings_with_ranges(label_ranges);
+             [](pq_helper& self, std::map<std::string, std::vector<std::string> > &label_ranges) {
+//                 return self.fully_contracted_strings_with_ranges(label_ranges);
+                    self.block_by_range(label_ranges);
+                    return self.fully_contracted_strings();
              },
              py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>() )
+        .def("block_by_range",
+             [](pq_helper& self, std::map<std::string, std::vector<std::string> > &label_ranges) {
+                 self.block_by_range(label_ranges);
+             },
+             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("add_st_operator", &pq_helper::add_st_operator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
@@ -1084,7 +1086,7 @@ void pq_helper::simplify() {
 
 void pq_helper::print(const std::string &string_type) const {
 
-    bool is_blocked = pq_string::is_spin_blocked;
+    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
     const auto &reference = is_blocked ? ordered_blocked : ordered;
 
     printf("\n");
@@ -1126,26 +1128,31 @@ void pq_helper::print(const std::string &string_type) const {
 std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_ranges(std::map<std::string, std::vector<std::string> > label_ranges) {
 
     // add ranges to labels
+    pq_string::is_range_blocked = true;
+    if ( pq_string::is_spin_blocked ) {
+        printf("\n");
+        printf("    error: cannot simultaneously block by spin and by range\n");
+    }
 
     std::vector< std::shared_ptr<pq_string> > range_blocked;
 
-    for (size_t i = 0; i < ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 0 ) continue;
-        if ( ordered[i]->is_boson_dagger.size() != 0 ) continue;
+    for (auto & pq_str : ordered) {
+        if ( !pq_str->symbol.empty() ) continue;
+        if ( !pq_str->is_boson_dagger.empty() ) continue;
         std::vector< std::shared_ptr<pq_string> > tmp;
-        add_label_ranges(ordered[i], tmp, label_ranges);
-        for (size_t j = 0; j < tmp.size(); j++) {
-            range_blocked.push_back(tmp[j]);
+        add_label_ranges(pq_str, tmp, label_ranges);
+        for (const auto & op : tmp) {
+            range_blocked.push_back(op);
         }
     }
 
     std::vector<std::vector<std::string> > list;
-    for (size_t i = 0; i < range_blocked.size(); i++) {
-        if ( range_blocked[i]->symbol.size() != 0 ) continue;
-        if ( range_blocked[i]->is_boson_dagger.size() != 0 ) continue;
-        std::vector<std::string> my_string = range_blocked[i]->get_string_with_label_ranges();
-        //std::vector<std::string> my_string = range_blocked[i]->get_string();
-        if ( my_string.size() > 0 ) {
+    for (auto & pq_str : range_blocked) {
+        if ( !pq_str->symbol.empty() ) continue;
+        if ( !pq_str->is_boson_dagger.empty() ) continue;
+        std::vector<std::string> my_string = pq_str->get_string_with_label_ranges();
+        //std::vector<std::string> my_string = range_blocked[pq_str]->get_string();
+        if ( !my_string.empty() ) {
             list.push_back(my_string);
         }
     }
@@ -1154,296 +1161,40 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
 
 }
 
-/*
+// get list of fully-contracted strings, after assigning ranges to the labels
+//TODO: refactor everything to use `const unordered_map<std::string, std::vector<std::string>> &label_ranges`
+void pq_helper::block_by_range(const std::map<std::string, std::vector<std::string> >& label_ranges) {
+    ordered_blocked.clear();
+
     // add ranges to labels
-    for (int i = 0; i < ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 0 ) continue;
-        if ( ordered[i]->is_boson_dagger.size() != 0 ) continue;
-
-        // get ranges for amplitudes
-        for (size_t j = 0; j < ordered[i]->amplitude_types.size(); j++) {
-            char type = ordered[i]->amplitude_types[j];
-            for (size_t k = 0; k < ordered[i]->amps[type].size(); k++) {
-
-                // amplitude type+order (ie 't' + '2' = "t2")
-                std::string amp;
-                amp.push_back(type);
-                amp += std::to_string(ordered[i]->amps[type][k].order);
-
-                // is this amplitude in the map?
-                if ( label_ranges.find(amp) == label_ranges.end() ) {
-                    printf("\n");
-                    printf("    error: label range map does not contain %s\n", amp.c_str());
-                    printf("\n");
-                    exit(1);
-                }
-
-                // clear label ranges in case this function is called more than once
-                ordered[i]->amps[type][k].label_ranges.clear();
-
-                // add label ranges
-                for (size_t m = 0; m < label_ranges[amp].size(); m++) {
-                    ordered[i]->amps[type][k].label_ranges.push_back(label_ranges[amp][m]);
-                }
-            }
-        }
-
-        // now, consider amplitudes again, but make ranges consistent. if two labels have
-        // different ranges, change one to be the more restrictive case (e.g., "all" v "act"
-        // -> both "act" ). also, zero terms where ranges are inconsistent ("act" v "ext")
-        bool kill_term = false;
-        for (size_t j = 0; j < ordered[i]->amplitude_types.size(); j++) {
-            char type = ordered[i]->amplitude_types[j];
-            for (size_t k = 0; k < ordered[i]->amps[type].size(); k++) {
-                for (size_t l = k+1; l < ordered[i]->amps[type].size(); l++) {
-                    // check labels from amp1 vs labels in amp2. if they are common, check ranges
-                    for (size_t kk = 0; kk < ordered[i]->amps[type][k].labels.size(); kk++) {
-                        for (size_t ll = 0; ll < ordered[i]->amps[type][l].labels.size(); ll++) {
-                            // common labels?
-                            if ( ordered[i]->amps[type][k].labels[kk] == ordered[i]->amps[type][l].labels[ll] ) {
-
-                                // six cases that require action:
-                                if ( ordered[i]->amps[type][k].label_ranges[kk] == "all" && ordered[i]->amps[type][l].label_ranges[ll] == "ext" ) {
-                                    ordered[i]->amps[type][k].label_ranges[kk] = "ext";
-                                }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "all" && ordered[i]->amps[type][l].label_ranges[ll] == "act" ) {
-                                    ordered[i]->amps[type][k].label_ranges[kk] = "act";
-                                }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "ext" && ordered[i]->amps[type][l].label_ranges[ll] == "all" ) {
-                                    ordered[i]->amps[type][l].label_ranges[ll] = "ext";
-                                }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "act" && ordered[i]->amps[type][l].label_ranges[ll] == "all" ) {
-                                    ordered[i]->amps[type][l].label_ranges[ll] = "act";
-                                }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "ext" && ordered[i]->amps[type][l].label_ranges[ll] == "act" ) {
-                                    kill_term = true;
-                                    break;
-                                }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "act" && ordered[i]->amps[type][l].label_ranges[ll] == "ext" ) {
-                                    kill_term = true;
-                                    break;
-                                }
-                            }
-                            if ( kill_term ) break;
-                        }
-                        if ( kill_term ) break;
-                    }
-                    if ( kill_term ) break;
-                }
-                if ( kill_term ) break;
-            }
-            if ( kill_term ) break;
-        }
-        if ( kill_term ) {
-            ordered[i]->skip = true;
-            continue;
-        }
-
-        // consider amplitudes yet again, but now make sure ranges are consistent with those
-        // for non-summed labels. as above, change one to be the more restrictive case, and
-        // zero terms where ranges are inconsistent
-        kill_term = false;
-        for (size_t j = 0; j < ordered[i]->amplitude_types.size(); j++) {
-            char type = ordered[i]->amplitude_types[j];
-            for (size_t k = 0; k < ordered[i]->amps[type].size(); k++) {
-                for (size_t kk = 0; kk < ordered[i]->amps[type][k].labels.size(); kk++) {
-
-                    // is this label a non-summed label contained in the map? if not, continue
-                    if ( label_ranges.find(ordered[i]->amps[type][k].labels[kk]) == label_ranges.end() ) continue;
-
-                    std::vector<std::string> my_label_range = label_ranges[ordered[i]->amps[type][k].labels[kk]];
-                    if ( my_label_range.size() > 1 ) {
-                        printf("\n");
-                        printf("    error: non-summed label range lists should contain only one entry\n");
-                        printf("\n");
-                        exit(1);
-                    }
-
-                    // six cases that require action:
-                    if ( ordered[i]->amps[type][k].label_ranges[kk] == "all" && my_label_range[0] == "ext" ) {
-                        ordered[i]->amps[type][k].label_ranges[kk] = "ext";
-                    }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "all" && my_label_range[0] == "act" ) {
-                        ordered[i]->amps[type][k].label_ranges[kk] = "act";
-                    }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "ext" && my_label_range[0] == "all" ) {
-                        // do nothing?
-                    }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "act" && my_label_range[0] == "all" ) {
-                        // do nothing?
-                    }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "ext" && my_label_range[0] == "act" ) {
-                        kill_term = true;
-                        break;
-                    }else if ( ordered[i]->amps[type][k].label_ranges[kk] == "act" && my_label_range[0] == "ext" ) {
-                        kill_term = true;
-                        break;
-                    }
-                }
-                if ( kill_term ) break;
-            }
-            if ( kill_term ) break;
-        }
-        if ( kill_term ) {
-            ordered[i]->skip = true;
-            continue;
-        }
-
-        // make integrals ranges consistent with those of amplitudes. first clear integral label ranges
-        for (size_t l = 0; l < ordered[i]->integral_types.size(); l++) {
-            std::string ints_type = ordered[i]->integral_types[l];
-            for (size_t m = 0; m < ordered[i]->ints[ints_type].size(); m++) {
-
-                // clear
-                ordered[i]->ints[ints_type][m].label_ranges.clear();
-                for (size_t mm = 0; mm < ordered[i]->ints[ints_type][m].labels.size(); mm++) {
-                    ordered[i]->ints[ints_type][m].label_ranges.push_back("all");
-                }
-            }
-        }
-
-        // now, make consistent with amplitudes
-        for (size_t j = 0; j < ordered[i]->amplitude_types.size(); j++) {
-            char amps_type = ordered[i]->amplitude_types[j];
-            for (size_t k = 0; k < ordered[i]->amps[amps_type].size(); k++) {
-
-                for (size_t l = 0; l < ordered[i]->integral_types.size(); l++) {
-                    std::string ints_type = ordered[i]->integral_types[l];
-                    for (size_t m = 0; m < ordered[i]->ints[ints_type].size(); m++) {
-
-                        // check labels from amp1 vs labels in amp2. if they are common, check ranges
-                        for (size_t kk = 0; kk < ordered[i]->amps[amps_type][k].labels.size(); kk++) {
-                            for (size_t mm = 0; mm < ordered[i]->ints[ints_type][m].labels.size(); mm++) {
-                                // common labels? if so, set ints ranges to match amps ranges
-                                if ( ordered[i]->amps[amps_type][k].labels[kk] == ordered[i]->ints[ints_type][m].labels[mm] ) {
-                                    ordered[i]->ints[ints_type][m].label_ranges[mm] = ordered[i]->amps[amps_type][k].label_ranges[kk];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // consider integrals again, but now make sure ranges are consistent with those
-        // for non-summed labels. as above, change one to be the more restrictive case, and
-        // zero terms where ranges are inconsistent
-        kill_term = false;
-        for (size_t j = 0; j < ordered[i]->integral_types.size(); j++) {
-            std::string type = ordered[i]->integral_types[j];
-            for (size_t k = 0; k < ordered[i]->ints[type].size(); k++) {
-                for (size_t kk = 0; kk < ordered[i]->ints[type][k].labels.size(); kk++) {
-
-                    // is this label a non-summed label contained in the map? if not, continue
-                    if ( label_ranges.find(ordered[i]->ints[type][k].labels[kk]) == label_ranges.end() ) continue;
-
-                    std::vector<std::string> my_label_range = label_ranges[ordered[i]->ints[type][k].labels[kk]];
-                    if ( my_label_range.size() > 1 ) {
-                        printf("\n");
-                        printf("    error: non-summed label range lists should contain only one entry\n");
-                        printf("\n");
-                        exit(1);
-                    }
-
-                    // six cases that require action:
-                    if ( ordered[i]->ints[type][k].label_ranges[kk] == "all" && my_label_range[0] == "ext" ) {
-                        ordered[i]->ints[type][k].label_ranges[kk] = "ext";
-                    }else if ( ordered[i]->ints[type][k].label_ranges[kk] == "all" && my_label_range[0] == "act" ) {
-                        ordered[i]->ints[type][k].label_ranges[kk] = "act";
-                    }else if ( ordered[i]->ints[type][k].label_ranges[kk] == "ext" && my_label_range[0] == "all" ) {
-                        // do nothing?
-                    }else if ( ordered[i]->ints[type][k].label_ranges[kk] == "act" && my_label_range[0] == "all" ) {
-                        // do nothing?
-                    }else if ( ordered[i]->ints[type][k].label_ranges[kk] == "ext" && my_label_range[0] == "act" ) {
-                        kill_term = true;
-                        break;
-                    }else if ( ordered[i]->ints[type][k].label_ranges[kk] == "act" && my_label_range[0] == "ext" ) {
-                        kill_term = true;
-                        break;
-                    }
-                }
-                if ( kill_term ) break;
-            }
-            if ( kill_term ) break;
-        }
-        if ( kill_term ) {
-            ordered[i]->skip = true;
-            continue;
-        }
-
-        // now permutation operators:
-        // 1. default to "all"
-        // 2. set to whatever value shows up in the map
-        // 3. if ranges within permutation operator are not consistent, expand the term explicitly
-        //    like when doing spin tracing, this should actually be done before assigning any spaces
-        //    to be sure we get all terms. for now, we'll ignore this situation, in which case
-        //    we can just adjust permutaion labels below
-
+    pq_string::is_range_blocked = true;
+    if ( pq_string::is_spin_blocked ) {
+        printf("\n");
+        printf("    error: cannot simultaneously block by spin and by range\n");
     }
 
-    // get strings. rather than implementing a new get_string_with_ranges
-    // function, just create a new list of strings with modified labels
-    std::vector< std::shared_ptr<pq_string> > new_ordered;
-    for (int i = 0; i < ordered.size(); i++) {
-        if ( ordered[i]->symbol.size() != 0 ) continue;
-        if ( ordered[i]->is_boson_dagger.size() != 0 ) continue;
-        if ( ordered[i]->skip ) continue;
+    std::vector< std::shared_ptr<pq_string> > range_blocked;
 
-        std::shared_ptr<pq_string> tmp (new pq_string(ordered[i]->vacuum));
-        tmp->copy(ordered[i].get());
-
-        for (size_t j = 0; j < tmp->amplitude_types.size(); j++) {
-            char type = tmp->amplitude_types[j];
-            for (size_t k = 0; k < tmp->amps[type].size(); k++) {
-                for (size_t kk = 0; kk < tmp->amps[type][k].labels.size(); kk++) {
-                    tmp->amps[type][k].labels[kk] += "_" + ordered[i]->amps[type][k].label_ranges[kk];
-                }
-            }
-        }
-
-        for (size_t j = 0; j < tmp->integral_types.size(); j++) {
-            std::string type = tmp->integral_types[j];
-            for (size_t k = 0; k < tmp->ints[type].size(); k++) {
-                for (size_t kk = 0; kk < tmp->ints[type][k].labels.size(); kk++) {
-                    tmp->ints[type][k].labels[kk] += "_" + ordered[i]->ints[type][k].label_ranges[kk];
-                }
-            }
-        }
-
-        // now permutation operators:
-        // 1. default to "all"
-        // 2. set to whatever value shows up in the map
-        for (size_t j = 0; j < tmp->permutations.size(); j++) {
-
-            // is this label a non-summed label contained in the map? if not, set as "all"
-            if ( label_ranges.find(tmp->permutations[j]) == label_ranges.end() ) {
-                tmp->permutations[j] += "_all";
-                continue;
-            }
-
-            std::vector<std::string> my_label_range = label_ranges[tmp->permutations[j]];
-            if ( my_label_range.size() > 1 ) {
-                printf("\n");
-                printf("    error: non-summed label range lists should contain only one entry\n");
-                printf("\n");
-                exit(1);
-            }
-
-            tmp->permutations[j] += "_" + my_label_range[0];
-        }
-
-        new_ordered.push_back(tmp);
-    }
-
-    std::vector<std::vector<std::string> > list;
-    for (size_t i = 0; i < new_ordered.size(); i++) {
-        if ( new_ordered[i]->symbol.size() != 0 ) continue;
-        if ( new_ordered[i]->is_boson_dagger.size() != 0 ) continue;
-        if ( new_ordered[i]->skip ) continue;
-        std::vector<std::string> my_string = new_ordered[i]->get_string();
-        if ( my_string.size() > 0 ) {
-            list.push_back(my_string);
+    for (auto & pq_str : ordered) {
+        if ( !pq_str->symbol.empty() ) continue;
+        if ( !pq_str->is_boson_dagger.empty() ) continue;
+        std::vector< std::shared_ptr<pq_string> > tmp;
+        add_label_ranges(pq_str, tmp, label_ranges);
+        for (const auto & op : tmp) {
+            ordered_blocked.push_back(op);
         }
     }
-    return list;
-*/
+}
 
 // get list of fully-contracted strings, after spin tracing
 std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
 
     // perform spin tracing
     pq_string::is_spin_blocked = true;
+    if ( pq_string::is_range_blocked ) {
+        printf("\n");
+        printf("    error: cannot simultaneously block by spin and by range\n");
+    }
 
     std::vector< std::shared_ptr<pq_string> > spin_blocked;
 
@@ -1476,6 +1227,10 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
 
     // perform spin tracing
     pq_string::is_spin_blocked = true;
+    if ( pq_string::is_range_blocked ) {
+        printf("\n");
+        printf("    error: cannot simultaneously block by spin and by range\n");
+    }
 
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
         if (!pq_str->symbol.empty()) continue;
@@ -1490,7 +1245,7 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
 
 std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() const {
 
-    bool is_blocked = pq_string::is_spin_blocked;
+    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
     const auto &reference = is_blocked ? ordered_blocked : ordered;
 
     std::vector<std::vector<std::string> > list;
@@ -1509,7 +1264,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() con
 
 std::vector<std::vector<std::string> > pq_helper::strings() const {
 
-    bool is_blocked = pq_string::is_spin_blocked;
+    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
     const auto &reference = is_blocked ? ordered_blocked : ordered;
 
     std::vector<std::vector<std::string> > list;
@@ -1528,6 +1283,7 @@ void pq_helper::clear() {
     ordered.clear();
     ordered_blocked.clear();
     pq_string::is_spin_blocked = false;
+    pq_string::is_range_blocked = false;
 }
 
 void pq_helper::add_st_operator(double factor, const std::vector<std::string> &targets,

@@ -29,6 +29,8 @@
 
 namespace pdaggerq {
 
+    //TODO: refactor everything to use `const unordered_map<std::string, std::vector<std::string>> &label_ranges`
+
 /// expand sums to account for different orbital ranges and zero terms where appropriate
 void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &range_blocked, std::map<std::string, std::vector<std::string> > label_ranges) {
 
