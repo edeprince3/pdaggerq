@@ -4,6 +4,10 @@ import subprocess
 import pytest
 import os
 
+# clear files in test_outputs if they exist
+script_path = os.path.dirname(os.path.realpath(__file__))
+os.system(f"rm {script_path}/test_outputs/*/*")
+
 # Helper Functions
 def read_file(file_path):
     with open(file_path) as file:
@@ -34,7 +38,7 @@ def process_output(output):
 
     return processed
 
-def compare_outputs(result_set, expected_set, test_name, script_path):
+def compare_outputs(test_name, script_path):
     # compute difference
     diff = subprocess.run(["diff", f"{script_path}/test_outputs/actual/{test_name}_result.out", f"{script_path}/test_outputs/expected/{test_name}_expected.out"], capture_output=True, text=True).stdout
 
@@ -69,7 +73,7 @@ def test_script_output(test_name):
     result = subprocess.run(["python", f"{script_path}/../examples/{test_name}.py"], capture_output=True, text=True)
 
     # Process outputs
-    result_set = process_output(result.stdout)
+    result_set   = process_output(result.stdout)
     expected_set = process_output(read_file(f"{script_path}/../examples/reference_outputs/{test_name}.ref"))
 
     # Write actual and expected output to files
@@ -77,7 +81,7 @@ def test_script_output(test_name):
     write_file(f"{script_path}/test_outputs/expected/{test_name}_expected.out", read_file(f"{script_path}/../examples/reference_outputs/{test_name}.ref"))
 
     # Compare outputs
-    compare_outputs(result_set, expected_set, test_name, script_path)
+    compare_outputs(test_name, script_path)
 
 if __name__ == "__main__":
     for test_name in tests:
