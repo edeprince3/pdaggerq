@@ -234,6 +234,13 @@ class pq_string {
 
     /**
      *
+     * return string information as list of std::string (includes label ranges)
+     *
+     */
+    std::vector<std::string> get_string_with_label_ranges();
+
+    /**
+     *
      * copy string data, possibly excluding symbols and daggers. 
      *
      * @param copy_me: pointer to pq_string to be copied
@@ -259,6 +266,22 @@ class pq_string {
 
     /**
      *
+     * set label range in the integrals and amplitudes
+     *
+     * @param target: a target label in the integrals or amplitudes
+     * @param range: the range to be added to target
+     */
+    void set_range_everywhere(std::string target, std::string range);
+
+    /**
+     *
+     * reset label ranges (so only non-summed labels are set)
+     *
+     */
+    void reset_label_ranges(std::map<std::string, std::vector<std::string> > label_ranges);
+
+    /**
+     *
      * set labels for integrals
      *
      * @param type: the integrals_type
@@ -271,9 +294,11 @@ class pq_string {
      * set labels for amplitudes
      *
      * @param type: the amplitudes_type
+     * @param n_create: the number of labels corresponding to creation operators
+     * @param n_annihilate: the number of labels corresponding to annihilation operators
      * @param in: the list of labels for the amplitudes
      */
-    void set_amplitudes(char type, int order, std::vector<std::string> in);
+    void set_amplitudes(char type, int n_create, int n_annihilate, std::vector<std::string> in);
 
 };
 
