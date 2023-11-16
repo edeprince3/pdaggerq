@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <omp.h>
+#include <numeric>
 
 namespace pdaggerq {
 
@@ -35,14 +36,17 @@ namespace pdaggerq {
 std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops) {
 
     std::vector<std::string> ret;
-    size_t size = 0;
-    for (const std::vector<std::string> & op : ops) {
-        size += op.size();
-    }
+    // determine size to reserve when concatenating
+    size_t size = std::accumulate(ops.begin(), ops.end(), 0,
+                                  [](size_t sum, const std::vector<std::string> & op){
+        return sum + op.size();
+    });
+
     ret.reserve(size);
-    for (const std::vector<std::string> & op : ops) {
+    std::for_each(ops.begin(), ops.end(), [&ret](const std::vector<std::string> & op){
         ret.insert(ret.end(), op.begin(), op.end());
-    }
+    });
+
     return ret;
 }
 
@@ -399,7 +403,7 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
 
 // consolidate terms that differ may differ by permutations of summed labels
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
-                                         const std::vector<std::vector<std::string> > &labels) {
+                                     const std::vector<std::vector<std::string> > &labels) {
 
     //TODO:
     // Currently the implementation of this function runs in O(N^2) time complexity and is the limiting bottleneck by far.
@@ -407,8 +411,6 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
     // However, that would require us to define a hash function for pq_string (doable, but not trivial).
     // For now, we'll just live with the O(N^2) time complexity.
 
-    omp_set_num_threads(pq_helper::nthreads);
-#pragma omp parallel for schedule(dynamic,1) default(none) shared(ordered, labels)
     for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -430,50 +432,37 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip || ordered[i]->skip ) continue;
+            if ( ordered[j]->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
-            compare_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], ordered[j], n_permute,
-                                                       strings_same);
+            compare_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], ordered[j], n_permute, strings_same);
 
-            if (!strings_same) continue;
+            if ( !strings_same ) continue;
 
-            bool break_out = false;
-            #pragma omp critical
-            {
-                if (!ordered[i]->skip && !ordered[j]->skip) {
+            double factor_i = ordered[i]->factor * ordered[i]->sign;
+            double factor_j = ordered[j]->factor * ordered[j]->sign;
 
-                    double factor_i = ordered[i]->factor * ordered[i]->sign;
-                    double factor_j = ordered[j]->factor * ordered[j]->sign;
+            double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
 
-                    double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
-
-                    // if terms exactly cancel, do so
-                    if (fabs(combined_factor) < 1e-12) {
-                        ordered[i]->skip = true;
-                        ordered[j]->skip = true;
-                    } else {
-                        // otherwise, combine terms
-                        ordered[i]->factor = fabs(combined_factor);
-                        if (combined_factor > 0.0) {
-                            ordered[i]->sign = 1;
-                        } else {
-                            ordered[i]->sign = -1;
-                        }
-                        ordered[j]->skip = true;
-                    }
-                }
-                break_out = ordered[i]->skip;
+            // if terms exactly cancel, do so
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->skip = true;
+                ordered[j]->skip = true;
+                break;
             }
 
-            if ( break_out ) break;
-
+            // otherwise, combine terms
+            ordered[i]->factor = fabs(combined_factor);
+            if ( combined_factor > 0.0 ) {
+                ordered[i]->sign =  1;
+            }else {
+                ordered[i]->sign = -1;
+            }
+            ordered[j]->skip = true;
         }
     }
-
-    omp_set_num_threads(1);
 }
 
 // consolidate terms that differ by permutations of non-summed labels
@@ -1060,7 +1049,7 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
     size_t dim = t_amps.size();
     if ( dim == 0 ) return;
     
-    bool nope[dim];
+    bool* nope = (bool*)malloc(dim * sizeof(bool));
     memset((void*)nope, '\0', dim * sizeof(bool));
 
     std::vector<std::vector<std::string> > tmp;
@@ -1088,13 +1077,10 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
         printf("    you want that, anyway?\n");
         printf("\n");
         exit(1);
-        
-        //TODO: (MDL 11/14/23) 
-        // likely this was because of the implementation of the assignment operator for the amplitude class. 
-        // This could be fixed now, but requires running that expensive test again
     }
     
     t_amps = tmp_new;
+    free(nope);
 }
 
 // re-classify fluctuation potential terms
@@ -1117,7 +1103,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
     if ( !occ_repulsion.empty() ) {
         
         // pick summation label not included in string already
-        std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
+        static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
         std::string idx;
         
         int do_skip = -999;
@@ -1136,8 +1122,8 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
             exit(1);
         }
         
-        std::string idx1 = in->ints["occ_repulsion"][0].labels[0];
-        std::string idx2 = in->ints["occ_repulsion"][0].labels[1];
+        std::string idx1 = occ_repulsion[0].labels[0];
+        std::string idx2 = occ_repulsion[0].labels[1];
 
         occ_repulsion.clear();
         
@@ -1179,10 +1165,10 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
 void use_conventional_labels(std::shared_ptr<pq_string> &in) {
 
     // occupied first:
-    std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
+    static std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
                                     "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
                                     "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
-    std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", 
+    static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N",
                                      "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9",
                                      "i10", "i11", "i12", "i13", "i14", "i15", "i16", "i17", "i18", "i19"};
 
@@ -1202,10 +1188,10 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
     }
 
     // now virtual
-    std::vector<std::string> vir_in{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
+    static std::vector<std::string> vir_in{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
                                     "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
-    std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F",
+    static std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F",
                                      "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9",
                                      "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19"};
 
@@ -1233,10 +1219,10 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
     
     // create list of summation labels. only consider internally-created labels
                                      
-    std::vector<std::string> occ_labels{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
+    static std::vector<std::string> occ_labels{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
                                     "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
                                     "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
-    std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
+    static std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
                                     "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
 
@@ -1307,10 +1293,9 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         // list is ordered as {'t', 'l', 'r', 'u', 'm', 's'} ... i don't know why, but
         // i do know that this is the problematic part of the code
         do_continue = false;
-        std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
-        for (auto & amp_pair : in->amps) {
-            char type = amp_pair.first;
-            std::vector<amplitudes> & amps = amp_pair.second;
+        static std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
+        for (auto & type : types) {
+            std::vector<amplitudes> & amps = in->amps[type];
             
             if ( have_delta1 && index_in_amplitudes( delta.labels[0], amps ) > 0 ) {
                replace_index_in_amplitudes( delta.labels[0], delta.labels[1], amps );
