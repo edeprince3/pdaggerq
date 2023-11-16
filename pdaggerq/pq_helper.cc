@@ -71,12 +71,14 @@ void export_pq_helper(py::module& m) {
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings_with_spin",
              [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
-                 return self.fully_contracted_strings_with_spin(spin_labels);
+//                 return self.fully_contracted_strings_with_spin(spin_labels);
+                    self.block_by_spin(spin_labels);
+                    return self.fully_contracted_strings();
              },
              py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("block_by_spin",
              [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
-                 self.block_by_spin(spin_labels);
+                    self.block_by_spin(spin_labels);
              },
                 py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("add_st_operator", &pq_helper::add_st_operator)
