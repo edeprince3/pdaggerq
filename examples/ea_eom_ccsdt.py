@@ -5,11 +5,11 @@ pq = pdaggerq.pq_helper("fermi")
 
 # set right and left-hand operators
 pq.set_right_operators_type('EA')
-pq.set_left_operators([['a(e)']])
+pq.set_left_operators([['a(a)']])
 pq.set_right_operators([['r0'],['r1'],['r2'],['r3']])
 
 print('')
-print('    sigma(e) = <0|e e(-T) H e(T) (r0 + r1 + r2)|0>')
+print('    sigma(a) = <0|a e(-T) H e(T) (r0 + r1 + r2)|0>')
 print('')
 
 pq.add_st_operator(1.0,['f'],['t1','t2','t3'])
@@ -24,11 +24,11 @@ pq.clear()
 
 # set right and left-hand operators
 pq.set_left_operators_type('EA')
-pq.set_left_operators([['a*(m)','a(f)','a(e)']])
+pq.set_left_operators([['a*(i)','a(b)','a(a)']])
 pq.set_right_operators([['r0'],['r1'],['r2'],['r3']])
 
 print('')
-print('    sigma(e,f,m) = <0|m*f e(-T) H e(T) (r0 + r1 + r2)|0>')
+print('    sigma(a,b,i) = <0|i*b a e(-T) H e(T) (r0 + r1 + r2)|0>')
 print('')
 
 pq.add_st_operator(1.0,['f'],['t1','t2','t3'])
@@ -43,11 +43,11 @@ pq.clear()
 
 # set right and left-hand operators
 pq.set_left_operators_type('EA')
-pq.set_left_operators([['a*(m)','a*(n)','a(g)','a(f)','a(e)']])
+pq.set_left_operators([['a*(i)','a*(j)','a(c)','a(b)','a(a)']])
 pq.set_right_operators([['r0'],['r1'],['r2'],['r3']])
 
 print('')
-print('    sigma(e,f,g,m,n) = <0|m*n*g f e(-T) H e(T) (r0 + r1 + r2)|0>')
+print('    sigma(a,b,c,i,j) = <0|i*j*c b a e(-T) H e(T) (r0 + r1 + r2)|0>')
 print('')
 
 pq.add_st_operator(1.0,['f'],['t1','t2','t3'])
