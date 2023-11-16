@@ -403,7 +403,7 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
 
 // consolidate terms that differ may differ by permutations of summed labels
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
-                                         const std::vector<std::vector<std::string> > &labels) {
+                                     const std::vector<std::vector<std::string> > &labels) {
 
     //TODO:
     // Currently the implementation of this function runs in O(N^2) time complexity and is the limiting bottleneck by far.
@@ -411,8 +411,6 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
     // However, that would require us to define a hash function for pq_string (doable, but not trivial).
     // For now, we'll just live with the O(N^2) time complexity.
 
-    omp_set_num_threads(pq_helper::nthreads);
-#pragma omp parallel for schedule(dynamic,1) default(none) shared(ordered, labels)
     for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -434,50 +432,37 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
 
         for (size_t j = i+1; j < ordered.size(); j++) {
 
-            if ( ordered[j]->skip || ordered[i]->skip ) continue;
+            if ( ordered[j]->skip ) continue;
 
             int n_permute;
             bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
-            compare_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], ordered[j], n_permute,
-                                                       strings_same);
+            compare_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], ordered[j], n_permute, strings_same);
 
-            if (!strings_same) continue;
+            if ( !strings_same ) continue;
 
-            bool break_out = false;
-            #pragma omp critical
-            {
-                if (!ordered[i]->skip && !ordered[j]->skip) {
+            double factor_i = ordered[i]->factor * ordered[i]->sign;
+            double factor_j = ordered[j]->factor * ordered[j]->sign;
 
-                    double factor_i = ordered[i]->factor * ordered[i]->sign;
-                    double factor_j = ordered[j]->factor * ordered[j]->sign;
+            double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
 
-                    double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
-
-                    // if terms exactly cancel, do so
-                    if (fabs(combined_factor) < 1e-12) {
-                        ordered[i]->skip = true;
-                        ordered[j]->skip = true;
-                    } else {
-                        // otherwise, combine terms
-                        ordered[i]->factor = fabs(combined_factor);
-                        if (combined_factor > 0.0) {
-                            ordered[i]->sign = 1;
-                        } else {
-                            ordered[i]->sign = -1;
-                        }
-                        ordered[j]->skip = true;
-                    }
-                }
-                break_out = ordered[i]->skip;
+            // if terms exactly cancel, do so
+            if ( fabs(combined_factor) < 1e-12 ) {
+                ordered[i]->skip = true;
+                ordered[j]->skip = true;
+                break;
             }
 
-            if ( break_out ) break;
-
+            // otherwise, combine terms
+            ordered[i]->factor = fabs(combined_factor);
+            if ( combined_factor > 0.0 ) {
+                ordered[i]->sign =  1;
+            }else {
+                ordered[i]->sign = -1;
+            }
+            ordered[j]->skip = true;
         }
     }
-
-    omp_set_num_threads(1);
 }
 
 // consolidate terms that differ by permutations of non-summed labels
