@@ -32,14 +32,6 @@ set(PYTHON_INCLUDE_DIRS ${Python3_INCLUDE_DIRS})
 set(PYTHON_LIBRARIES    ${Python3_LIBRARIES})
 set(PYTHON_VERSION      ${Python3_VERSION})
 
-# add openmp support, if available
-find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    link_libraries(${OpenMP_CXX_LIBRARIES})
-    include_directories(${OpenMP_CXX_INCLUDE_DIRS})
-endif()
-
 include(FetchContent)
 FetchContent_Declare(
     pybind11
