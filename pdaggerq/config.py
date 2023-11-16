@@ -74,6 +74,7 @@ t4_aabbaabb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 t4_abbbabbb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 t4_bbbbbbbb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 
+l0 = 0.0
 l1 = np.zeros((nocc, nvirt))
 l1_aa = np.zeros((nocc, nvirt))
 l1_bb = np.zeros((nocc, nvirt))
@@ -93,6 +94,7 @@ l4_aabbaabb = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 l4_abbbabbb = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 l4_bbbbbbbb = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 
+r0 = 0.0
 r1 = np.zeros((nocc, nvirt))
 r2 = np.zeros((nocc, nocc, nvirt, nvirt))
 r2_aaaa = np.zeros((nvirt, nvirt, nocc, nocc))
