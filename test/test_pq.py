@@ -70,7 +70,7 @@ def test_script_output(test_name):
 
     # Write actual and expected output to files
     write_file(f"{script_path}/test_outputs/actual/{test_name}_result.out", result.stdout)
-    write_file(f"{script_path}/test_outputs/expected/{test_name}_expected.out", read_file(f"{script_path}/reference_outputs/{test_name}.ref"))
+    write_file(f"{script_path}/test_outputs/expected/{test_name}_expected.out", read_file(f"{script_path}/../examples/reference_outputs/{test_name}.ref"))
 
     # Compare outputs
     compare_outputs(result_set, expected_set, test_name, script_path)
