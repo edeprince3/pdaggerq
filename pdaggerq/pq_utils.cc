@@ -1056,9 +1056,10 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
 
     // get t amplitudes
-    if ( in->amps.find('t') == in->amps.end() ) return; // no t amplitudes
+    auto amp_pos = in->amps.find('t');
+    if ( amp_pos == in->amps.end() ) return; // no t amplitudes
     
-    std::vector<amplitudes> & t_amps = in->amps['t'];
+    std::vector<amplitudes> & t_amps = amp_pos->second;
         
     size_t dim = t_amps.size();
     if ( dim == 0 ) return;
