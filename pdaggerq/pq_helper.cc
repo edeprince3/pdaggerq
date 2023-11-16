@@ -57,7 +57,7 @@ void export_pq_helper(py::module& m) {
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
         .def("set_nthreads", [](pq_helper& self, int nthreads) {
-                self.nthreads = nthreads;
+                pq_helper::nthreads = nthreads;
             })
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
