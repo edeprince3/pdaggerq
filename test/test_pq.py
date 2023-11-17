@@ -81,7 +81,7 @@ ccsd_tests     = ("ccsd", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "
                   "lambda_singles", "lambda_doubles", "ccsd_with_spin")
 ci_tests       = ("cid_d1", "cid_d2", "cisd_hamiltonian")
 other_tests    = ("rdm_mappings", "extended_rpa")
-ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "ccsdt_with_spin", "ea_eom_ccsdt", "ip_eom_ccsdt", "ccsdt_with_spin")
+ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "active_space_CCSDt", "ea_eom_ccsdt", "ip_eom_ccsdt", "ccsdt_with_spin")
 code_gen_tests = ("ccsd_codegen", "lambda_singles_codegen", "lambda_doubles_codegen")
 
 # Combine all tests
