@@ -25,10 +25,8 @@
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
 #include "pq_add_spin_labels.h"
-#include "pq_helper.h"
 
 #include <algorithm>
-#include <omp.h>
 #include <numeric>
 
 namespace pdaggerq {
@@ -1078,6 +1076,10 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
         printf("    you want that, anyway?\n");
         printf("\n");
         exit(1);
+        
+        //TODO: (MDL 11/14/23) 
+        // likely this was because of the implementation of the assignment operator for the amplitude class. 
+        // This could be fixed now, but requires running that expensive test again
     }
     
     t_amps = tmp_new;

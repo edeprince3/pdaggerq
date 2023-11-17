@@ -46,6 +46,12 @@ class tensor {
      */
     ~tensor() = default;
 
+    //TODO:
+    // The creation and destruction of the std::vector objects are a performance bottleneck (32% of runtime for ccsdt).
+    // This is because the std::vector objects are created and destroyed many times during the execution.
+    // These objects should be replaced with stack-allocated arrays like std::array, rather than heap-allocated arrays.
+    // This would require a significant refactoring of the code base, however.
+
     /**
      *
      * human readable tensor labels
@@ -154,7 +160,7 @@ class tensor {
      *
      * @param symbol: the tensor type
      */
-    virtual std::string to_string_with_label_ranges(std::string symbol) {
+    virtual std::string to_string_with_label_ranges(const std::string &symbol) {
         printf("\n");
         printf("    to_string_with_label_ranges() has not been implemented for this tensor type\n");
         printf("\n");
@@ -322,15 +328,7 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    std::string to_string_with_label_ranges(std::string symbol);
-
-    /**
-     *
-     * print integrals information to a string, including range information
-     *
-     * @param symbol: the integrals type
-     */
-    std::string to_string_with_label_ranges(std::string symbol);
+    std::string to_string_with_label_ranges(const std::string &symbol);
 
 };
 
@@ -399,14 +397,7 @@ class delta_functions: public tensor {
      * print deltas information to a string, including range information
      *
      */
-    std::string to_string_with_label_ranges();
-
-    /**
-     *
-     * print deltas information to a string, including range information
-     *
-     */
-    std::string to_string_with_label_ranges();
+    std::string to_string_with_label_ranges() const;
 
 };
 

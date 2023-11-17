@@ -76,6 +76,11 @@ void amplitudes::sort() {
 /// copy amplitudes
 amplitudes& amplitudes::operator=(const amplitudes& rhs) {
 
+    labels = rhs.labels;
+    numerical_labels = rhs.numerical_labels;
+    spin_labels = rhs.spin_labels;
+    label_ranges = rhs.label_ranges;
+
     n_create = rhs.n_create;
     n_annihilate = rhs.n_annihilate;
 
@@ -334,7 +339,7 @@ void integrals::print(const std::string &symbol) const {
         printf(" ");
     }else {
         printf("\n");
-        printf("    unknown integral type\n");
+        printf("    unknown integral type: %s\n", symbol.c_str());
         printf("\n");
         exit(1);
     }
@@ -396,7 +401,7 @@ std::string integrals::to_string(const std::string &symbol) const {
 }
 
 /// print integrals to string with label ranges
-std::string integrals::to_string_with_label_ranges(std::string symbol) {
+std::string integrals::to_string_with_label_ranges(const std::string &symbol) {
 
     std::string val;
 
@@ -404,7 +409,7 @@ std::string integrals::to_string_with_label_ranges(std::string symbol) {
     for (const std::string & label_range : label_ranges) {
         if ( label_range == "act" ) {
             range += "1";
-        }else {
+    }else {
             range += "0";
         }
     }
@@ -573,7 +578,7 @@ std::string delta_functions::to_string() const {
 }
 
 /// print deltas to string with label ranges
-std::string delta_functions::to_string_with_label_ranges() {
+std::string delta_functions::to_string_with_label_ranges() const {
 
     std::string val;
 

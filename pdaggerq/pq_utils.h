@@ -30,7 +30,7 @@
 #include<string>
 #include<algorithm>
 #include<cstring>
-#include<math.h>
+#include<cmath>
 #include<sstream>
 
 #include "pq_tensor.h"

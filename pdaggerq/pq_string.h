@@ -271,20 +271,6 @@ class pq_string {
 
     /**
      *
-     * return string information as list of std::string (includes spin labels)
-     *
-     */
-    std::vector<std::string> get_string_with_spin();
-
-    /**
-     *
-     * return string information as list of std::string (includes label ranges)
-     *
-     */
-    std::vector<std::string> get_string_with_label_ranges();
-
-    /**
-     *
      * copy string data, possibly excluding symbols and daggers. 
      *
      * @param copy_me: pointer to pq_string to be copied

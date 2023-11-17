@@ -35,12 +35,9 @@
 #include "pq_helper.h"
 #include "pq_utils.h"
 #include "pq_string.h"
-#include "pq_tensor.h"
 #include "pq_add_label_ranges.h"
 #include "pq_add_spin_labels.h"
-
 #include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
@@ -90,7 +87,7 @@ void export_pq_helper(py::module& m) {
              [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
                  self.block_by_range(label_ranges);
              },
-             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+                py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("add_st_operator", &pq_helper::add_st_operator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
@@ -915,7 +912,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     if (op.substr(1, 1) == "1" ){
 
                         // find comma
-                        size_t pos = op.find(",");
+                        size_t pos = op.find(',');
                         if ( pos == std::string::npos ) {
                             printf("\n");
                             printf("    error in e1 operator definition\n");
@@ -936,10 +933,10 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         size_t pos = 0;
                         int ncomma = 0;
                         std::vector<size_t> commas;
-                        pos = op.find(",", pos + 1);
+                        pos = op.find(',', pos + 1);
                         commas.push_back(pos);
                         while( pos != std::string::npos){
-                            pos = op.find(",", pos + 1);
+                            pos = op.find(',', pos + 1);
                             commas.push_back(pos);
                             ncomma++;
                         }
@@ -962,10 +959,10 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         size_t pos = 0;
                         int ncomma = 0;
                         std::vector<size_t> commas;
-                        pos = op.find(",", pos + 1);
+                        pos = op.find(',', pos + 1);
                         commas.push_back(pos);
                         while( pos != std::string::npos){
-                            pos = op.find(",", pos + 1);
+                            pos = op.find(',', pos + 1);
                             commas.push_back(pos);
                             ncomma++;
                         }
@@ -990,10 +987,10 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         size_t pos = 0;
                         int ncomma = 0;
                         std::vector<size_t> commas;
-                        pos = op.find(",", pos + 1);
+                        pos = op.find(',', pos + 1);
                         commas.push_back(pos);
                         while( pos != std::string::npos){
-                            pos = op.find(",", pos + 1);
+                            pos = op.find(',', pos + 1);
                             commas.push_back(pos);
                             ncomma++;
                         }
@@ -1151,7 +1148,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
     for (auto & pq_str : range_blocked) {
         if ( !pq_str->symbol.empty() ) continue;
         if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = pq_str->get_string_with_label_ranges();
+        std::vector<std::string> my_string = pq_str->get_string();
         //std::vector<std::string> my_string = range_blocked[pq_str]->get_string();
         if ( !my_string.empty() ) {
             list.push_back(my_string);
@@ -1212,7 +1209,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
     for (auto & spin_str : spin_blocked) {
         if ( !spin_str->symbol.empty() ) continue;
         if ( !spin_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = spin_str->get_string_with_spin();
+        std::vector<std::string> my_string = spin_str->get_string();
         if ( !my_string.empty() ) {
             list.push_back(my_string);
         }
