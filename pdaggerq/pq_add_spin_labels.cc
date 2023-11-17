@@ -332,7 +332,7 @@ bool add_spins(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr
 }
 
 // expand sums to include spin and zero terms where appropriate
-void spin_blocking(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, std::unordered_map<std::string, std::string> spin_map) {
+void spin_blocking(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, const std::unordered_map<std::string, std::string> &spin_map) {
 
     // check that non-summed spin labels match those specified
     static std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
