@@ -37,14 +37,20 @@ class tensor {
      * constructor
      *
      */
-    tensor(){};
+    tensor() = default;
 
     /**
      *
      * destructor
      *
      */
-    ~tensor(){};
+    ~tensor() = default;
+
+    //TODO:
+    // The creation and destruction of the std::vector objects are a performance bottleneck (32% of runtime for ccsdt).
+    // This is because the std::vector objects are created and destroyed many times during the execution.
+    // These objects should be replaced with stack-allocated arrays like std::array, rather than heap-allocated arrays.
+    // This would require a significant refactoring of the code base, however.
 
     /**
      *
@@ -92,7 +98,7 @@ class tensor {
      *
      * @param rhs: the tensor against which this one is compared
      */
-    bool operator==(const tensor& rhs) {
+    bool operator==(const tensor& rhs) const {
         return ( numerical_labels == rhs.numerical_labels );
     }
 
@@ -102,7 +108,7 @@ class tensor {
      *
      * @param rhs: the target tensor
      */
-    virtual tensor operator=(const tensor& rhs) {
+    tensor &operator=(const tensor& rhs) {
         printf("\n");
         printf("    operator '=' has not been implemented for this tensor type\n");
         printf("\n");
@@ -115,7 +121,7 @@ class tensor {
      *
      * @param symbol: the tensor type
      */
-    virtual void print(std::string symbol) {
+    virtual void print(const std::string &symbol) const {
         printf("\n");
         printf("    print() has not been implemented for this tensor type\n");
         printf("\n");
@@ -128,7 +134,7 @@ class tensor {
      *
      * @param symbol: the tensor type
      */
-    virtual std::string to_string(std::string symbol) {
+    virtual std::string to_string(const std::string &symbol) const {
         printf("\n");
         printf("    to_string() has not been implemented for this tensor type\n");
         printf("\n");
@@ -141,7 +147,7 @@ class tensor {
      *
      * @param symbol: the tensor type
      */
-    virtual std::string to_string_with_spin(std::string symbol) {
+    virtual std::string to_string_with_spin(const std::string &symbol) const {
         printf("\n");
         printf("    to_string_with_spin() has not been implemented for this tensor type\n");
         printf("\n");
@@ -154,7 +160,7 @@ class tensor {
      *
      * @param symbol: the tensor type
      */
-    virtual std::string to_string_with_label_ranges(std::string symbol) {
+    virtual std::string to_string_with_label_ranges(const std::string &symbol) {
         printf("\n");
         printf("    to_string_with_label_ranges() has not been implemented for this tensor type\n");
         printf("\n");
@@ -179,14 +185,14 @@ class amplitudes: public tensor {
      * constructor 
      * 
      */
-    amplitudes(){};
+    amplitudes() = default;
 
     /**
      *
      * destructor
      *
      */
-    ~amplitudes(){};
+    ~amplitudes() = default;
 
     /**
      *
@@ -201,7 +207,7 @@ class amplitudes: public tensor {
      *
      * @param rhs: the target amplitudes
      */
-    amplitudes operator=(const amplitudes& rhs);
+    amplitudes& operator=(const amplitudes& rhs);
 
     /**
      *
@@ -209,7 +215,10 @@ class amplitudes: public tensor {
      *
      * @param symbol: the amplitudes type
      */
-    void print(char symbol);
+    void print(char symbol) const;
+    void print(const std::string &symbol) const {
+        print(symbol[0]);
+    }
 
     /**
      *
@@ -217,7 +226,10 @@ class amplitudes: public tensor {
      *
      * @param symbol: the amplitudes type
      */
-    std::string to_string(char symbol);
+    std::string to_string(char symbol) const;
+    std::string to_string(const std::string &symbol) const {
+        return to_string(symbol[0]);
+    }
 
     /**
      *
@@ -225,7 +237,10 @@ class amplitudes: public tensor {
      *
      * @param symbol: the amplitudes type
      */
-    std::string to_string_with_spin(char symbol);
+    std::string to_string_with_spin(char symbol) const;
+    std::string to_string_with_spin(const std::string &symbol) const {
+        return to_string_with_spin(symbol[0]);
+    }
 
     /**
      *
@@ -259,14 +274,14 @@ class integrals: public tensor {
      * constructor 
      * 
      */
-    integrals(){};
+    integrals() = default;
 
     /**
      *
      * destructor
      *
      */
-    ~integrals(){};
+    ~integrals() = default;
 
     /**
      *
@@ -281,7 +296,7 @@ class integrals: public tensor {
      *
      * @param rhs: the target integrals
      */
-    integrals operator=(const integrals& rhs);
+    integrals& operator=(const integrals& rhs);
 
     /**
      *
@@ -289,7 +304,7 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    void print(std::string symbol);
+    void print(const std::string &symbol) const;
 
     /**
      *
@@ -297,7 +312,7 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    std::string to_string(std::string symbol);
+    std::string to_string(const std::string &symbol) const;
 
     /**
      *
@@ -305,7 +320,7 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    std::string to_string_with_spin(std::string symbol);
+    std::string to_string_with_spin(const std::string &symbol) const;
 
     /**
      *
@@ -313,7 +328,7 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    std::string to_string_with_label_ranges(std::string symbol);
+    std::string to_string_with_label_ranges(const std::string &symbol);
 
 };
 
@@ -326,14 +341,14 @@ class delta_functions: public tensor {
      * constructor 
      * 
      */
-    delta_functions(){};
+    delta_functions() = default;
 
     /**
      * 
      * destructor
      * 
      */
-    ~delta_functions(){};
+    ~delta_functions() = default;
 
     /**
      *
@@ -348,35 +363,41 @@ class delta_functions: public tensor {
      *
      * @param rhs: the target deltas
      */
-    delta_functions operator=(const delta_functions& rhs);
+    delta_functions& operator=(const delta_functions& rhs);
 
     /**
      *
      * print deltas information to stdout
      *
      */
-    void print();
+    void print() const;
 
     /**
      *
      * print deltas information to a string
      *
      */
-    std::string to_string();
+    std::string to_string() const;
+    std::string to_string(const std::string &symbol) const {
+        return to_string();
+    }
 
     /**
      *
      * print deltas information to a string, including spin information
      *
      */
-    std::string to_string_with_spin();
+    std::string to_string_with_spin() const;
+    std::string to_string_with_spin(const std::string &symbol) const {
+        return to_string_with_spin();
+    }
 
     /**
      *
      * print deltas information to a string, including range information
      *
      */
-    std::string to_string_with_label_ranges();
+    std::string to_string_with_label_ranges() const;
 
 };
 

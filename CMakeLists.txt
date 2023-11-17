@@ -22,7 +22,15 @@
 
 cmake_minimum_required(VERSION 3.11)
 project(pdaggerq)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
+
+# find python and set variables for:
+#     the interpreter, include dirs, libraries, and version
+find_package(Python3 REQUIRED)
+set(PYTHON_EXECUTABLE   ${Python3_EXECUTABLE})
+set(PYTHON_INCLUDE_DIRS ${Python3_INCLUDE_DIRS})
+set(PYTHON_LIBRARIES    ${Python3_LIBRARIES})
+set(PYTHON_VERSION      ${Python3_VERSION})
 
 include(FetchContent)
 FetchContent_Declare(
@@ -37,7 +45,7 @@ if(NOT pybind11_POPULATED)
     add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
 
-set(PYBIND11_CPP_STANDARD -std=c++14)
+set(PYBIND11_CPP_STANDARD -std=c++17)
 
 # we are adding a private module _pdaggerq so we don't have a naming collision
 pybind11_add_module(_pdaggerq

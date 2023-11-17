@@ -30,49 +30,57 @@
 namespace pdaggerq {
 
 /// expand sums to account for different orbital ranges and zero terms where appropriate
-void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &range_blocked, std::map<std::string, std::vector<std::string> > label_ranges) {
+void add_label_ranges(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &range_blocked, const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
 
     // check that non-summed label ranges match those specified
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+    static std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
+    static std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
 
     std::map<std::string, bool> found_labels;
    
     // ok, what non-summed labels do we have in the occupied space? 
-    for (size_t j = 0; j < occ_labels.size(); j++) {
-        int found = index_in_anywhere(in, occ_labels[j]);
+    for (const std::string & occ_label : occ_labels) {
+        int found = index_in_anywhere(in, occ_label);
         if ( found == 1 ) {
-            found_labels[occ_labels[j]] = true;
+            found_labels[occ_label] = true;
         }else{
-            found_labels[occ_labels[j]] = false;
+            found_labels[occ_label] = false;
         }
     }
    
     // ok, what non-summed labels do we have in the virtual space? 
-    for (size_t j = 0; j < vir_labels.size(); j++) {
-        int found = index_in_anywhere(in, vir_labels[j]);
+    for (const std::string & vir_label : vir_labels) {
+        int found = index_in_anywhere(in, vir_label);
         if ( found == 1 ) {
-            found_labels[vir_labels[j]] = true;
+            found_labels[vir_label] = true;
         }else{
-            found_labels[vir_labels[j]] = false;
+            found_labels[vir_label] = false;
         }
     }
 
-    for (size_t j = 0; j < occ_labels.size(); j++) {
-        if ( found_labels[occ_labels[j]] ) {
-            if ( label_ranges[occ_labels[j]][0] != "act" && label_ranges[occ_labels[j]][0] != "ext" ) {
+    for (const std::string & occ_label : occ_labels) {
+        if ( found_labels[occ_label] ) {
+            // find label range
+            auto pos = label_ranges.find(occ_label);
+            std::vector<std::string> label_range = pos == label_ranges.end() ? std::vector<std::string>() : pos->second;
+            
+
+            if ( label_range[0] != "act" && label_range[0] != "ext" ) {
                 printf("\n");
-                printf("    error: label range for non-summed index %s is invalid\n", occ_labels[j].c_str());
+                printf("    error: label range for non-summed index %s is invalid\n", occ_label.c_str());
                 printf("\n");
                 exit(1);
             }
         }
     }
-    for (size_t j = 0; j < vir_labels.size(); j++) {
-        if ( found_labels[vir_labels[j]] ) {
-            if ( label_ranges[vir_labels[j]][0] != "act" && label_ranges[vir_labels[j]][0] != "ext" ) {
+    for (const std::string & vir_label : vir_labels) {
+        if ( found_labels[vir_label] ) {
+            auto pos = label_ranges.find(vir_label);
+            std::vector<std::string> label_range = pos == label_ranges.end() ? std::vector<std::string>() : pos->second;
+
+            if ( label_range[0] != "act" && label_range[0] != "ext" ) {
                 printf("\n");
-                printf("    error: label ranges for non-summed index %s is invalid\n", vir_labels[j].c_str());
+                printf("    error: label ranges for non-summed index %s is invalid\n", vir_label.c_str());
                 printf("\n");
                 exit(1);
             }
@@ -89,31 +97,33 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
     tmp.push_back(newguy);
 
     // but first expand single permutations where ranges don't match 
-    for (size_t i = 0; i < tmp.size(); i++) {
+    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
 
-        size_t n = tmp[i]->permutations.size() / 2;
+        size_t n = tmp_str->permutations.size() / 2;
 
         for (size_t j = 0; j < n; j++) {
 
-            std::string idx1 = tmp[i]->permutations[2*j];
-            std::string idx2 = tmp[i]->permutations[2*j+1];
+            std::string idx1 = tmp_str->permutations[2*j];
+            std::string idx2 = tmp_str->permutations[2*j+1];
 
-            // range 1
-            std::vector<std::string> range1 = label_ranges[idx1];
-
-            // range 2
-            std::vector<std::string> range2 = label_ranges[idx2];
+            // find label ranges
+            auto pos1 = label_ranges.find(idx1);
+            auto pos2 = label_ranges.find(idx2);
+            
+            // range 1 and 2
+            std::vector<std::string> range1 = pos1 == label_ranges.end() ? std::vector<std::string>() : pos1->second;
+            std::vector<std::string> range2 = pos2 == label_ranges.end() ? std::vector<std::string>() : pos2->second;
 
             // if ranges are not the same, then the permutation needs to be expanded explicitly before allowed ranges redetermined
             if ( range1 != range2 ) {
 
                 // first guy is just a copy
-                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp[i]->vacuum));
-                newguy1->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy1 (new pq_string(tmp_str->vacuum));
+                newguy1->copy(tmp_str.get());
 
                 // second guy is a copy with permuted labels and change in sign
-                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp[i]->vacuum));
-                newguy2->copy(tmp[i].get());
+                std::shared_ptr<pq_string> newguy2 (new pq_string(tmp_str->vacuum));
+                newguy2->copy(tmp_str.get());
                 swap_two_labels(newguy2, idx1, idx2);
                 newguy2->sign *= -1;
 
@@ -129,14 +139,14 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
                     // skip jth permutation, which is the one we expanded
                     if ( j == k ) continue;
 
-                    newguy1->permutations.push_back(tmp[i]->permutations[2*k]);
-                    newguy1->permutations.push_back(tmp[i]->permutations[2*k+1]);
+                    newguy1->permutations.push_back(tmp_str->permutations[2*k]);
+                    newguy1->permutations.push_back(tmp_str->permutations[2*k+1]);
 
-                    newguy2->permutations.push_back(tmp[i]->permutations[2*k]);
-                    newguy2->permutations.push_back(tmp[i]->permutations[2*k+1]);
+                    newguy2->permutations.push_back(tmp_str->permutations[2*k]);
+                    newguy2->permutations.push_back(tmp_str->permutations[2*k+1]);
                 }
 
-                tmp[i]->skip = true;
+                tmp_str->skip = true;
                 tmp.push_back(newguy1);
                 tmp.push_back(newguy2);
 
@@ -147,53 +157,67 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
     }
 
     // now expand paired permutations (3) where label ranges don't match TODO
-    for (size_t i = 0; i < tmp.size(); i++) {
-        size_t n = tmp[i]->paired_permutations_3.size() / 6;
+    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
+        size_t n = tmp_str->paired_permutations_3.size() / 6;
 
         for (size_t j = 0; j < n; j++) {
 
-            std::string o1 = tmp[i]->paired_permutations_3[6*j];
-            std::string v1 = tmp[i]->paired_permutations_3[6*j+1];
-            std::string o2 = tmp[i]->paired_permutations_3[6*j+2];
-            std::string v2 = tmp[i]->paired_permutations_3[6*j+3];
-            std::string o3 = tmp[i]->paired_permutations_3[6*j+4];
-            std::string v3 = tmp[i]->paired_permutations_3[6*j+5];
+            std::string o1 = tmp_str->paired_permutations_3[6 * j];
+            std::string v1 = tmp_str->paired_permutations_3[6 * j + 1];
+            std::string o2 = tmp_str->paired_permutations_3[6 * j + 2];
+            std::string v2 = tmp_str->paired_permutations_3[6 * j + 3];
+            std::string o3 = tmp_str->paired_permutations_3[6 * j + 4];
+            std::string v3 = tmp_str->paired_permutations_3[6 * j + 5];
 
-            // occupied ranges
-            std::vector<std::string> rangeo1 = label_ranges[o1];
-            std::vector<std::string> rangeo2 = label_ranges[o2];
-            std::vector<std::string> rangeo3 = label_ranges[o3];
+            // find occupied label ranges
+            auto poso1 = label_ranges.find(o1);
+            auto poso2 = label_ranges.find(o2);
+            auto poso3 = label_ranges.find(o3);
+            std::vector<std::string> rangeo1 = poso1 == label_ranges.end() ? std::vector<std::string>() : poso1->second;
+            std::vector<std::string> rangeo2 = poso2 == label_ranges.end() ? std::vector<std::string>() : poso2->second;
+            std::vector<std::string> rangeo3 = poso3 == label_ranges.end() ? std::vector<std::string>() : poso3->second;
 
-            // virtual ranges
-            std::vector<std::string> rangev1 = label_ranges[v1];
-            std::vector<std::string> rangev2 = label_ranges[v2];
-            std::vector<std::string> rangev3 = label_ranges[v3];
+
+            // find virtual label ranges
+            auto posv1 = label_ranges.find(o1);
+            auto posv2 = label_ranges.find(o2);
+            auto posv3 = label_ranges.find(o3);
+            std::vector<std::string> rangev1 = poso1 == label_ranges.end() ? std::vector<std::string>() : posv1->second;
+            std::vector<std::string> rangev2 = poso2 == label_ranges.end() ? std::vector<std::string>() : posv2->second;
+            std::vector<std::string> rangev3 = poso3 == label_ranges.end() ? std::vector<std::string>() : posv3->second;
 
         }
     }
 
     // now expand paired permutations (6) where label ranges don't match TODO
-    for (size_t i = 0; i < tmp.size(); i++) {
-        size_t n = tmp[i]->paired_permutations_6.size() / 6;
+    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
+        size_t n = tmp_str->paired_permutations_6.size() / 6;
 
         for (size_t j = 0; j < n; j++) {
 
-            std::string o1 = tmp[i]->paired_permutations_6[6*j];
-            std::string v1 = tmp[i]->paired_permutations_6[6*j+1];
-            std::string o2 = tmp[i]->paired_permutations_6[6*j+2];
-            std::string v2 = tmp[i]->paired_permutations_6[6*j+3];
-            std::string o3 = tmp[i]->paired_permutations_6[6*j+4];
-            std::string v3 = tmp[i]->paired_permutations_6[6*j+5];
+            std::string o1 = tmp_str->paired_permutations_6[6 * j];
+            std::string v1 = tmp_str->paired_permutations_6[6 * j + 1];
+            std::string o2 = tmp_str->paired_permutations_6[6 * j + 2];
+            std::string v2 = tmp_str->paired_permutations_6[6 * j + 3];
+            std::string o3 = tmp_str->paired_permutations_6[6 * j + 4];
+            std::string v3 = tmp_str->paired_permutations_6[6 * j + 5];
 
-            // occupied ranges
-            std::vector<std::string> rangeo1 = label_ranges[o1];
-            std::vector<std::string> rangeo2 = label_ranges[o2];
-            std::vector<std::string> rangeo3 = label_ranges[o3];
+            // find occupied label ranges
+            auto poso1 = label_ranges.find(o1);
+            auto poso2 = label_ranges.find(o2);
+            auto poso3 = label_ranges.find(o3);
+            std::vector<std::string> rangeo1 = poso1 == label_ranges.end() ? std::vector<std::string>() : poso1->second;
+            std::vector<std::string> rangeo2 = poso2 == label_ranges.end() ? std::vector<std::string>() : poso2->second;
+            std::vector<std::string> rangeo3 = poso3 == label_ranges.end() ? std::vector<std::string>() : poso3->second;
 
-            // virtual ranges
-            std::vector<std::string> rangev1 = label_ranges[v1];
-            std::vector<std::string> rangev2 = label_ranges[v2];
-            std::vector<std::string> rangev3 = label_ranges[v3];
+
+            // find virtual label ranges
+            auto posv1 = label_ranges.find(o1);
+            auto posv2 = label_ranges.find(o2);
+            auto posv3 = label_ranges.find(o3);
+            std::vector<std::string> rangev1 = poso1 == label_ranges.end() ? std::vector<std::string>() : posv1->second;
+            std::vector<std::string> rangev2 = poso2 == label_ranges.end() ? std::vector<std::string>() : posv2->second;
+            std::vector<std::string> rangev3 = poso3 == label_ranges.end() ? std::vector<std::string>() : posv3->second;
         }
     }
 
@@ -203,107 +227,113 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
     do {
         std::vector< std::shared_ptr<pq_string> > list;
         done_adding_ranges = true;
-        for (size_t i = 0; i < tmp.size(); i++) {
-            bool am_i_done = add_ranges_to_string(tmp[i], list);
+        for (const std::shared_ptr<pq_string> & tmp_str : tmp) {
+            bool am_i_done = add_ranges_to_string(tmp_str, list);
             if ( !am_i_done ) done_adding_ranges = false;
         }
         if ( !done_adding_ranges ) {
             tmp.clear();
-            for (size_t i = 0; i < list.size(); i++) {
-                if ( !list[i]->skip ) {
-                    tmp.push_back(list[i]);
+            for (std::shared_ptr<pq_string> & pq_str : list) {
+                if ( !pq_str->skip ) {
+                    tmp.push_back(pq_str);
                 }
             }
         }
     }while(!done_adding_ranges);
 
     // kill deltas that have mismatched ranges
-    for (size_t i = 0; i < tmp.size(); i++) {
+    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
 
-        if ( tmp[i]->skip ) continue;
+        if ( tmp_str->skip ) continue;
 
         bool killit = false;
 
         // delta functions 
         for (size_t j = 0; j < in->deltas.size(); j++) {
-            if ( tmp[i]->deltas[j].label_ranges[0] != tmp[i]->deltas[j].label_ranges[1] ) {
+            if (tmp_str->deltas[j].label_ranges[0] != tmp_str->deltas[j].label_ranges[1] ) {
                 killit = true;
                 break;
             }
         }
 
         if ( killit ) {
-            tmp[i]->skip = true;
+            tmp_str->skip = true;
             continue;
         }
     }
 
     // kill terms with ranges inconsistent with what is in the map
-    for (size_t i = 0; i < tmp.size(); i++) {
+    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
 
-        if ( tmp[i]->skip ) continue;
+        if ( tmp_str->skip ) continue;
 
         bool killit = false;
 
         // get desired ranges for amplitudes from map
-        for (size_t j = 0; j < tmp[i]->amplitude_types.size(); j++) {
-            char type = tmp[i]->amplitude_types[j];
-            for (size_t k = 0; k < tmp[i]->amps[type].size(); k++) {
+        for (auto &amp_pair : tmp_str->amps) {
+            char type = amp_pair.first;
+            std::vector<amplitudes> & amps = amp_pair.second;
+            for (amplitudes & amp : amps) {
 
                 // amplitude type+order (ie 't' + '2' = "t2")
-                std::string amp;
-                amp.push_back(type);
-                int order = tmp[i]->amps[type][k].n_create;
-                if (tmp[i]->amps[type][k].n_annihilate > order) {
-                    order = tmp[i]->amps[type][k].n_annihilate;
+                std::string amptype;
+                amptype.push_back(type);
+                int order = amp.n_create;
+                if (amp.n_annihilate > order) {
+                    order = amp.n_annihilate;
                 }
-                amp += std::to_string(order);
+                amptype += std::to_string(order);
                 
                 // is this amplitude in the map? if not, we can assume full ranges are desired
-                if ( label_ranges.find(amp) == label_ranges.end() ) continue;
+                auto amp_pos = label_ranges.find(amptype); 
+                if ( amp_pos == label_ranges.end() ) continue;
+                
+                // get desired ranges for this amplitude from map
+                std::vector<std::string> label_range = amp_pos->second;
 
                 // are the number of ranges provided by the user correct?
-                if ( label_ranges[amp].size() != tmp[i]->amps[type][k].label_ranges.size() ) {
+                if (label_range.size() != amp.label_ranges.size() ) {
                     printf("\n");
-                    printf("    error: something is wrong with the number of ranges for %s\n", amp.c_str());
+                    printf("    error: something is wrong with the number of ranges for %s\n", amptype.c_str());
                     printf("\n");
                     exit(1);
                 }
 
                 // check label ranges
-                killit = do_ranges_differ(0, tmp[i]->amps[type][k].n_create, "act", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
+                killit = do_ranges_differ(0, amp.n_create, "act", amp.label_ranges, label_range);
                 if ( killit ) break;
 
-                killit = do_ranges_differ(0, tmp[i]->amps[type][k].n_create, "ext", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
+                killit = do_ranges_differ(0, amp.n_create, "ext", amp.label_ranges, label_range);
                 if ( killit ) break;
 
-                killit = do_ranges_differ(tmp[i]->amps[type][k].n_create, tmp[i]->amps[type][k].n_create + tmp[i]->amps[type][k].n_annihilate, "act", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
+                killit = do_ranges_differ(amp.n_create, amp.n_create + amp.n_annihilate, "act", amp.label_ranges, label_range);
                 if ( killit ) break;
 
-                killit = do_ranges_differ(tmp[i]->amps[type][k].n_create, tmp[i]->amps[type][k].n_create + tmp[i]->amps[type][k].n_annihilate, "ext", tmp[i]->amps[type][k].label_ranges, label_ranges[amp]);
+                killit = do_ranges_differ(amp.n_create, amp.n_create + amp.n_annihilate, "ext", amp.label_ranges, label_range);
                 if ( killit ) break;
             }
             if ( killit ) break;
 
         }
         if ( killit ) {
-            tmp[i]->skip = true;
+            tmp_str->skip = true;
             continue;
         }
     }
 
     // rearrange terms so that they have standard range order ( ae;ea -> -ae;ae etc. )
-    for (size_t p = 0; p < tmp.size(); p++) {
+    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
 
-        if ( tmp[p]->skip ) continue;
+        if ( tmp_str->skip ) continue;
 
         // amplitudes
-        for (size_t i = 0; i < in->amplitude_types.size(); i++) {
-            char type = in->amplitude_types[i];
-            for (size_t j = 0; j < tmp[p]->amps[type].size(); j++) {
+        for (auto &amp_pair : tmp_str->amps) {
+            char type = amp_pair.first;
+            std::vector<amplitudes> & amps = amp_pair.second;
+            for (amplitudes & amp : amps) {
 
-                size_t n_create = tmp[p]->amps[type][j].n_create;
-                size_t n_annihilate = tmp[p]->amps[type][j].n_annihilate;
+                size_t n_create = amp.n_create;
+                size_t n_annihilate = amp.n_annihilate;
 
                 if ( n_create > 4 || n_annihilate > 4) {
                     printf("\n");
@@ -317,52 +347,53 @@ void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr
                 // reorder creation labels
                 if ( n_create == 2 ) {
                     // target order: aa, ae, ee
-                    reorder_two_ranges(tmp[p]->amps[type][j], 0, 1, sign);
+                    reorder_two_ranges(amp, 0, 1, sign);
                 }else if ( n_create == 3 ) {
                     // target order: aaa, aae, aee, eee
-                    reorder_three_ranges(tmp[p]->amps[type][j], 0, 1, 2, sign);
+                    reorder_three_ranges(amp, 0, 1, 2, sign);
                 }else if ( n_create == 4 ) {
                     // target order: aaaa, aaae, aaee, aeee, eeee
-                    reorder_four_ranges(tmp[p]->amps[type][j], 0, 1, 2, 3, sign);
+                    reorder_four_ranges(amp, 0, 1, 2, 3, sign);
                 }
 
                 // signs for annihilation labels
                 if ( n_annihilate == 2 ) {
                     // target order: aa, ae, ee
-                    reorder_two_ranges(tmp[p]->amps[type][j], n_create, n_create + 1, sign);
+                    reorder_two_ranges(amp, n_create, n_create + 1, sign);
                 }else if ( n_annihilate == 3 ) {
                     // target order: aaa, aae, aee, eee
-                    reorder_three_ranges(tmp[p]->amps[type][j], n_create, n_create + 1, n_create + 2, sign);
+                    reorder_three_ranges(amp, n_create, n_create + 1, n_create + 2, sign);
                 }else if ( n_annihilate == 4 ) {
                     // target order: aaaa, aaae, aaee, aeee, eeee
-                    reorder_four_ranges(tmp[p]->amps[type][j], n_create, n_create + 1, n_create + 2, n_create + 3, sign);
+                    reorder_four_ranges(amp, n_create, n_create + 1, n_create + 2, n_create + 3, sign);
                 }
 
-                tmp[p]->sign *= sign;
+                tmp_str->sign *= sign;
             }
         }
 
         // integrals
-        for (size_t i = 0; i < in->integral_types.size(); i++) {
-            std::string type = in->integral_types[i];
-            for (size_t j = 0; j < tmp[p]->ints[type].size(); j++) {
+        for (auto &int_pair : tmp_str->ints) {
+            std::string type = int_pair.first;
+            std::vector<integrals> & ints = int_pair.second;
+            for (integrals & integral : ints) {
 
-                size_t order = tmp[p]->ints[type][j].labels.size()/2;
+                size_t order = integral.labels.size() / 2;
 
                 if ( order != 2 ) continue;
 
                 // target order: aa, ae, ee
                 int sign = 1;
-                reorder_two_ranges(tmp[p]->ints[type][j], 0, 1, sign);
-                reorder_two_ranges(tmp[p]->ints[type][j], 2, 3, sign);
-                tmp[p]->sign *= sign;
+                reorder_two_ranges(integral, 0, 1, sign);
+                reorder_two_ranges(integral, 2, 3, sign);
+                tmp_str->sign *= sign;
             }
         }
     }
 
-    for (size_t i = 0; i < tmp.size(); i++) {
-        if ( tmp[i]->skip ) continue;
-        range_blocked.push_back(tmp[i]);
+    for (auto & tmp_str : tmp) {
+        if ( tmp_str->skip ) continue;
+        range_blocked.push_back(tmp_str);
     }
     tmp.clear();
 }
@@ -450,7 +481,7 @@ void reorder_three_ranges(amplitudes & amps, int i1, int i2, int i3, int & sign)
 }
 
 // do ranges in two strings differ? second string should be the map that could contain "all"
-bool do_ranges_differ(size_t start, size_t end, std::string range, std::vector<std::string> in1, std::vector<std::string> in2) {
+bool do_ranges_differ(size_t start, size_t end, const std::string& range, const std::vector<std::string> &in1, const std::vector<std::string> &in2) {
 
     // number of input ranges in current amplitude
     int n1 = 0;
@@ -474,18 +505,19 @@ bool do_ranges_differ(size_t start, size_t end, std::string range, std::vector<s
 }
 
 // add label ranges to a string
-bool add_ranges_to_string(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list) {
+bool add_ranges_to_string(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &list) {
 
     if ( in->skip ) return true;
 
     bool all_ranges_added = false;
 
     // amplitudes
-    for (size_t i = 0; i < in->amplitude_types.size(); i++) {
-        char type = in->amplitude_types[i];
-        for (size_t j = 0; j < in->amps[type].size(); j++) {
-            for (size_t k = 0; k < in->amps[type][j].labels.size(); k++) {
-                if ( in->amps[type][j].label_ranges[k] == "" ) {
+    for (auto &amp_pair : in->amps) {
+        char type = amp_pair.first;
+        std::vector<amplitudes> & amps = amp_pair.second;
+        for (amplitudes & amp : amps) {
+            for (size_t k = 0; k < amp.labels.size(); k++) {
+                if ( amp.label_ranges[k].empty() ) {
 
                     std::shared_ptr<pq_string> act (new pq_string(in->vacuum));
                     std::shared_ptr<pq_string> ext (new pq_string(in->vacuum));
@@ -493,8 +525,8 @@ bool add_ranges_to_string(std::shared_ptr<pq_string> in, std::vector<std::shared
                     act->copy(in.get());
                     ext->copy(in.get());
 
-                    act->set_range_everywhere(in->amps[type][j].labels[k], "act");
-                    ext->set_range_everywhere(in->amps[type][j].labels[k], "ext");
+                    act->set_range_everywhere(amp.labels[k], "act");
+                    ext->set_range_everywhere(amp.labels[k], "ext");
 
                     list.push_back(act);
                     list.push_back(ext);
@@ -505,28 +537,29 @@ bool add_ranges_to_string(std::shared_ptr<pq_string> in, std::vector<std::shared
     }
 
     // integrals
-    for (size_t i = 0; i < in->integral_types.size(); i++) {
-        std::string type = in->integral_types[i];
-        for (size_t j = 0; j < in->ints[type].size(); j++) {
-            for (size_t k = 0; k < in->ints[type][j].labels.size(); k++) {
-                if ( in->ints[type][j].label_ranges[k] == "" ) {
+    for (auto &int_pair : in->ints) {
+        std::string type = int_pair.first;
+        std::vector<integrals> & ints = int_pair.second;
+        for (integrals & integral : ints) {
+        for (size_t k = 0; k < integral.labels.size(); k++) {
+            if ( integral.label_ranges[k].empty() ) {
 
-                    std::shared_ptr<pq_string> act (new pq_string(in->vacuum));
-                    std::shared_ptr<pq_string> ext (new pq_string(in->vacuum));
+                std::shared_ptr<pq_string> act (new pq_string(in->vacuum));
+                std::shared_ptr<pq_string> ext (new pq_string(in->vacuum));
 
-                    act->copy(in.get());
-                    ext->copy(in.get());
+                act->copy(in.get());
+                ext->copy(in.get());
 
-                    act->set_range_everywhere(in->ints[type][j].labels[k], "act");
-                    ext->set_range_everywhere(in->ints[type][j].labels[k], "ext");
+                act->set_range_everywhere(integral.labels[k], "act");
+                ext->set_range_everywhere(integral.labels[k], "ext");
 
-                    list.push_back(act);
-                    list.push_back(ext);
-                    return false;
-                }
+                list.push_back(act);
+                list.push_back(ext);
+                return false;
             }
         }
     }
+}
 
     // must be done.
     return true;
