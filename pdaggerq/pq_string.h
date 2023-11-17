@@ -140,7 +140,7 @@ class pq_string {
      *
      */
     static inline
-    std::vector<std::string> integral_types = {"fock", "core", "two_body", "eri", "d+", "d-", "occ_repulsion"};
+    std::string integral_types[] {"fock", "core", "two_body", "eri", "d+", "d-", "occ_repulsion"};
 
     /**
      *
@@ -155,7 +155,7 @@ class pq_string {
      *
      */
     static inline
-    std::vector<char> amplitude_types = {'l', 'r', 't', 'u', 'm', 's'};
+    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's'};
 
     /**
      *
