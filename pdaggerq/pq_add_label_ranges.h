@@ -39,13 +39,13 @@
 namespace pdaggerq {
 
 /// expand sums to account for different orbital ranges and zero terms where appropriate
-void add_label_ranges(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &range_blocked, std::map<std::string, std::vector<std::string> > label_ranges);
+void add_label_ranges(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &range_blocked, const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
 
 /// add label ranges to a string
-bool add_ranges_to_string(std::shared_ptr<pq_string> in, std::vector<std::shared_ptr<pq_string> > &list);
+bool add_ranges_to_string(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &list);
 
 /// do ranges in two strings differ?
-bool do_ranges_differ(size_t start, size_t end, std::string range, std::vector<std::string> in1, std::vector<std::string> in2);
+bool do_ranges_differ(size_t start, size_t end, const std::string& range, const std::vector<std::string> &in1, const std::vector<std::string> &in2);
 
 // reorder two ranges ... only one case to consider: ba -> ab
 void reorder_two_ranges(tensor & tens, int i1, int i2, int & sign);

@@ -80,14 +80,14 @@ void export_pq_helper(py::module& m) {
              },
                 py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("fully_contracted_strings_with_ranges",
-             [](pq_helper& self, std::map<std::string, std::vector<std::string> > &label_ranges) {
+             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
 //                 return self.fully_contracted_strings_with_ranges(label_ranges);
                     self.block_by_range(label_ranges);
                     return self.fully_contracted_strings();
              },
              py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>() )
         .def("block_by_range",
-             [](pq_helper& self, std::map<std::string, std::vector<std::string> > &label_ranges) {
+             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
                  self.block_by_range(label_ranges);
              },
              py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
@@ -1125,7 +1125,8 @@ void pq_helper::print(const std::string &string_type) const {
 }
 
 // get list of fully-contracted strings, after assigning ranges to the labels
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_ranges(std::map<std::string, std::vector<std::string> > label_ranges) {
+std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_ranges(
+            const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
 
     // add ranges to labels
     pq_string::is_range_blocked = true;
@@ -1162,8 +1163,7 @@ std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_
 }
 
 // get list of fully-contracted strings, after assigning ranges to the labels
-//TODO: refactor everything to use `const unordered_map<std::string, std::vector<std::string>> &label_ranges`
-void pq_helper::block_by_range(const std::map<std::string, std::vector<std::string> >& label_ranges) {
+void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
     ordered_blocked.clear();
 
     // add ranges to labels
