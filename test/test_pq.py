@@ -65,10 +65,8 @@ def compare_outputs(test_name, script_path):
 
     # ensure that the difference is empty
     if len(diff) > 0:
-        diff = diff.split("\n")
-        diff = [line for line in diff if line.startswith("<") or line.startswith(">")]
-        diff = "\n".join(diff)
-        write_file(f"{script_path}/test_outputs/difference/{test_name}_diff.out", diff, title="Difference")
+        with open(f"{script_path}/test_outputs/diff/{test_name}_diff.out", "w") as file:
+            file.write(diff)
 
         print(f"Test {test_name} failed")
         assert len(diff) == 0
