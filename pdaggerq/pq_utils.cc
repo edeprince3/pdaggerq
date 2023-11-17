@@ -1293,8 +1293,31 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         // TODO: note that the code only efficiently collects terms when the amplitude
         // list is ordered as {'t', 'l', 'r', 'u', 'm', 's'} ... i don't know why, but
         // i do know that this is the problematic part of the code
+
+        /*TODO: The order of the amplitude types happen to coincide
+         * with the order of descending number of amplitudes. This can be remedied by sorting the
+         * types by number of amplitudes. an implementation of this is below, however this changes the
+         * order of the indexing and cannot directly be compared with the test suite.
+         * However, visual inspection of the output shows that the results are analytically identical.
+
+                char types[] {'t', 'l', 'r', 'u', 'm', 's'};
+                static int types_index[] {0, 1, 2, 3, 4, 5};
+
+                // the amplitude type order will be set by the number of terms
+                std::sort(types_index, types_index + 6, [&types, &in](int i1, int i2) {
+                    return in->amps[types[i1]].size() > in->amps[types[i2]].size();
+                });
+
+                do_continue = false;
+                for (auto & type_index : types_index)
+                    char type = types[type_index];
+                    std::vector<amplitudes> & amps = in->amps[type];
+                    (... etc...)
+         * */
+
+
         do_continue = false;
-        static std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's'};
+        static char types[] = {'t', 'l', 'r', 'u', 'm', 's'};
         for (auto & type : types) {
             std::vector<amplitudes> & amps = in->amps[type];
             

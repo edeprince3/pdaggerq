@@ -23,6 +23,10 @@ def write_file(file_path, output, title=None):
         file.write(content)
 
 def process_output(output):
+
+    #TODO: We need to grab general labels from the output
+    # so that equivalent terms with different indices are not counted as different
+
     processed = output.strip().split("\n")
 
     # use regex to find all items within ''
@@ -65,7 +69,7 @@ def compare_outputs(test_name, script_path):
 
     # ensure that the difference is empty
     if len(diff) > 0:
-        with open(f"{script_path}/test_outputs/diff/{test_name}_diff.out", "w") as file:
+        with open(f"{script_path}/test_outputs/difference/{test_name}_diff.out", "w") as file:
             file.write(diff)
 
         print(f"Test {test_name} failed")
