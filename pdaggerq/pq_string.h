@@ -315,14 +315,14 @@ class pq_string {
      * @param target: a target label in the integrals or amplitudes
      * @param range: the range to be added to target
      */
-    void set_range_everywhere(std::string target, std::string range);
+    void set_range_everywhere(const std::string& target, const std::string& range);
 
     /**
      *
      * reset label ranges (so only non-summed labels are set)
      *
      */
-    void reset_label_ranges(std::map<std::string, std::vector<std::string> > label_ranges);
+    void reset_label_ranges(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
 
     /**
      *
@@ -342,7 +342,7 @@ class pq_string {
      * @param n_annihilate: the number of labels corresponding to annihilation operators
      * @param in: the list of labels for the amplitudes
      */
-    void set_amplitudes(char type, int n_create, int n_annihilate, std::vector<std::string> in);
+    void set_amplitudes(char type, int n_create, int n_annihilate, const std::vector<std::string> &in);
 
 };
 

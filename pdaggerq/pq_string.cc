@@ -283,7 +283,7 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
 
     if ( skip ) return my_string;
 
-    if ( vacuum == "FERMI" && symbol.size() > 0 ) {
+    if ( vacuum == "FERMI" && !symbol.empty() ) {
         // check if stings should be zero or not
         bool is_dagger_right = is_dagger_fermi[symbol.size()-1];
         bool is_dagger_left  = is_dagger_fermi[0];
@@ -301,7 +301,7 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
     //my_string.push_back(tmp + std::to_string(fabs(factor)));
     my_string.push_back(tmp + to_string_with_precision(fabs(factor), 14));
 
-    if ( permutations.size() > 0 ) {
+    if ( !permutations.empty() ) {
         // should have an even number of symbols...how many pairs?
         size_t n = permutations.size() / 2;
         size_t count = 0;
@@ -315,7 +315,7 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
         }
     }
 
-    if ( paired_permutations_2.size() > 0 ) {
+    if ( !paired_permutations_2.empty() ) {
         // should have a number of symbols divisible by 4
         size_t n = paired_permutations_2.size() / 4;
         size_t count = 0;
@@ -333,7 +333,7 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
         }
     }
 
-    if ( paired_permutations_6.size() > 0 ) {
+    if ( !paired_permutations_6.empty() ) {
         // should have a number of symbols divisible by 6
         size_t n = paired_permutations_6.size() / 6;
         size_t count = 0;
@@ -355,7 +355,7 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
         }
     }
 
-    if ( paired_permutations_3.size() > 0 ) {
+    if ( !paired_permutations_3.empty() ) {
         // should have a number of symbols divisible by 6
         size_t n = paired_permutations_3.size() / 6;
         size_t count = 0;
@@ -378,44 +378,46 @@ std::vector<std::string> pq_string::get_string_with_label_ranges() {
     }
 
     for (size_t i = 0; i < symbol.size(); i++) {
-        std::string tmp = symbol[i];
+        std::string tmp_symbol = symbol[i];
         if ( is_dagger[i] ) {
-            tmp += "*";
+            tmp_symbol += "*";
         }
-        my_string.push_back(tmp);
+        my_string.push_back(tmp_symbol);
     }
 
     // deltas
-    for (size_t i = 0; i < deltas.size(); i++) {
-        my_string.push_back( deltas[i].to_string_with_label_ranges() );
+    for (delta_functions & delta : deltas) {
+        my_string.push_back( delta.to_string_with_label_ranges() );
     }
 
     // integrals
-    for (size_t i = 0; i < integral_types.size(); i++) {
-        std::string type = integral_types[i];
-        for (size_t j = 0; j < ints[type].size(); j++) {
-            my_string.push_back( ints[type][j].to_string_with_label_ranges(type) );
+    for (auto &ints_pair : ints) {
+        std::string type = ints_pair.first;
+        std::vector<integrals> &ints_vec = ints_pair.second;
+        for (integrals & integral : ints_vec) {
+            my_string.push_back( integral.to_string_with_label_ranges(type) );
         }
     }
 
     // amplitudes
-    for (size_t i = 0; i < amplitude_types.size(); i++) {
-        char type = amplitude_types[i];
-        for (size_t j = 0; j < amps[type].size(); j++) {
-            my_string.push_back( amps[type][j].to_string_with_label_ranges(type));
+    for (auto &amps_pair : amps) {
+        char type = amps_pair.first;
+        std::vector<amplitudes> &amps_vec = amps_pair.second;
+        for (amplitudes & amp : amps_vec) {
+            my_string.push_back( amp.to_string_with_label_ranges(type));
         }
     }
 
     // bosons:
     for (size_t i = 0; i < is_boson_dagger.size(); i++) {
         if ( is_boson_dagger[i] ) {
-            my_string.push_back("B*");
+            my_string.emplace_back("B*");
         }else {
-            my_string.push_back("B");
+            my_string.emplace_back("B");
         }
     }
     if ( has_w0 ) {
-        my_string.push_back("w0");
+        my_string.emplace_back("w0");
     }
 
     return my_string;
@@ -926,109 +928,110 @@ void pq_string::reset_spin_labels() {
 }
 
 // set range for target label in string
-void pq_string::set_range_everywhere(std::string target, std::string range) {
+void pq_string::set_range_everywhere(const std::string& target, const std::string& range) {
 
     // integrals
-    for (size_t i = 0; i < integral_types.size(); i++) {
-        std::string type = integral_types[i];
-        for (size_t j = 0; j < ints[type].size(); j++) {
-            for (size_t k = 0; k < ints[type][j].labels.size(); k++) {
-                if ( ints[type][j].labels[k] == target ) {
-                    ints[type][j].label_ranges[k] = range;
+    for (auto &int_pair : ints) {
+        std::string type = int_pair.first;
+        for (integrals & integral : int_pair.second) {
+            for (size_t k = 0; k < integral.labels.size(); k++) {
+                if ( integral.labels[k] == target ) {
+                    integral.label_ranges[k] = range;
                 }
             }
         }
     }
     // amplitudes
-    for (size_t i = 0; i < amplitude_types.size(); i++) {
-        char type = amplitude_types[i];
-        for (size_t j = 0; j < amps[type].size(); j++) {
-            for (size_t k = 0; k < amps[type][j].labels.size(); k++) {
-                if ( amps[type][j].labels[k] == target ) {
-                    amps[type][j].label_ranges[k] = range;
+    for (auto &amp_pair : amps) {
+        char type = amp_pair.first;
+        for (amplitudes & amp : amp_pair.second) {
+            for (size_t k = 0; k < amp.labels.size(); k++) {
+                if ( amp.labels[k] == target ) {
+                    amp.label_ranges[k] = range;
                 }
             }
         }
     }
     // deltas
-    for (size_t i = 0; i < deltas.size(); i++) {
-        for (size_t j = 0; j < deltas[i].labels.size(); j++) {
-            if ( deltas[i].labels[j] == target ) {
-                deltas[i].label_ranges[j] = range;
+    for (delta_functions & delta : deltas) {
+        for (size_t j = 0; j < delta.labels.size(); j++) {
+            if ( delta.labels[j] == target ) {
+                delta.label_ranges[j] = range;
             }
         }
     }
 }
 
 // reset label ranges
-void pq_string::reset_label_ranges(std::map<std::string, std::vector<std::string> > label_ranges) {
+void pq_string::reset_label_ranges(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
 
     // amplitudes
-    for (size_t i = 0; i < amplitude_types.size(); i++) {
-        char type = amplitude_types[i];
-        for (size_t j = 0; j < amps[type].size(); j++) {
-            amps[type][j].label_ranges.clear();
-            for (size_t k = 0; k < amps[type][j].labels.size(); k++) {
-                amps[type][j].label_ranges.push_back("");
+    for (auto &amp_pair : amps) {
+        char type = amp_pair.first;
+        for (amplitudes & amp : amp_pair.second) {
+            amp.label_ranges.clear();
+            for (size_t k = 0; k < amp.labels.size(); k++) {
+                amp.label_ranges.emplace_back("");
             }
         }
     }
     // integrals
-    for (size_t i = 0; i < integral_types.size(); i++) {
-        std::string type = integral_types[i];
-        for (size_t j = 0; j < ints[type].size(); j++) {
-            ints[type][j].label_ranges.clear();
-            for (size_t k = 0; k < ints[type][j].labels.size(); k++) {
-                ints[type][j].label_ranges.push_back("");
+    for (auto &int_pair : ints) {
+        std::string type = int_pair.first;
+        for (integrals & integral : int_pair.second) {
+            integral.label_ranges.clear();
+            for (size_t k = 0; k < integral.labels.size(); k++) {
+                integral.label_ranges.emplace_back("");
             }
         }
     }
     // deltas
-    for (size_t i = 0; i < deltas.size(); i++) {
-        deltas[i].label_ranges.clear();
-        for (size_t j = 0; j < deltas[i].labels.size(); j++) {
-            deltas[i].label_ranges.push_back("");
+    for (delta_functions & delta : deltas) {
+        delta.label_ranges.clear();
+        for (size_t j = 0; j < delta.labels.size(); j++) {
+            delta.label_ranges.emplace_back("");
         }
     }
 
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
     // set ranges for occupied non-summed labels
-    for (size_t label = 0; label < occ_labels.size(); label++) {
+    for (const std::string & occ_label : occ_labels) {
 
         // check that this label is in the map
-        if ( label_ranges.find(occ_labels[label]) == label_ranges.end() ) continue;
+        auto range_pos = label_ranges.find(occ_label); 
+        if ( range_pos == label_ranges.end() ) continue;
 
-        std::string range = label_ranges[occ_labels[label]][0];
+        std::string range = range_pos->second[0];
 
         if ( range == "act" || range == "ext" ) {
             // amplitudes
-            for (size_t i = 0; i < amplitude_types.size(); i++) {
-                char type = amplitude_types[i];
-                for (size_t j = 0; j < amps[type].size(); j++) {
-                    for (size_t k = 0; k < amps[type][j].labels.size(); k++) {
-                        if ( amps[type][j].labels[k] == occ_labels[label] ) {
-                            amps[type][j].label_ranges[k] = range;
+            for (auto &amp_pair : amps) {
+                char type = amp_pair.first;
+                for (amplitudes & amp : amp_pair.second) {
+                    for (size_t k = 0; k < amp.labels.size(); k++) {
+                        if ( amp.labels[k] == occ_label ) {
+                             amp.label_ranges[k] = range;
                         }
                     }
                 }
             }
             // integrals
-            for (size_t i = 0; i < integral_types.size(); i++) {
-                std::string type = integral_types[i];
-                for (size_t j = 0; j < ints[type].size(); j++) {
-                    for (size_t k = 0; k < ints[type][j].labels.size(); k++) {
-                        if ( ints[type][j].labels[k] == occ_labels[label] ) {
-                            ints[type][j].label_ranges[k] = range;
+            for (auto &int_pair : ints) {
+                std::string type = int_pair.first;
+                for (integrals & integral : int_pair.second) {
+                    for (size_t k = 0; k < integral.labels.size(); k++) {
+                        if ( integral.labels[k] == occ_label ) {
+                            integral.label_ranges[k] = range;
                         }
                     }
                 }
             }
             // deltas
-            for (size_t i = 0; i < deltas.size(); i++) {
-                for (size_t j = 0; j < deltas[i].labels.size(); j++) {
-                    if ( deltas[i].labels[j] == occ_labels[label] ) {
-                        deltas[i].label_ranges[j] = range;
+            for (delta_functions & delta : deltas) {
+                for (size_t j = 0; j < delta.labels.size(); j++) {
+                    if ( delta.labels[j] == occ_label ) {
+                        delta.label_ranges[j] = range;
                     }
                 }
             }
@@ -1041,41 +1044,42 @@ void pq_string::reset_label_ranges(std::map<std::string, std::vector<std::string
     }
 
     // set ranges for virtual non-summed labels
-    for (size_t label = 0; label < vir_labels.size(); label++) {
+    for (const std::string & vir_label : vir_labels) {
 
         // check that this label is in the map
-        if ( label_ranges.find(vir_labels[label]) == label_ranges.end() ) continue;
+        auto range_pos = label_ranges.find(vir_label);
+        if ( range_pos == label_ranges.end() ) continue;
 
-        std::string range = label_ranges[vir_labels[label]][0];
+        std::string range = range_pos->second[0];
 
         if ( range == "act" || range == "ext" ) {
             // amplitudes
-            for (size_t i = 0; i < amplitude_types.size(); i++) {
-                char type = amplitude_types[i];
-                for (size_t j = 0; j < amps[type].size(); j++) {
-                    for (size_t k = 0; k < amps[type][j].labels.size(); k++) {
-                        if ( amps[type][j].labels[k] == vir_labels[label] ) {
-                            amps[type][j].label_ranges[k] = range;
+            for (auto &amp_pair : amps) {
+                char type = amp_pair.first;
+                for (amplitudes & amp : amp_pair.second) {
+                    for (size_t k = 0; k < amp.labels.size(); k++) {
+                        if ( amp.labels[k] == vir_label ) {
+                            amp.label_ranges[k] = range;
                         }
                     }
                 }
             }
             // integrals
-            for (size_t i = 0; i < integral_types.size(); i++) {
-                std::string type = integral_types[i];
-                for (size_t j = 0; j < ints[type].size(); j++) {
-                    for (size_t k = 0; k < ints[type][j].labels.size(); k++) {
-                        if ( ints[type][j].labels[k] == vir_labels[label] ) {
-                            ints[type][j].label_ranges[k] = range;
+            for (auto &int_pair : ints) {
+                std::string type = int_pair.first;
+                for (integrals & integral : int_pair.second) {
+                    for (size_t k = 0; k < integral.labels.size(); k++) {
+                        if ( integral.labels[k] == vir_label ) {
+                            integral.label_ranges[k] = range;
                         }
                     }
                 }
             }
             // deltas
-            for (size_t i = 0; i < deltas.size(); i++) {
-                for (size_t j = 0; j < deltas[i].labels.size(); j++) {
-                    if ( deltas[i].labels[j] == vir_labels[label] ) {
-                        deltas[i].label_ranges[j] = range;
+            for (delta_functions & delta : deltas) {
+                for (size_t j = 0; j < delta.labels.size(); j++) {
+                    if ( delta.labels[j] == vir_label ) {
+                        delta.label_ranges[j] = range;
                     }
                 }
             }
@@ -1097,7 +1101,7 @@ void pq_string::set_integrals(const std::string &type, const std::vector<std::st
 }
 
 // set labels for amplitudes
-    void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, std::vector<std::string> in) {
+void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, const std::vector<std::string> &in) {
     amplitudes new_amps;
     new_amps.labels.assign(in.begin(), in.end());
     new_amps.n_create = n_create;
