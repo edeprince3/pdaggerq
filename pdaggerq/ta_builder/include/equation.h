@@ -224,7 +224,7 @@ namespace pdaggerq {
          * @param color color of the vertices and edges
          * @return output stream
          */
-        ostream &write_dot(ostream &os, const string &color = "black");
+        ostream &write_dot(ostream &os, const string &color = "black", bool reset = false);
 
         /**
          * substitute a linkage into the equation

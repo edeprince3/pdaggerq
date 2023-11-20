@@ -597,71 +597,59 @@ namespace pdaggerq {
         return name_ + line_str();
     }
 
-    map<string, pair<Line, uint8_t>> Vertex::self_links() const {
+    map<Line, uint8_t> Vertex::self_links() const {
         // if rank is 0 or 1, return empty vector
         if (rank_ <= 1) return {};
 
-        // get lines
-        const vector<Line> &lines = this->lines();
-
-        // find each line and count_ the number of times it appears
-        map<string, uint8_t> unique_line_map;
-        for (auto & line : lines)
-            unique_line_map[line.label_]++; // increment count_ of line
-
         // return a map of the labels of the self-contractions of the vertex
         //        and a pair of the line with the frequency of the label
-        map<string, pair<Line, uint8_t>> self_links;
-        for (auto & line : lines) {
-            if (unique_line_map[line.label_] > 1)
-                self_links[line.label_] = {line, unique_line_map[line.label_]};
+        map<Line, uint8_t> self_links;
+        for (auto & line : this->lines()) {
+            // count the number of times the line appears
+            self_links[line]++;
         }
 
         return self_links;
     }
 
-    vector<VertexPtr> Vertex::make_self_linkages(map<string, pair<Line, uint8_t>> &self_links) {
+    vector<VertexPtr> Vertex::make_self_linkages(map<Line, uint8_t> &self_links) {
         // replace repeated lines with arbitrary lines
-        map<string, uint8_t> counts;
-        for (auto & line : lines_) {
-            auto it = self_links.find(line.label_);
+        map<Line, uint8_t> counts;
+        for (auto & [line, freq] : self_links) {
+            // if line is not repeated, do nothing
+            if (freq == 1) continue;
 
-            // append index to label if it is a self link
-            if (it != self_links.end())
-                line.label_ = line.label_ + to_string(counts[line.label_]++);
+            // if line is repeated, find all of them in the lines of the vertex
+            auto it = std::find(lines_.begin(), lines_.end(), line);
+
+            while (it != lines_.end()) {
+                // replace the repeated lines with arbitrary lines
+                it->label_ = it->label_ + to_string(counts[line]++);
+                it = std::find(it+1, lines_.end(), line);
+            }
         }
 
         // create delta functions for this vertex
-        counts.clear();
         vector<VertexPtr> delta_ops;
-        for (auto & [label, line_freq_pair] : self_links) {
+        for (auto & [line, freq] : self_links) {
+            // if line is not repeated, do nothing
+            if (freq == 1) continue;
 
-
-            Line &line = line_freq_pair.first;
-            uint8_t &freq = line_freq_pair.second;
+            // create generic labels for the delta function
+            vector<Line> delta_lines;
+            for (uint8_t i = 0; i < freq; i++) {
+                Line new_line = line;
+                new_line.label_ = new_line.label_ + to_string(i);
+                delta_lines.push_back(new_line);
+            }
 
             // create delta function
-            vector<vector<Line>> delta_lines_list; // make repeated lines in increments of 2
-            vector<Line> delta_line_segments;
-            for (int j = 0; j < freq; j++) {
-                Line delta_line = line;
-                delta_line.label_ += to_string(j);
-                delta_line_segments.push_back(delta_line);
+            VertexPtr delta_op = std::make_shared<Vertex>("Id", delta_lines);
 
-                if (j % 2 == 1) {
-                    delta_lines_list.push_back(delta_line_segments);
-                    delta_line_segments.clear();
-                }
-            }
-
-            // add delta functions to delta_ops
-            for (auto & delta_lines : delta_lines_list) {
-                VertexPtr delta = make_shared<Vertex>("Id", delta_lines);
-                delta->base_name_ = "Id";
-                delta->update_lines(delta_lines);
-                delta_ops.push_back(delta);
-            }
+            // add delta function to vector
+            delta_ops.push_back(delta_op);
         }
+
         return delta_ops;
     }
 

@@ -221,11 +221,41 @@ namespace pdaggerq {
         void write_dot(std::string &filepath) {
             ofstream os(filepath);
             os << "digraph G {" << endl;
-            for (auto &[name, eq] : equations_){
-                eq.write_dot(os, "black");
+            std::string padding = "    ";
+            os << padding << "    rank=same rankdir=RL remincross=true mclimit=100.0 ordering=out packmode=clust outputorder=nodesfirst;\n"; // pack=true
+
+            // foreach in reverse order
+            for (auto it = equations_.rbegin(); it != equations_.rend(); ++it) {
+                Equation &eq = it->second;
+
+                if (eq.terms().empty())
+                    continue;
+
+                // declare subgraph
+                std::string graphname = "cluster_equation_" + eq.assignment_vertex()->base_name_;
+                os << padding << "subgraph " << graphname << " {\n";
+                os << padding << "    style=rounded ordering=out;\n";
+
+                // write equation
+                eq.write_dot(os, "black", false);
+
+
+                // add formatting and label
+                os << padding << "label = \"" << eq.assignment_vertex()->base_name_ << "\";\n";
+                os << padding << "color = \"black\";\n";
+                os << padding << "fontsize = 32;\n";
+
+                os << padding << "}\n";
+
             }
             os << "}" << endl;
             os.close();
+
+            // reset counters
+            for (auto &[name, eq] : equations_){
+                eq.write_dot(os, "black", true);
+            }
+
         }
 
         /**

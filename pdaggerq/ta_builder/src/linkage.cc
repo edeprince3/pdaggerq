@@ -81,10 +81,10 @@ namespace pdaggerq {
         if (left_size == 0 && right_size == 0){ // both vertices are scalars
             return; // linkage is empty
         } else if (left_size == 0) { // if prior_links is a scalar, just use next_link as linkage
-            int_lines_   = right_lines;
+            r_ext_lines_   = right_lines;
             return;
         } else if (right_size == 0) { // if next_link is a scalar, just use prior_links as linkage
-            int_lines_   = left_lines;
+            l_ext_lines_   = left_lines;
             return;
         }
 
@@ -608,9 +608,16 @@ namespace pdaggerq {
      * @param linkage linkage to write
      * @return output stream
      */
-    ostream &Linkage::write_dot(ostream &os, const std::string& color) const {
+    ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) const {
 
+        static size_t op_id = 0;
+        static size_t dummy_count = 0;
 
+        if (reset) {
+            op_id = 0;
+            dummy_count = 0;
+            return os;
+        } else { op_id++; dummy_count++; }
 
         // get vertices
         const vector<VertexPtr> &vertices = this->to_vector(true);
@@ -618,24 +625,29 @@ namespace pdaggerq {
         // TODO: incorporate scalar vertices and make this recursive
 //        if (vertices.size() <= 1) return os; // do not write a graph for a single vertex
 
-        // remove vertices that have no name
+        std::string padding = "                ";
 
-        // write header
-        std::string title;
-        for (size_t i = 0; i < vertices.size(); i++) {
-            title += vertices[i]->base_name() + "_" + vertices[i]->dimstring();
-            if (i < vertices.size() - 1) title += "_x_";
-        }
-
-        std::string padding = "        ";
-        os << padding << "subgraph " << title << " {\n";
-        padding += "    ";
-
-        static size_t op_id = 0; op_id++;
         std::set<std::string> node_names;
+        std::set<std::string> null_nodes;
 
-        static size_t dummy_count = 0; dummy_count++;
-        std::set<std::string> dummy_nodes;
+        std::string node_style = "color=\"" + color + "\", fontsize=20, style=bold";
+        std::string null_node_style = "style=invis, height=.1,width=.1";
+
+        std::string int_edge_style = "color=\"" + color + "\"";
+        int_edge_style += ", labelfontsize=20";
+        int_edge_style += ", fontsize=20";
+        int_edge_style += ", concentrate=false";
+//        int_edge_style += ", constraint=false";
+//        int_edge_style += ", len=1.5";
+
+
+        std::string ext_edge_style = "color=\"" + color + "\"";
+        ext_edge_style += ", labelfontsize=20";
+        ext_edge_style += ", fontsize=20";
+        ext_edge_style += ", concentrate=false";
+//        ext_edge_style += ", len=1.5";
+//        ext_edge_style += ", minlen=1.0";
+
 
 
 
@@ -645,12 +657,16 @@ namespace pdaggerq {
             // initialize current node
             const VertexPtr &current = vertices[i];
             std::string l_id = std::to_string(i) + to_string(op_id);
-            std::string left_node = current->base_name() + "_" + l_id;
+
+            if (vertices[i]->base_name().empty())
+                continue;
+
 
             for (size_t j = i+1; j < vertices.size(); j++) {
                 //TODO: incorporate scalar vertices
-//                if (vertices[i]->name().empty() || vertices[j]->name().empty())
-//                    continue;
+
+                if (vertices[j]->base_name().empty())
+                    continue;
 
 
                 const VertexPtr &next = vertices[j];
@@ -660,7 +676,14 @@ namespace pdaggerq {
 
                 // initialize next node
                 std::string r_id = std::to_string(j) + to_string(op_id);
-                std::string right_node = next->base_name() + "_" + r_id;
+                std::string next_node = next->base_name() + "_" + r_id;
+                std::string current_node = current->base_name() + "_" + l_id;
+
+                if (next->base_name() == "Id")
+                     next_node = current_node;
+
+                if (current->base_name() == "Id")
+                     current_node = next_node;
 
                 // Add vertices as nodes. connect the current and next vertices with edges from the connections map
                 // (-1 indicates no match and should use a dummy node)
@@ -672,13 +695,18 @@ namespace pdaggerq {
                     std::string edge_label = line.label_;
 
                     std::string directed;
-                    if (line.o_) directed = left_node + " -> " + right_node;
-                    else directed = right_node + " -> " + left_node;
+                    if (!line.o_) directed = current_node + " -> " + next_node;
+                    else directed = next_node + " -> " + current_node;
 
                     // write edge
-                    os << padding << directed << " [label=\"" << edge_label << "\", color=\"" << color << "\"];\n";
+                    os << padding << directed << " [label=\"" << edge_label << "\"," + int_edge_style + "];\n";
                 }
             }
+
+            if (current->base_name() == "Id")
+                continue; // this is a self contraction. No external lines
+
+            std::string current_node = current->base_name() + "_" + l_id;
 
             // now, link all vertices to external lines
             // loop over left external lines
@@ -687,7 +715,7 @@ namespace pdaggerq {
 
                 // initialize dummy node name
                 std::string dummy = "null" + std::to_string(dummy_count) + line.label_ + std::to_string(ext_count++);
-                dummy_nodes.insert(dummy);
+                null_nodes.insert(dummy);
 
                 // find line in this vertex
                 auto it = std::find(current->lines().begin(), current->lines().end(), line);
@@ -698,11 +726,11 @@ namespace pdaggerq {
 
                 // make directed edge
                 std::string directed;
-                if (line.o_) directed = left_node + " -> " + dummy;
-                else directed = dummy + " -> " + left_node;
+                if (!line.o_) directed = current_node + " -> " + dummy;
+                else directed = dummy + " -> " + current_node;
 
                 // write edge
-                os << padding << directed << " [label=\"" << edge_label << "\", color=\"" << color << "\"];\n";
+                os << padding << directed << " [label=\"" << edge_label << "\", " + ext_edge_style + "];\n";
 
             }
 
@@ -711,7 +739,7 @@ namespace pdaggerq {
 
                 // initialize dummy node name
                 std::string dummy = "null" + std::to_string(dummy_count) + line.label_ + std::to_string(ext_count++);
-                dummy_nodes.insert(dummy);
+                null_nodes.insert(dummy);
 
                 // find line in this vertex
                 auto it = std::find(current->lines().begin(), current->lines().end(), line);
@@ -722,21 +750,21 @@ namespace pdaggerq {
 
                 // make directed edge
                 std::string directed;
-                if (line.o_) directed = left_node + " -> " + dummy;
-                else directed = dummy + " -> " + left_node;
+                if (!line.o_) directed = current_node + " -> " + dummy;
+                else directed = dummy + " -> " + current_node;
 
                 // write edge
-                os << padding << directed << " [label=\"" << edge_label << "\", color=\"" << color << "\"];\n";
+                os << padding << directed << " [label=\"" << edge_label << "\", " + ext_edge_style + "];\n";
             }
 
             // relabel node
-//            os << padding << left_node << " [label=\"" << current->base_name() << "\", color=\"" << color << "\"];\n";
-            std::string node_signature = padding + left_node + " [label=\"" + current->base_name() + "\"";
+//            os << padding << current_node << " [label=\"" << current->base_name() << "\", color=\"" << color << "\"];\n";
+            std::string node_signature = padding + current_node + " [label=\"" + current->base_name() + "\", ";
 
             if (current->base_name().empty())
-                node_signature += ", style=invis, shape=none,height=.0,width=.0];\n";
+                node_signature += null_node_style + "];\n";
             else
-                node_signature += ", color=\"" + color + "\"];\n";
+                node_signature += node_style + "];\n";
             node_names.insert(node_signature);
         }
 
@@ -744,12 +772,9 @@ namespace pdaggerq {
         for (const auto &node_name : node_names)
             os << node_name;
 
-        // make dummy nodes invisible
-        for (const auto &dummy_node : dummy_nodes)
-            os << padding << dummy_node << " [style=invis, label=\"\", shape=none,height=.0,width=.0];\n";
-
-        // write footer
-        os << "        }\n";
+        // make dummy nodes a small black square with no label
+        for (const auto &dummy_node : null_nodes)
+            os << padding << dummy_node << " [label=\"\", " + null_node_style + "];\n";
 
         return os;
     }

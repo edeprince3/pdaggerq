@@ -621,14 +621,33 @@ namespace pdaggerq {
         return terms_.insert(terms_.begin() + index, term); // add term to index of terms
     }
 
-    ostream &Equation::write_dot(ostream &os, const string &color) {
-        os << "    subgraph " << assignment_vertex_->base_name() + "_" + assignment_vertex_->dimstring() << " {\n";
+    ostream &Equation::write_dot(ostream &os, const string &color, bool reset) {
+        static size_t term_count = 0;
+        if (reset) {
+            term_count = 0;
+            return os;
+        }
+
+        std::string padding = "        ";
+        std::string last_graphname;
         for (Term &term : terms_) {
+            if (term.rhs().empty())
+                continue;
+
             term.compute_scaling(true);
-            term.term_linkage_->write_dot(os, color);
+            std::string graphname = "cluster_term" + to_string(term_count++);
+            os << padding << "subgraph " << graphname << " {\n";
+            os << padding << "    style=\"rounded\" ordering=\"out\";\n";
+
+            term.term_linkage_->write_dot(os, color, reset);
+            os << padding << "}\n";
+
+            if (last_graphname.empty()) {
+                last_graphname = graphname;
+            }
+
             // TODO: add single vertex rhs to dot file
         }
-        os << "    }\n";
         return os;
     }
 

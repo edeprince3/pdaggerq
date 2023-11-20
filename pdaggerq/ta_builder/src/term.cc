@@ -204,8 +204,8 @@ namespace pdaggerq {
         // reorder rhs
         reorder();
 
-        // make labels generic
-        *this = genericize();
+//        // make labels generic
+//        *this = genericize();
 
     }
 
@@ -1186,12 +1186,20 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if vertex is a trace
             // get self-contracted lines
-            map<string, pair<Line, uint8_t>> internal_lines = op->self_links();
-            if (internal_lines.empty()) {
-                new_rhs.push_back(op); continue; // add vertex to new rhs if it is not a trace
+            VertexPtr copy = copy_vert(op);
+            map<Line, uint8_t> self_links = copy->self_links();
+
+            bool has_self_link = false;
+            for (const auto & [line, freq] : self_links) {
+                if (freq > 1) {
+                    has_self_link = true; break;
+                }
+            }
+            if (!has_self_link) {
+                new_rhs.push_back(copy); continue;
             }
 
-            vector<VertexPtr> deltas = op->make_self_linkages(internal_lines);
+            vector<VertexPtr> deltas = copy->make_self_linkages(self_links);
 
             // skip if no self links (this should never happen at this point)
             if (deltas.empty()) {
@@ -1199,7 +1207,7 @@ namespace pdaggerq {
             }
 
             // add delta functions to new rhs
-            deltas.push_back(copy_vert(op));
+            deltas.push_back(copy);
 
             // add to new rhs at beginning
             new_rhs.insert(new_rhs.begin(), deltas.begin(), deltas.end());

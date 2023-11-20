@@ -284,14 +284,14 @@ namespace pdaggerq {
          * @return a map of the labels of the self-contractions of the vertex
          *         and a pair of the line with the frequency of the label
          */
-        map<string, pair<Line, uint8_t>> self_links() const;
+        map<Line, uint8_t> self_links() const;
 
         /**
          *
          * @param internal_lines
          * @return
          */
-        vector<shared_ptr<Vertex>> make_self_linkages(map<string, pair<Line, uint8_t>> &self_links);
+        vector<shared_ptr<Vertex>> make_self_linkages(map<Line, uint8_t> &self_links);
 
         /**
          * return n_ops of vertex (number of lines)
