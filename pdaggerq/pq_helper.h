@@ -267,6 +267,16 @@ class pq_helper {
      */
     static inline int nthreads = 1;
 
+    /**
+     *
+     * get const reference to list of ordered strings
+     * @param bool blocked: if true, return blocked strings
+     *
+     */
+    const std::vector< std::shared_ptr<pq_string> > &get_ordered_strings(bool blocked) const {
+        return blocked ? ordered_blocked : ordered;
+    }
+
 private:
 
     /**

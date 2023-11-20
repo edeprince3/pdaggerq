@@ -47,12 +47,35 @@ endif()
 
 set(PYBIND11_CPP_STANDARD -std=c++17)
 
+# find openmp and set variables
+find_package(OpenMP REQUIRED) #TODO: make this optional
+if(OpenMP_CXX_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
+
+
 # we are adding a private module _pdaggerq so we don't have a naming collision
-pybind11_add_module(_pdaggerq
-                    pdaggerq/pq_tensor.cc
-                    pdaggerq/pq_string.cc 
-                    pdaggerq/pq_utils.cc
-                    pdaggerq/pq_swap_operators.cc
-                    pdaggerq/pq_add_spin_labels.cc
-                    pdaggerq/pq_add_label_ranges.cc
-                    pdaggerq/pq_helper.cc)
+pybind11_add_module( 
+    _pdaggerq
+        pdaggerq/pq_tensor.cc
+        pdaggerq/pq_string.cc 
+        pdaggerq/pq_utils.cc
+        pdaggerq/pq_swap_operators.cc
+        pdaggerq/pq_add_spin_labels.cc
+        pdaggerq/pq_add_label_ranges.cc
+        pdaggerq/pq_helper.cc
+
+        pdaggerq/ta_builder/src/vertex.cc
+        pdaggerq/ta_builder/src/linkage.cc
+        pdaggerq/ta_builder/src/term.cc
+        pdaggerq/ta_builder/src/equation.cc
+        pdaggerq/ta_builder/src/tabuilder.cc
+        pdaggerq/ta_builder/src/consolidate.cc
+        pdaggerq/ta_builder/src/term_perm_helper.cc
+        pdaggerq/ta_builder/src/timer.cc
+        pdaggerq/ta_builder/include/line.hpp
+        pdaggerq/ta_builder/include/collections/scaling_map.hpp
+        pdaggerq/ta_builder/include/collections/linkage_set.hpp
+
+        )
