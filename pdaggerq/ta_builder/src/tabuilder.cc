@@ -764,7 +764,7 @@ namespace pdaggerq {
         cout << " ==> Substituting linkages into all equations <==" << endl;
         cout << "     Total number of terms: " << num_terms << endl;
         cout << "        Total contractions: " << flop_map_.total() << endl;
-        cout << "       Unique combinations: " << tmp_candidates_.size() << endl;
+        cout << "    Possible Intermediates: " << tmp_candidates_.size() << endl;
         cout << "       Use batch algorithm: " << (batched_ ? "Yes" : "No") << endl;
         cout << " ===================================================="  << endl << endl;
         size_t total_num_merged = 0;

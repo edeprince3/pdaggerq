@@ -222,7 +222,9 @@ namespace pdaggerq {
             ofstream os(filepath);
             os << "digraph G {" << endl;
             std::string padding = "    ";
-            os << padding << "    rank=same rankdir=RL remincross=true mclimit=100.0 ordering=out packmode=clust outputorder=nodesfirst;\n"; // pack=true
+
+            // pack=true does not work for version 2.40.1
+            os << padding << "    rank=same rankdir=RL remincross=true mclimit=100.0 ordering=out packmode=clust outputorder=nodesfirst pack=true;\n";
 
             // foreach in reverse order
             for (auto it = equations_.rbegin(); it != equations_.rend(); ++it) {
