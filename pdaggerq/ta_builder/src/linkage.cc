@@ -679,6 +679,7 @@ namespace pdaggerq {
         /** write vertices as graph **/
 
         /// plot internal lines
+
         for (size_t i = 0; i < vertices.size(); i++) {
             // initialize current node
             const VertexPtr &current = vertices[i];
@@ -713,17 +714,15 @@ namespace pdaggerq {
                 const auto & current_lines = current->lines();
                 size_t current_len = current_lines.size();
                 // loop over internal lines
-                for (const auto &line: link->int_lines_) {
+                for (const auto & [l_idx, r_idx] : link->int_connec_) {
 
                     // initialize edge label
+                    const Line &line = link->int_lines_[l_idx];
                     std::string edge_label = line.label_;
 
                     // check if line is in bra
                     bool is_bra = false;
-                    auto it = std::find(current_lines.begin(), current_lines.end(), line);
-                    size_t dist = std::distance(current_lines.begin(), it);
-
-                    if (dist < current_len / 2) is_bra = true;
+                    if (l_idx < current_len / 2) is_bra = true;
 
                     // determine direction of edge
                     bool right_directed = is_bra == !line.o_;

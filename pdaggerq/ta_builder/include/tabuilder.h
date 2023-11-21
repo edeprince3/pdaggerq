@@ -224,7 +224,7 @@ namespace pdaggerq {
             std::string padding = "    ";
 
             // pack=true does not work for version 2.40.1
-            os << padding << "    rank=same rankdir=RL remincross=true mclimit=100.0 ordering=out pack=true;\n";
+            os << padding << "    rank=same rankdir=RL remincross=true mclimit=100.0 ordering=out;\n";
 
             // foreach in reverse order
             for (auto it = equations_.rbegin(); it != equations_.rend(); ++it) {
