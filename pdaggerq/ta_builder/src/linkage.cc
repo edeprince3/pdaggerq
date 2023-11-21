@@ -651,16 +651,13 @@ namespace pdaggerq {
 
 
 
-        // write vertices as graph
-        for (size_t i = 0; i < vertices.size(); i++) {
+        /** write vertices as graph **/
 
+        /// plot internal lines
+        for (size_t i = 0; i < vertices.size(); i++) {
             // initialize current node
             const VertexPtr &current = vertices[i];
             std::string l_id = std::to_string(i) + to_string(op_id);
-
-            if (vertices[i]->base_name().empty())
-                continue;
-
 
             for (size_t j = i+1; j < vertices.size(); j++) {
                 //TODO: incorporate scalar vertices
@@ -680,10 +677,10 @@ namespace pdaggerq {
                 std::string current_node = current->base_name() + "_" + l_id;
 
                 if (next->base_name() == "Id")
-                     next_node = current_node;
+                    next_node = current_node;
 
                 if (current->base_name() == "Id")
-                     current_node = next_node;
+                    current_node = next_node;
 
                 // Add vertices as nodes. connect the current and next vertices with edges from the connections map
                 // (-1 indicates no match and should use a dummy node)
@@ -702,16 +699,28 @@ namespace pdaggerq {
                     os << padding << directed << " [label=\"" << edge_label << "\"," + int_edge_style + "];\n";
                 }
             }
+        }
+
+
+        /// plot external lines
+        for (size_t i = 0; i < vertices.size(); i++) {
+
+            // initialize current node
+            const VertexPtr &current = vertices[i];
+            std::string l_id = std::to_string(i) + to_string(op_id);
 
             if (current->base_name() == "Id")
                 continue; // this is a self contraction. No external lines
 
+            if (vertices[i]->base_name().empty())
+                continue;
+
             std::string current_node = current->base_name() + "_" + l_id;
 
-            // now, link all vertices to external lines
+            /// link all vertices to external lines
             // loop over left external lines
             size_t ext_count = 0;
-            for (const auto &line : this->l_ext_lines_) {
+            for (const auto &line: this->l_ext_lines_) {
 
                 // initialize dummy node name
                 std::string dummy = "null" + std::to_string(dummy_count) + line.label_ + std::to_string(ext_count++);
@@ -735,7 +744,7 @@ namespace pdaggerq {
             }
 
             // loop over right external lines
-            for (const auto &line : this->r_ext_lines_) {
+            for (const auto &line: this->r_ext_lines_) {
 
                 // initialize dummy node name
                 std::string dummy = "null" + std::to_string(dummy_count) + line.label_ + std::to_string(ext_count++);
@@ -756,9 +765,24 @@ namespace pdaggerq {
                 // write edge
                 os << padding << directed << " [label=\"" << edge_label << "\", " + ext_edge_style + "];\n";
             }
+        }
 
-            // relabel node
-//            os << padding << current_node << " [label=\"" << current->base_name() << "\", color=\"" << color << "\"];\n";
+
+        /// declare nodes
+
+        // loop over vertices and declare nodes
+        for (size_t i = 0; i < vertices.size(); i++) {
+            // initialize current node
+            const VertexPtr &current = vertices[i];
+            std::string l_id = std::to_string(i) + to_string(op_id);
+
+            if (current->base_name() == "Id")
+                continue; // this is a self contraction. No external lines
+
+            if (vertices[i]->base_name().empty())
+                continue;
+
+            std::string current_node = current->base_name() + "_" + l_id;
             std::string node_signature = padding + current_node + " [label=\"" + current->base_name() + "\", ";
 
             if (current->base_name().empty())
@@ -768,11 +792,11 @@ namespace pdaggerq {
             node_names.insert(node_signature);
         }
 
-        // format node names
+        // print nodes name
         for (const auto &node_name : node_names)
             os << node_name;
 
-        // make dummy nodes a small black square with no label
+        // make dummy nodes invisible
         for (const auto &dummy_node : null_nodes)
             os << padding << dummy_node << " [label=\"\", " + null_node_style + "];\n";
 

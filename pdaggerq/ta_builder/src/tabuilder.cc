@@ -965,6 +965,7 @@ namespace pdaggerq {
                     // print total time elapsed
                     long double total_time = build_timer.get_runtime() + reorder_timer.get_runtime()
                                              + substitute_timer.get_runtime() + update_timer.get_runtime();
+                    cout << "                      Time: "  << substitute_timer.get_time() << endl;
                     cout << "                  Net time: "  << Timer::format_time(total_time) << endl;
                     cout << "              Average Time: "  << Timer::format_time(
                                                                         total_time / (double) substitute_timer.count()
