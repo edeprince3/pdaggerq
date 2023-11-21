@@ -9,7 +9,7 @@ namespace pdaggerq {
 
     /********** Constructors **********/
 
-    Linkage::Linkage(const VertexPtr &left, const VertexPtr &right, bool is_addition) : Vertex() {
+    inline Linkage::Linkage(const VertexPtr &left, const VertexPtr &right, bool is_addition) : Vertex() {
 
         // set inputs
         if (!left->is_linked() && !right->is_linked()) {
@@ -125,7 +125,7 @@ namespace pdaggerq {
         const auto &left_lines = left->lines();
         const auto &right_lines = right->lines();
 
-        // build connections
+        // build internal connections
         auto hint = connections_.begin();
         for (const auto &line : int_lines_) {
             // find line in left and right vertices
@@ -165,6 +165,22 @@ namespace pdaggerq {
 
             }
         }
+
+        // build external connections
+        hint = connections_.begin();
+        for (const auto &line : lines_) {
+            // find line in left and right vertices
+            auto left_it = std::find(left_lines.begin(), left_lines.end(), line);
+            auto right_it = std::find(right_lines.begin(), right_lines.end(), line);
+
+            // get indices of line in left and right vertices
+            uint8_t left_idx = std::distance(left_lines.begin(), left_it);
+            uint8_t right_idx = std::distance(right_lines.begin(), right_it);
+
+            // add indices to connections
+            hint = connections_.emplace_hint(hint, left_idx, right_idx);
+
+        }
     }
 
     LinkagePtr Linkage::link(const vector<VertexPtr> &op_vec) {
@@ -179,7 +195,8 @@ namespace pdaggerq {
         }
 
         VertexPtr linkage = op_vec[0] * op_vec[1];
-        for (uint8_t i = 2; i < op_vec_size; i++) linkage = linkage * op_vec[i];
+        for (uint8_t i = 2; i < op_vec_size; i++)
+            linkage = std::move(linkage * op_vec[i]);
 
         return as_link(linkage);
     }
