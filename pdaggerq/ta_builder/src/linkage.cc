@@ -110,6 +110,7 @@ namespace pdaggerq {
         }
 
         // build connections
+        auto hint = connections_.begin();
         for (const auto &line : int_lines_) {
             // find line in left and right vertices
             auto left_it = std::find(left_lines.begin(), left_lines.end(), line);
@@ -120,7 +121,7 @@ namespace pdaggerq {
             uint8_t right_idx = std::distance(right_lines.begin(), right_it);
 
             // add indices to connections
-            connections_.insert({left_idx, right_idx});
+            hint = connections_.emplace_hint(hint, left_idx, right_idx);
 
             // find next occurrence of line in left and right vertices
             left_it = std::find(++left_it, left_lines.end(), line);
@@ -136,7 +137,7 @@ namespace pdaggerq {
                 right_idx = std::distance(right_lines.begin(), right_it);
 
                 // add indices to connections
-                connections_.insert({left_idx, right_idx});
+                hint = connections_.emplace_hint(hint, left_idx, right_idx);
 
                 // find next occurrence of line in left and right vertices
                 left_ended =  left_it ==  left_lines.end();
