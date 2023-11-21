@@ -17,15 +17,15 @@ namespace pdaggerq {
             // sort left and right vertices by name to prevent duplicates
             // TODO: make sure this works with Term::is_compatible()
             if (left->name() < right->name()) {
-                left_ = left;
+                 left_ =  left;
                 right_ = right;
             } else {
-                left_ = right;
-                right_ = left;
+                 left_ = right;
+                right_ =  left;
             }
         } else {
             // a linkage with more than two vertices is not associative
-            left_ = left;
+            left_  =  left;
             right_ = right;
         }
 
@@ -44,23 +44,16 @@ namespace pdaggerq {
 
         is_addition_ = is_addition;
 
-        // create linkage
-        connect_lines(left_, right_);
-    }
-
-    inline void Linkage::connect_lines(const VertexPtr &left, const VertexPtr &right) {
-
         // create hash for the name (should be unique and faster for comparisons)
-        name_ = to_string(hash<string>()(left->name_ + " " + right->name_));
+        name_ = to_string(hash<string>()(left_->name_ + " " + right_->name_));
         base_name_ = name_;
 
-        // build internal and external lines
-        set_links(left, right);
+        // build internal and external lines; build connections
+        set_links(left_, right_);
 
         // check if linkage is a sigma vertex or density fitted vertex
         is_sigma_ = !lines_.empty() && lines_[0].sig_;
         is_den_   = !lines_.empty() && lines_[0].den_;
-
     }
 
     inline void Linkage::set_links(const VertexPtr &left, const VertexPtr &right) {
@@ -68,7 +61,6 @@ namespace pdaggerq {
         // clear internal and external lines and connections
         int_lines_.clear();
         lines_.clear();
-        connections_.clear();
 
         // grab data from left and right vertices
         uint8_t left_size = left->size();
@@ -80,9 +72,9 @@ namespace pdaggerq {
 
         // handle scalars
         if (left_size == 0 && right_size == 0) return; // both vertices are scalars (no lines)
-        else if (left_size == 0) { // if prior_links is a scalar, just use next_link as linkage
+        else if (left_size == 0) { // if left is a scalar, just use right_lines as linkage
             lines_ = right_lines; return;
-        } else if (right_size == 0) { // if next_link is a scalar, just use prior_links as linkage
+        } else if (right_size == 0) { // if right is a scalar, just use left_lines as linkage
             lines_  = left_lines; return;
         }
 
@@ -93,21 +85,45 @@ namespace pdaggerq {
 
         // populate left lines
         map<Line, uint8_t> line_populations;
-        for (const auto &line : left_lines) {
+        for (const auto &line : left_lines)
             line_populations[line]++;
-        }
 
         // populate right lines
-        for (const auto &line : right_lines) {
+        for (const auto &line : right_lines)
             line_populations[line]++;
-        }
 
         // use count to determine if the line is internal or external
         for (auto &[line, freq] : line_populations) {
             if (freq == 1)
-                 lines_.push_back(line); // external line
+                     lines_.push_back(line); // external line
             else int_lines_.push_back(line); // internal line
         }
+
+        // create mapping of indices from left vertex to right vertex
+        connect_lines(left, right);
+
+        // lines are sorted via map insertion
+
+        // set properties
+        rank_  = lines_.size();
+        shape_ = shape(lines_);
+        has_blk_ = left->has_blk_ || right->has_blk_;
+
+        // update scaling
+        flop_scale_ += int_lines_;
+        flop_scale_ += shape_;
+        mem_scale_  += shape_;
+
+    }
+
+    inline void Linkage::connect_lines(const VertexPtr &left, const VertexPtr &right) {
+
+        // clear connections
+        connections_.clear();
+
+        // grab data from left and right vertices
+        const auto &left_lines = left->lines();
+        const auto &right_lines = right->lines();
 
         // build connections
         auto hint = connections_.begin();
@@ -149,22 +165,9 @@ namespace pdaggerq {
 
             }
         }
-
-        // lines are sorted via map insertion
-
-        // set properties
-        rank_  = lines_.size();
-        shape_ = shape(lines_);
-        has_blk_ = left->has_blk_ || right->has_blk_;
-
-        // update scaling
-        flop_scale_ += int_lines_;
-        flop_scale_ += shape_;
-        mem_scale_  += shape_;
-
     }
 
-    LinkagePtr Linkage::link(const vector<VertexPtr> &op_vec){
+    LinkagePtr Linkage::link(const vector<VertexPtr> &op_vec) {
         uint8_t op_vec_size = op_vec.size();
 
         if (op_vec_size == 0) {

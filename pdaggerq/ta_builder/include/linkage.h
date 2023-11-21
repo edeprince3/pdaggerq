@@ -33,13 +33,6 @@ namespace pdaggerq {
         mutable std::mutex mtx_; // mutex for thread safety
         mutable vector<VertexPtr> all_vert_; // all linkages with vertices (mutable to allow for lazy evaluation)
 
-        /**
-         * helper function to connect the lines of the linkage
-         * @param left the left vertex
-         * @param right the right vertex
-         */
-        void set_links(const VertexPtr &left, const VertexPtr &right);
-
         public:
             long id_ = -1; // id of the linkage (default to -1 if not set)
             size_t nvert_{}; // number of vertices in the linkage
@@ -70,6 +63,17 @@ namespace pdaggerq {
             /**
              * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
              * this function will populate the Vertex base class with the result of the contraction
+             * @param left vertex to contract with
+             * @param right vertex to contract with
+             */
+            void set_links(const VertexPtr &left, const VertexPtr &right);
+
+
+            /**
+             * Populates connection map such that internal lines from left and right vertices are connected by
+             * their respective indices
+             * @param left vertex to contract with
+             * @param right vertex to contract with
              */
             void connect_lines(const VertexPtr &left, const VertexPtr &right);
 
