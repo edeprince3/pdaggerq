@@ -508,25 +508,12 @@ namespace pdaggerq {
     void Vertex::sort(vector<Line> &lines) {
         if (lines.empty()) return; // do nothing if rank is zero
 
-
-        uint8_t total_size = lines.size(); // total n_ops
-        uint8_t left_size = total_size; // left side n_ops
-
         // sort lines by occ/vir status (virs on left, occ on right); sort lines by blocks for same occ/vir (alpha on left, beta on right).
         // if all these are equal, sort by ASCII ordering of line name
-
-        /// sort left side of vertex
-        auto begin = lines.begin();
-        std::sort(begin, begin + left_size, [](const Line &a, const Line &b) {
-            if (a.sig_ != b.sig_) return  a.sig_ && !b.sig_; // sort sigs on left
-            if (a.den_ != b.den_) return a.den_ && !b.den_; // sort density fitting on left
-            if (a.o_ == b.o_) return a.a_ && !b.a_; // if occ/vir are equal, sort by block
-            return !a.o_ && b.o_; // sort virs on left, occ on right
-        });
+        std::sort(lines.begin(), lines.end(), std::less<>());
     }
 
     void Vertex::sort() {
-
         sort(lines_);
         update_lines(lines_); // set lines
     }

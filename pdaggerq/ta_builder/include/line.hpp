@@ -92,9 +92,12 @@ namespace pdaggerq {
         }
 
         bool operator<(const Line& other) const {
-            if(o_ == other.o_ && a_ == other.a_) return label_ < other.label_; // if same properties, compare names
-            if(!o_ && other.o_) return true; // if this is virtual and other is occupied, this is less
-            if(a_ && !other.a_) return true; // if this is alpha and other is beta, this is less
+            bool is_equiv = equivalent(other);
+            if ( is_equiv ) return label_ < other.label_; // if same properties, compare names
+            if ( sig_ && !other.sig_ ) return true; // if this is excited and other is not, this is less
+            if ( den_ && !other.den_ ) return true; // if this is density fitting and other is not, this is less
+            if (  !o_ &&  other.o_ ) return true; // if this is virtual and other is occupied, this is less
+            if (   a_ && !other.a_ ) return true; // if this is alpha and other is beta, this is less
             return false; // otherwise, this is greater
         }
 
@@ -132,14 +135,41 @@ namespace pdaggerq {
     // define hash function for Line
     struct LineHash {
         size_t operator()(const Line &line) const {
-            string hash_string = line.label_;
-            hash_string += line.o_ ? 'o' : 'v';
-            hash_string += line.a_ ? 'a' : 'b';
-            hash_string += line.sig_ ? 'L' : 'N';
-            hash_string += line.den_ ? 'Q' : 'N';
-            return hash<string>()(hash_string);
+            string blk{
+                line.o_ ? 'o' : 'v',
+                line.a_ ? 'a' : 'b',
+                line.sig_ ? 'L' : 'N',
+                line.den_ ? 'Q' : 'N'
+            };
+
+            return hash<string>()(line.label_ + blk);
         }
     }; // struct LineHash
+
+    struct LineEqual {
+        bool operator()(const Line &lhs, const Line &rhs) const {
+            return lhs == rhs;
+        }
+    }; // struct LineEqual
+
+    struct LinePtrHash {
+        size_t operator()(const Line *line) const {
+            string blk{
+                    line->o_ ? 'o' : 'v',
+                    line->a_ ? 'a' : 'b',
+                    line->sig_ ? 'L' : 'N',
+                    line->den_ ? 'Q' : 'N'
+            };
+
+            return hash<string>()(line->label_ + blk);
+        }
+    }; // struct LineHash
+
+    struct LinePtrEqual {
+        bool operator()(const Line *lhs, const Line *rhs) const {
+            return *lhs == *rhs;
+        }
+    }; // struct LinePtrEqual
 
 } // pdaggerq
 

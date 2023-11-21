@@ -17,11 +17,17 @@ namespace pdaggerq {
             hash_string += linkage.flop_scale().str();
             hash_string += linkage.mem_scale().str();
 
-            for (const auto &cont : linkage.connections()) {
-                hash_string += to_string(cont.first);
-                hash_string += ":";
-                hash_string += to_string(cont.second);
-                hash_string += ",";
+            for (const auto &[line, idxs] : linkage.connections()) {
+                for (uint8_t idx = 1; idx < idxs[0]; ++idx) {
+                    hash_string += to_string(idxs[idx]);
+                }
+                string blk{
+                        line.o_ ? 'o' : 'v',
+                        line.a_ ? 'a' : 'b',
+                        line.sig_ ? 'L' : 'N',
+                        line.den_ ? 'Q' : 'N'
+                };
+                hash_string += blk;
             }
 
             return hash<string>()(hash_string);

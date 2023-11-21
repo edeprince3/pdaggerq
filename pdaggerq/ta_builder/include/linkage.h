@@ -11,8 +11,8 @@
 
 namespace pdaggerq {
 
-    /// map of connections between lines
-    typedef std::multiset<pair<uint8_t, uint8_t>> connection_type;
+    /// map of connections between lines (hard coded to 512 for now, which is the maximum number of lines with uint8_t)
+    typedef map<Line, std::array<uint8_t, 512>> connection_type;
 
     /**
      * Class to represent contractions of a single vertex with a set of other vertices
@@ -52,8 +52,6 @@ namespace pdaggerq {
 
             /// internal and external lines
             std::vector<Line> int_lines_; // internal lines
-            std::vector<Line> l_ext_lines_; // left external lines
-            std::vector<Line> r_ext_lines_; // right external lines
 
             /// map of connections between lines
             connection_type connections_; // connections between lines
