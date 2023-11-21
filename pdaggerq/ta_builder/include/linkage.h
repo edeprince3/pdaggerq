@@ -11,9 +11,6 @@
 
 namespace pdaggerq {
 
-    /// map of connections between lines (hard coded to 512 for now, which is the maximum number of lines with uint8_t)
-    typedef multiset<pair<uint8_t, uint8_t>> connection_type;
-
     /**
      * Class to represent contractions of a single vertex with a set of other vertices
      * The contraction itself is also a vertex and is defined by a left and right vertex
@@ -47,7 +44,8 @@ namespace pdaggerq {
             std::vector<Line> int_lines_; // internal lines
 
             /// map of connections between lines
-            connection_type connections_; // connections between lines
+            set<pair<uint8_t, uint8_t>> int_connec_; // connections between lines
+            set<uint8_t> l_ext_idx_, r_ext_idx_;     // external indices of left and right vertices
 
             /********** Constructors **********/
 
@@ -207,7 +205,14 @@ namespace pdaggerq {
              * Get connections
              * @return connections
              */
-            const connection_type &connections() const { return connections_; }
+            const set<pair<uint8_t, uint8_t>> &connections() const { return int_connec_; }
+
+            /**
+             * get external left or right indices
+             * @return external left or right indices as a set
+             */
+            const set<uint8_t> &l_ext_idx() const { return l_ext_idx_; }
+            const set<uint8_t> &r_ext_idx() const { return r_ext_idx_; }
 
 
             /**

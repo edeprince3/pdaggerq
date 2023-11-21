@@ -17,9 +17,24 @@ namespace pdaggerq {
             hash_string += linkage.flop_scale().str();
             hash_string += linkage.mem_scale().str();
 
+            hash_string += "int";
             for (const auto &[leftidx, rightidx] : linkage.connections()) {
                 hash_string += to_string(leftidx);
+                hash_string += "->";
                 hash_string += to_string(rightidx);
+                hash_string += ",";
+            }
+
+            hash_string += "lext";
+            for (const auto & leftidx : linkage.l_ext_idx()){
+                hash_string += to_string(leftidx);
+                hash_string += ",";
+            }
+
+            hash_string += "rext";
+            for (const auto & rightidx : linkage.r_ext_idx()){
+                hash_string += to_string(rightidx);
+                hash_string += ",";
             }
 
             return hash<string>()(hash_string);

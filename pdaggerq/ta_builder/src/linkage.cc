@@ -48,8 +48,11 @@ namespace pdaggerq {
         name_ = to_string(hash<string>()(left_->name_ + " " + right_->name_));
         base_name_ = name_;
 
-        // build internal and external lines; build connections
+        // build internal and external lines
         set_links(left_, right_);
+
+        // create mapping of indices of internal and external lines from left to right vertices
+        connect_lines(left, right);
 
         // check if linkage is a sigma vertex or density fitted vertex
         is_sigma_ = !lines_.empty() && lines_[0].sig_;
@@ -99,9 +102,6 @@ namespace pdaggerq {
             else int_lines_.push_back(line); // internal line
         }
 
-        // create mapping of indices from left vertex to right vertex
-        connect_lines(left, right);
-
         // lines are sorted via map insertion
 
         // set properties
@@ -119,14 +119,16 @@ namespace pdaggerq {
     inline void Linkage::connect_lines(const VertexPtr &left, const VertexPtr &right) {
 
         // clear connections
-        connections_.clear();
+        int_connec_.clear();
+        r_ext_idx_.clear();
+        l_ext_idx_.clear();
 
         // grab data from left and right vertices
         const auto &left_lines = left->lines();
         const auto &right_lines = right->lines();
 
         // build internal connections
-        auto hint = connections_.begin();
+        auto hint = int_connec_.begin();
         for (const auto &line : int_lines_) {
             // find line in left and right vertices
             auto left_it = std::find(left_lines.begin(), left_lines.end(), line);
@@ -137,7 +139,7 @@ namespace pdaggerq {
             uint8_t right_idx = std::distance(right_lines.begin(), right_it);
 
             // add indices to connections
-            hint = connections_.emplace_hint(hint, left_idx, right_idx);
+            hint = int_connec_.emplace_hint(hint, left_idx, right_idx);
 
             // find next occurrence of line in left and right vertices
             left_it = std::find(++left_it, left_lines.end(), line);
@@ -153,7 +155,7 @@ namespace pdaggerq {
                 right_idx = std::distance(right_lines.begin(), right_it);
 
                 // add indices to connections
-                hint = connections_.emplace_hint(hint, left_idx, right_idx);
+                hint = int_connec_.emplace_hint(hint, left_idx, right_idx);
 
                 // find next occurrence of line in left and right vertices
                 left_ended =  left_it ==  left_lines.end();
@@ -167,19 +169,21 @@ namespace pdaggerq {
         }
 
         // build external connections
-        hint = connections_.begin();
+        auto r_hint = r_ext_idx_.begin();
+        auto l_hint = l_ext_idx_.begin();
         for (const auto &line : lines_) {
             // find line in left and right vertices
             auto left_it = std::find(left_lines.begin(), left_lines.end(), line);
             auto right_it = std::find(right_lines.begin(), right_lines.end(), line);
 
-            // get indices of line in left and right vertices
-            uint8_t left_idx = std::distance(left_lines.begin(), left_it);
-            uint8_t right_idx = std::distance(right_lines.begin(), right_it);
-
-            // add indices to connections
-            hint = connections_.emplace_hint(hint, left_idx, right_idx);
-
+            if (left_it == left_lines.end()) {
+                uint8_t right_idx = std::distance(right_lines.begin(), right_it);
+                r_hint = r_ext_idx_.emplace_hint(r_hint, right_idx);
+            }
+            if (right_it == right_lines.end()) {
+                uint8_t left_idx = std::distance(left_lines.begin(), left_it);
+                l_hint = l_ext_idx_.emplace_hint(l_hint, left_idx);
+            }
         }
     }
 
@@ -292,7 +296,9 @@ namespace pdaggerq {
         if (mem_scale_  !=  other.mem_scale_) return false;
 
         // check linkage maps
-        if (connections_ != other.connections_) return false;
+        if (l_ext_idx_  !=  other.l_ext_idx_) return false;
+        if (r_ext_idx_  !=  other.r_ext_idx_) return false;
+        if (int_connec_ != other.int_connec_) return false;
 
         // check if linkage vertices (and external lines) are equivalent
         if (!equivalent(other)) return false;
@@ -534,7 +540,10 @@ namespace pdaggerq {
         id_ = other.id_;
         nvert_ = other.nvert_;
 
-        connections_ = other.connections_;
+        int_connec_ = other.int_connec_;
+        l_ext_idx_ = other.l_ext_idx_;
+        r_ext_idx_ = other.r_ext_idx_;
+
         int_lines_ = other.int_lines_;
 
         flop_scale_ = other.flop_scale_;
@@ -574,7 +583,10 @@ namespace pdaggerq {
         id_ = other.id_;
         nvert_ = other.nvert_;
 
-        connections_ = std::move(other.connections_);
+        int_connec_ = std::move(other.int_connec_);
+        l_ext_idx_ = std::move(other.l_ext_idx_);
+        r_ext_idx_ = std::move(other.r_ext_idx_);
+
         int_lines_ = std::move(other.int_lines_);
 
         flop_scale_ = std::move(other.flop_scale_);
