@@ -61,6 +61,7 @@ pybind11_add_module(
         pdaggerq/pq_tensor.cc
         pdaggerq/pq_string.cc 
         pdaggerq/pq_utils.cc
+        pdaggerq/pq_serialize.cc
         pdaggerq/pq_swap_operators.cc
         pdaggerq/pq_add_spin_labels.cc
         pdaggerq/pq_add_label_ranges.cc

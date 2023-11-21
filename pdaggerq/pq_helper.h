@@ -277,6 +277,22 @@ class pq_helper {
         return blocked ? ordered_blocked : ordered;
     }
 
+    /**
+     *
+     * serializes the pq_helper object
+     * @param filename: the name of the file to which the pq_helper object is serialized
+     *
+     */
+    void serialize(const std::string & filename) const;
+
+    /**
+     *
+     * deserializes the pq_helper object
+     * @param filename: the name of the file from which the pq_helper object is deserialized
+     *
+     */
+    void deserialize(const std::string & filename);
+
 private:
 
     /**

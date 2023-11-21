@@ -264,6 +264,22 @@ class pq_string {
 
     /**
      *
+     * serialize string information to a buffer
+     * @param buffer: the buffer to send the string information to
+     *
+     */
+    void serialize(std::ofstream &buffer) const;
+
+    /**
+     *
+     * deserialize string information from a buffer
+     * @param buffer: the buffer to read the string information from
+     *
+     */
+    void deserialize(std::ifstream &buffer);
+
+    /**
+     *
      * return string information as list of std::string
      *
      */

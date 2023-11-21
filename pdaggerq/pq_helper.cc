@@ -58,6 +58,8 @@ void export_pq_helper(py::module& m) {
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
+        .def("save", &pq_helper::serialize)
+        .def("load", &pq_helper::deserialize)
         .def("print",
              [](pq_helper& self, const std::string& string_type) {
                  return self.print(string_type);
