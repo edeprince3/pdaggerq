@@ -12,7 +12,7 @@
 namespace pdaggerq {
 
     /// map of connections between lines (hard coded to 512 for now, which is the maximum number of lines with uint8_t)
-    typedef map<Line, std::array<uint8_t, 512>> connection_type;
+    typedef set<pair<uint8_t, uint8_t>> connection_type;
 
     /**
      * Class to represent contractions of a single vertex with a set of other vertices

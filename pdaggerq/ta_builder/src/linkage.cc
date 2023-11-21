@@ -91,63 +91,62 @@ namespace pdaggerq {
         lines_.reserve(total_size);
 
 
-        // add left lines to connections and increment count
-        connection_type connections;
-        for (uint8_t i = 0; i < left_size; i++) {
-            const Line &line = left_lines[i];
-            const auto &pos = connections.find(line);
-            if (pos == connections.end()) {
-                // line is not in connections, so add it
-                auto &idxs = connections[line];
-                idxs[0] = 1; // first element is the count
-                idxs[1] = i; // second element is the first index
-            } else {
-                // line is in connections, so increment count and add index to idxs
-                auto &idxs = pos->second;
-                uint8_t &count = idxs[0]; // first element is the count
-                idxs[++count] = i;       // increment count and add index to idxs
-            }
+        // populate left lines
+        map<Line, uint8_t> line_populations;
+        for (const auto &line : left_lines) {
+            line_populations[line]++;
         }
 
-        // add right lines to connections and increment count
-        for (uint8_t i = 0; i < right_size; i++) {
-            const Line &line = right_lines[i];
-            const auto &pos = connections.find(line);
-            if (pos == connections.end()) {
-                // line is not in connections
-                auto &idxs = connections[line];
-                idxs[0] = 1; // first element is the count
-                idxs[1] = i; // second element is the first index
-            } else {
-                // line is in connections
-                auto &idxs = pos->second;
-                uint8_t &count = idxs[0]; // first element is the count
-                idxs[++count] = i;       // increment count and add index to idxs
-            }
+        // populate right lines
+        for (const auto &line : right_lines) {
+            line_populations[line]++;
         }
 
         // use count to determine if the line is internal or external
-        for (auto &[line, idxs_pair] : connections) {
-
-            if (idxs_pair[0] == 1) {
-                // line is external
-                lines_.emplace_back(line);
-
-            } else {
-                // line is internal
-                int_lines_.emplace_back(line);
-            }
+        for (auto &[line, freq] : line_populations) {
+            if (freq == 1)
+                 lines_.push_back(line); // external line
+            else int_lines_.push_back(line); // internal line
         }
 
-        // replace connections with arbitrary label
-        uint8_t c_line = 0;
-        auto hint = connections_.begin();
-        for (const auto &[line, idxs] : connections) {
-            Line arbitrary_line = line;
-            arbitrary_line.label_ = to_string(c_line++);
+        // build connections
+        for (const auto &line : int_lines_) {
+            // find line in left and right vertices
+            auto left_it = std::find(left_lines.begin(), left_lines.end(), line);
+            auto right_it = std::find(right_lines.begin(), right_lines.end(), line);
 
-            // add the new line using a hint for emplace to speed up insertion
-            hint = connections_.emplace_hint(hint, arbitrary_line, idxs);
+            // get indices of line in left and right vertices
+            uint8_t left_idx = std::distance(left_lines.begin(), left_it);
+            uint8_t right_idx = std::distance(right_lines.begin(), right_it);
+
+            // add indices to connections
+            connections_.insert({left_idx, right_idx});
+
+            // find next occurrence of line in left and right vertices
+            left_it = std::find(++left_it, left_lines.end(), line);
+            right_it = std::find(++right_it, right_lines.end(), line);
+
+            bool  left_ended =  left_it ==  left_lines.end();
+            bool right_ended = right_it == right_lines.end();
+
+            while (!left_ended || !right_ended) {
+
+                // get indices of line in left and right vertices
+                left_idx  = std::distance( left_lines.begin(),  left_it);
+                right_idx = std::distance(right_lines.begin(), right_it);
+
+                // add indices to connections
+                connections_.insert({left_idx, right_idx});
+
+                // find next occurrence of line in left and right vertices
+                left_ended =  left_it ==  left_lines.end();
+                right_ended = right_it == right_lines.end();
+                if (!left_ended)
+                    left_it = std::find(++left_it, left_lines.end(), line);
+                if (!right_ended)
+                    right_it = std::find(++right_it, right_lines.end(), line);
+
+            }
         }
 
         // lines are sorted via map insertion
@@ -678,18 +677,31 @@ namespace pdaggerq {
                 // Add vertices as nodes. connect the current and next vertices with edges from the connections map
                 // (-1 indicates no match and should use a dummy node)
 
+                const auto & current_lines = current->lines();
+                size_t current_len = current_lines.size();
                 // loop over internal lines
                 for (const auto &line: link->int_lines_) {
 
                     // initialize edge label
                     std::string edge_label = line.label_;
 
-                    std::string directed;
-                    if (!line.o_) directed = current_node + " -> " + next_node;
-                    else directed = next_node + " -> " + current_node;
+                    // check if line is in bra
+                    bool is_bra = false;
+                    auto it = std::find(current_lines.begin(), current_lines.end(), line);
+                    size_t dist = std::distance(current_lines.begin(), it);
+
+                    if (dist < current_len / 2) is_bra = true;
+
+                    // determine direction of edge
+                    bool right_directed = is_bra == !line.o_;
+
+                    std::string direction;
+                    if (right_directed)
+                         direction = current_node + " -> " + next_node;
+                    else direction = next_node + " -> " + current_node;
 
                     // write edge
-                    os << padding << directed << " [label=\"" << edge_label << "\"," + int_edge_style + "];\n";
+                    os << padding << direction << " [label=\"" << edge_label << "\"," + int_edge_style + "];\n";
                 }
             }
         }
@@ -713,26 +725,36 @@ namespace pdaggerq {
             /// link all vertices to external lines
             // loop over left external lines
             size_t ext_count = 0;
+            const auto & current_lines = current->lines();
+            size_t current_len = current_lines.size();
             for (const auto &line: this->lines_) {
 
                 // initialize dummy node name
-                std::string dummy = "null" + std::to_string(dummy_count) + line.label_ + std::to_string(ext_count++);
-                null_nodes.insert(dummy);
-
-                // find line in this vertex
-                auto it = std::find(current->lines().begin(), current->lines().end(), line);
-                if (it == current->lines().end()) continue; // line not found
+                std::string null = "null" + std::to_string(dummy_count) + line.label_ + std::to_string(ext_count++);
+                null_nodes.insert(null);
 
                 // make edge label
                 std::string edge_label = line.label_;
 
-                // make directed edge
-                std::string directed;
-                if (!line.o_) directed = current_node + " -> " + dummy;
-                else directed = dummy + " -> " + current_node;
+                // find line in this vertex
+                auto it = std::find(current_lines.begin(), current_lines.end(), line);
+                if (it == current->lines().end()) continue; // line not found
+
+                bool is_bra = false;
+                size_t dist = std::distance(current_lines.begin(), it);
+
+                if (dist < current_len / 2) is_bra = true;
+
+                // determine direction of edge
+                bool right_directed = is_bra == !line.o_;
+
+                std::string direction;
+                if (right_directed)
+                     direction = current_node + " -> " + null;
+                else direction = null + " -> " + current_node;
 
                 // write edge
-                os << padding << directed << " [label=\"" << edge_label << "\", " + ext_edge_style + "];\n";
+                os << padding << direction << " [label=\"" << edge_label << "\"," + ext_edge_style + "];\n";
 
             }
         }

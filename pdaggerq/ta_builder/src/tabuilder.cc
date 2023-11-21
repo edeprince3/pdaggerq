@@ -754,17 +754,18 @@ namespace pdaggerq {
         generate_linkages(); // generate all possible linkages
         if (verbose) cout << " Done" << endl;
 
-        cout << endl;
-        cout << " ==> Substituting linkages into all equations <==" << endl;
-        cout << "       Use batch algorithm: " << (batched_ ? "Yes" : "No") << endl;
-        cout << "       Unique combinations: " << tmp_candidates_.size() << endl;
-
         size_t num_terms = 0;
         for (const auto& eq_pair : equations_) {
             const Equation& equation = eq_pair.second;
             num_terms += equation.size();
         }
+
+        cout << endl;
+        cout << " ==> Substituting linkages into all equations <==" << endl;
         cout << "     Total number of terms: " << num_terms << endl;
+        cout << "        Total contractions: " << flop_map_.total() << endl;
+        cout << "       Unique combinations: " << tmp_candidates_.size() << endl;
+        cout << "       Use batch algorithm: " << (batched_ ? "Yes" : "No") << endl;
         cout << " ===================================================="  << endl << endl;
         size_t total_num_merged = 0;
 
@@ -972,8 +973,8 @@ namespace pdaggerq {
                                                                         ) << endl;
                     cout << "           Number of terms: "  << num_terms << endl;
                     cout << "    Number of Contractions: "  << flop_map_.total() << endl;
-                    cout << "        Substitution count_: " << num_subs << endl;
-                    cout << "  Total Substitution count_: " << totalSubs << endl;
+                    cout << "        Substitution count: " << num_subs << endl;
+                    cout << "  Total Substitution count: " << totalSubs << endl;
                     cout << endl;
 
 //                    cout << "Total Flop scaling: " << endl;
@@ -1048,11 +1049,9 @@ namespace pdaggerq {
         if (temp_counts_[temp_type] >= max_temps_)
             cout << "WARNING: Maximum number of substitutions reached. " << endl << endl;
 
-        for (const auto & count_pair : temp_counts_) {
-            size_t count = count_pair.second;
+        for (const auto & [type, count] : temp_counts_) {
             if (count == 0)
                 continue;
-            const string &type = count_pair.first;
             cout << "     Found " << count << " " << type << endl;
         }
 

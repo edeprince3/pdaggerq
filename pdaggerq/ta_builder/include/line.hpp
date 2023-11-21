@@ -47,7 +47,7 @@ namespace pdaggerq {
         inline explicit Line(string name, char blk = '\0') : label_(std::move(name)){
 
             char line_char = label_[0];
-            o_ = occ_labels_.find(line_char) != occ_labels_.end();
+              o_ = occ_labels_.find(line_char) != occ_labels_.end();
             sig_ = sig_labels_.find(line_char) != sig_labels_.end();
             den_ = den_labels_.find(line_char) != den_labels_.end();
 
@@ -66,6 +66,13 @@ namespace pdaggerq {
             else a_ = false;
 
         }
+
+        Line(const Line &other) = default; // copy constructor
+        Line(Line &&other) noexcept = default; // move constructor
+        Line &operator=(const Line &other) = default; // copy assignment
+        Line &operator=(Line &&other) noexcept = default; // move assignment
+
+
 
         /// *** Comparison rhs *** ///
         /// all comparison rhs are defined in terms of name and properties. Index is not used.
