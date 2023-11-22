@@ -76,7 +76,7 @@ pybind11_add_module(
         pq_graph/src/term_perm_helper.cc
         pq_graph/src/timer.cc
         pq_graph/include/line.hpp
-        pq_graph/include/collections/scaling_map.hpp
-        pq_graph/include/collections/linkage_set.hpp
+        pq_graph/include/scaling_map.hpp
+        pq_graph/include/linkage_set.hpp
 
         )
