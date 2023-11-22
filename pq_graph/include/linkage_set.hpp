@@ -1,6 +1,6 @@
 #ifndef PDAGGERQ_LINKAGE_SET_HPP
 #define PDAGGERQ_LINKAGE_SET_HPP
-#include "../linkage.h"
+#include "linkage.h"
 #include <functional>
 #include <unordered_set>
 

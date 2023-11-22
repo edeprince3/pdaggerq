@@ -7,8 +7,8 @@
 #include "term.h"
 #include "vertex.h"
 #include "linkage.h"
-#include "collections/scaling_map.hpp"
-#include "collections/linkage_set.hpp"
+#include "scaling_map.hpp"
+#include "linkage_set.hpp"
 
 using std::cout;
 using std::endl;

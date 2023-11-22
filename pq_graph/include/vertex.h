@@ -5,7 +5,7 @@
 #include <map>
 #include <unordered_map>
 #include "line.hpp"
-#include "collections/scaling_map.hpp"
+#include "scaling_map.hpp"
 #include "../../pdaggerq/pq_tensor.h"
 #include <memory>
 

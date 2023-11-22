@@ -5,10 +5,10 @@
 #include <vector>
 #include <map>
 #include <cmath>
-#include "collections/scaling_map.hpp"
+#include "scaling_map.hpp"
 #include "vertex.h"
 #include "linkage.h"
-#include "collections/linkage_set.hpp"
+#include "linkage_set.hpp"
 #include "../../pdaggerq/pq_string.h"
 
 

@@ -6,7 +6,7 @@
 #include <functional>
 #include <map>
 #include <stdexcept>
-#include "../line.hpp"
+#include "line.hpp"
 #include <clocale>
 
 using std::pair;

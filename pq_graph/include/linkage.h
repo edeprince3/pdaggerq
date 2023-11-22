@@ -4,8 +4,8 @@
 #include <set>
 #include <unordered_set>
 #include "vertex.h"
-#include "collections/scaling_map.hpp"
-#include "misc/timer.h"
+#include "scaling_map.hpp"
+#include "timer.h"
 #include "memory"
 #include <mutex>
 

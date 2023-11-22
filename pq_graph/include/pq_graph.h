@@ -9,9 +9,9 @@
 #include "term.h"
 #include "vertex.h"
 #include "linkage.h"
-#include "collections/scaling_map.hpp"
-#include "collections/linkage_set.hpp"
-#include "misc/timer.h"
+#include "scaling_map.hpp"
+#include "linkage_set.hpp"
+#include "timer.h"
 #include "../../pdaggerq/pq_string.h"
 #include "../../pdaggerq/pq_helper.h"
 

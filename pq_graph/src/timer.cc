@@ -1,4 +1,4 @@
-#include "../include/misc/timer.h"
+#include "../include/timer.h"
 #include <omp.h>
 #include <iomanip>
 #include <cmath>
