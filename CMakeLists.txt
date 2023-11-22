@@ -67,16 +67,17 @@ pybind11_add_module(
         pdaggerq/pq_add_label_ranges.cc
         pdaggerq/pq_helper.cc
 
-        pq_graph/src/vertex.cc
-        pq_graph/src/linkage.cc
-        pq_graph/src/term.cc
-        pq_graph/src/equation.cc
         pq_graph/src/pq_graph.cc
         pq_graph/src/consolidate.cc
+        pq_graph/src/dot_generator.cc
+        pq_graph/src/equation.cc
+        pq_graph/src/term.cc
         pq_graph/src/term_perm_helper.cc
-        pq_graph/src/timer.cc
-        pq_graph/include/line.hpp
-        pq_graph/include/scaling_map.hpp
+        pq_graph/src/linkage.cc
         pq_graph/include/linkage_set.hpp
+        pq_graph/include/scaling_map.hpp
+        pq_graph/src/vertex.cc
+        pq_graph/include/line.hpp
+        pq_graph/src/timer.cc
 
         )

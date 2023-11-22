@@ -21,11 +21,9 @@
 //  limitations under the License.
 //
 
-#include <omp.h>
-#include "pybind11/stl.h"
-#include "pybind11/pybind11.h"
-#include "iostream"
 #include "../include/pq_graph.h"
+#include "iostream"
+#include <omp.h>
 
 using std::logic_error;
 

@@ -24,10 +24,15 @@
 #ifndef PDAGGERQ_PQ_GRAPH_H
 #define PDAGGERQ_PQ_GRAPH_H
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    #include "pybind11/pybind11.h" // surpresses warnings from pybind11
+#pragma GCC diagnostic pop
+
+
 #include <string>
 #include <vector>
 #include <fstream>
-#include "pybind11/pybind11.h"
 #include "equation.h"
 #include "term.h"
 #include "vertex.h"
@@ -242,66 +247,7 @@ namespace pdaggerq {
          * @param color color of the vertices and edges
          * @return output stream
          */
-        void write_dot(std::string &filepath) {
-            ofstream os(filepath);
-            os << "digraph G {" << endl;
-            std::string padding = "    ";
-
-            os << padding << "    newrank=true rankdir=LR ordering=out mode=hier overlap=false pack=false TBbalance=min compound=true layout=dot;\n";
-            os << padding << "    ranksep=0.69;\n";
-            os << padding << "    nodesep=0.42;\n";
-            os << padding << "    splines=true;\n";
-            os << padding << "    node [fontname=\"Helvetica\"];\n";
-
-            os << padding << "    edge [fontname=\"Helvetica\", fontsize=20, labelfontsize=20, concentrate=false];\n";
-
-            // foreach in reverse order
-            for (auto it = equations_.rbegin(); it != equations_.rend(); ++it) {
-                Equation &eq = it->second;
-
-                if (eq.terms().empty())
-                    continue;
-
-                // declare subgraph
-                std::string graphname = "cluster_equation_" + eq.assignment_vertex()->base_name_;
-                os << padding << "subgraph " << graphname << " {\n";
-                os << padding << "    style=rounded;\n";
-
-                // write equation
-                eq.write_dot(os, "black", false);
-
-
-                // add label
-                const auto vertex = eq.assignment_vertex();
-
-                os << padding << "label = \"";
-                os << vertex->base_name_;
-                if (!vertex->lines().empty()) os << "(";
-                for (const auto &line : vertex->lines()) {
-                    os << line.label_;
-                    if (line != vertex->lines().back()) {
-                        os << ",";
-                    }
-                }
-                if (!vertex->lines().empty()) os << ")";
-                os << "\";\n";
-
-                // add formatting
-                os << padding << "color = \"black\";\n";
-                os << padding << "fontsize = 32;\n";
-
-                os << padding << "}\n";
-
-            }
-            os << "}" << endl;
-            os.close();
-
-            // reset counters
-            for (auto &[name, eq] : equations_){
-                eq.write_dot(os, "black", true);
-            }
-
-        }
+        void write_dot(std::string &filepath);
 
         /**
          * adds a tmp to all_linkages_ and adds to equations
