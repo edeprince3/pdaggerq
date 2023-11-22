@@ -1,4 +1,4 @@
-<img src="https://render.githubusercontent.com/render/math?math=p^{\dagger}q">
+$p^{\dagger}q$
 
 pdaggerq is a fermionic computer algebra package for bringing strings of creation / annihilation operators to normal
 order with respect to a true vacuum or Fermi vacuum. The code also evalutes projections used in coupled cluster theory
@@ -205,7 +205,7 @@ the fluctuation potental operator
 ```
 'v' 
 ```
-creation / annihilation operators. e.g., <img src="https://render.githubusercontent.com/render/math?math=a^{\dagger}_i">, <img src="https://render.githubusercontent.com/render/math?math=a_j">, etc.
+creation / annihilation operators. e.g., $\hat{a}^{\dagger}_i$, $\hat{a}_j$, etc.
 ```
 a*(i)
 a(j)
