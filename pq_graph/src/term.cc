@@ -6,6 +6,17 @@
 #include <memory>
 #include "../include/term.h"
 
+using std::next_permutation;
+using std::string;
+using std::vector;
+using std::map;
+using std::pair;
+using std::make_shared;
+using std::shared_ptr;
+using std::to_string;
+using std::cout;
+using std::endl;
+using std::max;
 
 namespace pdaggerq {
 

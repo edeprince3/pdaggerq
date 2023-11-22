@@ -8,9 +8,27 @@
 #include <memory>
 #include <sstream>
 
-using namespace std;
 namespace py = pybind11;
 using namespace pybind11::literals;
+
+using std::ostream;
+using std::string;
+using std::vector;
+using std::map;
+using std::unordered_map;
+using std::shared_ptr;
+using std::make_shared;
+using std::set;
+using std::unordered_set;
+using std::pair;
+using std::make_pair;
+using std::to_string;
+using std::invalid_argument;
+using std::stringstream;
+using std::cout;
+using std::endl;
+using std::flush;
+using std::max;
 
 namespace pdaggerq {
 

@@ -4,6 +4,7 @@
 #include <iostream>
 #include "../include/term.h"
 
+using std::logic_error;
 
 namespace pdaggerq {
 

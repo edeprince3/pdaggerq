@@ -9,7 +9,13 @@
 #include "../../pdaggerq/pq_tensor.h"
 #include <memory>
 
-using namespace std;
+using std::ostream;
+using std::string;
+using std::vector;
+using std::map;
+using std::unordered_map;
+using std::shared_ptr;
+
 namespace pdaggerq {
 
     /**

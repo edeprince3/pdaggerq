@@ -3,7 +3,8 @@
 #include <iomanip>
 #include <cmath>
 
-using namespace std;
+using std::string;
+using std::stringstream;
 
 namespace pdaggerq {
 

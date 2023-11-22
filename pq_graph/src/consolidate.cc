@@ -4,6 +4,8 @@
 #include "iostream"
 #include "../include/pq_graph.h"
 
+using std::logic_error;
+
 namespace pdaggerq {
 
     size_t PQGraph::merge_terms() {

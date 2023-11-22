@@ -6,6 +6,20 @@
 #include "../../pdaggerq/pq_tensor.h"
 #include "../../pdaggerq/pq_string.h"
 
+using std::ostream;
+using std::string;
+using std::vector;
+using std::map;
+using std::unordered_map;
+using std::shared_ptr;
+using std::make_shared;
+using std::set;
+using std::unordered_set;
+using std::pair;
+using std::make_pair;
+using std::to_string;
+using std::invalid_argument;
+
 namespace pdaggerq {
 
     /****** Constructors ******/

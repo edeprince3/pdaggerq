@@ -10,7 +10,9 @@
 #include "collections/scaling_map.hpp"
 #include "collections/linkage_set.hpp"
 
-using namespace std;
+using std::cout;
+using std::endl;
+
 namespace pdaggerq {
 
 

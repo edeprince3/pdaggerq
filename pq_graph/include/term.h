@@ -12,7 +12,6 @@
 #include "../../pdaggerq/pq_string.h"
 
 
-using namespace std;
 namespace pdaggerq {
 
     typedef vector<pair<string, string>> perm_list;

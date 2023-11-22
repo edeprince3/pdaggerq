@@ -4,7 +4,9 @@
 #include <functional>
 #include <unordered_set>
 
-using namespace std;
+using std::string;
+using std::hash;
+
 namespace pdaggerq {
 
     /**

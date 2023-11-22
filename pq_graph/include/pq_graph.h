@@ -15,7 +15,8 @@
 #include "../../pdaggerq/pq_string.h"
 #include "../../pdaggerq/pq_helper.h"
 
-using namespace std;
+using std::ofstream;
+
 namespace pdaggerq {
 
     class PQGraph {

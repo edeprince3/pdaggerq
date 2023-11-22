@@ -9,7 +9,14 @@
 #include "../line.hpp"
 #include <clocale>
 
-using namespace std;
+using std::pair;
+using std::vector;
+using std::string;
+using std::to_string;
+using std::map;
+using std::hash;
+using std::size_t;
+
 namespace pdaggerq {
 
     struct shape {

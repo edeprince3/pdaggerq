@@ -5,7 +5,11 @@
 #ifndef PDAGGERQ_LINE_HPP
 #define PDAGGERQ_LINE_HPP
 
-using namespace std;
+using std::string;
+using std::set;
+using std::runtime_error;
+using std::hash;
+
 namespace pdaggerq {
 
     /**
