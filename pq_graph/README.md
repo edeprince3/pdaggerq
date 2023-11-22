@@ -45,7 +45,7 @@ graph.add("rt1(a,i)", pq)
 pq.clear()
 
 # ... add more expressions to the graph
-pq = pq.load("energy.pq") # load from binary file
+pq.load("energy.pq") # load from binary file
 graph.add("energy", pq)
 pq.clear()
 
