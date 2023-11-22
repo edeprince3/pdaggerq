@@ -77,9 +77,21 @@ namespace pdaggerq {
             max_temps = options["max_temps"].cast<int>();
             max_temps_ = max_temps;
         }
+
         if (options.contains("t1_transform")) Equation::t1_transform_ = options["t1_transform"].cast<bool>();
         if (options.contains("verbose")) verbose = options["verbose"].cast<bool>();
-        if (options.contains("make_einsum")) Term::make_einsum = options["make_einsum"].cast<bool>();
+        if (options.contains("output")) {
+            if (options["output"].cast<string>() == "python") {
+                Term::make_einsum = true;
+                cout << "Formatting equations for python" << endl;
+            } else if (options["output"].cast<string>() == "c++") {
+                Term::make_einsum = false;
+                cout << "Formatting equations for c++" << endl;
+            } else {
+                cout << "WARNING: output must be one of: python, einsum, c++" << endl;
+                cout << "         Setting output to c++" << endl;
+            }
+        }
         if (options.contains("make_scalars")) make_scalars_ = options["make_scalars"].cast<bool>();
 
         if (options.contains("max_contractions"))
