@@ -41,7 +41,7 @@ namespace pdaggerq {
             VertexPtr right_; // the rhs argument of the linkage
 
             /// internal and external lines
-            std::vector<Line> int_lines_; // internal lines
+            std::multiset<Line> int_lines_; // internal lines
 
             /// map of connections between lines
             set<pair<uint8_t, uint8_t>> int_connec_; // connections between lines

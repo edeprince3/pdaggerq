@@ -82,7 +82,6 @@ namespace pdaggerq {
         }
 
         // reserve space for internal and external lines
-        int_lines_.reserve(total_size);
         lines_.reserve(total_size);
 
 
@@ -99,7 +98,7 @@ namespace pdaggerq {
         for (auto &[line, freq] : line_populations) {
             if (freq == 1)
                      lines_.push_back(line); // external line
-            else int_lines_.push_back(line); // internal line
+            else int_lines_.insert(line); // internal line
         }
 
         // lines are sorted via map insertion
@@ -110,9 +109,10 @@ namespace pdaggerq {
         has_blk_ = left->has_blk_ || right->has_blk_;
 
         // update scaling
-        flop_scale_ += int_lines_;
-        flop_scale_ += shape_;
         mem_scale_  += shape_;
+        flop_scale_ += shape_;
+        for (const auto &line : int_lines_)
+            flop_scale_ += line;
 
     }
 
@@ -662,7 +662,6 @@ namespace pdaggerq {
         int_edge_style += ", labelfontsize=20";
         int_edge_style += ", fontsize=20";
         int_edge_style += ", concentrate=false";
-//        int_edge_style += ", constraint=false";
 //        int_edge_style += ", len=1.5";
 
 
@@ -670,6 +669,8 @@ namespace pdaggerq {
         ext_edge_style += ", labelfontsize=20";
         ext_edge_style += ", fontsize=20";
         ext_edge_style += ", concentrate=false";
+//        ext_edge_style += ", constraint=false";
+//        ext_edge_style += ", ordering=in";
 //        ext_edge_style += ", len=1.5";
 //        ext_edge_style += ", minlen=1.0";
 
@@ -701,17 +702,24 @@ namespace pdaggerq {
                 std::string next_node = next->base_name() + "_" + r_id;
                 std::string current_node = current->base_name() + "_" + l_id;
 
-                if (next->base_name() == "Id")
-                    next_node = current_node;
-
-                if (current->base_name() == "Id")
-                    current_node = next_node;
+                // check for self contraction
+//                bool current_is_self = current->base_name() == "Id";
+//                bool next_is_self = next->base_name() == "Id";
+//
+//                if (next_is_self && !current_is_self)
+//                    next_node = current_node;
+//                else if (current_is_self && !next_is_self)
+//                    current_node = next_node;
+//                else if (current_is_self)
+//                    continue;
 
                 // Add vertices as nodes. connect the current and next vertices with edges from the connections map
                 // (-1 indicates no match and should use a dummy node)
 
                 const auto & current_lines = current->lines();
+                const auto & next_lines = next->lines();
                 size_t current_len = current_lines.size();
+                size_t next_len = next_lines.size();
                 // loop over internal lines
                 for (const auto &line: link->int_lines_) {
 
@@ -719,14 +727,23 @@ namespace pdaggerq {
                     std::string edge_label = line.label_;
 
                     // check if line is in bra
-                    bool is_bra = false;
-                    auto it = std::find(current_lines.begin(), current_lines.end(), line);
-                    size_t dist = std::distance(current_lines.begin(), it);
+                    auto curr_it = std::find(current_lines.begin(), current_lines.end(), line);
+                    auto next_it = std::find(next_lines.begin(), next_lines.end(), line);
+                    size_t curr_dist = std::distance(current_lines.begin(), curr_it);
+                    size_t next_dist = std::distance(next_lines.begin(), next_it);
 
-                    if (dist < current_len / 2) is_bra = true;
+                    bool curr_is_bra = curr_dist < current_len / 2;
+                    bool next_is_bra = next_dist < next_len / 2;
+
+                    bool curr_is_ket = !curr_is_bra;
+                    bool next_is_ket = !next_is_bra;
 
                     // determine direction of edge
-                    bool right_directed = is_bra == !line.o_;
+                    bool right_directed = !line.o_;
+
+//                    if (curr_is_bra) right_directed = !right_directed;
+//                    if (next_is_ket) right_directed = !right_directed;
+
 
                     std::string direction;
                     if (right_directed)
@@ -747,8 +764,8 @@ namespace pdaggerq {
             const VertexPtr &current = vertices[i];
             std::string l_id = std::to_string(i) + to_string(op_id);
 
-            if (current->base_name() == "Id")
-                continue; // this is a self contraction. No external lines
+//            if (current->base_name() == "Id")
+//                continue; // this is a self contraction. No external lines
 
             if (vertices[i]->base_name().empty())
                 continue;
@@ -769,17 +786,16 @@ namespace pdaggerq {
                 // make edge label
                 std::string edge_label = line.label_;
 
-                // find line in this vertex
-                auto it = std::find(current_lines.begin(), current_lines.end(), line);
-                if (it == current->lines().end()) continue; // line not found
+                // check if line is in bra
+                auto curr_it = std::find(current_lines.begin(), current_lines.end(), line);
+                if (curr_it == current_lines.end()) continue; // line not found
 
-                bool is_bra = false;
-                size_t dist = std::distance(current_lines.begin(), it);
+                size_t curr_dist = std::distance(current_lines.begin(), curr_it);
 
-                if (dist < current_len / 2) is_bra = true;
+                bool curr_is_bra = curr_dist < current_len / 2;
 
                 // determine direction of edge
-                bool right_directed = is_bra == !line.o_;
+                bool right_directed = !line.o_;
 
                 std::string direction;
                 if (right_directed)
@@ -801,8 +817,8 @@ namespace pdaggerq {
             const VertexPtr &current = vertices[i];
             std::string l_id = std::to_string(i) + to_string(op_id);
 
-            if (current->base_name() == "Id")
-                continue; // this is a self contraction. No external lines
+//            if (current->base_name() == "Id")
+//                continue; // this is a self contraction. No external lines
 
             if (vertices[i]->base_name().empty())
                 continue;
@@ -816,6 +832,10 @@ namespace pdaggerq {
                 node_signature += node_style + "];\n";
             node_names.insert(node_signature);
         }
+
+        // remove duplicate nodes while preserving order
+//        node_names.erase(std::unique(node_names.begin(), node_names.end()), node_names.end());
+//        null_nodes.erase(std::unique(null_nodes.begin(), null_nodes.end()), null_nodes.end());
 
         // print nodes name
         for (const auto &node_name : node_names)

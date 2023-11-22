@@ -224,7 +224,7 @@ namespace pdaggerq {
             std::string padding = "    ";
 
             // pack=true does not work for version 2.40.1
-            os << padding << "    rank=same rankdir=RL remincross=true mclimit=100.0 ordering=out;\n";
+            os << padding << "    rank=max rankdir=LR remincross=true mclimit=100.0 ordering=out;\n";
 
             // foreach in reverse order
             for (auto it = equations_.rbegin(); it != equations_.rend(); ++it) {
@@ -242,8 +242,22 @@ namespace pdaggerq {
                 eq.write_dot(os, "black", false);
 
 
-                // add formatting and label
-                os << padding << "label = \"" << eq.assignment_vertex()->base_name_ << "\";\n";
+                // add label
+                const auto vertex = eq.assignment_vertex();
+
+                os << padding << "label = \"";
+                os << vertex->base_name_;
+                if (!vertex->lines().empty()) os << "(";
+                for (const auto &line : vertex->lines()) {
+                    os << line.label_;
+                    if (line != vertex->lines().back()) {
+                        os << ",";
+                    }
+                }
+                if (!vertex->lines().empty()) os << ")";
+                os << "\";\n";
+
+                // add formatting
                 os << padding << "color = \"black\";\n";
                 os << padding << "fontsize = 32;\n";
 

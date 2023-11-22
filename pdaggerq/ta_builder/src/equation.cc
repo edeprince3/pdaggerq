@@ -637,7 +637,43 @@ namespace pdaggerq {
             term.compute_scaling(true);
             std::string graphname = "cluster_term" + to_string(term_count++);
             os << padding << "subgraph " << graphname << " {\n";
-            os << padding << "    style=\"rounded\" ordering=\"out\";\n";
+            os << padding << "    style=rounded ordering=out;\n";
+            os << padding << "    label=\"";
+
+
+            // label coefficients
+            if (term.coefficient_ != 1.0) {
+                if (term.coefficient_ == -1.0)
+                     os << "-";
+                else os << term.coefficient_ << " ";
+            }
+
+            // add permutations
+            for (const auto &perm : term.term_perms()) {
+                os << "P(";
+                os << perm.first << "," << perm.second << ")";
+            }
+            os << " ";
+
+            // label vertices
+            for (const auto &vertex : term.term_linkage_->to_vector()) {
+                if (vertex->base_name_.empty()) continue;
+
+                os << vertex->base_name_;
+                if (!vertex->lines().empty()) os << "(";
+                for (const auto &line : vertex->lines()) {
+                    os << line.label_;
+                    if (line != vertex->lines().back()) {
+                        os << ",";
+                    }
+                }
+                if (!vertex->lines().empty()) os << ")";
+                if (vertex != term.term_linkage_->to_vector().back()) {
+                    os << " ";
+                }
+            }
+
+            os << "\";\n";
 
             term.term_linkage_->write_dot(os, color, reset);
             os << padding << "}\n";
