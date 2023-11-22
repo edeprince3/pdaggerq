@@ -239,12 +239,18 @@ namespace pdaggerq {
         // scalars have no dimension
         if (rank_ == 0) return;
 
-        // format tensor block as a map
-        name_ += "[\"";
-        if (has_blk_)
-            name_ += new_blk_string + "_";
-        name_ += ovstring;
-        name_ += "\"]";
+        char type = base_name_[0];
+        bool is_amplitude = type == 't' || type == 'u' || type == 'r' || type == 's' || type == 'l' || type == 'm';
+
+        // format tensor block as a map if it is not an amplitude or if it has a block
+        if (!is_amplitude || has_blk_) {
+            name_ += "[\"";
+            name_ += has_blk_ ? new_blk_string : "";
+            name_ += (!is_amplitude && has_blk_) ? "_" : "";
+            name_ += !is_amplitude ? ovstring : "";
+            name_ += "\"]";
+        }
+
     }
 
     string Vertex::dimstring() const {

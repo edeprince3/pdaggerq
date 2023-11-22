@@ -659,20 +659,7 @@ namespace pdaggerq {
         std::string null_node_style = "style=invis, height=.1,width=.1";
 
         std::string int_edge_style = "color=\"" + color + "\"";
-        int_edge_style += ", labelfontsize=20";
-        int_edge_style += ", fontsize=20";
-        int_edge_style += ", concentrate=false";
-//        int_edge_style += ", len=1.5";
-
-
         std::string ext_edge_style = "color=\"" + color + "\"";
-        ext_edge_style += ", labelfontsize=20";
-        ext_edge_style += ", fontsize=20";
-        ext_edge_style += ", concentrate=false";
-//        ext_edge_style += ", constraint=false";
-//        ext_edge_style += ", ordering=in";
-//        ext_edge_style += ", len=1.5";
-//        ext_edge_style += ", minlen=1.0";
 
 
 
@@ -702,17 +689,6 @@ namespace pdaggerq {
                 std::string next_node = next->base_name() + "_" + r_id;
                 std::string current_node = current->base_name() + "_" + l_id;
 
-                // check for self contraction
-//                bool current_is_self = current->base_name() == "Id";
-//                bool next_is_self = next->base_name() == "Id";
-//
-//                if (next_is_self && !current_is_self)
-//                    next_node = current_node;
-//                else if (current_is_self && !next_is_self)
-//                    current_node = next_node;
-//                else if (current_is_self)
-//                    continue;
-
                 // Add vertices as nodes. connect the current and next vertices with edges from the connections map
                 // (-1 indicates no match and should use a dummy node)
 
@@ -726,32 +702,12 @@ namespace pdaggerq {
                     // initialize edge label
                     std::string edge_label = line.label_;
 
-                    // check if line is in bra
-                    auto curr_it = std::find(current_lines.begin(), current_lines.end(), line);
-                    auto next_it = std::find(next_lines.begin(), next_lines.end(), line);
-                    size_t curr_dist = std::distance(current_lines.begin(), curr_it);
-                    size_t next_dist = std::distance(next_lines.begin(), next_it);
-
-                    bool curr_is_bra = curr_dist < current_len / 2;
-                    bool next_is_bra = next_dist < next_len / 2;
-
-                    bool curr_is_ket = !curr_is_bra;
-                    bool next_is_ket = !next_is_bra;
-
                     // determine direction of edge
-                    bool right_directed = !line.o_;
-
-//                    if (curr_is_bra) right_directed = !right_directed;
-//                    if (next_is_ket) right_directed = !right_directed;
-
-
-                    std::string direction;
-                    if (right_directed)
-                         direction = current_node + " -> " + next_node;
-                    else direction = next_node + " -> " + current_node;
+                    std::string direction = line.o_ ?  "forward" : "back";
+                    std::string connnection = current_node + " -> " + next_node;
 
                     // write edge
-                    os << padding << direction << " [label=\"" << edge_label << "\"," + int_edge_style + "];\n";
+                    os << padding << connnection << " [label=\"" << edge_label << "\"," + ext_edge_style + ", dir=" + direction + "];\n";
                 }
             }
         }
@@ -763,9 +719,6 @@ namespace pdaggerq {
             // initialize current node
             const VertexPtr &current = vertices[i];
             std::string l_id = std::to_string(i) + to_string(op_id);
-
-//            if (current->base_name() == "Id")
-//                continue; // this is a self contraction. No external lines
 
             if (vertices[i]->base_name().empty())
                 continue;
@@ -795,15 +748,11 @@ namespace pdaggerq {
                 bool curr_is_bra = curr_dist < current_len / 2;
 
                 // determine direction of edge
-                bool right_directed = !line.o_;
-
-                std::string direction;
-                if (right_directed)
-                     direction = current_node + " -> " + null;
-                else direction = null + " -> " + current_node;
+                std::string direction = line.o_ ?  "forward" : "back";
+                std::string connnection = current_node + " -> " + null;
 
                 // write edge
-                os << padding << direction << " [label=\"" << edge_label << "\"," + ext_edge_style + "];\n";
+                os << padding << connnection << " [label=\"" << edge_label << "\"," + ext_edge_style + ", dir=" + direction + "];\n";
 
             }
         }
@@ -816,9 +765,6 @@ namespace pdaggerq {
             // initialize current node
             const VertexPtr &current = vertices[i];
             std::string l_id = std::to_string(i) + to_string(op_id);
-
-//            if (current->base_name() == "Id")
-//                continue; // this is a self contraction. No external lines
 
             if (vertices[i]->base_name().empty())
                 continue;

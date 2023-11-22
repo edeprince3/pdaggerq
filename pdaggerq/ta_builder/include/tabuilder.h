@@ -223,8 +223,15 @@ namespace pdaggerq {
             os << "digraph G {" << endl;
             std::string padding = "    ";
 
-            // pack=true does not work for version 2.40.1
-            os << padding << "    rank=max rankdir=LR remincross=true mclimit=100.0 ordering=out;\n";
+            os << padding << "    newrank=true rankdir=RL mclimit=120.0 ordering=out mode=hier overlap=false pack=false TBbalance=min compound=true layout=dot;\n";
+//            os << padding << "    !size=\"8.5,11\";\n";
+
+            os << padding << "    ranksep=0.5;\n";
+            os << padding << "    nodesep=0.25;\n";
+            os << padding << "    splines=true;\n";
+            os << padding << "    node [fontname=\"Helvetica\"];\n";
+
+            os << padding << "    edge [fontname=\"Helvetica\", fontsize=20, labelfontsize=20, concentrate=false];\n";
 
             // foreach in reverse order
             for (auto it = equations_.rbegin(); it != equations_.rend(); ++it) {
@@ -236,7 +243,7 @@ namespace pdaggerq {
                 // declare subgraph
                 std::string graphname = "cluster_equation_" + eq.assignment_vertex()->base_name_;
                 os << padding << "subgraph " << graphname << " {\n";
-                os << padding << "    style=rounded ordering=out;\n";
+                os << padding << "    style=rounded;\n";
 
                 // write equation
                 eq.write_dot(os, "black", false);
