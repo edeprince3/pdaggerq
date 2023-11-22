@@ -4,9 +4,9 @@
 #include <vector>
 #include <map>
 #include <unordered_map>
-#include "../include/line.hpp"
+#include "line.hpp"
 #include "collections/scaling_map.hpp"
-#include "../../pq_tensor.h"
+#include "../../pdaggerq/pq_tensor.h"
 #include <memory>
 
 using namespace std;

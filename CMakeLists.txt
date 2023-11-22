@@ -67,16 +67,16 @@ pybind11_add_module(
         pdaggerq/pq_add_label_ranges.cc
         pdaggerq/pq_helper.cc
 
-        pdaggerq/ta_builder/src/vertex.cc
-        pdaggerq/ta_builder/src/linkage.cc
-        pdaggerq/ta_builder/src/term.cc
-        pdaggerq/ta_builder/src/equation.cc
-        pdaggerq/ta_builder/src/tabuilder.cc
-        pdaggerq/ta_builder/src/consolidate.cc
-        pdaggerq/ta_builder/src/term_perm_helper.cc
-        pdaggerq/ta_builder/src/timer.cc
-        pdaggerq/ta_builder/include/line.hpp
-        pdaggerq/ta_builder/include/collections/scaling_map.hpp
-        pdaggerq/ta_builder/include/collections/linkage_set.hpp
+        pq_graph/src/vertex.cc
+        pq_graph/src/linkage.cc
+        pq_graph/src/term.cc
+        pq_graph/src/equation.cc
+        pq_graph/src/pq_graph.cc
+        pq_graph/src/consolidate.cc
+        pq_graph/src/term_perm_helper.cc
+        pq_graph/src/timer.cc
+        pq_graph/include/line.hpp
+        pq_graph/include/collections/scaling_map.hpp
+        pq_graph/include/collections/linkage_set.hpp
 
         )

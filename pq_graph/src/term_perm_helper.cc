@@ -7,7 +7,7 @@
 
 namespace pdaggerq {
 
-    void Term::set_perm(const string & perm_string) {// extract permutation indices TODO: PP2, PP3, PP6
+    void Term::set_perm(const string & perm_string) {// extract permutation indices
         VertexPtr perm_op = make_shared<Vertex>(perm_string); // create permutation vertex
 
         // check if permutation is a P, PP2, PP3, or PP6

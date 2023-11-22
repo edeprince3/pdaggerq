@@ -3,8 +3,8 @@
 #include <iostream>
 #include <utility>
 #include "../include/vertex.h"
-#include "../../pq_tensor.h"
-#include "../../pq_string.h"
+#include "../../pdaggerq/pq_tensor.h"
+#include "../../pdaggerq/pq_string.h"
 
 namespace pdaggerq {
 
@@ -314,7 +314,7 @@ namespace pdaggerq {
     Vertex::Vertex() {
         name_ = "Empty";
         base_name_ = "Empty";
-        has_blk_ = false; // TODO: check if this will be a problem for loops without blocking
+        has_blk_ = false;
         rank_ = 0;
         shape_ = shape();
     }

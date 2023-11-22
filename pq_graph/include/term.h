@@ -9,7 +9,7 @@
 #include "vertex.h"
 #include "linkage.h"
 #include "collections/linkage_set.hpp"
-#include "../../pq_string.h"
+#include "../../pdaggerq/pq_string.h"
 
 
 using namespace std;

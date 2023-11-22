@@ -2,11 +2,11 @@
 #include "pybind11/stl.h"
 #include "pybind11/pybind11.h"
 #include "iostream"
-#include "../include/tabuilder.h"
+#include "../include/pq_graph.h"
 
 namespace pdaggerq {
 
-    size_t TABuilder::merge_terms() {
+    size_t PQGraph::merge_terms() {
 
         if (verbose) cout << "Merging similar terms:" << endl;
 
@@ -29,7 +29,7 @@ namespace pdaggerq {
         return num_fuse;
     }
 
-    void TABuilder::merge_permutations() {
+    void PQGraph::merge_permutations() {
 
         /*
          * This function merges the permutation containers of the equations in the tabuilder.
@@ -51,7 +51,7 @@ namespace pdaggerq {
 
     }
 
-    double TABuilder::common_coefficient(vector<Term> &terms) {
+    double PQGraph::common_coefficient(vector<Term> &terms) {
 
         // make a count_ of the reciprocal of the coefficients of the terms
         map<size_t, size_t> reciprocal_counts;

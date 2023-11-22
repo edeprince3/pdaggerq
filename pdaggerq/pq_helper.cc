@@ -39,7 +39,7 @@
 #include "pq_add_spin_labels.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include "ta_builder/include/tabuilder.h"
+#include "../pq_graph/include/pq_graph.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -99,24 +99,24 @@ void export_pq_helper(py::module& m) {
         .def("add_operator_product", &pq_helper::add_operator_product);
 
         // add tabuilder pybind class
-    py::class_<pdaggerq::TABuilder, std::shared_ptr<pdaggerq::TABuilder> >(m, "tabuilder")
+    py::class_<pdaggerq::PQGraph, std::shared_ptr<pdaggerq::PQGraph> >(m, "pq_graph")
             .def(py::init<>())
-            .def("build", py::overload_cast<vector<string>, vector<vector<vector<string>>>>(&pdaggerq::TABuilder::build))
-            .def("build", py::overload_cast<const pybind11::dict&>(&pdaggerq::TABuilder::build))
-            .def("assemble", &pdaggerq::TABuilder::assemble)
-            .def("substitute", &pdaggerq::TABuilder::substitute)
-            .def("print", &pdaggerq::TABuilder::print)
-            .def("str", &pdaggerq::TABuilder::str)
-            .def("set_options", &pdaggerq::TABuilder::set_options)
-            .def("add", &pdaggerq::TABuilder::add)
-            .def("clear", &pdaggerq::TABuilder::clear)
-            .def("reorder", &pdaggerq::TABuilder::reorder)
-            .def("merge_permutations", &pdaggerq::TABuilder::merge_permutations)
-            .def("merge_terms", &pdaggerq::TABuilder::merge_terms)
-            .def("optimize", &pdaggerq::TABuilder::optimize)
-            .def("analysis", &pdaggerq::TABuilder::analysis)
-            .def("to_strings", &pdaggerq::TABuilder::toStrings)
-            .def("write_dot", &pdaggerq::TABuilder::write_dot);
+            .def("build", py::overload_cast<vector<string>, vector<vector<vector<string>>>>(&pdaggerq::PQGraph::build))
+            .def("build", py::overload_cast<const pybind11::dict&>(&pdaggerq::PQGraph::build))
+            .def("assemble", &pdaggerq::PQGraph::assemble)
+            .def("substitute", &pdaggerq::PQGraph::substitute)
+            .def("print", &pdaggerq::PQGraph::print)
+            .def("str", &pdaggerq::PQGraph::str)
+            .def("set_options", &pdaggerq::PQGraph::set_options)
+            .def("add", &pdaggerq::PQGraph::add)
+            .def("clear", &pdaggerq::PQGraph::clear)
+            .def("reorder", &pdaggerq::PQGraph::reorder)
+            .def("merge_permutations", &pdaggerq::PQGraph::merge_permutations)
+            .def("merge_terms", &pdaggerq::PQGraph::merge_terms)
+            .def("optimize", &pdaggerq::PQGraph::optimize)
+            .def("analysis", &pdaggerq::PQGraph::analysis)
+            .def("to_strings", &pdaggerq::PQGraph::toStrings)
+            .def("write_dot", &pdaggerq::PQGraph::write_dot);
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {

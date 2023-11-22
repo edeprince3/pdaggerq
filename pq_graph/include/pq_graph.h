@@ -1,5 +1,5 @@
-#ifndef PDAGGERQ_TABUILDER_H
-#define PDAGGERQ_TABUILDER_H
+#ifndef PDAGGERQ_PQ_GRAPH_H
+#define PDAGGERQ_PQ_GRAPH_H
 
 #include <string>
 #include <vector>
@@ -12,13 +12,13 @@
 #include "collections/scaling_map.hpp"
 #include "collections/linkage_set.hpp"
 #include "misc/timer.h"
-#include "../../pq_string.h"
-#include "../../pq_helper.h"
+#include "../../pdaggerq/pq_string.h"
+#include "../../pdaggerq/pq_helper.h"
 
 using namespace std;
 namespace pdaggerq {
 
-    class TABuilder {
+    class PQGraph {
         map<string, Equation> equations_; // equations to be optimized
         map<string, linkage_set> all_linkages_ = { // all intermediate linkages
                                                     {"scalars", linkage_set(256)},
@@ -73,10 +73,10 @@ namespace pdaggerq {
     public:
 
         // default constructor
-        TABuilder() = default;
+        PQGraph() = default;
 
         /**
-         * Set options for the TA Builder
+         * Set options for PQ GRAPH
          * @param options dictionary of options
          */
         void set_options(const pybind11::dict& options);
@@ -223,11 +223,9 @@ namespace pdaggerq {
             os << "digraph G {" << endl;
             std::string padding = "    ";
 
-            os << padding << "    newrank=true rankdir=RL mclimit=120.0 ordering=out mode=hier overlap=false pack=false TBbalance=min compound=true layout=dot;\n";
-//            os << padding << "    !size=\"8.5,11\";\n";
-
-            os << padding << "    ranksep=0.5;\n";
-            os << padding << "    nodesep=0.25;\n";
+            os << padding << "    newrank=true rankdir=LR ordering=out mode=hier overlap=false pack=false TBbalance=min compound=true layout=dot;\n";
+            os << padding << "    ranksep=0.69;\n";
+            os << padding << "    nodesep=0.42;\n";
             os << padding << "    splines=true;\n";
             os << padding << "    node [fontname=\"Helvetica\"];\n";
 
@@ -311,8 +309,8 @@ namespace pdaggerq {
          */
         static void print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) ;
 
-    }; // TABuilder
+    }; // PQGraph
 
 } // pdaggerq
 
-#endif //PDAGGERQ_TABUILDER_H
+#endif //PDAGGERQ_PQ_GRAPH_H

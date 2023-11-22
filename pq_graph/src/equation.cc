@@ -682,7 +682,6 @@ namespace pdaggerq {
                 last_graphname = graphname;
             }
 
-            // TODO: add single vertex rhs to dot file
         }
         return os;
     }

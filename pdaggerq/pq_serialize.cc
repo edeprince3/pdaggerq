@@ -13,7 +13,6 @@
 #include "pq_add_spin_labels.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include "ta_builder/include/tabuilder.h"
 
 using namespace pdaggerq;
 
@@ -70,7 +69,7 @@ void pq_helper::serialize(const std::string & filename) const {
     write_primitive(nright_operators);
 
     // serialize right operators
-    for (const vector<std::string> & op : right_operators) {
+    for (const std::vector<std::string> & op : right_operators) {
         write_primitive(op.size());
         for (const std::string & op_str : op) {
             write_string(op_str);
@@ -84,7 +83,7 @@ void pq_helper::serialize(const std::string & filename) const {
     write_primitive(left_operators.size());
 
     // serialize left operators
-    for (const vector<std::string> & op : left_operators) {
+    for (const std::vector<std::string> & op : left_operators) {
         write_primitive(op.size());
         for (const std::string & op_str : op) {
             write_string(op_str);
@@ -132,7 +131,7 @@ void pq_helper::deserialize(const std::string & filename) {
     ordered.clear();
     if (nstrings > 0) {
         ordered.resize(nstrings);
-        for (shared_ptr<pq_string> & pq_str : ordered) {
+        for (std::shared_ptr<pq_string> & pq_str : ordered) {
             pq_str = std::make_shared<pq_string>("");
             pq_str->deserialize(buffer);
         }
@@ -146,7 +145,7 @@ void pq_helper::deserialize(const std::string & filename) {
     ordered_blocked.clear();
     if (nstrings_blocked > 0) {
         ordered_blocked.resize(nstrings_blocked);
-        for (shared_ptr<pq_string> & pq_str : ordered_blocked) {
+        for (std::shared_ptr<pq_string> & pq_str : ordered_blocked) {
             pq_str = std::make_shared<pq_string>("");
             pq_str->deserialize(buffer);
         }
@@ -177,7 +176,7 @@ void pq_helper::deserialize(const std::string & filename) {
             size_t nops;
             read_primitive(nops);
 
-            vector<std::string> op;
+            std::vector<std::string> op;
 
             if (nops > 0) {
                 op.reserve(nops);
@@ -205,7 +204,7 @@ void pq_helper::deserialize(const std::string & filename) {
         for (int i = 0; i < nleft_operators; i++) {
             size_t nops;
             read_primitive(nops);
-            vector<std::string> op;
+            std::vector<std::string> op;
             if (nops > 0) {
                 op.reserve(nops);
                 for (int j = 0; j < nops; j++) {

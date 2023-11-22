@@ -1,9 +1,9 @@
-#include "../include/tabuilder.h"
+#include "../include/pq_graph.h"
 #include "iostream"
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
-#include "../../pq_string.h"
-#include "../../pq_helper.h"
+#include "../../pdaggerq/pq_string.h"
+#include "../../pdaggerq/pq_helper.h"
 #include <omp.h>
 #include <memory>
 #include <sstream>
@@ -14,8 +14,8 @@ using namespace pybind11::literals;
 
 namespace pdaggerq {
 
-    void TABuilder::set_options(const pybind11::dict& options) {
-        cout << endl << "####################" << " TA Builder " << "####################" << endl << endl;
+    void PQGraph::set_options(const pybind11::dict& options) {
+        cout << endl << "####################" << " PQ GRAPH " << "####################" << endl << endl;
 
         // set defaults
         int max_temps = -1;
@@ -131,7 +131,7 @@ namespace pdaggerq {
         cout << endl;
     }
 
-    void TABuilder::add(const std::string &equation_name, const pq_helper& pq) {
+    void PQGraph::add(const std::string &equation_name, const pq_helper& pq) {
         // check if equation already exists; if so, print warning
         if (equations_.find(equation_name) != equations_.end()) {
             cout << "WARNING: equation '" << equation_name << "' already exists. Overwriting." << endl;
@@ -185,7 +185,7 @@ namespace pdaggerq {
         equations_[equation_name] = Equation(equation_name, terms);
 
         // format self-contractions
-        equations_[equation_name].apply_self_links(); // TODO: I need to format this better...
+        equations_[equation_name].apply_self_links();
         equations_[equation_name].collect_scaling();
 
         // save initial scaling
@@ -201,7 +201,7 @@ namespace pdaggerq {
     }
 
 
-    void TABuilder::assemble(const std::map<std::string, pq_helper>& ordered_equations) {
+    void PQGraph::assemble(const std::map<std::string, pq_helper>& ordered_equations) {
         // Loop over each equation
         vector<string> equation_names;
         vector<vector<vector<string>>> equation_strings;
@@ -217,7 +217,7 @@ namespace pdaggerq {
         build(equation_names, equation_strings);
     }
 
-    void TABuilder::build(const pybind11::dict& equation_dict) {
+    void PQGraph::build(const pybind11::dict& equation_dict) {
         vector<string> equation_names;
         vector<vector<vector<string>>> equation_strings;
 
@@ -229,7 +229,7 @@ namespace pdaggerq {
         build(equation_names, equation_strings);
     }
 
-    void TABuilder::build(vector<string> equation_names, vector<vector<vector<string>>> equation_strings) {
+    void PQGraph::build(vector<string> equation_names, vector<vector<vector<string>>> equation_strings) {
 
         /// construct equations
         build_timer.start();
@@ -310,23 +310,23 @@ namespace pdaggerq {
         build_timer.stop();
     }
 
-    void TABuilder::apply_self_links(Equation &equation) {
+    void PQGraph::apply_self_links(Equation &equation) {
         // format self-contractions in rhs
         size_t scalar_count = temp_counts_["scalars"];
         equation.apply_self_links();
     }
 
-    void TABuilder::print() {
+    void PQGraph::print() {
         // print output to stdout
         cout << this->str() << endl;
     }
 
-    string TABuilder::str() {
+    string PQGraph::str() {
 
         stringstream sout; // string stream to hold output
 
-        // add banner for TA builder results
-        sout << "####################" << " TA Builder Output " << "####################" << endl << endl;
+        // add banner for PQ GRAPH results
+        sout << "####################" << " PQ GRAPH Output " << "####################" << endl << endl;
 
         // get all terms from all equations except the tmps, scalars, and reuse_tmps equation
         vector<Term> all_terms;
@@ -520,7 +520,7 @@ namespace pdaggerq {
 
     }
 
-    void TABuilder::collect_scaling(bool recompute) {
+    void PQGraph::collect_scaling(bool recompute) {
 
         // reset scaling maps
         flop_map_.clear(); // clear flop scaling map
@@ -555,7 +555,7 @@ namespace pdaggerq {
         }
     }
 
-    vector<string> TABuilder::toStrings() {
+    vector<string> PQGraph::toStrings() {
         string tastring = str();
         vector<string> eq_strings;
 
@@ -573,14 +573,14 @@ namespace pdaggerq {
         return eq_strings;
     }
 
-    vector<string> TABuilder::get_equation_keys() {
+    vector<string> PQGraph::get_equation_keys() {
         vector<string> eq_keys(equations_.size());
         transform(equations_.begin(), equations_.end(), eq_keys.begin(),
                   [](const pair<string, Equation> &p) { return p.first; });
         return std::move(eq_keys);
     }
 
-    void TABuilder::reorder() { // verbose if not already reordered
+    void PQGraph::reorder() { // verbose if not already reordered
 
         // save initial scaling
         static bool initial_saved = false;
@@ -619,8 +619,8 @@ namespace pdaggerq {
         if (mem_map_pre_.empty()) mem_map_pre_ = mem_map_;
     }
 
-    void TABuilder::analysis() const {
-        cout << "####################" << " TA Builder Analysis " << "####################" << endl << endl;
+    void PQGraph::analysis() const {
+        cout << "####################" << " PQ GRAPH Analysis " << "####################" << endl << endl;
 
         // print total time elapsed
         long double total_time = build_timer.get_runtime() + reorder_timer.get_runtime()
@@ -654,7 +654,7 @@ namespace pdaggerq {
 
     }
 
-    void TABuilder::print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) {
+    void PQGraph::print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) {
         printf("%10s : %8s | %8s | %8s || %10s | %10s\n", "Scaling", "initial", "reorder", "optimize", "opt diff", "init diff");
 
         scaling_map diff_map = current_map - previous_map;
@@ -678,7 +678,7 @@ namespace pdaggerq {
 
     }
 
-    void TABuilder::generate_linkages(bool recompute) {
+    void PQGraph::generate_linkages(bool recompute) {
 
         if (recompute)
             tmp_candidates_.clear(); // clear all prior candidates
@@ -703,7 +703,7 @@ namespace pdaggerq {
 
     }
 
-    void TABuilder::substitute() {
+    void PQGraph::substitute() {
 
         // reorder if not already reordered
         if (!is_reordered_) reorder();
@@ -1066,7 +1066,7 @@ namespace pdaggerq {
         cout << " ===================================================="  << endl << endl;
     }
 
-    void TABuilder::optimize() {
+    void PQGraph::optimize() {
         reorder(); // reorder contractions in equations
 //        if (allow_merge_) merge_terms(); // merge similar terms
         substitute(); // find and substitute intermediate contractions
@@ -1076,7 +1076,7 @@ namespace pdaggerq {
         analysis(); // analyze equations
     }
 
-    linkage_set TABuilder::make_test_set() {
+    linkage_set PQGraph::make_test_set() {
 
         if (!batched_) return tmp_candidates_; // if not batched, return all linkages
 
@@ -1117,7 +1117,7 @@ namespace pdaggerq {
         return test_linkages; // return test linkages
     }
 
-    void TABuilder::add_tmp(const LinkagePtr& precon, Equation &equation) {
+    void PQGraph::add_tmp(const LinkagePtr& precon, Equation &equation) {
 
         // check that term is not already in equation
 //        for (const auto &term : equation) {
@@ -1133,7 +1133,7 @@ namespace pdaggerq {
 
     }
 
-    void TABuilder::sort_tmps(Equation &equation) {
+    void PQGraph::sort_tmps(Equation &equation) {
 
         // no terms, return
         if ( equation.terms().empty() ) return;
