@@ -80,6 +80,11 @@ namespace pdaggerq {
         // check if linkage is a sigma vertex or density fitted vertex
         is_sigma_ = !lines_.empty() && lines_[0].sig_;
         is_den_   = !lines_.empty() && lines_[0].den_;
+
+        // check if left or right vertices are also linkages and set parent linkage
+        if ( left_->is_linked())  left_parent_ = as_link( left_);
+        if (right_->is_linked()) right_parent_ = as_link(right_);
+
     }
 
     inline void Linkage::set_links(const VertexPtr &left, const VertexPtr &right) {
@@ -513,14 +518,15 @@ namespace pdaggerq {
         // get left vertex
         if (left_->is_linked()) {
             const LinkagePtr left_linkage = as_link(left_);
+
             // compute the vertices recursively and save them
             left_linkage->to_vector();
 
             // add left vertices to result
             for (const auto &vertex : left_linkage->all_vert_)
-                result[i++] = copy_vert(vertex);
+                result[i++] = vertex;
 
-        } else result[i++] = copy_vert(left_);
+        } else result[i++] = left_;
 
         // get right vertex
         if (right_->is_linked()) {
@@ -532,9 +538,9 @@ namespace pdaggerq {
             void move_link(Linkage &other);
 
             for (const auto &vertex : right_linkage->all_vert_)
-               result[i++] = copy_vert(vertex);
+               result[i++] = vertex;
 
-        } else result[i++] = copy_vert(right_);
+        } else result[i++] = right_;
     }
 
     const vector<VertexPtr> &Linkage::to_vector(bool regenerate) const {
@@ -552,6 +558,55 @@ namespace pdaggerq {
         return all_vert_;
     }
 
+//    const Linkage* Linkage::vbegin() const {
+//
+//        if (!left_->is_linked())
+//            return this;
+//
+//        const Linkage* result = as_link(left_).get();
+//        while (result->left_->is_linked()) {
+//            result = as_link(result->left_).get();
+//        }
+//        return result;
+//    }
+//
+//    const Linkage* Linkage::vend() const {
+//        if (!right_->is_linked())
+//            return this;
+//
+//        const Linkage* result = as_link(right_).get();
+//        while (result->right_->is_linked()) {
+//            result = as_link(result->right_).get();
+//        }
+//        return result;
+//    }
+//
+//    const Linkage* Linkage::vnext() const {
+//
+//        // return right linkage
+//        if (right_->is_linked())
+//            return as_link(right_).get();
+//
+//        // no right linkage; return right parent
+//        if (right_parent_ != nullptr)
+//            return right_parent_.get();
+//
+//        // while left_parent does not have right_parent, move up the tree
+//
+//        if (left_parent_ == nullptr) // cannot go anywhere else. return self.
+//            return this;
+//
+//        LinkagePtr result = left_parent_;
+//        while (result->right_parent_ == nullptr) {
+//            result = result->left_parent_;
+//            if (result == nullptr) // cannot go anywhere else. return self.
+//                return this;
+//        }
+//
+//        // return right_parent
+//        return result->right_parent_.get();
+//
+//    }
 
     void Linkage::clone_link(const Linkage &other) {
         // Lock the mutex for the scope of the function
@@ -563,6 +618,9 @@ namespace pdaggerq {
         // fill linkage data
         left_ = copy_vert(other.left_);
         right_ = copy_vert(other.right_);
+
+        left_parent_ = other.left_parent_;
+        right_parent_ = other.right_parent_;
 
         id_ = other.id_;
         nvert_ = other.nvert_;
@@ -606,6 +664,9 @@ namespace pdaggerq {
         // move linkage data
         left_ = std::move(other.left_);
         right_ = std::move(other.right_);
+
+        left_parent_ = std::move(other.left_parent_);
+        right_parent_ = std::move(other.right_parent_);
 
         id_ = other.id_;
         nvert_ = other.nvert_;
@@ -651,13 +712,6 @@ namespace pdaggerq {
         if ( vertex->is_linked() )
              return make_shared<Linkage>(*as_link(vertex));
         else return make_shared<Vertex>(*vertex);
-        
-    }
 
-    /**
-     * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)
-     * @param os output stream
-     * @param linkage linkage to write
-     * @return output stream
-     */
+    }
 } // pdaggerq

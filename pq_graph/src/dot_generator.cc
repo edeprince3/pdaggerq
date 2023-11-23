@@ -168,6 +168,16 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
         return os;
     } else { op_id++; dummy_count++; }
 
+
+
+//    for (auto begin_it = vbegin(), end_it = vend(); begin_it->right_ != end_it->right_; begin_it = begin_it->vnext()) {
+//        VertexPtr l_vert = begin_it->left_;
+//        VertexPtr r_vert = begin_it->right_;
+//        os << l_vert->base_name() << " " << r_vert->base_name();
+//    }
+    os << endl;
+
+
     // get vertices
     const vector<VertexPtr> &vertices = this->to_vector(true);
 
@@ -189,7 +199,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
         const VertexPtr &current = vertices[i];
         std::string l_id = std::to_string(i) + to_string(op_id);
 
-        if (vertices[i]->base_name().empty())
+        if (vertices[i] == nullptr || vertices[i]->base_name().empty())
             continue;
 
         std::string current_node = current->base_name() + "_" + l_id;
@@ -202,7 +212,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
         node_names.push_back(node_signature);
     }
 
-    std::string ext_edge_style = "color=\"" + color + "\", style=bold, len=0.01";
+    std::string ext_edge_style = "color=\"" + color + "\", style=bold, len=0.01, arrowsize=1.25";
 
     /// plot external lines
 
@@ -213,7 +223,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
             const VertexPtr &current = vertices[i];
             std::string l_id = std::to_string(i) + to_string(op_id);
 
-            if (vertices[i]->base_name().empty())
+            if (vertices[i] == nullptr || vertices[i]->base_name().empty())
                 continue;
 
             std::string current_node = current->base_name() + "_" + l_id;
@@ -270,10 +280,13 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
         const VertexPtr &current = vertices[i];
         std::string l_id = std::to_string(i) + to_string(op_id);
 
+        if (vertices[i] == nullptr || vertices[i]->base_name().empty())
+            continue;
+
         for (size_t j = i+1; j < vertices.size(); j++) {
             //TODO: incorporate scalar vertices
 
-            if (vertices[j]->base_name().empty())
+            if (vertices[j] == nullptr || vertices[j]->base_name().empty())
                 continue;
 
 
@@ -329,22 +342,6 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
             }
         }
     }
-
-
-//    // remove repeated nodes
-//    for (auto it = node_names.rbegin(); it != node_names.rend(); ++it) {
-//        auto pos = std::find(node_names.begin(), it.base(), *it);
-//        if (pos != it.base()) {
-//            node_names.erase(pos);
-//        }
-//    }
-//
-//    for (auto it = null_nodes.rbegin(); it != null_nodes.rend(); ++it) {
-//        auto pos = std::find(null_nodes.begin(), it.base(), *it);
-//        if (pos != it.base()) {
-//            null_nodes.erase(pos);
-//        }
-//    }
 
     /// write file
 

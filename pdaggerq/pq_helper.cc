@@ -32,13 +32,18 @@
 #include <algorithm>
 
 
+// surpresses warnings from pybind11
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#pragma GCC diagnostic pop
+
 #include "pq_helper.h"
 #include "pq_utils.h"
 #include "pq_string.h"
 #include "pq_add_label_ranges.h"
 #include "pq_add_spin_labels.h"
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 #include "../pq_graph/include/pq_graph.h"
 
 namespace py = pybind11;

@@ -31,6 +31,7 @@
 #include "timer.h"
 #include "memory"
 #include <mutex>
+#include <utility>
 
 
 using std::ostream;
@@ -55,13 +56,44 @@ namespace pdaggerq {
      * Class to represent contractions of a single vertex with a set of other vertices
      * The contraction itself is also a vertex and is defined by a left and right vertex
      */
+    class Linkage;
+
+    // define pointer type
+    typedef shared_ptr<Linkage> LinkagePtr;
+
+    // define cast function from Vertex pointers to Linkage pointers  and vice versa
+
+    static LinkagePtr as_link(const VertexPtr& vertex) { return dynamic_pointer_cast<Linkage>(vertex); }
+    static VertexPtr as_vert(const LinkagePtr& linkage) { return dynamic_pointer_cast<Vertex>(linkage); }
+
+
+    /**
+     * Perform linkage of two vertices by overload of * operator
+     * @param other vertex to contract with
+     * @return linkage of the two vertices
+     * @note this is an extern function to allow for operator overloading outside of the namespace
+     */
+    extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right);
+
+    /**
+     * Perform linkage of two vertices by overload of + operator
+     * @param other vertex to add
+     * @return linkage of linkage
+     * @note this is an extern function to allow for operator overloading outside of the namespace
+     */
+    extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right);
+
+    /**
+     * perform a deep copy of a vertex
+     * @param vertex vertex to copy
+     * @return pointer to the copy
+     */
+    extern VertexPtr copy_vert(const VertexPtr &vertex);
+
     class Linkage : public Vertex {
 
         // define pointer type
         typedef shared_ptr<Linkage> LinkagePtr;
-
-        // indicates the vertex is linked to another vertex
-        bool is_linked() const override { return true; }
 
         /// cost of linkage (flops and memory) as pair of vir and occ counts
         shape flop_scale_{}; // flops
@@ -79,6 +111,10 @@ namespace pdaggerq {
             /// vertices in the linkage
             VertexPtr left_; // the lhs argument of the linkage
             VertexPtr right_; // the rhs argument of the linkage
+
+            // pointer to the parent linkage (if any)
+            LinkagePtr left_parent_ = nullptr; //TODO: incorporate parent linkage to traverse the tree efficiently
+            LinkagePtr right_parent_ = nullptr;
 
             /// internal and external lines
             std::multiset<Line> int_lines_; // internal lines
@@ -228,10 +264,10 @@ namespace pdaggerq {
             VertexPtr get(uint_fast8_t i) const;
 
             /**
-             * convert the linkage to a vector of vertices in order
-             * @param result vector of vertices
-             * @note this function is recursive
-             */
+            * convert the linkage to a vector of vertices in order
+            * @param result vector of vertices
+            * @note this function is recursive
+            */
             void to_vector(vector<VertexPtr> &result, size_t &i) const;
 
             /**
@@ -240,6 +276,31 @@ namespace pdaggerq {
              * @note this function is recursive
              */
             const vector<VertexPtr> &to_vector(bool regenerate = false) const;
+
+
+            //TODO: replace usages of vector generation with iterator mechanism. The needed functionality is
+            //  already within this data structure (child/parent nodes), but we need to implement the traversal algorithm.
+            // This will allow us to avoid copying the vector of vertices and instead just iterate over the
+            // vertices in the linkage. Begin and end functions are already implemented. The `next` function
+            // is more complicated.
+
+
+            /**
+             * Return iterator to the leftmost linkage
+             * @return iterator to the leftmost linkage
+             */
+//            const Linkage* vbegin() const;
+
+            /**
+             * Return iterator to the rightmost linkage
+             * @return iterator to the rightmost linkage
+             */
+//            const Linkage* vend() const;
+
+            /**
+             * Return next iterator within the chain of linkages
+             */
+//            const Linkage* vnext() const;
 
             /**
              * Get connections
@@ -337,36 +398,14 @@ namespace pdaggerq {
              */
             size_t depth() const { return nvert_; }
 
+            // indicates the vertex is linked to another vertex
+            bool is_linked() const override { return true; }
     }; // class linkage
 
-    // define pointer type
-    typedef shared_ptr<Linkage> LinkagePtr;
+    // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
-    // define cast function from VertexPtr to LinkagePtr (base class to derived class)
-    static LinkagePtr as_link(const VertexPtr& vertex) { return dynamic_pointer_cast<Linkage>(vertex); }
-
-    /**
-     * Perform linkage of two vertices by overload of * operator
-     * @param other vertex to contract with
-     * @return linkage of the two vertices
-     * @note this is an extern function to allow for operator overloading outside of the namespace
-     */
-    extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right);
-
-    /**
-     * Perform linkage of two vertices by overload of + operator
-     * @param other vertex to add
-     * @return linkage of linkage
-     * @note this is an extern function to allow for operator overloading outside of the namespace
-     */
-    extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right);
-
-    /**
-     * perform a deep copy of a vertex
-     * @param vertex vertex to copy
-     * @return pointer to the copy
-     */
-    extern VertexPtr copy_vert(const VertexPtr &vertex);
+    static Linkage* as_link(Vertex* vertex) { return dynamic_cast<Linkage*>(vertex); }
+    static Vertex* as_vert(Linkage* linkage) { return dynamic_cast<Vertex*>(linkage); }
 
 } // pdaggerq
 

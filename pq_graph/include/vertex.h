@@ -349,7 +349,7 @@ namespace pdaggerq {
          */
         vector<Line>::const_iterator begin() const { return lines_.begin(); }
 
-        /**
+        virtual /**
          * return end iterator of lines
          * @return end iterator of lines
          */
@@ -413,6 +413,8 @@ namespace pdaggerq {
 
     // typedef for shared pointer to Vertex
     typedef shared_ptr<Vertex> VertexPtr;
+
+
 
 } // pdaggerq
 
