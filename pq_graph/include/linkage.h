@@ -108,13 +108,19 @@ namespace pdaggerq {
             bool is_addition_ = false; // whether the linkage is an addition; else it is a contraction
             bool is_reused_ = false; // whether the linkage is a shared operator (can be extracted)
 
+            // whether the linkage corresponds to an intermediate contraction
+            bool is_temp() const { return id_ != -1 || is_reused_; }
+
+            // indicates the vertex is linked to another vertex
+            bool is_linked() const override { return true; }
+
             /// vertices in the linkage
             VertexPtr left_; // the lhs argument of the linkage
             VertexPtr right_; // the rhs argument of the linkage
 
             // pointer to the parent linkage (if any)
-            LinkagePtr left_parent_ = nullptr; //TODO: incorporate parent linkage to traverse the tree efficiently
-            LinkagePtr right_parent_ = nullptr;
+//            LinkagePtr left_parent_ = nullptr; //TODO: incorporate parent linkage to traverse the tree efficiently
+//            LinkagePtr right_parent_ = nullptr;
 
             /// internal and external lines
             std::multiset<Line> int_lines_; // internal lines
@@ -137,19 +143,15 @@ namespace pdaggerq {
             /**
              * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
              * this function will populate the Vertex base class with the result of the contraction
-             * @param left vertex to contract with
-             * @param right vertex to contract with
              */
-            void set_links(const VertexPtr &left, const VertexPtr &right);
+            void set_links();
 
 
             /**
              * Populates connection map such that internal lines from left and right vertices are connected by
              * their respective indices
-             * @param left vertex to contract with
-             * @param right vertex to contract with
              */
-            void connect_lines(const VertexPtr &left, const VertexPtr &right);
+            void connect_lines();
 
             /**
              * Destructor
@@ -268,14 +270,14 @@ namespace pdaggerq {
             * @param result vector of vertices
             * @note this function is recursive
             */
-            void to_vector(vector<VertexPtr> &result, size_t &i) const;
+            void to_vector(vector<VertexPtr> &result, size_t &i, bool full_expand) const;
 
             /**
              * convert the linkage to a const vector of vertices
              * @return vector of vertices
              * @note this function is recursive
              */
-            const vector<VertexPtr> &to_vector(bool regenerate = false) const;
+            const vector<VertexPtr> &to_vector(bool regenerate = false, bool full_expand = true) const;
 
 
             //TODO: replace usages of vector generation with iterator mechanism. The needed functionality is
@@ -398,8 +400,6 @@ namespace pdaggerq {
              */
             size_t depth() const { return nvert_; }
 
-            // indicates the vertex is linked to another vertex
-            bool is_linked() const override { return true; }
     }; // class linkage
 
     // define cast function from Vertex pointers to Linkage pointers  and vice versa

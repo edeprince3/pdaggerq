@@ -35,22 +35,22 @@ namespace pdaggerq {
     inline Linkage::Linkage(const VertexPtr &left, const VertexPtr &right, bool is_addition) : Vertex() {
 
         // set inputs
-        if (!left->is_linked() && !right->is_linked()) {
-            // a binary linkage is associative (left and right are interchangeable)
-            // sort left and right vertices by name to prevent duplicates
-            // TODO: make sure this works with Term::is_compatible()
-            if (left->name() < right->name()) {
-                 left_ =  left;
-                right_ = right;
-            } else {
-                 left_ = right;
-                right_ =  left;
-            }
-        } else {
+//        if (!left->is_linked() && !right->is_linked()) {
+//            // a binary linkage is associative (left and right are interchangeable)
+//            // sort left and right vertices by name to prevent duplicates
+//            // TODO: make sure this works with Term::is_compatible() THIS IS WHY
+//            if (left->name() < right->name()) {
+//                 left_ =  left;
+//                right_ = right;
+//            } else {
+//                 left_ = right;
+//                right_ =  left;
+//            }
+//        } else {
             // a linkage with more than two vertices is not associative
             left_  =  left;
             right_ = right;
-        }
+//        }
 
         // count_ the left and right vertices
         nvert_ = 2;
@@ -68,38 +68,38 @@ namespace pdaggerq {
         is_addition_ = is_addition;
 
         // create hash for the name (should be unique and faster for comparisons)
-        name_ = to_string(hash<string>()(left_->name_ + " " + right_->name_));
+        name_ = left_->name_ + " " + right_->name_;
         base_name_ = name_;
 
         // build internal and external lines
-        set_links(left_, right_);
+        set_links();
 
         // create mapping of indices of internal and external lines from left to right vertices
-        connect_lines(left, right);
+        connect_lines();
 
         // check if linkage is a sigma vertex or density fitted vertex
         is_sigma_ = !lines_.empty() && lines_[0].sig_;
         is_den_   = !lines_.empty() && lines_[0].den_;
 
         // check if left or right vertices are also linkages and set parent linkage
-        if ( left_->is_linked())  left_parent_ = as_link( left_);
-        if (right_->is_linked()) right_parent_ = as_link(right_);
+//        if ( left_->is_linked())  left_parent_ = as_link( left_);
+//        if (right_->is_linked()) right_parent_ = as_link(right_);
 
     }
 
-    inline void Linkage::set_links(const VertexPtr &left, const VertexPtr &right) {
+    inline void Linkage::set_links() {
 
         // clear internal and external lines and connections
         int_lines_.clear();
         lines_.clear();
 
         // grab data from left and right vertices
-        uint_fast8_t left_size = left->size();
-        uint_fast8_t right_size = right->size();
+        uint_fast8_t left_size = left_->size();
+        uint_fast8_t right_size = right_->size();
         uint_fast8_t total_size = left_size + right_size;
 
-        const auto &left_lines = left->lines();
-        const auto &right_lines = right->lines();
+        const auto &left_lines = left_->lines();
+        const auto &right_lines = right_->lines();
 
         // handle scalars
         if (left_size == 0 && right_size == 0) return; // both vertices are scalars (no lines)
@@ -144,11 +144,11 @@ namespace pdaggerq {
         // set properties
         rank_  = lines_.size();
         shape_ = mem_scale_;
-        has_blk_ = left->has_blk_ || right->has_blk_;
+        has_blk_ = left_->has_blk_ || right_->has_blk_;
 
     }
 
-    inline void Linkage::connect_lines(const VertexPtr &left, const VertexPtr &right) {
+    inline void Linkage::connect_lines() {
 
         // clear connections
         int_connec_.clear();
@@ -156,8 +156,8 @@ namespace pdaggerq {
         l_ext_idx_.clear();
 
         // grab data from left and right vertices
-        const auto &left_lines = left->lines();
-        const auto &right_lines = right->lines();
+        const auto &left_lines = left_->lines();
+        const auto &right_lines = right_->lines();
 
         // build internal connections
         auto hint = int_connec_.begin();
@@ -388,7 +388,7 @@ namespace pdaggerq {
 
     string Linkage::str(bool make_generic, bool include_lines) const {
 
-        if (id_ == -1) { // TODO: this might be annoying if we want to reuse a tmp. We will see when we get there...
+        if (!is_temp()) { // TODO: this might be annoying if we want to reuse a tmp. We will see when we get there...
             // this is not an intermediate vertex (generic linkage).
             // return the str of the left and right vertices
             return tot_str(false, true);
@@ -428,7 +428,7 @@ namespace pdaggerq {
         if (empty()) return "";
 
         // do not expand linkages that are not intermediates
-        if (id_ == -1) expand = false;
+        if (!is_temp()) expand = false;
 
         // prepare output string
         string output, left_string, right_string;
@@ -511,7 +511,7 @@ namespace pdaggerq {
         return result;
     }
 
-    inline void Linkage::to_vector(vector<VertexPtr> &result, size_t &i) const {
+    inline void Linkage::to_vector(vector<VertexPtr> &result, size_t &i, bool full_expand) const {
 
         if (empty()) return;
 
@@ -519,38 +519,55 @@ namespace pdaggerq {
         if (left_->is_linked()) {
             const LinkagePtr left_linkage = as_link(left_);
 
-            // compute the vertices recursively and save them
-            left_linkage->to_vector();
+            // check if left linkage is a tmp
+            if (!full_expand && left_linkage->is_temp()) {
+                // if this is a tmp and we are not expanding, add it to the result and return
+                result[i++] = left_linkage;
+            } else {
 
-            // add left vertices to result
-            for (const auto &vertex : left_linkage->all_vert_)
-                result[i++] = vertex;
+                // compute the vertices recursively and save them
+                left_linkage->to_vector();
+
+                // add left vertices to result
+                for (const auto &vertex: left_linkage->all_vert_)
+                    result[i++] = vertex;
+            }
 
         } else result[i++] = left_;
 
         // get right vertex
         if (right_->is_linked()) {
             const LinkagePtr right_linkage = as_link(right_);
-            // compute the vertices recursively and save them
-            right_linkage->to_vector();
 
-            // add right vertices to result
-            void move_link(Linkage &other);
+            // check if right linkage is a tmp
+            if (!full_expand && right_linkage->is_temp()) {
+                // if this is a tmp and we are not expanding, add it to the result and return
+                result[i++] = right_linkage;
+            } else {
 
-            for (const auto &vertex : right_linkage->all_vert_)
-               result[i++] = vertex;
+                // compute the vertices recursively and save them
+                right_linkage->to_vector();
+
+                // add right vertices to result
+                void move_link(Linkage &other);
+
+                for (const auto &vertex: right_linkage->all_vert_)
+                    result[i++] = vertex;
+            }
 
         } else result[i++] = right_;
     }
 
-    const vector<VertexPtr> &Linkage::to_vector(bool regenerate) const {
+    const vector<VertexPtr> &Linkage::to_vector(bool regenerate, bool full_expand) const {
 
         std::lock_guard<std::mutex> lock(mtx_);  // Lock the mutex for the scope of the function
         if (all_vert_.empty() || regenerate){ // the vertices are not known
             // compute the vertices recursively
             all_vert_ = vector<VertexPtr>(nvert_); // store the vertices in all_vert_ for next query
             size_t i = 0;
-            to_vector(all_vert_, i);
+            to_vector(all_vert_, i, full_expand);
+            if (i != nvert_)
+                all_vert_.resize(i);
             return all_vert_;
         }
 
@@ -619,8 +636,8 @@ namespace pdaggerq {
         left_ = copy_vert(other.left_);
         right_ = copy_vert(other.right_);
 
-        left_parent_ = other.left_parent_;
-        right_parent_ = other.right_parent_;
+//        left_parent_ = other.left_parent_;
+//        right_parent_ = other.right_parent_;
 
         id_ = other.id_;
         nvert_ = other.nvert_;
@@ -665,8 +682,8 @@ namespace pdaggerq {
         left_ = std::move(other.left_);
         right_ = std::move(other.right_);
 
-        left_parent_ = std::move(other.left_parent_);
-        right_parent_ = std::move(other.right_parent_);
+//        left_parent_ = std::move(other.left_parent_);
+//        right_parent_ = std::move(other.right_parent_);
 
         id_ = other.id_;
         nvert_ = other.nvert_;

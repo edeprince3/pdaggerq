@@ -304,15 +304,16 @@ namespace pdaggerq {
 
     linkage_set Equation::generate_linkages(bool compute_all) {
 
-        linkage_set all_linkages(256); // all possible linkages in the equations (start with large bucket n_ops)
+        linkage_set all_linkages(1024); // all possible linkages in the equations (start with large bucket n_ops)
 
         omp_set_num_threads((int)num_threads_);
         #pragma omp parallel for schedule(guided) shared(terms_, all_linkages) default(none) firstprivate(compute_all)
         for (auto & term : terms_) { // iterate over terms
 
             // skip term if it is optimal, and we are not computing all linkages
-            if (!compute_all && term.is_optimal_) continue;
-            if (!term.is_optimal_) term.reorder(); // reorder term if it is not optimal
+//            if (!compute_all && term.is_optimal_) continue;
+            if (!term.is_optimal_)
+                term.reorder(); // reorder term if it is not optimal
 
             linkage_set term_linkages = term.generate_linkages(); // generate linkages in term
 

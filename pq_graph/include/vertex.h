@@ -64,7 +64,10 @@ namespace pdaggerq {
 
         // boolean identifiers
 
-        virtual bool is_linked() const { return false; } // indicates the vertex is not linked to another vertex
+        // indicates the vertex is not linked to another vertex
+        virtual bool is_linked() const { return false; }
+        virtual bool is_temp() const { return false; }
+
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)
         bool is_sigma_ = false; // whether the vertex is an excited state vertex
         bool is_den_ = false; // whether the vertex is a density-fitting vertex

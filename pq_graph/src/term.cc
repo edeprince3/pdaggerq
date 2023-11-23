@@ -43,7 +43,7 @@ using std::max;
 
 namespace pdaggerq {
 
-    size_t Term::max_linkages = -1; // maximum number of rhs in a linkage
+    size_t Term::max_linkages = static_cast<size_t>(-1); // maximum number of rhs in a linkage
     bool Term::permute_vertices_ = false;
     bool Term::make_einsum = false;
     set<string> Term::conditions_; // conditions to apply to terms, given by a vector of names for rhs
@@ -234,6 +234,8 @@ namespace pdaggerq {
         // initialize bottleneck flop and memory scaling
         bottleneck_flop_ = linkage->flop_scale();
         bottleneck_mem_ = linkage->mem_scale();
+
+        term_linkage_ = linkage;
 
         // reorder rhs
         reorder();
@@ -781,9 +783,13 @@ namespace pdaggerq {
         /// determine if a linkage could possibly be substituted
         auto valid_op = [&](const vector<size_t> &subset) {
 
+            // TODO: this eliminates correct candidates! fix it!
+
             // skip subsets with invalid sizes
             if (subset.size() > max_linkages || subset.size() <= 1)
                 return false;
+
+            return true;
 
             // make a linkage of the first permutation of the subset
             vector<VertexPtr> subset_vec;
@@ -874,8 +880,7 @@ namespace pdaggerq {
             // create a copy of the term with the new rhs
             Term new_term(*this);
             new_term.rhs_ = new_rhs;
-            new_term.needs_update_ = true; // term copy needs to be updated
-            new_term.compute_scaling();
+            new_term.compute_scaling(true);
 
             // check if flop and memory scaling are better than the best scaling
             int scaling_comparison = new_term.flop_map_.compare(best_flop_map);
@@ -883,10 +888,11 @@ namespace pdaggerq {
 
             // check if we allow for substitutions with equal scaling
             if (allow_equality && !set_best) {
+                set_best = scaling_comparison == scaling_map::is_same;
                 if (scaling_comparison == scaling_map::is_same) {
                     // if flop scaling is equal, check memory scaling
-                    scaling_comparison = new_term.mem_map_.compare(best_mem_map);
-                    set_best = scaling_comparison == scaling_map::this_better;
+//                    scaling_comparison = new_term.mem_map_.compare(best_mem_map);
+//                    set_best = scaling_comparison == scaling_map::this_better;
                 }
             }
 
@@ -918,7 +924,8 @@ namespace pdaggerq {
 
     linkage_set Term::generate_linkages() const {
 
-        if (rhs_.empty()) return {}; // if constant, return an empty set of linkages
+        if (rhs_.empty())
+            return {}; // if constant, return an empty set of linkages
 
         // initialize vector of linkages
         linkage_set linkages;
@@ -940,8 +947,8 @@ namespace pdaggerq {
             LinkagePtr this_linkage = Linkage::link(subset_vec);
 
             // add linkage to set if it has a scaling less than or equal to the bottleneck
-            if (this_linkage->flop_scale() <= bottleneck_flop_)
-                linkages.insert(this_linkage);
+//            if (this_linkage->flop_scale() <= bottleneck_flop_)
+            linkages.insert(this_linkage);
 
         };
 
@@ -1259,6 +1266,9 @@ namespace pdaggerq {
 
         // if no possible linkages, return false
         if (size() <= 1) return false;
+
+        // TODO: This will eliminate compatible candidates.
+        return true;
 
         // if the depth of the linkage and term are not the same, return false
         if (linkage->nvert_ > term_linkage_->nvert_) return false;
