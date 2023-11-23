@@ -29,15 +29,22 @@ void PQGraph::write_dot(string &filepath) {
     os << "digraph G {" << endl;
     std::string padding = "    ";
 
-    os << padding << "    newrank=true rankdir=LR ordering=out mode=hier overlap=false pack=false TBbalance=min compound=true layout=dot;\n";
-    os << padding << "    ranksep=0.69;\n";
-    os << padding << "    nodesep=0.42;\n";
-    os << padding << "    splines=true;\n";
-    os << padding << "    node [fontname=\"Helvetica\"];\n";
+    os << padding << "newrank=true;\n";
+    os << padding << "rankdir=LR;\n";
+    os << padding << "mode=hier;";
+    os << padding << "overlap=\"20:prism\";\n";
+    os << padding << "ordering=out;\n";
+    os << padding << "compound=false;\n";
+    os << padding << "sep=1.5;\n";
+    os << padding << "K=1.0;\n";
+    os << padding << "splines=spline;\n";
 
-    os << padding << "    edge [fontname=\"Helvetica\", fontsize=20, labelfontsize=20, concentrate=false];\n";
+
+    os << padding << "node [fontname=\"Helvetica\"];\n";
+    os << padding << "edge [fontsize=20, labelfontsize=20, concentrate=false, compound=false];\n";
 
     // foreach in reverse order
+    padding += "    ";
     for (auto it = equations_.rbegin(); it != equations_.rend(); ++it) {
         Equation &eq = it->second;
 
@@ -101,7 +108,7 @@ ostream &Equation::write_dot(ostream &os, const string &color, bool reset) {
         term.compute_scaling(true);
         std::string graphname = "cluster_term" + to_string(term_count++);
         os << padding << "subgraph " << graphname << " {\n";
-        os << padding << "    style=rounded ordering=out;\n";
+        os << padding << "    style=rounded;\n";
         os << padding << "    label=\"";
 
 
@@ -164,26 +171,100 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     // get vertices
     const vector<VertexPtr> &vertices = this->to_vector(true);
 
-    // TODO: incorporate scalar vertices and make this recursive
-//        if (vertices.size() <= 1) return os; // do not write a graph for a single vertex
+    /** write vertices as graph **/
 
     std::string padding = "                ";
 
-    std::set<std::string> node_names;
-    std::set<std::string> null_nodes;
+    std::vector<std::string> node_names, null_nodes, int_edge_names, ext_edge_names;
+
 
     std::string node_style = "color=\"" + color + "\", fontsize=20, style=bold";
     std::string null_node_style = "style=invis, height=.1,width=.1";
 
-    std::string int_edge_style = "color=\"" + color + "\"";
-    std::string ext_edge_style = "color=\"" + color + "\"";
+    /// declare nodes
+
+    // loop over vertices and declare nodes
+    for (size_t i = 0; i < vertices.size(); i++) {
+        // initialize current node
+        const VertexPtr &current = vertices[i];
+        std::string l_id = std::to_string(i) + to_string(op_id);
+
+        if (vertices[i]->base_name().empty())
+            continue;
+
+        std::string current_node = current->base_name() + "_" + l_id;
+        std::string node_signature = padding + current_node + " [label=\"" + current->base_name() + "\", ";
+
+        if (current->base_name().empty())
+            node_signature += null_node_style + "];\n";
+        else
+            node_signature += node_style + "];\n";
+        node_names.push_back(node_signature);
+    }
+
+    std::string ext_edge_style = "color=\"" + color + "\", style=bold, len=0.01";
+
+    /// plot external lines
+
+    for (const auto &line: this->lines_) {
+        for (size_t i = 0; i < vertices.size(); i++) {
+
+            // initialize current node
+            const VertexPtr &current = vertices[i];
+            std::string l_id = std::to_string(i) + to_string(op_id);
+
+            if (vertices[i]->base_name().empty())
+                continue;
+
+            std::string current_node = current->base_name() + "_" + l_id;
+
+            /// link all vertices to external lines
+            // loop over left external lines
+            size_t ext_count = 0;
+            const auto & current_lines = current->lines();
+            size_t current_len = current_lines.size();
+
+            // initialize dummy node name
+            std::string null = "null" + std::to_string(dummy_count) + line.label_ + std::to_string(ext_count++);
+            null_nodes.push_back(null + " [label=\"\", " + null_node_style + "];\n");
+
+            // make edge label
+            std::string edge_label = line.label_;
+
+            // check if line is in bra
+            auto curr_it = std::find(current_lines.begin(), current_lines.end(), line);
+            if (curr_it == current_lines.end()) continue; // line not found
+
+            size_t curr_dist = std::distance(current_lines.begin(), curr_it);
+
+            bool curr_is_bra = curr_dist < current_len - current_len / 2;
 
 
+            // determine direction of edge
+            std::string direction = "forward";
 
+            if (curr_is_bra) {
+                if (!line.o_) {
+                    direction = "back";
+                }
+                std::swap(current_node, null);
+            } else {
+                if (line.o_) {
+                    direction = "back";
+                }
+            }
 
-    /** write vertices as graph **/
+            std::string connnection = current_node + ":_ -> " + null;
+
+            // write edge
+            ext_edge_names.push_back(padding + connnection + " [label=\"" + edge_label + "\"," + ext_edge_style + ", dir=" + direction + "];\n");
+        }
+    }
 
     /// plot internal lines
+
+    std::string int_edge_style = "color=\"" + color + "\"";
+
     for (size_t i = 0; i < vertices.size(); i++) {
         // initialize current node
         const VertexPtr &current = vertices[i];
@@ -220,93 +301,69 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
                 std::string edge_label = line.label_;
 
                 // determine direction of edge
-                std::string direction = line.o_ ?  "forward" : "back";
+                // check if line is in bra
+                auto curr_it = std::find(current_lines.begin(), current_lines.end(), line);
+                size_t curr_dist = std::distance(current_lines.begin(), curr_it);
+
+                bool curr_is_bra = curr_dist < current_len - current_len / 2;
+
+                // determine direction of edge
+                std::string direction = "forward";
+
+                if (curr_is_bra) {
+                    if (line.o_) {
+                        direction = "back";
+                    }
+                    std::swap(current_node, next_node);
+                } else {
+                    if (!line.o_) {
+                        direction = "back";
+                    }
+                }
+
                 std::string connnection = current_node + " -> " + next_node;
 
                 // write edge
-                os << padding << connnection << " [label=\"" << edge_label << "\"," + ext_edge_style + ", dir=" + direction + "];\n";
+//                os << padding << connnection << " [label=\"" << edge_label << "\"," + int_edge_style + ", dir=" + direction + "];\n";
+                int_edge_names.push_back(padding + connnection + " [label=\"" + edge_label + "\"," + int_edge_style + ", dir=" + direction + "];\n");
             }
         }
     }
 
 
-    /// plot external lines
-    for (size_t i = 0; i < vertices.size(); i++) {
+//    // remove repeated nodes
+//    for (auto it = node_names.rbegin(); it != node_names.rend(); ++it) {
+//        auto pos = std::find(node_names.begin(), it.base(), *it);
+//        if (pos != it.base()) {
+//            node_names.erase(pos);
+//        }
+//    }
+//
+//    for (auto it = null_nodes.rbegin(); it != null_nodes.rend(); ++it) {
+//        auto pos = std::find(null_nodes.begin(), it.base(), *it);
+//        if (pos != it.base()) {
+//            null_nodes.erase(pos);
+//        }
+//    }
 
-        // initialize current node
-        const VertexPtr &current = vertices[i];
-        std::string l_id = std::to_string(i) + to_string(op_id);
-
-        if (vertices[i]->base_name().empty())
-            continue;
-
-        std::string current_node = current->base_name() + "_" + l_id;
-
-        /// link all vertices to external lines
-        // loop over left external lines
-        size_t ext_count = 0;
-        const auto & current_lines = current->lines();
-        size_t current_len = current_lines.size();
-        for (const auto &line: this->lines_) {
-
-            // initialize dummy node name
-            std::string null = "null" + std::to_string(dummy_count) + line.label_ + std::to_string(ext_count++);
-            null_nodes.insert(null);
-
-            // make edge label
-            std::string edge_label = line.label_;
-
-            // check if line is in bra
-            auto curr_it = std::find(current_lines.begin(), current_lines.end(), line);
-            if (curr_it == current_lines.end()) continue; // line not found
-
-            size_t curr_dist = std::distance(current_lines.begin(), curr_it);
-
-            bool curr_is_bra = curr_dist < current_len / 2;
-
-            // determine direction of edge
-            std::string direction = line.o_ ?  "forward" : "back";
-            std::string connnection = current_node + " -> " + null;
-
-            // write edge
-            os << padding << connnection << " [label=\"" << edge_label << "\"," + ext_edge_style + ", dir=" + direction + "];\n";
-
-        }
-    }
-
-
-    /// declare nodes
-
-    // loop over vertices and declare nodes
-    for (size_t i = 0; i < vertices.size(); i++) {
-        // initialize current node
-        const VertexPtr &current = vertices[i];
-        std::string l_id = std::to_string(i) + to_string(op_id);
-
-        if (vertices[i]->base_name().empty())
-            continue;
-
-        std::string current_node = current->base_name() + "_" + l_id;
-        std::string node_signature = padding + current_node + " [label=\"" + current->base_name() + "\", ";
-
-        if (current->base_name().empty())
-            node_signature += null_node_style + "];\n";
-        else
-            node_signature += node_style + "];\n";
-        node_names.insert(node_signature);
-    }
-
-    // remove duplicate nodes while preserving order
-//        node_names.erase(std::unique(node_names.begin(), node_names.end()), node_names.end());
-//        null_nodes.erase(std::unique(null_nodes.begin(), null_nodes.end()), null_nodes.end());
+    /// write file
 
     // print nodes name
     for (const auto &node_name : node_names)
         os << node_name;
 
+    // print external edges
+    for (const auto &edge_name : ext_edge_names)
+        os << edge_name;
+
     // make dummy nodes invisible
     for (const auto &dummy_node : null_nodes)
-        os << padding << dummy_node << " [label=\"\", " + null_node_style + "];\n";
+        os << padding << dummy_node;
+
+    // print internal edges
+    for (const auto &edge_name : int_edge_names)
+        os << edge_name;
+
 
     return os;
 }

@@ -119,23 +119,27 @@ namespace pdaggerq {
 
         // use count to determine if the line is internal or external
         for (auto &[line, freq] : line_populations) {
-            if (freq == 1)
-                     lines_.push_back(line); // external line
-            else int_lines_.insert(line); // internal line
+            if (freq == 1) {
+                // this line is external
+                lines_.push_back(line);
+
+                // update mem scale
+                mem_scale_ += line;
+            } else {
+                // this line is internal
+                int_lines_.insert(line);
+            }
+
+            // update flop scale
+            flop_scale_ += line;
         }
 
         // lines are sorted via map insertion
 
         // set properties
         rank_  = lines_.size();
-        shape_ = shape(lines_);
+        shape_ = mem_scale_;
         has_blk_ = left->has_blk_ || right->has_blk_;
-
-        // update scaling
-        mem_scale_  += shape_;
-        flop_scale_ += shape_;
-        for (const auto &line : int_lines_)
-            flop_scale_ += line;
 
     }
 
