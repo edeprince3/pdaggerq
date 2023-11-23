@@ -55,11 +55,11 @@ namespace pdaggerq {
         string name_{}; // name of the vertex
         string base_name_{}; // name of vertex without index markup
 
-        // uint8_t is sufficient for up to 255 line indices and is more efficient than size_t, which is 64 bits
+        // uint_fast8_t is sufficient for up to 255 line indices and is more efficient than size_t, which is 64 bits
         // 255 indices is more than enough for any reasonable vertex.
         // It is important to keep the Vertex class as small as possible because it is constructed many, many times.
         vector<Line> lines_{}; // vector of lines for the vertex
-        uint8_t rank_{}; // rank of the vertex
+        uint_fast8_t rank_{}; // rank of the vertex
         shape shape_{}; // shape of the vertex
 
         // boolean identifiers
@@ -274,7 +274,7 @@ namespace pdaggerq {
          * returns the rank of the vertex
          * @return rank of the vertex
          */
-        uint8_t rank() const { return rank_; }
+        uint_fast8_t rank() const { return rank_; }
 
         /**
          * represents the dimensions of the lines of the vertex (occ, vir, block-type, sigma, den)
@@ -313,20 +313,20 @@ namespace pdaggerq {
          * @return a map of the labels of the self-contractions of the vertex
          *         and a pair of the line with the frequency of the label
          */
-        map<Line, uint8_t> self_links() const;
+        map<Line, uint_fast8_t> self_links() const;
 
         /**
          *
          * @param internal_lines
          * @return
          */
-        vector<shared_ptr<Vertex>> make_self_linkages(map<Line, uint8_t> &self_links);
+        vector<shared_ptr<Vertex>> make_self_linkages(map<Line, uint_fast8_t> &self_links);
 
         /**
          * return n_ops of vertex (number of lines)
          * @return n_ops of vertex
          */
-        uint8_t size() const { return lines_.size(); }
+        uint_fast8_t size() const { return lines_.size(); }
 
         /**
          * check if vertex is initialized
@@ -359,13 +359,13 @@ namespace pdaggerq {
          * overload [] operator
          * @return reference to line at index i
          */
-        Line& operator[](uint8_t i) { return lines_[i]; }
+        Line& operator[](uint_fast8_t i) { return lines_[i]; }
 
         /**
         * const overload [] operator
         * @return const reference to line at index i
         */
-        const Line& operator[](uint8_t i) const { return lines_[i]; }
+        const Line& operator[](uint_fast8_t i) const { return lines_[i]; }
 
         /**
          * checks if lines in other vertex are in this vertex and that the blocks are the same

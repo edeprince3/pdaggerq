@@ -1221,7 +1221,7 @@ namespace pdaggerq {
             // check if vertex is a trace
             // get self-contracted lines
             VertexPtr copy = copy_vert(op);
-            map<Line, uint8_t> self_links = copy->self_links();
+            map<Line, uint_fast8_t> self_links = copy->self_links();
 
             bool has_self_link = false;
             for (const auto & [line, freq] : self_links) {

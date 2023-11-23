@@ -238,7 +238,7 @@ namespace pdaggerq {
 
         // create line objects
         has_blk_ = !blk_string.empty();
-        uint8_t c_blk = 0; // count_ current number of characters for blocking
+        uint_fast8_t c_blk = 0; // count_ current number of characters for blocking
         string ovstring(rank_, 'o'); // ovstring assuming all occupied
         string new_blk_string(rank_, '\0'); // assumming no blocking
         for (int i = 0; i < lines.size(); i++) { // loop over lines
@@ -308,7 +308,7 @@ namespace pdaggerq {
         string ovstring(rank_, 'o'); // ovstring assuming all occupied
         string blk_string(rank_, '\0'); // string assuming no blocking
         has_blk_ = false; // flag to check if a line is blocked
-        uint8_t line_idx = 0; // index of line
+        uint_fast8_t line_idx = 0; // index of line
         for (const Line &line : lines) { // loop over lines
 
             if (line.sig_){
@@ -340,7 +340,7 @@ namespace pdaggerq {
     string Vertex::blk_string() const {
         if (!has_blk_ || lines_.empty()) return "";
         string blk_string(rank_, '\0'); // string assuming no blocking
-        uint8_t line_idx = 0; // index of line
+        uint_fast8_t line_idx = 0; // index of line
         for (const Line& line : lines_) {
             blk_string[line_idx++] = line.blk(); // string assuming no blocking
         }
@@ -358,9 +358,9 @@ namespace pdaggerq {
 
     string Vertex::ovstring(const vector<Line> &lines) {
         if (lines.empty()) return "";
-        uint8_t line_size = lines.size();
+        uint_fast8_t line_size = lines.size();
         string ovstring(line_size, 'o'); // ovstring assuming all occupied
-        uint8_t line_idx = 0; // index of line
+        uint_fast8_t line_idx = 0; // index of line
         for (const Line &line : lines) {
             if (!line.o_)  ovstring[line_idx++] = 'v'; // set ovstring to virtual
             if (line.sig_) ovstring[line_idx++] = 'L';
@@ -377,15 +377,15 @@ namespace pdaggerq {
         if (rank_ <= 2) return {}; // if rank is 2 or less, return empty vertex (no permutations possible)
 
         /// perform all permutations
-        uint8_t right_size = rank_/2; // right n_ops
-        uint8_t left_size = rank_ - right_size; // left n_ops
+        uint_fast8_t right_size = rank_/2; // right n_ops
+        uint_fast8_t left_size = rank_ - right_size; // left n_ops
 
-        uint8_t left_perm[left_size];
-        uint8_t right_perm[right_size];
+        uint_fast8_t left_perm[left_size];
+        uint_fast8_t right_perm[right_size];
 
         // fill left_perm and right_perm
-        for (uint8_t i = 0; i < left_size; i++) left_perm[i] = i;
-        for (uint8_t i = 0; i < right_size; i++) right_perm[i] = i + left_size;
+        for (uint_fast8_t i = 0; i < left_size; i++) left_perm[i] = i;
+        for (uint_fast8_t i = 0; i < right_size; i++) right_perm[i] = i + left_size;
 
         constexpr size_t factorial_map[20]{
                 1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800, 39916800, 479001600, 6227020800, 87178291200,
@@ -411,17 +411,17 @@ namespace pdaggerq {
         size_t right_perm_id = perm_id / total_left_perms;
 
         // permute left side
-        uint8_t left_swaps = 0; // number of swaps of left side
-        for (uint8_t i = 0; i < left_size; i++) {
-            uint8_t j = i + left_perm_id % (left_size - i);
+        uint_fast8_t left_swaps = 0; // number of swaps of left side
+        for (uint_fast8_t i = 0; i < left_size; i++) {
+            uint_fast8_t j = i + left_perm_id % (left_size - i);
             left_swaps += (size_t) j != i;
             std::swap(left_perm[i], left_perm[j]);
         }
 
         // permute right side
-        uint8_t right_swaps = 0; // number of swaps of right side
-        for (uint8_t i = 0; i < right_size; i++) {
-            uint8_t j = i + right_perm_id % (right_size - i);
+        uint_fast8_t right_swaps = 0; // number of swaps of right side
+        for (uint_fast8_t i = 0; i < right_size; i++) {
+            uint_fast8_t j = i + right_perm_id % (right_size - i);
             right_swaps += (size_t) j != i;
             std::swap(right_perm[i], right_perm[j]);
         }
@@ -433,9 +433,9 @@ namespace pdaggerq {
 
         // permute lines
         vector<Line> perm_lines = perm_op.lines_;
-        uint8_t line_idx = 0; // index of line
-        for (uint8_t i = 0; i < rank_; i++) {
-            uint8_t perm_idx = (i < left_size) ? left_perm[i] : right_perm[i];
+        uint_fast8_t line_idx = 0; // index of line
+        for (uint_fast8_t i = 0; i < rank_; i++) {
+            uint_fast8_t perm_idx = (i < left_size) ? left_perm[i] : right_perm[i];
             perm_lines[line_idx++] = lines_[perm_idx];
         }
 
@@ -600,7 +600,7 @@ namespace pdaggerq {
         if (shape_ != other.shape_) return false;
 
         // check if rhs have equivalent label properties
-        for (uint8_t i = 0; i < rank_; i++) {
+        for (uint_fast8_t i = 0; i < rank_; i++) {
             if ( !lines_[i].equivalent(other.lines_[i]) )
                 return false;
         }
@@ -627,13 +627,13 @@ namespace pdaggerq {
         return name_ + line_str();
     }
 
-    map<Line, uint8_t> Vertex::self_links() const {
+    map<Line, uint_fast8_t> Vertex::self_links() const {
         // if rank is 0 or 1, return empty vector
         if (rank_ <= 1) return {};
 
         // return a map of the labels of the self-contractions of the vertex
         //        and a pair of the line with the frequency of the label
-        map<Line, uint8_t> self_links;
+        map<Line, uint_fast8_t> self_links;
         for (auto & line : this->lines()) {
             // count the number of times the line appears
             self_links[line]++;
@@ -642,9 +642,9 @@ namespace pdaggerq {
         return self_links;
     }
 
-    vector<VertexPtr> Vertex::make_self_linkages(map<Line, uint8_t> &self_links) {
+    vector<VertexPtr> Vertex::make_self_linkages(map<Line, uint_fast8_t> &self_links) {
         // replace repeated lines with arbitrary lines
-        map<Line, uint8_t> counts;
+        map<Line, uint_fast8_t> counts;
         for (auto & [line, freq] : self_links) {
             // if line is not repeated, do nothing
             if (freq == 1) continue;
@@ -667,7 +667,7 @@ namespace pdaggerq {
 
             // create generic labels for the delta function
             vector<Line> delta_lines;
-            for (uint8_t i = 0; i < freq; i++) {
+            for (uint_fast8_t i = 0; i < freq; i++) {
                 Line new_line = line;
                 new_line.label_ = new_line.label_ + to_string(i);
                 delta_lines.push_back(new_line);
@@ -690,7 +690,7 @@ namespace pdaggerq {
 
     vector<Line> Vertex::general_lines(const vector<Line>& lines) {
         vector<Line> generic_lines = lines;
-        uint8_t c_occ = 0, c_vir = 0;
+        uint_fast8_t c_occ = 0, c_vir = 0;
         for (Line &line : generic_lines) {
             if (line.o_) line.label_ = "o" + std::to_string(c_occ++);
             else line.label_ = "v" + std::to_string(c_vir++);

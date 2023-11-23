@@ -84,8 +84,8 @@ namespace pdaggerq {
             std::multiset<Line> int_lines_; // internal lines
 
             /// map of connections between lines
-            set<pair<uint8_t, uint8_t>> int_connec_; // connections between lines
-            set<uint8_t> l_ext_idx_, r_ext_idx_;     // external indices of left and right vertices
+            set<pair<uint_fast8_t, uint_fast8_t>> int_connec_; // connections between lines
+            set<uint_fast8_t> l_ext_idx_, r_ext_idx_;     // external indices of left and right vertices
 
             /********** Constructors **********/
 
@@ -219,13 +219,13 @@ namespace pdaggerq {
              * @param depth the current depth of the linkage
              * @return pointer to the ith vertex
              */
-            static VertexPtr get(const shared_ptr<const Linkage>& root, uint8_t i, uint8_t &depth);
+            static VertexPtr get(const shared_ptr<const Linkage>& root, uint_fast8_t i, uint_fast8_t &depth);
 
             /**
              * get pointer to the ith vertex within nested contractions
              * @param i the index of the vertex to find
              */
-            VertexPtr get(uint8_t i) const;
+            VertexPtr get(uint_fast8_t i) const;
 
             /**
              * convert the linkage to a vector of vertices in order
@@ -245,14 +245,14 @@ namespace pdaggerq {
              * Get connections
              * @return connections
              */
-            const set<pair<uint8_t, uint8_t>> &connections() const { return int_connec_; }
+            const set<pair<uint_fast8_t, uint_fast8_t>> &connections() const { return int_connec_; }
 
             /**
              * get external left or right indices
              * @return external left or right indices as a set
              */
-            const set<uint8_t> &l_ext_idx() const { return l_ext_idx_; }
-            const set<uint8_t> &r_ext_idx() const { return r_ext_idx_; }
+            const set<uint_fast8_t> &l_ext_idx() const { return l_ext_idx_; }
+            const set<uint_fast8_t> &r_ext_idx() const { return r_ext_idx_; }
 
 
             /**

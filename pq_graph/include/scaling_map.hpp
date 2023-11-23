@@ -42,11 +42,11 @@ using std::size_t;
 namespace pdaggerq {
 
     struct shape {
-        uint8_t n_ = 0; // number of lines
-        pair<uint8_t, uint8_t> o_{}; // pair of spin up/down occupieds
-        pair<uint8_t, uint8_t> v_{}; // pair of spin up/down virtuals
-        uint8_t L_ = 0; // sigma index
-        uint8_t Q_ = 0; // density index
+        uint_fast8_t n_ = 0; // number of lines
+        pair<uint_fast8_t, uint_fast8_t> o_{}; // pair of spin up/down occupieds
+        pair<uint_fast8_t, uint_fast8_t> v_{}; // pair of spin up/down virtuals
+        uint_fast8_t L_ = 0; // sigma index
+        uint_fast8_t Q_ = 0; // density index
 
         shape() : o_({0,0}), v_({0,0}), L_(0), Q_(0) {}
 
@@ -105,8 +105,8 @@ namespace pdaggerq {
             /// if total scaling is the same, prioritize individual scaling factors
             if (Q_ + other.Q_ > 0) {
                 // prioritize sum of v_ and L_ and Q_ over individual L_ and v_ and Q_
-                uint8_t sum = vtot + L_ + Q_;
-                uint8_t other_sum = other_vtot + other.L_ + other.Q_;
+                uint_fast8_t sum = vtot + L_ + Q_;
+                uint_fast8_t other_sum = other_vtot + other.L_ + other.Q_;
                 if (sum != other_sum)
                     return sum < other_sum;
 
@@ -117,8 +117,8 @@ namespace pdaggerq {
 
             if (L_ + other.L_ > 0) {
                 // prioritize sum of v_ and L_ over individual L_ and v_
-                uint8_t sum = vtot + L_;
-                uint8_t other_sum = other_vtot + other.L_;
+                uint_fast8_t sum = vtot + L_;
+                uint_fast8_t other_sum = other_vtot + other.L_;
                 if (sum != other_sum)
                     return sum < other_sum;
 

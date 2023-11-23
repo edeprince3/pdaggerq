@@ -89,9 +89,9 @@ namespace pdaggerq {
         lines_.clear();
 
         // grab data from left and right vertices
-        uint8_t left_size = left->size();
-        uint8_t right_size = right->size();
-        uint8_t total_size = left_size + right_size;
+        uint_fast8_t left_size = left->size();
+        uint_fast8_t right_size = right->size();
+        uint_fast8_t total_size = left_size + right_size;
 
         const auto &left_lines = left->lines();
         const auto &right_lines = right->lines();
@@ -109,7 +109,7 @@ namespace pdaggerq {
 
 
         // populate left lines
-        map<Line, uint8_t> line_populations;
+        map<Line, uint_fast8_t> line_populations;
         for (const auto &line : left_lines)
             line_populations[line]++;
 
@@ -162,8 +162,8 @@ namespace pdaggerq {
             auto right_it = std::find(right_lines.begin(), right_lines.end(), line);
 
             // get indices of line in left and right vertices
-            uint8_t left_idx = std::distance(left_lines.begin(), left_it);
-            uint8_t right_idx = std::distance(right_lines.begin(), right_it);
+            uint_fast8_t left_idx = std::distance(left_lines.begin(), left_it);
+            uint_fast8_t right_idx = std::distance(right_lines.begin(), right_it);
 
             // add indices to connections
             hint = int_connec_.emplace_hint(hint, left_idx, right_idx);
@@ -204,18 +204,18 @@ namespace pdaggerq {
             auto right_it = std::find(right_lines.begin(), right_lines.end(), line);
 
             if (left_it == left_lines.end()) {
-                uint8_t right_idx = std::distance(right_lines.begin(), right_it);
+                uint_fast8_t right_idx = std::distance(right_lines.begin(), right_it);
                 r_hint = r_ext_idx_.emplace_hint(r_hint, right_idx);
             }
             if (right_it == right_lines.end()) {
-                uint8_t left_idx = std::distance(left_lines.begin(), left_it);
+                uint_fast8_t left_idx = std::distance(left_lines.begin(), left_it);
                 l_hint = l_ext_idx_.emplace_hint(l_hint, left_idx);
             }
         }
     }
 
     LinkagePtr Linkage::link(const vector<VertexPtr> &op_vec) {
-        uint8_t op_vec_size = op_vec.size();
+        uint_fast8_t op_vec_size = op_vec.size();
 
         if (op_vec_size == 0) {
             throw invalid_argument("Linkage::link(): op_vec must have at least two elements");
@@ -226,14 +226,14 @@ namespace pdaggerq {
         }
 
         VertexPtr linkage = op_vec[0] * op_vec[1];
-        for (uint8_t i = 2; i < op_vec_size; i++)
+        for (uint_fast8_t i = 2; i < op_vec_size; i++)
             linkage = std::move(linkage * op_vec[i]);
 
         return as_link(linkage);
     }
 
     vector<LinkagePtr> Linkage::links(const vector<VertexPtr> &op_vec){
-        uint8_t op_vec_size = op_vec.size();
+        uint_fast8_t op_vec_size = op_vec.size();
         if (op_vec_size <= 1) {
             throw invalid_argument("Linkage::link(): op_vec must have at least two elements");
         }
@@ -242,7 +242,7 @@ namespace pdaggerq {
 
         VertexPtr linkage = op_vec[0] * op_vec[1];
         linkages[0] = as_link(linkage);
-        for (uint8_t i = 2; i < op_vec_size; i++) {
+        for (uint_fast8_t i = 2; i < op_vec_size; i++) {
             linkage = linkage * op_vec[i];
             linkages[i - 1] = as_link(linkage);
         }
@@ -252,7 +252,7 @@ namespace pdaggerq {
 
     pair<vector<shape>,vector<shape>> Linkage::scale_list(const vector<VertexPtr> &op_vec) {
 
-        uint8_t op_vec_size = op_vec.size();
+        uint_fast8_t op_vec_size = op_vec.size();
         if (op_vec_size <= 1) {
             throw invalid_argument("link(): op_vec must have at least two elements");
         }
@@ -264,7 +264,7 @@ namespace pdaggerq {
         flop_list.push_back(linkage->flop_scale_);
         mem_list.push_back(linkage->mem_scale_);
 
-        for (uint8_t i = 2; i < op_vec_size; i++) {
+        for (uint_fast8_t i = 2; i < op_vec_size; i++) {
             linkage = as_link(linkage * op_vec[i]);
             flop_list.push_back(linkage->flop_scale_);
             mem_list.push_back(linkage->mem_scale_);
@@ -274,7 +274,7 @@ namespace pdaggerq {
     }
 
     tuple<LinkagePtr, vector<shape>, vector<shape>> Linkage::link_and_scale(const vector<VertexPtr> &op_vec) {
-        uint8_t op_vec_size = op_vec.size();
+        uint_fast8_t op_vec_size = op_vec.size();
         if (op_vec_size <= 1) {
             throw invalid_argument("link(): op_vec must have at least two elements");
         }
@@ -286,7 +286,7 @@ namespace pdaggerq {
         flop_list.push_back(linkage->flop_scale_);
         mem_list.push_back(linkage->mem_scale_);
 
-        for (uint8_t i = 2; i < op_vec_size; i++) {
+        for (uint_fast8_t i = 2; i < op_vec_size; i++) {
             linkage = as_link(linkage * op_vec[i]);
             flop_list.push_back(linkage->flop_scale_);
             mem_list.push_back(linkage->mem_scale_);
@@ -459,7 +459,7 @@ namespace pdaggerq {
         return output;
     }
 
-    VertexPtr Linkage::get(const shared_ptr<const Linkage> &root, uint8_t i, uint8_t &depth) {
+    VertexPtr Linkage::get(const shared_ptr<const Linkage> &root, uint_fast8_t i, uint_fast8_t &depth) {
 
         // while the left vertex is also a linkage, recurse
         const VertexPtr &left = root->left_;
@@ -491,10 +491,10 @@ namespace pdaggerq {
         return nullptr;
     }
 
-    VertexPtr Linkage::get(uint8_t i) const {
+    VertexPtr Linkage::get(uint_fast8_t i) const {
 
         // recurse through nested contractions to find the ith vertex
-        uint8_t depth = 0;
+        uint_fast8_t depth = 0;
         auto this_ptr = shared_ptr<const Linkage>(this);
         VertexPtr result = get(this_ptr, i, depth);
         if (result == nullptr)
