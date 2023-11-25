@@ -845,7 +845,7 @@ namespace pdaggerq {
             if (verbose) cout << " Total Remaining combinations: " << tmp_candidates_.size() << endl << endl << endl;
 
             makeSub = false; // reset flag
-            bool allow_equality = false; // flag to allow equality in flop map
+            bool allow_equality = true; // flag to allow equality in flop map
             size_t n_linkages = test_linkages.size(); // get number of linkages
             LinkagePtr bestPreCon; // best linkage to substitute
 

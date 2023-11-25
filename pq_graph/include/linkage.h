@@ -249,22 +249,6 @@ namespace pdaggerq {
                 return flop_scale_ >= other.flop_scale_;
             }
 
-
-            /**
-             * Propogation step of finding the ith vertex within nested contractions
-             * @param root the current linkage
-             * @param i the index of the vertex to find
-             * @param depth the current depth of the linkage
-             * @return pointer to the ith vertex
-             */
-            static VertexPtr get(const shared_ptr<const Linkage>& root, uint_fast8_t i, uint_fast8_t &depth);
-
-            /**
-             * get pointer to the ith vertex within nested contractions
-             * @param i the index of the vertex to find
-             */
-            VertexPtr get(uint_fast8_t i) const;
-
             /**
             * convert the linkage to a vector of vertices in order
             * @param result vector of vertices
@@ -278,31 +262,6 @@ namespace pdaggerq {
              * @note this function is recursive
              */
             const vector<VertexPtr> &to_vector(bool regenerate = false, bool full_expand = true) const;
-
-
-            //TODO: replace usages of vector generation with iterator mechanism. The needed functionality is
-            //  already within this data structure (child/parent nodes), but we need to implement the traversal algorithm.
-            // This will allow us to avoid copying the vector of vertices and instead just iterate over the
-            // vertices in the linkage. Begin and end functions are already implemented. The `next` function
-            // is more complicated.
-
-
-            /**
-             * Return iterator to the leftmost linkage
-             * @return iterator to the leftmost linkage
-             */
-//            const Linkage* vbegin() const;
-
-            /**
-             * Return iterator to the rightmost linkage
-             * @return iterator to the rightmost linkage
-             */
-//            const Linkage* vend() const;
-
-            /**
-             * Return next iterator within the chain of linkages
-             */
-//            const Linkage* vnext() const;
 
             /**
              * Get connections

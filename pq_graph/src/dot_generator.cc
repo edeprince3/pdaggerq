@@ -33,9 +33,9 @@ void PQGraph::write_dot(string &filepath) {
     os << padding << "rankdir=LR;\n";
     os << padding << "mode=hier;";
     os << padding << "overlap=\"20:prism\";\n";
-//    os << padding << "ordering=out;\n";
+    os << padding << "ordering=out;\n";
     os << padding << "compound=false;\n";
-    os << padding << "sep=1.5;\n";
+    os << padding << "sep=1.25;\n";
     os << padding << "K=1.0;\n";
     os << padding << "splines=spline;\n";
 
@@ -173,20 +173,17 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
     // get vertices
     vector<VertexPtr> vertices = this->to_vector(true, true);
+
+    bool track_temps = true; // TODO: make this a parameter
     vector<VertexPtr> temps = this->to_vector(true, false);
     vector<VertexPtr> temp_verts;
     temp_verts.reserve(vertices.size());
 
-    // sort temps so that all sublinkages are on the left
-
-
-
     // now fully expand vertices in temps
 
-    if (this->is_temp()) temp_verts = vertices;
-    else {
+    if (!this->is_temp()) {
         for (auto &temp: temps) {
-            if (!temp->is_temp() || temp->lines().empty())
+            if (!temp->is_temp())
                 continue;
 
             for (auto &temp_vert: as_link(temp)->to_vector(true, true)) {
@@ -226,13 +223,12 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
             }
         }
 
-        if (in_temp && !began_temp) {
+        if (in_temp && !began_temp && track_temps) {
             // add subgraph
             node_names.push_back("subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
             began_temp = true;
-        } else if (!in_temp && began_temp) {
+        } else if (!in_temp && began_temp && track_temps) {
             node_names.emplace_back("label=\"\";\n");
-            node_names.emplace_back("compound=true;\n");
             node_names.emplace_back("style=dashed;\n");
             node_names.emplace_back("rank=min;\n");
             node_names.emplace_back("}\n");
@@ -311,7 +307,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
         }
     }
 
-    if (began_temp) {
+    if (began_temp && track_temps) {
         node_names.emplace_back("label=\"\";\n");
         node_names.emplace_back("style=dashed;\n");
         node_names.emplace_back("}\n");
@@ -372,14 +368,13 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
                     }
                 }
 
-                if (in_temp && !began_temp) {
+                if (in_temp && !began_temp && track_temps) {
                     // add subgraph
                     null_nodes.push_back(
                             "subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
                     began_temp = true;
-                } else if (!in_temp && began_temp) {
+                } else if (!in_temp && began_temp && track_temps) {
                     null_nodes.emplace_back("label=\"\";\n");
-                    null_nodes.emplace_back("compound=true;\n");
                     null_nodes.emplace_back("style=dashed;\n");
                     null_nodes.emplace_back("rank=min;\n");
                     null_nodes.emplace_back("}\n");
@@ -408,9 +403,8 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
         }
     }
 
-    if (began_temp) {
+    if (began_temp && track_temps) {
         null_nodes.emplace_back("label=\"\";\n");
-        null_nodes.emplace_back("compound=true;\n");
         null_nodes.emplace_back("style=dashed;\n");
         null_nodes.emplace_back("rank=min;\n");
         null_nodes.emplace_back("}\n");

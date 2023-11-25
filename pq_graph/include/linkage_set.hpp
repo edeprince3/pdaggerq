@@ -42,6 +42,8 @@ namespace pdaggerq {
             hash_string += linkage.flop_scale().str();
             hash_string += linkage.mem_scale().str();
 
+            //TODO: confirm hash is unique
+
             hash_string += "int";
             for (const auto &[leftidx, rightidx] : linkage.connections()) {
                 hash_string += to_string(leftidx);

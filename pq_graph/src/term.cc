@@ -235,10 +235,9 @@ namespace pdaggerq {
         bottleneck_flop_ = linkage->flop_scale();
         bottleneck_mem_ = linkage->mem_scale();
 
-        term_linkage_ = linkage;
-
         // reorder rhs
         reorder();
+        term_linkage_->id_ = linkage->id_;
 
 //        // make labels generic
 //        *this = genericize();
@@ -841,9 +840,11 @@ namespace pdaggerq {
         scaling_map best_mem_map = mem_map_;
         vector<VertexPtr> best_vertices = rhs_;
 
+        // make copy of term to store new rhs and test scaling
+        Term new_term(*this);
+
         // initialize new rhs
         vector<VertexPtr> new_vertices;
-
 
         // iterate over all possible orderings of vertex subsets
         auto op = [&](const vector<size_t> &subset) {
@@ -878,7 +879,6 @@ namespace pdaggerq {
             if (!added_linkage) return; // skip if linkage was not added to new rhs
 
             // create a copy of the term with the new rhs
-            Term new_term(*this);
             new_term.rhs_ = new_rhs;
             new_term.compute_scaling(true);
 
@@ -1151,6 +1151,9 @@ namespace pdaggerq {
         scaling_map best_mem_map = mem_map_;
         vector<VertexPtr> best_vertices = rhs_;
 
+        // make copy of term to store new rhs and test scaling
+        Term new_term(*this);
+
         auto op = [&](const vector<size_t> &subset) {
             // extract subset vertices
             vector<VertexPtr> subset_vec;
@@ -1187,10 +1190,8 @@ namespace pdaggerq {
                 if (!added_linkage) return; // skip if linkage was not added to new rhs
             } else return;  // if linkage does not match, continue
 
-            Term new_term = *this; // make copy of term
             new_term.rhs_ = new_rhs; // replace rhs with new rhs
-            new_term.needs_update_ = true; // term copy needs to be updated
-            new_term.compute_scaling();
+            new_term.compute_scaling(true);
 
             // check if flop and memory scaling are better than best scaling
             if (new_term.flop_map_ <= best_flop_map) { // flop scaling is better

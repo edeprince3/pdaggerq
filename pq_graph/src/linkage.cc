@@ -35,22 +35,22 @@ namespace pdaggerq {
     inline Linkage::Linkage(const VertexPtr &left, const VertexPtr &right, bool is_addition) : Vertex() {
 
         // set inputs
-//        if (!left->is_linked() && !right->is_linked()) {
-//            // a binary linkage is associative (left and right are interchangeable)
-//            // sort left and right vertices by name to prevent duplicates
-//            // TODO: make sure this works with Term::is_compatible() THIS IS WHY
-//            if (left->name() < right->name()) {
-//                 left_ =  left;
-//                right_ = right;
-//            } else {
-//                 left_ = right;
-//                right_ =  left;
-//            }
-//        } else {
+        if (!left->is_linked() && !right->is_linked()) {
+            // a binary linkage is associative (left and right are interchangeable)
+            // sort left and right vertices by name to prevent duplicates
+            // TODO: make sure this works with Term::is_compatible()
+            if (left->name() < right->name()) {
+                 left_ =  left;
+                right_ = right;
+            } else {
+                 left_ = right;
+                right_ =  left;
+            }
+        } else {
             // a linkage with more than two vertices is not associative
             left_  =  left;
             right_ = right;
-//        }
+        }
 
         // count_ the left and right vertices
         nvert_ = 2;
@@ -464,53 +464,6 @@ namespace pdaggerq {
         return output;
     }
 
-    VertexPtr Linkage::get(const shared_ptr<const Linkage> &root, uint_fast8_t i, uint_fast8_t &depth) {
-
-        // while the left vertex is also a linkage, recurse
-        const VertexPtr &left = root->left_;
-        if (left->is_linked()) {
-            const LinkagePtr left_linkage = as_link(left);
-            const VertexPtr &result = get(left_linkage, i, depth);
-            if (result != nullptr)
-                return result;
-        }
-
-        // if the left vertex is not a linkage, check if it is the ith vertex
-        if (i == depth++)
-            return left; // return the vertex
-
-        // while the right vertex is also a linkage, recurse
-        const VertexPtr &right = root->right_;
-        if (right->is_linked()){
-            const LinkagePtr right_linkage = as_link(right);
-            const VertexPtr &result = get(right_linkage, i, depth);
-            if (result != nullptr)
-                return result;
-        }
-
-        // if the right vertex is not a linkage, check if it is the ith vertex
-        if (i == depth++)
-            return right; // return the vertex
-
-        // if neither vertex is the ith vertex, return nullptr
-        return nullptr;
-    }
-
-    VertexPtr Linkage::get(uint_fast8_t i) const {
-
-        // recurse through nested contractions to find the ith vertex
-        uint_fast8_t depth = 0;
-        auto this_ptr = shared_ptr<const Linkage>(this);
-        VertexPtr result = get(this_ptr, i, depth);
-        if (result == nullptr)
-            throw std::runtime_error("Linkage::get: vertex not found\n i = " + std::to_string(i) +
-                                     "\n depth = " + std::to_string(depth) +
-                                     "\n left = " + left_->name() +
-                                     "\n right = " + right_->name());
-
-        return result;
-    }
-
     inline void Linkage::to_vector(vector<VertexPtr> &result, size_t &i, bool full_expand) const {
 
         if (empty()) return;
@@ -548,9 +501,6 @@ namespace pdaggerq {
                 // compute the vertices recursively and save them
                 right_linkage->to_vector();
 
-                // add right vertices to result
-                void move_link(Linkage &other);
-
                 for (const auto &vertex: right_linkage->all_vert_)
                     result[i++] = vertex;
             }
@@ -575,56 +525,6 @@ namespace pdaggerq {
         return all_vert_;
     }
 
-//    const Linkage* Linkage::vbegin() const {
-//
-//        if (!left_->is_linked())
-//            return this;
-//
-//        const Linkage* result = as_link(left_).get();
-//        while (result->left_->is_linked()) {
-//            result = as_link(result->left_).get();
-//        }
-//        return result;
-//    }
-//
-//    const Linkage* Linkage::vend() const {
-//        if (!right_->is_linked())
-//            return this;
-//
-//        const Linkage* result = as_link(right_).get();
-//        while (result->right_->is_linked()) {
-//            result = as_link(result->right_).get();
-//        }
-//        return result;
-//    }
-//
-//    const Linkage* Linkage::vnext() const {
-//
-//        // return right linkage
-//        if (right_->is_linked())
-//            return as_link(right_).get();
-//
-//        // no right linkage; return right parent
-//        if (right_parent_ != nullptr)
-//            return right_parent_.get();
-//
-//        // while left_parent does not have right_parent, move up the tree
-//
-//        if (left_parent_ == nullptr) // cannot go anywhere else. return self.
-//            return this;
-//
-//        LinkagePtr result = left_parent_;
-//        while (result->right_parent_ == nullptr) {
-//            result = result->left_parent_;
-//            if (result == nullptr) // cannot go anywhere else. return self.
-//                return this;
-//        }
-//
-//        // return right_parent
-//        return result->right_parent_.get();
-//
-//    }
-
     void Linkage::clone_link(const Linkage &other) {
         // Lock the mutex for the scope of the function
         std::lock_guard<std::mutex> lock(mtx_);
@@ -632,9 +532,9 @@ namespace pdaggerq {
         // call base class copy constructor
         this->Vertex::operator=(other);
 
-        // fill linkage data
-        left_ = copy_vert(other.left_);
-        right_ = copy_vert(other.right_);
+        // fill linkage data (shallow copy, but should not be modified either way) TODO: enforce this
+        left_ = other.left_;
+        right_ =other.right_;
 
 //        left_parent_ = other.left_parent_;
 //        right_parent_ = other.right_parent_;
@@ -731,4 +631,5 @@ namespace pdaggerq {
         else return make_shared<Vertex>(*vertex);
 
     }
+
 } // pdaggerq
