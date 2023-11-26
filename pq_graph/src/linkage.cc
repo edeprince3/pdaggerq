@@ -167,63 +167,47 @@ namespace pdaggerq {
         const auto &left_lines = left_->lines();
         const auto &right_lines = right_->lines();
 
-        // build internal connections
-        auto hint = int_connec_.begin();
-        for (const auto &line : int_lines_) {
-            // find line in left and right vertices
-            auto left_it = std::find(left_lines.begin(), left_lines.end(), line);
-            auto right_it = std::find(right_lines.begin(), right_lines.end(), line);
+        // assume all lines are external
+        uint_fast8_t left_size = left_lines.size();
+        uint_fast8_t right_size = right_lines.size();
+        for (int i = 0; i < left_size; ++i)
+            l_ext_idx_.emplace(i);
+        for (int i = 0; i < right_size; ++i)
+            r_ext_idx_.emplace(i);
 
-            // get indices of line in left and right vertices
-            uint_fast8_t left_idx = std::distance(left_lines.begin(), left_it);
-            uint_fast8_t right_idx = std::distance(right_lines.begin(), right_it);
 
-            // add indices to connections
-            hint = int_connec_.emplace_hint(hint, left_idx, right_idx);
+        bool search_left = left_lines < right_lines; // search the smaller set of lines
+        uint_fast8_t search_size = search_left ? left_size : right_size;
 
-            // find next occurrence of line in left and right vertices
-            left_it = std::find(++left_it, left_lines.end(), line);
-            right_it = std::find(++right_it, right_lines.end(), line);
+        // build internal connections (note, this does not explicitly check for repeated lines)
+        for (uint_fast8_t i = 0; i < search_size; i++) {
+            const Line &line = search_left ? left_lines[i] : right_lines[i];
 
-            bool  left_ended =  left_it ==  left_lines.end();
-            bool right_ended = right_it == right_lines.end();
+            // find line in internal lines
+            auto it = int_lines_.find(line);
+            if (it == int_lines_.end()) continue; // line is not internal
 
-            while (!left_ended || !right_ended) {
-
-                // get indices of line in left and right vertices
-                left_idx  = std::distance( left_lines.begin(),  left_it);
-                right_idx = std::distance(right_lines.begin(), right_it);
-
-                // add indices to connections
-                hint = int_connec_.emplace_hint(hint, left_idx, right_idx);
-
-                // find next occurrence of line in left and right vertices
-                left_ended =  left_it ==  left_lines.end();
-                right_ended = right_it == right_lines.end();
-                if (!left_ended)
-                    left_it = std::find(++left_it, left_lines.end(), line);
-                if (!right_ended)
-                    right_it = std::find(++right_it, right_lines.end(), line);
-
+            // get index of line in the other vertex
+            uint_fast8_t other_idx;
+            if (search_left) { // if searching left, find line in right
+                auto other_it = std::find(right_lines.begin(), right_lines.end(), line);
+                other_idx = std::distance(right_lines.begin(), other_it);
+            } else { // if searching right, find line in left
+                auto other_it = std::find(left_lines.begin(), left_lines.end(), line);
+                other_idx = std::distance(left_lines.begin(), other_it);
             }
-        }
 
-        // build external connections
-        auto r_hint = r_ext_idx_.begin();
-        auto l_hint = l_ext_idx_.begin();
-        for (const auto &line : lines_) {
-            // find line in left and right vertices
-            auto left_it = std::find(left_lines.begin(), left_lines.end(), line);
-            auto right_it = std::find(right_lines.begin(), right_lines.end(), line);
+            // add indices to connections and remove index from external indices
+            if (search_left) {
+                int_connec_.emplace(i, other_idx);
+                l_ext_idx_.erase(i);
+                r_ext_idx_.erase(other_idx);
+            } else {
+                int_connec_.emplace(other_idx, i);
+                l_ext_idx_.erase(other_idx);
+                r_ext_idx_.erase(i);
+            }
 
-            if (left_it == left_lines.end()) {
-                uint_fast8_t right_idx = std::distance(right_lines.begin(), right_it);
-                r_hint = r_ext_idx_.emplace_hint(r_hint, right_idx);
-            }
-            if (right_it == right_lines.end()) {
-                uint_fast8_t left_idx = std::distance(left_lines.begin(), left_it);
-                l_hint = l_ext_idx_.emplace_hint(l_hint, left_idx);
-            }
         }
     }
 
