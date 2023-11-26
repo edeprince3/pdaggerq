@@ -130,7 +130,7 @@ namespace pdaggerq {
         // if this is a sigma vertex, add a sigma line
         if (type == 'r' || type == 's' || type == 'l' || type == 'm') {
             is_sigma_ = true;
-            Line sigma_line("I");
+            Line sigma_line("X");
             sigma_line.sig_ = true;
             sigma_line.o_ = false;
             lines_.insert(lines_.begin(), sigma_line);
@@ -576,8 +576,8 @@ namespace pdaggerq {
         // check if rhs have equivalent label properties
         if (lines_ == other.lines_) return false;
 
-        // check if vertex base names are equal (name will be equal because the lines are equal)
-        return base_name_ != other.base_name_;
+        // check if the vertex names are equal
+        return name_ == other.name_;
     }
 
     bool Vertex::operator!=(const Vertex &other) const {
@@ -609,8 +609,8 @@ namespace pdaggerq {
                 return false;
         }
 
-        // check if vertex names are equal
-        return base_name_ == other.base_name_;
+        // check if the vertex names are equal
+        return name_ == other.name_;
     }
 
     string Vertex::line_str() const{
@@ -714,7 +714,7 @@ namespace pdaggerq {
         vector<Line> new_lines = lines_;
 
         // add a new line to the beginning
-        Line sigma_line("I");
+        Line sigma_line("X");
         sigma_line.sig_ = true;
         new_lines.insert(new_lines.begin(), sigma_line);
 

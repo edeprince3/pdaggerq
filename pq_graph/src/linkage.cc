@@ -331,6 +331,16 @@ namespace pdaggerq {
         if ( left_->is_linked() ^  other.left_->is_linked()) return false;
         if (right_->is_linked() ^ other.right_->is_linked()) return false;
 
+        // recursively check if left linkages are equivalent
+        if (left_->is_linked()) {
+            if (*as_link(left_) != *as_link(other.left_)) return false;
+        }
+
+        // check if right linkages are equivalent
+        if (right_->is_linked()) {
+            if (*as_link(right_) != *as_link(other.right_)) return false;
+        }
+
         // check that scales are equal
         if (flop_scale_ != other.flop_scale_) return false;
         if (mem_scale_  !=  other.mem_scale_) return false;
@@ -347,17 +357,6 @@ namespace pdaggerq {
         if ( !left_->equivalent( *other.left_)) return false;
         if (!right_->equivalent(*other.right_)) return false;
 
-        // check if left linkages are equivalent
-        if (left_->is_linked() && other.left_->is_linked()) {
-            if (*as_link(left_) != *as_link(other.left_))
-                return false;
-        }
-
-        // check if right linkages are equivalent
-        if (right_->is_linked() && other.right_->is_linked()) {
-            if (*as_link(right_) != *as_link(other.right_))
-                return false;
-        }
 
         // if all tests pass, return true
         return true;

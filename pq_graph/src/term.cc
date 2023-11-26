@@ -780,8 +780,6 @@ namespace pdaggerq {
             if (subset.size() > max_linkages || subset.size() <= 1)
                 return false;
 
-            return true;
-
             // make a linkage of the first permutation of the subset
             vector<VertexPtr> subset_vec;
             subset_vec.reserve(subset.size());
@@ -1260,9 +1258,6 @@ namespace pdaggerq {
         // if no possible linkages, return false
         if (size() <= 1) return false;
 
-        // TODO: This will eliminate compatible candidates.
-        return true;
-
         // if the depth of the linkage and term are not the same, return false
         if (linkage->nvert_ > term_linkage_->nvert_) return false;
 
@@ -1420,12 +1415,10 @@ namespace pdaggerq {
 
     Term Term::genericize() const {
         // map unqiue lines to generic lines (i.e. a, b, c, ...)
-        static std::string vir_lines[] {"a", "b", "c", "d", "e", "f", "g", "h", "v",
-                                        "A", "B", "C", "D", "E", "F", "G", "H", "V"};
-        static std::string occ_lines[] {"i", "j", "k", "l", "m", "n", "o",
-                                        "I", "J", "K", "L", "M", "N", "O"};
-        size_t c_occ = 0;
-        size_t v_occ = 0;
+        const auto& vir_lines = Line::virt_labels_;
+        const auto& occ_lines = Line::occ_labels_;
+        auto it_vir = vir_lines.begin();
+        auto it_occ = occ_lines.begin();
 
         map<Line, Line> line_map;
         for (const auto & line : lhs_->lines()) {
@@ -1433,7 +1426,7 @@ namespace pdaggerq {
             if (count == 0) {
                 // line does not exist in map, add it
                 line_map[line] = line;
-                line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
+                line_map[line].label_ = (line.o_ ? *it_occ++ : *it_vir++);
             }
         }
         if (eq_ != nullptr) {
@@ -1442,7 +1435,7 @@ namespace pdaggerq {
                 if (count == 0) {
                     // line does not exist in map, add it
                     line_map[line] = line;
-                    line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
+                    line_map[line].label_ = (line.o_ ? *it_occ++ : *it_vir++);
                 }
             }
         }
@@ -1452,7 +1445,7 @@ namespace pdaggerq {
                 if (count == 0) {
                     // line does not exist in map, add it
                     line_map[line] = line;
-                    line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
+                    line_map[line].label_ = (line.o_ ? *it_occ++ : *it_vir++);
                 }
             }
         }

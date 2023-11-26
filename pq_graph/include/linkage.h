@@ -63,7 +63,7 @@ namespace pdaggerq {
 
     // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
-    static LinkagePtr as_link(const VertexPtr& vertex) { return dynamic_pointer_cast<Linkage>(vertex); }
+    static LinkagePtr as_link(const VertexPtr& vertex)  { return dynamic_pointer_cast<Linkage>(vertex); }
     static VertexPtr as_vert(const LinkagePtr& linkage) { return dynamic_pointer_cast<Vertex>(linkage); }
 
 

@@ -50,14 +50,14 @@ namespace pdaggerq {
 
         static inline unordered_set<char> occ_labels_ = { // names of occupied lines
             'i', 'j', 'k', 'l', 'm', 'n', 'o',
-                      'K', 'L', 'M', 'N', 'O'
+            'I', 'J', 'K', 'L', 'M', 'N', 'O'
         };
         static inline unordered_set<char> virt_labels_ = { // names of virtual lines
             'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'v',
             'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'V'
         };
         static inline unordered_set<char> sig_labels_ = { // names of excited state lines
-            'I', 'J' //TODO: replace with 'S'  for state
+            'X',
         };
         static inline unordered_set<char> den_labels_ = { // names of density fitting lines
             'Q'
