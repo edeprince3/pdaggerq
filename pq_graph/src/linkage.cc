@@ -68,18 +68,18 @@ namespace pdaggerq {
         is_addition_ = is_addition;
 
         // create hash for the name (should be unique and faster for comparisons)
-        name_ = left_->name_ + " " + right_->name_;
-        base_name_ = name_;
+        base_name_ = left_->name_ + "\t" + right_->name_;
 
         // build internal and external lines
         set_links();
 
+        // set properties
+        rank_  = lines_.size();
+        shape_ = mem_scale_;
+        has_blk_ = left_->has_blk_ || right_->has_blk_;
+
         // create mapping of indices of internal and external lines from left to right vertices
         connect_lines();
-
-        // check if linkage is a sigma vertex or density fitted vertex
-        is_sigma_ = !lines_.empty() && lines_[0].sig_;
-        is_den_   = !lines_.empty() && lines_[0].den_;
 
         // check if left or right vertices are also linkages and set parent linkage
 //        if ( left_->is_linked())  left_parent_ = as_link( left_);
@@ -102,11 +102,19 @@ namespace pdaggerq {
         const auto &right_lines = right_->lines();
 
         // handle scalars
-        if (left_size == 0 && right_size == 0) return; // both vertices are scalars (no lines)
+        if (left_size == 0 && right_size == 0) {
+            return; // both vertices are scalars (no lines)
+        }
         else if (left_size == 0) { // if left is a scalar, just use right_lines as linkage
-            lines_ = right_lines; return;
+            lines_ = right_lines;
+            mem_scale_ = right_->shape_;
+            flop_scale_ = right_->shape_;
+            return;
         } else if (right_size == 0) { // if right is a scalar, just use left_lines as linkage
-            lines_  = left_lines; return;
+            lines_  = left_lines;
+            mem_scale_ = left_->shape_;
+            flop_scale_ = left_->shape_;
+            return;
         }
 
         // reserve space for internal and external lines
@@ -123,6 +131,7 @@ namespace pdaggerq {
             line_populations[line]++;
 
         // use count to determine if the line is internal or external
+        // lines are sorted via map insertion
         for (auto &[line, freq] : line_populations) {
             if (freq == 1) {
                 // this line is external
@@ -130,6 +139,11 @@ namespace pdaggerq {
 
                 // update mem scale
                 mem_scale_ += line;
+
+                // check if external line is a sigma or density fitting index
+                if (line.sig_) is_sigma_ = true;
+                else if (line.den_) is_den_ = true;
+
             } else {
                 // this line is internal
                 int_lines_.insert(line);
@@ -138,13 +152,6 @@ namespace pdaggerq {
             // update flop scale
             flop_scale_ += line;
         }
-
-        // lines are sorted via map insertion
-
-        // set properties
-        rank_  = lines_.size();
-        shape_ = mem_scale_;
-        has_blk_ = left_->has_blk_ || right_->has_blk_;
 
     }
 

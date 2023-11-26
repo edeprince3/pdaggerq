@@ -26,10 +26,10 @@
 
 #include <utility>
 #include <stdexcept>
-#include <set>
+#include <unordered_set>
 
 using std::string;
-using std::set;
+using std::unordered_set;
 using std::runtime_error;
 using std::hash;
 
@@ -42,24 +42,24 @@ namespace pdaggerq {
     struct Line {
         string label_; // name of the line
 
-        bool o_ = false; // whether the line is occupied (true) or virtual (false)
+        bool o_ = false; // whether the line is occupied (true) or virtual (false/default)
         bool a_ = true; // whether the line is alpha/active (true) or beta/external (false)
         char blk_type_ = '\0'; // type of blocking (s: spin, r: range, '\0': none)
         bool sig_ = false; // whether the line is an excited state index
         bool den_ = false; // whether the line is for density fitting
-        
-        static inline set<char> occ_labels_ = { // names of occupied lines
+
+        static inline unordered_set<char> occ_labels_ = { // names of occupied lines
             'i', 'j', 'k', 'l', 'm', 'n', 'o',
                       'K', 'L', 'M', 'N', 'O'
         };
-        static inline set<char> virt_labels_ = { // names of virtual lines
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
-            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'            
+        static inline unordered_set<char> virt_labels_ = { // names of virtual lines
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'v',
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'V'
         };
-        static inline set<char> sig_labels_ = { // names of excited state lines
+        static inline unordered_set<char> sig_labels_ = { // names of excited state lines
             'I', 'J' //TODO: replace with 'S'  for state
         };
-        static inline set<char> den_labels_ = { // names of density fitting lines
+        static inline unordered_set<char> den_labels_ = { // names of density fitting lines
             'Q'
         };
 
@@ -73,15 +73,16 @@ namespace pdaggerq {
          */
         inline explicit Line(string name, char blk = '\0') : label_(std::move(name)){
 
-            char line_char = label_[0];
-              o_ = occ_labels_.find(line_char) != occ_labels_.end();
-            sig_ = sig_labels_.find(line_char) != sig_labels_.end();
-            den_ = den_labels_.find(line_char) != den_labels_.end();
+            if (label_.empty()) throw runtime_error("Empty line label");
 
-//            if (!o_ & !sig_ && !den_){
-//                if (virt_labels_.find(line_char) == virt_labels_.end())
-//                    throw runtime_error("Invalid line name " + label_);
-//            }
+            char line_char = label_[0];
+            sig_ = sig_labels_.find(line_char) != sig_labels_.end(); // default to not excited
+            den_ = den_labels_.find(line_char) != den_labels_.end(); // default to not density fitting
+
+            if (!sig_ && !den_) {
+                // default to occupied for all other lines
+                o_ = virt_labels_.find(line_char) == virt_labels_.end();
+            }
 
             if (blk == 'a' || blk == 'b') blk_type_ = 's';
             else if (blk == '0' || blk == '1') blk_type_ = 'r';
@@ -126,13 +127,12 @@ namespace pdaggerq {
         }
 
         bool operator<(const Line& other) const {
-            bool is_equiv = equivalent(other);
-            if ( is_equiv ) return label_ < other.label_; // if same properties, compare names
-            if ( sig_ && !other.sig_ ) return true; // if this is excited and other is not, this is less
-            if ( den_ && !other.den_ ) return true; // if this is density fitting and other is not, this is less
-            if (  !o_ &&  other.o_ ) return true; // if this is virtual and other is occupied, this is less
-            if (   a_ && !other.a_ ) return true; // if this is alpha and other is beta, this is less
-            return false; // otherwise, this is greater
+            // sort by sig, den, o, a, then label
+            if (sig_ ^ other.sig_) return sig_;
+            if (den_ ^ other.den_) return den_;
+            if (o_ ^ other.o_) return !o_;
+            if (a_ ^ other.a_) return a_;
+            return label_ < other.label_;
         }
 
         bool operator>(const Line& other) const {

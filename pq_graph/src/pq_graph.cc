@@ -129,13 +129,13 @@ namespace pdaggerq {
         if (options.contains("reuse_permutations")) reuse_permutations_ = options["reuse_permutations"].cast<bool>();
 
         if (options.contains("occ_labels"))
-            Line::occ_labels_ = options["occ_labels"].cast<set<char>>();
+            Line::occ_labels_ = options["occ_labels"].cast<unordered_set<char>>();
         if (options.contains("virt_labels"))
-            Line::virt_labels_ = options["virt_labels"].cast<set<char>>();
+            Line::virt_labels_ = options["virt_labels"].cast<unordered_set<char>>();
         if (options.contains("sig_labels"))
-            Line::sig_labels_ = options["sig_labels"].cast<set<char>>();
+            Line::sig_labels_ = options["sig_labels"].cast<unordered_set<char>>();
         if (options.contains("den_labels"))
-            Line::den_labels_ = options["den_labels"].cast<set<char>>();
+            Line::den_labels_ = options["den_labels"].cast<unordered_set<char>>();
 
 
         if (options.contains("num_threads")) {
@@ -259,8 +259,7 @@ namespace pdaggerq {
             // use the term to build the assignment vertex
             if (!name_is_formatted || equation_name.empty()) {
                 VertexPtr assigment = make_shared<Vertex>(*term.term_linkage_);
-                assigment->base_name_ = assigment_name;
-                assigment->name_ = assigment_name;
+                assigment->update_name(assigment_name);
 
                 term.lhs() = assigment;
                 term.eq() = assigment;
@@ -640,7 +639,7 @@ namespace pdaggerq {
     }
 
     void PQGraph::print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) {
-        printf("%10s : %8s | %8s | %8s || %10s | %10s\n", "Scaling", "initial", "reorder", "optimize", "opt diff", "init diff");
+        printf("%10s : %8s | %8s | %8s || %10s | %10s\n", "Scaling", "initial", "reorder", "optimize", "init diff", "opt diff");
 
         scaling_map diff_map = current_map - previous_map;
         scaling_map tot_diff_map = current_map - original_map;
@@ -654,12 +653,12 @@ namespace pdaggerq {
                 last_order = new_order;
             }
             printf("%10s : %8zu | %8zu | %8zu || %10ld | %10ld \n", cur_shape.str().c_str(), original_map[cur_shape],
-                   previous_map[cur_shape], current_map[cur_shape], diff_map[cur_shape], tot_diff_map[cur_shape]);
+                   previous_map[cur_shape], current_map[cur_shape], tot_diff_map[cur_shape], diff_map[cur_shape]);
         }
 
         printf("%10s : %8s | %8s | %8s || %10s | %10s\n" , "--------", "--------", "--------", "--------", "----------", "----------");
         printf("%10s : %8zu | %8zu | %8zu || %10ld | %10ld \n", "Total", original_map.total(), previous_map.total(), current_map.total(),
-               diff_map.total(), tot_diff_map.total());
+               tot_diff_map.total(), diff_map.total());
 
     }
 

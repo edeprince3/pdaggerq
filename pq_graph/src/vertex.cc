@@ -124,14 +124,18 @@ namespace pdaggerq {
                 blk_string += range == "act" ? "1" : "0";
         }
 
-        vector<string> labels = amp.labels;
+        // set lines
+        set_lines(amp.labels, blk_string);
+
+        // if this is a sigma vertex, add a sigma line
         if (type == 'r' || type == 's' || type == 'l' || type == 'm') {
             is_sigma_ = true;
-            labels.insert(labels.begin(), "I");
+            Line sigma_line("I");
+            sigma_line.sig_ = true;
+            sigma_line.o_ = false;
+            lines_.insert(lines_.begin(), sigma_line);
+            update_name();
         }
-
-        // set lines
-        set_lines(labels, blk_string);
 
     }
 
@@ -362,9 +366,9 @@ namespace pdaggerq {
         string ovstring(line_size, 'o'); // ovstring assuming all occupied
         uint_fast8_t line_idx = 0; // index of line
         for (const Line &line : lines) {
-            if (!line.o_)  ovstring[line_idx++] = 'v'; // set ovstring to virtual
             if (line.sig_) ovstring[line_idx++] = 'L';
-            if (line.den_) ovstring[line_idx++] = 'Q';
+            else if (line.den_) ovstring[line_idx++] = 'Q';
+            else if (!line.o_)  ovstring[line_idx++] = 'v'; // set ovstring to virtual
         }
 
         return ovstring;
@@ -435,7 +439,7 @@ namespace pdaggerq {
         vector<Line> perm_lines = perm_op.lines_;
         uint_fast8_t line_idx = 0; // index of line
         for (uint_fast8_t i = 0; i < rank_; i++) {
-            uint_fast8_t perm_idx = (i < left_size) ? left_perm[i] : right_perm[i];
+            uint_fast8_t perm_idx = (i < left_size) ? left_perm[i] : right_perm[i-left_size];
             perm_lines[line_idx++] = lines_[perm_idx];
         }
 
