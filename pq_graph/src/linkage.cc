@@ -77,6 +77,7 @@ namespace pdaggerq {
         rank_  = lines_.size();
         shape_ = mem_scale_;
         has_blk_ = left_->has_blk_ || right_->has_blk_;
+        update_name();
 
         // create mapping of indices of internal and external lines from left to right vertices
         connect_lines();
