@@ -604,9 +604,6 @@ namespace pdaggerq {
                 // reset permutation type
                 term.set_perm(perm_list(), 0);
 
-                // set memory of permutation
-                term.set_perm_mem(perm, perm_type);
-
                 // set term to be updated
                 term.needs_update_ = true;
                 term.is_optimal_ = false;
@@ -639,6 +636,35 @@ namespace pdaggerq {
         // reorder and collect scaling
         reorder();
         collect_scaling();
+    }
+
+    void Equation::expand_permutations() {
+        vector<Term> new_terms;
+        for (auto &term : terms_) {
+
+            // if no permutations, add term to new terms
+            if (term.perm_type() == 0) {
+                new_terms.push_back(term);
+                continue;
+            }
+
+
+            vector<Term> expanded_terms;
+
+            // get permutations in term
+            const perm_list &perm = term.term_perms();
+            size_t perm_type = term.perm_type();
+
+
+
+
+
+
+
+
+            for (auto &expanded_term : expanded_terms)
+                new_terms.push_back(expanded_term);
+        }
     }
 
     vector<Term>::iterator Equation::insert_term(const Term &term, int index) {

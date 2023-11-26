@@ -34,7 +34,7 @@ void PQGraph::write_dot(string &filepath) {
     os << padding << "mode=hier;";
     os << padding << "overlap=\"20:prism\";\n";
     os << padding << "ordering=out;\n";
-    os << padding << "compound=false;\n";
+    os << padding << "compound=true;\n";
     os << padding << "sep=1.25;\n";
     os << padding << "K=1.0;\n";
     os << padding << "splines=spline;\n";
@@ -359,27 +359,27 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
             if (!added_null) {
 
-                // check if vertex is in temp vertices
-                bool in_temp = false;
-                for (auto &temp: temp_verts) {
-                    if (temp.get() == current.get()) {
-                        in_temp = true;
-                        break;
-                    }
-                }
-
-                if (in_temp && !began_temp && track_temps) {
-                    // add subgraph
-                    null_nodes.push_back(
-                            "subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
-                    began_temp = true;
-                } else if (!in_temp && began_temp && track_temps) {
-                    null_nodes.emplace_back("label=\"\";\n");
-                    null_nodes.emplace_back("style=dashed;\n");
-                    null_nodes.emplace_back("rank=min;\n");
-                    null_nodes.emplace_back("}\n");
-                    began_temp = false;
-                }
+//                // check if vertex is in temp vertices
+//                bool in_temp = false;
+//                for (auto &temp: temp_verts) {
+//                    if (temp.get() == current.get()) {
+//                        in_temp = true;
+//                        break;
+//                    }
+//                }
+//
+//                if (in_temp && !began_temp && track_temps) {
+//                    // add subgraph
+//                    null_nodes.push_back(
+//                            "subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
+//                    began_temp = true;
+//                } else if (!in_temp && began_temp && track_temps) {
+//                    null_nodes.emplace_back("label=\"\";\n");
+//                    null_nodes.emplace_back("style=dashed;\n");
+//                    null_nodes.emplace_back("rank=min;\n");
+//                    null_nodes.emplace_back("}\n");
+//                    began_temp = false;
+//                }
 
                 null_nodes.push_back(null_node + " [label=\"\", " + null_node_style + ", group=" + to_string(group_count) + "];\n");
                 added_null = true;
@@ -413,14 +413,6 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
     /// write file
 
-    // make dummy nodes invisible
-    for (const auto &dummy_node : null_nodes)
-        os << padding << dummy_node;
-
-    // print external edges
-    for (const auto &edge_name : ext_edge_names)
-        os << padding << edge_name;
-
     // print nodes name
     for (const auto &node_name : node_names)
         os << padding << node_name;
@@ -429,6 +421,13 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     for (const auto &edge_name : int_edge_names)
         os << padding << edge_name;
 
+    // print external edges
+    for (const auto &edge_name : ext_edge_names)
+        os << padding << edge_name;
+
+    // make dummy nodes invisible
+    for (const auto &dummy_node : null_nodes)
+        os << padding << dummy_node;
 
     return os;
 }

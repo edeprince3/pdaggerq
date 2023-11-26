@@ -25,6 +25,7 @@
 #include <map>
 #include <cmath>
 #include <iostream>
+#include <stack>
 #include "../include/term.h"
 
 using std::logic_error;
@@ -33,6 +34,7 @@ namespace pdaggerq {
 
     void Term::set_perm(const string & perm_string) {// extract permutation indices
         VertexPtr perm_op = make_shared<Vertex>(perm_string); // create permutation vertex
+        perm_op->sort(); // sort lines in permutation vertex
 
         // check if permutation is a P, PP2, PP3, or PP6
         size_t perm_rank = perm_op->rank(); // get rank of permutation (number of indices in permutation)
@@ -58,258 +60,260 @@ namespace pdaggerq {
                 term_perms_.emplace_back((*perm_op)[4].label_, (*perm_op)[5].label_);
             } else throw logic_error("Invalid permutation vertex: " + perm_string);
         } else throw logic_error("Invalid permutation vertex: " + perm_string);
-
-        perm_pairs_mem_ = term_perms_; // set memory permutation pairs
-        perm_type_mem_ = perm_type_; // set memory permutation type
     }
 
-    string &
-    Term::make_perm_string(string &output, const VertexPtr &perm_vertex, double abs_coeff, int perm_sign,
-                           bool has_one) const {// add permutation to output
+    /**
+     * permute terms with a given set of permutations
+     * @param perms list of permutations
+     * @param perm_type type of permutation
+     * @return vector of permuted terms (including original term as first element)
+     */
+    vector<Term> Term::permute(const perm_list &perms, size_t perm_type) const{
+        vector<Term> perm_terms; // vector of permuted terms
 
-        // copy term
-        Term perm_term = *this;
+        // add original term
+        perm_terms.push_back(*this);
+        perm_terms.front().set_perm({}, 0);
 
-        // set property of this term
-        perm_term.rhs_.clear();
-        VertexPtr perm_vertex_copy = copy_vert(perm_vertex);
+        if (perm_type == 1) { // single index permutations
 
-        perm_term.rhs_.push_back(perm_vertex_copy);
-        perm_term.set_perm({}, 0);
-        perm_term.set_perm_mem({}, 0);
-        perm_term.is_assignment_ = false;
+            // get all combinations of single index permutations
+            vector<perm_list> perm_combos;
 
-        // set sign and coefficient
-        if (has_one) { // if only one vertex, add coefficient
-            if (perm_sign >= 0) perm_term.coefficient_ = abs_coeff;
-            else perm_term.coefficient_ = -abs_coeff;
-        } else // if more than one vertex, do not add coefficient but include sign
-            perm_term.coefficient_ = perm_sign;
+            // magic bit manipulation to get all 0->n combinations of n indices
+            // https://www.geeksforgeeks.org/print-subsets-given-size-set/
+            size_t n = perms.size();
+            for (size_t i = 1; i < (1 << n); i++) {
 
-        output += perm_term.str();
-        output += "\n";
+                // build subset indices
+                vector<size_t> subset;
+                subset.reserve(n);
 
-        return output;
-    }
-
-    string &
-    Term::p1_permute_string(string &output, VertexPtr &perm_vertex, double abs_coeff, int perm_sign, bool has_one) const {
-
-        make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
-
-        /// add all permutations of permutation vertex
-
-        // create copy of original lines
-        vector<Line> orig_lines = perm_vertex->lines();
-        vector<Line> perm_lines = orig_lines;
-
-        size_t num_swaps = 0; // number of swaps applied
-        size_t swap_size = 1; // number of swaps to be applied at once
-        const auto& perm_lines_end = perm_lines.end();
-        while (swap_size <= term_perms_.size() ) {
-            // update sign for each count_ of permutations
-            perm_sign *= -1;
-            for (const auto & perm_pair : term_perms_){
-
-                // get lines to be permuted
-                string perm_line1 = perm_pair.first;
-                string perm_line2 = perm_pair.second;
-
-                // swap lines
-                for (Line & line : perm_lines) {
-                    if (line.label_ == perm_line1) line.label_ = perm_line2;
-                    else if (line.label_ == perm_line2) line.label_ = perm_line1;
+                for (size_t j = 0; j < n; j++) {
+                    if (i & (1 << j)) subset.push_back(j);
                 }
 
-                if ( ++num_swaps % swap_size == 0){ // if permutation has not been accumulated yet
-                    // update permutation vertex
-                    perm_vertex->update_lines(perm_lines, false);
+                // build subset
+                perm_list add_perm;
+                add_perm.reserve(subset.size());
+                for (unsigned long idx : subset) {
+                    add_perm.push_back(perms[idx]);
+                }
+                perm_combos.push_back(add_perm);
+            }
 
-                    // add permutation to output
-                    output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
+            // permute vertices
 
-                    // reset permutation lines
-                    perm_lines = orig_lines;
+            // create copy of the term
+            Term perm_term = *this; // copy term
+            perm_term.reset_perm(); // reset permutation indices
 
-                    size_t total_swaps = (1 << swap_size) - 1; // total number of swaps to be made for this swap n_ops
-                    if (num_swaps >= total_swaps){ // if all permutations have been applied for this swap_size
-                        swap_size += 1; // increment swap n_ops
+            for (const auto &perm_combo: perm_combos) {
+
+                // create deep copy of rhs vertices
+                vector<VertexPtr> perm_vertices;
+                for (const auto &vertex: rhs_)
+                    perm_vertices.push_back(copy_vert(vertex));
+                perm_term.rhs_ = perm_vertices; // set vertices in term
+                perm_term.coefficient_ = coefficient_; // set vertices in term
+
+                // set sign of permutation
+                if (perm_combo.size() % 2 == 1)
+                    perm_term.coefficient_ = -coefficient_;
+
+                // single index permutations
+                for (const auto &perm: perm_combo) {
+                    for (VertexPtr &vertex: perm_vertices) {
+                        for (Line &line: vertex->lines()) {
+                            if (line.label_ == perm.first) line.label_ = perm.second;
+                            else if (line.label_ == perm.second) line.label_ = perm.first;
+                        }
                     }
                 }
+
+                perm_term.compute_scaling(true);
+                perm_terms.push_back(perm_term);
             }
+
+
+            return perm_terms;
         }
 
-        // remove last newline
-        output.pop_back();
-        return output;
-    }
+        // if not single index permutation, we are working with paired permutations that are not recursive
 
-    string &
-    Term::p2_permute_string(string &output, VertexPtr &perm_vertex, double abs_coeff, int perm_sign, bool has_one) const {
+        // create deep copy of the term
+        Term perm_term = *this; // copy term
+        vector<VertexPtr> perm_vertices;
+        for (const auto &vertex: rhs_)
+            perm_vertices.push_back(copy_vert(vertex));
+        perm_term.rhs_ = perm_vertices; // set vertices in term
+        perm_term.reset_perm(); // reset permutation indices
 
-        /// add all permutations of permutation vertex
+        // paired permutations
+        if (perm_type == 2) {
 
-        make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
+            if (perms.size() != 2)
+                throw logic_error("Invalid number of permutations for PP2 permutation");
 
-        // create copy of original lines
-        vector<Line> orig_lines = perm_vertex->lines();
-        vector<Line> perm_lines = orig_lines;
+            pair<string, string> perm_pair1 = perms[0];
+            pair<string, string> perm_pair2 = perms[1];
 
-        // get lines to be permuted
-        pair<string, string> perm_pair1 = term_perms_[0];
-        pair<string, string> perm_pair2 = term_perms_[1];
+            string perm_line1_1 = perm_pair1.first;
+            string perm_line1_2 = perm_pair1.second;
+            string perm_line2_1 = perm_pair2.first;
+            string perm_line2_2 = perm_pair2.second;
 
-        string perm_line1_1 = perm_pair1.first;
-        string perm_line1_2 = perm_pair1.second;
-        string perm_line2_1 = perm_pair2.first;
-        string perm_line2_2 = perm_pair2.second;
+            // swap line pairs
+            for (VertexPtr & vertex : perm_vertices) {
+                for (Line & line : vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                }
+            }
 
-        // swap lines
-        for (Line & line : perm_lines) {
-            if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
-            else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
-            else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
-            else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+            perm_term.compute_scaling(true);
+            perm_terms.push_back(perm_term);
+            return perm_terms;
         }
 
-        perm_vertex->update_lines(perm_lines, false);
-        output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
+        if (perm_type == 3) {
+            if (perms.size() != 3)
+                throw logic_error("Invalid number of permutations for PP3 permutation");
 
-        // remove last newline
-        output.pop_back();
-        return output;
-    }
+            pair<string, string> perm_pair1 = perms[0];
+            pair<string, string> perm_pair2 = perms[1];
+            pair<string, string> perm_pair3 = perms[2];
 
-    string &
-    Term::p3_permute_string(string &output, VertexPtr &perm_vertex, double abs_coeff, int perm_sign, bool has_one) const {
+            string perm_line1_1 = perm_pair1.first;
+            string perm_line1_2 = perm_pair1.second;
+            string perm_line2_1 = perm_pair2.first;
+            string perm_line2_2 = perm_pair2.second;
+            string perm_line3_1 = perm_pair3.first;
+            string perm_line3_2 = perm_pair3.second;
 
-        /// add all permutations of permutation vertex
+            // first pair permutation
+            for (VertexPtr &vertex: perm_vertices) {
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                }
+            }
 
-        make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
+            // add first permutation to vector
+            perm_term.compute_scaling(true);
+            perm_terms.push_back(perm_term);
 
-        // create copy of original lines
-        vector<Line> orig_lines = perm_vertex->lines();
-        vector<Line> perm_lines = orig_lines;
+            // make another deep copy of the term
+            perm_vertices.clear();
+            for (const auto &vertex: rhs_)
+                perm_vertices.push_back(copy_vert(vertex));
+            perm_term.rhs_ = perm_vertices;
 
-        // get lines to be permuted
-        pair<string, string> perm_pair1 = term_perms_[0];
-        pair<string, string> perm_pair2 = term_perms_[1];
-        pair<string, string> perm_pair3 = term_perms_[2];
+            // second pair permutation
+            for (VertexPtr &vertex: perm_vertices) {
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
+                    else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
+                    else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
+                }
+            }
 
-        string perm_line1_1 = perm_pair1.first;
-        string perm_line1_2 = perm_pair1.second;
-        string perm_line2_1 = perm_pair2.first;
-        string perm_line2_2 = perm_pair2.second;
-        string perm_line3_1 = perm_pair3.first;
-        string perm_line3_2 = perm_pair3.second;
+            // add second permutation to vector
+            perm_term.compute_scaling(true);
+            perm_terms.push_back(perm_term);
+            return perm_terms;
 
-        // first pair permutation
-        for (Line & line : perm_lines) {
-            if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
-            else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
-            else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
-            else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
         }
-        perm_vertex->update_lines(perm_lines, false);
-        output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
 
-        // second pair permutation
-        perm_lines = orig_lines;
-        for (Line & line : perm_lines) {
-            if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
-            else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
-            else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
-            else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
-        }
-        perm_vertex->update_lines(perm_lines, false);
-        output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
+        if (perm_type == 6) {
+            if (perms.size() != 3)
+                throw logic_error("Invalid number of permutations for PP6 permutation");
 
-        // remove last newline
-        output.pop_back();
-        return output;
-    }
+            pair<string, string> perm_pair1 = perms[0];
+            pair<string, string> perm_pair2 = perms[1];
+            pair<string, string> perm_pair3 = perms[2];
 
-    string &
-    Term::p6_permute_string(string &output, VertexPtr &perm_vertex, double abs_coeff, int perm_sign, bool has_one) const {
+            string perm_line1_1 = perm_pair1.first;
+            string perm_line1_2 = perm_pair1.second;
+            string perm_line2_1 = perm_pair2.first;
+            string perm_line2_2 = perm_pair2.second;
+            string perm_line3_1 = perm_pair3.first;
+            string perm_line3_2 = perm_pair3.second;
 
-        /// add all permutations of permutation vertex
+            // reference (abc;ijk)
 
-        make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
+            // pair permutation (acb;ikj)
+            for (VertexPtr &vertex: perm_vertices) {
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                }
+            }
+            perm_term.compute_scaling(true);
+            perm_terms.push_back(perm_term);
 
-        // create copy of original lines
-        vector<Line> orig_lines = perm_vertex->lines();
+            // make another deep copy of the term
+            perm_vertices.clear();
+            for (const auto &vertex: rhs_)
+                perm_vertices.push_back(copy_vert(vertex));
+            perm_term.rhs_ = perm_vertices;
 
-        // get lines to be permuted
-        pair<string, string> perm_pair1 = term_perms_[0];
-        pair<string, string> perm_pair2 = term_perms_[1];
-        pair<string, string> perm_pair3 = term_perms_[2];
+            // pair permutation (bac;jik)
+            for (VertexPtr &vertex: perm_vertices) {
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                }
+            }
+            perm_term.compute_scaling(true);
+            perm_terms.push_back(perm_term);
 
-        string perm_line1_1 = perm_pair1.first;
-        string perm_line1_2 = perm_pair1.second;
-        string perm_line2_1 = perm_pair2.first;
-        string perm_line2_2 = perm_pair2.second;
-        string perm_line3_1 = perm_pair3.first;
-        string perm_line3_2 = perm_pair3.second;
+            // pair permutation (cab;kij)
+            for (VertexPtr &vertex: perm_vertices) {
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
+                    else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
+                    else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
+                }
+            }
+            perm_term.compute_scaling(true);
+            perm_terms.push_back(perm_term);
 
-        // original (abc;ijk)
+            // pair permutation (cba;kji)
+            for (VertexPtr &vertex: perm_vertices) {
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line2_1) line.label_ = perm_line3_1;
+                    else if (line.label_ == perm_line3_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line3_2;
+                    else if (line.label_ == perm_line3_2) line.label_ = perm_line2_2;
+                }
+            }
+            perm_term.compute_scaling(true);
+            perm_terms.push_back(perm_term);
 
-        // pair permutation (acb;ikj)
-        vector<Line> perm_lines1 = orig_lines;
-//        swap(perm_lines1[perm_idx2_1], perm_lines1[perm_idx3_1]);
-//        swap(perm_lines1[perm_idx2_2], perm_lines1[perm_idx3_2]);
-        for (Line & line : perm_lines1) {
-            if (line.label_ == perm_line2_1) line.label_ = perm_line3_1;
-            else if (line.label_ == perm_line3_1) line.label_ = perm_line2_1;
-            else if (line.label_ == perm_line2_2) line.label_ = perm_line3_2;
-            else if (line.label_ == perm_line3_2) line.label_ = perm_line2_2;
-        }
-        perm_vertex->update_lines(perm_lines1, false);
-        output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
-
-        // pair permutation (bac;jik)
-        vector<Line> perm_lines2 = orig_lines;
-        for (Line & line : perm_lines2) {
-            if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
-            else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
-            else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
-            else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
-        }
-        perm_vertex->update_lines(perm_lines2, false);
-        output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
-
-        // pair permutation (cab;kij)
-        for (Line & line : perm_lines2) {
-            if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
-            else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
-            else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
-            else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
-        }
-        perm_vertex->update_lines(perm_lines2, false);
-        output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
-
-        // pair permutation (cba;kji)
-        for (Line & line : perm_lines2) {
-            if (line.label_ == perm_line2_1) line.label_ = perm_line3_1;
-            else if (line.label_ == perm_line3_1) line.label_ = perm_line2_1;
-            else if (line.label_ == perm_line2_2) line.label_ = perm_line3_2;
-            else if (line.label_ == perm_line3_2) line.label_ = perm_line2_2;
-        }
-        perm_vertex->update_lines(perm_lines2, false);
-        output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
-
-        // pair permutation (bca;jki)
-        for (Line & line : perm_lines2) {
-            if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
-            else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
-            else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
-            else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
-        }
-        perm_vertex->update_lines(perm_lines2, false);
-        output = make_perm_string(output, perm_vertex, abs_coeff, perm_sign, has_one);
-
-        // remove last newline
-        output.pop_back();
-        return output;
+            // pair permutation (bca;jki)
+            for (VertexPtr &vertex: perm_vertices) {
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                }
+            }
+            perm_term.compute_scaling(true);
+            perm_terms.push_back(perm_term);
+            return perm_terms;
+        } else throw logic_error("Invalid permutation type: " + std::to_string(perm_type));
     }
 
 } // pdaggerq

@@ -435,9 +435,13 @@ void PQGraph::substitute() {
     cout << " ===================================================="  << endl << endl;
 }
 
-//void PQGraph::expand_permutations(){
-//
-//}
+void PQGraph::expand_permutations(){
+
+    for (auto & [name, eq] : equations_) {
+        eq.expand_permutations();
+    }
+
+}
 
 
 

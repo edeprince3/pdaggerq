@@ -189,6 +189,11 @@ namespace pdaggerq {
         linkage_set make_test_set();
 
         /**
+         * separate terms with permutations in each equation into separate terms
+         */
+        void expand_permutations();
+
+        /**
          * collect all possible linkages from all equations (remove none)
          * @param recompute whether to recompute all linkages or just the ones in modified terms
          */
@@ -224,8 +229,6 @@ namespace pdaggerq {
          * @param equation equation to sort tmps for
          */
         static void sort_tmps(Equation &equation);
-
-        typedef pair<string, string> vospin_pair;
 
         /**
          * Find the common coefficient of a set of terms

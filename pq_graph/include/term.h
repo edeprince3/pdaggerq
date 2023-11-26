@@ -63,16 +63,13 @@ namespace pdaggerq {
 
             /// list of permutation indices (should generalize to arbitrary number of indices)
 
-            perm_list term_perms_;
-            perm_list perm_pairs_mem_; // recall if this term used to be a permutation and what the permutation pairs were
-
             // perm_type_ = 0: no permutation
             // perm_type_ = 1: P(i,j) R(ij;ab) = R(ij;ab) - R(ji;ab)
             // perm_type_ = 2: PP2(i,a;j,b) R(ijk;abc) = R(ijk;abc) + (jik,bac)
             // perm_type_ = 3: PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
             // perm_type_ = 6: PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(jik;bac) + R(jki;bca) + R(ikj;acb) + R(kji;cba) + R(kij;cab)
+            perm_list term_perms_; // list of permutation indices
             size_t perm_type_ = 0; // default is no permutation
-            size_t perm_type_mem_ = 0; // recall if this term used to be a permutation and what the permutation type was
 
     public:
 
@@ -180,27 +177,15 @@ namespace pdaggerq {
              */
             void set_perm(const perm_list& perm_pairs, const size_t perm_type){
                 term_perms_ = perm_pairs;
-                perm_pairs_mem_ = perm_pairs;
                 perm_type_ = perm_type;
-                perm_type_mem_ = perm_type;
             }
 
             /**
-             * Recalls if this term used to be a permutation and what the permutation pairs were
-             * @return pair of permutations_pairs and permutation type
+             * reset permutation rhs for term
              */
-            pair<perm_list, size_t> recall_perm() const {
-                return make_pair(perm_pairs_mem_, perm_type_mem_);
-            }
-
-            /**
-             * Set permutation memory
-             * @param perm_pairs pairs of permutations
-             * @param perm_type the type of permutation
-             */
-            void set_perm_mem(const perm_list& perm_pairs, const size_t perm_type){
-                perm_pairs_mem_ = perm_pairs;
-                perm_type_mem_ = perm_type;
+            void reset_perm(){
+                term_perms_.clear();
+                perm_type_ = 0;
             }
 
             /**
@@ -416,45 +401,12 @@ namespace pdaggerq {
             static pair<int,int> as_fraction(double coeff, double threshold = 1e-6);
 
             /**
-             * create string representation of permutation assignment
-             * @param output string of assignment
-             * @param perm_vertex permutation vertex
-             * @param abs_coeff absolute value of coefficient
-             * @param perm_sign sign of permutation
-             * @param has_one boolean indicating if term has one vertex
-             * @return string representation of permutation assignment
+             * permute terms with a given set of permutations
+             * @param perm_list list of permutations
+             * @param perm_type type of permutation
+             * @return vector of permuted terms (including original term as first element)
              */
-            string &make_perm_string(string &output, const VertexPtr &perm_vertex, double abs_coeff, int perm_sign,
-                                     bool has_one) const;
-
-            /**
-             * Create string representation of single index permutation
-             * @return string representation of the single index permutation
-             */
-            string &
-            p1_permute_string(string &output, VertexPtr &perm_vertex, double abs_coeff, int perm_sign, bool has_one) const;
-
-            /**
-             * Create string representation of PP2 permutation
-             * @return string representation of PP2 permutation
-             */
-            string &
-            p2_permute_string(string &output, VertexPtr &perm_vertex, double abs_coeff, int perm_sign, bool has_one) const;
-
-            /**
-             * Create string representation of PP3 permutation
-             * @return string representation of PP3 permutation
-             */
-            string &
-            p3_permute_string(string &output, VertexPtr &perm_vertex, double abs_coeff, int perm_sign, bool has_one) const;
-
-            /**
-             * Create string representation of PP6 permutation
-             * @return string representation of PP6 permutation
-             */
-            string &
-            p6_permute_string(string &output, VertexPtr &perm_vertex, double abs_coeff, int perm_sign, bool has_one) const;
-
+            vector<Term> permute(const perm_list &perm_list, size_t perm_type) const;
 
             /**
              * Execute an operation of all combinations of subterms

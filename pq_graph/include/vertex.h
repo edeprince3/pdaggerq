@@ -119,6 +119,7 @@ namespace pdaggerq {
          * get lines of vertex from vir_map and occ_map
          */
         const vector<Line> &lines() const { return lines_; }
+        vector<Line> &lines() { return lines_; }
 
         /**
          * sets parameters of the vertex from the lines of the vertex
@@ -408,15 +409,7 @@ namespace pdaggerq {
          */
         bool equivalent(const Vertex &other) const;
 
-        /**
-         * Designates the vertex as an excited state vertex
-         */
-        void make_sigma();
 
-        /**
-         * Removes the sigma designation from the vertex
-         */
-        void remove_sigma();
     }; // end Vertex class
 
     // typedef for shared pointer to Vertex

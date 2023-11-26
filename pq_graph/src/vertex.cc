@@ -308,37 +308,10 @@ namespace pdaggerq {
 
         lines_ = lines; // set lines
         rank_ = lines.size(); // set rank
-
-        string ovstring(rank_, 'o'); // ovstring assuming all occupied
-        string blk_string(rank_, '\0'); // string assuming no blocking
-        has_blk_ = false; // flag to check if a line is blocked
-        uint_fast8_t line_idx = 0; // index of line
-        for (const Line &line : lines) { // loop over lines
-
-            if (line.sig_){
-                ovstring[line_idx++] = 'L'; // set ovstring to sigma
-                continue;
-            }
-            if (line.den_){
-                ovstring[line_idx++] = 'Q'; // set ovstring to density index
-                continue;
-            }
-            if (!line.o_) {
-                ovstring[line_idx++] = 'v'; // set ovstring to virtual
-            }
-
-            if (line.has_blk()) { // if blocked
-                blk_string[line_idx++] = line.blk(); // set blocking type of this line
-                has_blk_ = true; // mark that this vertex is blocked
-            }
-        }
-
-        // create shape from lines
-        shape_ = shape(lines_);
-
-        // add ovstring and blocks to name
+        shape_ = shape(lines_); // create shape from lines
         if (update_name)
-            format_name(ovstring, blk_string);
+            this->update_name(); // update name
+
     }
 
     string Vertex::blk_string() const {
@@ -707,41 +680,6 @@ namespace pdaggerq {
         Vertex generic_op = *this;
         generic_op.genericize();
         return generic_op;
-    }
-
-    void Vertex::make_sigma() {
-        // make a new vector of lines, but add a sigma line to the beginning
-        vector<Line> new_lines = lines_;
-
-        // add a new line to the beginning
-        Line sigma_line("X");
-        sigma_line.sig_ = true;
-        new_lines.insert(new_lines.begin(), sigma_line);
-
-        // set the new lines
-        update_lines(new_lines);
-
-        // designate this vertex as an excitation vertex
-        is_sigma_ = true;
-
-    }
-
-    void Vertex::remove_sigma() {
-        if (!is_sigma_) return; // if not a sigma vertex, do nothing
-
-        // remove the sigma designation
-        is_sigma_ = false;
-
-        // make a new vector of lines, but remove the sigma line (do not assume it is the first line). update indices
-        vector<Line> new_lines;
-        for (const Line& line : lines_) {
-            if (line.sig_) continue; // skip sigma line
-            new_lines.push_back(line);
-        }
-
-        // rename the object lines
-        this->update_lines(new_lines);
-
     }
 
     // create a hashmap to store vertices for quick lookup

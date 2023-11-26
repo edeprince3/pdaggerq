@@ -316,6 +316,12 @@ namespace pdaggerq {
         static void merge_permuted_term(merge_map_type &merge_terms_map, Term &term, bool &term_in_map);
 
 
+        /**
+         * separate terms with permutations into separate terms
+         */
+        void expand_permutations();
+
+
     }; // class Equation
 
 } // pdaggerq

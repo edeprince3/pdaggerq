@@ -79,7 +79,14 @@ namespace pdaggerq {
         if (perm_type_ != 0) {
             size_t n = perm_list.size();
             for (size_t i = 0; i < n; i += 2) {
-                term_perms_.emplace_back(perm_list[i], perm_list[i + 1]);
+                string perm1 = perm_list[i];
+                string perm2 = perm_list[i + 1];
+
+                // enforce alphabetical ordering
+                if (perm1 > perm2)
+                    std::swap(perm1, perm2);
+
+                term_perms_.emplace_back(perm1, perm2);
             }
         }
 
@@ -482,10 +489,6 @@ namespace pdaggerq {
             // make intermediate vertex for the permutation
             VertexPtr perm_vertex;
 
-            // get sign and magnitude of coefficient
-            double abs_coeff = stod(to_string(fabs(coefficient_)));
-            int perm_sign = (int) copysign(1, coefficient_);
-
             bool has_one = rhs_.size() == 1;
             if (has_one) perm_vertex = rhs_[0]; // no need to create intermediate vertex if there is only one
             else { // else, create the intermediate vertex and its assignment term
@@ -496,36 +499,39 @@ namespace pdaggerq {
                 perm_vertex->set_base_name("perm_tmps"); // set base name of permutation vertex
                 perm_vertex->sort(); // sort permutation vertex
 
-                // make new term with permutation vertex
-                Term perm_term = *this;
-                VertexPtr perm_vertex_copy = copy_vert(perm_vertex);
-                perm_term.set_lhs(perm_vertex_copy);
-                perm_term.set_perm({}, 0);
-                perm_term.set_perm_mem({}, 0);
-                perm_term.is_assignment_ = true;
+                // initialize initial permutation term
+                Term perm_term = *this; // copy term
+                perm_term.lhs_ = perm_vertex; // set lhs to permutation vertex
+                perm_term.reset_perm();
 
-                // set coefficient to absolute value since sign is added in permutation
-                perm_term.coefficient_ = fabs(coefficient_);
-
-                if (Term::make_einsum)
-                    output += perm_term.einsum_str();
-                else
-                    output += perm_term.str();
+                // add string to output
+                output += perm_term.str();
                 output += "\n";
+
             } // if only one vertex, use that vertex directly
 
-            /// add permutations to lhs vertex
-            switch (perm_type_) {
-                case 0: break;
-                case 1: output = p1_permute_string(output, perm_vertex, abs_coeff, perm_sign, has_one); break;
-                case 2: output = p2_permute_string(output, perm_vertex, abs_coeff, perm_sign, has_one); break;
-                case 3: output = p3_permute_string(output, perm_vertex, abs_coeff, perm_sign, has_one); break;
-                case 6: output = p6_permute_string(output, perm_vertex, abs_coeff, perm_sign, has_one); break;
+            // initialize term to permute
+            Term perm_term = *this; // copy term
+            perm_term.rhs_ = {perm_vertex};
+
+            // remove comments from term
+            perm_term.comments_.clear();
+
+            // get permuted terms
+            vector<Term> perm_terms = perm_term.permute(term_perms_, perm_type_);
+
+            // add permuted terms to output
+            for (const auto & permuted_term : perm_terms) {
+                output += permuted_term.str();
+                output += "\n";
             }
+            output.pop_back(); // remove last newline character
         }
 
         // ensure the last character is a semicolon (might not be there if no rhs vertices)
-        if (output.back() != ';') output += ";";
+        if (output.back() != ';')
+            output += ";";
+
         return output;
     }
 
@@ -708,33 +714,26 @@ namespace pdaggerq {
         return needed_conditions;
     }
 
-    vector<size_t> get_set(size_t n, size_t i) {
-        // build subset indices
-        vector<size_t> subset;
-        for (size_t j = 0; j < n; j++) {
-            // check if jth bit is set, if so add to subset
-            // Each bit in the integer i represents whether the vertex at that position
-            // is included in the current subset. if the bit is set (1), the vertex is
-            // included, otherwise it is not.
-            if (i & (1 << j)) subset.push_back(j);
-        }
-        return subset;
-    }
-
     // function that iterates over all possible orderings of vertex subsets and executes a lambda function on each ordering
     void Term::operate_subsets(
-                size_t n, // number of rhs vertices
+                size_t n, // size of the set
                 const std::function<void(const vector<size_t>&)>& op, // operation to perform on each subset
                 const std::function<bool(const vector<size_t>&)>& valid_op, // operation to check if subset is valid
                 const std::function<bool(const vector<size_t>&)>& break_perm_op, // operation to check if permutation should be broken
                 const std::function<bool(const vector<size_t>&)>& break_subset_op // operation to check if subset should be broken
             ) {
 
-        // iterate over all possible orderings of vertex subsets
-        for (size_t i = 0; i < (1 << n); i++) {
+        // magic bit manipulation to get all 0->n permutations of n indices
+        // https://www.geeksforgeeks.org/print-subsets-given-size-set/
+        for (size_t i = 1; i < (1 << n); i++) {
 
             // build subset indices
-            vector<size_t> subset = get_set(n, i);
+            vector<size_t> subset;
+            subset.reserve(n);
+
+            for (size_t j = 0; j < n; j++) {
+                if (i & (1 << j)) subset.push_back(j);
+            }
 
             if (valid_op != nullptr) {
                 if (!valid_op(subset)) continue; // skip invalid subsets based on user-defined function
