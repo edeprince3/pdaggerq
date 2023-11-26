@@ -39,7 +39,7 @@ class pq_helper {
      * @param vacuum_type: normal order is defined with respect to the TRUE vacuum or the FERMI vacuum
      *
      */
-    explicit pq_helper(const std::string &vacuum_type);
+    explicit pq_helper(const std::string &vacuum_type = "");
 
     /**
      *

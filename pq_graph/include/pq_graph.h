@@ -104,6 +104,10 @@ namespace pdaggerq {
         // default constructor
         PQGraph() = default;
 
+        explicit PQGraph(const pybind11::dict& options){
+            set_options(options);
+        }
+
         /**
          * Set options for PQ GRAPH
          * @param options dictionary of options
@@ -112,10 +116,10 @@ namespace pdaggerq {
 
         /**
          * add an equation to the builder from a pq_helper object
-         * @param equation_name name of the equation
          * @param pq pq_helper object of the equation
+         * @param equation_name name of the equation (optional)
          */
-        void add(const string &equation_name, const pq_helper &pq);
+        void add(const pq_helper &pq, const string &equation_name = "");
 
         /**
          * clears everything in the builder
@@ -135,40 +139,15 @@ namespace pdaggerq {
         }
 
         /**
-         * Builds equations
-         * @param equation_names vector of strings of equations
-         * @param equation_strings vector of linkages
-         *        a vector of vectors of vectors of strings
-         *        the first vector is the list of linkages for each equation
-         *        the second vector is the list of terms in the linkage
-         *        the third vector is the list of rhs in the term
-         */
-        void build(vector<string> equation_names, vector<vector<vector<string>>> equation_strings);
-
-        /**
-         * Builds equations from a dictionary of equations
-         * @param equation_dict dictionary of equations,
-         *        with equation names as keys and a string list of terms with a string list of tensors
-         * @ note this function will format the dictionary into the format of the build function
-         */
-        void build(const pybind11::dict& equation_dict);
-
-        /**
-         * directly use the ordered strings to build equations
-         * @param ordered_equations a dictionary of ordered strings for each equation
-         */
-        void assemble(const std::map<std::string, pq_helper>& ordered_equations);
-
-        /**
          * export tabuilder to python
          * @param m module
          */
-        static void export_tabuilder(pybind11::module &m);
+        static void export_pq_graph(pybind11::module &m);
 
         /**
          * string representation of the equations
          */
-        vector<string> toStrings();
+        vector<string> to_strings();
 
         /**
          * keys of the equations
@@ -182,26 +161,10 @@ namespace pdaggerq {
         void reorder();
 
         /**
-         * formats self-contractions in an equation
-         * @param equation equation to format
-         */
-        void apply_self_links(Equation &equation);
-
-        /**
-         * Fuse terms in each equation
-         */
-        size_t merge_terms();
-
-        /**
          * Fully optimize equations by reordering, substituting, merging, and reusing intermediates.
          * @note this is a shortcut for calling reorder, substitute, merge_terms, and reuse on the python side
          */
         void optimize();
-
-        /**
-         * Reuse permutation containers, then permute at the end.
-         */
-        void merge_permutations();
 
         /**
          * collect scaling of all equations

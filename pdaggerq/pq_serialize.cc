@@ -108,6 +108,12 @@ void pq_helper::deserialize(const std::string & filename) {
     // open file
     std::ifstream buffer(filename, std::ios::binary | std::ios::in);
 
+    // test if file is open
+    if (!buffer.is_open()) {
+        std::cout << "Error: could not open file '" << filename << "'" << std::endl;
+        exit(1);
+    }
+
     // helper function to read a primitive in binary
     auto read_primitive = [&buffer](auto &primitive) {
         buffer.read(reinterpret_cast<char*>(&primitive), sizeof(primitive));

@@ -42,10 +42,11 @@ namespace pdaggerq {
         }
 
         // set assignment vertex
-        assignment_vertex_ = terms_[0].lhs();
+        assignment_vertex_ = terms_.front().lhs();
 
         // set equation vertex for all terms
-        for (auto & term : terms_) term.set_equation_vertex(assignment_vertex_);
+        for (auto & term : terms_)
+            term.eq() = assignment_vertex_;
 
         // collect scaling of equations
         collect_scaling();
@@ -58,14 +59,15 @@ namespace pdaggerq {
         name_ = name;
 
         // set assignment vertex
-        assignment_vertex_ = make_shared<Vertex>(name);
+        assignment_vertex_ = terms.front().lhs();
 
         // set terms
         terms_ = terms;
 
-        // set equation vertex for all terms
-        for (auto & term : terms_)
-            term.set_equation_vertex(assignment_vertex_);
+        // set equation vertex for all terms if applicable
+        for (auto &term: terms_)
+            term.eq()  = assignment_vertex_;
+
 
         // remove all terms that have 't1' in the base name of any rhs vertex
         if (t1_transform_) {
@@ -88,7 +90,7 @@ namespace pdaggerq {
         return terms_.empty();
     }
 
-    vector<string> Equation::toStrings() const {
+    vector<string> Equation::to_strings() const {
 
         vector<string> output;
         bool is_declaration = !allow_substitution_; // whether this is a declaration
@@ -622,7 +624,7 @@ namespace pdaggerq {
             // create new term that permutes the container
             Term perm_term = Term(lhs_op, {new_lhs_op}, 1.0);
             perm_term.set_perm(perm, perm_type);
-            perm_term.set_equation_vertex(assignment_vertex_);
+            perm_term.eq() = assignment_vertex_;
             perm_term.needs_update_ = true;
             perm_term.is_optimal_ = false;
             perm_term.reorder();

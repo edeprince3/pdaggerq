@@ -103,25 +103,8 @@ void export_pq_helper(py::module& m) {
         .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
         .def("add_operator_product", &pq_helper::add_operator_product);
 
-        // add tabuilder pybind class
-    py::class_<pdaggerq::PQGraph, std::shared_ptr<pdaggerq::PQGraph> >(m, "pq_graph")
-            .def(py::init<>())
-            .def("build", py::overload_cast<vector<string>, vector<vector<vector<string>>>>(&pdaggerq::PQGraph::build))
-            .def("build", py::overload_cast<const pybind11::dict&>(&pdaggerq::PQGraph::build))
-            .def("assemble", &pdaggerq::PQGraph::assemble)
-            .def("substitute", &pdaggerq::PQGraph::substitute)
-            .def("print", &pdaggerq::PQGraph::print)
-            .def("str", &pdaggerq::PQGraph::str)
-            .def("set_options", &pdaggerq::PQGraph::set_options)
-            .def("add", &pdaggerq::PQGraph::add)
-            .def("clear", &pdaggerq::PQGraph::clear)
-            .def("reorder", &pdaggerq::PQGraph::reorder)
-            .def("merge_permutations", &pdaggerq::PQGraph::merge_permutations)
-            .def("merge_terms", &pdaggerq::PQGraph::merge_terms)
-            .def("optimize", &pdaggerq::PQGraph::optimize)
-            .def("analysis", &pdaggerq::PQGraph::analysis)
-            .def("to_strings", &pdaggerq::PQGraph::toStrings)
-            .def("write_dot", &pdaggerq::PQGraph::write_dot);
+        // add class for optimizing, visualizing, and generating code from pq_helper
+        PQGraph::export_pq_graph(m);
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {

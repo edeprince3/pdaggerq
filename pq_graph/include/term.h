@@ -54,8 +54,6 @@ namespace pdaggerq {
             vector<VertexPtr> rhs_; // rhs of the term
             vector<string> comments_; // string representation of the original rhs
 
-            size_t rank_{}; // rank of the term
-
             /// scaling of the term (stored as a pair of integers, (num virtual, num occupied))
             scaling_map flop_map_; // map of flop scaling with linkage occurrence in term
             scaling_map mem_map_; // map of memory scaling with linkage occurrence in term
@@ -218,16 +216,12 @@ namespace pdaggerq {
              * @return vertex for the equation
              */
             const VertexPtr &eq() const { return eq_; }
+            VertexPtr &eq() { return eq_; }
 
             /**
              * Set left hand side vertex
              */
             void set_lhs(const VertexPtr &lhs) { lhs_ = lhs; }
-
-            /**
-             * Set vertex for the equation
-             */
-            void set_equation_vertex(const VertexPtr &equation_vertex) { eq_ = equation_vertex; }
 
             /**
              * permutation indices
@@ -311,12 +305,6 @@ namespace pdaggerq {
              * @return string for comment
              */
             string make_comments(bool only_flop = false, bool only_comment=false) const;
-
-            /**
-             * Get rank
-             * @return rank
-             */
-            size_t rank() const { return rank_; }
 
             /**
              * Get flop scaling

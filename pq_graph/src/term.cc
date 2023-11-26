@@ -50,8 +50,6 @@ namespace pdaggerq {
     size_t Term::depth_ = 0; // depth of nested tmps
 
 
-
-
     Term::Term(const string &name, const shared_ptr<pq_string>& pq_str) {
 
         // check if term should be skipped (this should already be done before the term is constructed)
@@ -104,9 +102,7 @@ namespace pdaggerq {
 
         // add lhs vertex
         lhs_ = make_shared<Vertex>(name);
-
-        // set rank
-        rank_ = lhs_->rank();
+        eq_ = copy_vert(lhs_);
 
         // create rhs vertices
         for (const auto & delta : pq_str->deltas) // add delta functions
@@ -150,9 +146,6 @@ namespace pdaggerq {
         // extract coefficient (first element in string)
         coefficient_ = stod(vertex_strings[0]); // convert string to double
 
-        // get rank of term from lhs vertex
-        rank_ = lhs_->rank();
-
         // assume no permutations in term
         perm_type_ = 0;
 
@@ -191,7 +184,6 @@ namespace pdaggerq {
         lhs_ = lhs_vertex; // set lhs vertex
         rhs_ = vertices; // set rhs
         coefficient_ = coefficient; // set coefficient
-        rank_ = lhs_->rank(); // set rank
 
         // check sign of coefficient if term has an eri vertex
         for (auto & op : rhs_) {

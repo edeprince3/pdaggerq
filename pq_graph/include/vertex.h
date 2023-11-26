@@ -140,6 +140,11 @@ namespace pdaggerq {
          * @param new_blk_string string representation of the blocks in this vertex
          */
         void format_name(const string &ovstring, const string &new_blk_string);
+        void update_name(const string &base_name = "") {
+            if (!base_name.empty())
+              base_name_ = base_name;
+            format_name(ovstring(), blk_string());
+        }
 
         /**
          * Sorts lines such that virtual lines come first; if the vertex is blocked, then

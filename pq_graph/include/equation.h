@@ -236,10 +236,10 @@ namespace pdaggerq {
          * Get the string representation of each term in the equation
          * @return string representation of each term in the equation
          */
-        vector<string> toStrings() const;
+        vector<string> to_strings() const;
 
         friend ostream &operator<<(ostream &os, const Equation &eq){
-            for (const string &s : eq.toStrings()) os << s << endl;
+            for (const string &s : eq.to_strings()) os << s << endl;
             return os;
         }
 
