@@ -69,11 +69,17 @@ namespace pdaggerq {
      * @return vector of permuted terms (including original term as first element)
      */
     vector<Term> Term::permute(const perm_list &perms, size_t perm_type) const{
-        vector<Term> perm_terms; // vector of permuted terms
+
+        // return original term if no permutations are given
+        if (perm_type == 0) return {*this};
+
+        // initialize vector for the permuted terms
+        vector<Term> perm_terms;
 
         // add original term
         perm_terms.push_back(*this);
-        perm_terms.front().set_perm({}, 0);
+        perm_terms.front().reset_perm();
+
 
         if (perm_type == 1) { // single index permutations
 

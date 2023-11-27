@@ -312,18 +312,22 @@ namespace pdaggerq {
         // add banner for PQ GRAPH results
         sout << "####################" << " PQ GRAPH Output " << "####################" << endl << endl;
 
-        // get all terms from all equations except the tmps, scalars, and reuse_tmps equation
+        // get all terms from all equations except the scalars, and reuse_tmps
         vector<Term> all_terms;
 
-        bool has_tmps = false;
-        for (const auto &eq_pair : equations_) { // iterate over equations in serial
+//        bool has_tmps = false;
+        for (auto &eq_pair : equations_) { // iterate over equations in serial
             const string &eq_name = eq_pair.first;
-            const Equation &equation = eq_pair.second;
-            if (!equation.allow_substitution_) {
-                has_tmps = true;
-                continue; // skip tmps equation
-            }
+            Equation &equation = eq_pair.second;
 
+            if (eq_name == "scalars" || eq_name == "reuse_tmps")
+                continue;
+//            if (!equation.allow_substitution_) {
+//                has_tmps = true;
+//                continue; // skip tmps equation
+//            }
+
+            sort_tmps(equation); // sort tmps in equation
             const vector<Term> &terms = equation.terms();
             all_terms.insert(all_terms.end(), terms.begin(), terms.end());
         }
@@ -391,7 +395,7 @@ namespace pdaggerq {
 
 
         /** while not all tmp ids have been found:
-         *      make declarations for tmps in order of first use;
+//         *      make declarations for tmps in order of first use;
          *      make destructors in order of last use.
          */
         do {
@@ -405,37 +409,36 @@ namespace pdaggerq {
                 // check if temp_id has been found
                 if (found_tmp_ids[temp_id-1]) continue;
 
-                bool made_tmp = false;
-                for (size_t i = last_pos; i < all_terms.size(); ++i) {
-                    const Term &term = all_terms[i];
-
-                    // check if tmp is in the rhs of the term
-                    bool found = false;
-                    for (const auto &op: term.rhs()) {
-                        bool is_tmp = op->is_linked(); // must be a tmp
-                        if (!is_tmp) continue;
-
-                        LinkagePtr link = as_link(op);
-                        is_tmp = is_tmp && !link->is_scalar(); // must not be a scalar (already in scalars_)
-                        is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
-
-                        if (is_tmp && link->id_ == temp_id) {
-                            found = true;
-                            break; // true if we found first use of tmp with this id
-                        }
-                    }
-
-                    // tmp not found in rhs of term; continue
-                    if (!found) continue;
-
-                    // add tmp term before this term
-                    all_terms.insert(all_terms.begin() + (int) i, tempterm);
-                    found_tmp_ids[temp_id-1] = true; // mark tmp id as found
-                    last_pos = i; break; // update last position and go to next tmp term
-                }
-
-                // if tmp id was not found, continue
-                if (!found_tmp_ids[temp_id-1]) continue;
+//                bool made_tmp = false;
+//                for (size_t i = last_pos; i < all_terms.size(); ++i) {
+//                    const Term &term = all_terms[i];
+//
+//                    // check if tmp is in the rhs of the term
+//                    bool found = false;
+//                    for (const auto &op: term.rhs()) {
+//                        bool is_tmp = op->is_linked(); // must be a tmp
+//                        if (!is_tmp) continue;
+//
+//                        LinkagePtr link = as_link(op);
+//                        is_tmp = is_tmp && !link->is_scalar(); // must not be a scalar (already in scalars_)
+//                        is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
+//
+//                        if (is_tmp && link->id_ == temp_id) {
+//                            found = true;
+//                            break; // true if we found first use of tmp with this id
+//                        }
+//                    }
+//
+//                    // tmp not found in rhs of term; continue
+//                    if (!found) continue;
+//
+//                    // add tmp term before this term
+//                    all_terms.insert(all_terms.begin() + (int) i, tempterm);
+//                    found_tmp_ids[temp_id-1] = true; // mark tmp id as found
+//                    last_pos = i; break; // update last position and go to next tmp term
+//                }
+//                // if tmp id was not found, continue
+//                if (!found_tmp_ids[temp_id-1]) continue;
 
                 for (auto i = (long int) all_terms.size() - 1; i >= 0; --i) {
                     const Term &term = all_terms[i];
@@ -447,7 +450,7 @@ namespace pdaggerq {
                         if (!is_tmp) continue;
 
                         LinkagePtr link = as_link(op);
-                        is_tmp = is_tmp && !link->is_scalar(); // must not be a scalar (already in scalars_)
+                        is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
                         is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
 
                         if (is_tmp && link->id_ == temp_id) {
@@ -470,6 +473,8 @@ namespace pdaggerq {
 
                     // add tmp term after this term
                     all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
+                    found_tmp_ids[temp_id-1] = true; // mark tmp id as found
+
                     break; // only add once
                 }
             }
@@ -664,6 +669,8 @@ namespace pdaggerq {
 
     void PQGraph::optimize() {
         reorder(); // reorder contractions in equations
+//        expand_permutations(); // expand permutations in equations
+
 //        if (allow_merge_) merge_terms(); // merge similar terms
         substitute(); // find and substitute intermediate contractions
 //        if (allow_merge_) merge_terms(); // merge similar terms
@@ -731,6 +738,8 @@ namespace pdaggerq {
 
     void PQGraph::sort_tmps(Equation &equation) {
 
+        //TODO: consider case with multiple tmps in one term more carefully (do not waste storage)
+
         // no terms, return
         if ( equation.terms().empty() ) return;
 
@@ -790,8 +799,10 @@ namespace pdaggerq {
             a_max_temp_id = max(a_lhs_id, a_rhs_id);
             b_max_temp_id = max(b_lhs_id, b_rhs_id);
 
-            // sort by max id of tmps, then by index of term
+            // sort by max id of tmps; if same ids, sort by if it is assignment; lastly, sort by index of term
             if (a_max_temp_id == b_max_temp_id) {
+                if (a.first->is_assignment_ ^ b.first->is_assignment_)
+                    return a.first->is_assignment_ > b.first->is_assignment_;
                 return a.second < b.second;
             } else return a_max_temp_id < b_max_temp_id;
         });

@@ -148,12 +148,6 @@ namespace pdaggerq {
 
 
             /**
-             * Populates connection map such that internal lines from left and right vertices are connected by
-             * their respective indices
-             */
-            void connect_lines();
-
-            /**
              * Destructor
              */
             ~Linkage() override = default;

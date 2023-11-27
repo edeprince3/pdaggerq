@@ -145,8 +145,6 @@ namespace pdaggerq {
 
     }
 
-
-
     Term::Term(const string &name, const vector<string> &vertex_strings)
     : lhs_(make_shared<Vertex>(name)), comments_(vertex_strings){ // create lhs vertex
 
@@ -238,8 +236,8 @@ namespace pdaggerq {
         reorder();
         term_linkage_->id_ = linkage->id_;
 
-//        // make labels generic
-//        *this = genericize();
+        // make labels generic
+        *this = genericize();
 
     }
 
@@ -503,6 +501,8 @@ namespace pdaggerq {
                 Term perm_term = *this; // copy term
                 perm_term.lhs_ = perm_vertex; // set lhs to permutation vertex
                 perm_term.reset_perm();
+                perm_term.is_assignment_ = true; // set term as assignment
+                perm_term.coefficient_ = fabs(coefficient_); // set coefficient to absolute value of coefficient
 
                 // add string to output
                 output += perm_term.str();
@@ -517,11 +517,15 @@ namespace pdaggerq {
             // remove comments from term
             perm_term.comments_.clear();
 
+            // if more than one vertex, set coefficient to 1 or -1
+            if (!has_one)
+                perm_term.coefficient_ = coefficient_ > 0 ? 1 : -1;
+
             // get permuted terms
-            vector<Term> perm_terms = perm_term.permute(term_perms_, perm_type_);
+            vector<Term> perm_terms = perm_term.expand_perms();
 
             // add permuted terms to output
-            for (const auto & permuted_term : perm_terms) {
+            for (auto & permuted_term : perm_terms) {
                 output += permuted_term.str();
                 output += "\n";
             }
@@ -936,8 +940,8 @@ namespace pdaggerq {
             LinkagePtr this_linkage = Linkage::link(subset_vec);
 
             // add linkage to set if it has a scaling less than or equal to the bottleneck
-//            if (this_linkage->flop_scale() <= bottleneck_flop_)
-            linkages.insert(this_linkage);
+            if (this_linkage->flop_scale() <= bottleneck_flop_)
+                linkages.insert(this_linkage);
 
         };
 
@@ -1414,10 +1418,12 @@ namespace pdaggerq {
 
     Term Term::genericize() const {
         // map unqiue lines to generic lines (i.e. a, b, c, ...)
-        const auto& vir_lines = Line::virt_labels_;
-        const auto& occ_lines = Line::occ_labels_;
-        auto it_vir = vir_lines.begin();
-        auto it_occ = occ_lines.begin();
+        static std::string vir_lines[] {"a", "b", "c", "d", "e", "f", "g", "h", "v",
+                                        "A", "B", "C", "D", "E", "F", "G", "H", "V"};
+        static std::string occ_lines[] {"i", "j", "k", "l", "m", "n", "o",
+                                        "I", "J", "K", "L", "M", "N", "O"};
+        size_t c_occ = 0;
+        size_t v_occ = 0;
 
         map<Line, Line> line_map;
         for (const auto & line : lhs_->lines()) {
@@ -1425,7 +1431,7 @@ namespace pdaggerq {
             if (count == 0) {
                 // line does not exist in map, add it
                 line_map[line] = line;
-                line_map[line].label_ = (line.o_ ? *it_occ++ : *it_vir++);
+                line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
             }
         }
         if (eq_ != nullptr) {
@@ -1434,7 +1440,7 @@ namespace pdaggerq {
                 if (count == 0) {
                     // line does not exist in map, add it
                     line_map[line] = line;
-                    line_map[line].label_ = (line.o_ ? *it_occ++ : *it_vir++);
+                    line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
                 }
             }
         }
@@ -1444,7 +1450,7 @@ namespace pdaggerq {
                 if (count == 0) {
                     // line does not exist in map, add it
                     line_map[line] = line;
-                    line_map[line].label_ = (line.o_ ? *it_occ++ : *it_vir++);
+                    line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
                 }
             }
         }

@@ -120,7 +120,7 @@ void PQGraph::substitute() {
 
     /// generate all possible linkages from all arrangements
     if (verbose) cout << "Generating all possible contractions from all combinations of tensors..."  << flush;
-    generate_linkages(); // generate all possible linkages
+    generate_linkages(true); // generate all possible linkages
     if (verbose) cout << " Done" << endl;
 
     size_t num_terms = 0;
@@ -161,7 +161,7 @@ void PQGraph::substitute() {
         if (verbose) cout << " Total Remaining combinations: " << tmp_candidates_.size() << endl << endl << endl;
 
         makeSub = false; // reset flag
-        bool allow_equality = true; // flag to allow equality in flop map
+        bool allow_equality = false; // flag to allow equality in flop map
         size_t n_linkages = test_linkages.size(); // get number of linkages
         LinkagePtr bestPreCon; // best linkage to substitute
 
@@ -285,8 +285,14 @@ void PQGraph::substitute() {
             bestPreCon->id_ = (long) temp_id;
 
             // print linkage
-            if (verbose) cout << " ====> Substitution " << to_string(temp_id) << " <==== " << endl;
-            if (verbose) cout << " ====> " << bestPreCon->str() + " = " + bestPreCon->tot_str() << endl << endl;
+            if (verbose){
+                cout << " ====> Substitution " << to_string(temp_id) << " <==== " << endl;
+
+                // format as a term
+                Term precon_term = Term(bestPreCon);
+                precon_term.comments() = {}; // clear comments
+                cout << " ====> " << precon_term << endl << endl;
+            }
             update_timer.start();
 
             scaling_map old_flop_map = flop_map_;
@@ -436,11 +442,9 @@ void PQGraph::substitute() {
 }
 
 void PQGraph::expand_permutations(){
-
     for (auto & [name, eq] : equations_) {
         eq.expand_permutations();
     }
-
 }
 
 

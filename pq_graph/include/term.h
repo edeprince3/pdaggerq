@@ -407,6 +407,7 @@ namespace pdaggerq {
              * @return vector of permuted terms (including original term as first element)
              */
             vector<Term> permute(const perm_list &perm_list, size_t perm_type) const;
+            vector<Term> expand_perms() const{ return permute(term_perms_, perm_type_); }
 
             /**
              * Execute an operation of all combinations of subterms

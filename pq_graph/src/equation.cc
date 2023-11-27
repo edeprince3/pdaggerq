@@ -306,14 +306,15 @@ namespace pdaggerq {
 
     linkage_set Equation::generate_linkages(bool compute_all) {
 
-        linkage_set all_linkages(1024); // all possible linkages in the equations (start with large bucket n_ops)
+        linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
 
         omp_set_num_threads((int)num_threads_);
         #pragma omp parallel for schedule(guided) shared(terms_, all_linkages) default(none) firstprivate(compute_all)
         for (auto & term : terms_) { // iterate over terms
 
             // skip term if it is optimal, and we are not computing all linkages
-//            if (!compute_all && term.is_optimal_) continue;
+            if (!compute_all && term.is_optimal_)
+                continue;
             if (!term.is_optimal_)
                 term.reorder(); // reorder term if it is not optimal
 
@@ -641,30 +642,14 @@ namespace pdaggerq {
     void Equation::expand_permutations() {
         vector<Term> new_terms;
         for (auto &term : terms_) {
-
-            // if no permutations, add term to new terms
-            if (term.perm_type() == 0) {
-                new_terms.push_back(term);
-                continue;
-            }
-
-
-            vector<Term> expanded_terms;
-
-            // get permutations in term
-            const perm_list &perm = term.term_perms();
-            size_t perm_type = term.perm_type();
-
-
-
-
-
-
-
-
+            vector<Term> expanded_terms = term.expand_perms();
             for (auto &expanded_term : expanded_terms)
                 new_terms.push_back(expanded_term);
         }
+        terms_ = std::move(new_terms);
+
+        // reorder and collect scaling
+        reorder(true);
     }
 
     vector<Term>::iterator Equation::insert_term(const Term &term, int index) {

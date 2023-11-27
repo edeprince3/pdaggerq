@@ -338,10 +338,8 @@ namespace pdaggerq {
         uint_fast8_t line_size = lines.size();
         string ovstring(line_size, 'o'); // ovstring assuming all occupied
         uint_fast8_t line_idx = 0; // index of line
-        for (const Line &line : lines) {
-            if (line.sig_) ovstring[line_idx++] = 'L';
-            else if (line.den_) ovstring[line_idx++] = 'Q';
-            else if (!line.o_)  ovstring[line_idx++] = 'v'; // set ovstring to virtual
+        for (uint_fast8_t i = 0; i < line_size; i++) {
+            ovstring[line_idx++] = lines[i].ov(); // set ovstring
         }
 
         return ovstring;

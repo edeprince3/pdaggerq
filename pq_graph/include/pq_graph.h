@@ -205,7 +205,9 @@ namespace pdaggerq {
         void print();
 
         /**
-         * turn tabuilder into a string
+         * turn pq_graph into a string
+         * @return string representation of the pq_graph
+         * TODO: make this a true const function
          */
         string str();
 

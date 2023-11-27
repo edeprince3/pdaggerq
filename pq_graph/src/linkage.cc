@@ -70,7 +70,7 @@ namespace pdaggerq {
         // create hash for the name (should be unique and faster for comparisons)
         base_name_ = left_->name_ + "\t" + right_->name_;
 
-        // build internal and external lines
+        // build internal and external lines with their index mapping
         set_links();
 
         // set properties
@@ -79,13 +79,6 @@ namespace pdaggerq {
         has_blk_ = left_->has_blk_ || right_->has_blk_;
         update_name();
 
-        // create mapping of indices of internal and external lines from left to right vertices
-        connect_lines();
-
-        // check if left or right vertices are also linkages and set parent linkage
-//        if ( left_->is_linked())  left_parent_ = as_link( left_);
-//        if (right_->is_linked()) right_parent_ = as_link(right_);
-
     }
 
     inline void Linkage::set_links() {
@@ -93,6 +86,10 @@ namespace pdaggerq {
         // clear internal and external lines and connections
         int_lines_.clear();
         lines_.clear();
+
+        int_connec_.clear();
+        r_ext_idx_.clear();
+        l_ext_idx_.clear();
 
         // grab data from left and right vertices
         uint_fast8_t left_size = left_->size();
@@ -123,92 +120,135 @@ namespace pdaggerq {
 
 
         // populate left lines
-        map<Line, uint_fast8_t> line_populations;
-        for (const auto &line : left_lines)
-            line_populations[line]++;
+        map<Line, pair<uint_fast8_t, bool>> line_populations;
+        for (const auto &line : left_lines) {
+            auto &[pop, visited] = line_populations[line];
+            pop++; visited = false;
+        }
 
         // populate right lines
-        for (const auto &line : right_lines)
-            line_populations[line]++;
-
-        // use count to determine if the line is internal or external
-        // lines are sorted via map insertion
-        for (auto &[line, freq] : line_populations) {
-            if (freq == 1) {
-                // this line is external
-                lines_.push_back(line);
-
-                // update mem scale
-                mem_scale_ += line;
-
-                // check if external line is a sigma or density fitting index
-                if (line.sig_) is_sigma_ = true;
-                else if (line.den_) is_den_ = true;
-
-            } else {
-                // this line is internal
-                int_lines_.insert(line);
-            }
-
-            // update flop scale
-            flop_scale_ += line;
+        for (const auto &line : right_lines) {
+            auto &[pop, visited] = line_populations[line];
+            pop++; visited = false;
         }
 
-    }
+        
+        // grab iterators of left and right lines
+        auto left_begin = left_lines.begin(), right_begin = right_lines.begin();
+        auto left_end = left_lines.end(), right_end = right_lines.end();
+        
+        bool left_at_end  = left_begin == left_end;
+        bool right_at_end = right_begin == right_end;
 
-    inline void Linkage::connect_lines() {
+        // use populations to determine if the line is internal or external
+        for (auto left_it = left_begin, right_it = right_begin; !left_at_end || !right_at_end;) {
+            
+            // find left in line_populations
+            if (!left_at_end) {
+                const Line &left_line = *left_it;
+                const auto &left_pop = line_populations.find(left_line);
 
-        // clear connections
-        int_connec_.clear();
-        r_ext_idx_.clear();
-        l_ext_idx_.clear();
+                // check if line has already been visited
+                auto &[freq, visited] = left_pop->second;
+                if (visited) {
+                    // line has already been visited, skip
+                    left_at_end = ++left_it == left_end;
+                    continue;
+                }
+                
+                // line has not been visited, add to lines
+                uint_fast8_t left_idx = std::distance(left_begin, left_it);
 
-        // grab data from left and right vertices
-        const auto &left_lines = left_->lines();
-        const auto &right_lines = right_->lines();
+                if (freq == 1) {
+                    // this line is external
+                    lines_.push_back(left_line);
 
-        // assume all lines are external
-        uint_fast8_t left_size = left_lines.size();
-        uint_fast8_t right_size = right_lines.size();
-        for (int i = 0; i < left_size; ++i)
-            l_ext_idx_.emplace(i);
-        for (int i = 0; i < right_size; ++i)
-            r_ext_idx_.emplace(i);
-
-
-        bool search_left = left_lines < right_lines; // search the smaller set of lines
-        uint_fast8_t search_size = search_left ? left_size : right_size;
-
-        // build internal connections (note, this does not explicitly check for repeated lines)
-        for (uint_fast8_t i = 0; i < search_size; i++) {
-            const Line &line = search_left ? left_lines[i] : right_lines[i];
-
-            // find line in internal lines
-            auto it = int_lines_.find(line);
-            if (it == int_lines_.end()) continue; // line is not internal
-
-            // get index of line in the other vertex
-            uint_fast8_t other_idx;
-            if (search_left) { // if searching left, find line in right
-                auto other_it = std::find(right_lines.begin(), right_lines.end(), line);
-                other_idx = std::distance(right_lines.begin(), other_it);
-            } else { // if searching right, find line in left
-                auto other_it = std::find(left_lines.begin(), left_lines.end(), line);
-                other_idx = std::distance(left_lines.begin(), other_it);
+                    // update mem scale
+                    mem_scale_ += left_line;
+                    
+                    // check if external line is a sigma or density fitting index
+                    if (left_line.sig_) is_sigma_ = true;
+                    else if (left_line.den_) is_den_ = true;
+                    
+                    // add to external indices
+                    l_ext_idx_.emplace(left_idx);
+                    
+                } else {
+                    // this line is internal
+                    int_lines_.insert(left_line);
+                    
+                    // find position of line in right
+                    auto right_pos = std::find(right_it, right_end, left_line);
+                    uint_fast8_t right_idx = std::distance(right_begin, right_pos);
+                    
+                    // add to connections
+                    int_connec_.emplace(left_idx, right_idx);
+                }
+                
+                // update flop scale
+                flop_scale_ += left_line;
+                
+                // mark line as visited
+                visited = true;
             }
+            
+            // find right in line_populations
+            if (!right_at_end) {
+                const Line &right_line = *right_it;
+                const auto &right_pop = line_populations.find(right_line);
 
-            // add indices to connections and remove index from external indices
-            if (search_left) {
-                int_connec_.emplace(i, other_idx);
-                l_ext_idx_.erase(i);
-                r_ext_idx_.erase(other_idx);
-            } else {
-                int_connec_.emplace(other_idx, i);
-                l_ext_idx_.erase(other_idx);
-                r_ext_idx_.erase(i);
+                // check if line has already been visited
+                auto &[freq, visited] = right_pop->second;
+                if (visited) {
+                    // line has already been visited, skip
+                    right_at_end = ++right_it == right_end;
+                    continue;
+                }
+
+                // line has not been visited, add to lines
+                uint_fast8_t right_idx = std::distance(right_begin, right_it);
+
+                if (freq == 1) {
+                    // this line is external
+                    lines_.push_back(right_line);
+
+                    // update mem scale
+                    mem_scale_ += right_line;
+
+                    // check if external line is a sigma or density fitting index
+                    if (right_line.sig_) is_sigma_ = true;
+                    else if (right_line.den_) is_den_ = true;
+
+                    // add to external indices
+                    r_ext_idx_.emplace(right_idx);
+
+                } else {
+                    // this line is internal
+                    int_lines_.insert(right_line);
+
+                    // find position of line in left
+                    auto left_pos = std::find(left_it, left_end, right_line);
+                    uint_fast8_t left_idx = std::distance(left_begin, left_pos);
+
+                    // add to connections
+                    int_connec_.emplace(left_idx, right_idx);
+                }
+
+                // update flop scale
+                flop_scale_ += right_line;
+
+                // mark line as visited
+                visited = true;
             }
+            
+            // increment iterators
+            if ( !left_at_end) ++left_it;
+            if (!right_at_end) ++right_it;
 
+            left_at_end  = left_it  == left_end;
+            right_at_end = right_it == right_end;
         }
+        
     }
 
     LinkagePtr Linkage::link(const vector<VertexPtr> &op_vec) {
