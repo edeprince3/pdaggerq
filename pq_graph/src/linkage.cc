@@ -116,11 +116,14 @@ namespace pdaggerq {
         }
 
         // reserve space for internal and external lines
-        lines_.reserve(total_size);
+        thread_local std::multiset<Line, line_compare> ext_lines;
+        ext_lines.clear();
 
 
         // populate left lines
-        map<Line, pair<uint_fast8_t, bool>> line_populations;
+        thread_local unordered_map<Line, pair<uint_fast8_t, bool>, LineHash> line_populations(256);
+        line_populations.clear();
+
         for (const auto &line : left_lines) {
             auto &[pop, visited] = line_populations[line];
             pop++; visited = false;
@@ -161,7 +164,7 @@ namespace pdaggerq {
 
                 if (freq == 1) {
                     // this line is external
-                    lines_.push_back(left_line);
+                    ext_lines.insert(left_line);
 
                     // update mem scale
                     mem_scale_ += left_line;
@@ -210,7 +213,7 @@ namespace pdaggerq {
 
                 if (freq == 1) {
                     // this line is external
-                    lines_.push_back(right_line);
+                    ext_lines.insert(right_line);
 
                     // update mem scale
                     mem_scale_ += right_line;
@@ -248,6 +251,9 @@ namespace pdaggerq {
             left_at_end  = left_it  == left_end;
             right_at_end = right_it == right_end;
         }
+
+        // add external lines to lines
+        lines_.assign(ext_lines.begin(), ext_lines.end());
         
     }
 
@@ -355,16 +361,6 @@ namespace pdaggerq {
         if ( left_->is_linked() ^  other.left_->is_linked()) return false;
         if (right_->is_linked() ^ other.right_->is_linked()) return false;
 
-        // recursively check if left linkages are equivalent
-        if (left_->is_linked()) {
-            if (*as_link(left_) != *as_link(other.left_)) return false;
-        }
-
-        // check if right linkages are equivalent
-        if (right_->is_linked()) {
-            if (*as_link(right_) != *as_link(other.right_)) return false;
-        }
-
         // check that scales are equal
         if (flop_scale_ != other.flop_scale_) return false;
         if (mem_scale_  !=  other.mem_scale_) return false;
@@ -374,13 +370,19 @@ namespace pdaggerq {
         if (r_ext_idx_  !=  other.r_ext_idx_) return false;
         if (int_connec_ != other.int_connec_) return false;
 
-        // check if linkage vertices (and external lines) are equivalent
-        if (!equivalent(other)) return false;
+        // recursively check if left linkages are equivalent
+        if (left_->is_linked()) {
+            if (*as_link(left_) != *as_link(other.left_)) return false;
+        } else {
+            if ( !left_->equivalent( *other.left_)) return false;
+        }
 
-        // check if left and right vertices are equivalent
-        if ( !left_->equivalent( *other.left_)) return false;
-        if (!right_->equivalent(*other.right_)) return false;
-
+        // check if right linkages are equivalent
+        if (right_->is_linked()) {
+            if (*as_link(right_) != *as_link(other.right_)) return false;
+        } else {
+            if ( !right_->equivalent( *other.right_)) return false;
+        }
 
         // if all tests pass, return true
         return true;
@@ -517,7 +519,8 @@ namespace pdaggerq {
                     result[i++] = vertex;
             }
 
-        } else result[i++] = left_;
+        } else if (!left_->base_name_.empty())
+            result[i++] = left_;
 
         // get right vertex
         if (right_->is_linked()) {
@@ -536,7 +539,8 @@ namespace pdaggerq {
                     result[i++] = vertex;
             }
 
-        } else result[i++] = right_;
+        } else if (!right_->base_name_.empty())
+            result[i++] = right_;
     }
 
     const vector<VertexPtr> &Linkage::to_vector(bool regenerate, bool full_expand) const {

@@ -36,8 +36,8 @@ namespace pdaggerq {
         long double runtime_ = 0.0; // total runtime
         bool running_ = false; // whether the timer is running_
         size_t count_ = 0; // number of times the timer has been started
-
     public:
+
         Timer() = default;
         ~Timer() = default;
 
@@ -62,7 +62,8 @@ namespace pdaggerq {
         /**
          * format time as string
          */
-        static std::string format_time(long double time);
+        int precision_ = 3; // precision of the timer
+        static std::string format_time(long double time, int precision = 3);
 
         /**
          * @brief return the average time as a human readable string
@@ -81,6 +82,51 @@ namespace pdaggerq {
          * Get runtime_ as double
          */
         long double get_runtime() const { return runtime_; }
+
+        /**
+         * Overload += operator
+         */
+        Timer& operator+=(const Timer& rhs){
+            runtime_ += rhs.runtime_;
+            running_ = false;
+            return *this;
+        }
+
+        /**
+         * Overload + operator
+         */
+        Timer operator+(const Timer& rhs) const {
+            Timer tmp(*this);
+            tmp += rhs;
+            return tmp;
+        }
+
+        /**
+         * Overload -= operator
+         */
+        Timer& operator-=(const Timer& rhs) {
+            runtime_ -= rhs.runtime_;
+            running_ = false;
+            return *this;
+        }
+
+        /**
+         * Overload - operator
+         */
+        Timer operator-(const Timer& rhs) const {
+            Timer tmp(*this);
+            tmp -= rhs;
+            return tmp;
+        }
+
+        /**
+         * Overload << operator
+         */
+        friend std::ostream& operator<<(std::ostream& os, const Timer& timer) {
+            os << timer.get_time();
+            return os;
+        }
+
     };
 
 }

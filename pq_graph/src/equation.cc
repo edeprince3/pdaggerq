@@ -59,7 +59,40 @@ namespace pdaggerq {
         name_ = name;
 
         // set assignment vertex
-        assignment_vertex_ = terms.front().lhs();
+        assignment_vertex_ = terms.back().lhs();
+
+        // set terms
+        terms_ = terms;
+
+        // set equation vertex for all terms if applicable
+        for (auto &term: terms_)
+            term.eq()  = assignment_vertex_;
+
+
+        // remove all terms that have 't1' in the base name of any rhs vertex
+        if (t1_transform_) {
+            for (auto term_it = terms_.end() - 1; term_it >= terms_.begin(); --term_it) {
+                bool found_t1 = false;
+                for (auto &op : *term_it) {
+                    found_t1 = op->base_name_ == "t1";
+                    if (found_t1) break;
+                }
+                if (found_t1) terms_.erase(term_it);
+            }
+        }
+
+        // collect scaling of equations
+        collect_scaling();
+
+    }
+
+    Equation::Equation(const VertexPtr &assignment, const vector<Term> &terms) {
+
+        // set name of equation
+        name_ = assignment->name();
+
+        // set assignment vertex
+        assignment_vertex_ = assignment;
 
         // set terms
         terms_ = terms;
@@ -93,7 +126,7 @@ namespace pdaggerq {
     vector<string> Equation::to_strings() const {
 
         vector<string> output;
-        bool is_declaration = !allow_substitution_; // whether this is a declaration
+        bool is_declaration = !is_temp_equation_; // whether this is a declaration
 
         // set of conditions already found. Used to avoid printing duplicate conditions
         set<string> current_conditions = {"initialize"}; // initialize with arbitrary string
@@ -232,7 +265,8 @@ namespace pdaggerq {
 
     size_t Equation::substitute(const LinkagePtr &linkage, bool allow_equality) {
 
-        if (!allow_substitution_) return 0;
+        if (!is_temp_equation_) // if tmps, return
+            return 0;
 
         // check if linkage is more expensive than current bottleneck
         if (linkage->flop_scale() > bottleneck_flop_) return 0;
@@ -253,7 +287,7 @@ namespace pdaggerq {
             /// increment number of substitutions if substitution was successful
             if (madeSub) {
                 ++num_subs;
-                term.is_optimal_ = false; // set term to not optimal (for now)
+                term.request_update(); // set term to be updated
             }
         } // substitute linkage in term
 
@@ -262,7 +296,7 @@ namespace pdaggerq {
 
     size_t Equation::test_substitute(const LinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality) {
 
-        if (!allow_substitution_) {
+        if (!is_temp_equation_) { // if tmps, return
             test_flop_map += flop_map_; // add flop scaling map for whole equation
             return 0;
         }
@@ -313,9 +347,9 @@ namespace pdaggerq {
         for (auto & term : terms_) { // iterate over terms
 
             // skip term if it is optimal, and we are not computing all linkages
-            if (!compute_all && term.is_optimal_)
+            if (!compute_all && term.generated_linkages_)
                 continue;
-            if (!term.is_optimal_)
+            if (!term.is_optimal_ || term.needs_update_)
                 term.reorder(); // reorder term if it is not optimal
 
             linkage_set term_linkages = term.generate_linkages(); // generate linkages in term
@@ -324,6 +358,9 @@ namespace pdaggerq {
             {
                 all_linkages += term_linkages; // add linkages to the set of all linkages
             }
+
+            term.generated_linkages_ = true; // set term to have generated linkages
+
         } // iterate over terms
         omp_set_num_threads(1);
 
@@ -390,7 +427,7 @@ namespace pdaggerq {
     }
 
     size_t Equation::merge_terms() {
-        if (!allow_substitution_) return 0; // don't merge temporary equations
+        if (!is_temp_equation_) return 0; // don't merge temporary equations
 
         // map to store term counts, comments, and merged coefficients using a hash of the term
         merge_map_type merge_terms_map;
@@ -403,7 +440,7 @@ namespace pdaggerq {
             bool term_in_map = merge_terms_map.find(term) != merge_terms_map.end();
 
             // if term is not in map, check if a permuted version is in map
-            if (!term_in_map && permuted_merge_) // if permuted merge is enabled
+            if (!term_in_map)// && permuted_merge_) // if permuted merge is enabled
                 merge_permuted_term(merge_terms_map, term, term_in_map);
 
             // add term to map
@@ -452,6 +489,8 @@ namespace pdaggerq {
         }
 
         terms_ = new_terms;
+        collect_scaling(true);
+
         return num_merged;
     }
 
@@ -564,7 +603,7 @@ namespace pdaggerq {
     }
 
     void Equation::merge_permutations() {
-        if (!allow_substitution_) return; // if tmps, return
+        if (!is_temp_equation_) return; // if tmps, return
 
         // make a map permutation types with their associated terms
         map<pair<perm_list, size_t>, vector<Term>> perm_type_to_terms;
@@ -606,8 +645,7 @@ namespace pdaggerq {
                 term.set_perm(perm_list(), 0);
 
                 // set term to be updated
-                term.needs_update_ = true;
-                term.is_optimal_ = false;
+                term.request_update();
                 term.reorder();
 
                 if (!first_assignment){
@@ -623,8 +661,7 @@ namespace pdaggerq {
             Term perm_term = Term(lhs_op, {new_lhs_op}, 1.0);
             perm_term.set_perm(perm, perm_type);
             perm_term.eq() = assignment_vertex_;
-            perm_term.needs_update_ = true;
-            perm_term.is_optimal_ = false;
+            perm_term.request_update();
             perm_term.reorder();
 
             // add term to new terms
@@ -642,9 +679,18 @@ namespace pdaggerq {
     void Equation::expand_permutations() {
         vector<Term> new_terms;
         for (auto &term : terms_) {
+
+            // only expand terms with one operator on the rhs
+//            if (term.size() >= 2) {
+//                new_terms.push_back(term);
+//                continue;
+//            }
+
             vector<Term> expanded_terms = term.expand_perms();
-            for (auto &expanded_term : expanded_terms)
+            for (auto &expanded_term : expanded_terms) {
+                expanded_term.make_comments();
                 new_terms.push_back(expanded_term);
+            }
         }
         terms_ = std::move(new_terms);
 
@@ -656,6 +702,23 @@ namespace pdaggerq {
         if (index < 0)
             index = (int)terms_.size() + index + 1; // convert negative index to positive index from the end
         return terms_.insert(terms_.begin() + index, term); // add term to index of terms
+    }
+
+    vector<Term *> Equation::get_temp_terms(const LinkagePtr& contraction) {
+        // for every term, check if this contraction is within the term
+        vector<Term *> temp_terms;
+        for (auto &term : terms_) {
+            for (auto &op : term) {
+                if (op->is_linked()) {
+                    const LinkagePtr &linkage = as_link(op);
+                    if (linkage->id_ == contraction->id_ && *linkage == *contraction) {
+                        temp_terms.push_back(&term);
+                        break;
+                    }
+                }
+            }
+        }
+        return temp_terms;
     }
 
 } // pdaggerq

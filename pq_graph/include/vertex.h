@@ -407,7 +407,7 @@ namespace pdaggerq {
          * @param other second vertex
          * @return boolean indicating whether the labels are equivalent
          */
-        bool equivalent(const Vertex &other) const;
+        virtual bool equivalent(const Vertex &other) const;
 
 
     }; // end Vertex class

@@ -249,24 +249,48 @@ namespace pdaggerq {
         flop_map_.clear(); // clear flop scaling map
         mem_map_.clear(); // clear memory scaling map
 
+        /// add scaling from lhs
+
+        shape lhs_shape = lhs_->shape_;
+
+        // add scaling from permutation
+        if (perm_type_ == 0) {
+            flop_map_[lhs_shape]++;
+            mem_map_[lhs_shape]++;
+        }
+        else if (perm_type_ == 1) {
+            long long int num_perms = (1 << term_perms_.size()); // number of permutations
+            flop_map_[lhs_shape] += num_perms;
+            mem_map_[lhs_shape]  += num_perms;
+        }
+        else if (perm_type_ == 2) {
+            flop_map_[lhs_shape] += 2;
+            mem_map_[lhs_shape]  += 2;
+        }
+        else if (perm_type_ == 3) {
+            flop_map_[lhs_shape] += 3;
+            mem_map_[lhs_shape]  += 3;
+        }
+        else if (perm_type_ == 6) {
+            flop_map_[lhs_shape] += 6;
+            mem_map_[lhs_shape]  += 6;
+        }
+        else throw std::runtime_error("Invalid permutation type: " + std::to_string(perm_type_));
+
         // check if number of rhs is <= 1
         if (arrangement.size() <= 1) {
 
-            // populate flop and memory scaling maps with scaling of single vertex
-            shape dim = lhs_->dim();
+            bottleneck_flop_ = lhs_shape;
+            bottleneck_mem_ = lhs_shape;
 
-            flop_map_[dim] = 1;
-            bottleneck_flop_ = dim;
-
-            mem_map_[dim] = 1;
-            bottleneck_mem_ = dim;
             if (arrangement.size() == 1) {
                 term_linkage_ = as_link(std::make_shared<Vertex>("") * arrangement[0]);
             }
 
-
             return;
         }
+
+        /// add scaling from rhs
 
         // get the total linkage of the term with its flop and memory scalings
         auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(arrangement);
@@ -286,25 +310,6 @@ namespace pdaggerq {
             if (mem_scale > this_bottleneck_mem_)
                 this_bottleneck_mem_ = mem_scale;
         }
-
-        // add scaling from lhs
-        shape lhs_scale;
-        for (const Line &line : lhs_->lines())
-            lhs_scale += line; // get scaling of lhs from lines
-
-        flop_map_[lhs_scale]++;
-        mem_map_[lhs_scale]++;
-
-        // add scaling from permutation
-        if (perm_type_ == 1) {
-            size_t num_perms = (1 << term_perms_.size()) - 1; // number of permutations
-            flop_map_[lhs_scale] += static_cast<long long int>(num_perms);
-        }
-        else if (perm_type_ == 2) flop_map_[lhs_scale] += 1;
-        else if (perm_type_ == 3) flop_map_[lhs_scale] += 2;
-        else if (perm_type_ == 6) flop_map_[lhs_scale] += 5;
-        else if (perm_type_ != 0)
-            throw std::runtime_error("Invalid permutation type: " + std::to_string(perm_type_));
 
         // indicate that term no longer needs updating
         needs_update_ = false;
@@ -385,6 +390,11 @@ namespace pdaggerq {
         }
         rhs_ = reordered_vertices; // set reordered rhs
 
+        // remove any empty vertices
+        rhs_.erase(std::remove_if(rhs_.begin(), rhs_.end(), [](const VertexPtr &vertex) {
+            return vertex->base_name().empty(); }), rhs_.end()
+        );
+
         // re-populate flop and memory scaling maps/bottlenecks and linkages
 
         needs_update_ = true; // set needs update to true
@@ -407,7 +417,7 @@ namespace pdaggerq {
 
             // get sign of coefficient
             bool is_negative = coefficient_ < 0;
-            if (is_assignment_) output += " = ";
+            if (is_assignment_) output += "  = ";
             else if (is_negative) output += " -= ";
             else output += " += ";
 
@@ -487,8 +497,8 @@ namespace pdaggerq {
             // make intermediate vertex for the permutation
             VertexPtr perm_vertex;
 
-            bool has_one = rhs_.size() == 1;
-            if (has_one) perm_vertex = rhs_[0]; // no need to create intermediate vertex if there is only one
+            bool make_perm_tmp = rhs_.size() == 1;
+            if (make_perm_tmp) perm_vertex = rhs_[0]; // no need to create intermediate vertex if there is only one
             else { // else, create the intermediate vertex and its assignment term
                 perm_vertex = copy_vert(lhs_);
                 string perm_name = "perm_tmps";
@@ -518,7 +528,7 @@ namespace pdaggerq {
             perm_term.comments_.clear();
 
             // if more than one vertex, set coefficient to 1 or -1
-            if (!has_one)
+            if (!make_perm_tmp)
                 perm_term.coefficient_ = coefficient_ > 0 ? 1 : -1;
 
             // get permuted terms
@@ -873,6 +883,7 @@ namespace pdaggerq {
 
             // create a copy of the term with the new rhs
             new_term.rhs_ = new_rhs;
+            new_term.request_update();
             new_term.compute_scaling(true);
 
             // check if flop and memory scaling are better than the best scaling
@@ -882,11 +893,6 @@ namespace pdaggerq {
             // check if we allow for substitutions with equal scaling
             if (allow_equality && !set_best) {
                 set_best = scaling_comparison == scaling_map::is_same;
-                if (scaling_comparison == scaling_map::is_same) {
-                    // if flop scaling is equal, check memory scaling
-//                    scaling_comparison = new_term.mem_map_.compare(best_mem_map);
-//                    set_best = scaling_comparison == scaling_map::this_better;
-                }
             }
 
             if (set_best) { // flop scaling is better
@@ -895,10 +901,6 @@ namespace pdaggerq {
                 best_mem_map = new_term.mem_map_;
                 best_vertices = new_term.rhs_;
                 madeSub = true;
-
-                // set flags for optimization
-                is_optimal_ = false;
-                needs_update_ = true;
             }
         };
 
@@ -908,6 +910,7 @@ namespace pdaggerq {
         // set rhs to the best rhs if a substitution was made
         if (madeSub) {
             rhs_ = best_vertices;
+            request_update(); // set flags for optimization
             reorder(); // reorder rhs
         }
 
@@ -923,24 +926,32 @@ namespace pdaggerq {
         // initialize vector of linkages
         linkage_set linkages;
 
-        const auto valid_op = [&](const  vector<size_t> &subset) {
+        auto &max_link = Term::max_linkages;
+        const auto valid_op = [&max_link](const  vector<size_t> &subset) {
             return subset.size() < max_linkages && subset.size() > 1;
         };
 
         // iterate over all subsets
-        const auto op = [&](const vector<size_t> &subset) {
+        auto &bottleneck_flop = bottleneck_flop_;
+        auto &rhs = rhs_;
+        bool allow_nested = true;//false;
+        const auto op = [&allow_nested, &linkages, &bottleneck_flop, &rhs](const vector<size_t> &subset) {
 
             // extract subset vertices
             vector<VertexPtr> subset_vec;
             subset_vec.reserve(subset.size());
-            for (size_t j: subset)
-                subset_vec.push_back(rhs_[j]);
+            for (size_t j: subset) {
+                VertexPtr vertex = rhs[j];
+                if (vertex->is_linked() && !allow_nested)
+                    return; // do not consider nested linkages
+                else subset_vec.push_back(vertex);
+            }
 
             // make linkages from subset vertices
             LinkagePtr this_linkage = Linkage::link(subset_vec);
 
             // add linkage to set if it has a scaling less than or equal to the bottleneck
-            if (this_linkage->flop_scale() <= bottleneck_flop_)
+            if (this_linkage->flop_scale() <= bottleneck_flop)
                 linkages.insert(this_linkage);
 
         };
@@ -958,23 +969,17 @@ namespace pdaggerq {
         string comment;
         if (!only_flop) {
 
-            if (term_linkage_ != nullptr) {
-                const vector<VertexPtr> &term_operators = term_linkage_->to_vector();
-                for (const auto & vertex : term_operators) {
-                    comment += vertex->base_name_;
-                    if (vertex->has_blks()){
-                        comment += "_" + vertex->blk_string();
-                    }
-                    comment += vertex->line_str();
+            const vector<VertexPtr> &term_operators = term_linkage_->to_vector();
+            for (const auto & vertex : term_operators) {
+                if (vertex->base_name_.empty())
+                    continue;
+                comment += vertex->base_name_;
+                if (vertex->has_blks()){
+                    comment += "_" + vertex->blk_string();
+                }
+                comment += vertex->line_str();
+                if (vertex != term_operators.back())
                     comment += " ";
-                }
-            }
-            else if (!rhs_.empty()) {
-                comment += rhs_[0]->base_name_;
-                if (rhs_[0]->has_blks()){
-                    comment += "_" + rhs_[0]->blk_string();
-                }
-                comment += rhs_[0]->line_str();
             }
 
             // add permutations to comment if there are any
@@ -1193,10 +1198,6 @@ namespace pdaggerq {
                 best_mem_map  = new_term.mem_map_;
                 best_vertices = new_term.rhs_;
                 scalar = this_linkage; // set scalar
-
-                // set flags for optimization
-                is_optimal_ = false;
-                needs_update_ = true;
                 madeSub = true;
             }
 
@@ -1208,7 +1209,10 @@ namespace pdaggerq {
         rhs_ = best_vertices;
 
         // reorder rhs
-        reorder();
+        if (madeSub) {
+            request_update(); // set flags for optimization
+            reorder();
+        }
 
         return scalar; // return scalar
     }
@@ -1422,16 +1426,44 @@ namespace pdaggerq {
                                         "A", "B", "C", "D", "E", "F", "G", "H", "V"};
         static std::string occ_lines[] {"i", "j", "k", "l", "m", "n", "o",
                                         "I", "J", "K", "L", "M", "N", "O"};
-        size_t c_occ = 0;
-        size_t v_occ = 0;
+        static std::string sig_lines[] {"X", "Y", "Z"};
+        static std::string den_lines[] {"Q", "U"};
 
-        map<Line, Line> line_map;
+        size_t c_occ = 0;
+        size_t c_vir = 0;
+        size_t c_den = 0;
+        size_t c_sig = 0;
+
+        thread_local unordered_map<Line, Line, LineHash> line_map(256);
+        line_map.clear();
+
+        auto assign_generic_label = [ &c_occ, &c_vir, &c_den, &c_sig](const Line &line, const std::string &label) {
+            // line does not exist in map, add it
+            if (line.sig_) {
+                if (c_sig >= 3) throw std::runtime_error("Too many sigma lines in genericize");
+                line_map[line].label_ = sig_lines[c_sig++];
+            } else if (line.den_) {
+                if (c_den >= 2) throw std::runtime_error("Too many density lines in genericize");
+                line_map[line].label_ = den_lines[c_den++];
+            } else {
+                if (line.o_) {
+                    if (c_occ >= 14) throw std::runtime_error("Too many occupied lines in genericize");
+                    line_map[line].label_ = occ_lines[c_occ++];
+                } else {
+                    if (c_vir >= 18) throw std::runtime_error("Too many virtual lines in genericize");
+                    line_map[line].label_ = vir_lines[c_vir++];
+                }
+            }
+        };
+
+        /// map lines in term to generic lines
+
         for (const auto & line : lhs_->lines()) {
             size_t count = line_map.count(line);
             if (count == 0) {
                 // line does not exist in map, add it
                 line_map[line] = line;
-                line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
+                assign_generic_label(line, line.label_);
             }
         }
         if (eq_ != nullptr) {
@@ -1440,7 +1472,7 @@ namespace pdaggerq {
                 if (count == 0) {
                     // line does not exist in map, add it
                     line_map[line] = line;
-                    line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
+                    assign_generic_label(line, line.label_);
                 }
             }
         }
@@ -1450,13 +1482,14 @@ namespace pdaggerq {
                 if (count == 0) {
                     // line does not exist in map, add it
                     line_map[line] = line;
-                    line_map[line].label_ = (line.o_ ? occ_lines[c_occ++] : vir_lines[v_occ++]);
+                    assign_generic_label(line, line.label_);
                 }
             }
         }
 
 
-        // make a copy of the term but replace all lines with generic lines
+        /// make a copy of the term but replace all lines with generic lines from map
+
         std::vector<VertexPtr> new_rhs;
         new_rhs.reserve(rhs_.size());
         for (const auto & vertex : rhs_) {
@@ -1506,6 +1539,12 @@ namespace pdaggerq {
         new_term.term_perms_ = new_perms;
         new_term.compute_scaling(true);
         return new_term;
+    }
+
+    void Term::request_update() {
+        is_optimal_ = false; // set term to not optimal (for now)
+        needs_update_ = true; // set term to be updated
+        generated_linkages_ = false; // set term to not have generated linkages
     }
 
 } // pdaggerq

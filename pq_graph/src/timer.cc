@@ -51,7 +51,7 @@ namespace pdaggerq {
         running_ = false;
     }
 
-    std::string Timer::format_time(long double time) {
+    std::string Timer::format_time(long double time, int precision) {
         time = std::fabs(time); // ignore negative times
         std::string unit = "s"; // default unit is seconds
         if (time < 1) {
@@ -106,22 +106,22 @@ namespace pdaggerq {
         // return the formatted time
         string time_str;
         stringstream ss;
-        ss << std::right << std::setfill(' ') << std::setw(8) << std::fixed << std::setprecision(3) << time;
+        ss << std::right << std::setfill(' ') << std::setw(8) << std::fixed << std::setprecision(precision) << time;
         ss >> time_str;
 
         return time_str + " " + unit;
     }
 
     string Timer::elapsed() const {
-        return format_time(runtime_);
+        return format_time(runtime_, precision_);
     }
 
     string Timer::average_time() const{
-        return format_time(runtime_ / (double) count_);
+        return format_time(runtime_ / (double) count_, precision_);
     }
 
     string Timer::get_time() const {
-        return format_time(end_time_ - start_time_);
+        return format_time(end_time_ - start_time_, precision_);
     }
 
 

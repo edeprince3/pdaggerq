@@ -52,21 +52,30 @@ void PQGraph::generate_linkages(bool recompute) {
     if (recompute)
         tmp_candidates_.clear(); // clear all prior candidates
 
-    // iterate over equations
-    for (auto & eq_pair : equations_) {
-        Equation &equation = eq_pair.second;
+    vector<string> eq_keys = get_equation_keys();
+    size_t num_subs = 0; // number of substitutions made
+
+    omp_set_num_threads(num_threads_);
+
+    #pragma omp parallel for schedule(guided) default(none) shared(equations_, tmp_candidates_, eq_keys) \
+    firstprivate(recompute)
+    for (auto & eq_name : eq_keys) { // iterate over equations in parallel
+        Equation &equation = equations_[eq_name]; // get equation
 
         // get all linkages of equation
         linkage_set linkages = equation.generate_linkages(recompute);
 
         // iterate over linkages and test if they are a valid candidate
         for (const auto& contr : linkages) {
-
-            // add linkage to all linkages
-            tmp_candidates_.insert(contr);
+            #pragma omp critical
+            {
+                // add linkage to all linkages
+                tmp_candidates_.insert(contr);
+            }
         }
 
     }
+    omp_set_num_threads(1);
 
     collect_scaling(); // collect scaling of all linkages
 
@@ -77,7 +86,9 @@ void PQGraph::substitute() {
     // reorder if not already reordered
     if (!is_reordered_) reorder();
 
-    substitute_timer.start();
+    static Timer total_timer;
+
+    update_timer.start();
 
     // save original scaling
     static bool prior_saved = false;
@@ -100,7 +111,7 @@ void PQGraph::substitute() {
     // add missing equations
     for (const auto& missing : missing_eqs) {
         equations_[missing] = Equation(missing);
-        equations_[missing].allow_substitution_ = false; // do not allow substitution of tmp declarations
+        equations_[missing].is_temp_equation_ = false; // do not allow substitution of tmp declarations
     }
 
 
@@ -136,7 +147,12 @@ void PQGraph::substitute() {
     cout << "    Possible Intermediates: " << tmp_candidates_.size() << endl;
     cout << "       Use batch algorithm: " << (batched_ ? "Yes" : "No") << endl;
     cout << " ===================================================="  << endl << endl;
-    size_t total_num_merged = 0;
+
+    static size_t total_num_merged = 0;
+//    if (allow_merge_) {
+        size_t num_fuse = merge_terms();
+        total_num_merged += num_fuse;
+//    }
 
     // initialize best flop map for all equations
     scaling_map best_flop_map = flop_map_;
@@ -149,19 +165,23 @@ void PQGraph::substitute() {
     linkage_set test_linkages = tmp_candidates_;
     bool first_pass = true;
 
-    substitute_timer.stop();
+    update_timer.stop();
 
     bool makeSub = true; // flag to make a substitution
-    size_t totalSubs = 0;
+    static size_t totalSubs = 0;
     string temp_type = "tmps"; // type of temporary to substitute
-    temp_counts_[temp_type] = 0; // number of temporary rhs
+//    temp_counts_[temp_type] = 0; // number of temporary rhs
     while (!tmp_candidates_.empty() && temp_counts_[temp_type] < max_temps_) {
         substitute_timer.start();
-        if (verbose) cout << "  Remaining Test combinations: " << test_linkages.size() << endl;
-        if (verbose) cout << " Total Remaining combinations: " << tmp_candidates_.size() << endl << endl << endl;
+        if (verbose) {
+            cout << "  Remaining Test combinations: " << test_linkages.size() << endl;
+//            cout << " Total Remaining combinations: " << tmp_candidates_.size() << endl;
+            cout << endl << endl;
+        }
+        if (verbose)
 
         makeSub = false; // reset flag
-        bool allow_equality = false; // flag to allow equality in flop map
+        bool allow_equality = true; // flag to allow equality in flop map
         size_t n_linkages = test_linkages.size(); // get number of linkages
         LinkagePtr bestPreCon; // best linkage to substitute
 
@@ -194,7 +214,6 @@ void PQGraph::substitute() {
 
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
                 const string& eq_name = eq_pair.first;
-                if (!eq_pair.second.allow_substitution_) continue; // skip tmps equation
 
                 Equation equation = eq_pair.second; // create copy to prevent thread conflicts (expensive)
                 numSubs += equation.test_substitute(linkage, test_flop_map, allow_equality || is_scalar);
@@ -207,7 +226,7 @@ void PQGraph::substitute() {
             bool include_declaration = !is_scalar;
 
             // test if we made a valid substitution
-            bool testSub = include_declaration ? numSubs > 1 : numSubs > 0;
+            bool testSub = numSubs > 0;
             if (testSub) {
                 // make term of tmp declaration
                 if (include_declaration) {
@@ -221,7 +240,7 @@ void PQGraph::substitute() {
                 // save this test flop map and linkage for serial testing
                 test_data[i] = make_pair(test_flop_map, linkage);
 
-            } else if (numSubs == 0) { // if we didn't make a substitution, add linkage to ignore linkages
+            } else { // if we didn't make a substitution, add linkage to ignore linkages
 # pragma omp critical
                 {
                     ignore_linkages.insert(linkage);
@@ -284,15 +303,6 @@ void PQGraph::substitute() {
             size_t temp_id = ++temp_counts_[eq_type];
             bestPreCon->id_ = (long) temp_id;
 
-            // print linkage
-            if (verbose){
-                cout << " ====> Substitution " << to_string(temp_id) << " <==== " << endl;
-
-                // format as a term
-                Term precon_term = Term(bestPreCon);
-                precon_term.comments() = {}; // clear comments
-                cout << " ====> " << precon_term << endl << endl;
-            }
             update_timer.start();
 
             scaling_map old_flop_map = flop_map_;
@@ -302,8 +312,11 @@ void PQGraph::substitute() {
             omp_set_num_threads(num_threads_);
             vector<string> eq_keys = get_equation_keys();
             size_t num_subs = 0; // number of substitutions made
-#pragma omp parallel for schedule(guided) default(none) firstprivate(allow_equality, bestPreCon) \
-                shared(equations_, eq_keys) reduction(+:num_subs)
+
+            vector<Term*> tmp_terms;
+
+            #pragma omp parallel for schedule(guided) default(none) firstprivate(allow_equality, bestPreCon) \
+            shared(equations_, eq_keys, tmp_terms) reduction(+:num_subs)
             for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
                 // get equation name
                 Equation &equation = equations_[eq_name]; // get equation
@@ -312,14 +325,110 @@ void PQGraph::substitute() {
                 if (madeSub) {
                     // sort tmps in equation
                     sort_tmps(equation);
+
+                    // get terms with this tmp and add to tmp_terms
+                    vector<Term*> eq_tmp_terms = equation.get_temp_terms(bestPreCon);
+                    #pragma omp critical
+                    {
+                        tmp_terms.insert(tmp_terms.end(), eq_tmp_terms.begin(), eq_tmp_terms.end());
+                    }
                     num_subs += this_subs;
                 }
             }
             omp_set_num_threads(1); // reset number of threads (for improved performance of non-parallel code)
             totalSubs += num_subs; // add number of substitutions to total
 
-            // add linkage to equations
-            add_tmp(bestPreCon, equations_[eq_type]); // add tmp to equations
+            // find common coefficients and permutations
+            double common_coeff = common_coefficient(tmp_terms);
+
+            // find common permutations
+            perm_list common_perms = common_permutations(tmp_terms);
+            bool has_common_perms = false; //!common_perms.empty();
+            if (has_common_perms) {
+                // if external lines of tmp are not in common perms, remove common perms
+                for (size_t i = 0; i < common_perms.size(); i++) {
+                    pair<string, string> perm = common_perms[i];
+                    bool found_first = false;
+                    bool found_second = false;
+                    for (const auto &ext : bestPreCon->lines_) {
+                        if (perm.first == ext.label_) {
+                            found_first = true;
+                            continue;
+                        }
+                        if (perm.second == ext.label_) {
+                            found_second = true;
+                            continue;
+                        }
+                    }
+
+                    if (!found_first || !found_second) {
+                        common_perms.erase(common_perms.begin() + i);
+                        i--;
+                        if (common_perms.empty()) break;
+                    }
+                }
+
+                if (common_perms.empty())
+                    has_common_perms = false;
+            }
+
+            // modify coefficients of terms
+            size_t common_perm_type = 0;
+            for (Term* term_ptr : tmp_terms) {
+                term_ptr->coefficient_ /= common_coeff;
+
+                if (has_common_perms) {
+                    perm_list termPerms = term_ptr->term_perms();
+                    common_perm_type = term_ptr->perm_type();
+
+                    for (size_t i = 0; i < termPerms.size(); i++) {
+                        pair<string, string> perm = termPerms[i];
+                        bool found = false;
+                        for (const auto &common_perm : common_perms) {
+                            if (perm == common_perm) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) {
+                            termPerms.erase(termPerms.begin() + i);
+                            i--;
+                        }
+                    }
+
+                    size_t perm_type = common_perm_type;
+                    if (termPerms.empty()) {
+                        perm_type = 0;
+                    }
+                    term_ptr->set_perm(termPerms, perm_type);
+
+                }
+            }
+
+
+            // add linkage to equations TODO: integrate with `add_tmp`
+            Term precon_term = Term(bestPreCon);
+            precon_term.coefficient_ = common_coeff; // set common coefficient
+            if (has_common_perms) // set common permutations if any
+                precon_term.set_perm(common_perms, common_perm_type);
+
+            // rebuild comments if coefficient is not 1
+            if (fabs(precon_term.coefficient_ - 1.0) > 1e-12) {
+                // TODO: coefficient from link of linkage should remain in comments somewhere
+                precon_term.comments().clear();
+                precon_term.comments().push_back(to_string(precon_term.coefficient_));
+                for (const auto &op : precon_term.rhs())
+                    precon_term.comments().push_back(op->str());
+            }
+
+            precon_term.reorder(true); // reorder term
+            equations_[eq_type].terms().insert(equations_[eq_type].end(), precon_term); // add term to tmp equation
+
+            // print linkage
+            if (verbose){
+                cout << " ====> Substitution " << to_string(temp_id) << " <==== " << endl;
+                cout << " ====> " << precon_term << endl << endl;
+            }
 
             // add linkage to this set
             all_linkages_[eq_type].insert(bestPreCon); // add tmp to tmps
@@ -333,19 +442,31 @@ void PQGraph::substitute() {
                 const Equation &equation = eq_pair.second;
                 num_terms += equation.size();
             }
+
+            generate_linkages(false); // add new possible linkages to test set
+            tmp_candidates_ -= ignore_linkages; // remove ignored linkages
+            test_linkages.clear(); // clear test set
+            test_linkages = make_test_set(); // make new test set
+
+            // remove all saved linkages
+            for (const auto & link_pair : all_linkages_) {
+                const linkage_set & linkages = link_pair.second;
+                test_linkages -= linkages;
+            }
+
             update_timer.stop();
 
             // print flop map
             if (verbose) {
 
                 // print total time elapsed
-                long double total_time = build_timer.get_runtime() + reorder_timer.get_runtime()
-                                         + substitute_timer.get_runtime() + update_timer.get_runtime();
-                cout << "                      Time: "  << substitute_timer.get_time() << endl;
-                cout << "                  Net time: "  << Timer::format_time(total_time) << endl;
-                cout << "              Average Time: "  << Timer::format_time(
-                        total_time / (double) substitute_timer.count()
-                ) << endl;
+                total_timer = substitute_timer + update_timer + build_timer + reorder_timer;
+
+                cout << "                  Net time: "  << total_timer.elapsed() << endl;
+                cout << "               Update Time: "  << update_timer.get_time() << endl;
+                cout << "              Reorder Time: "  << reorder_timer.get_time() << endl;
+                cout << "                 Sub. Time: "  << substitute_timer.get_time() << endl;
+                cout << "         Average Sub. Time: "  << substitute_timer.average_time() << endl;
                 cout << "           Number of terms: "  << num_terms << endl;
                 cout << "    Number of Contractions: "  << flop_map_.total() << endl;
                 cout << "        Substitution count: " << num_subs << endl;
@@ -368,23 +489,26 @@ void PQGraph::substitute() {
 
         update_timer.start();
         // add all test linkages to ignore linkages if no substitution made
-        if (!makeSub) ignore_linkages += test_linkages;
-
-        // remove ignored linkages from test set
-        test_linkages -= ignore_linkages;
+        if (!makeSub)
+            ignore_linkages += test_linkages;
 
         // remove all saved linkages
         for (const auto & link_pair : all_linkages_) {
             const linkage_set & linkages = link_pair.second;
-            test_linkages -= linkages;
+            ignore_linkages += linkages;
         }
 
         // regenerate all valid linkages
         bool remake_test_set = test_linkages.empty() || first_pass;
         if(remake_test_set){
 
+            // merge terms
+//            if (allow_merge_) {
+                size_t num_fuse = merge_terms();
+                total_num_merged += num_fuse;
+//            }
+
             // reapply substitutions to equations
-            substitute_timer.start();
             for (const auto & precon : all_linkages_[temp_type]) {
                 for (auto &eq_pair : equations_) {
                     Equation &equation = eq_pair.second;
@@ -399,8 +523,9 @@ void PQGraph::substitute() {
                 }
             }
 
+
             if (verbose) cout << endl << "Regenerating test set..." << flush;
-            generate_linkages(false); // generate all possible linkages
+            generate_linkages(true); // generate all possible linkages
             if (verbose) cout << " Done ( " << flush;
 
             tmp_candidates_ -= ignore_linkages; // remove ignored linkages
@@ -413,35 +538,47 @@ void PQGraph::substitute() {
 
 
         } else update_timer.stop();
+
+        // remove ignored linkages
+        test_linkages   -= ignore_linkages;
+        tmp_candidates_ -= ignore_linkages;
+
     } // end while linkage
     tmp_candidates_.clear();
     substitute_timer.stop(); // stop timer for substitution
 
     // print total time elapsed
-    long double total_time = build_timer.get_runtime() + reorder_timer.get_runtime()
-                             + substitute_timer.get_runtime() + update_timer.get_runtime();
+    total_timer = substitute_timer + update_timer + build_timer + reorder_timer;
 
     if (temp_counts_[temp_type] >= max_temps_)
         cout << "WARNING: Maximum number of substitutions reached. " << endl << endl;
 
-    for (const auto & [type, count] : temp_counts_) {
-        if (count == 0)
-            continue;
-        cout << "     Found " << count << " " << type << endl;
-    }
+    cout << "===> Substitution Summary <===" << endl;
+
+
 
     num_terms = 0;
     for (const auto& eq_pair : equations_) {
         const Equation &equation = eq_pair.second;
         num_terms += equation.size();
     }
-    cout << "     Total number of terms: " << num_terms << endl;
+    for (const auto & [type, count] : temp_counts_) {
+        if (count == 0)
+            continue;
+        cout << "    Found " << count << " " << type << endl;
+    }
+    cout << "    Total Time: " << total_timer.elapsed() << endl;
+    cout << "    Total number of terms: " << num_terms << endl;
+    cout << "    Total terms merged: " << total_num_merged << endl;
+    cout << "    Total contractions: " << flop_map_.total() << endl;
     cout << endl;
+
 
     cout << " ===================================================="  << endl << endl;
 }
 
 void PQGraph::expand_permutations(){
+    //TODO: make each permutation into a separate equation
     for (auto & [name, eq] : equations_) {
         eq.expand_permutations();
     }
@@ -450,73 +587,107 @@ void PQGraph::expand_permutations(){
 
 
 
-//
-//
-//    size_t PQGraph::merge_terms() {
-//
-//        if (verbose) cout << "Merging similar terms:" << endl;
-//
-//        // iterate over equations and merge terms
-//        size_t num_fuse = 0;
-//        omp_set_num_threads(num_threads_);
-//        vector<string> eq_keys = get_equation_keys();
-//        #pragma omp parallel for reduction(+:num_fuse) default(none) shared(equations_, eq_keys)
-//        for (const auto &key: eq_keys) {
-//            Equation &eq = equations_[key];
-//            if (eq.name() == "tmps") continue; // skip tmps equation
-//            if (eq.assignment_vertex()->rank() == 0) continue; // skip if lhs vertex is scalar
-//            num_fuse += eq.merge_terms(); // merge terms with same rhs up to a permutation
-//        }
-//        omp_set_num_threads(1);
-//        collect_scaling(); // collect new scalings
-//
-//        if (verbose) cout << "Done (" << num_fuse << " terms merged)" << endl << endl;
-//
-//        return num_fuse;
-//    }
-//
-//    void PQGraph::merge_permutations() {
-//
-//        /*
-//         * This function merges the permutation containers of the equations in the tabuilder.
-//         * This way, we can just add terms to the same type of permutation and permute at the very end.
-//         */
-//        if (is_reused_) throw logic_error("Cannot merge permutation containers of reused equations.");
-//
-//        // merge permutation containers for each equation
-//        omp_set_num_threads(num_threads_);
-//        vector<string> eq_keys = get_equation_keys();
-//        #pragma omp parallel for default(none) shared(equations_, eq_keys)
-//        for (const auto &key: eq_keys) {
-//            Equation &eq = equations_[key];
-//            eq.merge_permutations();
-//        }
-//        omp_set_num_threads(1);
-//
-//        has_perms_merged_ = true;
-//
-//    }
-//
-//    double PQGraph::common_coefficient(vector<Term> &terms) {
-//
-//        // make a count_ of the reciprocal of the coefficients of the terms
-//        map<size_t, size_t> reciprocal_counts;
-//        for (const Term &term: terms) {
-//            auto reciprocal = static_cast<size_t>(round(1.0 / fabs(term.coefficient_)));
-//            reciprocal_counts[reciprocal]++;
-//        }
-//
-//        // find the most common reciprocal
-//        size_t most_common_reciprocal = 1; // default to 1
-//        size_t most_common_reciprocal_count = 1;
-//        for (const auto &reciprocal_count: reciprocal_counts) {
-//            if (reciprocal_count.first <= 0) continue; // skip 0 values (generally doesn't happen)
-//            if (reciprocal_count.second > most_common_reciprocal_count) {
-//                most_common_reciprocal = reciprocal_count.first;
-//                most_common_reciprocal_count = reciprocal_count.second;
-//            }
-//        }
-//        double common_coefficient = 1.0 / static_cast<double>(most_common_reciprocal);
-//        return common_coefficient;
-//    }
+
+
+size_t PQGraph::merge_terms() {
+
+    if (verbose) cout << "Merging similar terms:" << endl;
+
+    // iterate over equations and merge terms
+    size_t num_fuse = 0;
+    omp_set_num_threads(num_threads_);
+    vector<string> eq_keys = get_equation_keys();
+    #pragma omp parallel for reduction(+:num_fuse) default(none) shared(equations_, eq_keys)
+    for (const auto &key: eq_keys) {
+        Equation &eq = equations_[key];
+        if (eq.name() == "tmps") continue; // skip tmps equation
+        if (eq.assignment_vertex()->rank() == 0) continue; // skip if lhs vertex is scalar
+        num_fuse += eq.merge_terms(); // merge terms with same rhs up to a permutation
+    }
+    omp_set_num_threads(1);
+    collect_scaling(); // collect new scalings
+
+    if (verbose) cout << "Done (" << num_fuse << " terms merged)" << endl << endl;
+
+    return num_fuse;
+}
+
+
+double PQGraph::common_coefficient(vector<Term*> &terms) {
+
+    // make a count_ of the reciprocal of the coefficients of the terms
+    map<size_t, size_t> reciprocal_counts;
+    for (Term* term_ptr: terms) {
+        Term& term = *term_ptr;
+        auto reciprocal = static_cast<size_t>(round(1.0 / fabs(term.coefficient_)));
+        reciprocal_counts[reciprocal]++;
+    }
+
+    // find the most common reciprocal
+    size_t most_common_reciprocal = 1; // default to 1
+    size_t most_common_reciprocal_count = 1;
+    for (const auto &reciprocal_count: reciprocal_counts) {
+        if (reciprocal_count.first <= 0) continue; // skip 0 values (generally doesn't happen)
+        if (reciprocal_count.second > most_common_reciprocal_count) {
+            most_common_reciprocal = reciprocal_count.first;
+            most_common_reciprocal_count = reciprocal_count.second;
+        }
+    }
+    double common_coefficient = 1.0 / static_cast<double>(most_common_reciprocal);
+    return common_coefficient;
+}
+
+perm_list PQGraph::common_permutations(const vector<Term *>& terms) {
+    vector<pair<string, string>> common_perms;
+    size_t perm_type = 0;
+
+    for (Term* term_ptr: terms) {
+        Term& term = *term_ptr;
+        perm_list term_perms = term.term_perms();
+
+        if (term_perms.empty()) // no common permutations possible
+            return {};
+
+        if (common_perms.empty()) {
+            // we haven't found any permutations yet
+            // so initialize the common permutations with this one
+            common_perms = term_perms;
+            perm_type = term.perm_type();
+            continue;
+        }
+
+        if (perm_type != term.perm_type()) {
+            // the permutation type has changed
+            // so we can't have any common permutations
+            return {};
+        }
+
+        // find common permutations
+        for (size_t i = 0; i < common_perms.size(); i++) {
+            pair<string, string> perm = common_perms[i];
+
+            // check if this permutation is in the common permutations
+            bool found = false;
+            for (const auto &term_perm : term_perms) {
+                if (perm == term_perm) {
+                    found = true;
+                    break;
+                }
+            }
+
+            // if not found, remove from common permutations
+            if (!found) {
+                common_perms.erase(common_perms.begin() + i);
+                i--;
+            }
+
+            // no common permutations found
+            if (common_perms.empty())
+                return {};
+        }
+    }
+
+    return common_perms;
+}
+
 //}

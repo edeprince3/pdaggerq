@@ -105,6 +105,11 @@ namespace pdaggerq {
         PQGraph() = default;
 
         explicit PQGraph(const pybind11::dict& options){
+            substitute_timer.precision_ = 2;
+            reorder_timer.precision_    = 2;
+            build_timer.precision_      = 2;
+            update_timer.precision_     = 2;
+
             set_options(options);
         }
 
@@ -159,6 +164,12 @@ namespace pdaggerq {
          * Reorder terms in each equation
          */
         void reorder();
+
+        /**
+         * merge terms in each equation
+         * @return number of terms merged
+         */
+        size_t merge_terms();
 
         /**
          * Fully optimize equations by reordering, substituting, merging, and reusing intermediates.
@@ -237,7 +248,7 @@ namespace pdaggerq {
          * @param terms terms to find common coefficient of
          * @return common coefficient
          */
-        static double common_coefficient(vector<Term> &terms);
+        static double common_coefficient(vector<Term*> &terms);
 
         /**
          * print the scaling of the current equations and difference from previous scalings
@@ -247,6 +258,7 @@ namespace pdaggerq {
          */
         static void print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) ;
 
+        perm_list common_permutations(const vector<Term *>& terms);
     }; // PQGraph
 
 } // pdaggerq

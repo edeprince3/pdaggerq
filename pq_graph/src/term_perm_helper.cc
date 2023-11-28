@@ -113,6 +113,7 @@ namespace pdaggerq {
             // create copy of the term
             Term perm_term = *this; // copy term
             perm_term.reset_perm(); // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
 
             for (const auto &perm_combo: perm_combos) {
 
@@ -137,7 +138,16 @@ namespace pdaggerq {
                     }
                 }
 
+                // recomputes scaling
                 perm_term.compute_scaling(true);
+
+                // rebuild comments
+                perm_term.comments_.clear();
+                perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+                for (const auto &op : perm_term.rhs_)
+                    perm_term.comments_.push_back(op->str());
+
+                // add permuted term to vector
                 perm_terms.push_back(perm_term);
             }
 
@@ -154,6 +164,7 @@ namespace pdaggerq {
             perm_vertices.push_back(copy_vert(vertex));
         perm_term.rhs_ = perm_vertices; // set vertices in term
         perm_term.reset_perm(); // reset permutation indices
+        perm_term.is_assignment_ = false; // set to false since we are permuting the term
 
         // paired permutations
         if (perm_type == 2) {
@@ -179,8 +190,18 @@ namespace pdaggerq {
                 }
             }
 
+            // recomputes scaling
             perm_term.compute_scaling(true);
+
+            // rebuild comments
+            perm_term.comments_.clear();
+            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+            for (const auto &op : perm_term.rhs_)
+                perm_term.comments_.push_back(op->str());
+
+            // add permuted term to vector
             perm_terms.push_back(perm_term);
+
             return perm_terms;
         }
 
@@ -210,7 +231,16 @@ namespace pdaggerq {
             }
 
             // add first permutation to vector
+            // recomputes scaling
             perm_term.compute_scaling(true);
+
+            // rebuild comments
+            perm_term.comments_.clear();
+            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+            for (const auto &op : perm_term.rhs_)
+                perm_term.comments_.push_back(op->str());
+
+            // add permuted term to vector
             perm_terms.push_back(perm_term);
 
             // make another deep copy of the term
@@ -230,7 +260,16 @@ namespace pdaggerq {
             }
 
             // add second permutation to vector
+            // recomputes scaling
             perm_term.compute_scaling(true);
+
+            // rebuild comments
+            perm_term.comments_.clear();
+            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+            for (const auto &op : perm_term.rhs_)
+                perm_term.comments_.push_back(op->str());
+
+            // add permuted term to vector
             perm_terms.push_back(perm_term);
             return perm_terms;
 
@@ -262,7 +301,16 @@ namespace pdaggerq {
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
             }
+            // recomputes scaling
             perm_term.compute_scaling(true);
+
+            // rebuild comments
+            perm_term.comments_.clear();
+            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+            for (const auto &op : perm_term.rhs_)
+                perm_term.comments_.push_back(op->str());
+
+            // add permuted term to vector
             perm_terms.push_back(perm_term);
 
             // make another deep copy of the term
@@ -280,7 +328,17 @@ namespace pdaggerq {
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
             }
+
+            // recomputes scaling
             perm_term.compute_scaling(true);
+
+            // rebuild comments
+            perm_term.comments_.clear();
+            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+            for (const auto &op : perm_term.rhs_)
+                perm_term.comments_.push_back(op->str());
+
+            // add permuted term to vector
             perm_terms.push_back(perm_term);
 
             // pair permutation (cab;kij)
@@ -292,7 +350,16 @@ namespace pdaggerq {
                     else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
                 }
             }
+            // recomputes scaling
             perm_term.compute_scaling(true);
+
+            // rebuild comments
+            perm_term.comments_.clear();
+            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+            for (const auto &op : perm_term.rhs_)
+                perm_term.comments_.push_back(op->str());
+
+            // add permuted term to vector
             perm_terms.push_back(perm_term);
 
             // pair permutation (cba;kji)
@@ -304,7 +371,16 @@ namespace pdaggerq {
                     else if (line.label_ == perm_line3_2) line.label_ = perm_line2_2;
                 }
             }
+            // recomputes scaling
             perm_term.compute_scaling(true);
+
+            // rebuild comments
+            perm_term.comments_.clear();
+            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+            for (const auto &op : perm_term.rhs_)
+                perm_term.comments_.push_back(op->str());
+
+            // add permuted term to vector
             perm_terms.push_back(perm_term);
 
             // pair permutation (bca;jki)
@@ -316,7 +392,16 @@ namespace pdaggerq {
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
             }
+            // recomputes scaling
             perm_term.compute_scaling(true);
+
+            // rebuild comments
+            perm_term.comments_.clear();
+            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
+            for (const auto &op : perm_term.rhs_)
+                perm_term.comments_.push_back(op->str());
+
+            // add permuted term to vector
             perm_terms.push_back(perm_term);
             return perm_terms;
         } else throw logic_error("Invalid permutation type: " + std::to_string(perm_type));

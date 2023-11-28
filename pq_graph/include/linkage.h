@@ -90,6 +90,16 @@ namespace pdaggerq {
      */
     extern VertexPtr copy_vert(const VertexPtr &vertex);
 
+    // struct for comparing lines while ignoring the label
+    struct line_compare {
+        bool operator()(const Line &left, const Line &right) const {
+            Line left_copy = left, right_copy = right;
+            left_copy.label_ = "";
+            right_copy.label_ = "";
+            return left_copy < right_copy;
+        }
+    };
+
     class Linkage : public Vertex {
 
         // define pointer type
@@ -123,7 +133,7 @@ namespace pdaggerq {
 //            LinkagePtr right_parent_ = nullptr;
 
             /// internal and external lines
-            std::multiset<Line> int_lines_; // internal lines
+            std::multiset<Line, line_compare> int_lines_; // internal lines
 
             /// map of connections between lines
             set<pair<uint_fast8_t, uint_fast8_t>> int_connec_; // connections between lines
@@ -198,6 +208,21 @@ namespace pdaggerq {
              * @return true if equal, false otherwise
              */
             bool operator==(const Linkage &other) const;
+
+            /**
+             * Overload of Vertex::equivalent operator to compare two linkages (same as ==)
+             * @param other linkage to compare
+             * @return true if equivalent, false otherwise
+             */
+            bool equivalent(const Vertex &other) const override {
+                if (!other.is_linked())
+                    return false;
+
+                auto otherLinkage = dynamic_cast<const Linkage*>(&other);
+                return *this == *otherLinkage;
+            }
+
+
 
             // TODO: we need an equality operator to test if two linkages are the same up to a permutation of the
             //  lines in the vertices and return the number of permutations made.

@@ -57,10 +57,10 @@ namespace pdaggerq {
             'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'V'
         };
         static inline unordered_set<char> sig_labels_ = { // names of excited state lines
-            'X',
+            'X', 'Y', 'Z'
         };
         static inline unordered_set<char> den_labels_ = { // names of density fitting lines
-            'Q'
+            'Q', 'U'
         };
 
         Line() = default;
@@ -179,31 +179,6 @@ namespace pdaggerq {
             return hash<string>()(line.label_ + blk);
         }
     }; // struct LineHash
-
-    struct LineEqual {
-        bool operator()(const Line &lhs, const Line &rhs) const {
-            return lhs == rhs;
-        }
-    }; // struct LineEqual
-
-    struct LinePtrHash {
-        size_t operator()(const Line *line) const {
-            string blk{
-                    line->o_ ? 'o' : 'v',
-                    line->a_ ? 'a' : 'b',
-                    line->sig_ ? 'L' : 'N',
-                    line->den_ ? 'Q' : 'N'
-            };
-
-            return hash<string>()(line->label_ + blk);
-        }
-    }; // struct LineHash
-
-    struct LinePtrEqual {
-        bool operator()(const Line *lhs, const Line *rhs) const {
-            return *lhs == *rhs;
-        }
-    }; // struct LinePtrEqual
 
 } // pdaggerq
 

@@ -75,6 +75,7 @@ namespace pdaggerq {
 
             bool is_optimal_ = false; // flag for if term has optimal linkages (default is false)
             bool needs_update_ = true; // flag for if term needs to be updated (default is true)
+            bool generated_linkages_ = false; // flag for if term has generated linkages (default is false)
             bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
 
             static set<string> conditions_; // conditions to apply to terms, given by a vector of names for rhs
@@ -364,7 +365,19 @@ namespace pdaggerq {
              * @note only compares flop scaling.
              *       DOES NOT compare coefficient
              */
-            bool operator==(const Term &other) const{
+            bool operator==(const Term &other) const {
+                if (rhs_.size() != other.rhs_.size())
+                    return false;
+
+                for (size_t i = 0; i < rhs_.size(); i++) {
+                    if (*rhs_[i] != *other.rhs_[i])
+                        return false;
+
+                    if (rhs_[i]->is_linked()){
+                        if (rhs_[i]->lines_ != other.rhs_[i]->lines_)
+                            return false;
+                    }
+                }
                 return rhs_ == other.rhs_;
             }
 
@@ -375,7 +388,7 @@ namespace pdaggerq {
              *       DOES NOT compare coefficient
              */
             bool operator!=(const Term &other) const{
-                return rhs_ != other.rhs_;
+                return !(*this == other);
             }
 
             /**
@@ -491,56 +504,57 @@ namespace pdaggerq {
             //TODO: implement generic term.
             Term genericize() const;
 
+        void request_update();
     }; // end Term class
 
     struct TermHash { // hash functor for finding similar terms
         size_t operator()(const Term& term) const {
 
-            if (term.term_linkage_ == nullptr){
-                // get the total linkage of the term with its flop and memory scalings
-                auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(term.rhs());
-                term.term_linkage_ = term_linkage;
-            }
-
-            // add string representation of term.
-            // TODO: find all instances where term_linkage_ is used and replace with term.rhs()
-            std::string term_str;
-            if (term.rhs().size() <= 1)
-                term_str = term.rhs()[0]->str();
-            else
-                term_str = term.term_linkage_->tot_str(true, false);
-
-
-            // add permutation type and permutation pairs
-            term_str += to_string(term.perm_type());
-            for (const auto& pair : term.term_perms()) {
-                term_str += pair.first;
-                term_str += pair.second;
-            }
-
-            return hash<string>()(term_str);
-
-//            string term_str;
-//            // add vertex names to string and sorted line names to string
-//            for (const auto& op : term) {
-//                term_str += op->name();
-//
-//                vector<string> labels;
-//                for (const auto& line : op->lines()) labels.push_back(line.label_);
-//                sort(labels.begin(), labels.end());
-//
-//                for (const auto& label : labels) term_str += label;
+//            if (term.term_linkage_ == nullptr){
+//                // get the total linkage of the term with its flop and memory scalings
+//                auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(term.rhs());
+//                term.term_linkage_ = term_linkage;
 //            }
 //
-//            // finally, add permutation type and permutation pairs
+//            // add string representation of term.
+//            // TODO: find all instances where term_linkage_ is used and replace with term.rhs()
+//            std::string term_str;
+//            if (term.rhs().size() <= 1)
+//                term_str = term.rhs()[0]->str();
+//            else
+//                term_str = term.term_linkage_->tot_str(true, false);
+//
+//
+//            // add permutation type and permutation pairs
 //            term_str += to_string(term.perm_type());
 //            for (const auto& pair : term.term_perms()) {
 //                term_str += pair.first;
 //                term_str += pair.second;
 //            }
 //
-//            // return hash of string
 //            return hash<string>()(term_str);
+
+            string term_str;
+            // add vertex names to string and sorted line names to string
+            for (const auto& op : term) {
+                term_str += op->name();
+
+                vector<string> labels;
+                for (const auto& line : op->lines()) labels.push_back(line.label_);
+                sort(labels.begin(), labels.end());
+
+                for (const auto& label : labels) term_str += label;
+            }
+
+            // finally, add permutation type and permutation pairs
+            term_str += to_string(term.perm_type());
+            for (const auto& pair : term.term_perms()) {
+                term_str += pair.first;
+                term_str += pair.second;
+            }
+
+            // return hash of string
+            return hash<string>()(term_str);
         }
     };
 

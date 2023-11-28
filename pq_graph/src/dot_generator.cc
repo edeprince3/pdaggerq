@@ -31,17 +31,17 @@ void PQGraph::write_dot(string &filepath) {
 
 //    os << padding << "newrank=true;\n";
     os << padding << "rankdir=LR;\n";
-    os << padding << "mode=hier;";
-    os << padding << "overlap=\"20:prism\";\n";
-    os << padding << "ordering=out;\n";
-    os << padding << "compound=true;\n";
-    os << padding << "sep=1.25;\n";
-    os << padding << "K=1.0;\n";
-    os << padding << "splines=spline;\n";
+//    os << padding << "mode=hier;";
+//    os << padding << "overlap=\"20:prism\";\n";
+//    os << padding << "ordering=out;\n";
+//    os << padding << "compound=false;\n";
+//    os << padding << "sep=1.25;\n";
+//    os << padding << "K=1.0;\n";
+//    os << padding << "splines=spline;\n";
 
 
-    os << padding << "node [fontname=\"Helvetica\"];\n";
-    os << padding << "edge [fontsize=20, labelfontsize=20, concentrate=false];\n";
+//    os << padding << "node [fontname=\"Helvetica\"];\n";
+//    os << padding << "edge [concentrate=false];\n";
 
     // foreach in reverse order
     padding += "    ";
@@ -174,6 +174,11 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     // get vertices
     vector<VertexPtr> vertices = this->to_vector(true, true);
 
+    // sort vertices
+    std::sort(vertices.begin(), vertices.end(), [](const VertexPtr &a, const VertexPtr &b) {
+        return a->base_name() < b->base_name();
+    });
+
     bool track_temps = true; // TODO: make this a parameter
     vector<VertexPtr> temps = this->to_vector(true, false);
     vector<VertexPtr> temp_verts;
@@ -193,7 +198,32 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
         }
     }
 
+    // sort temp vertices
+    std::sort(temp_verts.begin(), temp_verts.end(), [](const VertexPtr &a, const VertexPtr &b) {
+        return a->base_name() < b->base_name();
+    });
+
     /** write vertices as graph **/
+
+    auto edge_direction = [](const Line &line, bool curr_is_bra, std::string &direction, std::string &left_node,
+                             std::string &right_node) {
+        std::swap(left_node, right_node);
+        if (curr_is_bra) {
+            if (line.o_) {
+                direction = "forward";
+                std::swap(left_node, right_node);
+            } else {
+                direction = "back";
+            }
+        } else {
+            if (line.o_) {
+                direction = "forward";
+            } else {
+                std::swap(left_node, right_node);
+                direction = "back";
+            }
+        }
+    };
 
     std::string padding = "                ";
 
@@ -201,9 +231,9 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
 
     std::string node_style = "color=\"" + color + "\", fontsize=20, style=bold";
-    std::string null_node_style = "style=invis, shape=square, height=0.0,width=0.0";
-    std::string ext_edge_style = "color=\"" + color + "\", style=bold, len=0.01, arrowsize=1.25";
-    std::string int_edge_style = "color=\"" + color + "\"";
+    std::string null_node_style = "style=invis, shape=none, height=0.1,width=0.1";
+    std::string ext_edge_style = "color=\"" + color + "\", style=bold, arrowsize=1.25";
+    std::string int_edge_style = "color=\"" + color + "\", concentrate=false";
 
     /// declare nodes and plot internal lines
 
@@ -289,14 +319,11 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
                 bool curr_is_bra = curr_dist < current_len - current_len / 2;
 
                 // determine direction of edge
-                std::string direction = !line.o_ ? "forward" : "back";
+                std::string direction;
                 std::string left_node = current_node;
                 std::string right_node = next_node;
 
-                if (curr_is_bra) {
-                    std::swap(left_node, right_node);
-                    direction = line.o_ ? "forward" : "back";
-                }
+                edge_direction(line, curr_is_bra, direction, left_node, right_node);
 
                 std::string connnection = left_node + " -> " + right_node;
 
@@ -321,6 +348,9 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     for (const auto &line: this->lines_) {
         // initialize dummy node name
         std::string null_node = "null_node" + std::to_string(dummy_count) + (line.o_ ? "o": "v") + line.label_;
+
+        if (line.sig_)
+            continue;
 
         bool added_null = false;
         group_count = 0;
@@ -387,14 +417,11 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
 
             // determine direction of edge
-            std::string direction = !line.o_ ? "forward" : "back";
+            std::string direction;
             std::string left_node = current_node;
             std::string right_node = null_node;
 
-            if (curr_is_bra) {
-                std::swap(left_node, right_node);
-                direction = line.o_ ? "forward" : "back";
-            }
+            edge_direction(line, curr_is_bra, direction, left_node, right_node);
 
             std::string connnection = left_node + " -> " + right_node;
 

@@ -62,7 +62,7 @@ namespace pdaggerq {
         static size_t num_threads_; // number of threads to use when substituting
         static bool permuted_merge_; // whether to merge terms with permutations
         static inline bool t1_transform_ = false; // whether to format t1 transformed integrals
-        bool allow_substitution_ = true; // whether to allow substitution                                                  
+        bool is_temp_equation_ = true; // whether to allow substitution
 
         // default constructor
         Equation() = default;
@@ -88,6 +88,13 @@ namespace pdaggerq {
          * terms vector of terms
          */
         Equation(const string &name, const vector<Term> &terms);
+
+        /**
+         * Constructor
+         * @param vertex vertex of the equation
+         * terms vector of terms
+         */
+        Equation(const VertexPtr &assignment, const vector<Term> &terms);
 
         /**
          * Copy constructor
@@ -322,6 +329,7 @@ namespace pdaggerq {
         void expand_permutations();
 
 
+        vector<Term *> get_temp_terms(const LinkagePtr& contraction);
     }; // class Equation
 
 } // pdaggerq
