@@ -87,7 +87,7 @@ namespace pdaggerq {
             if (blk == 'a' || blk == 'b') blk_type_ = 's';
             else if (blk == '0' || blk == '1') blk_type_ = 'r';
             else if (blk != '\0')
-                throw runtime_error("Invalid blk " + string(1, blk));
+                throw runtime_error("Invalid block " + string(1, blk));
 
             if (blk_type_ == 's') a_ = blk == 'a';
             else if (blk_type_ == 'r') a_ = blk == '1';
@@ -147,7 +147,7 @@ namespace pdaggerq {
             return *this > other || *this == other;
         }
 
-        inline char blk() const {
+        inline char block() const {
             if (blk_type_ == 's') return a_ ? 'a' : 'b';
             if (blk_type_ == 'r') return a_ ? '1' : '0';
             return '\0';
@@ -155,7 +155,7 @@ namespace pdaggerq {
 
         inline bool has_blk() const { return blk_type_ != '\0'; }
 
-        inline char ov() const {
+        inline char type() const {
             if (sig_) return 'L';
             if (den_) return 'Q';
             return o_ ? 'o' : 'v';

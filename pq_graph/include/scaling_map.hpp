@@ -43,8 +43,8 @@ namespace pdaggerq {
 
     struct shape {
         uint_fast8_t n_ = 0; // number of lines
-        pair<uint_fast8_t, uint_fast8_t> o_{}; // pair of spin up/down occupieds
-        pair<uint_fast8_t, uint_fast8_t> v_{}; // pair of spin up/down virtuals
+        pair<uint_fast8_t, uint_fast8_t> o_{}; // pair of spin up/down occupied lines
+        pair<uint_fast8_t, uint_fast8_t> v_{}; // pair of spin up/down virtual lines
         uint_fast8_t L_ = 0; // sigma index
         uint_fast8_t Q_ = 0; // density index
 

@@ -58,7 +58,7 @@ namespace pdaggerq {
         has_blk_ = is_range_blocked || is_spin_blocked;
 
         // get label types
-        string blk_string; // get blk string
+        string blk_string; // get block string
         if (is_spin_blocked) {
             for (const string &spin: delta.spin_labels)
                 blk_string += spin;
@@ -88,7 +88,7 @@ namespace pdaggerq {
         has_blk_ = is_range_blocked || is_spin_blocked;
 
         // get label types
-        string blk_string; // get blk string
+        string blk_string; // get block string
         if (is_spin_blocked) {
             for (const string &spin: integral.spin_labels)
                 blk_string += spin;
@@ -107,7 +107,9 @@ namespace pdaggerq {
         size_t order = (amp.n_annihilate <= amp.n_create) ? amp.n_create : amp.n_annihilate;
 
         // set base name
-        base_name_ = type + to_string(order);
+        string base_name{type};
+        base_name += to_string(order);
+        base_name_ = base_name ;
 
         //determine if vertex is blocked
         bool is_range_blocked = pq_string::is_range_blocked;
@@ -115,7 +117,7 @@ namespace pdaggerq {
         has_blk_ = is_range_blocked || is_spin_blocked;
 
         // get label types
-        string blk_string; // get blk string
+        string blk_string; // get block string
         if (is_spin_blocked) {
             for (const string &spin: amp.spin_labels)
                 blk_string += spin;
@@ -124,18 +126,18 @@ namespace pdaggerq {
                 blk_string += range == "act" ? "1" : "0";
         }
 
-        // set lines
-        set_lines(amp.labels, blk_string);
+        vector<string> labels = amp.labels;
 
         // if this is a sigma vertex, add a sigma line
         if (type == 'r' || type == 's' || type == 'l' || type == 'm') {
             is_sigma_ = true;
-            Line sigma_line("X");
-            sigma_line.sig_ = true;
-            sigma_line.o_ = false;
-            lines_.insert(lines_.begin(), sigma_line);
-            update_name();
+            labels.emplace(labels.begin(), "X");
+            //TODO: add check in Term for more than one sigma and change line and replace with X, Y, or Z (should never have Z)
         }
+
+        // set lines
+        set_lines(labels, blk_string);
+
 
     }
 
@@ -176,7 +178,7 @@ namespace pdaggerq {
                 size_t name_end = vertex_string.find('_');
                 if (name_end == string::npos) name_end = index;
                 else {
-                    // blk is the text after the first '_' and before the '(' if its value is 'a' or 'b' or '0' or '1'
+                    // block is the text after the first '_' and before the '(' if its value is 'a' or 'b' or '0' or '1'
                     while (name_end != string::npos && blk.empty()) {
                         bool has_spin_ = vertex_string[name_end+1] == 'a' || vertex_string[name_end+1] == 'b';
                         bool has_range_ = vertex_string[name_end+1] == '0' || vertex_string[name_end+1] == '1';
@@ -249,7 +251,7 @@ namespace pdaggerq {
 
             lines_[i] = Line(lines[i]); // create line without a block
 
-            // check if line is not ov
+            // check if line is not type
             bool is_sigma = lines_[i].sig_;
             bool is_den = lines_[i].den_;
 
@@ -260,10 +262,10 @@ namespace pdaggerq {
             if (is_sigma) is_sigma_ = true; // check if vertex is sigma
             if (is_den) is_den_ = true; // check if vertex is density fitted
 
-            ovstring[i] = lines_[i].ov(); // set ovstring
+            ovstring[i] = lines_[i].type(); // set ovstring
 
             if (has_blk_)
-                new_blk_string[i] = lines_[i].blk(); // set blocking string
+                new_blk_string[i] = lines_[i].block(); // set blocking string
         }
 
         // create shape from lines
@@ -319,7 +321,7 @@ namespace pdaggerq {
         string blk_string(rank_, '\0'); // string assuming no blocking
         uint_fast8_t line_idx = 0; // index of line
         for (const Line& line : lines_) {
-            blk_string[line_idx++] = line.blk(); // string assuming no blocking
+            blk_string[line_idx++] = line.block(); // string assuming no blocking
         }
 
         return blk_string;
@@ -339,7 +341,7 @@ namespace pdaggerq {
         string ovstring(line_size, 'o'); // ovstring assuming all occupied
         uint_fast8_t line_idx = 0; // index of line
         for (uint_fast8_t i = 0; i < line_size; i++) {
-            ovstring[line_idx++] = lines[i].ov(); // set ovstring
+            ovstring[line_idx++] = lines[i].type(); // set ovstring
         }
 
         return ovstring;
@@ -586,10 +588,16 @@ namespace pdaggerq {
 
     string Vertex::line_str() const{
         if (rank_ == 0) return ""; // if rank is 0, return empty string
+        if (rank_ == 1) {
+            // do not print sigma lines if print_trial_index is false for otherwise scalar vertices
+            if (lines_[0].sig_ && !print_trial_index)
+                return "";
+        }
 
         // loop over lines
         string line_str = "(\"";
         for (const Line &line : lines_) {
+            if (!print_trial_index && line.sig_) continue;
             line_str += line.label_;
             line_str += ",";
         }

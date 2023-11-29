@@ -110,7 +110,8 @@ namespace pdaggerq {
         shape mem_scale_{}; // memory
 
         mutable std::mutex mtx_; // mutex for thread safety
-        mutable vector<VertexPtr> all_vert_; // all linkages with vertices (mutable to allow for lazy evaluation)
+        mutable vector<VertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
+        mutable vector<VertexPtr> partial_vert_; // all non-intermediate vertices from linkages
 
         public:
             long id_ = -1; // id of the linkage (default to -1 if not set)

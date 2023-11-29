@@ -34,24 +34,9 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-using std::ostream;
-using std::string;
-using std::vector;
-using std::map;
-using std::unordered_map;
-using std::shared_ptr;
-using std::make_shared;
-using std::set;
-using std::unordered_set;
-using std::pair;
-using std::make_pair;
-using std::to_string;
-using std::invalid_argument;
-using std::stringstream;
-using std::cout;
-using std::endl;
-using std::flush;
-using std::max;
+using std::ostream, std::string, std::vector, std::map, std::unordered_map, std::shared_ptr, std::make_shared,
+      std::set, std::unordered_set, std::pair, std::make_pair, std::to_string, std::invalid_argument,
+      std::stringstream, std::cout, std::endl, std::flush, std::max, std::min, std::unordered_map, std::unordered_set;
 
 namespace pdaggerq {
 
@@ -76,29 +61,35 @@ namespace pdaggerq {
     void PQGraph::set_options(const pybind11::dict& options) {
         cout << endl << "####################" << " PQ GRAPH " << "####################" << endl << endl;
 
-        // set defaults
-        int max_temps = -1;
-        int max_linkage_ops = -1;
-        int depth = -1;
-        Equation::t1_transform_ = false;
-        verbose = true;
-        make_scalars_ = true;
-        batched_ = false;
-        allow_merge_ = false;
-        reuse_permutations_ = false;
-        Equation::permuted_merge_ = false;
-        Vertex::allow_permute_ = true; // TODO: add flag in options
-        size_t max_num_threads = omp_get_max_threads();
-        num_threads_ = (int) max_num_threads;
+        constexpr auto to_lower = [](string str) {
+            // map uppercase to lowercase for output
+            for (auto &letter : str) {
+                static unordered_map<char, char>
+                        lowercase_map = {{'A', 'a'}, {'B', 'b'}, {'C', 'c'}, {'D', 'd'}, {'E', 'e'},
+                                        {'F', 'f'}, {'G', 'g'}, {'H', 'h'}, {'I', 'i'}, {'J', 'j'},
+                                        {'K', 'k'}, {'L', 'l'}, {'M', 'm'}, {'N', 'n'}, {'O', 'o'},
+                                        {'P', 'p'}, {'Q', 'q'}, {'R', 'r'}, {'S', 's'}, {'T', 't'},
+                                        {'U', 'u'}, {'V', 'v'}, {'W', 'w'}, {'X', 'x'}, {'Y', 'y'},
+                                        {'Z', 'z'}};
+
+                if (lowercase_map.find(letter) != lowercase_map.end())
+                    letter = lowercase_map[letter];
+            }
+
+            // return lowercase string
+            return str;
+        };
 
         if(options.contains("max_temps")) {
-            max_temps = options["max_temps"].cast<int>();
-            max_temps_ = max_temps;
+            max_temps_ = (size_t) options["max_temps"].cast<int>();;
         }
 
-        if (options.contains("t1_transform")) Equation::t1_transform_ = options["t1_transform"].cast<bool>();
+        if (options.contains("t1_transform")) Equation::remove_t1 = options["t1_transform"].cast<bool>();
         if (options.contains("verbose")) verbose = options["verbose"].cast<bool>();
         if (options.contains("output")) {
+            auto output = options["output"].cast<std::string>();
+            output = to_lower(output);
+
             if (options["output"].cast<string>() == "python") {
                 Term::make_einsum = true;
                 cout << "Formatting equations for python" << endl;
@@ -110,23 +101,47 @@ namespace pdaggerq {
                 cout << "         Setting output to c++" << endl;
             }
         }
-        if (options.contains("make_scalars")) make_scalars_ = options["make_scalars"].cast<bool>();
 
-        if (options.contains("max_contractions"))
-            max_linkage_ops = options["max_contractions"].cast<int>();
-        Term::max_linkages = (size_t) max_linkage_ops;
+        if (options.contains("max_shape")) {
+            
+            const std::map<string, int> &max_shape_map = options["max_shape_map"].cast<std::map<string, int>>();
 
-        if (options.contains("depth")) {
-            depth = options["depth"].cast<int>();
+            // throw error if max_shape_map contains an invalid key
+            for (const auto &[key, val] : max_shape_map) {
+                if (key != "o" && key != "v") {
+                    throw invalid_argument("max_shape_map must contain only 'o' and 'v' keys");
+                }
+            }
+            
+            // set max occupied lines
+            if (max_shape_map.find("o") != max_shape_map.end()) {
+                auto max_o = static_cast<size_t>(max_shape_map.at("o"));
+                Term::max_shape_.o_ = {max_o, 0};
+            }
+            
+            // set max virtual lines
+            if (max_shape_map.find("v") != max_shape_map.end()) {
+                auto max_v = static_cast<size_t>(max_shape_map.at("v"));
+                Term::max_shape_.v_ = {max_v, 0};
+            }
+            
+            // do not allow for both max_o and max_v to be 0
+            if (Term::max_shape_.o_.first == 0 && Term::max_shape_.v_.first == 0) {
+                throw invalid_argument("max_shape_map must cannot have both 'o' and 'v' set to 0");
+            }
+            
+        } else {
+            auto n_max = static_cast<size_t>(-1);
+            Term::max_shape_.o_ = {n_max, 0};
+            Term::max_shape_.v_ = {n_max, 0};
         }
-        Term::depth_ = (size_t) depth;
-        if (depth > 1 && depth != static_cast<size_t>(-1))
-            throw invalid_argument("Depth must be +-1, or 0. Custom depth beyond 1 is not supported.");
 
         if (options.contains("batched")) batched_ = options["batched"].cast<bool>();
-        if (options.contains("allow_merge")) allow_merge_ = options["allow_merge"].cast<bool>();
-        if (options.contains("permuted_merge")) Equation::permuted_merge_ = options["permuted_merge"].cast<bool>();
-        if (options.contains("reuse_permutations")) reuse_permutations_ = options["reuse_permutations"].cast<bool>();
+        if (options.contains("allow_merge"))
+            allow_merge_ = options["allow_merge"].cast<bool>();
+        if (options.contains("allow_nesting"))
+            Term::allow_nesting_ = options["allow_nesting"].cast<bool>();
+
 
         if (options.contains("occ_labels"))
             Line::occ_labels_ = options["occ_labels"].cast<unordered_set<char>>();
@@ -138,33 +153,34 @@ namespace pdaggerq {
             Line::den_labels_ = options["den_labels"].cast<unordered_set<char>>();
 
 
-        if (options.contains("num_threads")) {
-            if (num_threads_ > max_num_threads) {
+        if (options.contains("nthreads")) {
+            nthreads_ = options["nthreads"].cast<int>();
+            if (nthreads_ > omp_get_max_threads()) {
                 cout << "Warning: number of threads is larger than the maximum number of threads on this machine. "
                         "Using the maximum number of threads instead." << endl;
-                num_threads_ = (int) max_num_threads;
-            } else num_threads_ = options["num_threads"].cast<int>();
-
-            Equation::num_threads_ = num_threads_;
-        }
-        if (options.contains("conditions")) {
-            // this is a list of strings of vertex names
-            try {
-                auto conditions = options["conditions"].cast<set<string>>();
-                for (const string &condition: conditions) Term::conditions_.insert(condition);
-            } catch (...) {
-                cout << "WARNING: conditions must be a list of strings." << endl;
+                nthreads_ = (int) omp_get_max_threads();
             }
-
-            if (!Term::conditions_.empty()){
-                cout << "Conditions: ";
-                for (const string &condition: Term::conditions_) cout << condition << " ";
-                cout << endl;
+            Equation::nthreads_ = nthreads_;
+            
+        } else {
+            // use OMP_NUM_THREADS if available
+            char *omp_num_threads = getenv("OMP_NUM_THREADS");
+            if (omp_num_threads != nullptr) {
+                nthreads_ = std::stoi(omp_num_threads);
+                if (nthreads_ > omp_get_max_threads()) {
+                    cout << "Warning: OMP_NUM_THREADS is larger than the maximum number of threads on this machine. "
+                            "Using the maximum number of threads instead." << endl;
+                    nthreads_ = (int) omp_get_max_threads();
+                }
+                Equation::nthreads_ = nthreads_;
             }
         }
+        if (options.contains("separate_conditions")){
+            Equation::separate_conditions_ = options["separate_conditions"].cast<bool>();
+        }
 
-        if (options.contains("store_trials"))
-            store_trials_ = options["store_trials"].cast<bool>();
+        if (options.contains("print_trial_index"))
+            Vertex::print_trial_index = options["print_trial_index"].cast<bool>();
 
         omp_set_num_threads(1); // set to 1 to speed up non-parallel code
 
@@ -172,39 +188,30 @@ namespace pdaggerq {
         cout << "--------" << endl;
         cout << "    verbose: " << (verbose ? "true" : "false")
              << "  // whether to print out verbose analysis (default: true)" << endl;
-        cout << "    make_einsum: " << (Term::make_einsum ? "true" : "false") << "  // whether to print equations in einsum format with python (default: false). Requires some manual formatting at the beginning"
+        cout << "    output: " << (Term::make_einsum ? "Python" : "C++") << "  // whether to print equations in C++ or Python format (default: C++)."
              << endl;
-        cout << "    make_scalars_: " << (make_scalars_ ? "true" : "false")
-             << "  // whether to format dot products and traces as scalars (default: true; encouraged)" << endl;
-        cout << "    t1_transform: " << (Equation::t1_transform_ ? "true" : "false")
-             << "  // removes t1 terms from the equations when using t1-transformed integrals (default: false)" << endl;
-        cout << "    max_temps: " << max_temps
+        cout << "    remove_t1: " << (Equation::remove_t1 ? "true" : "false")
+             << "  // removes all t1 terms; ideal when using t1-transformed two-electron integrals (default: false)" << endl;
+        cout << "    max_temps: " << max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
-        cout << "    max_contractions: " << max_linkage_ops
-             << "  // maximum number of contractions in an intermediate in `tmps` (default: -1 for no limit)" << endl;
-        cout << "    depth: " << depth
-             << "  maximum number of nested precontractions. -1 means no limit (default)." << endl;
-        cout << "    conditions: " << flush;
-        for (const string& condition : Term::conditions_)
-            cout << condition << ", " << flush;
-        cout << "  // tensors whose names contain one of these strings (i.e. r3) will be nested in a conditional statement such as \"if (include_r2) { ... }\" (default: None)" << endl;
-        if (store_trials_) {
-            cout << "    store_trials: " << (store_trials_ ? "true" : "false")
+        cout << "    max_shape: a map of maximum sizes for each line type in an intermediate (default: {o: -1, v: -1}, "
+                "for no limit of occupied and virtual lines.): " << Term::max_shape_.str() << endl;
+        cout << "    allow_nesting: " << (Term::allow_nesting_ ? "true" : "false")
+             << "  // whether to allow nested intermediates (default: true)" << endl;
+        if (print_trial_index) {
+            cout << "    print_trial_index: " << (Vertex::print_trial_index ? "true" : "false")
                  << "  // whether to store trial vectors as an additional index/dimension for tensors in a sigma-vector build (default: false)" << endl;
         }
-        cout << "    batched: " << (batched_ ? "true" : "false") << "  // whether to substitute tmps in batches for faster generation. (default: false)" << endl;
+        cout << "    batched: " << (batched_ ? "true" : "false") << "  // whether to substitute intermediates in batches for faster generation. (default: false)" << endl;
         cout << "    allow_merge_: " << (allow_merge_ ? "true" : "false") << "  // whether to merge similar terms during optimization (default: true)" << endl;
-        cout << "    permuted_merge: " << (Equation::permuted_merge_ ? "true" : "false")
-             << "  // whether to merge similar terms with permuted tensors (default: true)" << endl;
-        cout << "    reuse_permutations: " << (reuse_permutations_ ? "true" : "false")
-             << "  // This determines whether to reuse containers for permutations instead of permuting each time a term with permutations occurs (default: true)" << endl;
-        cout << "    num_threads: " << num_threads_ << "  // number of threads to use (default: 1 | available: " << max_num_threads << ")" << endl;
+        cout << "    nthreads: " << nthreads_ << "  // number of threads to use (default: OMP_NUM_THREADS | available: " << omp_get_max_threads() << ")" << endl;
         cout << endl;
     }
 
     void PQGraph::add(const pq_helper& pq, const std::string &equation_name) {
 
         build_timer.start(); // start timer
+        //TODO: loop over left and right operators to determine lines on lhs operator
 
         // check if equation already exists; if so, print warning
         if (equations_.find(equation_name) != equations_.end()) {
@@ -317,6 +324,11 @@ namespace pdaggerq {
 
         // add banner for PQ GRAPH results
         sout << "####################" << " PQ GRAPH Output " << "####################" << endl << endl;
+
+        PQGraph copy = *this; // make copy of pq_graph
+
+        // remove redundant contractions (only used in one term)
+        remove_redundant_tmps();
 
         // get all terms from all equations except the scalars, and reuse_tmps
         vector<Term> all_terms;
@@ -480,6 +492,8 @@ namespace pdaggerq {
         // add closing banner
         sout << "####################" << "######################" << "####################" << endl << endl;
 
+        *this = copy; // restore pq_graph
+
         // return string stream as string
         return sout.str();
 
@@ -562,7 +576,7 @@ namespace pdaggerq {
         // get list of keys in equations
         vector<string> eq_keys = get_equation_keys();
 
-        omp_set_num_threads(num_threads_); // set number of threads
+        omp_set_num_threads(nthreads_); // set number of threads
         #pragma omp parallel for schedule(guided) shared(equations_, eq_keys) default(none)
         for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
             equations_[eq_name].reorder(true); // reorder terms in equation
@@ -648,7 +662,7 @@ namespace pdaggerq {
 
 //        if (allow_merge_)
 //            merge_terms(); // merge similar terms
-        if (max_temps_ == static_cast<size_t>(-1)) {
+        if (Term::allow_nesting_) {
             // expand permutations in equations since we are not limiting the number of temps
             expand_permutations();
         }
@@ -663,9 +677,13 @@ namespace pdaggerq {
 
     linkage_set PQGraph::make_test_set() {
 
-        if (!batched_) return tmp_candidates_; // if not batched, return all linkages
+        if (!batched_)
+            return tmp_candidates_; // if not batched, return all candidates
 
-        linkage_set test_linkages(1024); // set of linkages to test (start with medium n_ops)
+        // TODO: test if this still works (it should)
+
+        static linkage_set test_linkages(1024); // set of linkages to test (start with medium n_ops)
+        test_linkages.clear();
 
         shape worst_scale; // worst cost (start with zero)
         for (const auto & linkage : tmp_candidates_) { // get worst cost
@@ -702,100 +720,123 @@ namespace pdaggerq {
         return test_linkages; // return test linkages
     }
 
-    void PQGraph::add_tmp(const LinkagePtr& precon, Equation &equation) {
-
-        // check that term is not already in equation
-//        for (const auto &term : equation) {
-//            if (!term.lhs()->is_linked()) continue; // skip if lhs is not linked
-//            if (as_link(term.lhs())->id_ == precon->id_)
-//                return; // return if the term is already in the equation
-//        }
-
-        // make term of tmp
-        Term precon_term = Term(precon);
-        precon_term.reorder(); // reorder term
-
-        equation.terms().insert(equation.end(), precon_term);
-
+    Term& PQGraph::add_tmp(const LinkagePtr& precon, Equation &equation, double coeff) {
+        // make term with tmp
+        equation.terms().insert(equation.end(), Term(precon, coeff));
+        return equation.terms().back();
     }
 
-//    void PQGraph::sort_all_tmps(Equation &equation){
-//
-//    }
-
     void PQGraph::sort_tmps(Equation &equation) {
-
-        //TODO: consider case with multiple tmps in one term more carefully (do not waste storage)
 
         // no terms, return
         if ( equation.terms().empty() ) return;
 
         // to sort the tmps while keeping the order of terms without tmps, we need to
         // make a map of the equation terms and their index in the equation and sort that (so annoying)
-        std::vector<std::pair<Term*, size_t>> indexed_terms;
+        std::vector<pair<Term*, size_t>> indexed_terms;
         for (size_t i = 0; i < equation.terms().size(); ++i)
             indexed_terms.emplace_back(&equation.terms()[i], i);
 
         // sort the terms by the maximum id of the tmps in the term, then by the index of the term
-        stable_sort(indexed_terms.begin(), indexed_terms.end(), [](const auto &a, const auto &b) {
+
+        auto is_in_order = [](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
 
             const Term &a_term = *a.first;
             const Term &b_term = *b.first;
 
+            size_t a_idx = a.second;
+            size_t b_idx = b.second;
+
             const VertexPtr &a_lhs = a_term.lhs();
             const VertexPtr &b_lhs = b_term.lhs();
 
-            // get max ids from lhs and rhs
-            long a_max_temp_id = -1, b_max_temp_id = -1;
-
-            // get ids of lhs
-            auto get_lhs_id = [](const Term &term) {
-                long id = -1;
-                if (term.lhs()->is_temp()) {
-                    LinkagePtr link = as_link(term.lhs());
+            // recursive function to get min/max id of temp ids from a vertex
+            std::function<void(const VertexPtr&, long&, bool)> test_vertex;
+            test_vertex = [&test_vertex](const VertexPtr &op, long& id, bool get_max) {
+                if (op->is_temp()) {
+                    LinkagePtr link = as_link(op);
+                    long link_id = link->id_;
 
                     // ignore reuse_tmp linkages
-                    if (!link->is_reused_ && !link->is_scalar())
-                        id = (long) link->id_;
-                }
-                return id;
-            };
+                    if (!link->is_reused_ && !link->is_scalar()){
+                        if (get_max)
+                             id = std::max(id,  link_id);
+                        else id = std::max(id, -link_id);
+                    }
 
-            long a_lhs_id = get_lhs_id(a_term),
-                 b_lhs_id = get_lhs_id(b_term);
-
-            // get max ids from rhs
-            auto get_rhs_max_id = [](const Term &term) {
-                long max_id = -1;
-                for (const auto &op: term.rhs()) {
-                    if (op->is_temp()) {
-                        LinkagePtr link = as_link(op);
-
-                        // ignore reuse_tmp linkages
-                        if (!link->is_reused_ && !link->is_scalar())
-                            max_id = std::max(max_id, (long) link->id_);
+                    // recurse into nested tmps
+                    for (const auto &nested_op: link->to_vector(false, false)) {
+                        test_vertex(nested_op, id, get_max);
                     }
                 }
-                return max_id;
             };
 
-            long a_rhs_id = get_rhs_max_id(a_term),
-                 b_rhs_id = get_rhs_max_id(b_term);
+            // get min id of temps from lhs
+            auto get_lhs_id = [&test_vertex](const Term &term, bool get_max) {
+                long id = get_max ? -1l : -__FP_LONG_MAX;
 
-            //TODO: use minimum id also for dealing with assignments
+                test_vertex(term.lhs(), id, get_max);
 
-            // get total max id for each term
-            a_max_temp_id = max(a_lhs_id, a_rhs_id);
-            b_max_temp_id = max(b_lhs_id, b_rhs_id);
+                if (get_max) return id;
+                else return -id;
+            };
 
-            // sort by max id of tmps; if same ids, sort by if it is assignment; lastly, sort by index of term
-            if (a_max_temp_id == b_max_temp_id) {
-                if (a.first->is_assignment_ ^ b.first->is_assignment_) {
-                    return a.first->is_assignment_ > b.first->is_assignment_;
+            // get min id of temps from rhs
+            auto get_rhs_id = [&test_vertex](const Term &term, bool get_max) {
+                long id = get_max ? -1l : -__FP_LONG_MAX;
+
+                for (const auto &op: term.rhs())
+                    test_vertex(op, id, get_max);
+
+                if (get_max) return id;
+                else return -id;
+            };
+
+            long a_max_id  = max(get_lhs_id(a_term, true),
+                                 get_rhs_id(a_term, true));
+            long a_min_id  = min(get_lhs_id(a_term, false),
+                                 get_rhs_id(a_term, false));
+
+            long b_max_id  = max(get_lhs_id(b_term, true),
+                                 get_rhs_id(b_term, true));
+            long b_min_id  = min(get_lhs_id(b_term, false),
+                                 get_rhs_id(b_term, false));
+
+            bool a_has_temp = a_max_id != -1l;
+            bool b_has_temp = b_max_id != -1l;
+
+            // if no temps, sort by index
+            if (!a_has_temp && !b_has_temp)
+                return a_idx < b_idx;
+
+            // if only one has temps, keep temp last
+            if (a_has_temp ^ b_has_temp)
+                return b_has_temp;
+
+            if ( a_min_id == b_min_id ) {
+                if (a_max_id == b_max_id) {
+                    if (a.first->is_assignment_ ^ b.first->is_assignment_)
+                        return a.first->is_assignment_ > b.first->is_assignment_;
+                    return a.second < b.second;
                 }
-                return a.second < b.second;
-            } else return a_max_temp_id < b_max_temp_id;
-        });
+                else return a_max_id < b_max_id;
+            } return a_min_id < b_min_id;
+
+        };
+
+        sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
+
+//        bool in_order = false;
+//        while (!in_order) {
+//            in_order = true;
+//            for (size_t i = 0; i < indexed_terms.size() - 1; ++i) {
+//                if (!is_in_order(indexed_terms[i], indexed_terms[i + 1])) {
+//                    std::swap(indexed_terms[i], indexed_terms[i+1]);
+////                    cout << "swapped " << i << " and " << i+1 << endl;
+//                    in_order = false;
+//                }
+//            }
+//        }
 
         // replace the terms in the equation with the sorted terms
         std::vector<Term> sorted_terms;

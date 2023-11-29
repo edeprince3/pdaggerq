@@ -73,7 +73,8 @@ namespace pdaggerq {
         bool is_den_ = false; // whether the vertex is a density-fitting vertex
 
         // indicates whether the vertex is allowed to be permuted
-        static inline bool allow_permute_ = false;
+        static inline bool allow_permute_ = true;
+        static inline bool print_trial_index = false;
 
         /****** Constructors ******/
 

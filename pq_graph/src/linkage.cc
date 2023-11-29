@@ -35,21 +35,15 @@ namespace pdaggerq {
     inline Linkage::Linkage(const VertexPtr &left, const VertexPtr &right, bool is_addition) : Vertex() {
 
         // set inputs
+        left_ = left;
+        right_ = right;
+
+
         if (!left->is_linked() && !right->is_linked()) {
-            // a binary linkage is associative (left and right are interchangeable)
+            // a binary linkage of pure vertices is associative (left and right are interchangeable)
             // sort left and right vertices by name to prevent duplicates
-            // TODO: make sure this works with Term::is_compatible()
-            if (left->name() < right->name()) {
-                 left_ =  left;
-                right_ = right;
-            } else {
-                 left_ = right;
-                right_ =  left;
-            }
-        } else {
-            // a linkage with more than two vertices is not associative
-            left_  =  left;
-            right_ = right;
+            if (left->name() > right->name())
+                std::swap(left_, right_);
         }
 
         // count_ the left and right vertices
@@ -451,7 +445,7 @@ namespace pdaggerq {
             generic_str += line_str();
 
         // create a generic vertex that has the same lines as this linkage.
-        // this adds the spin and ov strings to name
+        // this adds the spin and type strings to name
         // return its string representation
         return generic_str;
     }
@@ -545,19 +539,40 @@ namespace pdaggerq {
 
     const vector<VertexPtr> &Linkage::to_vector(bool regenerate, bool full_expand) const {
 
-        std::lock_guard<std::mutex> lock(mtx_);  // Lock the mutex for the scope of the function
-        if (all_vert_.empty() || regenerate){ // the vertices are not known
-            // compute the vertices recursively
-            all_vert_ = vector<VertexPtr>(nvert_); // store the vertices in all_vert_ for next query
-            size_t i = 0;
-            to_vector(all_vert_, i, full_expand);
-            if (i != nvert_)
-                all_vert_.resize(i);
-            return all_vert_;
+        // Lock the mutex for the scope of the function
+        std::lock_guard<std::mutex> lock(mtx_);
+
+
+        // if full_expand is false, we only need to expand the vertices that are not tmps
+        if (!full_expand) {
+            // the vertices are not known
+            if (partial_vert_.empty() || regenerate) {
+                // compute the vertices recursively and store the vertices in all_vert_ for next query
+                partial_vert_ = vector<VertexPtr>(nvert_);
+                size_t i = 0;
+                to_vector(partial_vert_, i, false);
+                if (i != nvert_)
+                    partial_vert_.resize(i);
+                return partial_vert_;
+
+            }
+            // the vertices are known. return them from lazy evaluation
+            else return partial_vert_;
         }
 
-        // the vertices are known
-        return all_vert_;
+        // the vertices are not known
+        if (all_vert_.empty() || regenerate){
+            // compute the vertices recursively and store the vertices in all_vert_ for next query
+            all_vert_ = vector<VertexPtr>(nvert_);
+            size_t i = 0;
+            to_vector(all_vert_, i, true);
+            if (i != nvert_)
+                all_vert_.resize(i);
+
+            return all_vert_;
+        }
+            // the vertices are known. return them from lazy evaluation
+        else return all_vert_;
     }
 
     void Linkage::clone_link(const Linkage &other) {

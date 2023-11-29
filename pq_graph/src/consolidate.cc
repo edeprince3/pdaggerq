@@ -25,25 +25,9 @@
 #include "iostream"
 #include <omp.h>
 
-using std::logic_error;
-using std::ostream;
-using std::string;
-using std::vector;
-using std::map;
-using std::unordered_map;
-using std::shared_ptr;
-using std::make_shared;
-using std::set;
-using std::unordered_set;
-using std::pair;
-using std::make_pair;
-using std::to_string;
-using std::invalid_argument;
-using std::stringstream;
-using std::cout;
-using std::endl;
-using std::flush;
-using std::max;
+using std::ostream, std::string, std::vector, std::map, std::unordered_map, std::shared_ptr, std::make_shared,
+        std::set, std::unordered_set, std::pair, std::make_pair, std::to_string, std::invalid_argument,
+        std::stringstream, std::cout, std::endl, std::flush, std::max;
 
 using namespace pdaggerq;
 
@@ -55,7 +39,7 @@ void PQGraph::generate_linkages(bool recompute) {
     vector<string> eq_keys = get_equation_keys();
     size_t num_subs = 0; // number of substitutions made
 
-    omp_set_num_threads(num_threads_);
+    omp_set_num_threads(nthreads_);
 
     #pragma omp parallel for schedule(guided) default(none) shared(equations_, tmp_candidates_, eq_keys) \
     firstprivate(recompute)
@@ -193,7 +177,7 @@ void PQGraph::substitute() {
          * If they can, save the flop map for each equation.
          * If the flop map is better than the current best flop map, save the linkage.
          */
-        omp_set_num_threads(num_threads_);
+        omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
             ignore_linkages, equations_) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality)
         for (int i = 0; i < n_linkages; ++i) {
@@ -230,7 +214,7 @@ void PQGraph::substitute() {
             if (testSub) {
                 // make term of tmp declaration
                 if (include_declaration) {
-                    Term precon_term = Term(linkage);
+                    Term precon_term = Term(linkage, 1.0);
                     precon_term.reorder(); // reorder term
 
                     // add term scaling to test the flop map
@@ -309,120 +293,39 @@ void PQGraph::substitute() {
 
             /// substitute linkage in all equations
 
-            omp_set_num_threads(num_threads_);
+            omp_set_num_threads(nthreads_);
             vector<string> eq_keys = get_equation_keys();
             size_t num_subs = 0; // number of substitutions made
 
-            vector<Term*> tmp_terms;
-
             #pragma omp parallel for schedule(guided) default(none) firstprivate(allow_equality, bestPreCon) \
-            shared(equations_, eq_keys, tmp_terms) reduction(+:num_subs)
+            shared(equations_, eq_keys) reduction(+:num_subs)
             for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
-                // get equation name
+                // get equation
                 Equation &equation = equations_[eq_name]; // get equation
                 size_t this_subs = equation.substitute(bestPreCon, allow_equality);
                 bool madeSub = this_subs > 0;
                 if (madeSub) {
                     // sort tmps in equation
                     sort_tmps(equation);
-
-                    // get terms with this tmp and add to tmp_terms
-                    vector<Term*> eq_tmp_terms = equation.get_temp_terms(bestPreCon);
-                    #pragma omp critical
-                    {
-                        tmp_terms.insert(tmp_terms.end(), eq_tmp_terms.begin(), eq_tmp_terms.end());
-                    }
                     num_subs += this_subs;
                 }
             }
             omp_set_num_threads(1); // reset number of threads (for improved performance of non-parallel code)
             totalSubs += num_subs; // add number of substitutions to total
 
+
+            // format contractions
+            vector<Term *> tmp_terms = get_matching_terms(bestPreCon);
+
             // find common coefficients and permutations
             double common_coeff = common_coefficient(tmp_terms);
 
-            // find common permutations
-            perm_list common_perms = common_permutations(tmp_terms);
-            bool has_common_perms = false; //!common_perms.empty();
-            if (has_common_perms) {
-                // if external lines of tmp are not in common perms, remove common perms
-                for (size_t i = 0; i < common_perms.size(); i++) {
-                    pair<string, string> perm = common_perms[i];
-                    bool found_first = false;
-                    bool found_second = false;
-                    for (const auto &ext : bestPreCon->lines_) {
-                        if (perm.first == ext.label_) {
-                            found_first = true;
-                            continue;
-                        }
-                        if (perm.second == ext.label_) {
-                            found_second = true;
-                            continue;
-                        }
-                    }
-
-                    if (!found_first || !found_second) {
-                        common_perms.erase(common_perms.begin() + i);
-                        i--;
-                        if (common_perms.empty()) break;
-                    }
-                }
-
-                if (common_perms.empty())
-                    has_common_perms = false;
-            }
-
             // modify coefficients of terms
-            size_t common_perm_type = 0;
-            for (Term* term_ptr : tmp_terms) {
+            for (Term* term_ptr : tmp_terms)
                 term_ptr->coefficient_ /= common_coeff;
 
-                if (has_common_perms) {
-                    perm_list termPerms = term_ptr->term_perms();
-                    common_perm_type = term_ptr->perm_type();
-
-                    for (size_t i = 0; i < termPerms.size(); i++) {
-                        pair<string, string> perm = termPerms[i];
-                        bool found = false;
-                        for (const auto &common_perm : common_perms) {
-                            if (perm == common_perm) {
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (found) {
-                            termPerms.erase(termPerms.begin() + i);
-                            i--;
-                        }
-                    }
-
-                    size_t perm_type = common_perm_type;
-                    if (termPerms.empty()) {
-                        perm_type = 0;
-                    }
-                    term_ptr->set_perm(termPerms, perm_type);
-
-                }
-            }
-
-
-            // add linkage to equations TODO: integrate with `add_tmp`
-            Term precon_term = Term(bestPreCon);
-            precon_term.coefficient_ = common_coeff; // set common coefficient
-            if (has_common_perms) // set common permutations if any
-                precon_term.set_perm(common_perms, common_perm_type);
-
-            // rebuild comments if coefficient is not 1
-            if (fabs(precon_term.coefficient_ - 1.0) > 1e-12) {
-                // TODO: coefficient from link of linkage should remain in comments somewhere
-                precon_term.comments().clear();
-                precon_term.comments().push_back(to_string(precon_term.coefficient_));
-                for (const auto &op : precon_term.rhs())
-                    precon_term.comments().push_back(op->str());
-            }
-
-            precon_term.reorder(true); // reorder term
-            equations_[eq_type].terms().insert(equations_[eq_type].end(), precon_term); // add term to tmp equation
+            // add linkage to equations
+            const Term &precon_term = add_tmp(bestPreCon, equations_[eq_type], common_coeff);
 
             // print linkage
             if (verbose){
@@ -577,6 +480,187 @@ void PQGraph::substitute() {
     cout << " ===================================================="  << endl << endl;
 }
 
+void PQGraph::remove_redundant_tmps() {// remove redundant contractions (only used in one term)
+
+    std::map<std::string, set<std::vector<Term>::iterator>> to_remove;
+
+    for (auto & [type, contractions] : all_linkages_) {
+
+        std::map<std::vector<Term>::iterator, LinkagePtr> to_replace;
+        for (const auto &contraction : contractions) {
+            std::vector<Term>::iterator term_it = std::vector<Term>::iterator();
+            bool only_one = true;
+
+            // find contractions that are only used in one term
+            bool found = false;
+            for (auto &[name, eq] : equations_) {
+                vector<Term*> terms = eq.get_temp_terms(contraction);
+                if (terms.size() == 1 && !found) {
+                    // use pointer to find iterator in the equation
+                    term_it = find_if(eq.terms().begin(), eq.terms().end(),
+                                      [&terms](const Term &term) { return &term == terms[0]; });
+                    found = true;
+                } else if (terms.size() > 1 || found) {
+                    only_one = false; break;
+                }
+            }
+
+            if (only_one)
+                to_replace[term_it] = contraction;
+        }
+
+
+
+        // replace contractions
+        Equation &tmp_eq = equations_[type];
+        for (auto & [term_it, contraction] : to_replace) {
+            Term &term = *term_it;
+
+            // find declarations to remove
+            double original_coeff = 1;
+            bool found = false;
+            for (size_t i = 0; i < tmp_eq.size(); i++) {
+                Term &tmpterm = tmp_eq.terms()[i];
+                if (tmpterm.lhs()->is_temp()) {
+                    const LinkagePtr &link = as_link(tmpterm.lhs());
+                    if (link->id_ == contraction->id_) {
+                        // get iterator of this term
+                        auto declare_it = tmp_eq.terms().begin() + i;
+                        found = true;
+                        original_coeff = tmpterm.coefficient_;
+                        to_remove[type].insert(declare_it);
+                    }
+                }
+            }
+            if (!found)
+                throw std::runtime_error("Could not find declaration for contraction: " + contraction->str());
+
+
+            // remove contraction from rhs of term
+            std::vector<VertexPtr> new_rhs;
+            new_rhs.reserve(term.rhs().size() + contraction->depth());
+            for (const auto &vertex : term.rhs()) {
+                if (vertex->is_temp()){
+                    const LinkagePtr &link = as_link(vertex);
+                    if (link->id_ == contraction->id_) {
+                        const auto &new_verts = link->to_vector();
+                        new_rhs.insert(new_rhs.end(), new_verts.begin(), new_verts.end());
+                        continue;
+                    }
+                }
+                new_rhs.push_back(vertex);
+            }
+
+            // set new rhs
+            term.rhs() = new_rhs;
+            term.coefficient_ *= original_coeff;
+            term.reorder(true);
+            term.reset_comments();
+        }
+    }
+
+    // remove declarations
+    for (auto & [type, decls] : to_remove) {
+        Equation &tmp_eq = equations_[type];
+        vector<Term> &terms = tmp_eq.terms();
+
+        // get distance of each declaration from the beginning of the equation
+        set<long> distances;
+        for (const auto &decl : decls) {
+            distances.insert(std::distance(terms.begin(), decl));
+        }
+
+        // remove declarations in reverse order
+        for (auto it = distances.rbegin(); it != distances.rend(); it++) {
+            terms.erase(terms.begin() + *it);
+            temp_counts_[type]--;
+        }
+    }
+
+    collect_scaling(true); // collect new scalings
+
+//
+//    // sort tmps
+//    for (auto & [type, eq] : equations_) {
+//        sort_tmps(eq);
+//    }
+//
+//    // reindex all linkages
+//    for (auto & [type, contractions] : all_linkages_) {
+//        linkage_set new_linkages;
+//
+//        std::map<size_t, LinkagePtr> id_map;
+//        for (const auto &contraction : contractions) {
+//            // find first occurence of this contraction
+//            bool found = false;
+//            for (size_t i = 0; i < equations_[type].size(); i++) {
+//                Term &term = equations_[type].terms()[i];
+//                if (term.lhs()->is_temp()) {
+//                    const LinkagePtr &link = as_link(term.lhs());
+//                    if (link->id_ == contraction->id_) {
+//                        id_map[i] = contraction;
+//                        found = true;
+//                        break;
+//                    }
+//                }
+//            }
+//        }
+//
+//        // sort id_map by id
+//        std::vector<std::pair<size_t, LinkagePtr>> id_vec(id_map.begin(), id_map.end());
+//        std::sort(id_vec.begin(), id_vec.end());
+//
+//        // reindex linkages
+//        long id = 1;
+//        for (auto & [old_id, linkage] : id_vec) {
+//            linkage->id_ = id++;
+//            new_linkages.insert(linkage);
+//
+//            // replace every occurence of this contraction with the new id
+//            for (auto & [name, eq] : equations_) {
+//                for (auto &term : eq.terms()) {
+//                    if (term.lhs() == linkage) {
+//                        term.lhs() = linkage;
+//                    }
+//                    for (auto &vertex : term.rhs()) {
+//                        if (vertex == linkage) {
+//                            vertex = linkage;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//
+//        contractions = new_linkages;
+
+}
+
+vector<Term *> PQGraph::get_matching_terms(const LinkagePtr &contraction) {// grab all terms with this tmp
+
+    // initialize vector of term pointers
+    vector<Term*> tmp_terms;
+
+    omp_set_num_threads(nthreads_);
+    vector<string> eq_keys = get_equation_keys();
+    #pragma omp parallel for schedule(guided) default(none) shared(equations_, eq_keys, tmp_terms, contraction)
+    for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
+        // get equation
+        Equation &equation = equations_[eq_name]; // get equation
+
+        // get all terms with this tmp
+        vector<Term*> tmp_terms_local = equation.get_temp_terms(contraction);
+        #pragma omp critical
+        {
+            // add terms to tmp_terms
+            tmp_terms.insert(tmp_terms.end(),
+                             tmp_terms_local.begin(), tmp_terms_local.end());
+        }
+
+    }
+    omp_set_num_threads(1); // reset number of threads (for improved performance of non-parallel code)
+    return tmp_terms;
+}
+
 void PQGraph::expand_permutations(){
     //TODO: make each permutation into a separate equation
     for (auto & [name, eq] : equations_) {
@@ -585,17 +669,13 @@ void PQGraph::expand_permutations(){
 }
 
 
-
-
-
-
 size_t PQGraph::merge_terms() {
 
     if (verbose) cout << "Merging similar terms:" << endl;
 
     // iterate over equations and merge terms
     size_t num_fuse = 0;
-    omp_set_num_threads(num_threads_);
+    omp_set_num_threads(nthreads_);
     vector<string> eq_keys = get_equation_keys();
     #pragma omp parallel for reduction(+:num_fuse) default(none) shared(equations_, eq_keys)
     for (const auto &key: eq_keys) {

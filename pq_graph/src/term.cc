@@ -43,13 +43,6 @@ using std::max;
 
 namespace pdaggerq {
 
-    size_t Term::max_linkages = static_cast<size_t>(-1); // maximum number of rhs in a linkage
-    bool Term::permute_vertices_ = false;
-    bool Term::make_einsum = false;
-    set<string> Term::conditions_; // conditions to apply to terms, given by a vector of names for rhs
-    size_t Term::depth_ = 0; // depth of nested tmps
-
-
     Term::Term(const string &name, const shared_ptr<pq_string>& pq_str) {
 
         // check if term should be skipped (this should already be done before the term is constructed)
@@ -209,20 +202,16 @@ namespace pdaggerq {
         for (const auto &op : rhs_) comments_.push_back(op->str());
     }
 
-    Term::Term(const LinkagePtr &linkage) {
+    Term::Term(const LinkagePtr &linkage, double coeff) {
 
         is_assignment_ = true;
+
         // initialize coefficient as 1
-        coefficient_ = 1;
+        coefficient_ = coeff;
 
         // initialize lhs vertex
         lhs_ = linkage;
         rhs_ = {linkage->left_, linkage->right_};
-
-        // set vertex strings
-        comments_.emplace_back("1"); // add coefficient to vertex strings
-        string link_string = linkage->tot_str(true); // get linkage string with full expressions
-        comments_.emplace_back(link_string); // add linkage string to vertex strings
 
         // set permutation indices as empty
         term_perms_ = {};
@@ -238,6 +227,13 @@ namespace pdaggerq {
 
         // make labels generic
         *this = genericize();
+
+        // set vertex strings
+
+
+        string link_string = linkage->tot_str(true); // get linkage string with full expressions
+        comments_.push_back(to_string(coefficient_)); // add linkage string to vertex strings
+        comments_.emplace_back(link_string); // add linkage string to vertex strings
 
     }
 
@@ -696,38 +692,6 @@ namespace pdaggerq {
         return output;
     }
 
-    set<string> Term::which_conditions() const{
-        set<string> needed_conditions;
-
-        string input = this->str();
-
-        // check current output for conditions
-        for (const string &condition : conditions_)
-            if (input.find(condition) != string::npos) needed_conditions.insert(condition);
-
-        // check vertex strings for conditions
-        for (const string &condition : conditions_) {
-            for (const string &op_str: comments_)
-                if (op_str.find(condition) != string::npos) needed_conditions.insert(condition);
-        }
-
-        // this is a personal hack to treat m[0-2]/s[0-2] and u[0-2] as the same condition. This is because the m/s condition is
-        // is always satisfied if the u condition is satisfied.
-        // TODO: implement this by making conditions a map instead of a set
-//        set<string> new_conditions;
-//        for (const string &condition : needed_conditions) {
-//            // replace m or s with u
-//            string new_condition = condition;
-//            if (new_condition.find('m') != string::npos) new_condition.replace(new_condition.find('m'), 1, "u");
-//            else if (new_condition.find('s') != string::npos) new_condition.replace(new_condition.find('s'), 1, "u");
-//
-//            // add new condition
-//            new_conditions.insert(new_condition);
-//        }
-
-        return needed_conditions;
-    }
-
     // function that iterates over all possible orderings of vertex subsets and executes a lambda function on each ordering
     void Term::operate_subsets(
                 size_t n, // size of the set
@@ -934,7 +898,7 @@ namespace pdaggerq {
         // iterate over all subsets
         auto &bottleneck_flop = bottleneck_flop_;
         auto &rhs = rhs_;
-        bool allow_nested = true;//false;
+        bool allow_nested = allow_nesting_; //false;
         const auto op = [&allow_nested, &linkages, &bottleneck_flop, &rhs](const vector<size_t> &subset) {
 
             // extract subset vertices
@@ -942,13 +906,25 @@ namespace pdaggerq {
             subset_vec.reserve(subset.size());
             for (size_t j: subset) {
                 VertexPtr vertex = rhs[j];
-                if (vertex->is_linked() && !allow_nested)
+                if (vertex->is_temp() && !allow_nested)
                     return; // do not consider nested linkages
                 else subset_vec.push_back(vertex);
             }
 
             // make linkages from subset vertices
             LinkagePtr this_linkage = Linkage::link(subset_vec);
+
+            shape link_shape = this_linkage->shape_;
+            size_t link_occ = (size_t) link_shape.o_.first + (size_t) link_shape.o_.second;
+            size_t link_vir = (size_t) link_shape.v_.first + (size_t) link_shape.v_.second;
+
+            size_t max_occ = (size_t) max_shape_.o_.first + (size_t) max_shape_.o_.second;
+            size_t max_vir = (size_t) max_shape_.v_.first + (size_t) max_shape_.v_.second;
+
+            if (max_occ + max_vir > 0) { // user has defined a maximum size
+                if (link_occ > max_occ || link_vir > max_vir)
+                    return; // skip linkages that are too large for the user-defined maximum
+            }
 
             // add linkage to set if it has a scaling less than or equal to the bottleneck
             if (this_linkage->flop_scale() <= bottleneck_flop)
@@ -1545,6 +1521,13 @@ namespace pdaggerq {
         is_optimal_ = false; // set term to not optimal (for now)
         needs_update_ = true; // set term to be updated
         generated_linkages_ = false; // set term to not have generated linkages
+    }
+
+    void Term::reset_comments() {
+        // set comments
+        comments_.push_back(to_string(coefficient_)); // add coefficient to vertex strings
+        for (const auto &op : rhs_)
+            comments_.push_back(op->str());
     }
 
 } // pdaggerq

@@ -73,19 +73,19 @@ namespace pdaggerq {
 
     public:
 
+            mutable LinkagePtr term_linkage_; // linkage of the term
+
             bool is_optimal_ = false; // flag for if term has optimal linkages (default is false)
             bool needs_update_ = true; // flag for if term needs to be updated (default is true)
             bool generated_linkages_ = false; // flag for if term has generated linkages (default is false)
             bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
 
-            static set<string> conditions_; // conditions to apply to terms, given by a vector of names for rhs
-            mutable LinkagePtr term_linkage_; // linkage of the term
-
-            /**
-             * Returns a set of the conditions that the term requires
-             * @return set of conditions
-             */
-            set<string> which_conditions() const;
+            static inline size_t max_linkages = static_cast<size_t>(-1); // maximum number of rhs in a linkage
+            static inline shape max_shape_; // maximum shape of a linkage
+            static inline bool allow_nesting_ = true;
+            static inline bool permute_vertices_ = false;
+            static inline bool make_einsum = false;
+            static inline size_t depth_ = 0; // depth of nested tmps
 
             /******** Constructors ********/
 
@@ -120,7 +120,7 @@ namespace pdaggerq {
              * Constructor to build assignment of a linkage
              * @param linkage linkage to assign
              */
-            explicit Term(const LinkagePtr &linkage);
+            explicit Term(const LinkagePtr &linkage, double coeff);
 
             /**
              * Copy constructor
@@ -293,6 +293,11 @@ namespace pdaggerq {
             string make_comments(bool only_flop = false, bool only_comment=false) const;
 
             /**
+             * set comments variable
+             */
+            void reset_comments();
+
+            /**
              * Get flop scaling
              * @return map of flop scaling
              */
@@ -397,7 +402,7 @@ namespace pdaggerq {
              */
             string str() const;
             string einsum_str() const;
-            static bool make_einsum;
+
             string operator+(const string &other) const{ return str() + other; }
             friend string operator+(const string &other, const Term &term){ return other + term.str(); }
             friend ostream &operator<<(ostream &os, const Term &term){
@@ -445,10 +450,6 @@ namespace pdaggerq {
              * collect all possible linkages from all equations
              */
             linkage_set generate_linkages() const;
-
-            static size_t max_linkages; // maximum number of rhs in a linkage
-            static size_t depth_; // depth of nested tempOps
-            static bool permute_vertices_;
 
             /**
              * find best scalar linkage for a given term

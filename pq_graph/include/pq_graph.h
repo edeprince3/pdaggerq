@@ -87,16 +87,15 @@ namespace pdaggerq {
 
         /// options for the builder
         size_t max_temps_ = -1; // maximum number of temporary rhs (-1 for no limit by overflow)
-        bool make_scalars_ = true; // whether to format dot products and traces as scalars
         bool batched_ = false; // whether to use batched substitution
-        int num_threads_ = 1; // number of threads to use
+        int nthreads_ = 1; // number of threads to use
         bool verbose = true; // whether to print verbose output
-        bool allow_merge_ = false; // whether to merge terms
+        bool allow_merge_ = true; // whether to merge terms
 
         /// options for building sigma vectors
         //bool format_eom_ = false; // whether to format equations for the sigma build
         bool has_sigma_vecs_ = false;
-        bool store_trials_ = true; // whether to store the sigma vectors in the builder
+        bool print_trial_index = false; // whether to store the sigma vectors in the builder
 
 
     public:
@@ -235,7 +234,7 @@ namespace pdaggerq {
          * @param precon tmp to add
          * @note recomputes scaling after adding tmps
          */
-        static void add_tmp(const LinkagePtr& precon, Equation &equation);
+        static Term &add_tmp(const LinkagePtr& precon, Equation &equation, double coeff = 1.0);
 
         /**
          * Sorts tmps by the maximum id of the rhs in the linkage and the tmp itself
@@ -259,6 +258,10 @@ namespace pdaggerq {
         static void print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) ;
 
         perm_list common_permutations(const vector<Term *>& terms);
+
+        vector<Term *> get_matching_terms(const LinkagePtr &contraction);
+
+        void remove_redundant_tmps();
     }; // PQGraph
 
 } // pdaggerq

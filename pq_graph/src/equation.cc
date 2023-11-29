@@ -26,8 +26,6 @@
 #include <iostream>
 
 namespace pdaggerq {
-    size_t Equation::num_threads_ = 1; // number of threads to use when substituting
-    bool Equation::permuted_merge_ = false; // whether to merge terms with permutations
 
     Equation::Equation(const string &name, const vector<vector<string>> &term_strings) {
 
@@ -70,7 +68,7 @@ namespace pdaggerq {
 
 
         // remove all terms that have 't1' in the base name of any rhs vertex
-        if (t1_transform_) {
+        if (remove_t1) {
             for (auto term_it = terms_.end() - 1; term_it >= terms_.begin(); --term_it) {
                 bool found_t1 = false;
                 for (auto &op : *term_it) {
@@ -103,7 +101,7 @@ namespace pdaggerq {
 
 
         // remove all terms that have 't1' in the base name of any rhs vertex
-        if (t1_transform_) {
+        if (remove_t1) {
             for (auto term_it = terms_.end() - 1; term_it >= terms_.begin(); --term_it) {
                 bool found_t1 = false;
                 for (auto &op : *term_it) {
@@ -136,7 +134,7 @@ namespace pdaggerq {
         for (const auto & term : terms_) { // iterate over terms
 
             // check if condition is already printed
-            set<string> conditions = term.which_conditions();
+            set<string> conditions = {}; //term.which_conditions();
             if (Term::make_einsum)
                 conditions = {}; // ignore conditions if make_einsum is true
             if (conditions != current_conditions) { // if conditions are different, print new condition
@@ -342,7 +340,7 @@ namespace pdaggerq {
 
         linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
 
-        omp_set_num_threads((int)num_threads_);
+        omp_set_num_threads((int)nthreads_);
         #pragma omp parallel for schedule(guided) shared(terms_, all_linkages) default(none) firstprivate(compute_all)
         for (auto & term : terms_) { // iterate over terms
 
@@ -705,7 +703,7 @@ namespace pdaggerq {
     }
 
     vector<Term *> Equation::get_temp_terms(const LinkagePtr& contraction) {
-        // for every term, check if this contraction is within the term
+        // for every term, check if this contraction is within the term (do not check lhs)
         vector<Term *> temp_terms;
         for (auto &term : terms_) {
             for (auto &op : term) {
