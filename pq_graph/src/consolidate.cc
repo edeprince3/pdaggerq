@@ -482,6 +482,11 @@ void PQGraph::substitute() {
 
 void PQGraph::remove_redundant_tmps() {// remove redundant contractions (only used in one term)
 
+
+    //TODO: this function is not working properly.
+    // it will not substitute the correct labels and does not reindex the linkages. It has other problems as well.
+    return;
+
     std::map<std::string, set<std::vector<Term>::iterator>> to_remove;
 
     for (auto & [type, contractions] : all_linkages_) {
@@ -505,7 +510,7 @@ void PQGraph::remove_redundant_tmps() {// remove redundant contractions (only us
                 }
             }
 
-            if (only_one)
+            if (only_one && found)
                 to_replace[term_it] = contraction;
         }
 
