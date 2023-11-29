@@ -321,6 +321,8 @@ void PQGraph::substitute() {
             double common_coeff = common_coefficient(tmp_terms);
 
             // modify coefficients of terms
+            //TODO: this messes up comments for nested tmps since the coefficients are unknown just given the linkage
+            // this is no big deal, but can make the output less readable (because, you know, it wasn't already)
             for (Term* term_ptr : tmp_terms)
                 term_ptr->coefficient_ /= common_coeff;
 
