@@ -71,6 +71,7 @@ namespace pdaggerq {
         rank_  = lines_.size();
         shape_ = mem_scale_;
         has_blk_ = left_->has_blk_ || right_->has_blk_;
+        is_sigma_ = left_->is_sigma_ || right_->is_sigma_ || shape_.L_ > 0;
         update_name();
 
     }
@@ -491,25 +492,22 @@ namespace pdaggerq {
         return output;
     }
 
-    inline void Linkage::to_vector(vector<VertexPtr> &result, size_t &i, bool full_expand) const {
+    inline void Linkage::to_vector(vector<VertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const {
 
         if (empty()) return;
 
         // get left vertex
         if (left_->is_linked()) {
-            const LinkagePtr left_linkage = as_link(left_);
+            const LinkagePtr left_link = as_link(left_);
 
             // check if left linkage is a tmp
-            if (!full_expand && left_linkage->is_temp()) {
+            if (!full_expand && left_link->is_temp()) {
                 // if this is a tmp and we are not expanding, add it to the result and return
-                result[i++] = left_linkage;
+                result[i++] = left_link;
             } else {
 
-                // compute the vertices recursively and save them
-                left_linkage->to_vector();
-
-                // add left vertices to result
-                for (const auto &vertex: left_linkage->all_vert_)
+                // compute the left vertices recursively and save them
+                for (const auto &vertex: left_link->to_vector(regenerate, full_expand))
                     result[i++] = vertex;
             }
 
@@ -518,18 +516,16 @@ namespace pdaggerq {
 
         // get right vertex
         if (right_->is_linked()) {
-            const LinkagePtr right_linkage = as_link(right_);
+            const LinkagePtr right_link = as_link(right_);
 
             // check if right linkage is a tmp
-            if (!full_expand && right_linkage->is_temp()) {
+            if (!full_expand && right_link->is_temp()) {
                 // if this is a tmp and we are not expanding, add it to the result and return
-                result[i++] = right_linkage;
+                result[i++] = right_link;
             } else {
 
-                // compute the vertices recursively and save them
-                right_linkage->to_vector();
-
-                for (const auto &vertex: right_linkage->all_vert_)
+                // compute the right vertices recursively and save them
+                for (const auto &vertex: right_link->to_vector(regenerate, full_expand))
                     result[i++] = vertex;
             }
 
@@ -550,7 +546,7 @@ namespace pdaggerq {
                 // compute the vertices recursively and store the vertices in all_vert_ for next query
                 partial_vert_ = vector<VertexPtr>(nvert_);
                 size_t i = 0;
-                to_vector(partial_vert_, i, false);
+                to_vector(partial_vert_, i, regenerate, full_expand);
                 if (i != nvert_)
                     partial_vert_.resize(i);
                 return partial_vert_;
@@ -565,7 +561,7 @@ namespace pdaggerq {
             // compute the vertices recursively and store the vertices in all_vert_ for next query
             all_vert_ = vector<VertexPtr>(nvert_);
             size_t i = 0;
-            to_vector(all_vert_, i, true);
+            to_vector(all_vert_, i, false, true);
             if (i != nvert_)
                 all_vert_.resize(i);
 

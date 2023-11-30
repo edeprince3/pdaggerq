@@ -274,7 +274,7 @@ namespace pdaggerq {
             * @param result vector of vertices
             * @note this function is recursive
             */
-            void to_vector(vector<VertexPtr> &result, size_t &i, bool full_expand) const;
+            void to_vector(vector<VertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const;
 
             /**
              * convert the linkage to a const vector of vertices
