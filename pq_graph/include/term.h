@@ -321,13 +321,6 @@ namespace pdaggerq {
              */
             const shape &bottleneck_mem() const { return bottleneck_mem_; }
 
-
-            /**
-             * Sort terms such that the terms with tempOps are first
-             * @param terms
-             */
-            static void sort_terms(vector<Term> &terms);
-
             /******** Functions ********/
 
             /**

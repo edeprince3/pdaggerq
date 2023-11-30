@@ -73,6 +73,7 @@ pybind11_add_module(
         pq_graph/src/equation.cc
         pq_graph/src/term.cc
         pq_graph/src/term_perm_helper.cc
+        pq_graph/src/term_substitute.cc
         pq_graph/src/linkage.cc
         pq_graph/include/linkage_set.hpp
         pq_graph/include/scaling_map.hpp
