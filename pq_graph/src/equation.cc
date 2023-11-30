@@ -124,7 +124,7 @@ namespace pdaggerq {
     vector<string> Equation::to_strings() const {
 
         vector<string> output;
-        bool is_declaration = !is_temp_equation_; // whether this is a declaration
+        bool is_declaration = is_temp_equation_; // whether this is a declaration
 
         // set of conditions already found. Used to avoid printing duplicate conditions
         set<string> current_conditions = {"initialize"}; // initialize with arbitrary string
@@ -226,8 +226,8 @@ namespace pdaggerq {
         mem_map_.clear(); // clear memory scaling map
 
         // reset bottleneck scaling
-        bottleneck_flop_ = terms_[0].bottleneck_flop(); // initialize bottleneck flop scaling
-        bottleneck_mem_ = terms_[0].bottleneck_mem(); // initialize bottleneck memory scaling
+        bottleneck_flop_ = terms_.front().bottleneck_flop(); // initialize bottleneck flop scaling
+        bottleneck_mem_ =  terms_.front().bottleneck_mem(); // initialize bottleneck memory scaling
 
         for (auto & term : terms_) { // iterate over terms
             // compute scaling from term
@@ -263,7 +263,7 @@ namespace pdaggerq {
 
     size_t Equation::substitute(const LinkagePtr &linkage, bool allow_equality) {
 
-        if (!is_temp_equation_) // if tmps, return
+        if (name_ == "scalars") // if scalars, return
             return 0;
 
         // check if linkage is more expensive than current bottleneck
@@ -294,10 +294,11 @@ namespace pdaggerq {
 
     size_t Equation::test_substitute(const LinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality) {
 
-        if (!is_temp_equation_) { // if tmps, return
+        if (name_ == "scalars") { // if tmps, return
             test_flop_map += flop_map_; // add flop scaling map for whole equation
             return 0;
-        }
+        } else if (name_ == "reuse_tmps")
+            return 0;
 
         // check if linkage is more expensive than current bottleneck
         if (linkage->flop_scale() > bottleneck_flop_) {
@@ -425,7 +426,7 @@ namespace pdaggerq {
     }
 
     size_t Equation::merge_terms() {
-        if (!is_temp_equation_) return 0; // don't merge temporary equations
+        if (is_temp_equation_) return 0; // don't merge temporary equations
 
         // map to store term counts, comments, and merged coefficients using a hash of the term
         merge_map_type merge_terms_map;
@@ -601,7 +602,7 @@ namespace pdaggerq {
     }
 
     void Equation::merge_permutations() {
-        if (!is_temp_equation_) return; // if tmps, return
+        if (is_temp_equation_) return; // if tmps, return
 
         // make a map permutation types with their associated terms
         map<pair<perm_list, size_t>, vector<Term>> perm_type_to_terms;

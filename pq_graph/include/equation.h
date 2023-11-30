@@ -63,7 +63,7 @@ namespace pdaggerq {
         static inline bool permuted_merge_ = false; // whether to merge terms with permutations
         static inline bool remove_t1 = false; // whether to format t1 transformed integrals
         static inline bool separate_conditions_ = false; // whether to separate terms into their conditions
-        bool is_temp_equation_ = true; // whether to allow substitution
+        bool is_temp_equation_ = false; // whether to allow substitution
 
         // default constructor
         Equation() = default;
