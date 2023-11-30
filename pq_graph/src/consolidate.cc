@@ -27,7 +27,7 @@
 
 using std::ostream, std::string, std::vector, std::map, std::unordered_map, std::shared_ptr, std::make_shared,
         std::set, std::unordered_set, std::pair, std::make_pair, std::to_string, std::invalid_argument,
-        std::stringstream, std::cout, std::endl, std::flush, std::max;
+        std::stringstream, std::cout, std::endl, std::flush, std::max, std::min;
 
 using namespace pdaggerq;
 
@@ -65,7 +65,7 @@ void PQGraph::generate_linkages(bool recompute) {
 
 }
 
-void PQGraph::substitute() {
+void PQGraph::substitute(bool format_sigma) {
 
     // reorder if not already reordered
     if (!is_reordered_) reorder();
@@ -95,22 +95,24 @@ void PQGraph::substitute() {
     // add missing equations
     for (const auto& missing : missing_eqs) {
         equations_[missing] = Equation(missing);
-        equations_[missing].is_temp_equation_ = false; // do not allow substitution of tmp declarations
+        equations_[missing].is_temp_equation_ = true; // do not allow substitution of tmp declarations
     }
 
 
     /// format contracted scalars
-    for (auto &eq_pair : equations_){
-        const string& eq_name = eq_pair.first;
-        Equation& equation = eq_pair.second;
-        equation.form_dot_products(all_linkages_["scalars"], temp_counts_["scalars"]);
-    }
-    for (const auto & scalar : all_linkages_["scalars"])
-        // add term to scalars equation
-        add_tmp(scalar, equations_["scalars"]);
-    for (Term& term : equations_["scalars"].terms())
-        term.comments() = {}; // comments should be self-explanatory
 
+    if (format_sigma) {
+        for (auto &eq_pair: equations_) {
+            const string &eq_name = eq_pair.first;
+            Equation &equation = eq_pair.second;
+            equation.form_dot_products(all_linkages_["scalars"], temp_counts_["scalars"]);
+        }
+        for (const auto &scalar: all_linkages_["scalars"])
+            // add term to scalars equation
+            add_tmp(scalar, equations_["scalars"]);
+        for (Term &term: equations_["scalars"].terms())
+            term.comments() = {}; // comments should be self-explanatory
+    }
 
 
     /// generate all possible linkages from all arrangements
@@ -134,8 +136,8 @@ void PQGraph::substitute() {
 
     static size_t total_num_merged = 0;
 //    if (allow_merge_) {
-        size_t num_fuse = merge_terms();
-        total_num_merged += num_fuse;
+        size_t num_merged = merge_terms();
+        total_num_merged += num_merged;
 //    }
 
     // initialize best flop map for all equations
@@ -153,7 +155,7 @@ void PQGraph::substitute() {
 
     bool makeSub = true; // flag to make a substitution
     static size_t totalSubs = 0;
-    string temp_type = "tmps"; // type of temporary to substitute
+    string temp_type = format_sigma ? "reuse_tmps" : "tmps"; // type of temporary to substitute
 //    temp_counts_[temp_type] = 0; // number of temporary rhs
     while (!tmp_candidates_.empty() && temp_counts_[temp_type] < max_temps_) {
         substitute_timer.start();
@@ -179,18 +181,29 @@ void PQGraph::substitute() {
          */
         omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
-            ignore_linkages, equations_) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality)
+            ignore_linkages, equations_) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, format_sigma)
         for (int i = 0; i < n_linkages; ++i) {
             LinkagePtr linkage = as_link(copy_vert(test_linkages[i])); // copy linkage
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
 
             size_t temp_id;
-            if (is_scalar)
-                temp_id = temp_counts_["scalars"] + 1; // get number of scalars
-            else temp_id = temp_counts_[temp_type] + 1; // get number of temps
 
             // set id of linkage
             linkage->id_ = (long) temp_id;
+
+            if (format_sigma) {
+                // when formatting for sigma vectors,
+                // we only keep linkages without a sigma vector and are not scalars
+                if (linkage->is_sigma_ || is_scalar)
+                    continue;
+                linkage->is_reused_ = true;
+            } else {
+                linkage->is_reused_ = false;
+            }
+
+            if (is_scalar)
+                 temp_id = temp_counts_["scalars"] + 1; // get number of scalars
+            else temp_id = temp_counts_[temp_type] + 1; // get number of temps
 
             scaling_map test_flop_map; // flop map for test equation
             size_t numSubs = 0; // number of substitutions made
@@ -207,11 +220,12 @@ void PQGraph::substitute() {
             // or that occurs at least once and can be reused / is a scalar
 
             // include declaration for scaling?
-            bool include_declaration = !is_scalar;
+            bool include_declaration = !is_scalar && !format_sigma;
 
             // test if we made a valid substitution
             bool testSub = numSubs > 0;
             if (testSub) {
+
                 // make term of tmp declaration
                 if (include_declaration) {
                     Term precon_term = Term(linkage, 1.0);
@@ -252,8 +266,11 @@ void PQGraph::substitute() {
             bool keep     = comparison == scaling_map::this_better;
             bool is_equiv = comparison == scaling_map::is_same;
 
-            if ( is_equiv && (allow_equality || is_scalar) )
-                keep = true;
+            if (!keep) {
+                if ((is_equiv && (allow_equality || is_scalar)) || // keep if equivalent and allow equality
+                        (!makeSub && format_sigma && test_linkage->is_reused_)) // keep if formatting for sigma build
+                    keep = true;
+            }
 
             if (keep) {
                 bestPreCon = test_linkage; // save linkage
@@ -409,21 +426,23 @@ void PQGraph::substitute() {
 
             // merge terms
 //            if (allow_merge_) {
-                size_t num_fuse = merge_terms();
-                total_num_merged += num_fuse;
+                num_merged = merge_terms();
+                total_num_merged += num_merged;
 //            }
 
             // reapply substitutions to equations
             for (const auto & precon : all_linkages_[temp_type]) {
-                for (auto &eq_pair : equations_) {
-                    Equation &equation = eq_pair.second;
+                for (auto &[name, equation] : equations_) {
+                    if (equation.is_temp_equation_)
+                        continue;
                     equation.substitute(precon, true);
                 }
             }
             // repeat for scalars
             for (const auto & precon : all_linkages_["scalars"]) {
-                for (auto &eq_pair : equations_) {
-                    Equation &equation = eq_pair.second;
+                for (auto &[name, equation] : equations_) {
+                    if (equation.is_temp_equation_)
+                        continue;
                     equation.substitute(precon, true);
                 }
             }
@@ -452,6 +471,9 @@ void PQGraph::substitute() {
     tmp_candidates_.clear();
     substitute_timer.stop(); // stop timer for substitution
 
+    // recollect scaling of equations (now including sigma vectors)
+    collect_scaling(true, true);
+
     // print total time elapsed
     total_timer = substitute_timer + update_timer + build_timer + reorder_timer;
 
@@ -459,8 +481,6 @@ void PQGraph::substitute() {
         cout << "WARNING: Maximum number of substitutions reached. " << endl << endl;
 
     cout << "===> Substitution Summary <===" << endl;
-
-
 
     num_terms = 0;
     for (const auto& eq_pair : equations_) {
@@ -475,11 +495,121 @@ void PQGraph::substitute() {
     cout << "    Total Time: " << total_timer.elapsed() << endl;
     cout << "    Total number of terms: " << num_terms << endl;
     cout << "    Total terms merged: " << total_num_merged << endl;
-    cout << "    Total contractions: " << flop_map_.total() << endl;
+    cout << "    Total contractions: " << flop_map_.total() << (format_sigma ? " (ignoring assignments of intermediates)" : "") << endl;
     cout << endl;
 
-
     cout << " ===================================================="  << endl << endl;
+}
+
+
+void PQGraph::sort_tmps(Equation &equation) {
+
+    // no terms, return
+    if ( equation.terms().empty() ) return;
+
+    // to sort the tmps while keeping the order of terms without tmps, we need to
+    // make a map of the equation terms and their index in the equation and sort that (so annoying)
+    std::vector<pair<Term*, size_t>> indexed_terms;
+    for (size_t i = 0; i < equation.terms().size(); ++i)
+        indexed_terms.emplace_back(&equation.terms()[i], i);
+
+    // sort the terms by the maximum id of the tmps in the term, then by the index of the term
+
+    auto is_in_order = [](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
+
+        const Term &a_term = *a.first;
+        const Term &b_term = *b.first;
+
+        size_t a_idx = a.second;
+        size_t b_idx = b.second;
+
+        const VertexPtr &a_lhs = a_term.lhs();
+        const VertexPtr &b_lhs = b_term.lhs();
+
+        // recursive function to get min/max id of temp ids from a vertex
+        std::function<void(const VertexPtr&, long&, bool)> test_vertex;
+        test_vertex = [&test_vertex](const VertexPtr &op, long& id, bool get_max) {
+            if (op->is_temp()) {
+                LinkagePtr link = as_link(op);
+                long link_id = link->id_;
+
+                // ignore reuse_tmp linkages
+                if (!link->is_reused_) {
+                    if (get_max)
+                         id = std::max(id,  link_id);
+                    else id = std::max(id, -link_id);
+                }
+
+                // recurse into nested tmps
+                for (const auto &nested_op: link->to_vector(false, false)) {
+                    test_vertex(nested_op, id, get_max);
+                }
+            }
+        };
+
+        // get min id of temps from lhs
+        auto get_lhs_id = [&test_vertex](const Term &term, bool get_max) {
+            long id = get_max ? -1l : -__FP_LONG_MAX;
+
+            test_vertex(term.lhs(), id, get_max);
+
+            if (get_max) return id;
+            else return -id;
+        };
+
+        // get min id of temps from rhs
+        auto get_rhs_id = [&test_vertex](const Term &term, bool get_max) {
+            long id = get_max ? -1l : -__FP_LONG_MAX;
+
+            for (const auto &op: term.rhs())
+                test_vertex(op, id, get_max);
+
+            if (get_max) return id;
+            else return -id;
+        };
+
+        long a_max_id  = max(get_lhs_id(a_term, true),
+                             get_rhs_id(a_term, true));
+        long a_min_id  = min(get_lhs_id(a_term, false),
+                             get_rhs_id(a_term, false));
+
+        long b_max_id  = max(get_lhs_id(b_term, true),
+                             get_rhs_id(b_term, true));
+        long b_min_id  = min(get_lhs_id(b_term, false),
+                             get_rhs_id(b_term, false));
+
+        bool a_has_temp = a_max_id != -1l;
+        bool b_has_temp = b_max_id != -1l;
+
+        // if no temps, sort by index
+        if (!a_has_temp && !b_has_temp)
+            return a_idx < b_idx;
+
+        // if only one has temps, keep temp last
+        if (a_has_temp ^ b_has_temp)
+            return b_has_temp;
+
+        if ( a_min_id == b_min_id ) {
+            if (a_max_id == b_max_id) {
+                if (a.first->is_assignment_ ^ b.first->is_assignment_)
+                    return a.first->is_assignment_ > b.first->is_assignment_;
+                return a.second < b.second;
+            }
+            else return a_max_id < b_max_id;
+        } return a_min_id < b_min_id;
+
+    };
+
+    sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
+
+    // replace the terms in the equation with the sorted terms
+    std::vector<Term> sorted_terms;
+    sorted_terms.reserve(indexed_terms.size());
+    for (const auto &indexed_term : indexed_terms) {
+        sorted_terms.push_back(*indexed_term.first);
+    }
+
+    equation.terms() = sorted_terms;
 }
 
 void PQGraph::remove_redundant_tmps() {// remove redundant contractions (only used in one term)
@@ -487,104 +617,103 @@ void PQGraph::remove_redundant_tmps() {// remove redundant contractions (only us
 
     //TODO: this function is not working properly.
     // it will not substitute the correct labels and does not reindex the linkages. It has other problems as well.
-    return;
 
-    std::map<std::string, set<std::vector<Term>::iterator>> to_remove;
-
-    for (auto & [type, contractions] : all_linkages_) {
-
-        std::map<std::vector<Term>::iterator, LinkagePtr> to_replace;
-        for (const auto &contraction : contractions) {
-            std::vector<Term>::iterator term_it = std::vector<Term>::iterator();
-            bool only_one = true;
-
-            // find contractions that are only used in one term
-            bool found = false;
-            for (auto &[name, eq] : equations_) {
-                vector<Term*> terms = eq.get_temp_terms(contraction);
-                if (terms.size() == 1 && !found) {
-                    // use pointer to find iterator in the equation
-                    term_it = find_if(eq.terms().begin(), eq.terms().end(),
-                                      [&terms](const Term &term) { return &term == terms[0]; });
-                    found = true;
-                } else if (terms.size() > 1 || found) {
-                    only_one = false; break;
-                }
-            }
-
-            if (only_one && found)
-                to_replace[term_it] = contraction;
-        }
-
-
-
-        // replace contractions
-        Equation &tmp_eq = equations_[type];
-        for (auto & [term_it, contraction] : to_replace) {
-            Term &term = *term_it;
-
-            // find declarations to remove
-            double original_coeff = 1;
-            bool found = false;
-            for (size_t i = 0; i < tmp_eq.size(); i++) {
-                Term &tmpterm = tmp_eq.terms()[i];
-                if (tmpterm.lhs()->is_temp()) {
-                    const LinkagePtr &link = as_link(tmpterm.lhs());
-                    if (link->id_ == contraction->id_) {
-                        // get iterator of this term
-                        auto declare_it = tmp_eq.terms().begin() + i;
-                        found = true;
-                        original_coeff = tmpterm.coefficient_;
-                        to_remove[type].insert(declare_it);
-                    }
-                }
-            }
-            if (!found)
-                throw std::runtime_error("Could not find declaration for contraction: " + contraction->str());
-
-
-            // remove contraction from rhs of term
-            std::vector<VertexPtr> new_rhs;
-            new_rhs.reserve(term.rhs().size() + contraction->depth());
-            for (const auto &vertex : term.rhs()) {
-                if (vertex->is_temp()){
-                    const LinkagePtr &link = as_link(vertex);
-                    if (link->id_ == contraction->id_) {
-                        const auto &new_verts = link->to_vector();
-                        new_rhs.insert(new_rhs.end(), new_verts.begin(), new_verts.end());
-                        continue;
-                    }
-                }
-                new_rhs.push_back(vertex);
-            }
-
-            // set new rhs
-            term.rhs() = new_rhs;
-            term.coefficient_ *= original_coeff;
-            term.reorder(true);
-            term.reset_comments();
-        }
-    }
-
-    // remove declarations
-    for (auto & [type, decls] : to_remove) {
-        Equation &tmp_eq = equations_[type];
-        vector<Term> &terms = tmp_eq.terms();
-
-        // get distance of each declaration from the beginning of the equation
-        set<long> distances;
-        for (const auto &decl : decls) {
-            distances.insert(std::distance(terms.begin(), decl));
-        }
-
-        // remove declarations in reverse order
-        for (auto it = distances.rbegin(); it != distances.rend(); it++) {
-            terms.erase(terms.begin() + *it);
-            temp_counts_[type]--;
-        }
-    }
-
-    collect_scaling(true); // collect new scalings
+//    std::map<std::string, set<std::vector<Term>::iterator>> to_remove;
+//
+//    for (auto & [type, contractions] : all_linkages_) {
+//
+//        std::map<std::vector<Term>::iterator, LinkagePtr> to_replace;
+//        for (const auto &contraction : contractions) {
+//            std::vector<Term>::iterator term_it = std::vector<Term>::iterator();
+//            bool only_one = true;
+//
+//            // find contractions that are only used in one term
+//            bool found = false;
+//            for (auto &[name, eq] : equations_) {
+//                vector<Term*> terms = eq.get_temp_terms(contraction);
+//                if (terms.size() == 1 && !found) {
+//                    // use pointer to find iterator in the equation
+//                    term_it = find_if(eq.terms().begin(), eq.terms().end(),
+//                                      [&terms](const Term &term) { return &term == terms[0]; });
+//                    found = true;
+//                } else if (terms.size() > 1 || found) {
+//                    only_one = false; break;
+//                }
+//            }
+//
+//            if (only_one && found)
+//                to_replace[term_it] = contraction;
+//        }
+//
+//
+//
+//        // replace contractions
+//        Equation &tmp_eq = equations_[type];
+//        for (auto & [term_it, contraction] : to_replace) {
+//            Term &term = *term_it;
+//
+//            // find declarations to remove
+//            double original_coeff = 1;
+//            bool found = false;
+//            for (size_t i = 0; i < tmp_eq.size(); i++) {
+//                Term &tmpterm = tmp_eq.terms()[i];
+//                if (tmpterm.lhs()->is_temp()) {
+//                    const LinkagePtr &link = as_link(tmpterm.lhs());
+//                    if (link->id_ == contraction->id_) {
+//                        // get iterator of this term
+//                        auto declare_it = tmp_eq.terms().begin() + i;
+//                        found = true;
+//                        original_coeff = tmpterm.coefficient_;
+//                        to_remove[type].insert(declare_it);
+//                    }
+//                }
+//            }
+//            if (!found)
+//                throw std::runtime_error("Could not find declaration for contraction: " + contraction->str());
+//
+//
+//            // remove contraction from rhs of term
+//            std::vector<VertexPtr> new_rhs;
+//            new_rhs.reserve(term.rhs().size() + contraction->depth());
+//            for (const auto &vertex : term.rhs()) {
+//                if (vertex->is_temp()){
+//                    const LinkagePtr &link = as_link(vertex);
+//                    if (link->id_ == contraction->id_) {
+//                        const auto &new_verts = link->to_vector();
+//                        new_rhs.insert(new_rhs.end(), new_verts.begin(), new_verts.end());
+//                        continue;
+//                    }
+//                }
+//                new_rhs.push_back(vertex);
+//            }
+//
+//            // set new rhs
+//            term.rhs() = new_rhs;
+//            term.coefficient_ *= original_coeff;
+//            term.reorder(true);
+//            term.reset_comments();
+//        }
+//    }
+//
+//    // remove declarations
+//    for (auto & [type, decls] : to_remove) {
+//        Equation &tmp_eq = equations_[type];
+//        vector<Term> &terms = tmp_eq.terms();
+//
+//        // get distance of each declaration from the beginning of the equation
+//        set<long> distances;
+//        for (const auto &decl : decls) {
+//            distances.insert(std::distance(terms.begin(), decl));
+//        }
+//
+//        // remove declarations in reverse order
+//        for (auto it = distances.rbegin(); it != distances.rend(); it++) {
+//            terms.erase(terms.begin() + *it);
+//            temp_counts_[type]--;
+//        }
+//    }
+//
+//    collect_scaling(true); // collect new scalings
 
 //
 //    // sort tmps
