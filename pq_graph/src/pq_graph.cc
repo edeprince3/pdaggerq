@@ -203,8 +203,8 @@ namespace pdaggerq {
         cout << "    max_temps: " << max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
 
-        cout << "    max_shape: a map of maximum sizes for each line type in an intermediate (default: {o: -1, v: -1}, "
-                "for no limit of occupied and virtual lines.): " << Term::max_shape_.str() << endl;
+        cout << "    max_shape: " << Term::max_shape_.str() << "// a map of maximum sizes for each line type in an intermediate (default: {o: -1, v: -1}, "
+                "for no limit of occupied and virtual lines.): " << endl;
 
         cout << "    allow_nesting: " << (Term::allow_nesting_ ? "true" : "false")
              << "  // whether to allow nested intermediates (default: true)" << endl;

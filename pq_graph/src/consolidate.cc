@@ -501,7 +501,6 @@ void PQGraph::substitute(bool format_sigma) {
     cout << " ===================================================="  << endl << endl;
 }
 
-
 void PQGraph::sort_tmps(Equation &equation) {
 
     // no terms, return
@@ -592,15 +591,18 @@ void PQGraph::sort_tmps(Equation &equation) {
         if ( a_min_id == b_min_id ) {
             if (a_max_id == b_max_id) {
                 if (a.first->is_assignment_ ^ b.first->is_assignment_)
-                    return a.first->is_assignment_ > b.first->is_assignment_;
+                    return a.first->is_assignment_;
                 return a.second < b.second;
             }
             else return a_max_id < b_max_id;
-        } return a_min_id < b_min_id;
+        } else return a_min_id < b_min_id;
+
+        // should never get here
+        return true;
 
     };
 
-    sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
+    stable_sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
 
     // replace the terms in the equation with the sorted terms
     std::vector<Term> sorted_terms;
@@ -804,7 +806,6 @@ void PQGraph::expand_permutations(){
     }
 }
 
-
 size_t PQGraph::merge_terms() {
 
     if (verbose) cout << "Merging similar terms:" << endl;
@@ -827,7 +828,6 @@ size_t PQGraph::merge_terms() {
 
     return num_fuse;
 }
-
 
 double PQGraph::common_coefficient(vector<Term*> &terms) {
 

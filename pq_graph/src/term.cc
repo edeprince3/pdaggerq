@@ -211,25 +211,19 @@ namespace pdaggerq {
 
         // initialize lhs vertex
         lhs_ = linkage;
-        rhs_ = {linkage->left_, linkage->right_};
+        rhs_ = linkage->to_vector(false, false);
 
         // set permutation indices as empty
         term_perms_ = {};
         perm_type_ = 0;
 
-        // initialize bottleneck flop and memory scaling
-        bottleneck_flop_ = linkage->flop_scale();
-        bottleneck_mem_ = linkage->mem_scale();
-
         // reorder rhs
         reorder();
-        term_linkage_->id_ = linkage->id_;
 
         // make labels generic
         *this = genericize();
 
         // set vertex strings
-
 
         string link_string = linkage->tot_str(true); // get linkage string with full expressions
         comments_.push_back(to_string(coefficient_)); // add linkage string to vertex strings

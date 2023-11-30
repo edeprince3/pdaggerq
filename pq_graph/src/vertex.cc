@@ -288,9 +288,7 @@ namespace pdaggerq {
         // format tensor block as a map if it is not an amplitude or if it has a block
         if (!is_amplitude || has_blk_) {
             name_ += "[\"";
-            name_ += has_blk_ ? new_blk_string : "";
-            name_ += (!is_amplitude && has_blk_) ? "_" : "";
-            name_ += !is_amplitude ? ovstring : "";
+            name_ += dimstring();
             name_ += "\"]";
         }
 
@@ -300,9 +298,10 @@ namespace pdaggerq {
         string dimstring;
         if (rank_ == 0) return dimstring;
 
-        if (has_blk_)
-            dimstring += blk_string() + "_";
         dimstring += ovstring();
+        if (has_blk_)
+            dimstring += "_" + blk_string();
+
         return dimstring;
     }
 
