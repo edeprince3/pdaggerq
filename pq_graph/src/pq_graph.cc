@@ -175,36 +175,57 @@ namespace pdaggerq {
                 Equation::nthreads_ = nthreads_;
             }
         }
+        omp_set_num_threads(1); // set to 1 to speed up non-parallel code
+
         if (options.contains("separate_conditions")){
+            //TODO: implement this
             Equation::separate_conditions_ = options["separate_conditions"].cast<bool>();
         }
 
+        if(options.contains("format_sigma"))
+            has_sigma_vecs_ = options["format_sigma"].cast<bool>();
+
         if (options.contains("print_trial_index"))
             Vertex::print_trial_index = options["print_trial_index"].cast<bool>();
-
-        omp_set_num_threads(1); // set to 1 to speed up non-parallel code
 
         cout << "Options:" << endl;
         cout << "--------" << endl;
         cout << "    verbose: " << (verbose ? "true" : "false")
              << "  // whether to print out verbose analysis (default: true)" << endl;
-        cout << "    output: " << (Term::make_einsum ? "Python" : "C++") << "  // whether to print equations in C++ or Python format (default: C++)."
-             << endl;
+
+        cout << "    output: " << (Term::make_einsum ? "Python" : "C++")
+             << "  // whether to print equations in C++ or Python format (default: C++)." << endl;
+
         cout << "    remove_t1: " << (Equation::remove_t1 ? "true" : "false")
-             << "  // removes all t1 terms; ideal when using t1-transformed two-electron integrals (default: false)" << endl;
+             << "  // removes all t1 terms; ideal when using t1-transformed "
+             << "two-electron integrals (default: false)" << endl;
+
         cout << "    max_temps: " << max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
+
         cout << "    max_shape: a map of maximum sizes for each line type in an intermediate (default: {o: -1, v: -1}, "
                 "for no limit of occupied and virtual lines.): " << Term::max_shape_.str() << endl;
+
         cout << "    allow_nesting: " << (Term::allow_nesting_ ? "true" : "false")
              << "  // whether to allow nested intermediates (default: true)" << endl;
-        if (print_trial_index) {
-            cout << "    print_trial_index: " << (Vertex::print_trial_index ? "true" : "false")
-                 << "  // whether to store trial vectors as an additional index/dimension for tensors in a sigma-vector build (default: false)" << endl;
-        }
-        cout << "    batched: " << (batched_ ? "true" : "false") << "  // whether to substitute intermediates in batches for faster generation. (default: false)" << endl;
-        cout << "    allow_merge_: " << (allow_merge_ ? "true" : "false") << "  // whether to merge similar terms during optimization (default: true)" << endl;
-        cout << "    nthreads: " << nthreads_ << "  // number of threads to use (default: OMP_NUM_THREADS | available: " << omp_get_max_threads() << ")" << endl;
+
+        cout << "    format_sigma: " << (has_sigma_vecs_ ? "true" : "false")
+             << "  // whether to format equations for sigma-vector build (default: false)" << endl;
+
+        cout << "    print_trial_index: " << (Vertex::print_trial_index ? "true" : "false")
+             << "  // whether to store trial vectors as an additional index/dimension for "
+             << "tensors in a sigma-vector build (default: false)" << endl;
+
+        cout << "    batched: " << (batched_ ? "true" : "false")
+             << "  // whether to substitute intermediates in batches for faster generation. (default: false)" << endl;
+
+        cout << "    allow_merge_: " << (allow_merge_ ? "true" : "false")
+             << "  // whether to merge similar terms during optimization (default: true)" << endl;
+
+        cout << "    nthreads: " << nthreads_
+             << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
+             << omp_get_max_threads() << ")" << endl;
+
         cout << endl;
     }
 
@@ -499,7 +520,7 @@ namespace pdaggerq {
 
     }
 
-    void PQGraph::collect_scaling(bool recompute) {
+    void PQGraph::collect_scaling(bool recompute, bool include_reuse) {
 
         // reset scaling maps
         flop_map_.clear(); // clear flop scaling map
@@ -509,9 +530,11 @@ namespace pdaggerq {
         bottleneck_flop_ = equations_.begin()->second.bottleneck_flop();
         bottleneck_mem_ = equations_.begin()->second.bottleneck_mem();
 
-        for (auto & eq_pair : equations_) { // iterate over equations
+        for (auto & [name, equation] : equations_) { // iterate over equations
+            if (name == "reuse_tmps" && !include_reuse)
+                continue; // skip reuse_tmps equation (TODO: only include for analysis)
+
             // collect scaling for each equation
-            Equation &equation = eq_pair.second;
             equation.collect_scaling(recompute);
 
             const auto & flop_map = equation.flop_map(); // get flop scaling map
@@ -666,12 +689,20 @@ namespace pdaggerq {
             // expand permutations in equations since we are not limiting the number of temps
             expand_permutations();
         }
-        substitute(); // find and substitute intermediate contractions
+
+        bool format_sigma = has_sigma_vecs_ && format_sigma_;
+        substitute(format_sigma); // find and substitute intermediate contractions
+
+        if (format_sigma)
+            substitute(false); // apply substitutions again to find any new sigma vectors
 
 //        if (allow_merge_)
 //            merge_terms(); // merge similar terms
 //        if (reuse_permutations_)
 //           merge_permutations(); // merge similar permutations
+
+        // recollect scaling of equations
+        collect_scaling(true, true);
         analysis(); // analyze equations
     }
 
@@ -724,128 +755,6 @@ namespace pdaggerq {
         // make term with tmp
         equation.terms().insert(equation.end(), Term(precon, coeff));
         return equation.terms().back();
-    }
-
-    void PQGraph::sort_tmps(Equation &equation) {
-
-        // no terms, return
-        if ( equation.terms().empty() ) return;
-
-        // to sort the tmps while keeping the order of terms without tmps, we need to
-        // make a map of the equation terms and their index in the equation and sort that (so annoying)
-        std::vector<pair<Term*, size_t>> indexed_terms;
-        for (size_t i = 0; i < equation.terms().size(); ++i)
-            indexed_terms.emplace_back(&equation.terms()[i], i);
-
-        // sort the terms by the maximum id of the tmps in the term, then by the index of the term
-
-        auto is_in_order = [](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
-
-            const Term &a_term = *a.first;
-            const Term &b_term = *b.first;
-
-            size_t a_idx = a.second;
-            size_t b_idx = b.second;
-
-            const VertexPtr &a_lhs = a_term.lhs();
-            const VertexPtr &b_lhs = b_term.lhs();
-
-            // recursive function to get min/max id of temp ids from a vertex
-            std::function<void(const VertexPtr&, long&, bool)> test_vertex;
-            test_vertex = [&test_vertex](const VertexPtr &op, long& id, bool get_max) {
-                if (op->is_temp()) {
-                    LinkagePtr link = as_link(op);
-                    long link_id = link->id_;
-
-                    // ignore reuse_tmp linkages
-                    if (!link->is_reused_ && !link->is_scalar()){
-                        if (get_max)
-                             id = std::max(id,  link_id);
-                        else id = std::max(id, -link_id);
-                    }
-
-                    // recurse into nested tmps
-                    for (const auto &nested_op: link->to_vector(false, false)) {
-                        test_vertex(nested_op, id, get_max);
-                    }
-                }
-            };
-
-            // get min id of temps from lhs
-            auto get_lhs_id = [&test_vertex](const Term &term, bool get_max) {
-                long id = get_max ? -1l : -__FP_LONG_MAX;
-
-                test_vertex(term.lhs(), id, get_max);
-
-                if (get_max) return id;
-                else return -id;
-            };
-
-            // get min id of temps from rhs
-            auto get_rhs_id = [&test_vertex](const Term &term, bool get_max) {
-                long id = get_max ? -1l : -__FP_LONG_MAX;
-
-                for (const auto &op: term.rhs())
-                    test_vertex(op, id, get_max);
-
-                if (get_max) return id;
-                else return -id;
-            };
-
-            long a_max_id  = max(get_lhs_id(a_term, true),
-                                 get_rhs_id(a_term, true));
-            long a_min_id  = min(get_lhs_id(a_term, false),
-                                 get_rhs_id(a_term, false));
-
-            long b_max_id  = max(get_lhs_id(b_term, true),
-                                 get_rhs_id(b_term, true));
-            long b_min_id  = min(get_lhs_id(b_term, false),
-                                 get_rhs_id(b_term, false));
-
-            bool a_has_temp = a_max_id != -1l;
-            bool b_has_temp = b_max_id != -1l;
-
-            // if no temps, sort by index
-            if (!a_has_temp && !b_has_temp)
-                return a_idx < b_idx;
-
-            // if only one has temps, keep temp last
-            if (a_has_temp ^ b_has_temp)
-                return b_has_temp;
-
-            if ( a_min_id == b_min_id ) {
-                if (a_max_id == b_max_id) {
-                    if (a.first->is_assignment_ ^ b.first->is_assignment_)
-                        return a.first->is_assignment_ > b.first->is_assignment_;
-                    return a.second < b.second;
-                }
-                else return a_max_id < b_max_id;
-            } return a_min_id < b_min_id;
-
-        };
-
-        sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
-
-//        bool in_order = false;
-//        while (!in_order) {
-//            in_order = true;
-//            for (size_t i = 0; i < indexed_terms.size() - 1; ++i) {
-//                if (!is_in_order(indexed_terms[i], indexed_terms[i + 1])) {
-//                    std::swap(indexed_terms[i], indexed_terms[i+1]);
-////                    cout << "swapped " << i << " and " << i+1 << endl;
-//                    in_order = false;
-//                }
-//            }
-//        }
-
-        // replace the terms in the equation with the sorted terms
-        std::vector<Term> sorted_terms;
-        sorted_terms.reserve(indexed_terms.size());
-        for (const auto &indexed_term : indexed_terms) {
-            sorted_terms.push_back(*indexed_term.first);
-        }
-
-        equation.terms() = sorted_terms;
     }
 
 } // pdaggerq

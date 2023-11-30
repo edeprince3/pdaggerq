@@ -95,6 +95,7 @@ namespace pdaggerq {
         /// options for building sigma vectors
         //bool format_eom_ = false; // whether to format equations for the sigma build
         bool has_sigma_vecs_ = false;
+        bool format_sigma_ = false; // whether to format equations for the sigma build
         bool print_trial_index = false; // whether to store the sigma vectors in the builder
 
 
@@ -180,7 +181,7 @@ namespace pdaggerq {
          * collect scaling of all equations
          * @param regenerate whether to regenerate the scaling for terms
          */
-        void collect_scaling(bool recompute = true);
+        void collect_scaling(bool recompute = true, bool include_reuse = false);
 
         /**
          * report summary of scaling for all equations
@@ -190,7 +191,7 @@ namespace pdaggerq {
         /**
          * Substitute common linkages in each equation
          */
-        void substitute();
+        void substitute(bool format_sigma = false);
 
         /**
          * make set of linkages to test for subexpression elimination
