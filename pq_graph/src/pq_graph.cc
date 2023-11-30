@@ -367,7 +367,8 @@ namespace pdaggerq {
 //            }
 
             sort_tmps(equation); // sort tmps in equation
-            const vector<Term> &terms = equation.terms();
+            vector<Term> &terms = equation.terms();
+            terms.front().is_assignment_ = true; // mark first term as assignment
             all_terms.insert(all_terms.end(), terms.begin(), terms.end());
         }
 

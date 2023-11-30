@@ -580,7 +580,7 @@ void PQGraph::sort_tmps(Equation &equation) {
         bool a_has_temp = a_max_id != -1l;
         bool b_has_temp = b_max_id != -1l;
 
-        // if no temps, sort by index
+        // if no temps, keep order
         if (!a_has_temp && !b_has_temp)
             return a_idx < b_idx;
 
@@ -590,9 +590,9 @@ void PQGraph::sort_tmps(Equation &equation) {
 
         if ( a_min_id == b_min_id ) {
             if (a_max_id == b_max_id) {
-                if (a.first->is_assignment_ ^ b.first->is_assignment_)
-                    return a.first->is_assignment_;
-                return a.second < b.second;
+                if (a_term.is_assignment_ ^ b_term.is_assignment_)
+                    return a_term.is_assignment_;
+                return a_idx < b_idx;
             }
             else return a_max_id < b_max_id;
         } else return a_min_id < b_min_id;
