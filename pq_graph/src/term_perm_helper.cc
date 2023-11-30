@@ -120,7 +120,7 @@ namespace pdaggerq {
                 // create deep copy of rhs vertices
                 vector<VertexPtr> perm_vertices;
                 for (const auto &vertex: rhs_)
-                    perm_vertices.push_back(copy_vert(vertex));
+                    perm_vertices.push_back(vertex->deep_copy_ptr());
                 perm_term.rhs_ = perm_vertices; // set vertices in term
                 perm_term.coefficient_ = coefficient_; // set vertices in term
 
@@ -161,7 +161,7 @@ namespace pdaggerq {
         Term perm_term = *this; // copy term
         vector<VertexPtr> perm_vertices;
         for (const auto &vertex: rhs_)
-            perm_vertices.push_back(copy_vert(vertex));
+            perm_vertices.push_back(vertex->deep_copy_ptr());
         perm_term.rhs_ = perm_vertices; // set vertices in term
         perm_term.reset_perm(); // reset permutation indices
         perm_term.is_assignment_ = false; // set to false since we are permuting the term
@@ -246,7 +246,7 @@ namespace pdaggerq {
             // make another deep copy of the term
             perm_vertices.clear();
             for (const auto &vertex: rhs_)
-                perm_vertices.push_back(copy_vert(vertex));
+                perm_vertices.push_back(vertex->deep_copy_ptr());
             perm_term.rhs_ = perm_vertices;
 
             // second pair permutation
@@ -316,7 +316,7 @@ namespace pdaggerq {
             // make another deep copy of the term
             perm_vertices.clear();
             for (const auto &vertex: rhs_)
-                perm_vertices.push_back(copy_vert(vertex));
+                perm_vertices.push_back(vertex->deep_copy_ptr());
             perm_term.rhs_ = perm_vertices;
 
             // pair permutation (bac;jik)

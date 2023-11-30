@@ -67,13 +67,6 @@ namespace pdaggerq {
         // build internal and external lines with their index mapping
         set_links();
 
-        // set properties
-        rank_  = lines_.size();
-        shape_ = mem_scale_;
-        has_blk_ = left_->has_blk_ || right_->has_blk_;
-        is_sigma_ = left_->is_sigma_ || right_->is_sigma_ || shape_.L_ > 0;
-        update_name();
-
     }
 
     inline void Linkage::set_links() {
@@ -82,9 +75,20 @@ namespace pdaggerq {
         int_lines_.clear();
         lines_.clear();
 
+        rank_ = 0;
+        shape_ = shape();
+        mem_scale_ = shape();
+        flop_scale_ = shape();
+        has_blk_ = false;
+        is_sigma_ = false;
+        is_den_ = false;
+
+
         int_connec_.clear();
         r_ext_idx_.clear();
         l_ext_idx_.clear();
+
+
 
         // grab data from left and right vertices
         uint_fast8_t left_size = left_->size();
@@ -249,7 +253,16 @@ namespace pdaggerq {
 
         // add external lines to lines
         lines_.assign(ext_lines.begin(), ext_lines.end());
-        
+
+
+        // set properties
+        rank_  = lines_.size();
+        shape_ = mem_scale_;
+        has_blk_ = left_->has_blk_ || right_->has_blk_;
+        is_sigma_ = left_->is_sigma_ || right_->is_sigma_ || shape_.L_ > 0;
+        is_den_ = left_->is_den_ || right_->is_den_ || shape_.Q_ > 0;
+        update_name();
+
     }
 
     LinkagePtr Linkage::link(const vector<VertexPtr> &op_vec) {
@@ -574,8 +587,8 @@ namespace pdaggerq {
         this->Vertex::operator=(other);
 
         // fill linkage data (shallow copy, but should not be modified either way) TODO: enforce this
-        left_ = other.left_;
-        right_ =other.right_;
+        left_  = other.left_;
+        right_ = other.right_;
 
 //        left_parent_ = other.left_parent_;
 //        right_parent_ = other.right_parent_;
@@ -596,12 +609,24 @@ namespace pdaggerq {
         is_reused_ = other.is_reused_;
 
         all_vert_ = other.all_vert_;
-        for (auto &vertex : all_vert_)
-            vertex = copy_vert(vertex);
     }
 
     Linkage::Linkage(const Linkage &other) {
         clone_link(other);
+    }
+
+    VertexPtr Linkage::deep_copy_ptr() const {
+        LinkagePtr link_copy(
+                new Linkage(left_->deep_copy_ptr(), right_->deep_copy_ptr(), is_addition_)
+                );
+
+        link_copy->id_ = id_;
+        link_copy->is_reused_ = is_reused_;
+        return link_copy;
+    }
+
+    Vertex Linkage::deep_copy() const {
+        return *deep_copy_ptr();
     }
 
     Linkage &Linkage::operator=(const Linkage &other) {
@@ -664,13 +689,6 @@ namespace pdaggerq {
 
     extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
         return make_shared<Linkage>(left, right, false);
-    }
-
-    extern VertexPtr copy_vert(const VertexPtr &vertex){
-        if ( vertex->is_linked() )
-             return make_shared<Linkage>(*as_link(vertex));
-        else return make_shared<Vertex>(*vertex);
-
     }
 
 } // pdaggerq

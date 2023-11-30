@@ -326,14 +326,6 @@ namespace pdaggerq {
         return blk_string;
     }
 
-    Vertex::Vertex() {
-        name_ = "Empty";
-        base_name_ = "Empty";
-        has_blk_ = false;
-        rank_ = 0;
-        shape_ = shape();
-    }
-
     string Vertex::ovstring(const vector<Line> &lines) {
         if (lines.empty()) return "";
         uint_fast8_t line_size = lines.size();
@@ -344,6 +336,14 @@ namespace pdaggerq {
         }
 
         return ovstring;
+    }
+
+    Vertex::Vertex() {
+        name_ = "Empty";
+        base_name_ = "Empty";
+        has_blk_ = false;
+        rank_ = 0;
+        shape_ = shape();
     }
 
     inline Vertex Vertex::permute(size_t perm_id, bool &swap_sign) const {

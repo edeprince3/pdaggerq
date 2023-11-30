@@ -102,7 +102,7 @@ namespace pdaggerq {
 
         // add lhs vertex
         lhs_ = make_shared<Vertex>(name);
-        eq_ = copy_vert(lhs_);
+        eq_ = lhs_->deep_copy_ptr();
 
         // create rhs vertices
         for (const auto & delta : pq_str->deltas) // add delta functions
@@ -217,11 +217,11 @@ namespace pdaggerq {
         term_perms_ = {};
         perm_type_ = 0;
 
+        // make labels generic (performs a deep copy)
+        *this = genericize();
+
         // reorder rhs
         reorder();
-
-        // make labels generic
-        *this = genericize();
 
         // set vertex strings
 
@@ -490,7 +490,7 @@ namespace pdaggerq {
             bool make_perm_tmp = rhs_.size() == 1;
             if (make_perm_tmp) perm_vertex = rhs_[0]; // no need to create intermediate vertex if there is only one
             else { // else, create the intermediate vertex and its assignment term
-                perm_vertex = copy_vert(lhs_);
+                perm_vertex = lhs_->deep_copy_ptr();
                 string perm_name = "perm_tmps";
                 perm_name += "_" + perm_vertex->dimstring();
                 perm_vertex->set_name(perm_name); // set name of permutation vertex
@@ -830,7 +830,7 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if vertex is a trace
             // get self-contracted lines
-            VertexPtr copy = copy_vert(op);
+            VertexPtr copy = op->deep_copy_ptr();
             map<Line, uint_fast8_t> self_links = copy->self_links();
 
             bool has_self_link = false;
@@ -968,35 +968,45 @@ namespace pdaggerq {
             }
         };
 
+        auto add_lines = [&assign_generic_label](const VertexPtr &vertex){
+
+            // check if vertex is a linkage
+            if (vertex->is_linked()) {
+                // expand all operators in linkage
+                for (const auto & op : as_link(vertex)->to_vector()) {
+                    for (const auto & line : op->lines()) {
+                        size_t count = line_map.count(line);
+                        if (count == 0) {
+                            // line does not exist in map, add it
+                            line_map[line] = line;
+                            assign_generic_label(line, line.label_);
+                        }
+                    }
+                }
+            } else {
+                for (const auto &line: vertex->lines()) {
+                    size_t count = line_map.count(line);
+                    if (count == 0) {
+                        // line does not exist in map, add it
+                        line_map[line] = line;
+                        assign_generic_label(line, line.label_);
+                    }
+                }
+            }
+        };
+
         /// map lines in term to generic lines
 
-        for (const auto & line : lhs_->lines()) {
-            size_t count = line_map.count(line);
-            if (count == 0) {
-                // line does not exist in map, add it
-                line_map[line] = line;
-                assign_generic_label(line, line.label_);
-            }
-        }
-        if (eq_ != nullptr) {
-            for (const auto &line: eq_->lines()) {
-                size_t count = line_map.count(line);
-                if (count == 0) {
-                    // line does not exist in map, add it
-                    line_map[line] = line;
-                    assign_generic_label(line, line.label_);
-                }
-            }
-        }
+        // add lhs lines
+        add_lines(lhs_);
+
+        // add eq lines
+        if (eq_ != nullptr)
+            add_lines(eq_);
+
+        // add rhs lines
         for (const auto & vertex : rhs_) {
-            for (const auto &line: vertex->lines()) {
-                size_t count = line_map.count(line);
-                if (count == 0) {
-                    // line does not exist in map, add it
-                    line_map[line] = line;
-                    assign_generic_label(line, line.label_);
-                }
-            }
+            add_lines(vertex);
         }
 
 
@@ -1005,30 +1015,18 @@ namespace pdaggerq {
         std::vector<VertexPtr> new_rhs;
         new_rhs.reserve(rhs_.size());
         for (const auto & vertex : rhs_) {
-            VertexPtr new_vertex = copy_vert(vertex);
-            std::vector<Line> new_lines = new_vertex->lines();
-            for (Line & line : new_lines) {
-                line = line_map[line];
-            }
-            new_vertex->update_lines(new_lines);
+            VertexPtr new_vertex = vertex->deep_copy_ptr();
+            new_vertex->replace_lines(line_map);
             new_rhs.push_back(new_vertex);
         }
 
         // make eq vertex generic
-        VertexPtr new_eq = copy_vert((eq_ != nullptr) ? eq_ : lhs_);
-        std::vector<Line> new_lines = new_eq->lines();
-        for (Line & line : new_lines) {
-            line = line_map[line];
-        }
-        new_eq->update_lines(new_lines);
+        VertexPtr new_eq = (eq_ != nullptr) ? eq_->deep_copy_ptr() : lhs_->deep_copy_ptr();
+        new_eq->replace_lines(line_map);
 
         // make lhs generic
-        VertexPtr new_lhs = copy_vert(lhs_);
-        new_lines = new_lhs->lines();
-        for (Line & line : new_lines) {
-            line = line_map[line];
-        }
-        new_lhs->update_lines(new_lines);
+        VertexPtr new_lhs = lhs_->deep_copy_ptr();
+        new_lhs->replace_lines(line_map);
 
         // make permutation generic
         perm_list new_perms;

@@ -41,6 +41,12 @@ using std::shared_ptr;
 
 namespace pdaggerq {
 
+    // forward declaration
+    struct Vertex;
+
+    // typedef for shared pointer to Vertex
+    typedef shared_ptr<Vertex> VertexPtr;
+
     /**
      * Vertex class
      * Represents a vertex in the form of a string with the vertex name and its indices
@@ -111,6 +117,17 @@ namespace pdaggerq {
         Vertex(const Vertex &other) = default;
 
         /**
+         * deep copy of vertex
+         * @return deep copy of vertex
+         */
+        virtual Vertex deep_copy() const{
+            // true vertex does not have any pointers; this function is just for inheritance
+            return *this;
+        };
+
+        virtual VertexPtr deep_copy_ptr() const{ return std::make_shared<Vertex>(*this); };
+
+        /**
          * move constructor
          * @param other vertex to move
          */
@@ -128,6 +145,17 @@ namespace pdaggerq {
          * @param update_name boolean indicating whether the name of the vertex should be updated (default true)
          */
         void update_lines(const vector<Line> &lines, bool update_name = true);
+
+
+        /**
+         * replaces the lines of the vertex with the lines in the argument
+         * @param lines vector of lines
+         */
+        virtual void replace_lines(const unordered_map<Line, Line, LineHash> &line_map){
+            for (auto &line : lines_)
+                line = line_map.at(line);
+            update_lines(lines_, true);
+        }
 
         /**
          * sets parameters of the vertex from the string representation of the vertex
@@ -412,9 +440,6 @@ namespace pdaggerq {
 
 
     }; // end Vertex class
-
-    // typedef for shared pointer to Vertex
-    typedef shared_ptr<Vertex> VertexPtr;
 
 
 

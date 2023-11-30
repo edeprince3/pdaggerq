@@ -630,7 +630,7 @@ namespace pdaggerq {
 
             // append "perm" to the name of the lhs vertex
             const VertexPtr lhs_op = terms[0].lhs();
-            VertexPtr new_lhs_op = copy_vert(lhs_op);
+            VertexPtr new_lhs_op = lhs_op->deep_copy_ptr();
             new_lhs_op->set_base_name("perm_tmps_" + perm_str + new_lhs_op->base_name());
             new_lhs_op->update_lines(new_lhs_op->lines());
 

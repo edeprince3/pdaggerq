@@ -83,13 +83,6 @@ namespace pdaggerq {
      */
     extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right);
 
-    /**
-     * perform a deep copy of a vertex
-     * @param vertex vertex to copy
-     * @return pointer to the copy
-     */
-    extern VertexPtr copy_vert(const VertexPtr &vertex);
-
     // struct for comparing lines while ignoring the label
     struct line_compare {
         bool operator()(const Line &left, const Line &right) const {
@@ -157,6 +150,23 @@ namespace pdaggerq {
              */
             void set_links();
 
+            /**
+             * Replace the lines of the linkage
+             * @param lines new lines
+             * @note this function will recursively replace the lines of the vertices
+             */
+            void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override {
+                // replace the lines of the vertices
+                left_->replace_lines(line_map);
+                right_->replace_lines(line_map);
+
+
+                // rebuild the linkage
+                long id = id_;
+                *this = Linkage(left_, right_, is_addition_);
+                id_ = id;
+
+            }
 
             /**
              * Destructor
@@ -168,6 +178,13 @@ namespace pdaggerq {
              * @param other linkage to copy
              */
             Linkage(const Linkage &other);
+
+            /**
+             * Return a deep copy of the linkage where all nested linkages are also copied
+             * @return deep copy of the linkage
+             */
+            Vertex deep_copy() const override;
+            VertexPtr deep_copy_ptr() const override;
 
             /**
              * Move constructor

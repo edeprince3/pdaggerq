@@ -183,7 +183,7 @@ void PQGraph::substitute(bool format_sigma) {
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
             ignore_linkages, equations_) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, format_sigma)
         for (int i = 0; i < n_linkages; ++i) {
-            LinkagePtr linkage = as_link(copy_vert(test_linkages[i])); // copy linkage
+            LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr()); // copy linkage
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
 
             size_t temp_id;
