@@ -152,8 +152,12 @@ namespace pdaggerq {
          * @param lines vector of lines
          */
         virtual void replace_lines(const unordered_map<Line, Line, LineHash> &line_map){
-            for (auto &line : lines_)
-                line = line_map.at(line);
+            for (auto &line : lines_) {
+                // find the line in the map and replace it (if it exists)
+                auto it = line_map.find(line);
+                if (it != line_map.end())
+                    line = it->second;
+            }
             update_lines(lines_, true);
         }
 
