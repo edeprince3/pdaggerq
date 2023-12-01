@@ -74,10 +74,8 @@ namespace pdaggerq {
         if (perm_type == 0) return {*this};
 
         // initialize vector for the permuted terms
-        vector<Term> perm_terms;
-
         // add original term
-        perm_terms.push_back(*this);
+        vector<Term> perm_terms{*this};
         perm_terms.front().reset_perm();
 
 
@@ -140,12 +138,7 @@ namespace pdaggerq {
 
                 // recomputes scaling
                 perm_term.compute_scaling(true);
-
-                // rebuild comments
-                perm_term.comments_.clear();
-                perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-                for (const auto &op : perm_term.rhs_)
-                    perm_term.comments_.push_back(op->str());
+                perm_term.reset_comments();
 
                 // add permuted term to vector
                 perm_terms.push_back(perm_term);
@@ -192,12 +185,7 @@ namespace pdaggerq {
 
             // recomputes scaling
             perm_term.compute_scaling(true);
-
-            // rebuild comments
-            perm_term.comments_.clear();
-            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-            for (const auto &op : perm_term.rhs_)
-                perm_term.comments_.push_back(op->str());
+            perm_term.reset_comments();
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -233,12 +221,7 @@ namespace pdaggerq {
             // add first permutation to vector
             // recomputes scaling
             perm_term.compute_scaling(true);
-
-            // rebuild comments
-            perm_term.comments_.clear();
-            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-            for (const auto &op : perm_term.rhs_)
-                perm_term.comments_.push_back(op->str());
+            perm_term.reset_comments();
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -262,12 +245,7 @@ namespace pdaggerq {
             // add second permutation to vector
             // recomputes scaling
             perm_term.compute_scaling(true);
-
-            // rebuild comments
-            perm_term.comments_.clear();
-            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-            for (const auto &op : perm_term.rhs_)
-                perm_term.comments_.push_back(op->str());
+            perm_term.reset_comments();
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -303,12 +281,7 @@ namespace pdaggerq {
             }
             // recomputes scaling
             perm_term.compute_scaling(true);
-
-            // rebuild comments
-            perm_term.comments_.clear();
-            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-            for (const auto &op : perm_term.rhs_)
-                perm_term.comments_.push_back(op->str());
+            perm_term.reset_comments();
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -331,12 +304,7 @@ namespace pdaggerq {
 
             // recomputes scaling
             perm_term.compute_scaling(true);
-
-            // rebuild comments
-            perm_term.comments_.clear();
-            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-            for (const auto &op : perm_term.rhs_)
-                perm_term.comments_.push_back(op->str());
+            perm_term.reset_comments();
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -352,12 +320,7 @@ namespace pdaggerq {
             }
             // recomputes scaling
             perm_term.compute_scaling(true);
-
-            // rebuild comments
-            perm_term.comments_.clear();
-            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-            for (const auto &op : perm_term.rhs_)
-                perm_term.comments_.push_back(op->str());
+            perm_term.reset_comments();
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -373,12 +336,7 @@ namespace pdaggerq {
             }
             // recomputes scaling
             perm_term.compute_scaling(true);
-
-            // rebuild comments
-            perm_term.comments_.clear();
-            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-            for (const auto &op : perm_term.rhs_)
-                perm_term.comments_.push_back(op->str());
+            perm_term.reset_comments();
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -394,12 +352,7 @@ namespace pdaggerq {
             }
             // recomputes scaling
             perm_term.compute_scaling(true);
-
-            // rebuild comments
-            perm_term.comments_.clear();
-            perm_term.comments_.push_back(to_string(perm_term.coefficient_));
-            for (const auto &op : perm_term.rhs_)
-                perm_term.comments_.push_back(op->str());
+            perm_term.reset_comments();
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);

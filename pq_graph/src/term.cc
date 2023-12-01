@@ -688,22 +688,19 @@ namespace pdaggerq {
     }
 
     string Term::make_comments(bool only_flop, bool only_comment) const {
-        if (comments_.empty()) return "";
+        if (comments_.empty())
+            return "";
 
         string comment;
         if (!only_flop) {
 
-            const vector<VertexPtr> &term_operators = term_linkage_->to_vector();
-            for (const auto & vertex : term_operators) {
-                if (vertex->base_name_.empty())
-                    continue;
-                comment += vertex->base_name_;
-                if (vertex->has_blks()){
-                    comment += "_" + vertex->blk_string();
-                }
-                comment += vertex->line_str();
-                if (vertex != term_operators.back())
-                    comment += " ";
+            for (const auto & vertex : rhs_) {
+                if (vertex->is_linked())
+                    comment += as_link(vertex)->tot_str(true);
+                else
+                    comment += vertex->str();
+                if (vertex != rhs_.back())
+                    comment += " * ";
             }
 
             // add permutations to comment if there are any
@@ -753,7 +750,7 @@ namespace pdaggerq {
             }
 
             // get coefficient
-            double coeff = stod(comments_[0]);
+            double coeff = coefficient_;
             bool is_negative = coeff < 0;
 
             string assign_str = is_assignment_ ? " = " : " += ";
@@ -1049,6 +1046,7 @@ namespace pdaggerq {
         new_term.rhs_ = new_rhs;
         new_term.term_perms_ = new_perms;
         new_term.compute_scaling(true);
+        new_term.reset_comments();
         return new_term;
     }
 

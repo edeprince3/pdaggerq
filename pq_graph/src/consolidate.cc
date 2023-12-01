@@ -100,8 +100,8 @@ void PQGraph::substitute(bool format_sigma) {
 
 
     /// format contracted scalars
-
-    if (format_sigma) {
+    static bool made_scalars = false;
+    if (!made_scalars) {
         for (auto &eq_pair: equations_) {
             const string &eq_name = eq_pair.first;
             Equation &equation = eq_pair.second;
@@ -112,6 +112,8 @@ void PQGraph::substitute(bool format_sigma) {
             add_tmp(scalar, equations_["scalars"]);
         for (Term &term: equations_["scalars"].terms())
             term.comments() = {}; // comments should be self-explanatory
+
+        made_scalars = true;
     }
 
 
@@ -220,8 +222,7 @@ void PQGraph::substitute(bool format_sigma) {
             bool include_declaration = !is_scalar && !format_sigma;
 
             // test if we made a valid substitution
-            bool testSub = numSubs > 0;
-            if (testSub) {
+            if (numSubs > 0) {
 
                 // make term of tmp declaration
                 if (include_declaration) {
@@ -260,14 +261,16 @@ void PQGraph::substitute(bool format_sigma) {
 
             // test if this is the best flop map seen
             int comparison = test_flop_map.compare(best_flop_map);
-            bool keep     = comparison == scaling_map::this_better;
             bool is_equiv = comparison == scaling_map::is_same;
+            bool keep     = comparison == scaling_map::this_better;
 
-            if (!keep) {
-                if ((is_equiv && (allow_equality || is_scalar)) || // keep if equivalent and allow equality
-                        (!makeSub && format_sigma && test_linkage->is_reused_)) // keep if formatting for sigma build
-                    keep = true;
+            if (!keep && is_equiv && allow_equality)
+                keep = true;
+
+            if (!keep && !makeSub && (format_sigma || is_scalar)) {
+                keep = true;
             }
+
 
             if (keep) {
                 bestPreCon = test_linkage; // save linkage
@@ -335,8 +338,6 @@ void PQGraph::substitute(bool format_sigma) {
             double common_coeff = common_coefficient(tmp_terms);
 
             // modify coefficients of terms
-            //TODO: this messes up comments for nested tmps since the coefficients are unknown just given the linkage
-            // this is no big deal, but can make the output less readable (because, you know, it wasn't already)
             for (Term* term_ptr : tmp_terms)
                 term_ptr->coefficient_ /= common_coeff;
 
@@ -797,13 +798,14 @@ vector<Term *> PQGraph::get_matching_terms(const LinkagePtr &contraction) {// gr
 }
 
 void PQGraph::expand_permutations(){
-    //TODO: make each permutation into a separate equation
     for (auto & [name, eq] : equations_) {
         eq.expand_permutations();
     }
 }
 
 size_t PQGraph::merge_terms() {
+
+    return 0; // ignore for now TODO: test this
 
     if (verbose) cout << "Merging similar terms:" << endl;
 

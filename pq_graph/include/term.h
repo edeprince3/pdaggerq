@@ -52,7 +52,7 @@ namespace pdaggerq {
             VertexPtr lhs_; // vertex on the left hand side of the term
             VertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
             vector<VertexPtr> rhs_; // rhs of the term
-            vector<string> comments_; // string representation of the original rhs
+            mutable vector<string> comments_; // string representation of the original rhs
 
             /// scaling of the term (stored as a pair of integers, (num virtual, num occupied))
             scaling_map flop_map_; // map of flop scaling with linkage occurrence in term

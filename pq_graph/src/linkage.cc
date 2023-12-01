@@ -119,7 +119,7 @@ namespace pdaggerq {
 
         // create a map of lines to their frequency and whether they have been visited
         unordered_map<Line, pair<uint_fast8_t, bool>, LineHash> line_populations;
-        line_populations.reserve(4*total_size+2); // reserve space for all lines (plus some extra)
+        line_populations.reserve(5*total_size+4); // reserve space for all lines (plus some extra)
 
         // populate left lines
         for (const auto &line : left_lines) {

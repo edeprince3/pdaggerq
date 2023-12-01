@@ -686,12 +686,15 @@ namespace pdaggerq {
 //            }
 
             vector<Term> expanded_terms = term.expand_perms();
-            for (auto &expanded_term : expanded_terms) {
-                expanded_term.make_comments();
+            for (size_t i = 0; i < expanded_terms.size(); ++i) {
+                Term &expanded_term = expanded_terms[i];
+                if (i != 0) // clear comments for permuted terms
+                    expanded_term.comments() = {};
+
                 new_terms.push_back(expanded_term);
             }
         }
-        terms_ = std::move(new_terms);
+        terms_ = new_terms;
 
         // reorder and collect scaling
         reorder(true);

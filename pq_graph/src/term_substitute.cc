@@ -233,7 +233,7 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
         std::memset(found, false, link_vec.size());
         for (const VertexPtr &v1 : subset_vec) {
 
-            // skip subset if any vertex is a scalar and other vertices are not
+            // skip subset if any individual vertex is a scalar
             if (v1->is_scalar())
                 return false;
 
@@ -276,10 +276,6 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
 
         // skip if linkage is more expensive than the bottleneck
         if (this_linkage->flop_scale() > best_flop_map.worst())
-            return;
-
-        // skip if linkage is a scalar (handled by make_dot_products)
-        if (this_linkage->is_scalar())
             return;
 
 
@@ -370,21 +366,6 @@ LinkagePtr Term::make_dot_products(size_t id) {
 
         // skip subsets with invalid sizes
         if (subset.size() <= 1) return false;
-
-        // make a linkage of the first permutation of the subset
-        vector<VertexPtr> subset_vec;
-        subset_vec.reserve(subset.size());
-        for (size_t i : subset)
-            subset_vec.push_back(rhs_[i]);
-
-        // create a linkage from the subset
-        LinkagePtr subset_linkage = Linkage::link(subset_vec);
-
-        // skip if subset linkage is not a scalar
-        if (!subset_linkage->is_scalar())
-            return false;
-
-        // otherwise, return true
         else return true;
 
     };
@@ -408,7 +389,7 @@ LinkagePtr Term::make_dot_products(size_t id) {
         LinkagePtr this_linkage = Linkage::link(subset_vec);
 
         // check if the linkage is a scalar
-        bool is_scalar = this_linkage->mem_scale() == shape();
+        bool is_scalar = this_linkage->is_scalar();
 
         vector<VertexPtr> new_rhs;
         if (is_scalar) {
