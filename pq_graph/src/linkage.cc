@@ -300,7 +300,7 @@ namespace pdaggerq {
 
         VertexPtr linkage = op_vec[0] * op_vec[1];
         for (uint_fast8_t i = 2; i < op_vec_size; i++)
-            linkage = std::move(linkage * op_vec[i]);
+            linkage = linkage * op_vec[i];
 
         return as_link(linkage);
     }
@@ -607,7 +607,7 @@ namespace pdaggerq {
         // call base class copy constructor
         this->Vertex::operator=(other);
 
-        // fill linkage data (shallow copy, but should not be modified either way) TODO: enforce this
+        // fill linkage data (shallow copy, but should not be modified either way)
         left_  = other.left_;
         right_ = other.right_;
 
