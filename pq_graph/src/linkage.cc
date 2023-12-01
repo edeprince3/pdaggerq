@@ -72,7 +72,6 @@ namespace pdaggerq {
     inline void Linkage::set_links() {
 
         // clear internal and external lines and connections
-        int_lines_.clear();
         lines_.clear();
 
         rank_ = 0;
@@ -118,10 +117,11 @@ namespace pdaggerq {
         std::multiset<Line, line_compare> ext_lines;
 
 
-        // populate left lines
-        static thread_local unordered_map<Line, pair<uint_fast8_t, bool>, LineHash> line_populations(16);
-        line_populations.clear();
+        // create a map of lines to their frequency and whether they have been visited
+        unordered_map<Line, pair<uint_fast8_t, bool>, LineHash> line_populations;
+        line_populations.reserve(4*total_size+2); // reserve space for all lines (plus some extra)
 
+        // populate left lines
         for (const auto &line : left_lines) {
             auto &[pop, visited] = line_populations[line];
             pop++; visited = false;
@@ -175,8 +175,6 @@ namespace pdaggerq {
                     l_ext_idx_.emplace(left_idx);
                     
                 } else {
-                    // this line is internal
-                    int_lines_.insert(left_line);
                     
                     // find position of line in right
                     auto right_pos = std::find(right_it, right_end, left_line);
@@ -224,8 +222,6 @@ namespace pdaggerq {
                     r_ext_idx_.emplace(right_idx);
 
                 } else {
-                    // this line is internal
-                    int_lines_.insert(right_line);
 
                     // find position of line in left
                     auto left_pos = std::find(left_it, left_end, right_line);
@@ -262,6 +258,33 @@ namespace pdaggerq {
         is_den_ = left_->is_den_ || right_->is_den_ || shape_.Q_ > 0;
         update_name();
 
+    }
+
+
+    vector<Line> Linkage::int_lines() const {
+        vector<Line> int_lines;
+        size_t left_size = left_->size();
+        size_t right_size = right_->size();
+
+        // if both left and right are scalars, there are no internal lines
+        if (left_size == 0 && right_size == 0)
+            return int_lines;
+
+        int_lines.reserve(left_size + right_size - lines_.size());
+
+        // every internal line shows up in both the left and right vertices
+        // so let's use the smaller, nonzero set of lines
+        bool use_left = left_size != 0 && left_size <= right_size;
+
+        const vector<Line> &ref_lines = use_left ? left_->lines() : right_->lines();
+
+        // use int_connec_ to grab the internal lines
+        for (const auto &[left_idx, right_idx] : int_connec_) {
+            if (use_left) int_lines.push_back(ref_lines[left_idx]);
+            else int_lines.push_back(ref_lines[right_idx]);
+        }
+
+        return int_lines;
     }
 
     LinkagePtr Linkage::link(const vector<VertexPtr> &op_vec) {
@@ -598,8 +621,6 @@ namespace pdaggerq {
         l_ext_idx_ = other.l_ext_idx_;
         r_ext_idx_ = other.r_ext_idx_;
 
-        int_lines_ = other.int_lines_;
-
         flop_scale_ = other.flop_scale_;
         mem_scale_ = other.mem_scale_;
 
@@ -655,8 +676,6 @@ namespace pdaggerq {
         int_connec_ = std::move(other.int_connec_);
         l_ext_idx_ = std::move(other.l_ext_idx_);
         r_ext_idx_ = std::move(other.r_ext_idx_);
-
-        int_lines_ = std::move(other.int_lines_);
 
         flop_scale_ = std::move(other.flop_scale_);
         mem_scale_ = std::move(other.mem_scale_);

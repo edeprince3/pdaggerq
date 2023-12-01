@@ -115,7 +115,7 @@ namespace pdaggerq {
 
 
 
-        bool equivalent(const Line& other) const {
+        inline bool equivalent(const Line& other) const {
             return   o_ == other.o_   &&
                      a_ == other.a_   &&
                    sig_ == other.sig_ &&
@@ -126,7 +126,7 @@ namespace pdaggerq {
             return !(*this == other);
         }
 
-        bool operator<(const Line& other) const {
+        inline bool operator<(const Line& other) const {
             // sort by sig, den, o, a, then label
             if (sig_ ^ other.sig_) return sig_;
             if (den_ ^ other.den_) return den_;
@@ -135,7 +135,7 @@ namespace pdaggerq {
             return label_ < other.label_;
         }
 
-        bool in_order(const Line& other) const {
+        inline bool in_order(const Line& other) const {
             // sort by sig, den, o, a, but not label
             if (sig_ ^ other.sig_) return sig_;
             if (den_ ^ other.den_) return den_;

@@ -306,7 +306,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
             size_t next_len = next_lines.size();
 
             // loop over internal lines
-            for (const auto &line: link->int_lines_) {
+            for (const auto &line: link->int_lines()) {
 
                 // initialize edge label
                 std::string edge_label = line.label_;

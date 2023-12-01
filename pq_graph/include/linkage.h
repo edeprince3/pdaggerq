@@ -123,9 +123,6 @@ namespace pdaggerq {
 //            LinkagePtr left_parent_ = nullptr; //TODO: incorporate parent linkage to traverse the tree efficiently
 //            LinkagePtr right_parent_ = nullptr;
 
-            /// internal and external lines
-            std::multiset<Line, line_compare> int_lines_; // internal lines
-
             /// map of connections between lines
             set<pair<uint_fast8_t, uint_fast8_t>> int_connec_; // connections between lines
             set<uint_fast8_t> l_ext_idx_, r_ext_idx_;     // external indices of left and right vertices
@@ -146,6 +143,12 @@ namespace pdaggerq {
              * this function will populate the Vertex base class with the result of the contraction
              */
             void set_links();
+
+            /**
+             * return vector of internal lines using the internal connection map
+             * @return vector of internal lines
+             */
+            vector<Line> int_lines() const;
 
             /**
              * Replace the lines of the linkage
@@ -368,13 +371,13 @@ namespace pdaggerq {
             */
             string tot_str(bool expand = false, bool make_dot=true) const;
 
-        /**
-         * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)
-         * @param os output stream
-         * @param linkage linkage to write
-         * @return output stream
-         */
-        ostream &write_dot(ostream &os, const std::string& color = "black", bool reset = false) const;
+            /**
+             * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)
+             * @param os output stream
+             * @param linkage linkage to write
+             * @return output stream
+             */
+            ostream &write_dot(ostream &os, const std::string& color = "black", bool reset = false) const;
 
             /**
              * check if linkage is empty
