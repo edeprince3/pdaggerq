@@ -281,9 +281,6 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
 
         // all tests passed
         return true;
-
-        // all tests passed
-        return true;
     };
 
     // make copy of term to store new rhs and test scaling
