@@ -178,18 +178,20 @@ namespace pdaggerq {
     // define hash function for Line
     struct LineHash {
         size_t operator()(const Line &line) const {
-            string hash_string{
-                // first character of label (can cause collisions, but is faster than concatenating)
-                line.label_[0],
 
-                // block types
-                line.o_ ? 'o' : 'v',
-                line.a_ ? 'a' : 'b',
-                line.sig_ ? 'L' : 'N',
-                line.den_ ? 'Q' : 'N'
-            };
+            //  only process first character of the label.
+            //  this can cause hash collisions, but it is much faster than using strings
+            auto hash = static_cast<size_t>(line.label_[0]);
 
-            return hash<string>()(hash_string);
+            // because a char is 8 bits, we can shift by 8 bits
+            // and use our boolean to set the other 4 bits
+            hash = (hash << 1) | line.o_;
+            hash = (hash << 1) | line.a_;
+            hash = (hash << 1) | line.sig_;
+            hash = (hash << 1) | line.den_;
+
+            // return the hash
+            return hash;
         }
     }; // struct LineHash
 
