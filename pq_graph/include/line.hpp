@@ -40,7 +40,7 @@ namespace pdaggerq {
      * It is defined by its position in the tensor (idx_), whether it is occupied, virtual, alpha, or beta, and its name
      */
     struct Line {
-        string label_; // name of the line
+        string label_{'\0'}; // name of the line (default to null character)
 
         bool o_ = false; // whether the line is occupied (true) or virtual (false/default)
         bool a_ = true; // whether the line is alpha/active (true) or beta/external (false)
@@ -178,14 +178,18 @@ namespace pdaggerq {
     // define hash function for Line
     struct LineHash {
         size_t operator()(const Line &line) const {
-            string blk{
+            string hash_string{
+                // first character of label (can cause collisions, but is faster than concatenating)
+                line.label_[0],
+
+                // block types
                 line.o_ ? 'o' : 'v',
                 line.a_ ? 'a' : 'b',
                 line.sig_ ? 'L' : 'N',
                 line.den_ ? 'Q' : 'N'
             };
 
-            return hash<string>()(line.label_ + blk);
+            return hash<string>()(hash_string);
         }
     }; // struct LineHash
 
