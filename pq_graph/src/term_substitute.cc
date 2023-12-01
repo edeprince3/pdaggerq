@@ -193,7 +193,9 @@ bool Term::is_compatible(const LinkagePtr &linkage) const {
 
 bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
 
-    if (rhs_.empty()) return false; // no substitution possible for constant terms
+    // no substitution possible for constant terms
+    if (rhs_.empty())
+        return false;
 
     // recompute the flop and memory cost of the term if necessary
     compute_scaling();
@@ -205,8 +207,8 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
     auto break_perm_op = [&](const vector<size_t> &subset) { return madeSub && !allow_equality; };
     auto break_subset_op = break_perm_op;
 
-    // get vector of vertices involved in the linkage
-    const vector<VertexPtr> &link_vec = linkage->to_vector();
+    // get vector of vertices involved in the linkage (without expanding nested linkages)
+    const vector<VertexPtr> &link_vec = linkage->to_vector(false, false);
 
     // initialize best flop scaling and memory scaling with rhs
     scaling_map best_flop_map = flop_map_;
@@ -217,7 +219,7 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
     auto valid_op = [&](const vector<size_t> &subset) {
 
         // skip subsets with invalid sizes
-        if (subset.size() > max_linkages || subset.size() <= 1)
+        if (subset.size() > max_linkages || subset.size() <= 1 || subset.size() != link_vec.size())
             return false;
 
         // make a linkage of the first permutation of the subset
@@ -225,34 +227,6 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
         subset_vec.reserve(subset.size());
         for (size_t i : subset)
             subset_vec.push_back(rhs_[i]);
-
-        // create a linkage from the subset and return its scaling
-        auto [subset_linkage, sub_flops, sub_mems] = Linkage::link_and_scale(subset_vec);
-
-        // skip subset if it has incompatible number of vertices with the test linkage
-        if (subset_linkage->depth() != linkage->depth())
-            return false;
-
-        if (subset_linkage->is_scalar()) {
-            // skip if the subset linkage is a scalar
-            return false;
-        }
-
-        // skip if sub_flops is greater than the bottleneck of the current best flop scaling
-        for (const auto & flop : sub_flops) {
-            if (flop > best_flop_map.worst()) {
-                return false;
-            }
-        }
-
-        // get vector of vertices involved in the linkage (overwrites subset_vec)
-        // recursively expands already linked vertices
-        subset_vec = subset_linkage->to_vector();
-
-        // skip subset if it has incompatible number of vertices with the test linkage
-        if (subset_vec.size() != link_vec.size()) {
-            return false;
-        }
 
         // check if each vertex in the subset has an equivalent vertex in the linkage
         bool found[link_vec.size()];
@@ -300,7 +274,16 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
         // make linkage from rhs with subset indices
         LinkagePtr this_linkage = Linkage::link(new_vertices);
 
-        // skip if linkage if it not equivalent to input linkage
+        // skip if linkage is more expensive than the bottleneck
+        if (this_linkage->flop_scale() > best_flop_map.worst())
+            return;
+
+        // skip if linkage is a scalar (handled by make_dot_products)
+        if (this_linkage->is_scalar())
+            return;
+
+
+        // skip if linkage is not equivalent to input linkage
         if (*linkage != *this_linkage)
             return;
 
