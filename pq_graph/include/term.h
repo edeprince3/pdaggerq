@@ -328,6 +328,9 @@ namespace pdaggerq {
              */
             void reorder(bool recompute = false);
 
+
+            //TODO: make this a static function when called with a term as an argument
+
              /**
               * Populate flop and memory scaling maps
               * @param perm permutation of the rhs

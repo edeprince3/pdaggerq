@@ -135,6 +135,15 @@ namespace pdaggerq {
             return label_ < other.label_;
         }
 
+        bool in_order(const Line& other) const {
+            // sort by sig, den, o, a, but not label
+            if (sig_ ^ other.sig_) return sig_;
+            if (den_ ^ other.den_) return den_;
+            if (o_ ^ other.o_) return !o_;
+            if (a_ ^ other.a_) return a_;
+            return true;
+        }
+
         bool operator>(const Line& other) const {
             return other < *this;
         }

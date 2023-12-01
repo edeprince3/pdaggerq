@@ -86,10 +86,7 @@ namespace pdaggerq {
     // struct for comparing lines while ignoring the label
     struct line_compare {
         bool operator()(const Line &left, const Line &right) const {
-            Line left_copy = left, right_copy = right;
-            left_copy.label_ = "";
-            right_copy.label_ = "";
-            return left_copy < right_copy;
+            return left.in_order(right);
         }
     };
 
@@ -236,11 +233,9 @@ namespace pdaggerq {
                 if (!other.is_linked())
                     return false;
 
-                auto otherLinkage = dynamic_cast<const Linkage*>(&other);
-                return *this == *otherLinkage;
+                auto otherPtr = dynamic_cast<const Linkage*>(&other);
+                return *this == *otherPtr;
             }
-
-
 
             // TODO: we need an equality operator to test if two linkages are the same up to a permutation of the
             //  lines in the vertices and return the number of permutations made.

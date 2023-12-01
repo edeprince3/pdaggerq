@@ -288,6 +288,20 @@ namespace pdaggerq {
         auto cend() const { return map_.cend(); }
 
         /**
+         * get worst scaling
+         */
+        shape worst() const {
+            // worst scaling is the first element in the map with a non-zero occurrence
+            for (const auto &it: map_) {
+                if (it.second != 0)
+                    return it.first;
+            }
+
+            // if all scalings are zero or there are no scalings, return zero scaling
+            return shape();
+        }
+
+        /**
          * Get the number of elements in the map
          * @return number of elements
          */

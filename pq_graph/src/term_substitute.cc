@@ -1,6 +1,6 @@
 //
 // pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
-// Filename: term.cc
+// Filename: term_substitute.cc
 // Copyright (C) 2020 A. Eugene DePrince III
 //
 // Author: A. Eugene DePrince III <adeprince@fsu.edu>
@@ -150,11 +150,11 @@ bool Term::is_compatible(const LinkagePtr &linkage) const {
     // check if linkage is more expensive than the current bottleneck
     if (linkage->flop_scale() > bottleneck_flop_) return false;
 
-    // the total vector of vertices in the term
-    const vector<VertexPtr> &term_vec = term_linkage_->to_vector();
+    // the total vector of vertices in the term (without expanding nested linkages)
+    const vector<VertexPtr> &term_vec = term_linkage_->to_vector(false, false);
 
-    // get total vector of linkage vertices
-    const vector<VertexPtr> &link_vec = linkage->to_vector();
+    // get total vector of linkage vertices (without expanding nested linkages)
+    const vector<VertexPtr> &link_vec = linkage->to_vector(false, false);
 
     size_t num_ops = term_vec.size(); // get number of rhs
     size_t num_link = link_vec.size(); // get number of linkages in rhs
@@ -208,12 +208,8 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
     // get vector of vertices involved in the linkage
     const vector<VertexPtr> &link_vec = linkage->to_vector();
 
-    // store linkage set to immediately invalidate linkages
-    linkage_set ignore_linkages;
-
     // initialize best flop scaling and memory scaling with rhs
     scaling_map best_flop_map = flop_map_;
-    shape best_bottleneck_flop = bottleneck_flop_;
     scaling_map best_mem_map = mem_map_;
     vector<VertexPtr> best_vertices = rhs_;
 
@@ -233,17 +229,21 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
         // create a linkage from the subset and return its scaling
         auto [subset_linkage, sub_flops, sub_mems] = Linkage::link_and_scale(subset_vec);
 
+        // skip subset if it has incompatible number of vertices with the test linkage
+        if (subset_linkage->depth() != linkage->depth())
+            return false;
+
+        if (subset_linkage->is_scalar()) {
+            // skip if the subset linkage is a scalar
+            return false;
+        }
+
         // skip if sub_flops is greater than the bottleneck of the current best flop scaling
         for (const auto & flop : sub_flops) {
-            if (flop > best_bottleneck_flop) {
-                ignore_linkages.insert(subset_linkage);
+            if (flop > best_flop_map.worst()) {
                 return false;
             }
         }
-
-        // if linkage is in the ignore set, skip
-        if (ignore_linkages.find(subset_linkage) != ignore_linkages.end())
-            return false;
 
         // get vector of vertices involved in the linkage (overwrites subset_vec)
         // recursively expands already linked vertices
@@ -251,27 +251,36 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
 
         // skip subset if it has incompatible number of vertices with the test linkage
         if (subset_vec.size() != link_vec.size()) {
-            ignore_linkages.insert(subset_linkage);
             return false;
         }
 
         // check if each vertex in the subset has an equivalent vertex in the linkage
-        for (size_t i = 0; i < subset_vec.size(); i++) {
-            const VertexPtr &v1 = subset_vec[i];
+        bool found[link_vec.size()];
+        std::memset(found, false, link_vec.size());
+        for (const VertexPtr &v1 : subset_vec) {
 
-            // return false if any vertex is a scalar (this is handled by make_dot_products)
-            if (v1->is_scalar()) return false;
-
-            // find matching vertex in linkage
-            auto sub_pos = std::find_if(link_vec.begin(), link_vec.end(), [&v1](const VertexPtr &v2) {
-                return v1->equivalent(*v2);
-            });
-
-            // if no matching vertex is found, skip subset
-            if (sub_pos == subset_vec.end())
+            // skip subset if any vertex is a scalar and other vertices are not
+            if (v1->is_scalar())
                 return false;
 
+            // find matching vertex in linkage
+            bool found_this = false;
+            for (size_t i = 0; i < link_vec.size(); i++) {
+                if (!found[i]) { // skip vertices that have already been matched
+                    if (!v1->equivalent(*link_vec[i])) {
+                        found_this = true; // mark vertex as matched
+                        found[i] = true; // mark vertex as matched for next iterations
+                        break;
+                    }
+                }
+            }
+
+            // skip subset if equivalent vertex is not found in linkage
+            if (!found_this) return false;
         }
+
+        // all tests passed
+        return true;
 
         // all tests passed
         return true;
@@ -295,7 +304,8 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
         LinkagePtr this_linkage = Linkage::link(new_vertices);
 
         // skip if linkage if it not equivalent to input linkage
-        if (*linkage != *this_linkage) return;
+        if (*linkage != *this_linkage)
+            return;
 
         // remove subset vertices from rhs
         vector<VertexPtr> new_rhs;
@@ -315,11 +325,11 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
             } // else do not add vertex to new rhs
         }
 
-        if (!added_linkage) return; // skip if linkage was not added to new rhs
+        // skip if linkage was not added to new rhs
+        if (!added_linkage) return;
 
         // create a copy of the term with the new rhs
         new_term.rhs_ = new_rhs;
-        new_term.request_update();
         new_term.compute_scaling(true);
 
         // check if flop and memory scaling are better than the best scaling
@@ -347,7 +357,7 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
     if (madeSub) {
         rhs_ = best_vertices;
         request_update(); // set flags for optimization
-        reorder(); // reorder rhs
+        compute_scaling(true);
     }
 
     // return a boolean indicating if a substitution was made
@@ -387,7 +397,7 @@ LinkagePtr Term::make_dot_products(size_t id) {
         for (size_t i : subset)
             subset_vec.push_back(rhs_[i]);
 
-        // create a linkage from the subset and return its scaling
+        // create a linkage from the subset
         LinkagePtr subset_linkage = Linkage::link(subset_vec);
 
         // skip if subset linkage is not a scalar

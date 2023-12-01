@@ -233,7 +233,8 @@ namespace pdaggerq {
 
     void Term::compute_scaling(const vector<VertexPtr>& arrangement, bool recompute) {
 
-        if (!needs_update_ && !recompute) return; // if term does not need updating, return
+        if (!needs_update_ && !recompute)
+            return; // if term does not need updating, return
 
         // reset flop and memory scaling maps
         flop_map_.clear(); // clear flop scaling map

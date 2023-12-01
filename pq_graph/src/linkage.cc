@@ -115,8 +115,7 @@ namespace pdaggerq {
         }
 
         // reserve space for internal and external lines
-        thread_local std::multiset<Line, line_compare> ext_lines;
-        ext_lines.clear();
+        std::multiset<Line, line_compare> ext_lines;
 
 
         // populate left lines
@@ -511,9 +510,8 @@ namespace pdaggerq {
 
         std::function<void(const VertexPtr&, vector<VertexPtr>&, size_t&)> expand_vertex;
 
-        expand_vertex = [regenerate, full_expand, &expand_vertex](
-                    const VertexPtr& vertex, vector<VertexPtr> &result, size_t &i
-                ) {
+        expand_vertex = [regenerate, full_expand, &expand_vertex]
+                (const VertexPtr& vertex, vector<VertexPtr> &result, size_t &i) {
 
             if (vertex->base_name_.empty()) return;
 
@@ -688,7 +686,7 @@ namespace pdaggerq {
     }
 
     extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
-        return make_shared<Linkage>(left, right, false);
+        return make_shared<Linkage>(left, right, true);
     }
 
 } // pdaggerq
