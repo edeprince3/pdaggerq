@@ -69,6 +69,7 @@ namespace pdaggerq {
 
         // set lines
         set_lines(delta.labels, blk_string);
+        type_ = 'd';
     }
 
     Vertex::Vertex(const integrals &integral, const string &type) {
@@ -99,6 +100,7 @@ namespace pdaggerq {
 
         // set lines
         set_lines(integral.labels, blk_string);
+        type_ = 'i';
     }
 
     Vertex::Vertex(const amplitudes &amp, char type) {
@@ -137,6 +139,8 @@ namespace pdaggerq {
 
         // set lines
         set_lines(labels, blk_string);
+
+        type_ = 't';
 
 
     }
@@ -282,11 +286,8 @@ namespace pdaggerq {
         // scalars have no dimension
         if (rank_ == 0) return;
 
-        char type = base_name_[0];
-        bool is_amplitude = type == 't' || type == 'u' || type == 'r' || type == 's' || type == 'l' || type == 'm';
-
         // format tensor block as a map if it is not an amplitude or if it has a block
-        if (!is_amplitude || has_blk_) {
+        if (type_ == 't' || has_blk_) {
             name_ += "[\"";
             name_ += dimstring();
             name_ += "\"]";
@@ -319,8 +320,8 @@ namespace pdaggerq {
         if (!has_blk_ || lines_.empty()) return "";
         string blk_string(rank_, '\0'); // string assuming no blocking
         uint_fast8_t line_idx = 0; // index of line
-        for (const Line& line : lines_) {
-            blk_string[line_idx++] = line.block(); // string assuming no blocking
+        for (uint_fast8_t i = 0; i < rank_; i++) {
+            blk_string[i] = lines_[i].block(); // set ovstring
         }
 
         return blk_string;
@@ -330,9 +331,8 @@ namespace pdaggerq {
         if (lines.empty()) return "";
         uint_fast8_t line_size = lines.size();
         string ovstring(line_size, 'o'); // ovstring assuming all occupied
-        uint_fast8_t line_idx = 0; // index of line
         for (uint_fast8_t i = 0; i < line_size; i++) {
-            ovstring[line_idx++] = lines[i].type(); // set ovstring
+            ovstring[i] = lines[i].type(); // set ovstring
         }
 
         return ovstring;
@@ -488,7 +488,8 @@ namespace pdaggerq {
     bool Vertex::permute_eri() {
 
         // if allow_permute is false, do nothing
-        if (!allow_permute_) return false;
+        if (!allow_permute_)
+            return false;
 
         // valid ovstrings for eri vertex
         unordered_set<string> valid_ovstrings = {"oooo", "vvvv", "oovv", "vvoo", "vovo", "vooo", "oovo", "vovv", "vvvo"};
@@ -572,6 +573,9 @@ namespace pdaggerq {
     inline bool Vertex::equivalent(const Vertex &other) const {
 
         // check if rank, n_occ, n_vir, n_alph, n_beta are equal
+        if (this->is_linked() ^ other.is_linked())
+            return false; // if one is linked and the other is not, return false (cannot be equivalent)
+
         if (rank_  !=  other.rank_) return false;
         if (shape_ != other.shape_) return false;
 
@@ -686,12 +690,5 @@ namespace pdaggerq {
         generic_op.genericize();
         return generic_op;
     }
-
-    // create a hashmap to store vertices for quick lookup
-    struct VertexHash {
-        size_t operator()(const Vertex &vertex) const {
-            return std::hash<string>()(vertex.str());
-        }
-    };
 
 } // pdaggerq

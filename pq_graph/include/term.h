@@ -345,6 +345,11 @@ namespace pdaggerq {
             }
 
             /**
+            * Update booleans for optimization
+            */
+            void request_update();
+
+            /**
              * Compare flop scaling of this term to another term by overloading <
              * @param other term to compare to
              */
@@ -498,38 +503,16 @@ namespace pdaggerq {
              */
             static pair<bool, bool> same_permutation(const Term &ref_term, const Term &compare_term);
 
-            //TODO: implement generic term.
+            /**
+             * Replace lines in term with generic lines
+             * @return term with generic lines
+             */
             Term genericize() const;
 
-        void request_update();
     }; // end Term class
 
     struct TermHash { // hash functor for finding similar terms
         size_t operator()(const Term& term) const {
-
-//            if (term.term_linkage_ == nullptr){
-//                // get the total linkage of the term with its flop and memory scalings
-//                auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(term.rhs());
-//                term.term_linkage_ = term_linkage;
-//            }
-//
-//            // add string representation of term.
-//            // TODO: find all instances where term_linkage_ is used and replace with term.rhs()
-//            std::string term_str;
-//            if (term.rhs().size() <= 1)
-//                term_str = term.rhs()[0]->str();
-//            else
-//                term_str = term.term_linkage_->tot_str(true, false);
-//
-//
-//            // add permutation type and permutation pairs
-//            term_str += to_string(term.perm_type());
-//            for (const auto& pair : term.term_perms()) {
-//                term_str += pair.first;
-//                term_str += pair.second;
-//            }
-//
-//            return hash<string>()(term_str);
 
             string term_str;
             // add vertex names to string and sorted line names to string
@@ -555,7 +538,7 @@ namespace pdaggerq {
         }
     };
 
-    struct TermPredicate { // predicate functor for finding similar terms
+    struct TermEqual { // predicate functor for finding similar terms
         bool operator()(const Term& term1, const Term& term2) const {
             return Term::equivalent(term1, term2);
         }

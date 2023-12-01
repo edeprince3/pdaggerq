@@ -37,43 +37,51 @@ namespace pdaggerq {
     */
     struct LinkageHash {
         size_t operator()(const LinkagePtr &linkage_ptr) const {
+
             const Linkage &linkage = *linkage_ptr;
-            string hash_string = linkage.name(); // this alone would usually be sufficient
-            hash_string += linkage.flop_scale().str();
-            hash_string += linkage.mem_scale().str();
 
-            hash_string += "int";
+            constexpr SimilarVertexPtrHash vertex_hash;
+            size_t total_vert_hash = vertex_hash(linkage.left_);
+            total_vert_hash ^= vertex_hash(linkage.right_);
+
+            size_t connection_hash = 0;
+            size_t count = 0;
             for (const auto &[leftidx, rightidx] : linkage.connections()) {
-                hash_string += to_string(leftidx);
-                hash_string += "->";
-                hash_string += to_string(rightidx);
-                hash_string += ",";
+                if (++count < 4) {
+                    // add pair to hash
+                    connection_hash ^= leftidx;
+                    connection_hash |= rightidx;
+                } else {
+                    // shift right by 4 bits
+                    // and add pair
+                    connection_hash >>= 4;
+                    connection_hash ^= leftidx;
+                    connection_hash ^= rightidx;
+                }
+
+                // shift left by 8 bits (uint8_t)
+                connection_hash <<= 8;
             }
 
-            hash_string += "lext";
+            size_t l_ext_hash = 0;
+            count = 0;
             for (const auto & leftidx : linkage.l_ext_idx()){
-                hash_string += to_string(leftidx);
-                hash_string += ",";
+                if (++count < 4) {
+                    // add pair to hash
+                    l_ext_hash |= leftidx;
+                } else {
+                    // shift right by 4 bits
+                    // and add pair
+                    l_ext_hash >>= 4;
+                    l_ext_hash ^= leftidx;
+                }
+
+                // shift left by 8 bits (uint8_t)
+                l_ext_hash <<= 8;
             }
 
-            hash_string += "rext";
-            for (const auto & rightidx : linkage.r_ext_idx()){
-                hash_string += to_string(rightidx);
-                hash_string += ",";
-            }
+            return total_vert_hash ^ connection_hash | l_ext_hash;
 
-            hash_string += "lines";
-            for (const auto & line : linkage.lines()){
-                string blk{
-                        line.o_ ? 'o' : 'v',
-                        line.a_ ? 'a' : 'b',
-                        line.sig_ ? 'L' : 'N',
-                        line.den_ ? 'Q' : 'N'
-                };
-                hash_string += blk;
-            }
-
-            return hash<string>()(hash_string);
         }
     }; // struct linkage_hash
 

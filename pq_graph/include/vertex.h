@@ -41,11 +41,13 @@ using std::shared_ptr;
 
 namespace pdaggerq {
 
-    // forward declaration
+    // forward declaration of Vertex and Linkage
     struct Vertex;
+    class Linkage;
 
-    // typedef for shared pointer to Vertex
+    // typedef for shared pointer to Vertex and Linkage
     typedef shared_ptr<Vertex> VertexPtr;
+    typedef shared_ptr<Linkage> LinkagePtr;
 
     /**
      * Vertex class
@@ -74,6 +76,7 @@ namespace pdaggerq {
         virtual bool is_linked() const { return false; }
         virtual bool is_temp() const { return false; }
 
+        char type_ = '\0'; // type of the vertex (e.g. t: amplitude, i: integral, d: delta function, null: unknown)
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)
         bool is_sigma_ = false; // whether the vertex is an excited state vertex
         bool is_den_ = false; // whether the vertex is a density-fitting vertex
@@ -445,6 +448,59 @@ namespace pdaggerq {
 
     }; // end Vertex class
 
+    /**
+     * Hash function for Vertex to find equivalent vertices (agnostic to labels)
+     */
+    struct SimilarVertexPtrHash {
+        size_t operator()(const VertexPtr &v) const {
+            constexpr SimilarLineHash sim_line_hasher;
+            constexpr std::hash<string> string_hasher;
+
+            // check if the pointer is null
+            if (!v) return 0;
+
+            // first hash the base_name of the vertex
+            size_t name_hash = string_hasher(v->base_name());
+
+            // then hash the lines of the vertex
+            uint8_t rank = v->rank_;
+            if (rank == 0)
+                return name_hash;
+
+            // hash the lines
+            size_t line_hash = 0;
+            for (uint8_t i = 0; i < rank; ++i) {
+
+                const Line &line = (*v)[i]; // get the line
+                if (i < 8) // before overflow, add bits to the hash (assumes 32-bit size_t)
+                    line_hash |= sim_line_hasher(line);
+                else
+                    // after overflow, shift right by  bits and use the xor operator
+                    line_hash >>= 2,
+                    line_hash ^= sim_line_hasher(line);
+
+                // sim_line_hasher always returns a unique 4-bit hash
+                line_hash <<= 4; // shifting is ideal
+
+            }
+
+            // return the total hash
+            return name_hash ^ line_hash;
+        }
+    };
+
+    /**
+     * Equality function for Vertex to find equivalent vertices (agnostic to labels)
+     */
+    struct SimilarVertexPtrEqual {
+        bool operator()(const VertexPtr &lhs, const VertexPtr &rhs) const {
+            // check if either pointer is null
+            if (!lhs || !rhs) return false;
+
+            // check equivalency of the Vertices
+            return lhs->Vertex::equivalent(*rhs);
+        }
+    };
 
 
 } // pdaggerq

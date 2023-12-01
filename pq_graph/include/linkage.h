@@ -52,19 +52,11 @@ using std::dynamic_pointer_cast;
 
 namespace pdaggerq {
 
-    /**
-     * Class to represent contractions of a single vertex with a set of other vertices
-     * The contraction itself is also a vertex and is defined by a left and right vertex
-     */
-    class Linkage;
-
-    // define pointer type
-    typedef shared_ptr<Linkage> LinkagePtr;
-
     // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
     static LinkagePtr as_link(const VertexPtr& vertex)  { return dynamic_pointer_cast<Linkage>(vertex); }
     static VertexPtr as_vert(const LinkagePtr& linkage) { return dynamic_pointer_cast<Vertex>(linkage); }
+
 
 
     /**
@@ -90,10 +82,15 @@ namespace pdaggerq {
         }
     };
 
-    class Linkage : public Vertex {
+    /**
+     * Class to represent contractions of a single vertex with a set of other vertices
+     * The contraction itself is also a vertex and is defined by a left and right vertex
+     */
+    class Linkage;
 
-        // define pointer type
-        typedef shared_ptr<Linkage> LinkagePtr;
+    // define pointer type
+    typedef shared_ptr<Linkage> LinkagePtr;
+    class Linkage : public Vertex {
 
         /// cost of linkage (flops and memory) as pair of vir and occ counts
         shape flop_scale_{}; // flops
@@ -163,8 +160,10 @@ namespace pdaggerq {
 
                 // rebuild the linkage
                 long id = id_;
+                bool is_reused = is_reused_;
                 *this = Linkage(left_, right_, is_addition_);
                 id_ = id;
+                is_reused_ = is_reused;
 
             }
 
@@ -325,17 +324,11 @@ namespace pdaggerq {
             static vector<LinkagePtr> links(const vector<VertexPtr> &op_vec);
 
             /**
-             * Returns a list of all flop and mem scales within a series of linkages
-             * @return list of all flop and mem scales within a series of linkages αs a pair of vectors
-             */
-            static pair<vector<shape>,vector<shape>> scale_list(const vector<VertexPtr> &op_vec) ;
-
-            /**
              * Returns a list of all flop and mem scales within a series of linkages and the linkage
              * @param op_vec list of vertices
              * @return the resulting linkage with the list of all flop and mem scales
              */
-            static tuple<LinkagePtr, vector<shape>, vector<shape>> link_and_scale(const vector<VertexPtr> &op_vec);
+            static tuple<LinkagePtr, vector<shape*>, vector<shape*>> link_and_scale(const vector<VertexPtr> &op_vec);
 
             /**
              * Get flop cost

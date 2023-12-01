@@ -720,11 +720,11 @@ namespace pdaggerq {
         shape worst_scale; // worst cost (start with zero)
         for (const auto & linkage : tmp_candidates_) { // get worst cost
             const auto &link_vec = linkage->to_vector();
-            auto [flop_scales, mem_scales] = Linkage::scale_list(link_vec);
+            auto [link_copy, flop_scales, mem_scales] = Linkage::link_and_scale(link_vec);
 
             shape contr_scale;
             for (auto & scale : flop_scales) {
-                if (scale > contr_scale) contr_scale = scale;
+                if (*scale > contr_scale) contr_scale = *scale;
             }
 
             if (contr_scale > worst_scale) worst_scale = contr_scale;
@@ -733,11 +733,11 @@ namespace pdaggerq {
         size_t max_size = 0; // maximum n_ops of linkage found (start with 0)
         for (const auto & linkage : tmp_candidates_) { // iterate over all linkages
             const auto &link_vec = linkage->to_vector();
-            auto [flop_scales, mem_scales] = Linkage::scale_list(link_vec);
+            auto [link_copy, flop_scales, mem_scales] = Linkage::link_and_scale(link_vec);
 
             shape contr_scale;
             for (auto & scale : flop_scales) {
-                if (scale > contr_scale) contr_scale = scale;
+                if (*scale > contr_scale) contr_scale = *scale;
             }
 
             if (contr_scale >= worst_scale) {

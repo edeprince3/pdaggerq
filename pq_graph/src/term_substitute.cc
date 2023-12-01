@@ -150,44 +150,29 @@ bool Term::is_compatible(const LinkagePtr &linkage) const {
     // check if linkage is more expensive than the current bottleneck
     if (linkage->flop_scale() > bottleneck_flop_) return false;
 
-    // the total vector of vertices in the term (without expanding nested linkages)
-    const vector<VertexPtr> &term_vec = term_linkage_->to_vector(false, false);
-
     // get total vector of linkage vertices (without expanding nested linkages)
     const vector<VertexPtr> &link_vec = linkage->to_vector(false, false);
 
-    size_t num_ops = term_vec.size(); // get number of rhs
+    size_t num_ops = rhs_.size(); // get number of rhs
     size_t num_link = link_vec.size(); // get number of linkages in rhs
 
-    // check if generic rhs are compatible
-    bool is_compatible = true; // assume rhs are compatible
+    // create hash set for vertices
+    thread_local unordered_set<VertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual> vert_set;
+    vert_set.clear();
 
-    bool matched[num_ops]; // initialize matched array to test if vertex is found
-    memset(matched, false, num_ops); // set all matched to false
+    // add rhs to hash set
+    for (const VertexPtr &v : rhs_)
+        vert_set.insert(v);
 
-    // check that all vertices in linkage are in rhs
-    for (size_t i = 0; i < num_link; i++) {
-        bool found = false; // assume vertex is not found
-        for (size_t j = 0; j < num_ops; j++) {
-            // if vertex has already been matched, skip
-            if (matched[j]) continue;
-
-            // check if the rhs is equivalent
-            const VertexPtr &op = term_vec[j];
-            if (op->equivalent(*link_vec[i])) {
-                matched[j] = true; // set matched to true
-                found = true; // set found to true
-                break; // break out of linkage
-            }
-        }
-        if (!found) { // if vertex is not found or term has tmp
-            is_compatible = false; // set is_compatible to false
-            break; // break out of linkage
+    // add linkage vertices to hash set; if no equivalent vertex is found, return false
+    for (const VertexPtr &v : link_vec) {
+        if (vert_set.find(v) == vert_set.end()) {
+            return false;
         }
     }
 
     // if not all rhs were found, return false
-    return is_compatible;
+    return true;
 
 }
 
@@ -229,28 +214,22 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
             subset_vec.push_back(rhs_[i]);
 
         // check if each vertex in the subset has an equivalent vertex in the linkage
-        bool found[link_vec.size()];
-        std::memset(found, false, link_vec.size());
-        for (const VertexPtr &v1 : subset_vec) {
+        // create hash set for vertices
+        thread_local unordered_set<VertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual> vert_set;
+        vert_set.clear();
 
-            // skip subset if any individual vertex is a scalar
-            if (v1->is_scalar())
+        // add linkage to hash set (return false if scalar is found)
+        for (const VertexPtr &v : link_vec) {
+            vert_set.insert(v);
+        }
+
+        // add subset vertices to hash set; if no equivalent vertex is found, return false
+        for (const VertexPtr &v : subset_vec) {
+            if (v->is_scalar())
                 return false;
-
-            // find matching vertex in linkage
-            bool found_this = false;
-            for (size_t i = 0; i < link_vec.size(); i++) {
-                if (!found[i]) { // skip vertices that have already been matched
-                    if (!v1->equivalent(*link_vec[i])) {
-                        found_this = true; // mark vertex as matched
-                        found[i] = true; // mark vertex as matched for next iterations
-                        break;
-                    }
-                }
+            if (vert_set.find(v) == vert_set.end()) {
+                return false;
             }
-
-            // skip subset if equivalent vertex is not found in linkage
-            if (!found_this) return false;
         }
 
         // all tests passed
@@ -277,7 +256,6 @@ bool Term::substitute(const LinkagePtr &linkage, bool allow_equality) {
         // skip if linkage is more expensive than the bottleneck
         if (this_linkage->flop_scale() > best_flop_map.worst())
             return;
-
 
         // skip if linkage is not equivalent to input linkage
         if (*linkage != *this_linkage)

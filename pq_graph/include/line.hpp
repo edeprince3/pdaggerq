@@ -182,9 +182,10 @@ namespace pdaggerq {
             //  only process first character of the label.
             //  this can cause hash collisions, but it is much faster than using strings
             auto hash = static_cast<size_t>(line.label_[0]);
+            hash <<= 8; // shift by 8 bits to make room for the next bit
 
             // whether the label has an even or odd number of characters (helps with hash collisions)
-            hash = (hash << 1) | line.label_.size() % 2;
+            hash |= (line.label_.size() % 2 == 0);
 
             // because a char is 8 bits, we can shift by 1 bit for each of the 4 booleans
             // and still have enough bits in a size_t to store the hash
@@ -193,10 +194,81 @@ namespace pdaggerq {
             hash = (hash << 1) | line.sig_;
             hash = (hash << 1) | line.den_;
 
-            // return the hash
+            // return the hash (13 bits)
             return hash;
         }
     }; // struct LineHash
+
+    // define hash function for Line
+    struct LinePtrHash {
+        size_t operator()(const Line *line) const {
+            constexpr LineHash line_hash;
+
+            // check if the pointer is null
+            if (!line) return 0;
+
+            // otherwise, return the hash of the line
+            return line_hash(*line);
+        }
+    }; // struct LineHash
+
+    struct LinePtrEqual {
+        bool operator()(const Line *lhs, const Line *rhs) const {
+
+            // check if either pointer is null
+            if (!lhs || !rhs) return false;
+
+            // check equality of the pointers
+            return *lhs == *rhs;
+        }
+    }; // struct LinePtrEqual
+
+    struct SimilarLineHash {
+        size_t operator()(const Line &line) const {
+
+            //  We do not care about the label for this hash function.
+            size_t hash = 0;
+
+            // because a char is 8 bits, we can shift by 1 bit for each of the 4 booleans
+            // and still have enough bits in a size_t to store the hash
+            hash = (hash << 1) | line.o_;
+            hash = (hash << 1) | line.a_;
+            hash = (hash << 1) | line.sig_;
+            hash = (hash << 1) | line.den_;
+
+            // return the hash (4 bits)
+            return hash;
+        }
+    }; // struct LineHash
+
+    struct SimilarLineEqual {
+        bool operator()(const Line &lhs, const Line &rhs) const {
+            return lhs.equivalent(rhs);
+        }
+    }; // struct LinePtrEqual
+
+    struct SimilarLinePtrHash {
+        size_t operator()(const Line *line) const {
+            constexpr SimilarLineHash line_hash;
+
+            // check if the pointer is null
+            if (!line) return 0;
+
+            // otherwise, return the hash of the line
+            return line_hash(*line);
+        }
+    }; // struct LineHash
+
+    struct SimilarLinePtrEqual {
+        bool operator()(const Line *lhs, const Line *rhs) const {
+            // check if either pointer is null
+            if (!lhs || !rhs) return false;
+
+            // check equality of the pointers
+            return lhs->equivalent(*rhs);
+        }
+    }; // struct LinePtrEqual
+
 
 } // pdaggerq
 

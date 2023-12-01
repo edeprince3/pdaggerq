@@ -47,22 +47,23 @@ namespace pdaggerq {
         }
 
         // count_ the left and right vertices
-        nvert_ = 2;
+        nvert_ = 0;
 
         // determine the depth of the linkage
         if (left_->is_linked()){
-            // subtract 1 and add the number of vertices in left
-            --nvert_ += as_link(left_)->nvert_;
-        }
+            // add the number of vertices in left
+            nvert_ += as_link(left_)->nvert_;
+        } else nvert_++;
         if (right_->is_linked()){
-            // subtract 1 and add the number of vertices in right
-            --nvert_ += as_link(right_)->nvert_;
-        }
+            // add the number of vertices in right
+            nvert_ += as_link(right_)->nvert_;
+        } else nvert_++;
 
         is_addition_ = is_addition;
 
         // create hash for the name (should be unique and faster for comparisons)
         base_name_ = left_->name_ + "\t" + right_->name_;
+        name_ = base_name_;
 
         // build internal and external lines with their index mapping
         set_links();
@@ -118,18 +119,18 @@ namespace pdaggerq {
 
 
         // create a map of lines to their frequency and whether they have been visited
-        unordered_map<Line, pair<uint_fast8_t, bool>, LineHash> line_populations;
-        line_populations.reserve(5*total_size+4); // reserve space for all lines (plus some extra)
+        thread_local unordered_map<const Line*, pair<uint_fast8_t, bool>, LinePtrHash, LinePtrEqual> line_populations;
+        line_populations.clear();
 
         // populate left lines
         for (const auto &line : left_lines) {
-            auto &[pop, visited] = line_populations[line];
+            auto &[pop, visited] = line_populations[&line];
             pop++; visited = false;
         }
 
         // populate right lines
         for (const auto &line : right_lines) {
-            auto &[pop, visited] = line_populations[line];
+            auto &[pop, visited] = line_populations[&line];
             pop++; visited = false;
         }
 
@@ -147,7 +148,7 @@ namespace pdaggerq {
             // find left in line_populations
             if (!left_at_end) {
                 const Line &left_line = *left_it;
-                const auto &left_pop = line_populations.find(left_line);
+                const auto &left_pop = line_populations.find(&left_line);
 
                 // check if line has already been visited
                 auto &[freq, visited] = left_pop->second;
@@ -194,7 +195,7 @@ namespace pdaggerq {
             // find right in line_populations
             if (!right_at_end) {
                 const Line &right_line = *right_it;
-                const auto &right_pop = line_populations.find(right_line);
+                const auto &right_pop = line_populations.find(&right_line);
 
                 // check if line has already been visited
                 auto &[freq, visited] = right_pop->second;
@@ -256,7 +257,7 @@ namespace pdaggerq {
         has_blk_ = left_->has_blk_ || right_->has_blk_;
         is_sigma_ = left_->is_sigma_ || right_->is_sigma_ || shape_.L_ > 0;
         is_den_ = left_->is_den_ || right_->is_den_ || shape_.Q_ > 0;
-        update_name();
+//        update_name();
 
     }
 
@@ -323,46 +324,22 @@ namespace pdaggerq {
         return linkages;
     }
 
-    pair<vector<shape>,vector<shape>> Linkage::scale_list(const vector<VertexPtr> &op_vec) {
-
+    tuple<LinkagePtr, vector<shape*>, vector<shape*>> Linkage::link_and_scale(const vector<VertexPtr> &op_vec) {
         uint_fast8_t op_vec_size = op_vec.size();
         if (op_vec_size <= 1) {
             throw invalid_argument("link(): op_vec must have at least two elements");
         }
 
-        vector<shape> flop_list;
-        vector<shape> mem_list;
+        vector<shape*> flop_list(op_vec_size - 1), mem_list(op_vec_size - 1);
 
         LinkagePtr linkage = as_link(op_vec[0] * op_vec[1]);
-        flop_list.push_back(linkage->flop_scale_);
-        mem_list.push_back(linkage->mem_scale_);
+        flop_list[0] = &linkage->flop_scale_;
+         mem_list[0] = &linkage->mem_scale_;
 
         for (uint_fast8_t i = 2; i < op_vec_size; i++) {
             linkage = as_link(linkage * op_vec[i]);
-            flop_list.push_back(linkage->flop_scale_);
-            mem_list.push_back(linkage->mem_scale_);
-        }
-
-        return {flop_list, mem_list};
-    }
-
-    tuple<LinkagePtr, vector<shape>, vector<shape>> Linkage::link_and_scale(const vector<VertexPtr> &op_vec) {
-        uint_fast8_t op_vec_size = op_vec.size();
-        if (op_vec_size <= 1) {
-            throw invalid_argument("link(): op_vec must have at least two elements");
-        }
-
-        vector<shape> flop_list;
-        vector<shape> mem_list;
-
-        LinkagePtr linkage = as_link(op_vec[0] * op_vec[1]);
-        flop_list.push_back(linkage->flop_scale_);
-        mem_list.push_back(linkage->mem_scale_);
-
-        for (uint_fast8_t i = 2; i < op_vec_size; i++) {
-            linkage = as_link(linkage * op_vec[i]);
-            flop_list.push_back(linkage->flop_scale_);
-            mem_list.push_back(linkage->mem_scale_);
+            flop_list[i-1] = &linkage->flop_scale_;
+             mem_list[i-1] = &linkage->mem_scale_;
         }
 
         return {linkage, flop_list, mem_list};

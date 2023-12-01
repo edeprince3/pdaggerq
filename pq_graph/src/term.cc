@@ -107,9 +107,8 @@ namespace pdaggerq {
         // create rhs vertices
         for (const auto & delta : pq_str->deltas) // add delta functions
             rhs_.push_back(make_shared<Vertex>(delta));
-        for (const auto & int_pair : pq_str->ints) { // add integrals
-            const string &type = int_pair.first;
-            for (auto & integral : int_pair.second) {
+        for (const auto & [type, integrals] : pq_str->ints) { // add integrals
+            for (auto & integral : integrals) {
                 VertexPtr int_vert = make_shared<Vertex>(integral, type);
                 if (type == "eri") { // permute eri to proper form
                     // swap sign if eri is permuted with sign change
@@ -118,9 +117,8 @@ namespace pdaggerq {
                 rhs_.push_back(int_vert);
             }
         }
-        for (const auto & amp_pair : pq_str->amps) { // add amplitudes
-            char type = amp_pair.first;
-            for (auto & amp : amp_pair.second)
+        for (const auto & [type, amp_vec] : pq_str->amps) { // add amplitudes
+            for (auto & amp : amp_vec)
                 rhs_.push_back(make_shared<Vertex>(amp, type));
         }
 
@@ -168,7 +166,6 @@ namespace pdaggerq {
 
         if (rhs_.empty()) return; // if constant, no need to construct linkage
 
-//        make_generic(); // set rhs to generic form
         compute_scaling(); // compute flop and memory scaling of the term
 
         // set bottleneck flop and memory scaling
@@ -218,10 +215,11 @@ namespace pdaggerq {
         perm_type_ = 0;
 
         // make labels generic (performs a deep copy)
-        *this = genericize();
+//        *this = genericize();
 
-        // reorder rhs
-        reorder();
+        // compute flop and memory scaling of the term
+        request_update();
+        compute_scaling();
 
         // set vertex strings
 
@@ -292,14 +290,14 @@ namespace pdaggerq {
         shape this_bottleneck_flop_;
         shape this_bottleneck_mem_;
         for (auto flop_scale : flop_scales) {
-            flop_map_[flop_scale]++;
-            if (flop_scale > this_bottleneck_flop_)
-                this_bottleneck_flop_ = flop_scale;
+            flop_map_[*flop_scale]++;
+            if (*flop_scale > this_bottleneck_flop_)
+                this_bottleneck_flop_ = *flop_scale;
         }
         for (auto mem_scale : mem_scales) {
-            mem_map_[mem_scale]++;
-            if (mem_scale > this_bottleneck_mem_)
-                this_bottleneck_mem_ = mem_scale;
+            mem_map_[*mem_scale]++;
+            if (*mem_scale > this_bottleneck_mem_)
+                this_bottleneck_mem_ = *mem_scale;
         }
 
         // indicate that term no longer needs updating
@@ -786,7 +784,7 @@ namespace pdaggerq {
         string assign_str = " <- ";
         if (coefficient_ < 0 ) assign_str += "-";
 
-        auto [flop_scales, mem_scales] = term_linkage_->scale_list(rhs_);
+        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(rhs_);
         if (flop_scales.empty() && mem_scales.empty()) { // no scaling to add as an additional comment
             // remove all quotes from comment
             comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
@@ -797,7 +795,7 @@ namespace pdaggerq {
 
         comment += " // flops: " + lhs_->dim().str() + assign_str;
         for (const auto & flop : flop_scales)
-            comment += flop.str() + " -> ";
+            comment += flop->str() + " -> ";
 
         if (!flop_scales.empty()) {
             // remove last arrow (too lazy right now to do this elegantly)
@@ -806,7 +804,7 @@ namespace pdaggerq {
 
         comment += " | mem: " + lhs_->dim().str() + assign_str;
         for (const auto & mem : mem_scales)
-            comment += mem.str() + " -> ";
+            comment += mem->str() + " -> ";
         if (!mem_scales.empty()) {
             // remove last arrow (too lazy right now to do this elegantly)
             comment.pop_back(); comment.pop_back(); comment.pop_back(); comment.pop_back();
