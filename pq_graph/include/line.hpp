@@ -183,8 +183,11 @@ namespace pdaggerq {
             //  this can cause hash collisions, but it is much faster than using strings
             auto hash = static_cast<size_t>(line.label_[0]);
 
-            // because a char is 8 bits, we can shift by 8 bits
-            // and use our boolean to set the other 4 bits
+            // whether the label has an even or odd number of characters (helps with hash collisions)
+            hash = (hash << 1) | line.label_.size() % 2;
+
+            // because a char is 8 bits, we can shift by 1 bit for each of the 4 booleans
+            // and still have enough bits in a size_t to store the hash
             hash = (hash << 1) | line.o_;
             hash = (hash << 1) | line.a_;
             hash = (hash << 1) | line.sig_;

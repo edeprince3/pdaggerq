@@ -119,7 +119,7 @@ namespace pdaggerq {
 
 
         // populate left lines
-        thread_local unordered_map<Line, pair<uint_fast8_t, bool>, LineHash> line_populations(256);
+        static thread_local unordered_map<Line, pair<uint_fast8_t, bool>, LineHash> line_populations(16);
         line_populations.clear();
 
         for (const auto &line : left_lines) {
