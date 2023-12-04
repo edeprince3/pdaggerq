@@ -129,7 +129,7 @@ ostream &Equation::write_dot(ostream &os, const string &color, bool reset) {
         os << " ";
 
         // label vertices
-        for (const auto &vertex : term.term_linkage_->to_vector()) {
+        for (const auto &vertex : term.term_linkage_->get_vertices()) {
             if (vertex->base_name_.empty()) continue;
 
             os << vertex->base_name_;
@@ -141,7 +141,7 @@ ostream &Equation::write_dot(ostream &os, const string &color, bool reset) {
                 }
             }
             if (!vertex->lines().empty()) os << ")";
-            if (vertex != term.term_linkage_->to_vector().back()) {
+            if (vertex != term.term_linkage_->get_vertices().back()) {
                 os << " ";
             }
         }
@@ -172,7 +172,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
 
     // get vertices
-    vector<ConstVertexPtr> vertices = this->to_vector(true, true);
+    vector<ConstVertexPtr> vertices = this->get_vertices(true, true);
 
     // sort vertices
     std::sort(vertices.begin(), vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
@@ -180,7 +180,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     });
 
     bool track_temps = true; // TODO: make this a parameter
-    vector<ConstVertexPtr> temps = this->to_vector(true, false);
+    vector<ConstVertexPtr> temps = this->get_vertices(true, false);
     vector<ConstVertexPtr> temp_verts;
     temp_verts.reserve(vertices.size());
 
@@ -191,7 +191,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
             if (!temp->is_temp())
                 continue;
 
-            for (auto &temp_vert: as_link(temp)->to_vector(true, true)) {
+            for (auto &temp_vert: as_link(temp)->get_vertices(true, true)) {
                 temp_verts.push_back(temp_vert);
             }
 

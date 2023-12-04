@@ -113,37 +113,69 @@ namespace pdaggerq {
             perm_term.reset_perm(); // reset permutation indices
             perm_term.is_assignment_ = false; // set to false since we are permuting the term
 
+            auto single_perm = [](const VertexPtr &vertex, const auto &perm){
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm.first) line.label_ = perm.second;
+                    else if (line.label_ == perm.second) line.label_ = perm.first;
+                }
+            };
+
             for (const auto &perm_combo: perm_combos) {
 
                 // create deep copy of rhs vertices
                 vector<ConstVertexPtr> perm_vertices;
-                for (const auto &vertex: rhs_)
+                for (const auto &vertex: rhs_) {
                     perm_vertices.push_back(vertex->deep_copy_ptr());
-                perm_term.rhs_ = perm_vertices; // set vertices in term
-                perm_term.coefficient_ = coefficient_; // set vertices in term
-
-                // set sign of permutation
-                if (perm_combo.size() % 2 == 1)
-                    perm_term.coefficient_ = -coefficient_;
+                }
 
                 // single index permutations
                 for (const auto &perm: perm_combo) {
                     for (ConstVertexPtr &vertex: perm_vertices) {
                         VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                        for (Line &line: non_const_vertex->lines()) {
-                            if (line.label_ == perm.first) line.label_ = perm.second;
-                            else if (line.label_ == perm.second) line.label_ = perm.first;
+
+                        if (!non_const_vertex->is_linked()){
+                            // directly permute labels of vertex
+                            single_perm(non_const_vertex, perm);
+                            vertex = non_const_vertex;
+                        } else {
+                            // expand the linkage and permute labels of each vertex
+                            const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                            // create a deep copy and permute labels
+                            vector<ConstVertexPtr> non_const_expanded_vertices;
+                            non_const_expanded_vertices.reserve(expanded_vertices.size());
+                            for (const auto &expanded_vertex: expanded_vertices) {
+                                VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                                single_perm(non_const_expanded_vertex, perm);
+                                non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                            }
+
+                            // link together permuted vertices
+                            LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                            // copy other linkage info
+                            permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                            // replace vertex with permuted linkage
+                            vertex = permuted_linkage;
                         }
-                        vertex = non_const_vertex;
                     }
                 }
 
-                // recomputes scaling
-                perm_term.compute_scaling(true);
-                perm_term.reset_comments();
 
-                // add permuted term to vector
+                // set coefficient of permutation
+                perm_term.coefficient_ = coefficient_;
+                if (perm_combo.size() % 2 == 1)
+                    perm_term.coefficient_ = -coefficient_;
+
+                perm_term.rhs_ = perm_vertices;   // set vertices in term
+                perm_term.reset_perm();           // reset permutation indices
+                perm_term.is_assignment_ = false; // set to false since we are permuting the term
+                perm_term.compute_scaling(true);  // recomputes scaling
+                perm_term.reset_comments();       // reset comments
+
                 perm_terms.push_back(perm_term);
+
             }
 
 
@@ -157,9 +189,6 @@ namespace pdaggerq {
         vector<ConstVertexPtr> perm_vertices;
         for (const auto &vertex: rhs_)
             perm_vertices.push_back(vertex->deep_copy_ptr());
-        perm_term.rhs_ = perm_vertices; // set vertices in term
-        perm_term.reset_perm(); // reset permutation indices
-        perm_term.is_assignment_ = false; // set to false since we are permuting the term
 
         // paired permutations
         if (perm_type == 2) {
@@ -175,21 +204,53 @@ namespace pdaggerq {
             string perm_line2_1 = perm_pair2.first;
             string perm_line2_2 = perm_pair2.second;
 
-            // swap line pairs
-            for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                for (Line & line : non_const_vertex->lines()) {
+            auto PP2_perm = [perm_line1_1, perm_line1_2, perm_line2_1, perm_line2_2](const VertexPtr &vertex){
+                for (Line &line: vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
-                vertex = non_const_vertex;
+            };
+
+            // swap line pairs
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+
+                if (!non_const_vertex->is_linked()){
+                    // directly permute labels of vertex
+                    PP2_perm(non_const_vertex);
+                    vertex = non_const_vertex;
+                } else {
+                    // expand the linkage and permute labels of each vertex
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                    // create a deep copy and permute labels
+                    vector<ConstVertexPtr> non_const_expanded_vertices;
+                    non_const_expanded_vertices.reserve(expanded_vertices.size());
+                    for (const auto &expanded_vertex: expanded_vertices) {
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                        PP2_perm(non_const_expanded_vertex);
+                        non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                    }
+
+                    // link together permuted vertices
+                    LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                    // copy other linkage info
+                    permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                    // replace vertex with permuted linkage
+                    vertex = permuted_linkage;
+                }
             }
 
-            // recomputes scaling
-            perm_term.compute_scaling(true);
-            perm_term.reset_comments();
+
+            perm_term.rhs_ = perm_vertices;   // set vertices in term
+            perm_term.reset_perm();           // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
+            perm_term.compute_scaling(true);  // recomputes scaling
+            perm_term.reset_comments();       // reset comments
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -212,22 +273,61 @@ namespace pdaggerq {
             string perm_line3_1 = perm_pair3.first;
             string perm_line3_2 = perm_pair3.second;
 
-            // first pair permutation
-            for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                for (Line & line : non_const_vertex->lines()) {
+
+            auto PP3_perm1 = [perm_line1_1, perm_line1_2, perm_line2_1, perm_line2_2](const VertexPtr &vertex){
+                for (Line &line: vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
-                vertex = non_const_vertex;
+            };
+
+            auto PP3_perm2 = [perm_line1_1, perm_line1_2, perm_line3_1, perm_line3_2](const VertexPtr &vertex){
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
+                    else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
+                    else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
+                }
+            };
+
+            // swap line pairs
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                if (!non_const_vertex->is_linked()){
+                    // directly permute labels of vertex
+                    PP3_perm1(non_const_vertex);
+                    vertex = non_const_vertex;
+                } else {
+                    // expand the linkage and permute labels of each vertex
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                    // create a deep copy and permute labels
+                    vector<ConstVertexPtr> non_const_expanded_vertices;
+                    non_const_expanded_vertices.reserve(expanded_vertices.size());
+                    for (const auto &expanded_vertex: expanded_vertices) {
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                        PP3_perm1(non_const_expanded_vertex);
+                        non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                    }
+
+                    // link together permuted vertices
+                    LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                    // copy other linkage info
+                    permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                    // replace vertex with permuted linkage
+                    vertex = permuted_linkage;
+                }
             }
 
-            // add first permutation to vector
-            // recomputes scaling
-            perm_term.compute_scaling(true);
-            perm_term.reset_comments();
+            perm_term.rhs_ = perm_vertices;   // set vertices in term
+            perm_term.reset_perm();           // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
+            perm_term.compute_scaling(true);  // recomputes scaling
+            perm_term.reset_comments();       // reset comments
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -241,19 +341,40 @@ namespace pdaggerq {
             // second pair permutation
             for (ConstVertexPtr & vertex : perm_vertices) {
                 VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                for (Line & line : non_const_vertex->lines()) {
-                    if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
-                    else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
-                    else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
-                    else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
+                if (!non_const_vertex->is_linked()){
+                    // directly permute labels of vertex
+                    PP3_perm2(non_const_vertex);
+                    vertex = non_const_vertex;
+                } else {
+                    // expand the linkage and permute labels of each vertex
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                    // create a deep copy and permute labels
+                    vector<ConstVertexPtr> non_const_expanded_vertices;
+                    non_const_expanded_vertices.reserve(expanded_vertices.size());
+                    for (const auto &expanded_vertex: expanded_vertices) {
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                        PP3_perm2(non_const_expanded_vertex);
+                        non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                    }
+
+                    // link together permuted vertices
+                    LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                    // copy other linkage info
+                    permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                    // replace vertex with permuted linkage
+                    vertex = permuted_linkage;
                 }
-                vertex = non_const_vertex;
             }
 
             // add second permutation to vector
-            // recomputes scaling
-            perm_term.compute_scaling(true);
-            perm_term.reset_comments();
+            perm_term.rhs_ = perm_vertices;   // set vertices in term
+            perm_term.reset_perm();           // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
+            perm_term.compute_scaling(true);  // recomputes scaling
+            perm_term.reset_comments();       // reset comments
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -276,22 +397,91 @@ namespace pdaggerq {
             string perm_line3_1 = perm_pair3.first;
             string perm_line3_2 = perm_pair3.second;
 
-            // reference (abc;ijk)
-
-            // pair permutation (acb;ikj)
-            for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                for (Line & line : non_const_vertex->lines()) {
+            auto PP6_perm1 = [perm_line1_1, perm_line1_2, perm_line2_1, perm_line2_2](const VertexPtr &vertex){
+                for (Line &line: vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
-                vertex = non_const_vertex;
+            };
+
+            auto PP6_perm2 = [perm_line1_1, perm_line1_2, perm_line2_1, perm_line2_2](const VertexPtr &vertex){
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                }
+            };
+
+            auto PP6_perm3 = [perm_line1_1, perm_line1_2, perm_line3_1, perm_line3_2](const VertexPtr &vertex){
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
+                    else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
+                    else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
+                }
+            };
+
+            auto PP6_perm4 = [perm_line2_1, perm_line2_2, perm_line3_1, perm_line3_2](const VertexPtr &vertex){
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line2_1) line.label_ = perm_line3_1;
+                    else if (line.label_ == perm_line3_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line3_2;
+                    else if (line.label_ == perm_line3_2) line.label_ = perm_line2_2;
+                }
+            };
+
+            auto PP6_perm5 = [perm_line1_1, perm_line1_2, perm_line2_1, perm_line2_2](const VertexPtr &vertex){
+                for (Line &line: vertex->lines()) {
+                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
+                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
+                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
+                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                }
+            };
+
+            // swap line pairs
+
+            // reference (abc;ijk)
+
+            // pair permutation (acb;ikj)
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                if (!non_const_vertex->is_linked()){
+                    // directly permute labels of vertex
+                    PP6_perm1(non_const_vertex);
+                    vertex = non_const_vertex;
+                } else {
+                    // expand the linkage and permute labels of each vertex
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                    // create a deep copy and permute labels
+                    vector<ConstVertexPtr> non_const_expanded_vertices;
+                    non_const_expanded_vertices.reserve(expanded_vertices.size());
+                    for (const auto &expanded_vertex: expanded_vertices) {
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                        PP6_perm1(non_const_expanded_vertex);
+                        non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                    }
+
+                    // link together permuted vertices
+                    LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                    // copy other linkage info
+                    permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                    // replace vertex with permuted linkage
+                    vertex = permuted_linkage;
+                }
             }
-            // recomputes scaling
-            perm_term.compute_scaling(true);
-            perm_term.reset_comments();
+
+            perm_term.rhs_ = perm_vertices;   // set vertices in term
+            perm_term.reset_perm();           // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
+            perm_term.compute_scaling(true);  // recomputes scaling
+            perm_term.reset_comments();       // reset comments
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -305,18 +495,39 @@ namespace pdaggerq {
             // pair permutation (bac;jik)
             for (ConstVertexPtr & vertex : perm_vertices) {
                 VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                for (Line & line : non_const_vertex->lines()) {
-                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
-                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
-                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
-                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                if (!non_const_vertex->is_linked()){
+                    // directly permute labels of vertex
+                    PP6_perm2(non_const_vertex);
+                    vertex = non_const_vertex;
+                } else {
+                    // expand the linkage and permute labels of each vertex
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                    // create a deep copy and permute labels
+                    vector<ConstVertexPtr> non_const_expanded_vertices;
+                    non_const_expanded_vertices.reserve(expanded_vertices.size());
+                    for (const auto &expanded_vertex: expanded_vertices) {
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                        PP6_perm2(non_const_expanded_vertex);
+                        non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                    }
+
+                    // link together permuted vertices
+                    LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                    // copy other linkage info
+                    permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                    // replace vertex with permuted linkage
+                    vertex = permuted_linkage;
                 }
-                vertex = non_const_vertex;
             }
 
-            // recomputes scaling
-            perm_term.compute_scaling(true);
-            perm_term.reset_comments();
+            perm_term.rhs_ = perm_vertices;   // set vertices in term
+            perm_term.reset_perm();           // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
+            perm_term.compute_scaling(true);  // recomputes scaling
+            perm_term.reset_comments();       // reset comments
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -324,17 +535,39 @@ namespace pdaggerq {
             // pair permutation (cab;kij)
             for (ConstVertexPtr & vertex : perm_vertices) {
                 VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                for (Line & line : non_const_vertex->lines()) {
-                    if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
-                    else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
-                    else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
-                    else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
+                if (!non_const_vertex->is_linked()){
+                    // directly permute labels of vertex
+                    PP6_perm3(non_const_vertex);
+                    vertex = non_const_vertex;
+                } else {
+                    // expand the linkage and permute labels of each vertex
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                    // create a deep copy and permute labels
+                    vector<ConstVertexPtr> non_const_expanded_vertices;
+                    non_const_expanded_vertices.reserve(expanded_vertices.size());
+                    for (const auto &expanded_vertex: expanded_vertices) {
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                        PP6_perm3(non_const_expanded_vertex);
+                        non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                    }
+
+                    // link together permuted vertices
+                    LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                    // copy other linkage info
+                    permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                    // replace vertex with permuted linkage
+                    vertex = permuted_linkage;
                 }
-                vertex = non_const_vertex;
             }
-            // recomputes scaling
-            perm_term.compute_scaling(true);
-            perm_term.reset_comments();
+
+            perm_term.rhs_ = perm_vertices;   // set vertices in term
+            perm_term.reset_perm();           // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
+            perm_term.compute_scaling(true);  // recomputes scaling
+            perm_term.reset_comments();       // reset comments
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -342,17 +575,39 @@ namespace pdaggerq {
             // pair permutation (cba;kji)
             for (ConstVertexPtr & vertex : perm_vertices) {
                 VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                for (Line & line : non_const_vertex->lines()) {
-                    if (line.label_ == perm_line2_1) line.label_ = perm_line3_1;
-                    else if (line.label_ == perm_line3_1) line.label_ = perm_line2_1;
-                    else if (line.label_ == perm_line2_2) line.label_ = perm_line3_2;
-                    else if (line.label_ == perm_line3_2) line.label_ = perm_line2_2;
+                if (!non_const_vertex->is_linked()){
+                    // directly permute labels of vertex
+                    PP6_perm4(non_const_vertex);
+                    vertex = non_const_vertex;
+                } else {
+                    // expand the linkage and permute labels of each vertex
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                    // create a deep copy and permute labels
+                    vector<ConstVertexPtr> non_const_expanded_vertices;
+                    non_const_expanded_vertices.reserve(expanded_vertices.size());
+                    for (const auto &expanded_vertex: expanded_vertices) {
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                        PP6_perm4(non_const_expanded_vertex);
+                        non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                    }
+
+                    // link together permuted vertices
+                    LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                    // copy other linkage info
+                    permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                    // replace vertex with permuted linkage
+                    vertex = permuted_linkage;
                 }
-                vertex = non_const_vertex;
             }
-            // recomputes scaling
-            perm_term.compute_scaling(true);
-            perm_term.reset_comments();
+
+            perm_term.rhs_ = perm_vertices;   // set vertices in term
+            perm_term.reset_perm();           // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
+            perm_term.compute_scaling(true);  // recomputes scaling
+            perm_term.reset_comments();       // reset comments
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);
@@ -360,17 +615,39 @@ namespace pdaggerq {
             // pair permutation (bca;jki)
             for (ConstVertexPtr & vertex : perm_vertices) {
                 VertexPtr non_const_vertex = vertex->deep_copy_ptr();
-                for (Line & line : non_const_vertex->lines()) {
-                    if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
-                    else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
-                    else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
-                    else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
+                if (!non_const_vertex->is_linked()){
+                    // directly permute labels of vertex
+                    PP6_perm5(non_const_vertex);
+                    vertex = non_const_vertex;
+                } else {
+                    // expand the linkage and permute labels of each vertex
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+
+                    // create a deep copy and permute labels
+                    vector<ConstVertexPtr> non_const_expanded_vertices;
+                    non_const_expanded_vertices.reserve(expanded_vertices.size());
+                    for (const auto &expanded_vertex: expanded_vertices) {
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->deep_copy_ptr();
+                        PP6_perm5(non_const_expanded_vertex);
+                        non_const_expanded_vertices.push_back(non_const_expanded_vertex);
+                    }
+
+                    // link together permuted vertices
+                    LinkagePtr permuted_linkage = Linkage::link(non_const_expanded_vertices);
+
+                    // copy other linkage info
+                    permuted_linkage->copy_misc(as_link(non_const_vertex));
+
+                    // replace vertex with permuted linkage
+                    vertex = permuted_linkage;
                 }
-                vertex = non_const_vertex;
             }
-            // recomputes scaling
-            perm_term.compute_scaling(true);
-            perm_term.reset_comments();
+
+            perm_term.rhs_ = perm_vertices;   // set vertices in term
+            perm_term.reset_perm();           // reset permutation indices
+            perm_term.is_assignment_ = false; // set to false since we are permuting the term
+            perm_term.compute_scaling(true);  // recomputes scaling
+            perm_term.reset_comments();       // reset comments
 
             // add permuted term to vector
             perm_terms.push_back(perm_term);

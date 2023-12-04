@@ -207,7 +207,7 @@ namespace pdaggerq {
 
         // initialize lhs vertex
         lhs_ = linkage;
-        rhs_ = linkage->to_vector(false, false);
+        rhs_ = linkage->get_vertices(false, false);
 
         // set permutation indices as empty
         term_perms_ = {};
@@ -954,7 +954,7 @@ namespace pdaggerq {
             // check if vertex is a linkage
             if (vertex->is_linked()) {
                 // expand all operators in linkage
-                for (const auto & op : as_link(vertex)->to_vector()) {
+                for (const auto & op : as_link(vertex)->get_vertices()) {
                     for (const auto & line : op->lines()) {
                         size_t count = line_map.count(line);
                         if (count == 0) {

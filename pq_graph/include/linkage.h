@@ -90,6 +90,9 @@ namespace pdaggerq {
 
     class Linkage : public Vertex, public std::enable_shared_from_this<Linkage> {
 
+        // mutex for thread safety
+        mutable std::mutex mtx_; // mutex for thread safety
+
         /// vertices in the linkage
         ConstVertexPtr left_, right_; // the left and right vertices of the linkage
 
@@ -100,9 +103,8 @@ namespace pdaggerq {
         shape flop_scale_{}; // flops
         shape mem_scale_{}; // memory
 
-        mutable std::mutex mtx_; // mutex for thread safety
-        mutable vector<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
-        mutable vector<ConstVertexPtr> partial_vert_; // all non-intermediate vertices from linkages
+        vector<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
+        vector<ConstVertexPtr> partial_vert_; // all non-intermediate vertices from linkages
 
     public:
         long id_ = -1; // id of the linkage (default to -1 if not set)
@@ -301,18 +303,11 @@ namespace pdaggerq {
         }
 
         /**
-        * convert the linkage to a vector of vertices in order
-        * @param result vector of vertices
-        * @note this function is recursive
-        */
-        void to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const;
-
-        /**
-         * convert the linkage to a const vector of vertices
-         * @return vector of vertices
-         * @note this function is recursive
+         * return a vector of vertices in order
+         * @param regenerate whether to regenerate the vertices (deprecated; no-op)
+         * @param full_expand whether to fully expand nested intermediates
          */
-        vector<ConstVertexPtr> to_vector(bool regenerate = false, bool full_expand = true) const;
+        vector<ConstVertexPtr> get_vertices(bool regenerate = false, bool full_expand = true) const;
 
         /**
          * Get connections
@@ -338,6 +333,17 @@ namespace pdaggerq {
          * @param op_vec list of vertices
          */
         static vector<LinkagePtr> links(const vector<ConstVertexPtr> &op_vec);
+
+        /**
+         * copy just the members of the linkage that do not depend on the vertices
+         * @param to_copy
+         */
+        void copy_misc(const Linkage& to_copy) {
+            id_ = to_copy.id_;
+            is_reused_ = to_copy.is_reused_;
+            is_addition_ = to_copy.is_addition_;
+        }
+        void copy_misc(const ConstLinkagePtr& to_copy) { copy_misc(*to_copy); }
 
         /**
          * get worst flop cost of linkage

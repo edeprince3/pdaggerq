@@ -541,7 +541,7 @@ void PQGraph::sort_tmps(Equation &equation) {
                 }
 
                 // recurse into nested tmps
-                for (const auto &nested_op: link->to_vector(false, false)) {
+                for (const auto &nested_op: link->get_vertices(false, false)) {
                     test_vertex(nested_op, id, get_max);
                 }
             }
@@ -682,7 +682,7 @@ void PQGraph::remove_redundant_tmps() {// remove redundant contractions (only us
 //                if (vertex->is_temp()){
 //                    const LinkagePtr &link = as_link(vertex);
 //                    if (link->id_ == contraction->id_) {
-//                        const auto &new_verts = link->to_vector();
+//                        const auto &new_verts = link->get_vertices();
 //                        new_rhs.insert(new_rhs.end(), new_verts.begin(), new_verts.end());
 //                        continue;
 //                    }

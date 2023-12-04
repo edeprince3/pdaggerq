@@ -148,7 +148,7 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     if (linkage->worst_flop() > bottleneck_flop_) return false;
 
     // get total vector of linkage vertices (without expanding nested linkages)
-    const vector<ConstVertexPtr> &link_vec = linkage->to_vector(false, false);
+    const vector<ConstVertexPtr> &link_vec = linkage->get_vertices(false, false);
 
     size_t num_ops = rhs_.size(); // get number of rhs
     size_t num_link = link_vec.size(); // get number of linkages in rhs
@@ -190,7 +190,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     auto break_subset_op = break_perm_op;
 
     // get vector of vertices involved in the linkage (without expanding nested linkages)
-    const vector<ConstVertexPtr> &link_vec = linkage->to_vector(false, false);
+    const vector<ConstVertexPtr> &link_vec = linkage->get_vertices(false, false);
 
     // initialize best flop scaling and memory scaling with rhs
     scaling_map best_flop_map = flop_map_;
@@ -270,9 +270,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
                 new_rhs.push_back(rhs_[i]);
             } else if (i == subset.front()) {
                 // add linkage to new rhs if this is the first vertex in the subset
-                this_linkage->id_ = linkage->id_;
-                this_linkage->is_reused_ = linkage->is_reused_;
-                this_linkage->is_addition_ = linkage->is_addition_;
+                this_linkage->copy_misc(linkage);
                 new_rhs.push_back(this_linkage);
                 added_linkage = true;
             } // else do not add vertex to new rhs

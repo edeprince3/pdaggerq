@@ -358,6 +358,10 @@ namespace pdaggerq {
         for (auto &eq_pair : equations_) { // iterate over equations in serial
             const string &eq_name = eq_pair.first;
             Equation &equation = eq_pair.second;
+            vector<Term> &terms = equation.terms();
+
+            if (terms.empty())
+                continue;
 
             if (eq_name == "scalars" || eq_name == "reuse_tmps")
                 continue;
@@ -367,7 +371,7 @@ namespace pdaggerq {
 //            }
 
             sort_tmps(equation); // sort tmps in equation
-            vector<Term> &terms = equation.terms();
+
             terms.front().is_assignment_ = true; // mark first term as assignment
             all_terms.insert(all_terms.end(), terms.begin(), terms.end());
         }
@@ -684,8 +688,8 @@ namespace pdaggerq {
     void PQGraph::optimize() {
         reorder(); // reorder contractions in equations
 
-//        if (allow_merge_)
-//            merge_terms(); // merge similar terms
+        if (allow_merge_)
+            merge_terms(); // merge similar terms
 
         bool format_sigma = has_sigma_vecs_ && format_sigma_;
         substitute(format_sigma); // find and substitute intermediate contractions
@@ -699,10 +703,8 @@ namespace pdaggerq {
             substitute();
         }
 
-//        if (allow_merge_)
-//            merge_terms(); // merge similar terms
-//        if (reuse_permutations_)
-//           merge_permutations(); // merge similar permutations
+        if (allow_merge_)
+            merge_terms(); // merge similar terms
 
         // recollect scaling of equations
         collect_scaling(true, true);

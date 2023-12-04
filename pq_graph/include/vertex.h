@@ -130,12 +130,9 @@ namespace pdaggerq {
             // true vertex does not have any pointers; this function is just for inheritance
             return *this;
         };
-
-        /**
-         * deep copy of vertex pointer
-         * @return
-         */
         virtual VertexPtr deep_copy_ptr() const{ return std::make_shared<Vertex>(*this); }
+        ConstVertexPtr ptr() const { return shared_from_this(); }
+
 
         /**
          * move constructor
