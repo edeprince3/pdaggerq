@@ -436,18 +436,16 @@ namespace pdaggerq {
         // recursively check if left linkages are equivalent
         if (left_->is_linked()) {
             if (*as_link(left_) != *as_link(other.left_)) return false;
-        } else {
-            if ( !left_->Vertex::equivalent( *other.left_)) return false;
         }
 
         // check if right linkages are equivalent
         if (right_->is_linked()) {
             if (*as_link(right_) != *as_link(other.right_))
                 return false;
-        } else {
-            if ( !right_->Vertex::equivalent( *other.right_))
-                return false;
         }
+
+        if (!Vertex::equivalent(other))
+            return false;
 
         // if all tests pass, return true
         return true;
