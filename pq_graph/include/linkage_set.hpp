@@ -36,64 +36,72 @@ namespace pdaggerq {
     * hash function class for linkages
     */
     struct LinkageHash {
-        size_t operator()(const LinkagePtr &linkage_ptr) const {
+        size_t operator()(const ConstLinkagePtr &linkage_ptr) const {
 
             const Linkage &linkage = *linkage_ptr;
 
             constexpr SimilarVertexPtrHash vertex_hash;
-            size_t total_vert_hash = vertex_hash(linkage.left_);
-            total_vert_hash ^= vertex_hash(linkage.right_);
+            size_t vert_hash = vertex_hash(linkage.left());
+            vert_hash ^= vertex_hash(linkage.right());
 
-            size_t connection_hash = 0;
+            size_t connec_hash = 0;
             size_t count = 0;
             for (const auto &[leftidx, rightidx] : linkage.connections()) {
                 if (++count < 4) {
                     // add pair to hash
-                    connection_hash ^= leftidx;
-                    connection_hash |= rightidx;
+                    connec_hash ^= leftidx;
+                    connec_hash |= rightidx;
                 } else {
                     // shift right by 4 bits
                     // and add pair
-                    connection_hash >>= 4;
-                    connection_hash ^= leftidx;
-                    connection_hash ^= rightidx;
+                    connec_hash >>= 4;
+                    connec_hash ^= leftidx;
+                    connec_hash ^= rightidx;
                 }
 
                 // shift left by 8 bits (uint8_t)
-                connection_hash <<= 8;
+                connec_hash <<= 8;
             }
 
-            size_t l_ext_hash = 0;
+            size_t disconnec_hash = 0;
             count = 0;
-            for (const auto & leftidx : linkage.l_ext_idx()){
+            for (const auto & leftidx : linkage.disconnections()){
                 if (++count < 4) {
                     // add pair to hash
-                    l_ext_hash |= leftidx;
+                    disconnec_hash |= leftidx;
                 } else {
                     // shift right by 4 bits
                     // and add pair
-                    l_ext_hash >>= 4;
-                    l_ext_hash ^= leftidx;
+                    disconnec_hash >>= 4;
+                    disconnec_hash ^= leftidx;
                 }
 
                 // shift left by 8 bits (uint8_t)
-                l_ext_hash <<= 8;
+                disconnec_hash <<= 8;
             }
 
-            return total_vert_hash ^ connection_hash | l_ext_hash;
+            string history;
+            for (const auto & flop : linkage.flop_history())
+                history += flop.str();
+            for (const auto & mem : linkage.mem_history())
+                history += mem.str();
+
+            size_t history_hash = hash<string>()(history);
+
+            return vert_hash ^ connec_hash | disconnec_hash & history_hash;
 
         }
     }; // struct linkage_hash
 
     struct LinkagePred {
-        bool operator()(const LinkagePtr &lhs, const LinkagePtr &rhs) const {
+        bool operator()(const ConstLinkagePtr &lhs, const ConstLinkagePtr &rhs) const {
             return *lhs == *rhs;
         }
     }; // struct linkage_pred
 
     class linkage_set{
 
-        unordered_set<LinkagePtr, LinkageHash, LinkagePred> linkages_; // set of linkages
+        unordered_set<ConstLinkagePtr, LinkageHash, LinkagePred> linkages_; // set of linkages
 
     public:
         /**
@@ -152,7 +160,7 @@ namespace pdaggerq {
          * insert a linkage into the set
          * @param linkage linkage to insert
          */
-        auto insert(const LinkagePtr &linkage) {
+        auto insert(const ConstLinkagePtr &linkage) {
             return linkages_.insert(linkage);
         }
 
@@ -173,7 +181,7 @@ namespace pdaggerq {
          * get the set of linkages
          * @return set of linkages
          */
-        const unordered_set<LinkagePtr, LinkageHash, LinkagePred> &linkages() const { return linkages_; }
+        const unordered_set<ConstLinkagePtr, LinkageHash, LinkagePred> &linkages() const { return linkages_; }
 
         /**
          * clear the set of linkages
@@ -208,7 +216,7 @@ namespace pdaggerq {
          * @param i index of linkage
          * @return const reference to linkage
          */
-        const LinkagePtr &operator[](size_t i) const { return *next(linkages_.begin(), (long) i); }
+        const ConstLinkagePtr &operator[](size_t i) const { return *next(linkages_.begin(), (long) i); }
 
 
         /**
@@ -216,7 +224,7 @@ namespace pdaggerq {
          * @param linkage linkage to get reference to
          * @return reference to linkage
          */
-        const LinkagePtr &operator[](const LinkagePtr &linkage) const { return *linkages_.find(linkage); }
+        const ConstLinkagePtr &operator[](const ConstLinkagePtr &linkage) const { return *linkages_.find(linkage); }
 
         /**
          * overload + operator

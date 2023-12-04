@@ -48,6 +48,8 @@ namespace pdaggerq {
     // typedef for shared pointer to Vertex and Linkage
     typedef shared_ptr<Vertex> VertexPtr;
     typedef shared_ptr<Linkage> LinkagePtr;
+    typedef shared_ptr<const Vertex>  ConstVertexPtr;
+    typedef shared_ptr<const Linkage> ConstLinkagePtr;
 
     /**
      * Vertex class
@@ -58,7 +60,7 @@ namespace pdaggerq {
      * e.g. { "a" : 0, "b" : 1, "i" : 2, "j" : 3 } for a t2 vertex
      * e.g. { "a" : true, "b" : false, "i" : true, "j" : false } for a t2_abij vertex
      */
-    struct Vertex {
+    struct Vertex : public std::enable_shared_from_this<Vertex> {
 
         string name_{}; // name of the vertex
         string base_name_{}; // name of vertex without index markup
@@ -66,7 +68,7 @@ namespace pdaggerq {
         // uint_fast8_t is sufficient for up to 255 line indices and is more efficient than size_t, which is 64 bits
         // 255 indices is more than enough for any reasonable vertex.
         // It is important to keep the Vertex class as small as possible because it is constructed many, many times.
-        vector<Line> lines_{}; // vector of lines for the vertex
+        line_vector lines_{}; // vector of lines for the vertex
         uint_fast8_t rank_{}; // rank of the vertex
         shape shape_{}; // shape of the vertex
 
@@ -75,6 +77,7 @@ namespace pdaggerq {
         // indicates the vertex is not linked to another vertex
         virtual bool is_linked() const { return false; }
         virtual bool is_temp() const { return false; }
+        virtual size_t depth() const { return 1; }
 
         char type_ = '\0'; // type of the vertex (e.g. t: amplitude, i: integral, d: delta function, null: unknown)
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)
@@ -106,7 +109,7 @@ namespace pdaggerq {
          * @param vir_map map of virtual lines to their index in the vertex
          * @param occ_map map of occupied lines to their index in the vertex
          */
-        Vertex(string base_name, const vector<Line>& lines);
+        Vertex(string base_name, const line_vector& lines);
 
         /**
          * Destructor
@@ -128,7 +131,11 @@ namespace pdaggerq {
             return *this;
         };
 
-        virtual VertexPtr deep_copy_ptr() const{ return std::make_shared<Vertex>(*this); };
+        /**
+         * deep copy of vertex pointer
+         * @return
+         */
+        virtual VertexPtr deep_copy_ptr() const{ return std::make_shared<Vertex>(*this); }
 
         /**
          * move constructor
@@ -139,15 +146,15 @@ namespace pdaggerq {
         /**
          * get lines of vertex from vir_map and occ_map
          */
-        const vector<Line> &lines() const { return lines_; }
-        vector<Line> &lines() { return lines_; }
+        const line_vector &lines() const { return lines_; }
+        line_vector &lines() { return lines_; }
 
         /**
          * sets parameters of the vertex from the lines of the vertex
          * @param lines vector of lines
          * @param update_name boolean indicating whether the name of the vertex should be updated (default true)
          */
-        void update_lines(const vector<Line> &lines, bool update_name = true);
+        void update_lines(const line_vector &lines, bool update_name = true);
 
 
         /**
@@ -188,13 +195,13 @@ namespace pdaggerq {
          * the blocked lines (alpha/active) come first, followed by the full lines (full/beta) for the same virtual/occupied block
          */
         void sort();
-        static void sort(vector<Line> &lines); // static version of sort
+        static void sort(line_vector &lines); // static version of sort
 
         /**
          * get the ovstring of from lines
          * @param lines vector of lines
          */
-        static string ovstring(const vector<Line> &lines);
+        static string ovstring(const line_vector &lines);
 
         /**
          * get the ov_string and blk_string of this vertex from its lines
@@ -365,7 +372,7 @@ namespace pdaggerq {
          * @param internal_lines
          * @return
          */
-        vector<shared_ptr<Vertex>> make_self_linkages(map<Line, uint_fast8_t> &self_links);
+        vector<ConstVertexPtr> make_self_linkages(map<Line, uint_fast8_t> &self_links);
 
         /**
          * return n_ops of vertex (number of lines)
@@ -392,13 +399,13 @@ namespace pdaggerq {
          * return begin iterator of lines
          * @return begin iterator of lines
          */
-        vector<Line>::const_iterator begin() const { return lines_.begin(); }
+        line_vector::const_iterator begin() const { return lines_.begin(); }
 
         virtual /**
          * return end iterator of lines
          * @return end iterator of lines
          */
-        vector<Line>::const_iterator end() const { return lines_.end(); }
+        line_vector::const_iterator end() const { return lines_.end(); }
 
         /**
          * overload [] operator
@@ -429,7 +436,7 @@ namespace pdaggerq {
          * @param lines reference to list of lines
          * @return same lines with generic indices
          */
-        static vector<Line> general_lines(const vector<Line>& lines);
+        static line_vector general_lines(const line_vector& lines);
 
         /**
          * returns a new vertex with generic indices
@@ -452,7 +459,7 @@ namespace pdaggerq {
      * Hash function for Vertex to find equivalent vertices (agnostic to labels)
      */
     struct SimilarVertexPtrHash {
-        size_t operator()(const VertexPtr &v) const {
+        size_t operator()(const ConstVertexPtr &v) const {
             constexpr SimilarLineHash sim_line_hasher;
             constexpr std::hash<string> string_hasher;
 
@@ -493,7 +500,7 @@ namespace pdaggerq {
      * Equality function for Vertex to find equivalent vertices (agnostic to labels)
      */
     struct SimilarVertexPtrEqual {
-        bool operator()(const VertexPtr &lhs, const VertexPtr &rhs) const {
+        bool operator()(const ConstVertexPtr &lhs, const ConstVertexPtr &rhs) const {
             // check if either pointer is null
             if (!lhs || !rhs) return false;
 

@@ -79,6 +79,7 @@ pybind11_add_module(
         pq_graph/include/scaling_map.hpp
         pq_graph/src/vertex.cc
         pq_graph/include/line.hpp
+        pq_graph/include/stack_allocator.hpp
         pq_graph/src/timer.cc
 
         )

@@ -127,7 +127,6 @@ namespace pdaggerq {
 
         // set bottleneck flop and memory scaling
         bottleneck_flop_ = flop_map_.begin()->first;
-        bottleneck_mem_ = mem_map_.begin()->first;
 
         // set comments
         comments_.push_back(to_string(coefficient_)); // add coefficient to vertex strings
@@ -170,11 +169,10 @@ namespace pdaggerq {
 
         // set bottleneck flop and memory scaling
         bottleneck_flop_ = flop_map_.begin()->first;
-        bottleneck_mem_ = mem_map_.begin()->first;
 
     }
 
-    Term::Term(const VertexPtr &lhs_vertex, const vector<VertexPtr> &vertices, double coefficient) {
+    Term::Term(const ConstVertexPtr &lhs_vertex, const vector<ConstVertexPtr> &vertices, double coefficient) {
 
         lhs_ = lhs_vertex; // set lhs vertex
         rhs_ = vertices; // set rhs
@@ -184,7 +182,9 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if eri is in name
             if (op->base_name() =="eri") {
-                if (op->permute_eri()) swap_sign(); // swap sign if eri is permuted with sign change
+                VertexPtr new_eri = op->deep_copy_ptr();
+                if (new_eri->permute_eri()) swap_sign(); // swap sign if eri is permuted with sign change
+                op = new_eri;
             }
         }
 
@@ -192,14 +192,13 @@ namespace pdaggerq {
 
         // set bottleneck flop and memory scaling
         bottleneck_flop_ = flop_map_.begin()->first;
-        bottleneck_mem_ = mem_map_.begin()->first;
 
         // set vertex strings
         comments_.push_back(to_string(coefficient_)); // add coefficient to vertex strings
         for (const auto &op : rhs_) comments_.push_back(op->str());
     }
 
-    Term::Term(const LinkagePtr &linkage, double coeff) {
+    Term::Term(const ConstLinkagePtr &linkage, double coeff) {
 
         is_assignment_ = true;
 
@@ -229,7 +228,7 @@ namespace pdaggerq {
 
     }
 
-    void Term::compute_scaling(const vector<VertexPtr>& arrangement, bool recompute) {
+    void Term::compute_scaling(const vector<ConstVertexPtr>& arrangement, bool recompute) {
 
         if (!needs_update_ && !recompute)
             return; // if term does not need updating, return
@@ -270,7 +269,6 @@ namespace pdaggerq {
         if (arrangement.size() <= 1) {
 
             bottleneck_flop_ = lhs_shape;
-            bottleneck_mem_ = lhs_shape;
 
             if (arrangement.size() == 1) {
                 term_linkage_ = as_link(std::make_shared<Vertex>("") * arrangement[0]);
@@ -282,22 +280,17 @@ namespace pdaggerq {
         /// add scaling from rhs
 
         // get the total linkage of the term with its flop and memory scalings
-        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(arrangement);
-        term_linkage_ = term_linkage;
-
+        term_linkage_ = Linkage::link(arrangement);
+        bottleneck_flop_ = term_linkage_->worst_flop();
+        const auto &flop_scales   = term_linkage_->flop_history();
+        const auto &mem_scales    = term_linkage_->mem_history();
 
         // populate flop and memory scaling maps; get bottleneck scaling
-        shape this_bottleneck_flop_;
-        shape this_bottleneck_mem_;
         for (auto flop_scale : flop_scales) {
-            flop_map_[*flop_scale]++;
-            if (*flop_scale > this_bottleneck_flop_)
-                this_bottleneck_flop_ = *flop_scale;
+            flop_map_[flop_scale]++;
         }
         for (auto mem_scale : mem_scales) {
-            mem_map_[*mem_scale]++;
-            if (*mem_scale > this_bottleneck_mem_)
-                this_bottleneck_mem_ = *mem_scale;
+             mem_map_[mem_scale]++;
         }
 
         // indicate that term no longer needs updating
@@ -340,7 +333,7 @@ namespace pdaggerq {
             mem_map_.clear(); // clear memory scaling map
 
             // create new arrangement
-            std::vector<VertexPtr> new_arrangement;
+            std::vector<ConstVertexPtr> new_arrangement;
             for (size_t i = 0; i < n_vertices; i++) {
                 new_arrangement.push_back(rhs_[current_permutation[i]]);
             }
@@ -372,7 +365,7 @@ namespace pdaggerq {
         best_mem_map.clear(); // clear best memory scaling map
 
         // reorder rhs
-        vector<VertexPtr> reordered_vertices; // initialize vector to store reordered rhs
+        vector<ConstVertexPtr> reordered_vertices; // initialize vector to store reordered rhs
         reordered_vertices.reserve(n_vertices); // reserve space for reordered rhs
         for (size_t i = 0; i < n_vertices; i++) { // iterate over rhs
             reordered_vertices.push_back(rhs_[best_permutation[i]]); // add vertex to reordered rhs
@@ -380,7 +373,7 @@ namespace pdaggerq {
         rhs_ = reordered_vertices; // set reordered rhs
 
         // remove any empty vertices
-        rhs_.erase(std::remove_if(rhs_.begin(), rhs_.end(), [](const VertexPtr &vertex) {
+        rhs_.erase(std::remove_if(rhs_.begin(), rhs_.end(), [](const ConstVertexPtr &vertex) {
             return vertex->base_name().empty(); }), rhs_.end()
         );
 
@@ -487,7 +480,7 @@ namespace pdaggerq {
             VertexPtr perm_vertex;
 
             bool make_perm_tmp = rhs_.size() == 1;
-            if (make_perm_tmp) perm_vertex = rhs_[0]; // no need to create intermediate vertex if there is only one
+            if (make_perm_tmp) perm_vertex = rhs_[0]->deep_copy_ptr(); // no need to create intermediate vertex if there is only one
             else { // else, create the intermediate vertex and its assignment term
                 perm_vertex = lhs_->deep_copy_ptr();
                 string perm_name = "perm_tmps";
@@ -622,10 +615,10 @@ namespace pdaggerq {
         }
 
         // separate scalars and tensors in rhs vertices
-        vector<VertexPtr> scalars;
-        vector<VertexPtr> tensors;
+        vector<ConstVertexPtr> scalars;
+        vector<ConstVertexPtr> tensors;
 
-        for (const VertexPtr &vertex : rhs_) {
+        for (const ConstVertexPtr &vertex : rhs_) {
             if (vertex->rank() == 0) scalars.push_back(vertex);
             else tensors.push_back(vertex);
         }
@@ -644,8 +637,8 @@ namespace pdaggerq {
 
         // make vector of line strings for each tensor
         vector<string> rhs_strings;
-        for (const VertexPtr &vertex : tensors) {
-            vector<Line> vertex_lines = vertex->lines();
+        for (const ConstVertexPtr &vertex : tensors) {
+            line_vector vertex_lines = vertex->lines();
             string line_string;
             for (auto & vertex_line : vertex_lines)
                 line_string += vertex_line.label_;
@@ -654,7 +647,7 @@ namespace pdaggerq {
         }
 
         // get string of lines
-        vector<Line> link_lines;
+        line_vector link_lines;
         string link_string;
         if (!tensors.empty()) {
             // get string of lines from lhs vertex
@@ -781,10 +774,11 @@ namespace pdaggerq {
             return comment; // if there is only one vertex, return comment (no scaling to add)
         }
 
-        string assign_str = " <- ";
+        string assign_str = ": ";
         if (coefficient_ < 0 ) assign_str += "-";
 
-        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(rhs_);
+        const auto &flop_scales = term_linkage_->flop_history();
+        const auto &mem_scales  = term_linkage_->mem_history();
         if (flop_scales.empty() && mem_scales.empty()) { // no scaling to add as an additional comment
             // remove all quotes from comment
             comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
@@ -795,7 +789,7 @@ namespace pdaggerq {
 
         comment += " // flops: " + lhs_->dim().str() + assign_str;
         for (const auto & flop : flop_scales)
-            comment += flop->str() + " -> ";
+            comment += flop.str() + " ";
 
         if (!flop_scales.empty()) {
             // remove last arrow (too lazy right now to do this elegantly)
@@ -804,7 +798,7 @@ namespace pdaggerq {
 
         comment += " | mem: " + lhs_->dim().str() + assign_str;
         for (const auto & mem : mem_scales)
-            comment += mem->str() + " -> ";
+            comment += mem.str() + " ";
         if (!mem_scales.empty()) {
             // remove last arrow (too lazy right now to do this elegantly)
             comment.pop_back(); comment.pop_back(); comment.pop_back(); comment.pop_back();
@@ -813,8 +807,13 @@ namespace pdaggerq {
         // remove all quotes from comment
         comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
 
-        if (Term::make_einsum) // turn '//' into '#'
-            std::replace(comment.begin(), comment.end(), '/', '#');
+        if (Term::make_einsum) { // turn '//' into '#'
+            size_t pos = comment.find("//");
+            while (pos != std::string::npos) {
+                comment.replace(pos, 2, "#");
+                pos = comment.find("//", pos + 2);
+            }
+        }
         return comment;
     }
 
@@ -822,7 +821,7 @@ namespace pdaggerq {
         if (rhs_.empty()) return; // if constant, exit
 
         // iterate over all rhs and convert traces to dot products with delta functions
-        vector<VertexPtr> new_rhs; new_rhs.reserve(rhs_.size());
+        vector<ConstVertexPtr> new_rhs; new_rhs.reserve(rhs_.size());
         for (auto & op : rhs_) {
             // check if vertex is a trace
             // get self-contracted lines
@@ -839,7 +838,7 @@ namespace pdaggerq {
                 new_rhs.push_back(copy); continue;
             }
 
-            vector<VertexPtr> deltas = copy->make_self_linkages(self_links);
+            vector<ConstVertexPtr> deltas = copy->make_self_linkages(self_links);
 
             // skip if no self links (this should never happen at this point)
             if (deltas.empty()) {
@@ -863,6 +862,9 @@ namespace pdaggerq {
 
     bool Term::equivalent(const Term &term1, const Term &term2) {
 
+        // make sure both terms have exactly the same lhs
+        if (term1.lhs_->Vertex::operator!=(*term2.lhs_)) return false;
+
         // check if terms have the same number of rhs vertices
         if (term1.size() != term2.size()) return false;
 
@@ -878,27 +880,10 @@ namespace pdaggerq {
 
         if (term1.size() > 1 && !similar_vertices) {
 
-            // check that the vertex representation of the final rhs linkage is the same
-            if (term1.term_linkage_->Vertex::operator!=(*term2.term_linkage_))
-                return false;
-
-            // above is redundant, but I'm keeping it here for now until I'm sure it's not needed
-
-            // test if linkages are the same
-            vector<LinkagePtr> term1_linkages = Linkage::links(term1.rhs_);
-            vector<LinkagePtr> term2_linkages = Linkage::links(term2.rhs_);
-
-            // if the terms do not have the same number of linkages, return false (they should)
-            if (term1_linkages.size() != term2_linkages.size()) return false;
-
-            // check if linkages are equivalent
-            similar_vertices = true; // assume linkages are equivalent
-            for (int i = 0; i < term1_linkages.size(); ++i) {
-                if (*term1_linkages[i] != *term2_linkages[i]) {
-                    similar_vertices = false;
-                    break;
-                }
-            }
+            // check that the linkages are equivalent TODO: reimplement addition linkage
+            if (*(term1.lhs_ * term1.term_linkage_) == *(term1.lhs_ * term2.term_linkage_))
+                // if so, ensure that the lines are exactly the same
+                return true;
         }
 
         return similar_vertices;
@@ -945,7 +930,7 @@ namespace pdaggerq {
         thread_local unordered_map<Line, Line, LineHash> line_map(256);
         line_map.clear();
 
-        auto assign_generic_label = [ &c_occ, &c_vir, &c_den, &c_sig](const Line &line, const std::string &label) {
+        auto assign_generic_label = [ &c_occ, &c_vir, &c_den, &c_sig](const Line &line, const string &label) {
             // line does not exist in map, add it
             if (line.sig_) {
                 if (c_sig >= 3) throw std::runtime_error("Too many sigma lines in genericize");
@@ -964,7 +949,7 @@ namespace pdaggerq {
             }
         };
 
-        auto add_lines = [&assign_generic_label](const VertexPtr &vertex){
+        auto add_lines = [&assign_generic_label](const ConstVertexPtr &vertex){
 
             // check if vertex is a linkage
             if (vertex->is_linked()) {
@@ -1008,7 +993,7 @@ namespace pdaggerq {
 
         /// make a copy of the term but replace all lines with generic lines from map
 
-        std::vector<VertexPtr> new_rhs;
+        std::vector<ConstVertexPtr> new_rhs;
         new_rhs.reserve(rhs_.size());
         for (const auto & vertex : rhs_) {
             VertexPtr new_vertex = vertex->deep_copy_ptr();

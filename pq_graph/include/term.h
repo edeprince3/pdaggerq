@@ -49,9 +49,9 @@ namespace pdaggerq {
 
         protected:
 
-            VertexPtr lhs_; // vertex on the left hand side of the term
-            VertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
-            vector<VertexPtr> rhs_; // rhs of the term
+            ConstVertexPtr lhs_; // vertex on the left hand side of the term
+            ConstVertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
+            vector<ConstVertexPtr> rhs_; // rhs of the term
             mutable vector<string> comments_; // string representation of the original rhs
 
             /// scaling of the term (stored as a pair of integers, (num virtual, num occupied))
@@ -59,7 +59,6 @@ namespace pdaggerq {
             scaling_map mem_map_; // map of memory scaling with linkage occurrence in term
 
             shape bottleneck_flop_; // bottleneck flop scaling of the term
-            shape bottleneck_mem_; // bottleneck memory scaling of the term
 
             /// list of permutation indices (should generalize to arbitrary number of indices)
 
@@ -73,7 +72,7 @@ namespace pdaggerq {
 
     public:
 
-            mutable LinkagePtr term_linkage_; // linkage of the term
+            mutable ConstLinkagePtr term_linkage_; // linkage of the term
 
             bool is_optimal_ = false; // flag for if term has optimal linkages (default is false)
             bool needs_update_ = true; // flag for if term needs to be updated (default is true)
@@ -114,13 +113,13 @@ namespace pdaggerq {
              * @param vertices vector of rhs
              * @param coefficient coefficient of the term
              */
-            Term(const VertexPtr &lhs_vertex, const vector<VertexPtr> &vertices, double coefficient);
+            Term(const ConstVertexPtr &lhs_vertex, const vector<ConstVertexPtr> &vertices, double coefficient);
 
             /**
              * Constructor to build assignment of a linkage
              * @param linkage linkage to assign
              */
-            explicit Term(const LinkagePtr &linkage, double coeff);
+            explicit Term(const ConstLinkagePtr &linkage, double coeff);
 
             /**
              * Copy constructor
@@ -155,14 +154,14 @@ namespace pdaggerq {
              * @param index index of vertex
              * @return reference to vertex at index
              */
-            VertexPtr &operator[](size_t index){ return rhs_[index]; }
+            ConstVertexPtr &operator[](size_t index){ return rhs_[index]; }
 
             /**
              * return const reference to vertex at index
              * @param index index of vertex
              * @return const reference to vertex at index
              */
-            const VertexPtr &operator[](size_t index) const{ return rhs_[index]; }
+            const ConstVertexPtr &operator[](size_t index) const{ return rhs_[index]; }
 
 
             /**
@@ -193,16 +192,16 @@ namespace pdaggerq {
              * Get left hand side vertex
              * @return left hand side vertex
              */
-            const VertexPtr &lhs() const { return lhs_; }
-            VertexPtr &lhs() { return lhs_; }
+            const ConstVertexPtr &lhs() const { return lhs_; }
+            ConstVertexPtr &lhs() { return lhs_; }
 
 
             /**
              * Get vertex for the equation
              * @return vertex for the equation
              */
-            const VertexPtr &eq() const { return eq_; }
-            VertexPtr &eq() { return eq_; }
+            const ConstVertexPtr &eq() const { return eq_; }
+            ConstVertexPtr &eq() { return eq_; }
 
             /**
              * Set left hand side vertex
@@ -229,22 +228,22 @@ namespace pdaggerq {
             /**
              * begin iterator
              */
-            vector<VertexPtr>::iterator begin() { return rhs_.begin(); }
+            vector<ConstVertexPtr>::iterator begin() { return rhs_.begin(); }
 
             /**
              * end iterator
              */
-            vector<VertexPtr>::iterator end() { return rhs_.end(); }
+            vector<ConstVertexPtr>::iterator end() { return rhs_.end(); }
 
             /**
              * begin const iterator
              */
-            vector<VertexPtr>::const_iterator begin() const { return rhs_.begin(); }
+            vector<ConstVertexPtr>::const_iterator begin() const { return rhs_.begin(); }
 
             /**
              * end const iterator
              */
-            vector<VertexPtr>::const_iterator end() const { return rhs_.end(); }
+            vector<ConstVertexPtr>::const_iterator end() const { return rhs_.end(); }
 
             /**
              * Get mutable reference to vertex strings
@@ -266,7 +265,7 @@ namespace pdaggerq {
              * Get rhs and allow modification
              * @return vector of rhs
              */
-            vector<VertexPtr> &rhs() {
+            vector<ConstVertexPtr> &rhs() {
                 return rhs_;
             }
 
@@ -274,14 +273,14 @@ namespace pdaggerq {
              * Set rhs
              * @param vertices vector of rhs
              */
-            void set_rhs(const vector<VertexPtr> &rhs) {
+            void set_rhs(const vector<ConstVertexPtr> &rhs) {
                 rhs_ = rhs;
             }
 
             /**
              * Get const rhs
              */
-            const vector<VertexPtr> &rhs() const {
+            const vector<ConstVertexPtr> &rhs() const {
                 return rhs_;
             }
 
@@ -315,12 +314,6 @@ namespace pdaggerq {
              */
             const shape &bottleneck_flop() const { return bottleneck_flop_; }
 
-            /**
-             * Get bottleneck memory scaling
-             * @return bottleneck memory scaling
-             */
-            const shape &bottleneck_mem() const { return bottleneck_mem_; }
-
             /******** Functions ********/
 
             /**
@@ -335,7 +328,7 @@ namespace pdaggerq {
               * Populate flop and memory scaling maps
               * @param perm permutation of the rhs
               */
-            void compute_scaling(const vector<VertexPtr> &arrangement, bool recompute = false);
+            void compute_scaling(const vector<ConstVertexPtr> &arrangement, bool recompute = false);
 
              /**
               * Populate flop and memory scaling maps with identity permutation
@@ -445,7 +438,7 @@ namespace pdaggerq {
              * @param allow_equality allow equality of scaling
              * @return boolean indicating if substitution was successful
              */
-            bool substitute(const LinkagePtr &linkage, bool allow_equality = false);
+            bool substitute(const ConstLinkagePtr &linkage, bool allow_equality = false);
 
             /**
              * collect all possible linkages from all equations
@@ -479,7 +472,7 @@ namespace pdaggerq {
              * @param linkage linkage to check
              * @return boolean indicating if term includes rhs of the linkage
              */
-            bool is_compatible(const LinkagePtr &linkage) const;
+            bool is_compatible(const ConstLinkagePtr &linkage) const;
 
             /**
              * swaps the sign of the term

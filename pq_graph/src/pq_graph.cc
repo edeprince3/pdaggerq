@@ -144,13 +144,13 @@ namespace pdaggerq {
 
 
         if (options.contains("occ_labels"))
-            Line::occ_labels_ = options["occ_labels"].cast<unordered_set<char>>();
+            Line::occ_labels_ = options["occ_labels"].cast<std::array<char, 32>>();
         if (options.contains("virt_labels"))
-            Line::virt_labels_ = options["virt_labels"].cast<unordered_set<char>>();
+            Line::virt_labels_ = options["virt_labels"].cast<std::array<char, 32>>();
         if (options.contains("sig_labels"))
-            Line::sig_labels_ = options["sig_labels"].cast<unordered_set<char>>();
+            Line::sig_labels_ = options["sig_labels"].cast<std::array<char, 32>>();
         if (options.contains("den_labels"))
-            Line::den_labels_ = options["den_labels"].cast<unordered_set<char>>();
+            Line::den_labels_ = options["den_labels"].cast<std::array<char, 32>>();
 
 
         if (options.contains("nthreads")) {
@@ -316,7 +316,7 @@ namespace pdaggerq {
 
         // build equation
         Equation& new_equation = equations_[assigment_name];
-        const VertexPtr &assignment_vertex = terms.back().lhs();
+        const ConstVertexPtr &assignment_vertex = terms.back().lhs();
         new_equation = Equation(assignment_vertex, terms);
 
         // save initial scaling
@@ -375,7 +375,7 @@ namespace pdaggerq {
         // make set of all unique base names (ignore linkages and scalars)
         set<string> base_names;
         for (const auto &term: all_terms) {
-            VertexPtr lhs = term.lhs();
+            ConstVertexPtr lhs = term.lhs();
             if (!lhs->is_linked() && !lhs->is_scalar())
                 base_names.insert(lhs->base_name());
             for (const auto &op: term.rhs()) {
@@ -443,7 +443,7 @@ namespace pdaggerq {
             for (auto &tempterm: equations_["tmps"]) {
                 if (!tempterm.lhs()->is_linked()) continue;
 
-                LinkagePtr temp = as_link(tempterm.lhs());
+                ConstLinkagePtr temp = as_link(tempterm.lhs());
                 size_t temp_id = temp->id_;
 
                 // check if temp_id has been found
@@ -459,7 +459,7 @@ namespace pdaggerq {
                         bool is_tmp = op->is_linked(); // must be a tmp
                         if (!is_tmp) continue;
 
-                        LinkagePtr link = as_link(op);
+                        ConstLinkagePtr link = as_link(op);
                         is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
                         is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
 
@@ -686,16 +686,18 @@ namespace pdaggerq {
 
 //        if (allow_merge_)
 //            merge_terms(); // merge similar terms
-        if (Term::allow_nesting_) {
-            // expand permutations in equations since we are not limiting the number of temps
-            expand_permutations();
-        }
 
         bool format_sigma = has_sigma_vecs_ && format_sigma_;
         substitute(format_sigma); // find and substitute intermediate contractions
 
         if (format_sigma)
-            substitute(false); // apply substitutions again to find any new sigma vectors
+            substitute(); // apply substitutions again to find any new sigma vectors
+
+        if (Term::allow_nesting_) {
+            // expand permutations in equations since we are not limiting the number of temps
+            expand_permutations();
+            substitute();
+        }
 
 //        if (allow_merge_)
 //            merge_terms(); // merge similar terms
@@ -719,12 +721,11 @@ namespace pdaggerq {
 
         shape worst_scale; // worst cost (start with zero)
         for (const auto & linkage : tmp_candidates_) { // get worst cost
-            const auto &link_vec = linkage->to_vector();
-            auto [link_copy, flop_scales, mem_scales] = Linkage::link_and_scale(link_vec);
+            auto flop_scales = linkage->flop_history();
 
             shape contr_scale;
             for (auto & scale : flop_scales) {
-                if (*scale > contr_scale) contr_scale = *scale;
+                if (scale > contr_scale) contr_scale = scale;
             }
 
             if (contr_scale > worst_scale) worst_scale = contr_scale;
@@ -732,19 +733,18 @@ namespace pdaggerq {
 
         size_t max_size = 0; // maximum n_ops of linkage found (start with 0)
         for (const auto & linkage : tmp_candidates_) { // iterate over all linkages
-            const auto &link_vec = linkage->to_vector();
-            auto [link_copy, flop_scales, mem_scales] = Linkage::link_and_scale(link_vec);
+            auto flop_scales = linkage->flop_history();
 
             shape contr_scale;
             for (auto & scale : flop_scales) {
-                if (*scale > contr_scale) contr_scale = *scale;
+                if (scale > contr_scale) contr_scale = scale;
             }
 
             if (contr_scale >= worst_scale) {
-                if (link_vec.size() >= max_size ) { // if the linkage is large enough,
+                if (linkage->depth_ >= max_size ) { // if the linkage is large enough,
                     // some smaller linkages may be added, but the test set is somewhat random anyway
                     test_linkages.insert(linkage); // add linkage to the test set
-                    max_size = link_vec.size(); // update maximum n_ops
+                    max_size = linkage->depth_;    // update maximum n_ops
                 }
             }
         }
@@ -752,7 +752,7 @@ namespace pdaggerq {
         return test_linkages; // return test linkages
     }
 
-    Term& PQGraph::add_tmp(const LinkagePtr& precon, Equation &equation, double coeff) {
+    Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff) {
         // make term with tmp
         equation.terms().insert(equation.end(), Term(precon, coeff));
         return equation.terms().back();

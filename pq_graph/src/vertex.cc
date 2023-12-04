@@ -232,7 +232,7 @@ namespace pdaggerq {
         }
     }
 
-    Vertex::Vertex(string base_name, const vector<Line>& lines) :
+    Vertex::Vertex(string base_name, const line_vector& lines) :
         base_name_(std::move(base_name)), lines_(lines), rank_(lines.size()) {
 
         // set name from base_name and lines
@@ -244,7 +244,7 @@ namespace pdaggerq {
         rank_ = lines.size();
 
         /// set lines
-        lines_ = vector<Line>(rank_);
+        lines_ = line_vector(rank_);
 
         // create line objects
         has_blk_ = !blk_string.empty();
@@ -306,7 +306,7 @@ namespace pdaggerq {
         return dimstring;
     }
 
-    inline void Vertex::update_lines(const vector<Line> &lines, bool update_name){
+    inline void Vertex::update_lines(const line_vector &lines, bool update_name){
 
         lines_ = lines; // set lines
         rank_ = lines.size(); // set rank
@@ -327,7 +327,7 @@ namespace pdaggerq {
         return blk_string;
     }
 
-    string Vertex::ovstring(const vector<Line> &lines) {
+    string Vertex::ovstring(const line_vector &lines) {
         if (lines.empty()) return "";
         uint_fast8_t line_size = lines.size();
         string ovstring(line_size, 'o'); // ovstring assuming all occupied
@@ -408,7 +408,7 @@ namespace pdaggerq {
         Vertex perm_op(*this); // copy this vertex
 
         // permute lines
-        vector<Line> perm_lines = perm_op.lines_;
+        line_vector perm_lines = perm_op.lines_;
         uint_fast8_t line_idx = 0; // index of line
         for (uint_fast8_t i = 0; i < rank_; i++) {
             uint_fast8_t perm_idx = (i < left_size) ? left_perm[i] : right_perm[i-left_size];
@@ -525,7 +525,7 @@ namespace pdaggerq {
         return swap_sign; // return sign change
     }
 
-    void Vertex::sort(vector<Line> &lines) {
+    void Vertex::sort(line_vector &lines) {
         if (lines.empty()) return; // do nothing if rank is zero
 
         // sort lines by occ/vir status (virs on left, occ on right); sort lines by blocks for same occ/vir (alpha on left, beta on right).
@@ -628,7 +628,7 @@ namespace pdaggerq {
         return self_links;
     }
 
-    vector<VertexPtr> Vertex::make_self_linkages(map<Line, uint_fast8_t> &self_links) {
+    vector<ConstVertexPtr> Vertex::make_self_linkages(map<Line, uint_fast8_t> &self_links) {
         // replace repeated lines with arbitrary lines
         map<Line, uint_fast8_t> counts;
         for (auto & [line, freq] : self_links) {
@@ -640,19 +640,19 @@ namespace pdaggerq {
 
             while (it != lines_.end()) {
                 // replace the repeated lines with arbitrary lines
-                it->label_ = it->label_ + to_string(counts[line]++);
+                it->label_ += to_string(counts[line]++);
                 it = std::find(it+1, lines_.end(), line);
             }
         }
 
         // create delta functions for this vertex
-        vector<VertexPtr> delta_ops;
+        vector<ConstVertexPtr> delta_ops;
         for (auto & [line, freq] : self_links) {
             // if line is not repeated, do nothing
             if (freq == 1) continue;
 
             // create generic labels for the delta function
-            vector<Line> delta_lines;
+            line_vector delta_lines;
             for (uint_fast8_t i = 0; i < freq; i++) {
                 Line new_line = line;
                 new_line.label_ = new_line.label_ + to_string(i);
@@ -660,7 +660,7 @@ namespace pdaggerq {
             }
 
             // create delta function
-            VertexPtr delta_op = std::make_shared<Vertex>("Id", delta_lines);
+            ConstVertexPtr delta_op = std::make_shared<const Vertex>("Id", delta_lines);
 
             // add delta function to vector
             delta_ops.push_back(delta_op);
@@ -674,8 +674,8 @@ namespace pdaggerq {
         update_lines(general_lines(lines_));
     }
 
-    vector<Line> Vertex::general_lines(const vector<Line>& lines) {
-        vector<Line> generic_lines = lines;
+    line_vector Vertex::general_lines(const line_vector& lines) {
+        line_vector generic_lines = lines;
         uint_fast8_t c_occ = 0, c_vir = 0;
         for (Line &line : generic_lines) {
             if (line.o_) line.label_ = "o" + std::to_string(c_occ++);

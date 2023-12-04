@@ -30,6 +30,7 @@
 #include <stdexcept>
 #include "line.hpp"
 #include <clocale>
+#include <sstream>
 
 using std::pair;
 using std::vector;
@@ -43,6 +44,8 @@ namespace pdaggerq {
 
     struct shape {
         uint_fast8_t n_ = 0; // number of lines
+
+        //TODO: split this into two variables (oa, ob, va, vb); use a function to get their sum.
         pair<uint_fast8_t, uint_fast8_t> o_{}; // pair of spin up/down occupied lines
         pair<uint_fast8_t, uint_fast8_t> v_{}; // pair of spin up/down virtual lines
         uint_fast8_t L_ = 0; // sigma index
@@ -50,12 +53,12 @@ namespace pdaggerq {
 
         shape() : o_({0,0}), v_({0,0}), L_(0), Q_(0) {}
 
-        shape(const vector<Line> &lines) {
+        shape(const line_vector &lines) {
             for (const Line &line : lines)
                 *this += line;
         }
 
-        void operator+=(shape other) {
+        void operator+=(const shape & other) {
             n_ += other.n_;
             o_.first  += other.o_.first;
             o_.second += other.o_.second;
@@ -71,10 +74,10 @@ namespace pdaggerq {
         shape &operator=(shape &&other) = default;
         ~shape() = default;
 
-        bool operator==(shape other) const {
+        bool operator==(const shape & other) const {
             return n_ == other.n_ && o_ == other.o_ && v_ == other.v_ && L_ == other.L_ && Q_ == other.Q_;
         }
-        bool operator!=(shape other) const {
+        bool operator!=(const shape & other) const {
             return !(*this == other);
         }
 
@@ -89,7 +92,7 @@ namespace pdaggerq {
             return result;
         }
 
-        bool operator<(shape other) const {
+        bool operator<( const shape & other) const {
 
             /// priority: o_ + v_ + L_, v_ + L_, L_, v_, va, oa
 
@@ -142,25 +145,25 @@ namespace pdaggerq {
             // equal or greater scaling, return false
             return false; 
         }
-        bool operator>(shape other) const {
+        bool operator>( const shape & other) const {
             return other < *this;
         }
-        bool operator<=(shape other) const {
+        bool operator<=(const shape & other) const {
             if (*this == other) return true;
             return *this < other;
         }
-        bool operator>=(shape other) const {
+        bool operator>=(const shape & other) const {
             if (*this == other) return true;
             return other < *this;
         }
 
-        shape operator+(shape other) const {
+        shape operator+(const shape & other) const {
             shape result = *this;
             result += other;
             return result;
         }
 
-        void operator-=(shape other) {
+        void operator-=(const shape & other) {
             o_.first  = (o_.first  < other.o_.first)  ? 0 : o_.first  - other.o_.first;
             o_.second = (o_.second < other.o_.second) ? 0 : o_.second - other.o_.second;
             v_.first  = (v_.first  < other.v_.first)  ? 0 : v_.first  - other.v_.first;
@@ -171,7 +174,7 @@ namespace pdaggerq {
             n_ = (o_.first + o_.second) + (v_.first + v_.second) + L_ + Q_;
         }
 
-        shape operator-(shape other) const {
+        shape operator-(const shape &other) const {
             shape result = *this;
             result -= other;
             return result;
@@ -181,7 +184,7 @@ namespace pdaggerq {
             ++n_; // increment number of lines
 
             if (line.sig_) { ++L_; return; } // sigma
-            if (line.den_){ ++Q_; return;  } // density
+            if (line.den_) { ++Q_; return;  } // density
 
             if (line.o_) { // occupied
                 if (line.a_) ++o_.first;
@@ -481,7 +484,8 @@ namespace pdaggerq {
          */
         scaling_map operator-(const scaling_map &other) const {
             scaling_map result = *this;
-            for (const auto & it : other.map_) result[it.first] -= it.second; // subtract other map
+            for (const auto & [scale, count] : other.map_)
+                result[scale] -= count; // subtract other map
 
             return result;
         }
@@ -504,6 +508,28 @@ namespace pdaggerq {
         inline scaling_map& operator-=(const scaling_map &other) {
             for (const auto & it : other.map_) map_[it.first] -= it.second; // subtract other map
             return *this;
+        }
+
+        /**
+         * overload for printing keys and elements
+         * @param os output stream
+         */
+        friend std::ostream& operator<<(std::ostream& os, const scaling_map& map) {
+            os << "{ ";
+            bool printed = false;
+            std::stringstream output;
+            for (const auto &[scale, count]: map.map_) {
+                if (count == 0) continue;
+                output << scale.str() << ": " << count << ", ";
+                printed = true;
+            }
+            if (printed) {
+                std::string output_str = output.str();
+                output_str.pop_back(); output_str.pop_back();
+                os << output_str;
+            }
+            os << " }";
+            return os;
         }
 
     }; // class scaling_map

@@ -235,7 +235,7 @@ namespace pdaggerq {
          * @param precon tmp to add
          * @note recomputes scaling after adding tmps
          */
-        static Term &add_tmp(const LinkagePtr& precon, Equation &equation, double coeff = 1.0);
+        static Term &add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff = 1.0);
 
         /**
          * Sorts tmps by the maximum id of the rhs in the linkage and the tmp itself

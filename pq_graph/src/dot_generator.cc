@@ -172,16 +172,16 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
 
     // get vertices
-    vector<VertexPtr> vertices = this->to_vector(true, true);
+    vector<ConstVertexPtr> vertices = this->to_vector(true, true);
 
     // sort vertices
-    std::sort(vertices.begin(), vertices.end(), [](const VertexPtr &a, const VertexPtr &b) {
+    std::sort(vertices.begin(), vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
         return a->base_name() < b->base_name();
     });
 
     bool track_temps = true; // TODO: make this a parameter
-    vector<VertexPtr> temps = this->to_vector(true, false);
-    vector<VertexPtr> temp_verts;
+    vector<ConstVertexPtr> temps = this->to_vector(true, false);
+    vector<ConstVertexPtr> temp_verts;
     temp_verts.reserve(vertices.size());
 
     // now fully expand vertices in temps
@@ -199,7 +199,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     }
 
     // sort temp vertices
-    std::sort(temp_verts.begin(), temp_verts.end(), [](const VertexPtr &a, const VertexPtr &b) {
+    std::sort(temp_verts.begin(), temp_verts.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
         return a->base_name() < b->base_name();
     });
 
@@ -242,7 +242,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     size_t temp_count = 0;
     for (size_t i = 0; i < vertices.size(); i++) {
         // initialize current node
-        const VertexPtr &current = vertices[i];
+        const ConstVertexPtr &current = vertices[i];
 
         // check if vertex is in temp vertices
         bool in_temp = false;
@@ -288,10 +288,10 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
                 continue;
 
 
-            const VertexPtr &next = vertices[j];
+            const ConstVertexPtr &next = vertices[j];
 
             // make contraction of current and next
-            LinkagePtr link = as_link(current * next);
+            ConstLinkagePtr link = as_link(current * next);
 
             // initialize next node
             std::string r_id = std::to_string(j) + to_string(term_id);
@@ -359,7 +359,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
 
             // initialize current node
-            const VertexPtr &current = vertices[i];
+            const ConstVertexPtr &current = vertices[i];
             std::string l_id = std::to_string(i) + to_string(term_id);
 
             if (vertices[i] == nullptr || vertices[i]->base_name().empty())

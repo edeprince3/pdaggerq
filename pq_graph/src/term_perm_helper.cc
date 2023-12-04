@@ -116,7 +116,7 @@ namespace pdaggerq {
             for (const auto &perm_combo: perm_combos) {
 
                 // create deep copy of rhs vertices
-                vector<VertexPtr> perm_vertices;
+                vector<ConstVertexPtr> perm_vertices;
                 for (const auto &vertex: rhs_)
                     perm_vertices.push_back(vertex->deep_copy_ptr());
                 perm_term.rhs_ = perm_vertices; // set vertices in term
@@ -128,11 +128,13 @@ namespace pdaggerq {
 
                 // single index permutations
                 for (const auto &perm: perm_combo) {
-                    for (VertexPtr &vertex: perm_vertices) {
-                        for (Line &line: vertex->lines()) {
+                    for (ConstVertexPtr &vertex: perm_vertices) {
+                        VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                        for (Line &line: non_const_vertex->lines()) {
                             if (line.label_ == perm.first) line.label_ = perm.second;
                             else if (line.label_ == perm.second) line.label_ = perm.first;
                         }
+                        vertex = non_const_vertex;
                     }
                 }
 
@@ -152,7 +154,7 @@ namespace pdaggerq {
 
         // create deep copy of the term
         Term perm_term = *this; // copy term
-        vector<VertexPtr> perm_vertices;
+        vector<ConstVertexPtr> perm_vertices;
         for (const auto &vertex: rhs_)
             perm_vertices.push_back(vertex->deep_copy_ptr());
         perm_term.rhs_ = perm_vertices; // set vertices in term
@@ -174,13 +176,15 @@ namespace pdaggerq {
             string perm_line2_2 = perm_pair2.second;
 
             // swap line pairs
-            for (VertexPtr & vertex : perm_vertices) {
-                for (Line & line : vertex->lines()) {
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                for (Line & line : non_const_vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
+                vertex = non_const_vertex;
             }
 
             // recomputes scaling
@@ -209,13 +213,15 @@ namespace pdaggerq {
             string perm_line3_2 = perm_pair3.second;
 
             // first pair permutation
-            for (VertexPtr &vertex: perm_vertices) {
-                for (Line &line: vertex->lines()) {
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                for (Line & line : non_const_vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
+                vertex = non_const_vertex;
             }
 
             // add first permutation to vector
@@ -233,13 +239,15 @@ namespace pdaggerq {
             perm_term.rhs_ = perm_vertices;
 
             // second pair permutation
-            for (VertexPtr &vertex: perm_vertices) {
-                for (Line &line: vertex->lines()) {
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                for (Line & line : non_const_vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
                     else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
                     else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
                 }
+                vertex = non_const_vertex;
             }
 
             // add second permutation to vector
@@ -271,13 +279,15 @@ namespace pdaggerq {
             // reference (abc;ijk)
 
             // pair permutation (acb;ikj)
-            for (VertexPtr &vertex: perm_vertices) {
-                for (Line &line: vertex->lines()) {
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                for (Line & line : non_const_vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
+                vertex = non_const_vertex;
             }
             // recomputes scaling
             perm_term.compute_scaling(true);
@@ -293,13 +303,15 @@ namespace pdaggerq {
             perm_term.rhs_ = perm_vertices;
 
             // pair permutation (bac;jik)
-            for (VertexPtr &vertex: perm_vertices) {
-                for (Line &line: vertex->lines()) {
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                for (Line & line : non_const_vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
+                vertex = non_const_vertex;
             }
 
             // recomputes scaling
@@ -310,13 +322,15 @@ namespace pdaggerq {
             perm_terms.push_back(perm_term);
 
             // pair permutation (cab;kij)
-            for (VertexPtr &vertex: perm_vertices) {
-                for (Line &line: vertex->lines()) {
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                for (Line & line : non_const_vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line3_1;
                     else if (line.label_ == perm_line3_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line3_2;
                     else if (line.label_ == perm_line3_2) line.label_ = perm_line1_2;
                 }
+                vertex = non_const_vertex;
             }
             // recomputes scaling
             perm_term.compute_scaling(true);
@@ -326,13 +340,15 @@ namespace pdaggerq {
             perm_terms.push_back(perm_term);
 
             // pair permutation (cba;kji)
-            for (VertexPtr &vertex: perm_vertices) {
-                for (Line &line: vertex->lines()) {
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                for (Line & line : non_const_vertex->lines()) {
                     if (line.label_ == perm_line2_1) line.label_ = perm_line3_1;
                     else if (line.label_ == perm_line3_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line3_2;
                     else if (line.label_ == perm_line3_2) line.label_ = perm_line2_2;
                 }
+                vertex = non_const_vertex;
             }
             // recomputes scaling
             perm_term.compute_scaling(true);
@@ -342,13 +358,15 @@ namespace pdaggerq {
             perm_terms.push_back(perm_term);
 
             // pair permutation (bca;jki)
-            for (VertexPtr &vertex: perm_vertices) {
-                for (Line &line: vertex->lines()) {
+            for (ConstVertexPtr & vertex : perm_vertices) {
+                VertexPtr non_const_vertex = vertex->deep_copy_ptr();
+                for (Line & line : non_const_vertex->lines()) {
                     if (line.label_ == perm_line1_1) line.label_ = perm_line2_1;
                     else if (line.label_ == perm_line2_1) line.label_ = perm_line1_1;
                     else if (line.label_ == perm_line1_2) line.label_ = perm_line2_2;
                     else if (line.label_ == perm_line2_2) line.label_ = perm_line1_2;
                 }
+                vertex = non_const_vertex;
             }
             // recomputes scaling
             perm_term.compute_scaling(true);

@@ -26,12 +26,16 @@
 
 #include <utility>
 #include <stdexcept>
-#include <unordered_set>
+#include <array>
+#include <algorithm>
+#include <cstring>
 
-using std::string;
-using std::unordered_set;
 using std::runtime_error;
 using std::hash;
+using std::array;
+using std::find;
+using std::string;
+
 
 namespace pdaggerq {
 
@@ -48,20 +52,15 @@ namespace pdaggerq {
         bool sig_ = false; // whether the line is an excited state index
         bool den_ = false; // whether the line is for density fitting
 
-        static inline unordered_set<char> occ_labels_ = { // names of occupied lines
-            'i', 'j', 'k', 'l', 'm', 'n', 'o',
-            'I', 'J', 'K', 'L', 'M', 'N', 'O'
-        };
-        static inline unordered_set<char> virt_labels_ = { // names of virtual lines
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'v',
-            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'V'
-        };
-        static inline unordered_set<char> sig_labels_ = { // names of excited state lines
-            'X', 'Y', 'Z'
-        };
-        static inline unordered_set<char> den_labels_ = { // names of density fitting lines
-            'Q', 'U'
-        };
+        // valid line names
+        static inline array<char, 32> occ_labels_ = {               // names of occupied lines
+                'i', 'j', 'k', 'l', 'm', 'n', 'o',
+                'I', 'J', 'K', 'L', 'M', 'N', 'O'};
+        static inline array<char, 32> virt_labels_ = {              // names of virtual lines
+                'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'v',
+                'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'V'};
+        static inline array<char, 32> sig_labels_ = {'X', 'Y', 'Z'}; // names of excited state lines
+        static inline array<char, 32> den_labels_ = {'Q', 'U'};      // names of density fitting lines
 
         Line() = default;
 
@@ -71,29 +70,60 @@ namespace pdaggerq {
          * @param name name of the line
          * @param blk whether the line has blocking
          */
-        inline explicit Line(string name, char blk = '\0') : label_(std::move(name)){
+        inline explicit Line(const std::string &name, char blk = '\0') : label_(name) {
 
-            if (label_.empty()) throw runtime_error("Empty line label");
+            // check input
+            if (name.empty()) throw runtime_error("Line label cannot be empty");
 
+            // set properties from first character
             char line_char = label_[0];
-            sig_ = sig_labels_.find(line_char) != sig_labels_.end(); // default to not excited
-            den_ = den_labels_.find(line_char) != den_labels_.end(); // default to not density fitting
+            if (line_char == '\0')
+                return;
 
-            if (!sig_ && !den_) {
-                // default to occupied for all other lines
-                o_ = virt_labels_.find(line_char) == virt_labels_.end();
+            auto occ_it = find(occ_labels_.begin(), occ_labels_.end(), line_char);
+            o_ = occ_it != occ_labels_.end();
+
+            if (!o_) { // not found in occupied lines
+                auto virt_it = find(virt_labels_.begin(), virt_labels_.end(), line_char);
+
+                if (virt_it == virt_labels_.end()) { // not found in virtual lines
+                    auto sig_it = find(sig_labels_.begin(), sig_labels_.end(), line_char);
+                    sig_ = sig_it != sig_labels_.end();
+
+                    if (!sig_) { // not found in excited lines
+                        auto den_it = find(den_labels_.begin(), den_labels_.end(), line_char);
+                        den_ = den_it != den_labels_.end();
+
+                        // could not find in any lines, throw error
+                        if (!den_)
+                            throw runtime_error("Invalid line " + std::string(1, line_char));
+                    }
+                }
             }
 
-            if (blk == 'a' || blk == 'b') blk_type_ = 's';
-            else if (blk == '0' || blk == '1') blk_type_ = 'r';
-            else if (blk != '\0')
-                throw runtime_error("Invalid block " + string(1, blk));
-
-            if (blk_type_ == 's') a_ = blk == 'a';
-            else if (blk_type_ == 'r') a_ = blk == '1';
-            else a_ = false;
-
+            // determine block type (spin or range)
+            switch (blk) {
+                case '\0': // no block
+                    blk_type_ = '\0';
+                    a_ = false; break;
+                case 'a': // spin block
+                    blk_type_ = 's';
+                    a_ = true; break;
+                case 'b':
+                    blk_type_ = 's';
+                    a_ = false; break;
+                case '1':
+                    blk_type_ = 'r';
+                    a_ = true; break;
+                case '0':
+                    blk_type_ = 'r';
+                    a_ = false; break;
+                default:
+                    throw runtime_error("Invalid block type " + std::string(1, blk));
+            }
         }
+
+        /// *** Copy/move operators *** ///
 
         Line(const Line &other) = default; // copy constructor
         Line(Line &&other) noexcept = default; // move constructor
@@ -101,9 +131,7 @@ namespace pdaggerq {
         Line &operator=(Line &&other) noexcept = default; // move assignment
 
 
-
-        /// *** Comparison rhs *** ///
-        /// all comparison rhs are defined in terms of name and properties. Index is not used.
+        /// *** Comparisons *** ///
 
         bool operator==(const Line& other) const {
             return label_ == other.label_ &&
@@ -112,8 +140,6 @@ namespace pdaggerq {
                      sig_ == other.sig_   &&
                      den_ == other.den_;
         }
-
-
 
         inline bool equivalent(const Line& other) const {
             return   o_ == other.o_   &&
@@ -156,13 +182,17 @@ namespace pdaggerq {
             return *this > other || *this == other;
         }
 
-        inline char block() const {
-            if (blk_type_ == 's') return a_ ? 'a' : 'b';
-            if (blk_type_ == 'r') return a_ ? '1' : '0';
-            return '\0';
-        }
+        /// *** Getters/Setters *** ///
 
         inline bool has_blk() const { return blk_type_ != '\0'; }
+
+        inline char block() const {
+            switch (blk_type_) {
+                case 's': return a_ ? 'a' : 'b';
+                case 'r': return a_ ? '1' : '0';
+                default:  return '\0';
+            }
+        }
 
         inline char type() const {
             if (sig_) return 'L';
@@ -173,31 +203,41 @@ namespace pdaggerq {
         inline bool empty() const {
             return label_.empty();
         }
+
+        inline uint_fast8_t size() const {
+            return label_.empty();
+        }
+
     };
+
+    /// *** Hash functions *** ///
 
     // define hash function for Line
     struct LineHash {
-        size_t operator()(const Line &line) const {
+        uint_fast16_t operator()(const Line &line) const {
 
-            //  only process first character of the label.
-            //  this can cause hash collisions, but it is much faster than using strings
-            auto hash = static_cast<size_t>(line.label_[0]);
-            hash <<= 8; // shift by 8 bits to make room for the next bit
+            uint_fast16_t hash = 0;
 
-            // whether the label has an even or odd number of characters (helps with hash collisions)
-            hash |= (line.label_.size() % 2 == 0);
-
-            // because a char is 8 bits, we can shift by 1 bit for each of the 4 booleans
-            // and still have enough bits in a size_t to store the hash
+            // we can store each boolean as a bit in an integral type
             hash = (hash << 1) | line.o_;
             hash = (hash << 1) | line.a_;
             hash = (hash << 1) | line.sig_;
             hash = (hash << 1) | line.den_;
 
-            // return the hash (13 bits)
+            // because a char is 8 bits, we shift by 8 and take the o ring
+            hash = (hash << 8) | line.label_[0];
+
+            // if the label is longer than 1 character, we only shift by 4 and take the next character
+            if (line.size() > 1)
+                hash = (hash << 4) | line.label_[1];
+
+            // return the hash (16 bits total)
             return hash;
         }
     }; // struct LineHash
+
+    typedef std::vector<Line, std::allocator<Line>>
+    line_vector;
 
     // define hash function for Line
     struct LinePtrHash {
@@ -224,13 +264,12 @@ namespace pdaggerq {
     }; // struct LinePtrEqual
 
     struct SimilarLineHash {
-        size_t operator()(const Line &line) const {
+        uint_fast8_t operator()(const Line &line) const {
 
             //  We do not care about the label for this hash function.
-            size_t hash = 0;
+            uint_fast8_t hash = 0;
 
-            // because a char is 8 bits, we can shift by 1 bit for each of the 4 booleans
-            // and still have enough bits in a size_t to store the hash
+            // store each boolean as a bit in an integral type
             hash = (hash << 1) | line.o_;
             hash = (hash << 1) | line.a_;
             hash = (hash << 1) | line.sig_;
@@ -247,29 +286,6 @@ namespace pdaggerq {
         }
     }; // struct LinePtrEqual
 
-    struct SimilarLinePtrHash {
-        size_t operator()(const Line *line) const {
-            constexpr SimilarLineHash line_hash;
-
-            // check if the pointer is null
-            if (!line) return 0;
-
-            // otherwise, return the hash of the line
-            return line_hash(*line);
-        }
-    }; // struct LineHash
-
-    struct SimilarLinePtrEqual {
-        bool operator()(const Line *lhs, const Line *rhs) const {
-            // check if either pointer is null
-            if (!lhs || !rhs) return false;
-
-            // check equality of the pointers
-            return lhs->equivalent(*rhs);
-        }
-    }; // struct LinePtrEqual
-
-
-} // pdaggerq
+} // namespace pdaggerq
 
 #endif //PDAGGERQ_LINE_HPP

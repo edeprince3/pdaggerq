@@ -32,11 +32,8 @@ namespace pdaggerq {
 
     /********** Constructors **********/
 
-    inline Linkage::Linkage(const VertexPtr &left, const VertexPtr &right, bool is_addition) : Vertex() {
-
-        // set inputs
-        left_ = left;
-        right_ = right;
+    inline Linkage::Linkage(const ConstVertexPtr &left, const ConstVertexPtr &right, bool is_addition) : Vertex(),
+                            left_(left), right_(right) {
 
 
         if (!left->is_linked() && !right->is_linked()) {
@@ -46,18 +43,43 @@ namespace pdaggerq {
                 std::swap(left_, right_);
         }
 
-        // count_ the left and right vertices
-        nvert_ = 0;
-
         // determine the depth of the linkage
+        depth_  =  left_->depth();
+        depth_ += right_->depth();
+
+        // populate the flop/mem history
+        flop_history_.reserve(depth_ + 1);
+        mem_history_.reserve(depth_ + 1);
+
         if (left_->is_linked()){
-            // add the number of vertices in left
-            nvert_ += as_link(left_)->nvert_;
-        } else nvert_++;
+
+            ConstLinkagePtr left_link = as_link(left_);
+
+            // set the worst scale from left
+            worst_flop_ = left_link->worst_flop_;
+            
+            // insert flop/mem history from left
+            flop_history_.insert(flop_history_.end(), 
+                                 left_link->flop_history_.begin(), left_link->flop_history_.end());
+            mem_history_.insert(mem_history_.end(),
+                                 left_link->mem_history_.begin(), left_link->mem_history_.end());
+        }
+
+
         if (right_->is_linked()){
-            // add the number of vertices in right
-            nvert_ += as_link(right_)->nvert_;
-        } else nvert_++;
+
+            ConstLinkagePtr right_link = as_link(right_);
+
+            // set the worst scale from right
+            if (right_link->worst_flop_ > worst_flop_)
+                worst_flop_ = right_link->worst_flop_;
+
+            // insert flop/mem history from right
+            flop_history_.insert(flop_history_.end(),
+                                 right_link->flop_history_.begin(), right_link->flop_history_.end());
+            mem_history_.insert(mem_history_.end(),
+                                 right_link->mem_history_.begin(), right_link->mem_history_.end());
+        }
 
         is_addition_ = is_addition;
 
@@ -67,228 +89,246 @@ namespace pdaggerq {
 
         // build internal and external lines with their index mapping
         set_links();
-
+        
+        // update worst scale
+        if (flop_scale_ > worst_flop_)
+            worst_flop_ = flop_scale_;
+        
+        // add flop/mem scale to history
+        flop_history_.push_back(flop_scale_);
+        mem_history_.push_back(mem_scale_);
+        
     }
+
+    /**
+     * @class line_map
+     * @brief A class representing a line population map.
+     *
+     * The line_map class is used to store line pointers and their corresponding
+     * frequencies of occurrence in a table-like structure. It uses linear
+     * probing to handle collisions.
+     */
+    struct line_map {
+
+        // closest prime number to max no. line
+        static constexpr uint_fast16_t nbins_ = 521;
+
+        const Line *line_table[nbins_];
+        uint_fast8_t idx_table[nbins_];
+        bool       found_table[nbins_];
+
+        // refer to line.hpp
+        static inline LinePtrHash lineptr_hasher;
+        static inline LinePtrEqual lineptr_equal;
+
+        line_map() {
+            // initialize occupieds
+            memset(found_table, false, nbins_);
+        }
+
+        inline pair<bool, uint_fast8_t> operator()(const Line *lineptr,
+                                                   uint_fast8_t line_idx) {
+
+            // hasher returns 13 bit number so this is safe from overflow
+            alignas(16) uint_fast16_t index = lineptr_hasher(lineptr) % nbins_;
+
+            // if there is a collision, check if the lineptr is the same
+            while (found_table[index] &&
+                   !lineptr_equal(line_table[index], lineptr)) {
+
+                // use linear probing to find the next available index
+                index = 2 * (index + 1) % nbins_;
+            }
+
+            // create a new entry if the index is not occupied
+            uint_fast8_t ret_idx;
+            bool found = found_table[index];
+            if (!found_table[index]) {
+                line_table[index] = lineptr;
+                idx_table[index] = line_idx;
+                ret_idx = line_idx;
+                found_table[index] = true;
+            } else {
+                ret_idx = idx_table[index];
+                idx_table[index] = line_idx;
+            }
+
+            // return whether there was a match and the returned index
+            return {found, ret_idx};
+        }
+    };
 
     inline void Linkage::set_links() {
 
         // clear internal and external lines and connections
         lines_.clear();
-
-        rank_ = 0;
-        shape_ = shape();
-        mem_scale_ = shape();
-        flop_scale_ = shape();
-        has_blk_ = false;
-        is_sigma_ = false;
-        is_den_ = false;
-
-
-        int_connec_.clear();
-        r_ext_idx_.clear();
-        l_ext_idx_.clear();
-
-
+        connec_.clear();
+        disconnec_.clear();
 
         // grab data from left and right vertices
-        uint_fast8_t left_size = left_->size();
-        uint_fast8_t right_size = right_->size();
-        uint_fast8_t total_size = left_size + right_size;
+        const uint_fast8_t left_size = left_->size();
+        const uint_fast8_t right_size = right_->size();
+        const uint_fast8_t total_size = left_size + right_size;
 
         const auto &left_lines = left_->lines();
         const auto &right_lines = right_->lines();
 
         // handle scalars
+
         if (left_size == 0 && right_size == 0) {
-            return; // both vertices are scalars (no lines)
+            // both vertices are scalars (no lines)
+            set_properties();
+            return;
         }
-        else if (left_size == 0) { // if left is a scalar, just use right_lines as linkage
-            lines_ = right_lines;
+        if (left_size == 0) {
+            // if left is a scalar, just use right_lines as linkage
             mem_scale_ = right_->shape_;
             flop_scale_ = right_->shape_;
+
+            // update vertex members
+            lines_ = right_lines;
+            set_properties();
             return;
-        } else if (right_size == 0) { // if right is a scalar, just use left_lines as linkage
-            lines_  = left_lines;
+        }
+        if (right_size == 0) {
+            // if right is a scalar, just use left_lines as linkage
             mem_scale_ = left_->shape_;
             flop_scale_ = left_->shape_;
+            lines_  = left_lines;
+
+            // update vertex members
+            set_properties();
             return;
         }
 
-        // reserve space for internal and external lines
-        std::multiset<Line, line_compare> ext_lines;
-
-
-        // create a map of lines to their frequency and whether they have been visited
-        thread_local unordered_map<const Line*, pair<uint_fast8_t, bool>, LinePtrHash, LinePtrEqual> line_populations;
-        line_populations.clear();
-
-        // populate left lines
-        for (const auto &line : left_lines) {
-            auto &[pop, visited] = line_populations[&line];
-            pop++; visited = false;
-        }
+        // create a map of lines to their frequency and whether they have been
+        // visited
+        line_map line_populations;
+        lines_.reserve(total_size);
+        disconnec_.reserve(total_size);
+        connec_.reserve(std::max(left_size, right_size));
 
         // populate right lines
-        for (const auto &line : right_lines) {
-            auto &[pop, visited] = line_populations[&line];
-            pop++; visited = false;
+        bool skip[right_size]; memset(skip, 0, right_size);
+        for (uint_fast8_t right_idx = 0; right_idx < right_size; right_idx++) {
+            auto [has_match, index] = line_populations(&right_lines[right_idx], right_idx);
+
+            // get line
+            const Line &right_line = right_lines[right_idx];
+            if (has_match) {
+                // this is a self-contraction; add to connection map and skip
+                pair<uint_fast8_t, uint_fast8_t>
+                    connec{left_size + index, left_size + right_idx};
+
+                connec_.insert(std::lower_bound(
+                                   connec_.begin(), connec_.end(),
+                                   connec, std::less<>()), connec);
+
+                // track index for building right external lines later
+                skip[right_idx] = true;
+                skip[index] = true;
+            }
+        }
+        
+        // populate left lines
+        for (uint_fast8_t left_idx = 0; left_idx < left_size; left_idx++) {
+            auto [is_match, index]
+                = line_populations(&left_lines[left_idx], left_idx);
+
+            // get the line
+            const Line &left_line = left_lines[left_idx];
+
+            // check if left line is internal if it is already in the map
+            if (is_match) {
+                // add to connections
+                pair<uint_fast8_t, uint_fast8_t>
+                    connec{left_idx, left_size + index};
+
+                connec_.insert(std::lower_bound(
+                                   connec_.begin(), connec_.end(),
+                                   connec, std::less<>()), connec);
+                
+                skip[index] = true;
+            } else {
+                // this is an external line to be added to the linkage
+                lines_.insert(
+                    std::lower_bound( lines_.begin(), lines_.end(),
+                                      left_line, line_compare()),
+                                      left_line);
+
+                // update mem scale
+                mem_scale_ += left_line;
+
+                // check if external line is a sigma or density fitting index
+                if (left_line.sig_)    is_sigma_ = true;
+                else if (left_line.den_) is_den_ = true;
+
+                // add to left external indices
+                disconnec_.insert(
+                        std::lower_bound( disconnec_.begin(), disconnec_.end(),
+                                          left_idx, std::less<>()), left_idx);
+            }
+
+            // update flop scale
+            flop_scale_ += left_line;
         }
 
-        
-        // grab iterators of left and right lines
-        auto left_begin = left_lines.begin(), right_begin = right_lines.begin();
-        auto left_end = left_lines.end(), right_end = right_lines.end();
-        
-        bool left_at_end  = left_begin == left_end;
-        bool right_at_end = right_begin == right_end;
+        // find external right lines
+        for (uint_fast8_t right_idx = 0; right_idx < right_size; right_idx++) {
+            if (skip[right_idx])
+                continue;
 
-        // use populations to determine if the line is internal or external
-        for (auto left_it = left_begin, right_it = right_begin; !left_at_end || !right_at_end;) {
-            
-            // find left in line_populations
-            if (!left_at_end) {
-                const Line &left_line = *left_it;
-                const auto &left_pop = line_populations.find(&left_line);
+            // this is an external line if not skipped
+            const Line &right_line = right_lines[right_idx];
 
-                // check if line has already been visited
-                auto &[freq, visited] = left_pop->second;
-                if (visited) {
-                    // line has already been visited, skip
-                    left_at_end = ++left_it == left_end;
-                    continue;
-                }
-                
-                // line has not been visited, add to lines
-                uint_fast8_t left_idx = std::distance(left_begin, left_it);
+            // add to external lines
+            // this is an external line to be added to the linkage
+            lines_.insert(
+                std::lower_bound( lines_.begin(), lines_.end(),
+                                 right_line, line_compare()),
+                right_line);
 
-                if (freq == 1) {
-                    // this line is external
-                    ext_lines.insert(left_line);
+            // update flop/mem scale
+            mem_scale_   += right_line;
+            flop_scale_  += right_line;
 
-                    // update mem scale
-                    mem_scale_ += left_line;
-                    
-                    // check if external line is a sigma or density fitting index
-                    if (left_line.sig_) is_sigma_ = true;
-                    else if (left_line.den_) is_den_ = true;
-                    
-                    // add to external indices
-                    l_ext_idx_.emplace(left_idx);
-                    
-                } else {
-                    
-                    // find position of line in right
-                    auto right_pos = std::find(right_it, right_end, left_line);
-                    uint_fast8_t right_idx = std::distance(right_begin, right_pos);
-                    
-                    // add to connections
-                    int_connec_.emplace(left_idx, right_idx);
-                }
-                
-                // update flop scale
-                flop_scale_ += left_line;
-                
-                // mark line as visited
-                visited = true;
-            }
-            
-            // find right in line_populations
-            if (!right_at_end) {
-                const Line &right_line = *right_it;
-                const auto &right_pop = line_populations.find(&right_line);
+            // check if external line is a sigma or density fitting index
+            if (right_line.sig_)
+                is_sigma_ = true;
+            else if (right_line.den_)
+                is_den_ = true;
 
-                // check if line has already been visited
-                auto &[freq, visited] = right_pop->second;
-                if (visited) {
-                    // line has already been visited, skip
-                    right_at_end = ++right_it == right_end;
-                    continue;
-                }
-
-                // line has not been visited, add to lines
-                uint_fast8_t right_idx = std::distance(right_begin, right_it);
-
-                if (freq == 1) {
-                    // this line is external
-                    ext_lines.insert(right_line);
-
-                    // update mem scale
-                    mem_scale_ += right_line;
-
-                    // check if external line is a sigma or density fitting index
-                    if (right_line.sig_) is_sigma_ = true;
-                    else if (right_line.den_) is_den_ = true;
-
-                    // add to external indices
-                    r_ext_idx_.emplace(right_idx);
-
-                } else {
-
-                    // find position of line in left
-                    auto left_pos = std::find(left_it, left_end, right_line);
-                    uint_fast8_t left_idx = std::distance(left_begin, left_pos);
-
-                    // add to connections
-                    int_connec_.emplace(left_idx, right_idx);
-                }
-
-                // update flop scale
-                flop_scale_ += right_line;
-
-                // mark line as visited
-                visited = true;
-            }
-            
-            // increment iterators
-            if ( !left_at_end) ++left_it;
-            if (!right_at_end) ++right_it;
-
-            left_at_end  = left_it  == left_end;
-            right_at_end = right_it == right_end;
+            //  add to right external indices
+            uint_fast8_t rid = right_idx + left_size;
+            disconnec_.insert(
+                std::lower_bound( disconnec_.begin(), disconnec_.end(),
+                                 rid, std::less<>()), rid);
         }
 
-        // add external lines to lines
-        lines_.assign(ext_lines.begin(), ext_lines.end());
+        // update vertex members
+        set_properties();
+    }
 
-
+    void Linkage::set_properties() {
         // set properties
         rank_  = lines_.size();
         shape_ = mem_scale_;
         has_blk_ = left_->has_blk_ || right_->has_blk_;
         is_sigma_ = left_->is_sigma_ || right_->is_sigma_ || shape_.L_ > 0;
         is_den_ = left_->is_den_ || right_->is_den_ || shape_.Q_ > 0;
-//        update_name();
-
     }
 
+    set<Line> Linkage::int_lines() const {
+        set<Line> int_lines;
 
-    vector<Line> Linkage::int_lines() const {
-        vector<Line> int_lines;
-        size_t left_size = left_->size();
-        size_t right_size = right_->size();
-
-        // if both left and right are scalars, there are no internal lines
-        if (left_size == 0 && right_size == 0)
-            return int_lines;
-
-        int_lines.reserve(left_size + right_size - lines_.size());
-
-        // every internal line shows up in both the left and right vertices
-        // so let's use the smaller, nonzero set of lines
-        bool use_left = left_size != 0 && left_size <= right_size;
-
-        const vector<Line> &ref_lines = use_left ? left_->lines() : right_->lines();
-
-        // use int_connec_ to grab the internal lines
-        for (const auto &[left_idx, right_idx] : int_connec_) {
-            if (use_left) int_lines.push_back(ref_lines[left_idx]);
-            else int_lines.push_back(ref_lines[right_idx]);
-        }
+        // add left and right to set
+        for (const auto &line :  left_->lines()) int_lines.insert(line);
+        for (const auto &line : right_->lines()) int_lines.insert(line);
 
         return int_lines;
     }
 
-    LinkagePtr Linkage::link(const vector<VertexPtr> &op_vec) {
+    LinkagePtr Linkage::link(const vector<ConstVertexPtr> &op_vec) {
         uint_fast8_t op_vec_size = op_vec.size();
 
         if (op_vec_size == 0) {
@@ -306,7 +346,7 @@ namespace pdaggerq {
         return as_link(linkage);
     }
 
-    vector<LinkagePtr> Linkage::links(const vector<VertexPtr> &op_vec){
+    vector<LinkagePtr> Linkage::links(const vector<ConstVertexPtr> &op_vec){
         uint_fast8_t op_vec_size = op_vec.size();
         if (op_vec_size <= 1) {
             throw invalid_argument("Linkage::link(): op_vec must have at least two elements");
@@ -324,28 +364,7 @@ namespace pdaggerq {
         return linkages;
     }
 
-    tuple<LinkagePtr, vector<shape*>, vector<shape*>> Linkage::link_and_scale(const vector<VertexPtr> &op_vec) {
-        uint_fast8_t op_vec_size = op_vec.size();
-        if (op_vec_size <= 1) {
-            throw invalid_argument("link(): op_vec must have at least two elements");
-        }
-
-        vector<shape*> flop_list(op_vec_size - 1), mem_list(op_vec_size - 1);
-
-        LinkagePtr linkage = as_link(op_vec[0] * op_vec[1]);
-        flop_list[0] = &linkage->flop_scale_;
-         mem_list[0] = &linkage->mem_scale_;
-
-        for (uint_fast8_t i = 2; i < op_vec_size; i++) {
-            linkage = as_link(linkage * op_vec[i]);
-            flop_list[i-1] = &linkage->flop_scale_;
-             mem_list[i-1] = &linkage->mem_scale_;
-        }
-
-        return {linkage, flop_list, mem_list};
-    }
-
-    Linkage::Linkage() {
+    Linkage::Linkage() : Vertex(), left_(nullptr), right_(nullptr) {
         id_ = -1;
         flop_scale_ = shape();
         mem_scale_ = shape();
@@ -362,20 +381,19 @@ namespace pdaggerq {
         if (is_addition_ != other.is_addition_) return false;
 
         // check the depth of the linkage
-        if (nvert_ != other.nvert_) return false;
+        if (depth_ != other.depth_) return false;
 
         // check if left and right vertices are linked in the same way
-        if ( left_->is_linked() ^  other.left_->is_linked()) return false;
-        if (right_->is_linked() ^ other.right_->is_linked()) return false;
+        if ( left_->is_linked() !=  other.left_->is_linked()) return false;
+        if (right_->is_linked() != other.right_->is_linked()) return false;
 
         // check that scales are equal
-        if (flop_scale_ != other.flop_scale_) return false;
-        if (mem_scale_  !=  other.mem_scale_) return false;
+        if (flop_history_ != other.flop_history_) return false;
+        if (mem_history_  !=  other.mem_history_) return false;
 
         // check linkage maps
-        if (l_ext_idx_  !=  other.l_ext_idx_) return false;
-        if (r_ext_idx_  !=  other.r_ext_idx_) return false;
-        if (int_connec_ != other.int_connec_) return false;
+        if (disconnec_ !=  other.disconnec_) return false;
+        if (connec_    !=  other.connec_)    return false;
 
         // recursively check if left linkages are equivalent
         if (left_->is_linked()) {
@@ -386,9 +404,11 @@ namespace pdaggerq {
 
         // check if right linkages are equivalent
         if (right_->is_linked()) {
-            if (*as_link(right_) != *as_link(other.right_)) return false;
+            if (*as_link(right_) != *as_link(other.right_))
+                return false;
         } else {
-            if ( !right_->equivalent( *other.right_)) return false;
+            if ( !right_->equivalent( *other.right_))
+                return false;
         }
 
         // if all tests pass, return true
@@ -405,15 +425,15 @@ namespace pdaggerq {
         if (*this == other) return {true, false};
 
         // test if the linkages have the same number of vertices
-        if (nvert_ != other.nvert_) return {false, false};
+        if (depth_ != other.depth_) return {false, false};
 
         // extract total vector of vertices
-        const vector<VertexPtr> &this_vert = to_vector();
-        const vector<VertexPtr> &other_vert = other.to_vector();
+        const vector<ConstVertexPtr> &this_vert = to_vector();
+        const vector<ConstVertexPtr> &other_vert = other.to_vector();
 
         // check if the vertices are isomorphic and keep track of the number of permutations
         bool swap_sign = false;
-        for (size_t i = 0; i < nvert_; i++) {
+        for (size_t i = 0; i < depth_; i++) {
             bool odd_perm = false;
             bool same_to_perm = is_isomorphic(*this_vert[i], *other_vert[i], odd_perm);
             if (!same_to_perm) return {false, false};
@@ -504,19 +524,19 @@ namespace pdaggerq {
         return output;
     }
 
-    inline void Linkage::to_vector(vector<VertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const {
+    inline void Linkage::to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const {
 
         if (empty()) return;
 
-        std::function<void(const VertexPtr&, vector<VertexPtr>&, size_t&)> expand_vertex;
+        std::function<void(const ConstVertexPtr&, vector<ConstVertexPtr>&, size_t&)> expand_vertex;
 
         expand_vertex = [regenerate, full_expand, &expand_vertex]
-                (const VertexPtr& vertex, vector<VertexPtr> &result, size_t &i) {
+                (const ConstVertexPtr& vertex, vector<ConstVertexPtr> &result, size_t &i) {
 
             if (vertex->base_name_.empty()) return;
 
             if (vertex->is_linked()) {
-                const LinkagePtr link = as_link(vertex);
+                const ConstLinkagePtr link = as_link(vertex);
 
                 // check if left linkage is a tmp
                 if (!full_expand && link->is_temp()) {
@@ -525,7 +545,7 @@ namespace pdaggerq {
                 } else {
 
                     // compute the left vertices recursively and save them
-                    for (const auto &link_vertex: link->to_vector(regenerate, full_expand))
+                    for (const ConstVertexPtr &link_vertex: link->to_vector(regenerate, full_expand))
                         expand_vertex(link_vertex, result, i);
                 }
 
@@ -533,48 +553,50 @@ namespace pdaggerq {
         };
 
         // get the left vertices
-        expand_vertex(left_,result, i);
+        expand_vertex(left_, result, i);
 
         // get the right vertices
         expand_vertex(right_, result, i);
     }
 
-    const vector<VertexPtr> &Linkage::to_vector(bool regenerate, bool full_expand) const {
-
-        // Lock the mutex for the scope of the function
+    vector<ConstVertexPtr> Linkage::to_vector(bool regenerate, bool full_expand) const {
+        // Lock the mutex for assignment
         std::lock_guard<std::mutex> lock(mtx_);
 
-
-        // if full_expand is false, we only need to expand the vertices that are not tmps
+        // if full_expand is false, we only need to expand the vertices that are
+        // not tmps
         if (!full_expand) {
             // the vertices are not known
             if (partial_vert_.empty() || regenerate) {
-                // compute the vertices recursively and store the vertices in all_vert_ for next query
-                partial_vert_ = vector<VertexPtr>(nvert_);
-                size_t i = 0;
-                to_vector(partial_vert_, i, regenerate, full_expand);
-                if (i != nvert_)
-                    partial_vert_.resize(i);
-                return partial_vert_;
+                // compute the vertices recursively and store the vertices in
+                // all_vert_ for next query
 
+                size_t i = 0;
+                auto result = std::vector<ConstVertexPtr>(depth_);
+                to_vector(result, i, regenerate, full_expand);
+                if (i != depth_)
+                  result.resize(i);
+
+                partial_vert_ = result;
+                return result;
+            } else {
+                return partial_vert_;
             }
-            // the vertices are known. return them from lazy evaluation
-            else return partial_vert_;
         }
 
         // the vertices are not known
-        if (all_vert_.empty() || regenerate){
-            // compute the vertices recursively and store the vertices in all_vert_ for next query
-            all_vert_ = vector<VertexPtr>(nvert_);
-            size_t i = 0;
-            to_vector(all_vert_, i, regenerate, full_expand);
-            if (i != nvert_)
-                all_vert_.resize(i);
+        if (all_vert_.empty() || regenerate) {
 
+            size_t i = 0;
+            auto result = std::vector<ConstVertexPtr>(depth_);
+            to_vector(result, i, regenerate, full_expand);
+            if (i != depth_)
+                result.resize(i);
+            all_vert_ = result;
+            return result;
+        } else {
             return all_vert_;
         }
-            // the vertices are known. return them from lazy evaluation
-        else return all_vert_;
     }
 
     void Linkage::clone_link(const Linkage &other) {
@@ -592,19 +614,22 @@ namespace pdaggerq {
 //        right_parent_ = other.right_parent_;
 
         id_ = other.id_;
-        nvert_ = other.nvert_;
+        depth_ = other.depth_;
 
-        int_connec_ = other.int_connec_;
-        l_ext_idx_ = other.l_ext_idx_;
-        r_ext_idx_ = other.r_ext_idx_;
+        connec_ = other.connec_;
+        disconnec_ = other.disconnec_;
 
-        flop_scale_ = other.flop_scale_;
-        mem_scale_ = other.mem_scale_;
+        worst_flop_   = other.worst_flop_;
+        flop_scale_   = other.flop_scale_;
+        flop_history_ = other.flop_history_;
+        mem_scale_    = other.mem_scale_;
+        mem_history_  = other.mem_history_;
 
         is_addition_ = other.is_addition_;
         is_reused_ = other.is_reused_;
 
         all_vert_ = other.all_vert_;
+        partial_vert_ = other.partial_vert_;
     }
 
     Linkage::Linkage(const Linkage &other) {
@@ -612,9 +637,7 @@ namespace pdaggerq {
     }
 
     VertexPtr Linkage::deep_copy_ptr() const {
-        LinkagePtr link_copy(
-                new Linkage(left_->deep_copy_ptr(), right_->deep_copy_ptr(), is_addition_)
-                );
+        LinkagePtr link_copy = make_shared<Linkage>(left_->deep_copy_ptr(), right_->deep_copy_ptr(), is_addition_);
 
         link_copy->id_ = id_;
         link_copy->is_reused_ = is_reused_;
@@ -648,19 +671,23 @@ namespace pdaggerq {
 //        right_parent_ = std::move(other.right_parent_);
 
         id_ = other.id_;
-        nvert_ = other.nvert_;
+        depth_ = other.depth_;
 
-        int_connec_ = std::move(other.int_connec_);
-        l_ext_idx_ = std::move(other.l_ext_idx_);
-        r_ext_idx_ = std::move(other.r_ext_idx_);
+        connec_ = std::move(other.connec_);
+        disconnec_ = std::move(other.disconnec_);
 
-        flop_scale_ = std::move(other.flop_scale_);
-        mem_scale_ = std::move(other.mem_scale_);
+        worst_flop_   = std::move(other.worst_flop_);
+        flop_scale_   = std::move(other.flop_scale_);
+        flop_history_ = std::move(other.flop_history_);
+        mem_scale_    = std::move(other.mem_scale_);
+        mem_history_  = std::move(other.mem_history_);
+
 
         is_addition_ = other.is_addition_;
         is_reused_ = other.is_reused_;
 
         all_vert_ = std::move(other.all_vert_);
+        partial_vert_ = std::move(other.partial_vert_);
     }
 
     Linkage::Linkage(Linkage &&other) noexcept {
@@ -677,11 +704,11 @@ namespace pdaggerq {
         return *this;
     }
 
-    extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right){
+    extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right){
         return make_shared<Linkage>(left, right, false);
     }
 
-    extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
+    extern VertexPtr operator+(const ConstVertexPtr &left, const ConstVertexPtr &right){
         return make_shared<Linkage>(left, right, true);
     }
 

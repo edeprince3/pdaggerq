@@ -222,7 +222,8 @@ void PQGraph::substitute(bool format_sigma) {
             bool include_declaration = !is_scalar && !format_sigma;
 
             // test if we made a valid substitution
-            if (numSubs > 0) {
+            int thresh = !include_declaration ? 0 : 1;
+            if (numSubs > thresh ) {
 
                 // make term of tmp declaration
                 if (include_declaration) {
@@ -306,7 +307,7 @@ void PQGraph::substitute(bool format_sigma) {
 
             update_timer.start();
 
-            scaling_map old_flop_map = flop_map_;
+            scaling_map last_flop_map = flop_map_;
 
             /// substitute linkage in all equations
 
@@ -329,6 +330,7 @@ void PQGraph::substitute(bool format_sigma) {
             }
             omp_set_num_threads(1); // reset number of threads (for improved performance of non-parallel code)
             totalSubs += num_subs; // add number of substitutions to total
+            collect_scaling(); // collect new scaling
 
 
             // format contractions
@@ -347,7 +349,8 @@ void PQGraph::substitute(bool format_sigma) {
             // print linkage
             if (verbose){
                 cout << " ====> Substitution " << to_string(temp_id) << " <==== " << endl;
-                cout << " ====> " << precon_term << endl << endl;
+                cout << " ====> " << precon_term << endl;
+                cout << " Difference: " << flop_map_ - last_flop_map << std::endl << endl;
             }
 
             // add linkage to this set
@@ -520,18 +523,18 @@ void PQGraph::sort_tmps(Equation &equation) {
         size_t a_idx = a.second;
         size_t b_idx = b.second;
 
-        const VertexPtr &a_lhs = a_term.lhs();
-        const VertexPtr &b_lhs = b_term.lhs();
+        const ConstVertexPtr &a_lhs = a_term.lhs();
+        const ConstVertexPtr &b_lhs = b_term.lhs();
 
         // recursive function to get min/max id of temp ids from a vertex
-        std::function<void(const VertexPtr&, long&, bool)> test_vertex;
-        test_vertex = [&test_vertex](const VertexPtr &op, long& id, bool get_max) {
+        std::function<void(const ConstVertexPtr&, long&, bool)> test_vertex;
+        test_vertex = [&test_vertex](const ConstVertexPtr &op, long& id, bool get_max) {
             if (op->is_temp()) {
-                LinkagePtr link = as_link(op);
+                ConstLinkagePtr link = as_link(op);
                 long link_id = link->id_;
 
                 // ignore reuse_tmp linkages
-                if (!link->is_reused_) {
+                if (!link->is_reused_ && !link->is_scalar()) {
                     if (get_max)
                          id = std::max(id,  link_id);
                     else id = std::max(id, -link_id);

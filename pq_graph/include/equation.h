@@ -48,7 +48,7 @@ namespace pdaggerq {
     class Equation {
 
         string name_; // name of the equation
-        VertexPtr assignment_vertex_; // assignment vertex
+        ConstVertexPtr assignment_vertex_; // assignment vertex
         vector<Term> terms_; // terms in the equation
 
         /// scaling of the equation
@@ -95,7 +95,7 @@ namespace pdaggerq {
          * @param vertex vertex of the equation
          * terms vector of terms
          */
-        Equation(const VertexPtr &assignment, const vector<Term> &terms);
+        Equation(const ConstVertexPtr &assignment, const vector<Term> &terms);
 
         /**
          * Copy constructor
@@ -149,7 +149,7 @@ namespace pdaggerq {
          * Get the assignment vertex
          * @return assignment vertex
          */
-        const VertexPtr &assignment_vertex() const { return assignment_vertex_; }
+        const ConstVertexPtr &assignment_vertex() const { return assignment_vertex_; }
 
         /**
          * set the assignment vertex
@@ -265,7 +265,7 @@ namespace pdaggerq {
          * @param allow_equality allow equality of scaling
          * @return number of substitutions
          */
-        size_t substitute(const LinkagePtr &linkage, bool allow_equality = false);
+        size_t substitute(const ConstLinkagePtr &linkage, bool allow_equality = false);
 
         /**
          * test a linkage substituted into the equation

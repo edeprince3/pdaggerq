@@ -84,7 +84,7 @@ namespace pdaggerq {
 
     }
 
-    Equation::Equation(const VertexPtr &assignment, const vector<Term> &terms) {
+    Equation::Equation(const ConstVertexPtr &assignment, const vector<Term> &terms) {
 
         // set name of equation
         name_ = assignment->name();
@@ -227,7 +227,6 @@ namespace pdaggerq {
 
         // reset bottleneck scaling
         bottleneck_flop_ = terms_.front().bottleneck_flop(); // initialize bottleneck flop scaling
-        bottleneck_mem_ =  terms_.front().bottleneck_mem(); // initialize bottleneck memory scaling
 
         for (auto & term : terms_) { // iterate over terms
             // compute scaling from term
@@ -242,12 +241,9 @@ namespace pdaggerq {
 
             // find bottlenecks
             const shape & term_bottleneck_flop = term.bottleneck_flop();
-            const shape & term_bottleneck_mem = term.bottleneck_mem();
 
             if (term_bottleneck_flop > bottleneck_flop_)
                 bottleneck_flop_ = term_bottleneck_flop;
-            if (term_bottleneck_mem  > bottleneck_mem_)
-                bottleneck_mem_  = term_bottleneck_mem;
 
         }
     }
@@ -261,13 +257,13 @@ namespace pdaggerq {
         collect_scaling();
     }
 
-    size_t Equation::substitute(const LinkagePtr &linkage, bool allow_equality) {
+    size_t Equation::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
 
         if (name_ == "scalars") // if scalars, return
             return 0;
 
         // check if linkage is more expensive than current bottleneck
-        if (linkage->flop_scale() > bottleneck_flop_) return 0;
+        if (linkage->worst_flop() > bottleneck_flop_) return 0;
 
         /// iterate over terms and substitute
         size_t num_terms = terms_.size();
@@ -301,7 +297,7 @@ namespace pdaggerq {
             return 0;
 
         // check if linkage is more expensive than current bottleneck
-        if (linkage->flop_scale() > bottleneck_flop_) {
+        if (linkage->worst_flop() > bottleneck_flop_) {
             test_flop_map += flop_map_; // add flop scaling map for whole equation
             return 0; // return 0 substitutions
         }
@@ -629,7 +625,7 @@ namespace pdaggerq {
             perm_str += to_string(perm_type) + "_";
 
             // append "perm" to the name of the lhs vertex
-            const VertexPtr lhs_op = terms[0].lhs();
+            const ConstVertexPtr lhs_op = terms[0].lhs();
             VertexPtr new_lhs_op = lhs_op->deep_copy_ptr();
             new_lhs_op->set_base_name("perm_tmps_" + perm_str + new_lhs_op->base_name());
             new_lhs_op->update_lines(new_lhs_op->lines());
@@ -712,7 +708,7 @@ namespace pdaggerq {
         for (auto &term : terms_) {
             for (auto &op : term) {
                 if (op->is_linked()) {
-                    const LinkagePtr &linkage = as_link(op);
+                    const ConstLinkagePtr &linkage = as_link(op);
                     if (linkage->id_ == contraction->id_ && *linkage == *contraction) {
                         temp_terms.push_back(&term);
                         break;

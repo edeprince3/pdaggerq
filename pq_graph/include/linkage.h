@@ -48,16 +48,16 @@ using std::make_pair;
 using std::to_string;
 using std::invalid_argument;
 using std::tuple;
-using std::dynamic_pointer_cast;
+using std::static_pointer_cast;
 
 namespace pdaggerq {
 
     // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
-    static LinkagePtr as_link(const VertexPtr& vertex)  { return dynamic_pointer_cast<Linkage>(vertex); }
-    static VertexPtr as_vert(const LinkagePtr& linkage) { return dynamic_pointer_cast<Vertex>(linkage); }
-
-
+    static LinkagePtr as_link(const VertexPtr &vertex)  { return static_pointer_cast<Linkage>(vertex); }
+    static VertexPtr as_vert(const LinkagePtr &linkage) { return static_pointer_cast<Vertex>(linkage); }
+    static ConstLinkagePtr as_link(const ConstVertexPtr &vertex)  { return static_pointer_cast<const Linkage>(vertex); }
+    static ConstVertexPtr as_vert(const ConstLinkagePtr &linkage) { return static_pointer_cast<const Vertex>(linkage); }
 
     /**
      * Perform linkage of two vertices by overload of * operator
@@ -65,7 +65,7 @@ namespace pdaggerq {
      * @return linkage of the two vertices
      * @note this is an extern function to allow for operator overloading outside of the namespace
      */
-    extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right);
+    extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right);
 
     /**
      * Perform linkage of two vertices by overload of + operator
@@ -73,7 +73,7 @@ namespace pdaggerq {
      * @return linkage of linkage
      * @note this is an extern function to allow for operator overloading outside of the namespace
      */
-    extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right);
+    extern VertexPtr operator+(const ConstVertexPtr &left, const ConstVertexPtr &right);
 
     // struct for comparing lines while ignoring the label
     struct line_compare {
@@ -88,311 +88,336 @@ namespace pdaggerq {
      */
     class Linkage;
 
-    // define pointer type
-    typedef shared_ptr<Linkage> LinkagePtr;
-    class Linkage : public Vertex {
+    class Linkage : public Vertex, public std::enable_shared_from_this<Linkage> {
+
+        /// vertices in the linkage
+        ConstVertexPtr left_, right_; // the left and right vertices of the linkage
 
         /// cost of linkage (flops and memory) as pair of vir and occ counts
+        vector<shape> flop_history_; // worst case within linkage
+        vector<shape> mem_history_; // worst case within linkage
+        shape worst_flop_{};
         shape flop_scale_{}; // flops
         shape mem_scale_{}; // memory
 
         mutable std::mutex mtx_; // mutex for thread safety
-        mutable vector<VertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
-        mutable vector<VertexPtr> partial_vert_; // all non-intermediate vertices from linkages
+        mutable vector<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
+        mutable vector<ConstVertexPtr> partial_vert_; // all non-intermediate vertices from linkages
 
-        public:
-            long id_ = -1; // id of the linkage (default to -1 if not set)
-            size_t nvert_{}; // number of vertices in the linkage
-            bool is_addition_ = false; // whether the linkage is an addition; else it is a contraction
-            bool is_reused_ = false; // whether the linkage is a shared operator (can be extracted)
+    public:
+        long id_ = -1; // id of the linkage (default to -1 if not set)
+        size_t depth_{}; // number of vertices in the linkage
+        bool is_addition_ = false; // whether the linkage is an addition; else it is a contraction
+        bool is_reused_ = false; // whether the linkage is a shared operator (can be extracted)
 
-            // whether the linkage corresponds to an intermediate contraction
-            bool is_temp() const { return id_ != -1 || is_reused_; }
+        // whether the linkage corresponds to an intermediate contraction
+        bool is_temp() const override { return id_ != -1 || is_reused_; }
 
-            // indicates the vertex is linked to another vertex
-            bool is_linked() const override { return true; }
+        // indicates the vertex is linked to another vertex
+        bool is_linked() const override { return true; }
 
-            /// vertices in the linkage
-            VertexPtr left_; // the lhs argument of the linkage
-            VertexPtr right_; // the rhs argument of the linkage
+        /// vertices in the linkage
+        const ConstVertexPtr  &left() const { return  left_; }; // the lhs argument of the linkage
+        const ConstVertexPtr &right() const { return right_; }; // the rhs argument of the linkage
 
-            // pointer to the parent linkage (if any)
+        // pointer to the parent linkage (if any)
 //            LinkagePtr left_parent_ = nullptr; //TODO: incorporate parent linkage to traverse the tree efficiently
 //            LinkagePtr right_parent_ = nullptr;
 
-            /// map of connections between lines
-            set<pair<uint_fast8_t, uint_fast8_t>> int_connec_; // connections between lines
-            set<uint_fast8_t> l_ext_idx_, r_ext_idx_;     // external indices of left and right vertices
+        /// map of connections between lines
+        typedef pair<uint_fast8_t, uint_fast8_t> connec_pair;
+        typedef std::vector<connec_pair>      connec_type;
+        typedef std::vector<uint_fast8_t>  disconnec_type;
 
-            /********** Constructors **********/
+        connec_type connec_;           // connections between lines
+        disconnec_type disconnec_;     // external indices of left and right vertices
 
-            Linkage();
+        /********** Constructors **********/
 
-            /**
-             * Constructor
-             * @param left vertex to contract with
-             * @param right vertex to contract with
-             */
-            Linkage(const VertexPtr &left, const VertexPtr &right, bool is_addition);
+        Linkage();
 
-            /**
-             * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
-             * this function will populate the Vertex base class with the result of the contraction
-             */
-            void set_links();
+        /**
+         * Constructor
+         * @param left vertex to contract with
+         * @param right vertex to contract with
+         */
+        Linkage(const ConstVertexPtr &left, const ConstVertexPtr &right, bool is_addition);
 
-            /**
-             * return vector of internal lines using the internal connection map
-             * @return vector of internal lines
-             */
-            vector<Line> int_lines() const;
+        /**
+         * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
+         * this function will populate the Vertex base class with the result of the contraction
+         */
+        void set_links();
 
-            /**
-             * Replace the lines of the linkage
-             * @param lines new lines
-             * @note this function will recursively replace the lines of the vertices
-             */
-            void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override {
-                // replace the lines of the vertices
-                left_->replace_lines(line_map);
-                right_->replace_lines(line_map);
+        /**
+         * Sets propeties of the vertex data members
+         */
+        void set_properties();
 
+        /**
+         * return a set of internal lines using the left and right
+         * @return vector of internal lines
+         */
+        set <Line> int_lines() const;
 
-                // rebuild the linkage
-                long id = id_;
-                bool is_reused = is_reused_;
-                *this = Linkage(left_, right_, is_addition_);
-                id_ = id;
-                is_reused_ = is_reused;
+        /**
+         * Replace the lines of the linkage
+         * @param lines new lines
+         * @note this function will recursively replace the lines of the vertices
+         */
+        void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override {
+            // replace the lines of the vertices
+            auto *new_left = new Vertex(*left_), *new_right = new Vertex(*right_);
 
-            }
+            new_left->replace_lines(line_map);
+            new_right->replace_lines(line_map);
 
-            /**
-             * Destructor
-             */
-            ~Linkage() override = default;
+            left_  = ConstVertexPtr(new_left);
+            right_ = ConstVertexPtr(new_right);
 
-            /**
-             * Copy constructor
-             * @param other linkage to copy
-             */
-            Linkage(const Linkage &other);
+            // rebuild the linkage
+            long id = id_;
+            bool is_reused = is_reused_;
+            *this = Linkage(left_, right_, is_addition_);
+            id_ = id;
+            is_reused_ = is_reused;
 
-            /**
-             * Return a deep copy of the linkage where all nested linkages are also copied
-             * @return deep copy of the linkage
-             */
-            Vertex deep_copy() const override;
-            VertexPtr deep_copy_ptr() const override;
+        }
 
-            /**
-             * Move constructor
-             * @param other linkage to move
-             */
-            Linkage(Linkage &&other) noexcept;
+        /**
+         * Destructor
+         */
+        ~Linkage() override = default;
 
-            /**
-             * helper to move only the linkage data
-             * @param other linkage to move
-             */
-            void move_link(Linkage &&other);
+        /**
+         * Copy constructor
+         * @param other linkage to copy
+         */
+        Linkage(const Linkage &other);
 
-            /**
-             * helper to clone only the linkage data
-             * @param other linkage to clone
-             */
-            void clone_link(const Linkage &other);
+        /**
+         * Return a deep copy of the linkage where all nested linkages are also copied
+         * @return deep copy of the linkage
+         */
+        Vertex deep_copy() const override;
+        VertexPtr deep_copy_ptr() const override;
 
-            /****** operator overloads ******/
+        /**
+         * Move constructor
+         * @param other linkage to move
+         */
+        Linkage(Linkage &&other) noexcept;
 
-            /**
-             * Copy assignment operator
-             * @param other linkage to copy
-             * @return reference to this
-             */
-            Linkage &operator=(const Linkage &other);
+        /**
+         * helper to move only the linkage data
+         * @param other linkage to move
+         */
+        void move_link(Linkage &&other);
 
-            /**
-             * Move assignment operator
-             * @param other linkage to move
-             * @return reference to this
-             */
-            Linkage &operator=(Linkage &&other) noexcept;
+        /**
+         * helper to clone only the linkage data
+         * @param other linkage to clone
+         */
+        void clone_link(const Linkage &other);
 
-            /**
-             * Equality operator
-             * @param other linkage to compare
-             * @return true if equal, false otherwise
-             */
-            bool operator==(const Linkage &other) const;
+        /****** operator overloads ******/
 
-            /**
-             * Overload of Vertex::equivalent operator to compare two linkages (same as ==)
-             * @param other linkage to compare
-             * @return true if equivalent, false otherwise
-             */
-            bool equivalent(const Vertex &other) const override {
-                if (!other.is_linked())
-                    return false;
+        /**
+         * Copy assignment operator
+         * @param other linkage to copy
+         * @return reference to this
+         */
+        Linkage &operator=(const Linkage &other);
 
-                auto otherPtr = dynamic_cast<const Linkage*>(&other);
-                return *this == *otherPtr;
-            }
+        /**
+         * Move assignment operator
+         * @param other linkage to move
+         * @return reference to this
+         */
+        Linkage &operator=(Linkage &&other) noexcept;
 
-            // TODO: we need an equality operator to test if two linkages are the same up to a permutation of the
-            //  lines in the vertices and return the number of permutations made.
-            pair<bool, bool> permuted_equals(const Linkage &other) const;
+        /**
+         * Equality operator
+         * @param other linkage to compare
+         * @return true if equal, false otherwise
+         */
+        bool operator==(const Linkage &other) const;
 
+        /**
+         * Overload of Vertex::equivalent operator to compare two linkages (same as ==)
+         * @param other linkage to compare
+         * @return true if equivalent, false otherwise
+         */
+        bool equivalent(const Vertex &other) const override {
+            if (!other.is_linked())
+                return false;
 
-            /**
-             * Inequality operator
-             * @param other linkage to compare
-             * @return true if not equal, false otherwise
-             */
-            bool operator!=(const Linkage &other) const;
+            auto otherPtr = static_cast<const Linkage *>(&other);
+            return *this == *otherPtr;
+        }
 
-            /**
-             * Less than operator
-             * @note compares flop scaling
-             */
-            bool operator<(const Linkage &other) const{
-                return flop_scale_ < other.flop_scale_;
-            }
-
-            /**
-             * Greater than operator
-             * @note compares flop scaling
-             */
-            bool operator>(const Linkage &other) const{
-                return flop_scale_ > other.flop_scale_;
-            }
-
-            /**
-             * Less than or equal to operator
-             * @note compares flop scaling
-             */
-            bool operator<=(const Linkage &other) const{
-                return flop_scale_ <= other.flop_scale_;
-            }
-
-            /**
-             * Greater than or equal to operator
-             * @note compares flop scaling
-             */
-            bool operator>=(const Linkage &other) const{
-                return flop_scale_ >= other.flop_scale_;
-            }
-
-            /**
-            * convert the linkage to a vector of vertices in order
-            * @param result vector of vertices
-            * @note this function is recursive
-            */
-            void to_vector(vector<VertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const;
-
-            /**
-             * convert the linkage to a const vector of vertices
-             * @return vector of vertices
-             * @note this function is recursive
-             */
-            const vector<VertexPtr> &to_vector(bool regenerate = false, bool full_expand = true) const;
-
-            /**
-             * Get connections
-             * @return connections
-             */
-            const set<pair<uint_fast8_t, uint_fast8_t>> &connections() const { return int_connec_; }
-
-            /**
-             * get external left or right indices
-             * @return external left or right indices as a set
-             */
-            const set<uint_fast8_t> &l_ext_idx() const { return l_ext_idx_; }
-            const set<uint_fast8_t> &r_ext_idx() const { return r_ext_idx_; }
+        // TODO: we need an equality operator to test if two linkages are the same up to a permutation of the
+        //  lines in the vertices and return the number of permutations made.
+        pair<bool, bool> permuted_equals(const Linkage &other) const;
 
 
-            /**
-             * Make a series of linkages from vertices into a single linkage
-             * @param op_vec list of vertices
-             */
-            static LinkagePtr link(const vector<VertexPtr> &op_vec);
+        /**
+         * Inequality operator
+         * @param other linkage to compare
+         * @return true if not equal, false otherwise
+         */
+        bool operator!=(const Linkage &other) const;
 
-            /**
-             * Make a series of linkages from vertices and keep each linkage as a separate vertex
-             * @param op_vec list of vertices
-             */
-            static vector<LinkagePtr> links(const vector<VertexPtr> &op_vec);
+        /**
+         * Less than operator
+         * @note compares flop scaling
+         */
+        bool operator<(const Linkage &other) const {
+            return worst_flop_ < other.worst_flop_;
+        }
 
-            /**
-             * Returns a list of all flop and mem scales within a series of linkages and the linkage
-             * @param op_vec list of vertices
-             * @return the resulting linkage with the list of all flop and mem scales
-             */
-            static tuple<LinkagePtr, vector<shape*>, vector<shape*>> link_and_scale(const vector<VertexPtr> &op_vec);
+        /**
+         * Greater than operator
+         * @note compares flop scaling
+         */
+        bool operator>(const Linkage &other) const {
+            return worst_flop_ > other.worst_flop_;
+        }
 
-            /**
-             * Get flop cost
-             * @return flop cost
-             */
-            const shape &flop_scale() const { return flop_scale_; }
+        /**
+         * Less than or equal to operator
+         * @note compares flop scaling
+         */
+        bool operator<=(const Linkage &other) const {
+            return worst_flop_ <= other.worst_flop_;
+        }
 
-            /**
-             * Get memory cost
-             * @return memory cost
-             */
-            const shape &mem_scale() const { return mem_scale_; }
+        /**
+         * Greater than or equal to operator
+         * @note compares flop scaling
+         */
+        bool operator>=(const Linkage &other) const {
+            return worst_flop_ >= other.worst_flop_;
+        }
 
-            /**
-             * Create generic string representation of linkage
-             * @param make_generic if true, make generic string representation
-             * @return generic string representation of linkage
-             */
-             string str(bool make_generic, bool include_lines = true) const;
-             string str() const override {
-                 // default to generic string representation when not specified
-                 return str(true);
-             }
-             friend ostream &operator<<(ostream &os, const Linkage &linkage){
-                    os << linkage.tot_str(true);
-                    return os;
-             }
+        /**
+        * convert the linkage to a vector of vertices in order
+        * @param result vector of vertices
+        * @note this function is recursive
+        */
+        void to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const;
 
-            /**
-            * Get string of contractions and additions
-            * @param expand if true, expand contractions recursively
-            * @return linkage string
-            */
-            string tot_str(bool expand = false, bool make_dot=true) const;
+        /**
+         * convert the linkage to a const vector of vertices
+         * @return vector of vertices
+         * @note this function is recursive
+         */
+        vector<ConstVertexPtr> to_vector(bool regenerate = false, bool full_expand = true) const;
 
-            /**
-             * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)
-             * @param os output stream
-             * @param linkage linkage to write
-             * @return output stream
-             */
-            ostream &write_dot(ostream &os, const std::string& color = "black", bool reset = false) const;
+        /**
+         * Get connections
+         * @return connections
+         */
+        const connec_type &connections() const { return connec_; }
 
-            /**
-             * check if linkage is empty
-             * @return true if empty, false otherwise
-             */
-            bool empty() const override {
-                if (nvert_ == 0) return true;
-                else return Vertex::empty();
-            }
+        /**
+         * get external left or right indices
+         * @return external left or right indices as a set
+         */
+        const disconnec_type &disconnections() const { return disconnec_; }
 
-            /**
-             * Get depth of linkage
-             * @return depth of linkage
-             */
-            size_t depth() const { return nvert_; }
+
+        /**
+         * Make a series of linkages from vertices into a single linkage
+         * @param op_vec list of vertices
+         */
+        static LinkagePtr link(const vector<ConstVertexPtr> &op_vec);
+
+        /**
+         * Make a series of linkages from vertices and keep each linkage as a separate vertex
+         * @param op_vec list of vertices
+         */
+        static vector<LinkagePtr> links(const vector<ConstVertexPtr> &op_vec);
+
+        /**
+         * get worst flop cost of linkage
+         */
+        const shape &worst_flop() const { return worst_flop_; }
+
+        /**
+         * Get flop cost of linkage
+         */
+//        const shape &flop_scale() const { return flop_scale_; }
+
+        /**
+         * get history of flops from nested linkages
+         */
+        const vector<shape> &flop_history() const { return flop_history_; }
+
+        /**
+         * Get memory cost of linkage
+         */
+        const shape &mem_scale() const { return mem_scale_; }
+
+        /**
+         * get history of memory from nested linkages
+         */
+        const vector<shape> &mem_history() const  { return mem_history_;  }
+
+        /**
+         * Create generic string representation of linkage
+         * @param make_generic if true, make generic string representation
+         * @return generic string representation of linkage
+         */
+        string str(bool make_generic, bool include_lines = true) const;
+
+        string str() const override {
+            // default to generic string representation when not specified
+            return str(true);
+        }
+
+        friend ostream &operator<<(ostream &os, const Linkage &linkage) {
+            os << linkage.tot_str(true);
+            return os;
+        }
+
+        /**
+        * Get string of contractions and additions
+        * @param expand if true, expand contractions recursively
+        * @return linkage string
+        */
+        string tot_str(bool expand = false, bool make_dot = true) const;
+
+        /**
+         * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)
+         * @param os output stream
+         * @param linkage linkage to write
+         * @return output stream
+         */
+        ostream &write_dot(ostream &os, const std::string &color = "black", bool reset = false) const;
+
+        /**
+         * check if linkage is empty
+         * @return true if empty, false otherwise
+         */
+        bool empty() const override {
+            if (depth_ == 0) return true;
+            else return Vertex::empty();
+        }
+
+        /**
+         * Get depth of linkage
+         * @return depth of linkage
+         */
+        size_t depth() const override { return depth_; }
 
     }; // class linkage
 
     // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
-    static Linkage* as_link(Vertex* vertex) { return dynamic_cast<Linkage*>(vertex); }
-    static Vertex* as_vert(Linkage* linkage) { return dynamic_cast<Vertex*>(linkage); }
+    static Linkage *as_link(Vertex *vertex) { return static_cast<Linkage *>(vertex); }
+
+    static Vertex *as_vert(Linkage *linkage) { return static_cast<Vertex *>(linkage); }
 
 } // pdaggerq
 
