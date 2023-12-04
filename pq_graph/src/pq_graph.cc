@@ -84,6 +84,14 @@ namespace pdaggerq {
             max_temps_ = (size_t) options["max_temps"].cast<int>();;
         }
 
+        if( options.contains("max_depth")) {
+                Term::max_depth = (size_t) options["max_depth"].cast<int>();
+                if (Term::max_depth < 1ul) {
+                    cout << "WARNING: max_depth must be greater than 1. Setting to 2." << endl;
+                    Term::max_depth = 2ul;
+                }
+        }
+
         if (options.contains("t1_transform")) Equation::remove_t1 = options["t1_transform"].cast<bool>();
         if (options.contains("verbose")) verbose = options["verbose"].cast<bool>();
         if (options.contains("output")) {
@@ -202,6 +210,9 @@ namespace pdaggerq {
 
         cout << "    max_temps: " << max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
+
+        cout << "    max_depth: " << Term::max_depth
+             << "  // maximum depth for chain of contractions (default: -1 for unlimited)" << endl;
 
         cout << "    max_shape: " << Term::max_shape_.str() << "// a map of maximum sizes for each line type in an intermediate (default: {o: -1, v: -1}, "
                 "for no limit of occupied and virtual lines.): " << endl;
@@ -531,10 +542,6 @@ namespace pdaggerq {
         flop_map_.clear(); // clear flop scaling map
         mem_map_.clear(); // clear memory scaling map
 
-        // reset bottleneck scaling (using the first equation)
-        bottleneck_flop_ = equations_.begin()->second.bottleneck_flop();
-        bottleneck_mem_ = equations_.begin()->second.bottleneck_mem();
-
         for (auto & [name, equation] : equations_) { // iterate over equations
             if (name == "reuse_tmps" && !include_reuse)
                 continue; // skip reuse_tmps equation (TODO: only include for analysis)
@@ -547,18 +554,6 @@ namespace pdaggerq {
 
             flop_map_ += flop_map; // add flop scaling
             mem_map_ += mem_map; // add memory scaling
-
-            // get bottlenecks
-            const shape & bottleneck_flop = equation.bottleneck_flop(); // get flop bottleneck
-            const shape & bottleneck_mem = equation.bottleneck_mem(); // get memory bottleneck
-
-            if (bottleneck_flop > bottleneck_flop_)
-                // if flop bottleneck is more expensive
-                bottleneck_flop_ = bottleneck_flop; // set flop bottleneck
-
-            if (bottleneck_mem > bottleneck_mem_)
-                // if memory bottleneck is more expensive
-                bottleneck_mem_ = bottleneck_mem; // set memory bottleneck
         }
     }
 

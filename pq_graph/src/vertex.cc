@@ -249,8 +249,6 @@ namespace pdaggerq {
         // create line objects
         has_blk_ = !blk_string.empty();
         uint_fast8_t c_blk = 0; // count_ current number of characters for blocking
-        string ovstring(rank_, 'o'); // ovstring assuming all occupied
-        string new_blk_string(rank_, '\0'); // assumming no blocking
         for (int i = 0; i < lines.size(); i++) { // loop over lines
 
             lines_[i] = Line(lines[i]); // create line without a block
@@ -265,22 +263,17 @@ namespace pdaggerq {
 
             if (is_sigma) is_sigma_ = true; // check if vertex is sigma
             if (is_den) is_den_ = true; // check if vertex is density fitted
-
-            ovstring[i] = lines_[i].type(); // set ovstring
-
-            if (has_blk_)
-                new_blk_string[i] = lines_[i].block(); // set blocking string
         }
 
         // create shape from lines
         shape_ = shape(lines_);
 
         // add ovstring and block to name
-        format_name(ovstring, new_blk_string);
+        format_name();
 
     }
 
-    void Vertex::format_name(const string &ovstring, const string &new_blk_string) {
+    void Vertex::format_name() {
         name_ = base_name_ + "_";
 
         // scalars have no dimension
@@ -318,10 +311,11 @@ namespace pdaggerq {
 
     string Vertex::blk_string() const {
         if (!has_blk_ || lines_.empty()) return "";
-        string blk_string(rank_, '\0'); // string assuming no blocking
-        uint_fast8_t line_idx = 0; // index of line
-        for (uint_fast8_t i = 0; i < rank_; i++) {
-            blk_string[i] = lines_[i].block(); // set ovstring
+
+        string blk_string;
+        blk_string.reserve(blk_string.size());
+        for (const Line &line : lines_) {
+            blk_string.push_back(line.block());
         }
 
         return blk_string;
@@ -329,18 +323,18 @@ namespace pdaggerq {
 
     string Vertex::ovstring(const line_vector &lines) {
         if (lines.empty()) return "";
-        uint_fast8_t line_size = lines.size();
-        string ovstring(line_size, 'o'); // ovstring assuming all occupied
-        for (uint_fast8_t i = 0; i < line_size; i++) {
-            ovstring[i] = lines[i].type(); // set ovstring
+        string ovstring; // ovstring assuming all occupied
+        ovstring.reserve(lines.size());
+        for (const Line &line : lines) {
+            ovstring.push_back(line.type());
         }
 
         return ovstring;
     }
 
     Vertex::Vertex() {
-        name_ = "Empty";
-        base_name_ = "Empty";
+        name_ = "";
+        base_name_ = "";
         has_blk_ = false;
         rank_ = 0;
         shape_ = shape();
@@ -563,11 +557,12 @@ namespace pdaggerq {
 
     inline bool Vertex::same_lines(const Vertex &other) const {
 
-        // check if lines are same n_ops
+        // check if same rank
         if (lines_.size() != other.lines_.size())
-            return false;
-        else
-            return lines_ == other.lines_;
+             return false;
+
+        // check if same lines
+        return lines_ == other.lines_;
     }
 
     inline bool Vertex::equivalent(const Vertex &other) const {

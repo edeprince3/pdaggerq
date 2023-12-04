@@ -58,8 +58,6 @@ namespace pdaggerq {
             scaling_map flop_map_; // map of flop scaling with linkage occurrence in term
             scaling_map mem_map_; // map of memory scaling with linkage occurrence in term
 
-            shape bottleneck_flop_; // bottleneck flop scaling of the term
-
             /// list of permutation indices (should generalize to arbitrary number of indices)
 
             // perm_type_ = 0: no permutation
@@ -79,7 +77,7 @@ namespace pdaggerq {
             bool generated_linkages_ = false; // flag for if term has generated linkages (default is false)
             bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
 
-            static inline size_t max_linkages = static_cast<size_t>(-1); // maximum number of rhs in a linkage
+            static inline size_t max_depth = static_cast<size_t>(-1); // maximum number of rhs in a linkage
             static inline shape max_shape_; // maximum shape of a linkage
             static inline bool allow_nesting_ = true;
             static inline bool permute_vertices_ = false;
@@ -309,10 +307,9 @@ namespace pdaggerq {
             const scaling_map &mem_map() const { return mem_map_; }
 
             /**
-             * Get bottleneck flop scaling
-             * @return bottleneck flop scaling
+             * Get worst flop scaling
              */
-            const shape &bottleneck_flop() const { return bottleneck_flop_; }
+            shape worst_flop() const { return flop_map_.worst(); }
 
             /******** Functions ********/
 
@@ -365,19 +362,31 @@ namespace pdaggerq {
              *       DOES NOT compare coefficient
              */
             bool operator==(const Term &other) const {
-                if (rhs_.size() != other.rhs_.size())
-                    return false;
 
-                for (size_t i = 0; i < rhs_.size(); i++) {
-                    if (*rhs_[i] != *other.rhs_[i])
+                // check if terms have the same number of rhs vertices
+                if (size() != other.size()) return false;
+
+                // do the terms have the same kind of permutation?
+                bool same_permutation = perm_type_ == other.perm_type_; // same permutation type?
+                if (same_permutation) {
+                    if (term_perms_ != other.term_perms_)
+                        return false; // same permutation pairs?
+                } else return false;
+
+                // make sure both terms have exactly the same lhs
+                if (lhs_->Vertex::operator!=(*other.lhs_)) return false;
+
+                // make sure both terms have exactly the same eq
+                if (eq_->Vertex::operator!=(*other.eq_)) return false;
+
+                // make sure each rhs is exactly the same in order
+                for (size_t i = 0; i < size(); i++) {
+                    if (rhs_[i]->Vertex::operator!=(*other.rhs_[i]))
                         return false;
-
-                    if (rhs_[i]->is_linked()){
-                        if (rhs_[i]->lines_ != other.rhs_[i]->lines_)
-                            return false;
-                    }
                 }
-                return rhs_ == other.rhs_;
+
+                // they are the same! (we ignore the coefficient)
+                return true;
             }
 
             /**
@@ -507,27 +516,8 @@ namespace pdaggerq {
     struct TermHash { // hash functor for finding similar terms
         size_t operator()(const Term& term) const {
 
-            string term_str;
-            // add vertex names to string and sorted line names to string
-            for (const auto& op : term) {
-                term_str += op->name();
-
-                vector<string> labels;
-                for (const auto& line : op->lines()) labels.push_back(line.label_);
-                sort(labels.begin(), labels.end());
-
-                for (const auto& label : labels) term_str += label;
-            }
-
-            // finally, add permutation type and permutation pairs
-            term_str += to_string(term.perm_type());
-            for (const auto& pair : term.term_perms()) {
-                term_str += pair.first;
-                term_str += pair.second;
-            }
-
-            // return hash of string
-            return hash<string>()(term_str);
+            // return hash of string as the hash of its linkage
+            return LinkageHash()(term.term_linkage_);
         }
     };
 

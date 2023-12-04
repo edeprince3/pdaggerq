@@ -101,6 +101,7 @@ namespace pdaggerq {
 
     class linkage_set{
 
+        mutable std::mutex mtx_; // mutex for thread safety
         unordered_set<ConstLinkagePtr, LinkageHash, LinkagePred> linkages_; // set of linkages
 
     public:
@@ -120,6 +121,7 @@ namespace pdaggerq {
          * @param other linkage set to copy
          */
         linkage_set(const linkage_set &other){
+            std::lock_guard<std::mutex> lock(mtx_);
             linkages_ = other.linkages_;
         }
 
@@ -137,6 +139,7 @@ namespace pdaggerq {
          * @return reference to this
          */
         linkage_set &operator=(const linkage_set &other){
+            std::lock_guard<std::mutex> lock(mtx_);
             linkages_ = other.linkages_;
             return *this;
         };
@@ -161,6 +164,7 @@ namespace pdaggerq {
          * @param linkage linkage to insert
          */
         auto insert(const ConstLinkagePtr &linkage) {
+            std::lock_guard<std::mutex> lock(mtx_);
             return linkages_.insert(linkage);
         }
 
@@ -233,7 +237,7 @@ namespace pdaggerq {
          */
         linkage_set operator+(const linkage_set &other) const {
             linkage_set new_set = *this; // new linkage set
-            for (const auto &linkage: other.linkages_) new_set.insert(linkage); // insert other set
+            new_set.linkages_.insert(other.linkages_.begin(), other.linkages_.end());
             return new_set; // return new linkage set
         }
 
@@ -244,7 +248,11 @@ namespace pdaggerq {
          */
         linkage_set operator-(const linkage_set &other) const {
             linkage_set new_set = *this; // new linkage set
-            for (const auto &linkage: other.linkages_) new_set.linkages_.erase(linkage); // remove other set
+            for (auto it = new_set.linkages_.begin(); it != new_set.linkages_.end();) {
+                if (other.linkages_.find(*it) != other.linkages_.end())
+                     it = new_set.linkages_.erase(it);
+                else it++;
+            }
             return new_set; // return new linkage set
         }
 
@@ -255,8 +263,8 @@ namespace pdaggerq {
          * @return reference to this
          */
         linkage_set &operator+=(const linkage_set &other) {
-
-            for (const auto &linkage: other.linkages_) insert(linkage); // insert the other set
+            std::lock_guard<std::mutex> lock(mtx_);
+            linkages_.insert(other.linkages_.begin(), other.linkages_.end());
             return *this; // return this
         }
 
@@ -266,22 +274,14 @@ namespace pdaggerq {
          * @return reference to this
          */
         linkage_set &operator-=(const linkage_set &other) {
-            for (const auto &linkage: other.linkages_)
-                linkages_.erase(linkage); // remove other set
+            std::lock_guard<std::mutex> lock(mtx_);
+            for (auto it = linkages_.begin(); it != linkages_.end();) {
+                if (other.linkages_.find(*it) != other.linkages_.end())
+                    it = linkages_.erase(it);
+                else it++;
+            }
             return *this; // return this
         }
-
-        /**
-         * erase a linkage from the set by index
-         * @param i index of linkage to erase
-         */
-        void erase(size_t i) { linkages_.erase(next(linkages_.begin(), i)); }
-
-        /**
-         * erase a linkage from the set by value
-         * @param linkage linkage to erase
-         */
-        void erase(const LinkagePtr &linkage) { linkages_.erase(linkage); }
 
     }; // class linkage_set
 

@@ -55,9 +55,6 @@ namespace pdaggerq {
         scaling_map flop_map_; // map of flop scaling with linkage occurrence in equation
         scaling_map mem_map_; // map of memory scaling with linkage occurrence in equation
 
-        shape bottleneck_flop_; // bottleneck flop scaling of the equation
-        shape bottleneck_mem_; // bottleneck memory scaling of the equation
-
     public:
         static inline size_t nthreads_ = 1; // number of threads to use when substituting
         static inline bool permuted_merge_ = false; // whether to merge terms with permutations
@@ -229,16 +226,11 @@ namespace pdaggerq {
         const scaling_map &mem_map() const { return mem_map_; }
 
         /**
-         * Get the bottleneck flop scaling
-         * @return bottleneck flop scaling
+         * Get the worst flop scaling
+         * @return worst flop scaling
          */
-        const shape &bottleneck_flop() const { return bottleneck_flop_; }
+        shape worst_flop() const { return flop_map_.worst(); }
 
-        /**
-         * Get the bottleneck memory scaling
-         * @return bottleneck memory scaling
-         */
-        const shape &bottleneck_mem() const { return bottleneck_mem_; }
 
         /**
          * Get the string representation of each term in the equation

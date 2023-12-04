@@ -50,8 +50,8 @@ namespace pdaggerq {
         // populate the flop/mem history
         flop_history_.reserve(depth_ + 1);
         mem_history_.reserve(depth_ + 1);
-        all_vert_.reserve(depth_ + 1);
-        partial_vert_.reserve(depth_ + 1);
+        all_vert_.reserve(depth_);
+        partial_vert_.reserve(depth_);
 
         if (left_->is_linked()){
 
@@ -75,7 +75,7 @@ namespace pdaggerq {
             // else just add left
             else partial_vert_.push_back(left_);
 
-        } else {
+        } else if (!left_->empty() && left_ != nullptr){
             // left is a pure vertex
             // add left to all_vert and partial_vert
             all_vert_.push_back(left_);
@@ -101,12 +101,14 @@ namespace pdaggerq {
             all_vert_.insert(all_vert_.end(), right_link->all_vert_.begin(), right_link->all_vert_.end());
 
             // if right is not a tmp, copy partial_vert
-            if (!right_link->is_temp())
-                partial_vert_.insert(partial_vert_.end(), right_link->partial_vert_.begin(), right_link->partial_vert_.end());
+            if (!right_link->is_temp()) {
+                partial_vert_.insert(partial_vert_.end(), right_link->partial_vert_.begin(),
+                                     right_link->partial_vert_.end());
+            }
             // else just add right
             else partial_vert_.push_back(right_);
 
-        } else {
+        } else if (!right_->empty() && right_ != nullptr) {
             // right is a pure vertex
             // add right to all_vert and partial_vert
             all_vert_.push_back(right_);
@@ -116,8 +118,9 @@ namespace pdaggerq {
         is_addition_ = is_addition;
 
         // create hash for the name (should be unique and faster for comparisons)
-        base_name_ = left_->name_ + "\t" + right_->name_;
-        name_ = base_name_;
+        base_name_  =  left_->name_;
+        base_name_ += ' ';
+        base_name_ += right_->name_;
 
         // build internal and external lines with their index mapping
         set_links();
@@ -128,7 +131,10 @@ namespace pdaggerq {
         
         // add flop/mem scale to history
         flop_history_.push_back(flop_scale_);
-        mem_history_.push_back(mem_scale_);
+        mem_history_.push_back( mem_scale_);
+
+        // update name
+        name_ = base_name_;
         
     }
 
@@ -142,7 +148,7 @@ namespace pdaggerq {
      */
     struct line_map {
 
-        // closest prime number to max no. line
+        // closest prime number to max no. line (512)
         static constexpr uint_fast16_t nbins_ = 521;
 
         const Line *line_table[nbins_];

@@ -225,9 +225,6 @@ namespace pdaggerq {
         flop_map_.clear(); // clear flop scaling map
         mem_map_.clear(); // clear memory scaling map
 
-        // reset bottleneck scaling
-        bottleneck_flop_ = terms_.front().bottleneck_flop(); // initialize bottleneck flop scaling
-
         for (auto & term : terms_) { // iterate over terms
             // compute scaling from term
             term.compute_scaling(regenerate);
@@ -238,13 +235,6 @@ namespace pdaggerq {
 
             flop_map_ += term_flop_map; // add flop scaling map
             mem_map_  += term_mem_map; // add memory scaling map
-
-            // find bottlenecks
-            const shape & term_bottleneck_flop = term.bottleneck_flop();
-
-            if (term_bottleneck_flop > bottleneck_flop_)
-                bottleneck_flop_ = term_bottleneck_flop;
-
         }
     }
 
@@ -263,7 +253,7 @@ namespace pdaggerq {
             return 0;
 
         // check if linkage is more expensive than current bottleneck
-        if (linkage->worst_flop() > bottleneck_flop_) return 0;
+        if (linkage->worst_flop() > worst_flop()) return 0;
 
         /// iterate over terms and substitute
         size_t num_terms = terms_.size();
@@ -297,7 +287,7 @@ namespace pdaggerq {
             return 0;
 
         // check if linkage is more expensive than current bottleneck
-        if (linkage->worst_flop() > bottleneck_flop_) {
+        if (linkage->worst_flop() > worst_flop()) {
             test_flop_map += flop_map_; // add flop scaling map for whole equation
             return 0; // return 0 substitutions
         }
@@ -310,7 +300,7 @@ namespace pdaggerq {
             // skip term if linkage is not compatible
             if (!terms_[i].is_compatible(linkage)) continue;
 
-            // get term copy
+            // get term copy TODO: consider making a deep copy. Otherwise, new function entirely to prevent any copies
             Term term = terms_[i];
 
             // substitute linkage in term copy
@@ -335,9 +325,9 @@ namespace pdaggerq {
 
     linkage_set Equation::generate_linkages(bool compute_all) {
 
-        linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
+        static linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
+        all_linkages.clear();
 
-        omp_set_num_threads((int)nthreads_);
         #pragma omp parallel for schedule(guided) shared(terms_, all_linkages) default(none) firstprivate(compute_all)
         for (auto & term : terms_) { // iterate over terms
 
@@ -348,16 +338,11 @@ namespace pdaggerq {
                 term.reorder(); // reorder term if it is not optimal
 
             linkage_set term_linkages = term.generate_linkages(); // generate linkages in term
-
-            #pragma omp critical
-            {
-                all_linkages += term_linkages; // add linkages to the set of all linkages
-            }
+            all_linkages += term_linkages; // add linkages to the set of all linkages
 
             term.generated_linkages_ = true; // set term to have generated linkages
 
-        } // iterate over terms
-        omp_set_num_threads(1);
+        }
 
         return all_linkages;
     }
@@ -422,6 +407,7 @@ namespace pdaggerq {
     }
 
     size_t Equation::merge_terms() {
+
         if (is_temp_equation_) return 0; // don't merge temporary equations
 
         // map to store term counts, comments, and merged coefficients using a hash of the term
@@ -431,12 +417,13 @@ namespace pdaggerq {
         // iterate over terms and accumulate similar terms
         for (int i = 0; i < terms_size; ++i) {
             Term term = terms_[i]; // get term
+
             // see if term is in map
             bool term_in_map = merge_terms_map.find(term) != merge_terms_map.end();
 
-            // if term is not in map, check if a permuted version is in map
-            if (!term_in_map)// && permuted_merge_) // if permuted merge is enabled
-                merge_permuted_term(merge_terms_map, term, term_in_map);
+//            // if term is not in map, check if a permuted version is in map
+//            if (!term_in_map && permuted_merge_) // if permuted merge is enabled
+//                merge_permuted_term(merge_terms_map, term, term_in_map);
 
             // add term to map
             if (!term_in_map)

@@ -36,32 +36,19 @@ void PQGraph::generate_linkages(bool recompute) {
     if (recompute)
         tmp_candidates_.clear(); // clear all prior candidates
 
-    vector<string> eq_keys = get_equation_keys();
     size_t num_subs = 0; // number of substitutions made
 
     omp_set_num_threads(nthreads_);
+    for (auto & [eq_name, equation] : equations_) { // iterate over equations in parallel
 
-    #pragma omp parallel for schedule(guided) default(none) shared(equations_, tmp_candidates_, eq_keys) \
-    firstprivate(recompute)
-    for (auto & eq_name : eq_keys) { // iterate over equations in parallel
-        Equation &equation = equations_[eq_name]; // get equation
-
-        // get all linkages of equation
-        linkage_set linkages = equation.generate_linkages(recompute);
-
-        // iterate over linkages and test if they are a valid candidate
-        for (const auto& contr : linkages) {
-            #pragma omp critical
-            {
-                // add linkage to all linkages
-                tmp_candidates_.insert(contr);
-            }
-        }
+        // get all linkages of equation and add to candidates
+        tmp_candidates_ += equation.generate_linkages(recompute);
 
     }
     omp_set_num_threads(1);
 
-    collect_scaling(); // collect scaling of all linkages
+    // collect scaling of all linkages
+    collect_scaling(true);
 
 }
 
@@ -238,10 +225,7 @@ void PQGraph::substitute(bool format_sigma) {
                 test_data[i] = make_pair(test_flop_map, linkage);
 
             } else { // if we didn't make a substitution, add linkage to ignore linkages
-# pragma omp critical
-                {
-                    ignore_linkages.insert(linkage);
-                }
+                ignore_linkages.insert(linkage);
             }
         } // end iterations over all linkages
         omp_set_num_threads(1);
@@ -434,16 +418,16 @@ void PQGraph::substitute(bool format_sigma) {
             // reapply substitutions to equations
             for (const auto & precon : all_linkages_[temp_type]) {
                 for (auto &[name, equation] : equations_) {
-                    if (equation.is_temp_equation_)
-                        continue;
+//                    if (equation.is_temp_equation_)
+//                        continue;
                     equation.substitute(precon, true);
                 }
             }
             // repeat for scalars
             for (const auto & precon : all_linkages_["scalars"]) {
                 for (auto &[name, equation] : equations_) {
-                    if (equation.is_temp_equation_)
-                        continue;
+//                    if (equation.is_temp_equation_)
+//                        continue;
                     equation.substitute(precon, true);
                 }
             }
@@ -819,7 +803,7 @@ size_t PQGraph::merge_terms() {
     #pragma omp parallel for reduction(+:num_fuse) default(none) shared(equations_, eq_keys)
     for (const auto &key: eq_keys) {
         Equation &eq = equations_[key];
-        if (eq.name() == "tmps") continue; // skip tmps equation
+        if (eq.name() == "tmps" || eq.name() == "reuse_tmps" || eq.name() == "scalars") continue; // skip tmps equation
         if (eq.assignment_vertex()->rank() == 0) continue; // skip if lhs vertex is scalar
         num_fuse += eq.merge_terms(); // merge terms with same rhs up to a permutation
     }

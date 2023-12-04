@@ -77,7 +77,9 @@ namespace pdaggerq {
         // indicates the vertex is not linked to another vertex
         virtual bool is_linked() const { return false; }
         virtual bool is_temp() const { return false; }
-        virtual size_t depth() const { return 1; }
+        virtual size_t depth() const {
+            return empty() ? 0 : 1;
+        }
 
         char type_ = '\0'; // type of the vertex (e.g. t: amplitude, i: integral, d: delta function, null: unknown)
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)
@@ -180,11 +182,11 @@ namespace pdaggerq {
          * @param ovstring string representation of the vertex
          * @param new_blk_string string representation of the blocks in this vertex
          */
-        void format_name(const string &ovstring, const string &new_blk_string);
+        void format_name();
         void update_name(const string &base_name = "") {
             if (!base_name.empty())
               base_name_ = base_name;
-            format_name(ovstring(), blk_string());
+            format_name();
         }
 
         /**
@@ -381,7 +383,7 @@ namespace pdaggerq {
          * check if vertex is initialized
          * @return boolean indicating whether the vertex is initialized
          */
-        virtual bool empty() const { return name_ == "Empty"; }
+        virtual bool empty() const { return name_.empty() || base_name_.empty(); }
 
         /**
          * check if linkage is a scalar

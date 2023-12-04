@@ -125,9 +125,6 @@ namespace pdaggerq {
         // compute flop and memory scaling of the term
         compute_scaling();
 
-        // set bottleneck flop and memory scaling
-        bottleneck_flop_ = flop_map_.begin()->first;
-
         // set comments
         comments_.push_back(to_string(coefficient_)); // add coefficient to vertex strings
         for (const auto &op : rhs_)
@@ -167,9 +164,6 @@ namespace pdaggerq {
 
         compute_scaling(); // compute flop and memory scaling of the term
 
-        // set bottleneck flop and memory scaling
-        bottleneck_flop_ = flop_map_.begin()->first;
-
     }
 
     Term::Term(const ConstVertexPtr &lhs_vertex, const vector<ConstVertexPtr> &vertices, double coefficient) {
@@ -189,9 +183,6 @@ namespace pdaggerq {
         }
 
         compute_scaling(); // compute flop and memory scaling of the term
-
-        // set bottleneck flop and memory scaling
-        bottleneck_flop_ = flop_map_.begin()->first;
 
         // set vertex strings
         comments_.push_back(to_string(coefficient_)); // add coefficient to vertex strings
@@ -266,14 +257,8 @@ namespace pdaggerq {
         else throw std::runtime_error("Invalid permutation type: " + std::to_string(perm_type_));
 
         // check if number of rhs is <= 1
-        if (arrangement.size() <= 1) {
-
-            bottleneck_flop_ = lhs_shape;
-
-            if (arrangement.size() == 1) {
-                term_linkage_ = as_link(std::make_shared<Vertex>("") * arrangement[0]);
-            }
-
+        if (arrangement.size() == 1) {
+            term_linkage_ = as_link(std::make_shared<Vertex>("") * arrangement[0]);
             return;
         }
 
@@ -281,7 +266,6 @@ namespace pdaggerq {
 
         // get the total linkage of the term with its flop and memory scalings
         term_linkage_ = Linkage::link(arrangement);
-        bottleneck_flop_ = term_linkage_->worst_flop();
         const auto &flop_scales   = term_linkage_->flop_history();
         const auto &mem_scales    = term_linkage_->mem_history();
 
@@ -300,13 +284,16 @@ namespace pdaggerq {
 
     void Term::reorder(bool recompute) { // reorder rhs in term
 
+        if (recompute)
+            request_update();
+
         /// Reorder by taking every permutation of vertex ordering and compute the scaling of the linkages.
         /// Keep permutation that minimizes the floating point cost of each linkage.
 
         // get number of rhs
         size_t n_vertices = rhs_.size();
 
-        if (is_optimal_ && !recompute) return; // if term is already optimal return
+        if (is_optimal_) return; // if term is already optimal return
         if (n_vertices <= 2) { // check if term has only one linkage or only one vertex; if so, compute scaling and return
             compute_scaling(recompute);
             return;
@@ -334,6 +321,7 @@ namespace pdaggerq {
 
             // create new arrangement
             std::vector<ConstVertexPtr> new_arrangement;
+            new_arrangement.reserve(n_vertices); // reserve space for new arrangement
             for (size_t i = 0; i < n_vertices; i++) {
                 new_arrangement.push_back(rhs_[current_permutation[i]]);
             }
@@ -759,18 +747,30 @@ namespace pdaggerq {
             comment = "// " + lhs_->str() + assign_str + frac_coeff + comment;
         }
 
-        if (Term::make_einsum) // turn '//' into '#'
-            std::replace(comment.begin(), comment.end(), '/', '#');
+        auto format_python = [](string& comment) {
+
+        };
+
+        // remove all quotes from comment
+        comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
+
+        // format comment for python if needed
+        if (Term::make_einsum){
+            // turn '//' into '#'
+            size_t pos = comment.find("//");
+            while (pos != std::string::npos) {
+                comment.replace(pos, 2, "#");
+                pos = comment.find("//", pos + 2);
+            }
+        }
 
         if (only_comment) return comment;
         if (only_flop) comment += "\n";
 
         // add comment with flop and memory scaling
-        if (rhs_.size() <= 1) {
+        if (term_linkage_->depth() <= 1) {
             comment += " // flops: " + lhs_->dim().str();
             comment += " | mem: " + lhs_->dim().str();
-            if (Term::make_einsum) // turn '//' into '#'
-                std::replace(comment.begin(), comment.end(), '/', '#');
             return comment; // if there is only one vertex, return comment (no scaling to add)
         }
 
@@ -780,10 +780,6 @@ namespace pdaggerq {
         const auto &flop_scales = term_linkage_->flop_history();
         const auto &mem_scales  = term_linkage_->mem_history();
         if (flop_scales.empty() && mem_scales.empty()) { // no scaling to add as an additional comment
-            // remove all quotes from comment
-            comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
-            if (Term::make_einsum) // turn '//' into '#'
-                std::replace(comment.begin(), comment.end(), '/', '#');
             return comment;
         }
 
@@ -791,29 +787,19 @@ namespace pdaggerq {
         for (const auto & flop : flop_scales)
             comment += flop.str() + " ";
 
-        if (!flop_scales.empty()) {
-            // remove last arrow (too lazy right now to do this elegantly)
-            comment.pop_back(); comment.pop_back(); comment.pop_back(); comment.pop_back();
-        }
+        // remove last space
+        if (!flop_scales.empty())
+            comment.pop_back();
+
 
         comment += " | mem: " + lhs_->dim().str() + assign_str;
         for (const auto & mem : mem_scales)
             comment += mem.str() + " ";
-        if (!mem_scales.empty()) {
-            // remove last arrow (too lazy right now to do this elegantly)
-            comment.pop_back(); comment.pop_back(); comment.pop_back(); comment.pop_back();
-        }
 
-        // remove all quotes from comment
-        comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
+        // remove last space
+        if (!mem_scales.empty())
+            comment.pop_back();
 
-        if (Term::make_einsum) { // turn '//' into '#'
-            size_t pos = comment.find("//");
-            while (pos != std::string::npos) {
-                comment.replace(pos, 2, "#");
-                pos = comment.find("//", pos + 2);
-            }
-        }
         return comment;
     }
 
@@ -862,28 +848,20 @@ namespace pdaggerq {
 
     bool Term::equivalent(const Term &term1, const Term &term2) {
 
-        // make sure both terms have exactly the same lhs
-        if (term1.lhs_->Vertex::operator!=(*term2.lhs_)) return false;
-
-        // check if terms have the same number of rhs vertices
-        if (term1.size() != term2.size()) return false;
-
-        // do the terms have the same kind of permutation?
-        bool same_permutation = term1.perm_type() == term2.perm_type(); // same permutation type?
-        if (same_permutation) {
-            if (term1.term_perms() != term2.term_perms())
-               return false; // same permutation pairs?
-        } else return false;
-
-        // do the terms have similar rhs?
+        // do the terms have the exact same rhs?
         bool similar_vertices = term1 == term2; // check if terms have similar rhs
 
         if (term1.size() > 1 && !similar_vertices) {
 
-            // check that the linkages are equivalent TODO: reimplement addition linkage
-            if (*(term1.lhs_ * term1.term_linkage_) == *(term1.lhs_ * term2.term_linkage_))
-                // if so, ensure that the lines are exactly the same
-                return true;
+            // check that the linkages are equivalent
+            LinkagePtr term1_link = as_link(term1.lhs_ * term1.term_linkage_);
+            LinkagePtr term2_link = as_link(term2.lhs_ * term2.term_linkage_);
+
+            if (*term1_link != *term2_link) return false;
+
+            // if so, ensure that the lines are exactly the same
+            term1_link->same_lines(*term2_link);
+            return true;
         }
 
         return similar_vertices;

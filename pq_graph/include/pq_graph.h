@@ -81,9 +81,6 @@ namespace pdaggerq {
         scaling_map flop_map_pre_; // map of flop scaling before reordering or before subexpression elimination
 
         scaling_map mem_map_pre_; // map of memory scaling before reordering or before subexpression elimination
-        shape bottleneck_flop_; // bottleneck flop scaling of all equation
-
-        shape bottleneck_mem_; // bottleneck memory scaling of all equation
 
         /// options for the builder
         size_t max_temps_ = -1; // maximum number of temporary rhs (-1 for no limit by overflow)

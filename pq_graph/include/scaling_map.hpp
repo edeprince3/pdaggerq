@@ -83,12 +83,22 @@ namespace pdaggerq {
 
         string str() const {
             string result;
-            result += "o" + to_string(o_.first + o_.second);
-            result += "v" + to_string(v_.first + v_.second);
-//            result += "a" + to_string(v_.first + o_.first);
-//            result += "b" + to_string(v_.second + o_.second);
-            if (L_ > 0) result += "L" + to_string(L_);
-            if (Q_ > 0) result += "Q" + to_string(Q_);
+            result.reserve(n_);
+
+            result += 'o';
+            result += to_string(o_.first + o_.second);
+
+            result += 'v';
+            result += to_string(v_.first + v_.second);
+
+            if (L_ > 0) {
+                result += 'L';
+                result += to_string(L_);
+            }
+            if (Q_ > 0) {
+                result += 'Q';
+                result += to_string(Q_);
+            }
             return result;
         }
 
