@@ -374,7 +374,7 @@ namespace pdaggerq {
             if (terms.empty())
                 continue;
 
-            if (eq_name == "scalars" || eq_name == "reuse_tmps")
+            if (eq_name == "scalars" || eq_name == "reuse")
                 continue;
 //            if (!equation.is_temp_equation_) {
 //                has_tmps = true;
@@ -430,11 +430,11 @@ namespace pdaggerq {
         }
 
         // print declarations for reuse_tmps
-        if (!equations_["reuse_tmps"].empty()){
+        if (!equations_["reuse"].empty()){
             sout << " #####  Shared  Operators  ##### " << endl << endl;
             sout << "std::map<std::string, TA::TArrayD> reuse_tmps_;" << endl;
-            sort_tmps(equations_["reuse_tmps"]);
-            sout << equations_["reuse_tmps"] << endl;
+            sort_tmps(equations_["reuse"]);
+            sout << equations_["reuse"] << endl;
             sout << " ### End of Shared Operators ### " << endl << endl;
         }
 
@@ -543,7 +543,7 @@ namespace pdaggerq {
         mem_map_.clear(); // clear memory scaling map
 
         for (auto & [name, equation] : equations_) { // iterate over equations
-            if (name == "reuse_tmps" && !include_reuse)
+            if (name == "reuse" && !include_reuse)
                 continue; // skip reuse_tmps equation (TODO: only include for analysis)
 
             // collect scaling for each equation

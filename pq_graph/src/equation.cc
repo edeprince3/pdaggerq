@@ -283,7 +283,7 @@ namespace pdaggerq {
         if (name_ == "scalars") { // if tmps, return
             test_flop_map += flop_map_; // add flop scaling map for whole equation
             return 0;
-        } else if (name_ == "reuse_tmps")
+        } else if (name_ == "reuse")
             return 0;
 
         // check if linkage is more expensive than current bottleneck

@@ -52,11 +52,11 @@ namespace pdaggerq {
         map<string, linkage_set> all_linkages_ = { // all intermediate linkages
                                                     {"scalars", linkage_set(256)},
                                                     {"tmps", linkage_set(256)},
-                                                    {"reuse_tmps", linkage_set(256)}
+                                                    {"reuse", linkage_set(256)}
                                                  };
 
         // counts of tmps and scalars
-        map<string, size_t> temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse_tmps", 0}};
+        map<string, size_t> temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse", 0}};
         linkage_set tmp_candidates_; // all possible linkages in the equations
 
         bool is_reordered_ = false; // whether the equations have been reordered
@@ -133,7 +133,7 @@ namespace pdaggerq {
             flop_map_.clear(); flop_map_init_.clear(); flop_map_pre_.clear();
             mem_map_.clear(); mem_map_init_.clear(); mem_map_pre_.clear();
 
-            temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse_tmps", 0}};
+            temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse", 0}};
             tmp_candidates_.clear();
             is_reordered_ = false;
             is_reused_ = false;

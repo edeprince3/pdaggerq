@@ -70,13 +70,13 @@ void PQGraph::substitute(bool format_sigma) {
     }
 
     /// ensure necessary equations exist
-    bool missing_temp_eq   = equations_.find("tmps")       == equations_.end();
-    bool missing_reuse_eq  = equations_.find("reuse_tmps") == equations_.end();
-    bool missing_scalar_eq = equations_.find("scalars")    == equations_.end();
+    bool missing_temp_eq   = equations_.find("tmps")    == equations_.end();
+    bool missing_reuse_eq  = equations_.find("reuse")   == equations_.end();
+    bool missing_scalar_eq = equations_.find("scalars") == equations_.end();
 
     vector<string> missing_eqs;
     if (missing_temp_eq)   missing_eqs.emplace_back("tmps");
-    if (missing_reuse_eq)  missing_eqs.emplace_back("reuse_tmps");
+    if (missing_reuse_eq)  missing_eqs.emplace_back("reuse");
     if (missing_scalar_eq) missing_eqs.emplace_back("scalars");
 
     // add missing equations
@@ -144,7 +144,7 @@ void PQGraph::substitute(bool format_sigma) {
 
     bool makeSub = true; // flag to make a substitution
     static size_t totalSubs = 0;
-    string temp_type = format_sigma ? "reuse_tmps" : "tmps"; // type of temporary to substitute
+    string temp_type = format_sigma ? "reuse" : "tmps"; // type of temporary to substitute
 //    temp_counts_[temp_type] = 0; // number of temporary rhs
     while (!tmp_candidates_.empty() && temp_counts_[temp_type] < max_temps_) {
         substitute_timer.start();
@@ -163,6 +163,9 @@ void PQGraph::substitute(bool format_sigma) {
         // populate with pairs of flop maps with linkage for each equation
         vector<pair<scaling_map, LinkagePtr>> test_data(n_linkages);
 
+        // make a copy of the equations
+        auto equations_test = equations_;
+
         /**
          * Iterate over all linkages in parallel and test if they can be substituted into the equations.
          * If they can, save the flop map for each equation.
@@ -170,7 +173,7 @@ void PQGraph::substitute(bool format_sigma) {
          */
         omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
-            ignore_linkages, equations_) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, format_sigma)
+            ignore_linkages, equations_test) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, format_sigma)
         for (int i = 0; i < n_linkages; ++i) {
             LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr()); // copy linkage
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
@@ -196,7 +199,10 @@ void PQGraph::substitute(bool format_sigma) {
 
             scaling_map test_flop_map; // flop map for test equation
             size_t numSubs = 0; // number of substitutions made
-            for (auto & [name, equation] : equations_) { // iterate over equations
+            for (auto & eq_pair : equations_test) { // iterate over equations
+
+                const string &eq_name = eq_pair.first; // get equation name
+                Equation &equation = eq_pair.second; // get equation
 
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
                 numSubs += equation.test_substitute(linkage, test_flop_map, allow_equality || is_scalar);
@@ -209,8 +215,8 @@ void PQGraph::substitute(bool format_sigma) {
             bool include_declaration = !is_scalar && !format_sigma;
 
             // test if we made a valid substitution
-            int thresh = !include_declaration ? 0 : 1;
-            if (numSubs > thresh ) {
+//            int thresh = !include_declaration ? 0 : 1;
+            if (numSubs > 0 ) {
 
                 // make term of tmp declaration
                 if (include_declaration) {
@@ -255,7 +261,6 @@ void PQGraph::substitute(bool format_sigma) {
             if (!keep && !makeSub && (format_sigma || is_scalar)) {
                 keep = true;
             }
-
 
             if (keep) {
                 bestPreCon = test_linkage; // save linkage
@@ -803,7 +808,7 @@ size_t PQGraph::merge_terms() {
     #pragma omp parallel for reduction(+:num_fuse) default(none) shared(equations_, eq_keys)
     for (const auto &key: eq_keys) {
         Equation &eq = equations_[key];
-        if (eq.name() == "tmps" || eq.name() == "reuse_tmps" || eq.name() == "scalars") continue; // skip tmps equation
+        if (eq.name() == "tmps" || eq.name() == "reuse" || eq.name() == "scalars") continue; // skip tmps equation
         if (eq.assignment_vertex()->rank() == 0) continue; // skip if lhs vertex is scalar
         num_fuse += eq.merge_terms(); // merge terms with same rhs up to a permutation
     }
