@@ -250,8 +250,11 @@ void PQGraph::substitute(bool format_sigma) {
             bool is_equiv = comparison == scaling_map::is_same;
             bool keep     = comparison == scaling_map::this_better;
 
-            if (!keep && is_equiv && allow_equality)
-                keep = true;
+            if (!keep && is_equiv && allow_equality) {
+                // if the scaling is the same, prefer linkage with less operations
+                if (test_linkage->depth() <= bestPreCon->depth())
+                    keep = true;
+            }
 
             if (!keep && !makeSub && (format_sigma || is_scalar)) {
                 keep = true;
