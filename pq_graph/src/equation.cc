@@ -295,7 +295,7 @@ namespace pdaggerq {
         /// iterate over terms and substitute
         size_t num_terms = terms_.size();
         size_t num_subs = 0; // number of substitutions
-        scaling_map eq_flop_map = flop_map_; // test memory scaling map
+        test_flop_map += flop_map_; // test memory scaling map
         for (int i = 0; i < num_terms; i++) {
             // skip term if linkage is not compatible
             if (!terms_[i].is_compatible(linkage)) continue;
@@ -303,22 +303,20 @@ namespace pdaggerq {
             // get term copy TODO: consider making a deep copy. Otherwise, new function entirely to prevent any copies
             Term term = terms_[i];
 
+            // It's faster to subtract the old scaling and add the new scaling than
+            // to recompute the scaling map from scratch
+            test_flop_map -= term.flop_map(); // subtract flop scaling map for term
+
             // substitute linkage in term copy
-            bool madeSub;
-            madeSub = term.substitute(linkage, allow_equality);
+            bool madeSub = term.substitute(linkage, allow_equality);
+
+            // update test flop scaling map.
+            test_flop_map += term.flop_map();
 
             // increment number of substitutions if substitution was successful
-            if (madeSub) {
-                ++num_subs; // increment number of substitutions
+            if (madeSub) ++num_subs; // increment number of substitutions
 
-                // update flop scaling map. It's faster to subtract the old scaling and add the new scaling than
-                // to recompute the scaling map from scratch
-                eq_flop_map -= terms_[i].flop_map();
-                eq_flop_map += term.flop_map();
-            }
         } // substitute linkage in term copy
-
-        test_flop_map += eq_flop_map; // add flop scaling map for whole equation
 
         return num_subs;
     }

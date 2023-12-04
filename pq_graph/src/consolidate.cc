@@ -130,6 +130,7 @@ void PQGraph::substitute(bool format_sigma) {
 //    }
 
     // initialize best flop map for all equations
+    collect_scaling(true);
     scaling_map best_flop_map = flop_map_;
 
     // set of linkages to ignore (start with large n_ops)
@@ -236,10 +237,7 @@ void PQGraph::substitute(bool format_sigma) {
         /**
          * Iterate over all test scalings and find the best flop map.
          */
-        for (auto &test_pair : test_data) {
-
-            scaling_map &test_flop_map = test_pair.first; // get flop map
-            LinkagePtr  &test_linkage  = test_pair.second; // get linkage
+        for (auto &[test_flop_map, test_linkage] : test_data) {
 
             // skip empty linkages
             if (test_linkage == nullptr) continue;
