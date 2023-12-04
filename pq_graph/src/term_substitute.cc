@@ -90,13 +90,13 @@ linkage_set Term::generate_linkages() const {
     // initialize vector of linkages
     linkage_set linkages;
 
-    auto &max_link = Term::max_linkages;
+    auto &max_link = Term::max_depth;
     const auto valid_op = [&max_link](const  vector<size_t> &subset) {
-        return subset.size() < max_linkages && subset.size() > 1;
+        return subset.size() <= max_depth && subset.size() > 1;
     };
 
     // iterate over all subsets
-    auto &bottleneck_flop = bottleneck_flop_;
+    shape bottleneck_flop = worst_flop();
     auto &rhs = rhs_;
     bool allow_nested = allow_nesting_; //false;
     const auto op = [&allow_nested, &linkages, &bottleneck_flop, &rhs](const vector<size_t> &subset) {
@@ -127,8 +127,9 @@ linkage_set Term::generate_linkages() const {
         }
 
         // add linkage to set if it has a scaling less than or equal to the bottleneck
-        if (this_linkage->worst_flop() <= bottleneck_flop)
+        if (this_linkage->worst_flop() <= bottleneck_flop) {
             linkages.insert(this_linkage);
+        }
 
     };
 
@@ -145,7 +146,7 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     if (size() <= 1) return false;
 
     // check if linkage is more expensive than the current bottleneck
-    if (linkage->worst_flop() > bottleneck_flop_) return false;
+    if (linkage->worst_flop() > worst_flop()) return false;
 
     // get total vector of linkage vertices (without expanding nested linkages)
     const vector<ConstVertexPtr> &link_vec = linkage->get_vertices(false, false);
@@ -184,7 +185,6 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
 
     // break out of loops if a substitution was made
     bool madeSub = false; // initialize boolean to track if substitution was made
-    bool swap_sign = false; // initialize boolean to track if sign of term should be swapped
 
     auto break_perm_op = [&](const vector<size_t> &subset) { return madeSub && !allow_equality; };
     auto break_subset_op = break_perm_op;
@@ -203,7 +203,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
         size_t num_set = subset.size();
         size_t num_link = link_vec.size();
         // skip subsets with invalid sizes
-        if (num_set > max_linkages || num_set <= 1 || num_set != link_vec.size())
+        if (num_set > max_depth || num_set <= 1 || num_set != link_vec.size())
             return false;
 
         // make a linkage of the first permutation of the subset
