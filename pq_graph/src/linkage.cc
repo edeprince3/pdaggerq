@@ -422,12 +422,12 @@ namespace pdaggerq {
         if (depth_ != other.depth_) return false;
 
         // check if left and right vertices are linked in the same way
-        if ( left_->is_linked() !=  other.left_->is_linked()) return false;
-        if (right_->is_linked() != other.right_->is_linked()) return false;
+        if ( left_->is_linked() ^  other.left_->is_linked()) return false;
+        if (right_->is_linked() ^ other.right_->is_linked()) return false;
 
         // check that scales are equal
-        if (flop_history_ != other.flop_history_) return false;
-        if (mem_history_  !=  other.mem_history_) return false;
+        if (flop_scale_ != other.flop_scale_) return false;
+        if (mem_scale_  !=  other.mem_scale_) return false;
 
         // check linkage maps
         if (disconnec_ !=  other.disconnec_) return false;
@@ -437,7 +437,7 @@ namespace pdaggerq {
         if (left_->is_linked()) {
             if (*as_link(left_) != *as_link(other.left_)) return false;
         } else {
-            if ( !left_->equivalent( *other.left_)) return false;
+            if ( !left_->Vertex::equivalent( *other.left_)) return false;
         }
 
         // check if right linkages are equivalent
@@ -445,7 +445,7 @@ namespace pdaggerq {
             if (*as_link(right_) != *as_link(other.right_))
                 return false;
         } else {
-            if ( !right_->equivalent( *other.right_))
+            if ( !right_->Vertex::equivalent( *other.right_))
                 return false;
         }
 

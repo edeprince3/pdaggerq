@@ -163,9 +163,6 @@ void PQGraph::substitute(bool format_sigma) {
         // populate with pairs of flop maps with linkage for each equation
         vector<pair<scaling_map, LinkagePtr>> test_data(n_linkages);
 
-        // make a copy of the equations
-        auto equations_test = equations_;
-
         /**
          * Iterate over all linkages in parallel and test if they can be substituted into the equations.
          * If they can, save the flop map for each equation.
@@ -173,7 +170,7 @@ void PQGraph::substitute(bool format_sigma) {
          */
         omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
-            ignore_linkages, equations_test) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, format_sigma)
+            ignore_linkages, equations_) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, format_sigma)
         for (int i = 0; i < n_linkages; ++i) {
             LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr()); // copy linkage
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
@@ -199,7 +196,7 @@ void PQGraph::substitute(bool format_sigma) {
 
             scaling_map test_flop_map; // flop map for test equation
             size_t numSubs = 0; // number of substitutions made
-            for (auto & eq_pair : equations_test) { // iterate over equations
+            for (auto & eq_pair : equations_) { // iterate over equations
 
                 const string &eq_name = eq_pair.first; // get equation name
                 Equation &equation = eq_pair.second; // get equation
