@@ -301,17 +301,24 @@ namespace pdaggerq {
         auto cend() const { return map_.cend(); }
 
         /**
-         * get worst scaling
+         * get worst scaling with non-zero value (usually first element in the map; sorted by descending scaling)
          */
         shape worst() const {
-            // worst scaling is the first element in the map with a non-zero occurrence
-            for (const auto &it: map_) {
-                if (it.second != 0)
-                    return it.first;
+            // while the first element in the map has zero occurrences, increment the iterator
+            if (map_.empty()) // return empty shape if map is empty
+                return {};
+
+            auto worst_pos = map_.begin();
+            auto worst_end = map_.end();
+            bool at_end = worst_pos == worst_end;
+            while (worst_pos->second == 0 && !at_end) {
+                worst_pos++;
+                at_end = worst_pos == worst_end;
             }
 
-            // if all scalings are zero or there are no scalings, return zero scaling
-            return shape();
+            if (at_end)
+                 return {}; // return empty shape if all scalings are zero
+            else return worst_pos->first; // return first non-zero scaling
         }
 
         /**

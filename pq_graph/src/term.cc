@@ -152,7 +152,7 @@ namespace pdaggerq {
             } else {
                 // add vertex to vector
                 VertexPtr op = make_shared<Vertex>(op_string); // create vertex
-                if (op->name().find("eri") != string::npos && op->name().find("_X_") == string::npos) {
+                if (op->name().find("eri") != string::npos && op->name().find(' ') == string::npos) {
                     // check if vertex is an eri and not a linkage.
                     if (op->permute_eri()) swap_sign(); // swap sign if eri is permuted with sign change
                 }
@@ -198,7 +198,9 @@ namespace pdaggerq {
 
         // initialize lhs vertex
         lhs_ = linkage;
-        rhs_ = linkage->get_vertices(false, false);
+
+        const list<ConstVertexPtr> &vertices = linkage->get_vertices(false, false);
+        rhs_ = vector<ConstVertexPtr>(vertices.begin(), vertices.end());
 
         // set permutation indices as empty
         term_perms_ = {};
@@ -584,6 +586,7 @@ namespace pdaggerq {
 
         // assignments of terms with negative coefficients need it to be added
         needs_coeff = (is_assignment_ && is_negative) || needs_coeff;
+//        needs_coeff = true;
 
         if (needs_coeff) {
             // add coefficient to string
@@ -657,6 +660,18 @@ namespace pdaggerq {
             if (tensors[i]->is_linked())
                  einsum_string += as_link(tensors[i])->str(true, false);
             else einsum_string += tensors[i]->name();
+
+            // add dimensions for tensor
+//            einsum_string += "[";
+//            for (const auto &line : tensors[i]->lines()) {
+//                einsum_string += line.type();
+//                if (line.has_blk())
+//                    einsum_string += line.block();
+//
+//
+//                if (line != tensors[i]->lines().back()) einsum_string += ",";
+//                else einsum_string += "]";
+//            }
 
             if (i != tensors.size() - 1) einsum_string += ", ";
             else einsum_string += ")";

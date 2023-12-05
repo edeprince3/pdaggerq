@@ -77,9 +77,8 @@ namespace pdaggerq {
         // indicates the vertex is not linked to another vertex
         virtual bool is_linked() const { return false; }
         virtual bool is_temp() const { return false; }
-        virtual size_t depth() const {
-            return empty() ? 0 : 1;
-        }
+        virtual size_t depth() const { return empty() ? 0 : 1; }
+        virtual size_t partial_depth() const { return empty() ? 0 : 1; }
 
         char type_ = '\0'; // type of the vertex (e.g. t: amplitude, i: integral, d: delta function, null: unknown)
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)

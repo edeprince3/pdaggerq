@@ -383,32 +383,36 @@ namespace pdaggerq {
 
             sort_tmps(equation); // sort tmps in equation
 
-            terms.front().is_assignment_ = true; // mark first term as assignment
+            if (eq_name != "tmps")
+                terms.front().is_assignment_ = true; // mark first term as assignment
             all_terms.insert(all_terms.end(), terms.begin(), terms.end());
         }
 
         // make set of all unique base names (ignore linkages and scalars)
-        set<string> base_names;
+        set<string> names;
         for (const auto &term: all_terms) {
             ConstVertexPtr lhs = term.lhs();
             if (!lhs->is_linked() && !lhs->is_scalar())
-                base_names.insert(lhs->base_name());
+                names.insert(lhs->name());
             for (const auto &op: term.rhs()) {
                 if (!op->is_linked() && !op->is_scalar())
-                    base_names.insert(op->base_name());
+                    names.insert(op->name());
             }
         }
 
         // add tmp declarations
-        base_names.insert("perm_tmps");
-        base_names.insert("tmps");
+        names.insert("perm_tmps");
+        names.insert("tmps");
 
         // declare a map for each base name
         sout << " #####  Declarations  ##### " << endl << endl;
-        for (const auto &base_name: base_names) {
-            sout << "// initialize as --> std::map<std::string, TA::TArrayD> " << base_name + "_" << ";" << endl;
+        for (const auto &name: names) {
+            if (!Term::make_einsum)
+                 sout << "// initialize -> ";
+            else sout << "## initialize -> ";
+            sout << name << ";" << endl;
         }
-        if (!equations_["tmps"].empty()) {
+        if (!equations_["tmps"].empty() && !Term::make_einsum) {
             sout << "TA::TArrayD reset_tmp();" << endl;
         }
         sout << endl;
@@ -423,7 +427,6 @@ namespace pdaggerq {
         // print scalar declarations
         if (!equations_["scalars"].empty()) {
             sout << " #####  Scalars  ##### " << endl << endl;
-            sout << "std::map<std::string, double> scalars_;" << endl << endl;
             sort_tmps(equations_["scalars"]);
             sout << equations_["scalars"] << endl;
             sout << " ### End of Scalars ### " << endl << endl;
@@ -432,7 +435,6 @@ namespace pdaggerq {
         // print declarations for reuse_tmps
         if (!equations_["reuse"].empty()){
             sout << " #####  Shared  Operators  ##### " << endl << endl;
-            sout << "std::map<std::string, TA::TArrayD> reuse_tmps_;" << endl;
             sort_tmps(equations_["reuse"]);
             sout << equations_["reuse"] << endl;
             sout << " ### End of Shared Operators ### " << endl << endl;
@@ -492,7 +494,10 @@ namespace pdaggerq {
                     VertexPtr vert = make_shared<Vertex>(lhs_name);
 
                     // create term
-                    Term newterm = Term(vert, {make_shared<Vertex>("reset_tmp")}, 1.0);
+                    Term newterm;
+                    if (!Term::make_einsum)
+                         newterm = Term(vert, {make_shared<Vertex>("reset_tmp")}, 1.0);
+                    else newterm = Term(vert, {make_shared<Vertex>("None")}, 1.0);
                     newterm.is_assignment_ = true;
                     newterm.comments() = {};
 

@@ -253,7 +253,7 @@ namespace pdaggerq {
             return 0;
 
         // check if linkage is more expensive than current bottleneck
-        if (linkage->worst_flop() > worst_flop()) return 0;
+//        if (linkage->flop_scale() > worst_flop()) return 0;
 
         /// iterate over terms and substitute
         size_t num_terms = terms_.size();
@@ -287,10 +287,10 @@ namespace pdaggerq {
             return 0;
 
         // check if linkage is more expensive than current bottleneck
-        if (linkage->worst_flop() > worst_flop()) {
-            test_flop_map += flop_map_; // add flop scaling map for whole equation
-            return 0; // return 0 substitutions
-        }
+//        if (linkage->flop_scale() > worst_flop()) {
+//            test_flop_map += flop_map_; // add flop scaling map for whole equation
+//            return 0; // return 0 substitutions
+//        }
 
         /// iterate over terms and substitute
         size_t num_terms = terms_.size();

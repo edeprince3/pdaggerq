@@ -253,6 +253,8 @@ namespace pdaggerq {
 
             lines_[i] = Line(lines[i]); // create line without a block
 
+            has_blk_ = has_blk_ || lines_[i].has_blk(); // check if line has a block
+
             // check if line is not type
             bool is_sigma = lines_[i].sig_;
             bool is_den = lines_[i].den_;
@@ -280,7 +282,7 @@ namespace pdaggerq {
         if (rank_ == 0) return;
 
         // format tensor block as a map if it is not an amplitude or if it has a block
-        if (type_ == 't' || has_blk_) {
+        if (type_ != 't' || has_blk_) {
             name_ += "[\"";
             name_ += dimstring();
             name_ += "\"]";

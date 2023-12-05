@@ -22,7 +22,19 @@
 
 cmake_minimum_required(VERSION 3.11)
 project(pdaggerq)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17 LANGUAGES C CXX)
+
+# allow for interprocedural generation if applicable
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT error)
+
+if(ipo_supported)
+    # set default cmake policy
+    set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    message(STATUS "IPO / LTO not supported: ${error}")
+endif()
 
 # find python and set variables for:
 #     the interpreter, include dirs, libraries, and version
@@ -52,7 +64,6 @@ find_package(OpenMP REQUIRED) #TODO: make this optional
 if(OpenMP_CXX_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
-
 
 
 # we are adding a private module _pdaggerq so we don't have a naming collision

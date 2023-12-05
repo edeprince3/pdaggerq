@@ -35,7 +35,6 @@ namespace pdaggerq {
     inline Linkage::Linkage(const ConstVertexPtr &left, const ConstVertexPtr &right, bool is_addition) : Vertex(),
                             left_(left), right_(right) {
 
-
         if (!left->is_linked() && !right->is_linked()) {
             // a binary linkage of pure vertices is associative (left and right are interchangeable)
             // sort left and right vertices by name to prevent duplicates
@@ -47,12 +46,6 @@ namespace pdaggerq {
         depth_  =  left_->depth();
         depth_ += right_->depth();
 
-        // populate the flop/mem history
-        flop_history_.reserve(depth_ + 1);
-        mem_history_.reserve(depth_ + 1);
-        all_vert_.reserve(depth_);
-        partial_vert_.reserve(depth_);
-
         if (left_->is_linked()){
 
             ConstLinkagePtr left_link = as_link(left_);
@@ -61,17 +54,15 @@ namespace pdaggerq {
             worst_flop_ = left_link->worst_flop_;
             
             // insert flop/mem history from left
-            flop_history_.insert(flop_history_.end(),
-                                 left_link->flop_history_.begin(), left_link->flop_history_.end());
-            mem_history_.insert(mem_history_.end(),
-                                 left_link->mem_history_.begin(), left_link->mem_history_.end());
+            flop_history_.assign(left_link->flop_history_.begin(), left_link->flop_history_.end());
+            mem_history_.assign(left_link->mem_history_.begin(), left_link->mem_history_.end());
 
             // copy all_vert
-            all_vert_.insert(all_vert_.end(), left_link->all_vert_.begin(), left_link->all_vert_.end());
+            all_vert_.assign(left_link->all_vert_.begin(), left_link->all_vert_.end());
 
             // if left is not a tmp, copy partial_vert
             if (!left_link->is_temp())
-                partial_vert_.insert(partial_vert_.end(), left_link->partial_vert_.begin(), left_link->partial_vert_.end());
+                partial_vert_.assign(left_link->partial_vert_.begin(), left_link->partial_vert_.end());
             // else just add left
             else partial_vert_.push_back(left_);
 
@@ -81,7 +72,6 @@ namespace pdaggerq {
             all_vert_.push_back(left_);
             partial_vert_.push_back(left_);
         }
-
 
         if (right_->is_linked()){
 
@@ -132,6 +122,9 @@ namespace pdaggerq {
         // add flop/mem scale to history
         flop_history_.push_back(flop_scale_);
         mem_history_.push_back( mem_scale_);
+
+        // update depth
+        depth_ = all_vert_.size();
 
         // update name
         name_ = base_name_;
@@ -243,8 +236,6 @@ namespace pdaggerq {
         // visited
         line_map line_populations;
         lines_.reserve(total_size);
-        disconnec_.reserve(total_size);
-        connec_.reserve(std::max(left_size, right_size));
 
         // populate right lines
         bool skip[right_size]; memset(skip, 0, right_size);
@@ -369,13 +360,10 @@ namespace pdaggerq {
     LinkagePtr Linkage::link(const vector<ConstVertexPtr> &op_vec) {
         uint_fast8_t op_vec_size = op_vec.size();
 
-        if (op_vec_size == 0) {
+        // cannot link less than two vertices
+        if (op_vec_size <= 1)
             throw invalid_argument("Linkage::link(): op_vec must have at least two elements");
-        } else if (op_vec_size == 1) {
-            // this is a hack to allow for the creation of a LinkagePtr from a single VertexPtr
-            // TODO: find a better way to do this
-            return as_link(make_shared<Vertex>("") * op_vec[0]);
-        }
+
 
         VertexPtr linkage = op_vec[0] * op_vec[1];
         for (uint_fast8_t i = 2; i < op_vec_size; i++)
@@ -464,14 +452,16 @@ namespace pdaggerq {
         if (depth_ != other.depth_) return {false, false};
 
         // extract total vector of vertices
-        const vector<ConstVertexPtr> &this_vert = get_vertices();
-        const vector<ConstVertexPtr> &other_vert = other.get_vertices();
+        const list<ConstVertexPtr> &this_vert = get_vertices();
+        const list<ConstVertexPtr> &other_vert = other.get_vertices();
 
         // check if the vertices are isomorphic and keep track of the number of permutations
         bool swap_sign = false;
-        for (size_t i = 0; i < depth_; i++) {
+        for (auto this_vert_pos = this_vert.begin(), other_vert_pos = other_vert.begin();
+             this_vert_pos != this_vert.end(); this_vert_pos++, other_vert_pos++) {
+
             bool odd_perm = false;
-            bool same_to_perm = is_isomorphic(*this_vert[i], *other_vert[i], odd_perm);
+            bool same_to_perm = is_isomorphic(**this_vert_pos, **other_vert_pos, odd_perm);
             if (!same_to_perm) return {false, false};
             if (odd_perm) swap_sign = !swap_sign;
         }
@@ -560,7 +550,7 @@ namespace pdaggerq {
         return output;
     }
 
-    vector<ConstVertexPtr> Linkage::get_vertices(bool regenerate, bool full_expand) const {
+    const list<ConstVertexPtr> &Linkage::get_vertices(bool regenerate, bool full_expand) const {
         return full_expand ? all_vert_ : partial_vert_;
     }
 

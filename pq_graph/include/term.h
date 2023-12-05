@@ -51,7 +51,7 @@ namespace pdaggerq {
 
             ConstVertexPtr lhs_; // vertex on the left hand side of the term
             ConstVertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
-            vector<ConstVertexPtr> rhs_; // rhs of the term
+            vector<ConstVertexPtr> rhs_; // rhs of the term TODO: replace with list. much faster for permuting
             mutable vector<string> comments_; // string representation of the original rhs
 
             /// scaling of the term (stored as a pair of integers, (num virtual, num occupied))
