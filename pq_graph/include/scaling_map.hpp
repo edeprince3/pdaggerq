@@ -46,12 +46,13 @@ namespace pdaggerq {
         uint_fast8_t n_ = 0; // number of lines
 
         //TODO: split this into two variables (oa, ob, va, vb); use a function to get their sum.
-        pair<uint_fast8_t, uint_fast8_t> o_{}; // pair of spin up/down occupied lines
-        pair<uint_fast8_t, uint_fast8_t> v_{}; // pair of spin up/down virtual lines
+        uint_fast8_t oa_{}, ob_{};
+        uint_fast8_t va_{}, vb_{};
+
         uint_fast8_t L_ = 0; // sigma index
         uint_fast8_t Q_ = 0; // density index
 
-        shape() : o_({0,0}), v_({0,0}), L_(0), Q_(0) {}
+        shape() : oa_(0), va_(0), ob_(0), vb_(0), L_(0), Q_(0) {}
 
         shape(const line_vector &lines) {
             for (const Line &line : lines)
@@ -59,13 +60,11 @@ namespace pdaggerq {
         }
 
         void operator+=(const shape & other) {
-            n_ += other.n_;
-            o_.first  += other.o_.first;
-            o_.second += other.o_.second;
-            v_.first  += other.v_.first;
-            v_.second += other.v_.second;
-            L_ += other.L_;
-            Q_ += other.Q_;
+            n_  += other.n_;
+            oa_ += other.oa_; ob_ += other.ob_;
+            vb_ += other.vb_; vb_ += other.vb_;
+            L_  += other.L_;
+            Q_  += other.Q_;
         }
 
         shape(const shape &other) = default;
@@ -75,7 +74,10 @@ namespace pdaggerq {
         ~shape() = default;
 
         bool operator==(const shape & other) const {
-            return n_ == other.n_ && o_ == other.o_ && v_ == other.v_ && L_ == other.L_ && Q_ == other.Q_;
+            return  n_ == other.n_
+                && oa_ == other.oa_ && ob_ == other.ob_
+                && va_ == other.va_ && vb_ == other.vb_
+                &&  L_ == other.L_  &&  Q_ == other.Q_;
         }
         bool operator!=(const shape & other) const {
             return !(*this == other);
@@ -86,10 +88,10 @@ namespace pdaggerq {
             result.reserve(n_);
 
             result += 'o';
-            result += to_string(o_.first + o_.second);
+            result += to_string(oa_ + ob_);
 
             result += 'v';
-            result += to_string(v_.first + v_.second);
+            result += to_string(va_ + vb_);
 
             if (L_ > 0) {
                 result += 'L';
@@ -106,10 +108,9 @@ namespace pdaggerq {
 
             /// priority: o_ + v_ + L_, v_ + L_, L_, v_, va, oa
 
-            size_t oa = o_.first, ob = o_.second, otot = oa + ob,
-                   va = v_.first, vb = v_.second, vtot = va + vb;
-            size_t other_oa = other.o_.first, other_ob = other.o_.second, other_otot = other_oa + other_ob,
-                   other_va = other.v_.first, other_vb = other.v_.second, other_vtot = other_va + other_vb;
+
+            uint_fast8_t this_o = oa_ + ob_, other_o = other.oa_ + other.ob_;
+            uint_fast8_t this_v = va_ + vb_, other_v = other.va_ + other.vb_;
 
             // prioritize total scaling over individual scaling factors
             if (n_ != other.n_)
@@ -118,8 +119,8 @@ namespace pdaggerq {
             /// if total scaling is the same, prioritize individual scaling factors
             if (Q_ + other.Q_ > 0) {
                 // prioritize sum of v_ and L_ and Q_ over individual L_ and v_ and Q_
-                uint_fast8_t sum = vtot + L_ + Q_;
-                uint_fast8_t other_sum = other_vtot + other.L_ + other.Q_;
+                uint_fast8_t sum = this_v + L_ + Q_;
+                uint_fast8_t other_sum = other_v + other.L_ + other.Q_;
                 if (sum != other_sum)
                     return sum < other_sum;
 
@@ -130,8 +131,8 @@ namespace pdaggerq {
 
             if (L_ + other.L_ > 0) {
                 // prioritize sum of v_ and L_ over individual L_ and v_
-                uint_fast8_t sum = vtot + L_;
-                uint_fast8_t other_sum = other_vtot + other.L_;
+                uint_fast8_t sum = this_v + L_;
+                uint_fast8_t other_sum = other_v + other.L_;
                 if (sum != other_sum)
                     return sum < other_sum;
 
@@ -141,19 +142,13 @@ namespace pdaggerq {
             }
 
             // prioritize v_ over o_
-            if (vtot != other_vtot) return vtot < other_vtot;
+            if (this_v != other_v) return this_v < other_v;
 
             // prioritize o over spin
-            if (otot != other_otot) return otot < other_otot;
-
-            // prioritize va over vb
-//            if (va != other_va) return va < other_va; // messes up printing TODO: fix this
-
-            // prioritize oa over ob
-//            if (oa != other_oa) return oa < other_oa;
+            if (this_o != other_o) return this_o < other_o;
 
             // equal or greater scaling, return false
-            return false;
+            return false; 
         }
         bool operator>( const shape & other) const {
             return other < *this;
@@ -174,14 +169,15 @@ namespace pdaggerq {
         }
 
         void operator-=(const shape & other) {
-            o_.first  = (o_.first  < other.o_.first)  ? 0 : o_.first  - other.o_.first;
-            o_.second = (o_.second < other.o_.second) ? 0 : o_.second - other.o_.second;
-            v_.first  = (v_.first  < other.v_.first)  ? 0 : v_.first  - other.v_.first;
-            v_.second = (v_.second < other.v_.second) ? 0 : v_.second - other.v_.second;
+            oa_  = (oa_  < other.oa_)  ? 0 : oa_  - other.oa_;
+            ob_  = (ob_  < other.ob_)  ? 0 : ob_  - other.ob_;
+            va_  = (va_  < other.va_)  ? 0 : va_  - other.va_;
+            vb_  = (vb_  < other.vb_)  ? 0 : vb_  - other.vb_;
+
             L_ = (L_ < other.L_) ? 0 : L_ - other.L_;
             Q_ = (Q_ < other.Q_) ? 0 : Q_ - other.Q_;
 
-            n_ = (o_.first + o_.second) + (v_.first + v_.second) + L_ + Q_;
+            n_ = (oa_ + ob_) + (va_ + vb_) + L_ + Q_;
         }
 
         shape operator-(const shape &other) const {
@@ -194,16 +190,14 @@ namespace pdaggerq {
             ++n_; // increment number of lines
 
             if (line.sig_) { ++L_; return; } // sigma
-            if (line.den_) { ++Q_; return;  } // density
+            if (line.den_) { ++Q_; return; } // density
 
             if (line.o_) { // occupied
-                if (line.a_) ++o_.first;
-                else ++o_.second; // default for no-spin is beta
-                return;
+                if (line.a_) ++oa_;
+                else ++ob_; // default for no-spin is beta
             } else { // virtual
-                if (line.a_) ++v_.first;
-                else ++v_.second; // default for no-spin is beta
-                return;
+                if (line.a_) ++va_;
+                else ++vb_; // default for no-spin is beta
             }
         }
 

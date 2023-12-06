@@ -113,11 +113,11 @@ linkage_set Term::generate_linkages() const {
         LinkagePtr this_linkage = Linkage::link(subset_vec);
 
         shape link_shape = this_linkage->shape_;
-        size_t link_occ = (size_t) link_shape.o_.first + (size_t) link_shape.o_.second;
-        size_t link_vir = (size_t) link_shape.v_.first + (size_t) link_shape.v_.second;
+        size_t link_occ = (size_t) link_shape.oa_ + (size_t) link_shape.ob_;
+        size_t link_vir = (size_t) link_shape.va_ + (size_t) link_shape.vb_;
 
-        size_t max_occ = (size_t) max_shape_.o_.first + (size_t) max_shape_.o_.second;
-        size_t max_vir = (size_t) max_shape_.v_.first + (size_t) max_shape_.v_.second;
+        size_t max_occ = (size_t) max_shape_.oa_ + (size_t) max_shape_.ob_;
+        size_t max_vir = (size_t) max_shape_.va_ + (size_t) max_shape_.vb_;
 
         if (max_occ + max_vir > 0) { // user has defined a maximum size
             if (link_occ > max_occ || link_vir > max_vir)

@@ -124,24 +124,24 @@ namespace pdaggerq {
             // set max occupied lines
             if (max_shape_map.find("o") != max_shape_map.end()) {
                 auto max_o = static_cast<size_t>(max_shape_map.at("o"));
-                Term::max_shape_.o_ = {max_o, 0};
+                Term::max_shape_.oa_ = max_o;
             }
             
             // set max virtual lines
             if (max_shape_map.find("v") != max_shape_map.end()) {
                 auto max_v = static_cast<size_t>(max_shape_map.at("v"));
-                Term::max_shape_.v_ = {max_v, 0};
+                Term::max_shape_.va_ = max_v;
             }
             
             // do not allow for both max_o and max_v to be 0
-            if (Term::max_shape_.o_.first == 0 && Term::max_shape_.v_.first == 0) {
+            if (Term::max_shape_.oa_ == 0 && Term::max_shape_.va_ == 0) {
                 throw invalid_argument("max_shape_map must cannot have both 'o' and 'v' set to 0");
             }
             
         } else {
             auto n_max = static_cast<size_t>(-1);
-            Term::max_shape_.o_ = {n_max, 0};
-            Term::max_shape_.v_ = {n_max, 0};
+            Term::max_shape_.oa_ = n_max;
+            Term::max_shape_.va_ = n_max;
         }
 
         if (options.contains("batched")) batched_ = options["batched"].cast<bool>();
