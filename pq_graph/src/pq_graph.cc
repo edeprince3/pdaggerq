@@ -85,10 +85,18 @@ namespace pdaggerq {
         }
 
         if( options.contains("max_depth")) {
-                Term::max_depth = (size_t) options["max_depth"].cast<int>();
-                if (Term::max_depth < 1ul) {
+                Term::max_depth_ = (size_t) options["max_depth"].cast<int>();
+                if (Term::max_depth_ < 1ul) {
                     cout << "WARNING: max_depth must be greater than 1. Setting to 2." << endl;
-                    Term::max_depth = 2ul;
+                    Term::max_depth_ = 2ul;
+                }
+        }
+
+        if( options.contains("max_depth")) {
+                Term::max_depth_ = (size_t) options["max_depth"].cast<int>();
+                if (Term::max_depth_ < 1ul) {
+                    cout << "WARNING: max_depth must be greater than 1. Setting to 2." << endl;
+                    Term::max_depth_ = 2ul;
                 }
         }
 
@@ -211,7 +219,7 @@ namespace pdaggerq {
         cout << "    max_temps: " << max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
 
-        cout << "    max_depth: " << Term::max_depth
+        cout << "    max_depth: " << Term::max_depth_
              << "  // maximum depth for chain of contractions (default: -1 for unlimited)" << endl;
 
         cout << "    max_shape: " << Term::max_shape_.str() << "// a map of maximum sizes for each line type in an intermediate (default: {o: -1, v: -1}, "
@@ -686,6 +694,12 @@ namespace pdaggerq {
     }
 
     void PQGraph::optimize() {
+
+        if (Term::allow_nesting_) {
+            // expand permutations in equations since we are not limiting the number of temps
+            expand_permutations();
+        }
+
         reorder(); // reorder contractions in equations
 
         if (allow_merge_)
@@ -696,12 +710,6 @@ namespace pdaggerq {
 
         if (format_sigma)
             substitute(); // apply substitutions again to find any new sigma vectors
-
-        if (Term::allow_nesting_) {
-            // expand permutations in equations since we are not limiting the number of temps
-            expand_permutations();
-            substitute();
-        }
 
         if (allow_merge_)
             merge_terms(); // merge similar terms
@@ -723,7 +731,8 @@ namespace pdaggerq {
 
         shape worst_scale; // worst cost (start with zero)
         for (const auto & linkage : tmp_candidates_) { // get worst cost
-            auto flop_scales = linkage->flop_history();
+            const auto &link_vec = linkage->to_vector();
+            auto [link_copy, flop_scales, mem_scales] = Linkage::link_and_scale(link_vec);
 
             shape contr_scale;
             for (auto & scale : flop_scales) {
@@ -735,7 +744,8 @@ namespace pdaggerq {
 
         size_t max_size = 0; // maximum n_ops of linkage found (start with 0)
         for (const auto & linkage : tmp_candidates_) { // iterate over all linkages
-            auto flop_scales = linkage->flop_history();
+            const auto &link_vec = linkage->to_vector();
+            auto [link_copy, flop_scales, mem_scales] = Linkage::link_and_scale(link_vec);
 
             shape contr_scale;
             for (auto & scale : flop_scales) {
@@ -743,10 +753,10 @@ namespace pdaggerq {
             }
 
             if (contr_scale >= worst_scale) {
-                if (linkage->depth_ >= max_size ) { // if the linkage is large enough,
+                if (link_vec.size() >= max_size ) { // if the linkage is large enough,
                     // some smaller linkages may be added, but the test set is somewhat random anyway
                     test_linkages.insert(linkage); // add linkage to the test set
-                    max_size = linkage->depth_;    // update maximum n_ops
+                    max_size = link_vec.size(); // update maximum n_ops
                 }
             }
         }

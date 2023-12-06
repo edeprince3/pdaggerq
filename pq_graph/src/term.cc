@@ -155,7 +155,7 @@ namespace pdaggerq {
             } else {
                 // add vertex to vector
                 VertexPtr op = make_shared<Vertex>(op_string); // create vertex
-                if (op->name().find("eri") != string::npos && op->name().find(' ') == string::npos) {
+                if (op->name().find("eri") != string::npos && op->name().find('\t') == string::npos) {
                     // check if vertex is an eri and not a linkage.
                     if (op->permute_eri()) swap_sign(); // swap sign if eri is permuted with sign change
                 }
@@ -265,9 +265,7 @@ namespace pdaggerq {
         /// add scaling from rhs
 
         // get the total linkage of the term with its flop and memory scalings
-        ConstLinkagePtr term_linkage = Linkage::link(arrangement);
-        const auto &flop_scales   = term_linkage->flop_history();
-        const auto &mem_scales    = term_linkage->mem_history();
+        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(arrangement);
 
         // populate flop and memory scaling maps; get bottleneck scaling
         for (shape flop_scale : flop_scales)
@@ -507,48 +505,6 @@ namespace pdaggerq {
         return output;
     }
 
-//    pair<int, int> Term::as_fraction(double coeff, double threshold) {
-//        /*
-//         * Represent the coefficient as a fraction
-//         * @param coeff coefficient to represent
-//         * @return string representation of the coefficient (i.e. 0.5 -> 1/2)
-//         */
-//
-//        // check if coefficient is an integer and return it as a string if it is
-//        if (coeff == (int) coeff) return {coeff, 1};
-//
-//        // assume the coefficient is 1 (it's not since we checked if it was an integer)
-//        int numerator = 1, denominator = 1;
-//
-//        // get the error of the assumed fraction
-//        double error = fabs(coeff - (int) coeff);
-//
-//        // store the best fraction
-//        pair<int, int> best_fraction = {1, 1};
-//
-//        size_t maxiter = 1000, iter = 0;
-//        while (error > threshold && iter < maxiter) {
-//
-//            // guess the next fraction
-//            double guess = numerator / (double) denominator;
-//
-//            // check if the guess is better than the current best fraction
-//            double new_error = fabs(guess - coeff);
-//            if (new_error < error) {
-//                best_fraction = {numerator, denominator};
-//                error = new_error;
-//            }
-//
-//            // increment the numerator or denominator
-//            if (coeff > guess) numerator++;
-//            else denominator++;
-//        }
-//
-//        // return the best fraction
-//        return best_fraction;
-//
-//    }
-
     string Term::einsum_str() const {
         string output;
 
@@ -782,8 +738,7 @@ namespace pdaggerq {
             return comment; // if there is only one vertex, return comment (no scaling to add)
         }
 
-        const auto &flop_scales = term_linkage_->flop_history();
-        const auto &mem_scales  = term_linkage_->mem_history();
+        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(rhs_);
         if (flop_scales.empty() && mem_scales.empty()) { // no scaling to add as an additional comment
             return comment;
         }
@@ -853,14 +808,27 @@ namespace pdaggerq {
 
     bool Term::equivalent(const Term &term1, const Term &term2) {
 
-        // do the terms have the exact same rhs?
+        // make sure both terms have exactly the same lhs
+        if (term1.lhs_->Vertex::operator!=(*term2.lhs_)) return false;
+
+        // check if terms have the same number of rhs vertices
+        if (term1.size() != term2.size()) return false;
+
+        // do the terms have the same kind of permutation?
+        bool same_permutation = term1.perm_type() == term2.perm_type(); // same permutation type?
+        if (same_permutation) {
+            if (term1.term_perms() != term2.term_perms())
+               return false; // same permutation pairs?
+        } else return false;
+
+        // do the terms have similar rhs?
         bool similar_vertices = term1 == term2; // check if terms have similar rhs
 
         if (term1.size() > 1 && !similar_vertices) {
 
             // check that the linkages are equivalent
-            LinkagePtr term1_link = as_link(term1.lhs_ * term1.term_linkage_);
-            LinkagePtr term2_link = as_link(term2.lhs_ * term2.term_linkage_);
+            LinkagePtr term1_link = as_link(term1.lhs_ + term1.term_linkage_);
+            LinkagePtr term2_link = as_link(term2.lhs_ + term2.term_linkage_);
 
             if (*term1_link != *term2_link) return false;
 

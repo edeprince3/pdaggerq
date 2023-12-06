@@ -51,7 +51,7 @@ namespace pdaggerq {
 
             ConstVertexPtr lhs_; // vertex on the left hand side of the term
             ConstVertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
-            vector<ConstVertexPtr> rhs_; // rhs of the term TODO: replace with list. much faster for permuting
+            vector<ConstVertexPtr> rhs_; // rhs of the term
             mutable vector<string> comments_; // string representation of the original rhs
             string original_pq_;
 
@@ -78,7 +78,7 @@ namespace pdaggerq {
             bool generated_linkages_ = false; // flag for if term has generated linkages (default is false)
             bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
 
-            static inline size_t max_depth = static_cast<size_t>(-1); // maximum number of rhs in a linkage
+            static inline size_t max_depth_ = static_cast<size_t>(-1); // maximum number of rhs in a linkage
             static inline shape max_shape_; // maximum shape of a linkage
             static inline bool allow_nesting_ = true;
             static inline bool permute_vertices_ = false;
@@ -310,7 +310,7 @@ namespace pdaggerq {
             /**
              * Get worst flop scaling
              */
-            shape worst_flop() const { return term_linkage()->worst_flop(); }
+            shape worst_flop() const { return flop_map_.worst(); }
 
             /******** Functions ********/
 
@@ -390,12 +390,8 @@ namespace pdaggerq {
                 // make sure both terms have exactly the same lhs
                 if (lhs_->Vertex::operator!=(*other.lhs_)) return false;
 
-                // make sure both terms have exactly the same eq
-                if (eq_->Vertex::operator!=(*other.eq_)) return false;
-
-                // make sure each rhs is exactly the same in order
-                for (size_t i = 0; i < size(); i++) {
-                    if (rhs_[i]->Vertex::operator!=(*other.rhs_[i]))
+                for (size_t i = 0; i < rhs_.size(); i++) {
+                    if (*rhs_[i] != *other.rhs_[i])
                         return false;
                 }
 
@@ -472,8 +468,6 @@ namespace pdaggerq {
              * get the term linkage
              */
             ConstLinkagePtr term_linkage() const {
-                if (rhs_.size() == 1)
-                    return as_link(make_shared<Vertex>() * rhs_[0]);
                 return term_linkage_;
             }
 
@@ -539,8 +533,27 @@ namespace pdaggerq {
     struct TermHash { // hash functor for finding similar terms
         size_t operator()(const Term& term) const {
 
-            // return hash of string as the hash of its linkage
-            return LinkageHash()(term.term_linkage());
+            string term_str;
+            // add vertex names to string and sorted line names to string
+            for (const auto& op : term) {
+                term_str += op->name();
+
+                vector<string> labels;
+                for (const auto& line : op->lines()) labels.push_back(line.label_);
+                sort(labels.begin(), labels.end());
+
+                for (const auto& label : labels) term_str += label;
+            }
+
+            // finally, add permutation type and permutation pairs
+            term_str += to_string(term.perm_type());
+            for (const auto& pair : term.term_perms()) {
+                term_str += pair.first;
+                term_str += pair.second;
+            }
+
+            // return hash of string
+            return hash<string>()(term_str);
         }
     };
 

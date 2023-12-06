@@ -253,7 +253,7 @@ namespace pdaggerq {
             return 0;
 
         // check if linkage is more expensive than current bottleneck
-//        if (linkage->flop_scale() > worst_flop()) return 0;
+        if (linkage->flop_scale() > worst_flop()) return 0;
 
         /// iterate over terms and substitute
         size_t num_terms = terms_.size();
@@ -287,10 +287,10 @@ namespace pdaggerq {
             return 0;
 
         // check if linkage is more expensive than current bottleneck
-//        if (linkage->flop_scale() > worst_flop()) {
-//            test_flop_map += flop_map_; // add flop scaling map for whole equation
-//            return 0; // return 0 substitutions
-//        }
+        if (linkage->flop_scale() > worst_flop()) {
+            test_flop_map += flop_map_; // add flop scaling map for whole equation
+            return 0; // return 0 substitutions
+        }
 
         /// iterate over terms and substitute
         size_t num_terms = terms_.size();
@@ -300,7 +300,7 @@ namespace pdaggerq {
             // skip term if linkage is not compatible
             if (!terms_[i].is_compatible(linkage)) continue;
 
-            // get term copy TODO: consider making a deep copy. Otherwise, new function entirely to prevent any copies
+            // get term copy
             Term term = terms_[i];
 
             // It's faster to subtract the old scaling and add the new scaling than
@@ -325,6 +325,7 @@ namespace pdaggerq {
 
         linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
 
+        omp_set_num_threads((int)nthreads_);
         #pragma omp parallel for schedule(guided) shared(terms_, all_linkages) default(none) firstprivate(compute_all)
         for (auto & term : terms_) { // iterate over terms
 
@@ -339,7 +340,8 @@ namespace pdaggerq {
 
             term.generated_linkages_ = true; // set term to have generated linkages
 
-        }
+        } // iterate over terms
+        omp_set_num_threads(1);
 
         return all_linkages;
     }
@@ -404,7 +406,6 @@ namespace pdaggerq {
     }
 
     size_t Equation::merge_terms() {
-
         if (is_temp_equation_) return 0; // don't merge temporary equations
 
         // map to store term counts, comments, and merged coefficients using a hash of the term

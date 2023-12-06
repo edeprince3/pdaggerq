@@ -25,7 +25,7 @@
 #define PDAGGERQ_linkage_H
 
 #include <set>
-#include <list>
+#include <unordered_set>
 #include "vertex.h"
 #include "scaling_map.hpp"
 #include "timer.h"
@@ -37,12 +37,12 @@
 using std::ostream;
 using std::string;
 using std::vector;
-using std::list;
 using std::map;
 using std::unordered_map;
 using std::shared_ptr;
 using std::make_shared;
 using std::set;
+using std::unordered_set;
 using std::pair;
 using std::make_pair;
 using std::to_string;
@@ -91,28 +91,16 @@ namespace pdaggerq {
 
     class Linkage : public Vertex, public std::enable_shared_from_this<Linkage> {
 
-        // mutex for thread safety
-        mutable std::mutex mtx_; // mutex for thread safety
-
         /// vertices in the linkage
         ConstVertexPtr left_, right_; // the left and right vertices of the linkage
 
         /// cost of linkage (flops and memory) as pair of vir and occ counts
-        vector<shape> flop_history_; // worst case within linkage
-        vector<shape> mem_history_; // worst case within linkage
-        shape worst_flop_{};
         shape flop_scale_{}; // flops
         shape mem_scale_{}; // memory
 
-        // forward are more efficient for insertion TODO: main pdaggerq should use these to avoid malloc
-        vector<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
+        mutable std::mutex mtx_; // mutex for thread safety
+        mutable vector<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
         mutable vector<ConstVertexPtr> link_vector_; // all non-intermediate vertices from linkages
-
-        /**
-         * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
-         * this function will populate the Vertex base class with the result of the contraction
-         */
-        void set_links();
 
     public:
         long id_ = -1; // id of the linkage (default to -1 if not set)
@@ -126,21 +114,14 @@ namespace pdaggerq {
         // indicates the vertex is linked to another vertex
         bool is_linked() const override { return true; }
 
-        /// vertices in the linkage
-        const ConstVertexPtr  &left() const { return  left_; }; // the lhs argument of the linkage
-        const ConstVertexPtr &right() const { return right_; }; // the rhs argument of the linkage
+            /// vertices in the linkage
 
-        // pointer to the parent linkage (if any)
-//            LinkagePtr left_parent_ = nullptr; //TODO: incorporate parent linkage to traverse the tree efficiently
-//            LinkagePtr right_parent_ = nullptr;
+            const ConstVertexPtr &left() const { return left_; }
+            const ConstVertexPtr &right() const { return right_; }
 
-        /// map of connections between lines
-        typedef pair<uint_fast8_t, uint_fast8_t> connec_pair;
-        typedef vector<connec_pair>      connec_type;
-        typedef vector<uint_fast8_t>  disconnec_type;
-
-        connec_type connec_;           // connections between lines
-        disconnec_type disconnec_;     // external indices of left and right vertices
+            /// map of connections between lines
+            std::set<pair<uint_fast8_t, uint_fast8_t>> int_connec_; // connections between lines
+            std::set<uint_fast8_t> l_ext_idx_, r_ext_idx_;     // external indices of left and right vertices
 
         /********** Constructors **********/
 
@@ -154,15 +135,21 @@ namespace pdaggerq {
         Linkage(const ConstVertexPtr &left, const ConstVertexPtr &right, bool is_addition);
 
         /**
-         * Sets propeties of the vertex data members
+         * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
+         * this function will populate the Vertex base class with the result of the contraction
          */
+        void set_links();
+
+        /**
+        * Sets propeties of the vertex data members
+        */
         void set_properties();
 
         /**
-         * return a set of internal lines using the left and right
+         * return vector of internal lines using the internal connection map
          * @return vector of internal lines
          */
-        set <Line> int_lines() const;
+        vector<Line> int_lines() const;
 
         /**
          * Replace the lines of the linkage
@@ -171,13 +158,9 @@ namespace pdaggerq {
          */
         void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override {
             // replace the lines of the vertices
-            auto *new_left = new Vertex(*left_), *new_right = new Vertex(*right_);
+            left_->deep_copy_ptr()->replace_lines(line_map);
+            right_->deep_copy_ptr()->replace_lines(line_map);
 
-            new_left->replace_lines(line_map);
-            new_right->replace_lines(line_map);
-
-            left_  = ConstVertexPtr(new_left);
-            right_ = ConstVertexPtr(new_right);
 
             // rebuild the linkage
             long id = id_;
@@ -256,7 +239,7 @@ namespace pdaggerq {
             if (!other.is_linked())
                 return false;
 
-            auto otherPtr = dynamic_cast<const Linkage *>(&other);
+            auto otherPtr = dynamic_cast<const Linkage*>(&other);
             return *this == *otherPtr;
         }
 
@@ -276,7 +259,7 @@ namespace pdaggerq {
          * Less than operator
          * @note compares flop scaling
          */
-        bool operator<(const Linkage &other) const {
+        bool operator<(const Linkage &other) const{
             return flop_scale_ < other.flop_scale_;
         }
 
@@ -284,7 +267,7 @@ namespace pdaggerq {
          * Greater than operator
          * @note compares flop scaling
          */
-        bool operator>(const Linkage &other) const {
+        bool operator>(const Linkage &other) const{
             return flop_scale_ > other.flop_scale_;
         }
 
@@ -292,7 +275,7 @@ namespace pdaggerq {
          * Less than or equal to operator
          * @note compares flop scaling
          */
-        bool operator<=(const Linkage &other) const {
+        bool operator<=(const Linkage &other) const{
             return flop_scale_ <= other.flop_scale_;
         }
 
@@ -300,42 +283,43 @@ namespace pdaggerq {
          * Greater than or equal to operator
          * @note compares flop scaling
          */
-        bool operator>=(const Linkage &other) const {
+        bool operator>=(const Linkage &other) const{
             return flop_scale_ >= other.flop_scale_;
         }
 
         /**
-            * convert the linkage to a vector of vertices in order
-            * @param result vector of vertices
-            * @note this function is recursive
-            */
-        void to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate = false) const;
+        * convert the linkage to a vector of vertices in order
+        * @param result vector of vertices
+        * @note this function is recursive
+        */
+        void to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const;
 
         /**
          * convert the linkage to a const vector of vertices
          * @return vector of vertices
          * @note this function is recursive
          */
-        vector<ConstVertexPtr> to_vector(bool regenerate = false) const;
+        const vector<ConstVertexPtr> &to_vector(bool regenerate = false, bool full_expand = false) const;
 
         /**
          * return a vector of vertices in order
          * @param regenerate whether to regenerate the vertices (deprecated; no-op)
          * @param full_expand whether to fully expand nested intermediates
          */
-         const vector<ConstVertexPtr> &vertices() const;
+         const vector<ConstVertexPtr> &vertices(bool regenerate = false) const;
 
         /**
          * Get connections
          * @return connections
          */
-        const connec_type &connections() const { return connec_; }
+        const set<pair<uint_fast8_t, uint_fast8_t>> &connections() const { return int_connec_; }
 
         /**
          * get external left or right indices
          * @return external left or right indices as a set
          */
-        const disconnec_type &disconnections() const { return disconnec_; }
+        const set<uint_fast8_t> &l_ext_idx() const { return l_ext_idx_; }
+        const set<uint_fast8_t> &r_ext_idx() const { return r_ext_idx_; }
 
 
         /**
@@ -362,9 +346,11 @@ namespace pdaggerq {
         void copy_misc(const ConstLinkagePtr& to_copy) { copy_misc(*to_copy); }
 
         /**
-         * get worst flop cost of linkage
+         * Returns a list of all flop and mem scales within a series of linkages and the linkage
+         * @param op_vec list of vertices
+         * @return the resulting linkage with the list of all flop and mem scales
          */
-        const shape &worst_flop() const { return worst_flop_; }
+        static tuple<ConstLinkagePtr, vector<shape>, vector<shape>> link_and_scale(const vector<ConstVertexPtr> &op_vec);
 
         /**
          * Get flop cost of linkage
@@ -372,19 +358,9 @@ namespace pdaggerq {
         const shape &flop_scale() const { return flop_scale_; }
 
         /**
-         * get history of flops from nested linkages
-         */
-        const vector<shape> &flop_history() const { return flop_history_; }
-
-        /**
          * Get memory cost of linkage
          */
         const shape &mem_scale() const { return mem_scale_; }
-
-        /**
-         * get history of memory from nested linkages
-         */
-        const vector<shape> &mem_history() const  { return mem_history_;  }
 
         /**
          * Create generic string representation of linkage
@@ -419,11 +395,19 @@ namespace pdaggerq {
         ostream &write_dot(ostream &os, const std::string &color = "black", bool reset = false) const;
 
         /**
+         * check if linkage is empty
+         * @return true if empty, false otherwise
+         */
+        bool empty() const override {
+            if (depth_ == 0) return true;
+            else return Vertex::empty();
+        }
+
+        /**
          * Get depth of linkage
          * @return depth of linkage
          */
-        size_t depth() const override { return depth_; }
-
+        size_t depth() const { return depth_; }
 
     }; // class linkage
 

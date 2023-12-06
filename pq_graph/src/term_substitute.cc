@@ -23,7 +23,9 @@
 
 #include <algorithm>
 #include <map>
+#include <cmath>
 #include <iostream>
+#include <cstring>
 #include <memory>
 #include "../include/term.h"
 
@@ -88,7 +90,7 @@ linkage_set Term::generate_linkages() const {
     // initialize vector of linkages
     linkage_set linkages;
 
-    auto max_link = Term::max_depth;
+    auto max_link = Term::max_depth_;
     const auto valid_op = [max_link](const  vector<size_t> &subset) {
         return subset.size() <= max_link && subset.size() > 1;
     };
@@ -104,15 +106,8 @@ linkage_set Term::generate_linkages() const {
         subset_vec.reserve(subset.size());
         for (size_t j: subset) {
             ConstVertexPtr vertex = rhs[j];
-
-            // fully expand nested linkages if disallowed
-            if (vertex->is_temp() && !allow_nested) {
-                for (const auto &subvert : as_link(vertex)->vertices()){
-                    subset_vec.push_back(subvert);
-                }
-            }
-
-            // otherwise add nested linkage to subset
+            if (vertex->is_temp() && !allow_nested)
+                return; // do not consider nested linkages
             else subset_vec.push_back(vertex);
         }
 
@@ -151,21 +146,22 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     if (size() <= 1) return false;
 
     // do not allow self substitution of intermediate linkages
-    if (lhs_->is_temp() && as_link(lhs_)->id_ == linkage->id_)
-        return false;
+    if (lhs_->is_temp()){
+        if(as_link(lhs_)->id_ == linkage->id_)
+            return false;
+    }
+
 
     // check if linkage is more expensive than the current bottleneck
     if (linkage->flop_scale() > worst_flop()) return false;
 
 
     // get total vector of linkage vertices (without expanding nested linkages)
-    const vector<ConstVertexPtr> &link_list = linkage->vertices();
-    const vector<ConstVertexPtr> &term_list = term_linkage_->vertices();
+    const vector<ConstVertexPtr> &link_list = linkage->to_vector();
+    const vector<ConstVertexPtr> &term_list = term_linkage_->to_vector();
 
     size_t num_ops = term_list.size(); // get number of rhs
     size_t num_link = link_list.size(); // get number of linkages in rhs
-
-    if (term_list.size() < link_list.size()) return false; // skip if number of vertices in rhs is less than linkage
 
     // create hash set for vertices
     std::unordered_set<ConstVertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual>
@@ -177,15 +173,9 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
 
     // add linkage vertices to hash set; if no equivalent vertex is found, return false
     for (const ConstVertexPtr &v : link_list) {
-        if (v->is_scalar())
+        if (vert_set.find(v) == vert_set.end()) {
             return false;
-
-        // find range of equivalent vertices
-        auto loc = vert_set.equal_range(v);
-
-        // if no equivalent vertex is found, return false
-        if ( loc.first == loc.second)
-            return false;
+        }
     }
 
     // if not all rhs were found, return false
@@ -219,40 +209,35 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     /// determine if a linkage could possibly be substituted
     auto valid_op = [&](const vector<size_t> &subset) {
 
+        size_t num_set = subset.size();
+
         // skip subsets with invalid sizes
-        size_t subsize = subset.size();
-        if ( subsize > max_depth || subsize <= 1 || subsize > num_link)
+        if (num_set > max_depth_ || num_set <= 1 || num_set != link_vec.size())
             return false;
 
         // make a linkage of the first permutation of the subset
         vector<ConstVertexPtr> subset_vec;
-        subset_vec.reserve(subset.size());
-        for (size_t i : subset) {
+        subset_vec.reserve(num_set);
+        for (size_t i : subset)
             subset_vec.push_back(rhs_[i]);
-        }
 
         // check if each vertex in the subset has an equivalent vertex in the linkage
         // create hash set for vertices
         std::unordered_set<ConstVertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual>
-            vert_set(subsize + num_link);
+            vert_set(num_set + num_link);
 
-        // add subset_vec to hash set (return false if scalar is found)
+        // add linkage to hash set (return false if scalar is found)
         for (const ConstVertexPtr &v : link_vec) {
             vert_set.insert(v);
         }
 
-        // add linkage vertices to hash set; if no equivalent vertex is found, return false
+        // add subset vertices to hash set; if no equivalent vertex is found, return false
         for (const ConstVertexPtr &v : subset_vec) {
             if (v->is_scalar())
                 return false;
-
-
-            // find range of equivalent vertices
-            auto loc = vert_set.equal_range(v);
-
-            // if no equivalent vertex is found, return false
-            if ( loc.first == loc.second)
+            if (vert_set.find(v) == vert_set.end()) {
                 return false;
+            }
         }
 
         // all tests passed
@@ -275,6 +260,10 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
 
         // make linkage from rhs with subset indices
         LinkagePtr this_linkage = Linkage::link(new_vertices);
+
+        // skip if linkage is more expensive than the bottleneck
+        if (this_linkage->flop_scale() > best_flop_map.worst())
+            return;
 
         // skip if linkage is not equivalent to input linkage
         if (*linkage != *this_linkage)
@@ -341,6 +330,7 @@ LinkagePtr Term::make_dot_products(size_t id) {
 
     // break out of loops if a substitution was made
     bool madeSub = false; // initialize boolean to track if substitution was made
+    bool swap_sign = false; // initialize boolean to track if sign of term should be swapped
     LinkagePtr scalar; // initialize scalar to track if a scalar was found
 
     // break out of permutation loop if a scalar was found

@@ -25,6 +25,7 @@
 #define PDAGGERQ_LINKAGE_SET_HPP
 #include "linkage.h"
 #include <functional>
+#include <unordered_set>
 
 using std::string;
 using std::hash;
@@ -36,33 +37,50 @@ namespace pdaggerq {
     */
     struct LinkageHash {
         size_t operator()(const ConstLinkagePtr &linkage_ptr) const {
-            constexpr SimilarVertexPtrHash sim_vert_hash;
-            constexpr std::hash<string> string_hasher;
 
-            // hash every vertex in the linkage
-            const vector<ConstVertexPtr> &vertices = linkage_ptr->to_vector();
+            const Linkage &linkage = *linkage_ptr;
 
-            string hash_str;
+            constexpr SimilarVertexPtrHash vertex_hash;
+            size_t total_vert_hash = vertex_hash(linkage.left());
+            total_vert_hash ^= vertex_hash(linkage.right());
 
-            // vertex hash
-            for (const ConstVertexPtr &vertex : vertices) {
-                if (vertex.get() != nullptr && !vertex->empty())
-                    hash_str += to_string(sim_vert_hash(vertex));
+            size_t connection_hash = 0;
+            size_t count = 0;
+            for (const auto &[leftidx, rightidx] : linkage.connections()) {
+                if (++count < 4) {
+                    // add pair to hash
+                    connection_hash ^= leftidx;
+                    connection_hash |= rightidx;
+                } else {
+                    // shift right by 4 bits
+                    // and add pair
+                    connection_hash >>= 4;
+                    connection_hash ^= leftidx;
+                    connection_hash ^= rightidx;
+                }
+
+                // shift left by 8 bits (uint8_t)
+                connection_hash <<= 8;
             }
 
-            // add connection hash
-            for (const auto& [left_idx, right_idx] : linkage_ptr->connec_){
-                hash_str += to_string(left_idx);
-                hash_str += to_string(right_idx);
+            size_t l_ext_hash = 0;
+            count = 0;
+            for (const auto & leftidx : linkage.l_ext_idx()){
+                if (++count < 4) {
+                    // add pair to hash
+                    l_ext_hash |= leftidx;
+                } else {
+                    // shift right by 4 bits
+                    // and add pair
+                    l_ext_hash >>= 4;
+                    l_ext_hash ^= leftidx;
+                }
+
+                // shift left by 8 bits (uint8_t)
+                l_ext_hash <<= 8;
             }
 
-            // add disconnection hash
-            for (const uint_fast8_t index: linkage_ptr->disconnec_){
-                hash_str += to_string(index);
-            }
-
-            // return string hash
-            return string_hasher(hash_str);
+            return total_vert_hash ^ connection_hash | l_ext_hash;
 
         }
     }; // struct linkage_hash
@@ -73,30 +91,23 @@ namespace pdaggerq {
         }
     }; // struct linkage_pred
 
-    struct LinkageOrder {
-        bool operator()(const ConstLinkagePtr &lhs, const ConstLinkagePtr &rhs) const {
-            return *lhs > *rhs && *lhs != *rhs;
-        }
-    }; // struct linkage_pred
-
     class linkage_set {
 
         mutable std::mutex mtx_; // mutex for thread safety
         typedef std::unordered_set<ConstLinkagePtr, LinkageHash, LinkagePred> linkage_container;
-//        typedef std::multiset<ConstLinkagePtr, LinkageOrder> linkage_container;
         linkage_container linkages_; // set of linkages
 
     public:
         /**
          * constructor
          */
-        linkage_set() = default;
+        linkage_set() : linkages_(256) {}
 
         /**
          * constructor with initial bucket n_ops
          * @param size initial n_ops of the set
          */
-        explicit linkage_set(size_t size) : linkages_(/*size*/) {}
+        explicit linkage_set(size_t size) : linkages_(size) {}
 
         /**
          * copy constructor
@@ -155,10 +166,7 @@ namespace pdaggerq {
          * @param linkage linkage to check
          * @return true if linkage is in set
          */
-        bool contains(const LinkagePtr &linkage) const {
-            auto equal_range = linkages_.equal_range(linkage);
-            return equal_range.first != equal_range.second;
-        }
+        bool contains(const LinkagePtr &linkage) const { return linkages_.find(linkage) != linkages_.end(); }
 
         /**
          * get the number of linkages in the set
@@ -213,11 +221,7 @@ namespace pdaggerq {
          * @param linkage linkage to get reference to
          * @return reference to linkage
          */
-        const ConstLinkagePtr &operator[](const ConstLinkagePtr &linkage) const {
-            auto loc = linkages_.equal_range(linkage);
-            return *loc.first;
-        }
-
+        const ConstLinkagePtr &operator[](const ConstLinkagePtr &linkage) const { return *linkages_.find(linkage); }
 
         /**
          * overload + operator
@@ -226,7 +230,7 @@ namespace pdaggerq {
          */
         linkage_set operator+(const linkage_set &other) const {
             linkage_set new_set = *this; // new linkage set
-            new_set.linkages_.insert(other.linkages_.begin(), other.linkages_.end());
+            for (const auto &linkage: other.linkages_) new_set.insert(linkage); // insert other set
             return new_set; // return new linkage set
         }
 
@@ -237,11 +241,7 @@ namespace pdaggerq {
          */
         linkage_set operator-(const linkage_set &other) const {
             linkage_set new_set = *this; // new linkage set
-            for (auto it = new_set.linkages_.begin(); it != new_set.linkages_.end();) {
-                if (other.linkages_.find(*it) != other.linkages_.end())
-                     it = new_set.linkages_.erase(it);
-                else it++;
-            }
+            for (const auto &linkage: other.linkages_) new_set.linkages_.erase(linkage); // remove other set
             return new_set; // return new linkage set
         }
 
@@ -264,11 +264,8 @@ namespace pdaggerq {
          */
         linkage_set &operator-=(const linkage_set &other) {
             std::lock_guard<std::mutex> lock(mtx_);
-            for (auto it = linkages_.begin(); it != linkages_.end();) {
-                if (other.linkages_.find(*it) != other.linkages_.end())
-                    it = linkages_.erase(it);
-                else it++;
-            }
+            for (const auto &linkage: other.linkages_)
+                linkages_.erase(linkage); // remove other set
             return *this; // return this
         }
 
