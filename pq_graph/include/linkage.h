@@ -419,15 +419,6 @@ namespace pdaggerq {
         ostream &write_dot(ostream &os, const std::string &color = "black", bool reset = false) const;
 
         /**
-         * check if linkage is empty
-         * @return true if empty, false otherwise
-         */
-        bool empty() const override {
-            if (depth_ == 0) return true;
-            else return Vertex::empty();
-        }
-
-        /**
          * Get depth of linkage
          * @return depth of linkage
          */

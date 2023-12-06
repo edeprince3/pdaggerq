@@ -223,34 +223,31 @@ namespace pdaggerq {
 
     }
 
-    void Term::compute_scaling(const vector<ConstVertexPtr>& arrangement, bool recompute) {
-
-        if (!needs_update_ && !recompute)
-            return; // if term does not need updating, return
+    pair<scaling_map, scaling_map> Term::compute_scaling(const vector<ConstVertexPtr>& arrangement, bool recompute) {
 
         // reset flop and memory scaling maps
-        flop_map_.clear(); // clear flop scaling map
-        mem_map_.clear(); // clear memory scaling map
+        scaling_map flop_map; // clear flop scaling map
+        scaling_map mem_map; // clear memory scaling map
 
         // helper function to add scaling with consideration of permutations
-        auto add_scaling = [this](shape new_shape) {
+        auto add_scaling = [this, &flop_map, &mem_map](shape new_shape) {
             // add scaling from permutation
             if (perm_type_ == 0) {
-                flop_map_[new_shape]++;
-                mem_map_[new_shape]++;
+                flop_map[new_shape]++;
+                mem_map[new_shape]++;
             } else if (perm_type_ == 1) {
                 long long int num_perms = (1 << term_perms_.size()); // number of permutations
-                flop_map_[new_shape] += num_perms;
-                mem_map_[new_shape] += num_perms;
+                flop_map[new_shape] += num_perms;
+                mem_map[new_shape] += num_perms;
             } else if (perm_type_ == 2) {
-                flop_map_[new_shape] += 2;
-                mem_map_[new_shape] += 2;
+                flop_map[new_shape] += 2;
+                mem_map[new_shape] += 2;
             } else if (perm_type_ == 3) {
-                flop_map_[new_shape] += 3;
-                mem_map_[new_shape] += 3;
+                flop_map[new_shape] += 3;
+                mem_map[new_shape] += 3;
             } else if (perm_type_ == 6) {
-                flop_map_[new_shape] += 6;
-                mem_map_[new_shape] += 6;
+                flop_map[new_shape] += 6;
+                mem_map[new_shape] += 6;
             } else throw std::runtime_error("Invalid permutation type: " + std::to_string(perm_type_));
         };
 
@@ -261,28 +258,24 @@ namespace pdaggerq {
 
         // check if number of rhs is <= 1
         if (arrangement.size() == 1) {
-            term_linkage_ = as_link(std::make_shared<Vertex>("") * arrangement[0]);
             add_scaling(arrangement[0]->dim());
-            return;
+            return {flop_map, mem_map};
         }
 
         /// add scaling from rhs
 
         // get the total linkage of the term with its flop and memory scalings
-        term_linkage_ = Linkage::link(arrangement);
-        const auto &flop_scales   = term_linkage_->flop_history();
-        const auto &mem_scales    = term_linkage_->mem_history();
+        ConstLinkagePtr term_linkage = Linkage::link(arrangement);
+        const auto &flop_scales   = term_linkage->flop_history();
+        const auto &mem_scales    = term_linkage->mem_history();
 
         // populate flop and memory scaling maps; get bottleneck scaling
-        for (shape flop_scale : flop_scales) {
+        for (shape flop_scale : flop_scales)
             add_scaling(flop_scale);
-        }
-        for (shape mem_scale : mem_scales) {
+        for (shape mem_scale : mem_scales)
             add_scaling(mem_scale);
-        }
 
-        // indicate that term no longer needs updating
-        needs_update_ = false;
+        return {flop_map, mem_map};
 
     }
 
@@ -290,6 +283,9 @@ namespace pdaggerq {
 
         if (recompute)
             request_update();
+
+        // recompute initial scaling if needed
+        compute_scaling();
 
         /// Reorder by taking every permutation of vertex ordering and compute the scaling of the linkages.
         /// Keep permutation that minimizes the floating point cost of each linkage.
@@ -299,7 +295,6 @@ namespace pdaggerq {
 
         if (is_optimal_) return; // if term is already optimal return
         if (n_vertices <= 2) { // check if term has only one linkage or only one vertex; if so, compute scaling and return
-            compute_scaling(recompute);
             return;
         }
 
@@ -315,13 +310,10 @@ namespace pdaggerq {
         // store best scaling as current scaling (scaling is performed in compute_scaling and called in constructor)
         scaling_map best_flop_map = flop_map_; // initialize the best flop scaling map
         scaling_map best_mem_map = mem_map_; // initialize the best memory scaling map
+        bool found_better = false;
 
         // iterate over all permutations of the rhs
         while (next_permutation(current_permutation, current_permutation + n_vertices)) { // get next permutation
-
-            // clear flop and memory scaling maps
-            flop_map_.clear(); // clear flop scaling map
-            mem_map_.clear(); // clear memory scaling map
 
             // create new arrangement
             std::vector<ConstVertexPtr> new_arrangement;
@@ -331,30 +323,28 @@ namespace pdaggerq {
             }
 
             // compute scaling for current permutation (populates flop and memory scaling maps)
-            needs_update_ = true; // set flag to update scaling
-            compute_scaling(new_arrangement, recompute);
+            auto [flop_map, mem_map] = compute_scaling(new_arrangement);
 
-            int scaling_check = flop_map_.compare(best_flop_map); // check if current permutation is better than best permutation
+            int scaling_check = flop_map.compare(best_flop_map); // check if current permutation is better than best permutation
 
             bool is_better = scaling_check == scaling_map::this_better; // check if current permutation is better than best permutation
             if (scaling_check == 0) { // if scaling is equal, check memory scaling
                 // check if current permutation is better than the best permutation in terms of memory scaling
-                is_better = mem_map_.compare(best_mem_map) == scaling_map::this_better; // check if current permutation is better than best permutation
+                is_better = mem_map.compare(best_mem_map) == scaling_map::this_better; // check if current permutation is better than best permutation
             }
 
             if (is_better) { // if current permutation is better than the best permutation
-                best_flop_map = flop_map_; // set best scaling to current permutation
-                best_mem_map = mem_map_; // set best scaling to current permutation
+                best_flop_map = flop_map; // set best scaling to current permutation
+                best_mem_map = mem_map; // set best scaling to current permutation
                 for (size_t i = 0; i < n_vertices; i++) { // copy current permutation to best permutation
                     best_permutation[i] = current_permutation[i];
                 }
+                found_better = true;
             } // else, current permutation is worse than the best permutation and does not need to be saved
-
         }
 
-        // clear best flop and memory scaling maps (no longer needed since best permutation is saved)
-        best_flop_map.clear(); // clear best flop scaling map
-        best_mem_map.clear(); // clear best memory scaling map
+        if (!found_better)
+            return;
 
         // reorder rhs
         vector<ConstVertexPtr> reordered_vertices; // initialize vector to store reordered rhs
@@ -366,14 +356,11 @@ namespace pdaggerq {
 
         // remove any empty vertices
         rhs_.erase(std::remove_if(rhs_.begin(), rhs_.end(), [](const ConstVertexPtr &vertex) {
-            return vertex->base_name().empty(); }), rhs_.end()
+            return vertex->empty(); }), rhs_.end()
         );
 
         // re-populate flop and memory scaling maps/bottlenecks and linkages
-
-        needs_update_ = true; // set needs update to true
-        compute_scaling(recompute); // compute scaling for reordered rhs
-
+        compute_scaling(true);
         is_optimal_ = true; // indicate that the term is optimal
     }
 

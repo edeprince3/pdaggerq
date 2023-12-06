@@ -300,7 +300,7 @@ namespace pdaggerq {
 
             // use the term to build the assignment vertex
             if (!name_is_formatted || equation_name.empty()) {
-                VertexPtr assigment = make_shared<Vertex>(*term.term_linkage_);
+                VertexPtr assigment = make_shared<Vertex>(*term.term_linkage());
                 assigment->sort();
                 assigment->update_name(assigment_name);
 

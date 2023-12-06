@@ -428,6 +428,9 @@ namespace pdaggerq {
                 return false;
         }
 
+//        if (!Vertex::equivalent(other))
+//            return false;
+
         // if all tests pass, return true
         return true;
     }

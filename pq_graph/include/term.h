@@ -69,9 +69,9 @@ namespace pdaggerq {
             perm_list term_perms_; // list of permutation indices
             size_t perm_type_ = 0; // default is no permutation
 
-    public:
-
             mutable ConstLinkagePtr term_linkage_; // linkage of the term
+
+    public:
 
             bool is_optimal_ = false; // flag for if term has optimal linkages (default is false)
             bool needs_update_ = true; // flag for if term needs to be updated (default is true)
@@ -310,7 +310,7 @@ namespace pdaggerq {
             /**
              * Get worst flop scaling
              */
-            shape worst_flop() const { return term_linkage_->worst_flop(); }
+            shape worst_flop() const { return term_linkage()->worst_flop(); }
 
             /******** Functions ********/
 
@@ -325,14 +325,27 @@ namespace pdaggerq {
              /**
               * Populate flop and memory scaling maps
               * @param perm permutation of the rhs
+              * @return a pair of the flop_scale and term linkage
               */
-            void compute_scaling(const vector<ConstVertexPtr> &arrangement, bool recompute = false);
+             pair<scaling_map, scaling_map> compute_scaling(const vector<ConstVertexPtr> &arrangement, bool recompute = true);
 
              /**
               * Populate flop and memory scaling maps with identity permutation
               */
             void compute_scaling(bool recompute = false){
-                compute_scaling(rhs_, recompute); // compute scaling of current rhs
+                if (!needs_update_ && !recompute)
+                     return; // if term does not need updating, return
+
+                auto [flop_map, mem_map] = compute_scaling(rhs_, recompute); // compute scaling of current rhs
+
+                flop_map_ = flop_map;
+                mem_map_  = mem_map;
+                if (rhs_.size() > 1)
+                     term_linkage_ = Linkage::link(rhs_);
+                else term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
+
+                // indicate that term no longer needs updating
+                needs_update_ = false;
             }
 
             /**
@@ -456,6 +469,15 @@ namespace pdaggerq {
             linkage_set generate_linkages() const;
 
             /**
+             * get the term linkage
+             */
+            ConstLinkagePtr term_linkage() const {
+                if (rhs_.size() == 1)
+                    return as_link(make_shared<Vertex>() * rhs_[0]);
+                return term_linkage_;
+            }
+
+            /**
              * find best scalar linkage for a given term
              * @param id id of the scalar linkage
              * @return best scalar linkage
@@ -518,7 +540,7 @@ namespace pdaggerq {
         size_t operator()(const Term& term) const {
 
             // return hash of string as the hash of its linkage
-            return LinkageHash()(term.term_linkage_);
+            return LinkageHash()(term.term_linkage());
         }
     };
 

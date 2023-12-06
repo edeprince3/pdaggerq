@@ -129,8 +129,13 @@ ostream &Equation::write_dot(ostream &os, const string &color, bool reset) {
         os << " ";
 
         // label vertices
-        for (const auto &vertex : term.term_linkage_->vertices()) {
-            if (vertex->base_name_.empty()) continue;
+        ConstLinkagePtr term_linkage = term.term_linkage();
+        if (term_linkage.get() == nullptr){
+            term.compute_scaling(true);
+            term_linkage = term.term_linkage();
+        }
+        for (const auto &vertex : term_linkage->vertices()) {
+            if (vertex == nullptr || vertex->empty()) continue;
 
             os << vertex->base_name_;
             if (!vertex->lines().empty()) os << "(";
@@ -141,14 +146,14 @@ ostream &Equation::write_dot(ostream &os, const string &color, bool reset) {
                 }
             }
             if (!vertex->lines().empty()) os << ")";
-            if (vertex != term.term_linkage_->vertices().back()) {
+            if (vertex != term.term_linkage()->vertices().back()) {
                 os << " ";
             }
         }
 
         os << "\";\n";
 
-        term.term_linkage_->write_dot(os, color, reset);
+        term.term_linkage()->write_dot(os, color, reset);
         os << padding << "}\n";
 
         if (last_graphname.empty()) {
