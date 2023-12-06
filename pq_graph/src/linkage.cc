@@ -60,7 +60,7 @@ namespace pdaggerq {
 
         // reserve space
         all_vert_.reserve(depth_);
-        partial_vert_.reserve(depth_);
+        link_vector_.reserve(depth_);
         flop_history_.reserve(depth_+1);
         mem_history_.reserve(depth_+1);
 
@@ -77,20 +77,13 @@ namespace pdaggerq {
             flop_history_.insert(flop_history_.end(), left_link->flop_history_.begin(), left_link->flop_history_.end());
             mem_history_.insert(mem_history_.end(), left_link->mem_history_.begin(), left_link->mem_history_.end());
 
-            // copy all_vert
+            // copy all_vertices
             all_vert_.insert(all_vert_.end(), left_link->all_vert_.begin(), left_link->all_vert_.end());
-
-            // if left is not a tmp, copy partial_vert
-            if (!left_link->is_temp())
-                partial_vert_.insert(partial_vert_.end(), left_link->partial_vert_.begin(), left_link->partial_vert_.end());
-            // else just add left
-            else partial_vert_.push_back(left_);
 
         } else if (!left_->empty() && left_ != nullptr){
             // left is a pure vertex
             // add left to all_vert and partial_vert
             all_vert_.push_back(left_);
-            partial_vert_.push_back(left_);
         }
 
         if (right_->is_linked()){
@@ -104,20 +97,13 @@ namespace pdaggerq {
             flop_history_.insert(flop_history_.end(), right_link->flop_history_.begin(), right_link->flop_history_.end());
             mem_history_.insert(mem_history_.end(), right_link->mem_history_.begin(), right_link->mem_history_.end());
 
-            // copy all_vert
+            // copy all vertices
             all_vert_.insert(all_vert_.end(), right_link->all_vert_.begin(), right_link->all_vert_.end());
-
-            // if right is not a tmp, copy partial_vert
-            if (!right_link->is_temp())
-                partial_vert_.insert(partial_vert_.end(), right_link->partial_vert_.begin(), right_link->partial_vert_.end());
-                // else just add right
-            else partial_vert_.push_back(right_);
 
         } else if (!right_->empty() && right_ != nullptr) {
             // right is a pure vertex
             // add right to all_vert and partial_vert
             all_vert_.push_back(right_);
-            partial_vert_.push_back(right_);
         }
         
         // update worst scale
@@ -128,7 +114,7 @@ namespace pdaggerq {
         flop_history_.push_back(flop_scale_);
         mem_history_.push_back( mem_scale_);
 
-        // update depth
+        // update depth (just in case)
         depth_ = all_vert_.size();
 
         // update name
@@ -459,8 +445,8 @@ namespace pdaggerq {
         if (depth_ != other.depth_) return {false, false};
 
         // extract total vector of vertices
-        const vector<ConstVertexPtr> &this_vert = get_vertices();
-        const vector<ConstVertexPtr> &other_vert = other.get_vertices();
+        const vector<ConstVertexPtr> &this_vert = vertices();
+        const vector<ConstVertexPtr> &other_vert = other.vertices();
 
         // check if the vertices are isomorphic and keep track of the number of permutations
         bool swap_sign = false;
@@ -557,8 +543,70 @@ namespace pdaggerq {
         return output;
     }
 
-    const vector<ConstVertexPtr> &Linkage::get_vertices(bool regenerate, bool full_expand) const {
-        return full_expand ? all_vert_ : partial_vert_;
+    inline void Linkage::to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate) const {
+
+        if (empty()) return;
+
+        std::function<void(const ConstVertexPtr&, vector<ConstVertexPtr>&, size_t&)> expand_vertex;
+
+        expand_vertex = [regenerate, &expand_vertex]
+                (const ConstVertexPtr& vertex, vector<ConstVertexPtr> &result, size_t &i) {
+
+            if (vertex->base_name_.empty()) return;
+
+            if (vertex->is_linked()) {
+                const ConstLinkagePtr link = as_link(vertex);
+
+                // check if left linkage is a tmp
+                if (link->is_temp()) {
+                    // if this is a tmp and we are not expanding, add it to the result and return
+                    result[i++] = link;
+                } else {
+
+                    // compute the left vertices recursively and save them
+                    for (const ConstVertexPtr &link_vertex: link->to_vector(regenerate))
+                        expand_vertex(link_vertex, result, i);
+                }
+
+            } else if (vertex.get() != nullptr && !vertex->empty())
+                result[i++] = vertex;
+        };
+
+        // get the left vertices
+        expand_vertex(left_, result, i);
+
+        // get the right vertices
+        expand_vertex(right_, result, i);
+    }
+
+    vector<ConstVertexPtr> Linkage::to_vector(bool regenerate) const {
+
+        // the vertices are not known
+        if (link_vector_.empty() || regenerate) {
+            // compute the vertices recursively and store the vertices in
+            // all_vert_ for next query
+
+            size_t i = 0;
+            auto result = std::vector<ConstVertexPtr>(depth_);
+            to_vector(result, i, regenerate);
+            if (i != depth_)
+                result.resize(i);
+
+            mtx_.lock();
+            link_vector_ = result;
+            mtx_.unlock();
+
+            return result;
+        }
+
+        // wait for the vertices to be computed
+        while (link_vector_.empty());
+
+        return link_vector_;
+    }
+
+    const vector<ConstVertexPtr> &Linkage::vertices() const {
+        return all_vert_;
     }
 
     void Linkage::clone_link(const Linkage &other) {
@@ -591,7 +639,7 @@ namespace pdaggerq {
         is_reused_ = other.is_reused_;
 
         all_vert_ = other.all_vert_;
-        partial_vert_ = other.partial_vert_;
+        link_vector_ = other.link_vector_;
     }
 
     Linkage::Linkage(const Linkage &other) {
@@ -647,7 +695,7 @@ namespace pdaggerq {
         is_reused_ = other.is_reused_;
 
         all_vert_ = std::move(other.all_vert_);
-        partial_vert_ = std::move(other.partial_vert_);
+        link_vector_ = std::move(other.link_vector_);
     }
 
     Linkage::Linkage(Linkage &&other) noexcept {

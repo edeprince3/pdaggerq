@@ -22,7 +22,6 @@
 //
 
 #include <set>
-#include <unordered_set>
 #include <iostream>
 #include <utility>
 #include "../include/vertex.h"

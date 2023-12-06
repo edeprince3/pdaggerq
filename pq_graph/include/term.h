@@ -310,7 +310,7 @@ namespace pdaggerq {
             /**
              * Get worst flop scaling
              */
-            shape worst_flop() const { return flop_map_.worst(); }
+            shape worst_flop() const { return term_linkage_->worst_flop(); }
 
             /******** Functions ********/
 

@@ -139,7 +139,7 @@ namespace pdaggerq {
                             vertex = non_const_vertex;
                         } else {
                             // expand the linkage and permute labels of each vertex
-                            const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                            const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                             // create a deep copy and permute labels
                             vector<ConstVertexPtr> non_const_expanded_vertices;
@@ -223,7 +223,7 @@ namespace pdaggerq {
                     vertex = non_const_vertex;
                 } else {
                     // expand the linkage and permute labels of each vertex
-                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                     // create a deep copy and permute labels
                     vector<ConstVertexPtr> non_const_expanded_vertices;
@@ -301,7 +301,7 @@ namespace pdaggerq {
                     vertex = non_const_vertex;
                 } else {
                     // expand the linkage and permute labels of each vertex
-                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                     // create a deep copy and permute labels
                     vector<ConstVertexPtr> non_const_expanded_vertices;
@@ -347,7 +347,7 @@ namespace pdaggerq {
                     vertex = non_const_vertex;
                 } else {
                     // expand the linkage and permute labels of each vertex
-                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                     // create a deep copy and permute labels
                     vector<ConstVertexPtr> non_const_expanded_vertices;
@@ -455,7 +455,7 @@ namespace pdaggerq {
                     vertex = non_const_vertex;
                 } else {
                     // expand the linkage and permute labels of each vertex
-                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                     // create a deep copy and permute labels
                     vector<ConstVertexPtr> non_const_expanded_vertices;
@@ -501,7 +501,7 @@ namespace pdaggerq {
                     vertex = non_const_vertex;
                 } else {
                     // expand the linkage and permute labels of each vertex
-                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                     // create a deep copy and permute labels
                     vector<ConstVertexPtr> non_const_expanded_vertices;
@@ -541,7 +541,7 @@ namespace pdaggerq {
                     vertex = non_const_vertex;
                 } else {
                     // expand the linkage and permute labels of each vertex
-                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                     // create a deep copy and permute labels
                     vector<ConstVertexPtr> non_const_expanded_vertices;
@@ -581,7 +581,7 @@ namespace pdaggerq {
                     vertex = non_const_vertex;
                 } else {
                     // expand the linkage and permute labels of each vertex
-                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                     // create a deep copy and permute labels
                     vector<ConstVertexPtr> non_const_expanded_vertices;
@@ -621,7 +621,7 @@ namespace pdaggerq {
                     vertex = non_const_vertex;
                 } else {
                     // expand the linkage and permute labels of each vertex
-                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->get_vertices();
+                    const vector<ConstVertexPtr> &expanded_vertices = as_link(non_const_vertex)->vertices();
 
                     // create a deep copy and permute labels
                     vector<ConstVertexPtr> non_const_expanded_vertices;

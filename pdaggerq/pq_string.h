@@ -27,8 +27,8 @@
 #include<cmath>
 #include<sstream>
 #include <map>
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
 
 namespace pdaggerq {
 

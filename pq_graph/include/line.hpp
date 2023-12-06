@@ -263,6 +263,23 @@ namespace pdaggerq {
         }
     }; // struct LinePtrEqual
 
+    struct SimilarLineHash {
+        uint_fast8_t operator()(const Line &line) const {
+
+            //  We do not care about the label for this hash function.
+            uint_fast8_t hash = 0;
+
+            // store each boolean as a bit in an integral type
+            hash = (hash << 1) | line.o_;
+            hash = (hash << 1) | line.a_;
+            hash = (hash << 1) | line.sig_;
+            hash = (hash << 1) | line.den_;
+
+            // return the hash (4 bits)
+            return hash;
+        }
+    }; // struct LineHash
+
     struct SimilarLineEqual {
         bool operator()(const Line &lhs, const Line &rhs) const {
             return lhs.equivalent(rhs);

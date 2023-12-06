@@ -27,6 +27,7 @@
 #include <vector>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include "line.hpp"
 #include "scaling_map.hpp"
 #include "../../pdaggerq/pq_tensor.h"
@@ -458,39 +459,19 @@ namespace pdaggerq {
      */
     struct SimilarVertexPtrHash {
         size_t operator()(const ConstVertexPtr &v) const {
-            constexpr LineHash sim_line_hasher;
+            constexpr SimilarLineHash sim_line_hasher;
             constexpr std::hash<string> string_hasher;
 
-            // check if the pointer is null
-            if (!v) return 0;
+            string hash_string = v->name();
 
-            // first hash the base_name of the vertex
-            size_t name_hash = string_hasher(v->base_name());
-
-            // then hash the lines of the vertex
-            uint8_t rank = v->rank_;
-            if (rank == 0)
-                return name_hash;
-
-            // hash the lines
-            size_t line_hash = 0;
-            for (uint8_t i = 0; i < rank; ++i) {
-
-                const Line &line = (*v)[i]; // get the line
-                if (i < 8) // before overflow, add bits to the hash (assumes 32-bit size_t)
-                    line_hash |= sim_line_hasher(line);
-                else
-                    // after overflow, shift right by  bits and use the xor operator
-                    line_hash >>= 2,
-                    line_hash ^= sim_line_hasher(line);
-
-                // sim_line_hasher always returns a unique 4-bit hash
-                line_hash <<= 4; // shifting is ideal
-
+            // write the vertex as a string with numeric labels
+            for (const auto &line : v->lines()) {
+                hash_string += to_string(sim_line_hasher(line)) + ',';
             }
 
-            // return the total hash
-            return name_hash ^ line_hash;
+            // hash the string
+            return string_hasher(hash_string);
+
         }
     };
 

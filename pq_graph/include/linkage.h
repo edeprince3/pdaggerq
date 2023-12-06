@@ -26,7 +26,6 @@
 
 #include <set>
 #include <list>
-#include <unordered_set>
 #include "vertex.h"
 #include "scaling_map.hpp"
 #include "timer.h"
@@ -44,22 +43,22 @@ using std::unordered_map;
 using std::shared_ptr;
 using std::make_shared;
 using std::set;
-using std::unordered_set;
 using std::pair;
 using std::make_pair;
 using std::to_string;
 using std::invalid_argument;
 using std::tuple;
 using std::static_pointer_cast;
+using std::dynamic_pointer_cast;
 
 namespace pdaggerq {
 
     // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
-    static LinkagePtr as_link(const VertexPtr &vertex)  { return static_pointer_cast<Linkage>(vertex); }
-    static VertexPtr as_vert(const LinkagePtr &linkage) { return static_pointer_cast<Vertex>(linkage); }
-    static ConstLinkagePtr as_link(const ConstVertexPtr &vertex)  { return static_pointer_cast<const Linkage>(vertex); }
-    static ConstVertexPtr as_vert(const ConstLinkagePtr &linkage) { return static_pointer_cast<const Vertex>(linkage); }
+    static LinkagePtr as_link(const VertexPtr &vertex)  { return dynamic_pointer_cast<Linkage>(vertex); }
+    static VertexPtr as_vert(const LinkagePtr &linkage) { return dynamic_pointer_cast<Vertex>(linkage); }
+    static ConstLinkagePtr as_link(const ConstVertexPtr &vertex)  { return dynamic_pointer_cast<const Linkage>(vertex); }
+    static ConstVertexPtr as_vert(const ConstLinkagePtr &linkage) { return dynamic_pointer_cast<const Vertex>(linkage); }
 
     /**
      * Perform linkage of two vertices by overload of * operator
@@ -107,7 +106,7 @@ namespace pdaggerq {
 
         // forward are more efficient for insertion TODO: main pdaggerq should use these to avoid malloc
         vector<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
-        vector<ConstVertexPtr> partial_vert_; // all non-intermediate vertices from linkages
+        mutable vector<ConstVertexPtr> link_vector_; // all non-intermediate vertices from linkages
 
         /**
          * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
@@ -306,11 +305,25 @@ namespace pdaggerq {
         }
 
         /**
+            * convert the linkage to a vector of vertices in order
+            * @param result vector of vertices
+            * @note this function is recursive
+            */
+        void to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate = false) const;
+
+        /**
+         * convert the linkage to a const vector of vertices
+         * @return vector of vertices
+         * @note this function is recursive
+         */
+        vector<ConstVertexPtr> to_vector(bool regenerate = false) const;
+
+        /**
          * return a vector of vertices in order
          * @param regenerate whether to regenerate the vertices (deprecated; no-op)
          * @param full_expand whether to fully expand nested intermediates
          */
-         const vector<ConstVertexPtr> &get_vertices(bool regenerate = false, bool full_expand = true) const;
+         const vector<ConstVertexPtr> &vertices() const;
 
         /**
          * Get connections
@@ -420,22 +433,14 @@ namespace pdaggerq {
          */
         size_t depth() const override { return depth_; }
 
-        /**
-         * Get partial depth of linkage (do not expand intermediates)
-         * @return depth of linkage
-         */
-        size_t partial_depth() const override {
-            return partial_vert_.size();
-        }
-
 
     }; // class linkage
 
     // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
-    static Linkage *as_link(Vertex *vertex) { return static_cast<Linkage *>(vertex); }
+    static Linkage *as_link(Vertex *vertex) { return dynamic_cast<Linkage *>(vertex); }
 
-    static Vertex *as_vert(Linkage *linkage) { return static_cast<Vertex *>(linkage); }
+    static Vertex *as_vert(Linkage *linkage) { return dynamic_cast<Vertex *>(linkage); }
 
 } // pdaggerq
 

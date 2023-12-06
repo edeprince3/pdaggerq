@@ -131,7 +131,6 @@ void PQGraph::substitute(bool format_sigma) {
 
     // initialize best flop map for all equations
     collect_scaling(true);
-    scaling_map best_flop_map = flop_map_;
 
     // set of linkages to ignore (start with large n_ops)
     linkage_set ignore_linkages(1024);
@@ -143,18 +142,17 @@ void PQGraph::substitute(bool format_sigma) {
 
     update_timer.stop();
 
-    bool makeSub = true; // flag to make a substitution
+    scaling_map best_flop_map = flop_map_;
     static size_t totalSubs = 0;
     string temp_type = format_sigma ? "reuse" : "tmps"; // type of temporary to substitute
-//    temp_counts_[temp_type] = 0; // number of temporary rhs
+
+    bool makeSub = false; // flag to make a substitution
     while (!tmp_candidates_.empty() && temp_counts_[temp_type] < max_temps_) {
         substitute_timer.start();
         if (verbose) {
             cout << "  Remaining Test combinations: " << test_linkages.size() << endl;
-//            cout << " Total Remaining combinations: " << tmp_candidates_.size() << endl;
             cout << endl << endl;
         }
-        if (verbose)
 
         makeSub = false; // reset flag
         bool allow_equality = true; // flag to allow equality in flop map
@@ -213,8 +211,8 @@ void PQGraph::substitute(bool format_sigma) {
             bool include_declaration = !is_scalar && !format_sigma;
 
             // test if we made a valid substitution
-//            int thresh = !include_declaration ? 0 : 1;
-            if (numSubs > 0 ) {
+            int thresh = !include_declaration ? 0 : 1;
+            if (numSubs > thresh ) {
 
                 // make term of tmp declaration
                 if (include_declaration) {
@@ -244,6 +242,9 @@ void PQGraph::substitute(bool format_sigma) {
             if (test_linkage->empty()) continue;
 
             bool is_scalar = test_linkage->is_scalar(); // check if linkage is a scalar
+
+            if (test_flop_map > flop_map_)
+                continue;
 
             // test if this is the best flop map seen
             int comparison = test_flop_map.compare(best_flop_map);
@@ -528,7 +529,7 @@ void PQGraph::sort_tmps(Equation &equation) {
                 }
 
                 // recurse into nested tmps
-                for (const auto &nested_op: link->get_vertices(false, false)) {
+                for (const auto &nested_op: link->to_vector(false)) {
                     test_vertex(nested_op, id, get_max);
                 }
             }
@@ -669,7 +670,7 @@ void PQGraph::remove_redundant_tmps() {// remove redundant contractions (only us
 //                if (vertex->is_temp()){
 //                    const LinkagePtr &link = as_link(vertex);
 //                    if (link->id_ == contraction->id_) {
-//                        const auto &new_verts = link->get_vertices();
+//                        const auto &new_verts = link->vertices();
 //                        new_rhs.insert(new_rhs.end(), new_verts.begin(), new_verts.end());
 //                        continue;
 //                    }

@@ -202,7 +202,7 @@ namespace pdaggerq {
         // initialize lhs vertex
         lhs_ = linkage;
 
-        rhs_ = linkage->get_vertices(false, false);
+        rhs_ = linkage->to_vector();
 
         // set permutation indices as empty
         term_perms_ = {};
@@ -232,37 +232,37 @@ namespace pdaggerq {
         flop_map_.clear(); // clear flop scaling map
         mem_map_.clear(); // clear memory scaling map
 
+        // helper function to add scaling with consideration of permutations
+        auto add_scaling = [this](shape new_shape) {
+            // add scaling from permutation
+            if (perm_type_ == 0) {
+                flop_map_[new_shape]++;
+                mem_map_[new_shape]++;
+            } else if (perm_type_ == 1) {
+                long long int num_perms = (1 << term_perms_.size()); // number of permutations
+                flop_map_[new_shape] += num_perms;
+                mem_map_[new_shape] += num_perms;
+            } else if (perm_type_ == 2) {
+                flop_map_[new_shape] += 2;
+                mem_map_[new_shape] += 2;
+            } else if (perm_type_ == 3) {
+                flop_map_[new_shape] += 3;
+                mem_map_[new_shape] += 3;
+            } else if (perm_type_ == 6) {
+                flop_map_[new_shape] += 6;
+                mem_map_[new_shape] += 6;
+            } else throw std::runtime_error("Invalid permutation type: " + std::to_string(perm_type_));
+        };
+
         /// add scaling from lhs
 
         shape lhs_shape = lhs_->shape_;
-
-        // add scaling from permutation
-        if (perm_type_ == 0) {
-            flop_map_[lhs_shape]++;
-            mem_map_[lhs_shape]++;
-        }
-        else if (perm_type_ == 1) {
-            long long int num_perms = (1 << term_perms_.size()); // number of permutations
-            flop_map_[lhs_shape] += num_perms;
-            mem_map_[lhs_shape]  += num_perms;
-        }
-        else if (perm_type_ == 2) {
-            flop_map_[lhs_shape] += 2;
-            mem_map_[lhs_shape]  += 2;
-        }
-        else if (perm_type_ == 3) {
-            flop_map_[lhs_shape] += 3;
-            mem_map_[lhs_shape]  += 3;
-        }
-        else if (perm_type_ == 6) {
-            flop_map_[lhs_shape] += 6;
-            mem_map_[lhs_shape]  += 6;
-        }
-        else throw std::runtime_error("Invalid permutation type: " + std::to_string(perm_type_));
+        add_scaling(lhs_shape);
 
         // check if number of rhs is <= 1
         if (arrangement.size() == 1) {
             term_linkage_ = as_link(std::make_shared<Vertex>("") * arrangement[0]);
+            add_scaling(arrangement[0]->dim());
             return;
         }
 
@@ -274,11 +274,11 @@ namespace pdaggerq {
         const auto &mem_scales    = term_linkage_->mem_history();
 
         // populate flop and memory scaling maps; get bottleneck scaling
-        for (auto flop_scale : flop_scales) {
-            flop_map_[flop_scale]++;
+        for (shape flop_scale : flop_scales) {
+            add_scaling(flop_scale);
         }
-        for (auto mem_scale : mem_scales) {
-             mem_map_[mem_scale]++;
+        for (shape mem_scale : mem_scales) {
+            add_scaling(mem_scale);
         }
 
         // indicate that term no longer needs updating
@@ -950,7 +950,7 @@ namespace pdaggerq {
             // check if vertex is a linkage
             if (vertex->is_linked()) {
                 // expand all operators in linkage
-                for (const auto & op : as_link(vertex)->get_vertices()) {
+                for (const auto & op : as_link(vertex)->vertices()) {
                     for (const auto & line : op->lines()) {
                         size_t count = line_map.count(line);
                         if (count == 0) {
