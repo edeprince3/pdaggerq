@@ -24,11 +24,53 @@
 #define PQ_STRING_H
 
 #include "pq_tensor.h"
+#include<cmath>
+#include<sstream>
 #include <map>
 #include <unordered_map>
 #include <memory>
 
 namespace pdaggerq {
+
+// work-around for finite precision of std::to_string
+template <typename T> std::string to_string_with_precision(const T a_value, const int n = 14) {
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
+}
+
+// determine minimum precision needed
+template <typename T> int minimum_precision(T factor) {
+    constexpr double epsilon = 1.0e-10;
+    double factor_abs = std::fabs((double)factor);
+
+    if (fabs(factor_abs - epsilon) < epsilon)
+        return 0;
+
+    int precision = 0;
+    if (factor_abs > 1.0) {
+        // divide by 10 until we get to less than 1.0
+        while (factor_abs > 1.0) {
+            factor_abs /= 10.0;
+            precision++;
+        }
+    } else {
+        // multiply by 10 until we get to greater than 1.0.
+        while (factor_abs < 1.0 && floor(factor_abs) != factor_abs) {
+            factor_abs *= 10.0;
+            precision++;
+        }
+
+        // now, 
+    }
+
+    // always have at least two digits
+    if (precision < 2)
+        precision = 2;
+
+    return precision;
+}
 
 class pq_string {
 

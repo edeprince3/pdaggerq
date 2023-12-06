@@ -125,9 +125,9 @@ linkage_set Term::generate_linkages() const {
         }
 
         // add linkage to set if it has a scaling less than or equal to the bottleneck
-//        if (this_linkage->flop_scale() <= bottleneck_flop) {
+        if (this_linkage->flop_scale() <= bottleneck_flop) {
             linkages.insert(this_linkage);
-//        }
+        }
 
     };
 
@@ -148,14 +148,12 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
         return false;
 
     // check if linkage is more expensive than the current bottleneck
-//    if (linkage->flop_scale() > worst_flop()) return false;
-
-//    TODO: nested temps do not work for some reason.
+    if (linkage->flop_scale() > worst_flop()) return false;
 
 
     // get total vector of linkage vertices (without expanding nested linkages)
-    const list<ConstVertexPtr> &link_list = linkage->get_vertices(false, false);
-    const list<ConstVertexPtr> &term_list = term_linkage_->get_vertices(false, false);
+    const vector<ConstVertexPtr> &link_list = linkage->get_vertices(false, false);
+    const vector<ConstVertexPtr> &term_list = term_linkage_->get_vertices(false, false);
 
     size_t num_ops = term_list.size(); // get number of rhs
     size_t num_link = link_list.size(); // get number of linkages in rhs
@@ -163,19 +161,19 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     if (term_list.size() < link_list.size()) return false; // skip if number of vertices in rhs is less than linkage
 
     // create hash set for vertices
-//    unordered_set<ConstVertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual>
-//            vert_set(num_ops + num_link);
-//
-//    // add rhs to hash set
-//    for (const ConstVertexPtr &v : term_list)
-//        vert_set.insert(v);
-//
-//    // add linkage vertices to hash set; if no equivalent vertex is found, return false
-//    for (const ConstVertexPtr &v : link_list) {
-//        if (vert_set.find(v) == vert_set.end()) {
-//            return false;
-//        }
-//    }
+    unordered_set<ConstVertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual>
+            vert_set(num_ops + num_link);
+
+    // add rhs to hash set
+    for (const ConstVertexPtr &v : term_list)
+        vert_set.insert(v);
+
+    // add linkage vertices to hash set; if no equivalent vertex is found, return false
+    for (const ConstVertexPtr &v : link_list) {
+        if (vert_set.find(v) == vert_set.end()) {
+            return false;
+        }
+    }
 
     // if not all rhs were found, return false
     return true;
@@ -197,15 +195,12 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     auto break_perm_op = [&](const vector<size_t> &subset) { return madeSub && !allow_equality; };
     auto break_subset_op = break_perm_op;
 
-    // get vector of vertices involved in the linkage (without expanding nested linkages)
-//    const list<ConstVertexPtr> &link_list = linkage->get_vertices(false, true);
-
     // initialize best flop scaling and memory scaling with rhs
     scaling_map best_flop_map = flop_map_;
     scaling_map best_mem_map = mem_map_;
     vector<ConstVertexPtr> best_vertices = rhs_;
 
-    const list<ConstVertexPtr> &link_list = linkage->get_vertices(false, false);
+    const vector<ConstVertexPtr> &link_list = linkage->get_vertices(false, false);
     size_t num_link = link_list.size(); // get number of linkages in rhs
 
     /// determine if a linkage could possibly be substituted
@@ -216,7 +211,8 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
             return false;
 
         // make a linkage of the first permutation of the subset
-        list<ConstVertexPtr> subset_list;
+        vector<ConstVertexPtr> subset_list;
+        subset_list.reserve(subset.size());
         for (size_t i : subset) {
             subset_list.push_back(rhs_[i]);
         }
@@ -226,24 +222,22 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
 
         if (num_set != num_link) return false; // skip if number of vertices in subset is less than linkage
 
-        //TODO: figure out why below doesn't work!
+        // check if each vertex in the subset has an equivalent vertex in the linkage
+        // create hash set for vertices
+        unordered_set<ConstVertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual>
+            vert_set(num_set + num_link);
 
-//        // check if each vertex in the subset has an equivalent vertex in the linkage
-//        // create hash set for vertices
-//        unordered_set<ConstVertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual>
-//            vert_set(num_set + num_link);
-//
-//        // add subset_list to hash set (return false if scalar is found)
-//        for (const ConstVertexPtr &v : subset_list) {
-//            vert_set.insert(v);
-//        }
-//
-//        // add linkage vertices to hash set; if no equivalent vertex is found, return false
-//        for (const ConstVertexPtr &v : subset_list) {
-//            if (vert_set.find(v) == vert_set.end()) {
-//                return false;
-//            }
-//        }
+        // add subset_list to hash set (return false if scalar is found)
+        for (const ConstVertexPtr &v : subset_list) {
+            vert_set.insert(v);
+        }
+
+        // add linkage vertices to hash set; if no equivalent vertex is found, return false
+        for (const ConstVertexPtr &v : subset_list) {
+            if (vert_set.find(v) == vert_set.end()) {
+                return false;
+            }
+        }
 
         // all tests passed
         return true;

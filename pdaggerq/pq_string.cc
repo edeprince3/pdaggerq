@@ -34,14 +34,6 @@
 
 namespace pdaggerq {
 
-// work-around for finite precision of std::to_string
-template <typename T> std::string to_string_with_precision(const T a_value, const int n = 14) {
-    std::ostringstream out;
-    out.precision(n);
-    out << std::fixed << a_value;
-    return out.str();
-}
-
 // constructor
 pq_string::pq_string(const std::string &vacuum_type){
 
@@ -152,7 +144,10 @@ void pq_string::print() {
     printf("//     ");
     printf("%c", sign > 0 ? '+' : '-');
     printf(" ");
-    printf("%20.14lf", fabs(factor));
+
+    int precision = minimum_precision(factor);
+    std::string factor_str = to_string_with_precision(fabs(factor), precision);
+    printf("%s", factor_str.c_str());
     printf(" ");
 
     if ( !permutations.empty() ) {
@@ -297,8 +292,9 @@ std::vector<std::string> pq_string::get_string() {
     }else {
         tmp = "-";
     }
-    //my_string.push_back(tmp + std::to_string(fabs(factor)));
-    my_string.push_back(tmp + to_string_with_precision(fabs(factor), 14));
+
+    int precision = minimum_precision(factor);
+    my_string.push_back(tmp + to_string_with_precision(fabs(factor), precision));
 
     if ( !permutations.empty() ) {
         // should have an even number of symbols...how many pairs?

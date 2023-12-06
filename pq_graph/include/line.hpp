@@ -218,18 +218,18 @@ namespace pdaggerq {
 
             uint_fast16_t hash = 0;
 
-            // we can store each boolean as a bit in an integral type
+            // we can store each boolean as a bit in an integral type (4 bits)
             hash = (hash << 1) | line.o_;
             hash = (hash << 1) | line.a_;
             hash = (hash << 1) | line.sig_;
             hash = (hash << 1) | line.den_;
 
-            // because a char is 8 bits, we shift by 8 and take the o ring
+            // because a char is 8 bits, we shift by 8 (8 bits; 12 total)
             hash = (hash << 8) | line.label_[0];
 
-            // if the label is longer than 1 character, we only shift by 4 and take the next character
-            if (line.size() > 1)
-                hash = (hash << 4) | line.label_[1];
+            // if the label is longer than 1 character,
+            // we only shift by 4 and consider the last character (which can be the same as the first)
+            hash = (hash << 4) | line.label_.back(); // (4 bits; 16 total)
 
             // return the hash (16 bits total)
             return hash;
@@ -262,23 +262,6 @@ namespace pdaggerq {
             return *lhs == *rhs;
         }
     }; // struct LinePtrEqual
-
-    struct SimilarLineHash {
-        uint_fast8_t operator()(const Line &line) const {
-
-            //  We do not care about the label for this hash function.
-            uint_fast8_t hash = 0;
-
-            // store each boolean as a bit in an integral type
-            hash = (hash << 1) | line.o_;
-            hash = (hash << 1) | line.a_;
-            hash = (hash << 1) | line.sig_;
-            hash = (hash << 1) | line.den_;
-
-            // return the hash (4 bits)
-            return hash;
-        }
-    }; // struct LineHash
 
     struct SimilarLineEqual {
         bool operator()(const Line &lhs, const Line &rhs) const {

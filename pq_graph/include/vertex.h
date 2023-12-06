@@ -458,7 +458,7 @@ namespace pdaggerq {
      */
     struct SimilarVertexPtrHash {
         size_t operator()(const ConstVertexPtr &v) const {
-            constexpr SimilarLineHash sim_line_hasher;
+            constexpr LineHash sim_line_hasher;
             constexpr std::hash<string> string_hasher;
 
             // check if the pointer is null
@@ -503,7 +503,7 @@ namespace pdaggerq {
             if (!lhs || !rhs) return false;
 
             // check equivalency of the Vertices
-            return lhs->Vertex::equivalent(*rhs);
+            return lhs->equivalent(*rhs);
         }
     };
 

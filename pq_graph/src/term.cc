@@ -130,6 +130,9 @@ namespace pdaggerq {
         for (const auto &op : rhs_)
             comments_.push_back(op->str());
 
+        for (const std::string & str : pq_str->get_string())
+            original_pq_ += str + ' ';
+
     }
 
     Term::Term(const string &name, const vector<string> &vertex_strings)
@@ -199,8 +202,7 @@ namespace pdaggerq {
         // initialize lhs vertex
         lhs_ = linkage;
 
-        const list<ConstVertexPtr> &vertices = linkage->get_vertices(false, false);
-        rhs_ = vector<ConstVertexPtr>(vertices.begin(), vertices.end());
+        rhs_ = linkage->get_vertices(false, false);
 
         // set permutation indices as empty
         term_perms_ = {};
@@ -394,7 +396,7 @@ namespace pdaggerq {
             else output += " += ";
 
             // get absolute value of coefficient
-            double abs_coeff = stod(to_string(fabs(coefficient_)));
+            double abs_coeff = fabs(coefficient_);
 
             // if the coefficient is not 1, add it to the string
             bool added_coeff = false;
@@ -409,12 +411,8 @@ namespace pdaggerq {
                 if (is_assignment_ && is_negative)
                      output += "-";
 
-//                output += to_string(abs_coeff);
-                auto [numerator, denominator] = as_fraction(abs_coeff);
-                if (denominator == 1)
-                     output += to_string(numerator) + ".0";
-                else output += to_string(numerator) + ".0/" + to_string(denominator) + ".0";
-
+                int precision = minimum_precision(abs_coeff);
+                output += to_string_with_precision(abs_coeff, precision);
 
                 // add multiplication sign if there are rhs vertices
                 if (!rhs_.empty())
@@ -441,10 +439,8 @@ namespace pdaggerq {
             if (format_dot){
                 // if lhs vertex rank is zero but has more than one vertex, format for dot product
                 if (!added_coeff) {
-                    auto [numerator, denominator] = as_fraction(abs_coeff);
-                    if (denominator == 1)
-                         output +=  to_string(numerator) + ".0";
-                    else output += to_string(numerator) + ".0/" + to_string(denominator) + ".0";
+                    int precision = minimum_precision(abs_coeff);
+                    output += to_string_with_precision(abs_coeff, precision);
                     output += " * ";
                 }
                 output += "dot(";
@@ -515,53 +511,56 @@ namespace pdaggerq {
         }
 
         // ensure the last character is a semicolon (might not be there if no rhs vertices)
-        if (output.back() != ';')
+        if (output.back() != ';' && !Term::make_einsum)
             output += ";";
+        else if (output.back() == ';'){
+            output.pop_back();
+        }
 
         return output;
     }
 
-    pair<int, int> Term::as_fraction(double coeff, double threshold) {
-        /*
-         * Represent the coefficient as a fraction
-         * @param coeff coefficient to represent
-         * @return string representation of the coefficient (i.e. 0.5 -> 1/2)
-         */
-
-        // check if coefficient is an integer and return it as a string if it is
-        if (coeff == (int) coeff) return {coeff, 1};
-
-        // assume the coefficient is 1 (it's not since we checked if it was an integer)
-        int numerator = 1, denominator = 1;
-
-        // get the error of the assumed fraction
-        double error = fabs(coeff - (int) coeff);
-
-        // store the best fraction
-        pair<int, int> best_fraction = {1, 1};
-
-        size_t maxiter = 1000, iter = 0;
-        while (error > threshold && iter < maxiter) {
-
-            // guess the next fraction
-            double guess = numerator / (double) denominator;
-
-            // check if the guess is better than the current best fraction
-            double new_error = fabs(guess - coeff);
-            if (new_error < error) {
-                best_fraction = {numerator, denominator};
-                error = new_error;
-            }
-
-            // increment the numerator or denominator
-            if (coeff > guess) numerator++;
-            else denominator++;
-        }
-
-        // return the best fraction
-        return best_fraction;
-
-    }
+//    pair<int, int> Term::as_fraction(double coeff, double threshold) {
+//        /*
+//         * Represent the coefficient as a fraction
+//         * @param coeff coefficient to represent
+//         * @return string representation of the coefficient (i.e. 0.5 -> 1/2)
+//         */
+//
+//        // check if coefficient is an integer and return it as a string if it is
+//        if (coeff == (int) coeff) return {coeff, 1};
+//
+//        // assume the coefficient is 1 (it's not since we checked if it was an integer)
+//        int numerator = 1, denominator = 1;
+//
+//        // get the error of the assumed fraction
+//        double error = fabs(coeff - (int) coeff);
+//
+//        // store the best fraction
+//        pair<int, int> best_fraction = {1, 1};
+//
+//        size_t maxiter = 1000, iter = 0;
+//        while (error > threshold && iter < maxiter) {
+//
+//            // guess the next fraction
+//            double guess = numerator / (double) denominator;
+//
+//            // check if the guess is better than the current best fraction
+//            double new_error = fabs(guess - coeff);
+//            if (new_error < error) {
+//                best_fraction = {numerator, denominator};
+//                error = new_error;
+//            }
+//
+//            // increment the numerator or denominator
+//            if (coeff > guess) numerator++;
+//            else denominator++;
+//        }
+//
+//        // return the best fraction
+//        return best_fraction;
+//
+//    }
 
     string Term::einsum_str() const {
         string output;
@@ -578,7 +577,7 @@ namespace pdaggerq {
         else output += " += ";
 
         // get absolute value of coefficient
-        double abs_coeff = stod(to_string(fabs(coefficient_)));
+        double abs_coeff = fabs(coefficient_);
 
         // if the coefficient is not 1, add it to the string
         bool added_coeff = false;
@@ -586,7 +585,6 @@ namespace pdaggerq {
 
         // assignments of terms with negative coefficients need it to be added
         needs_coeff = (is_assignment_ && is_negative) || needs_coeff;
-//        needs_coeff = true;
 
         if (needs_coeff) {
             // add coefficient to string
@@ -594,11 +592,8 @@ namespace pdaggerq {
             if (is_assignment_ && is_negative)
                 output += "-";
 
-//            output += to_string(abs_coeff);
-            auto [numerator, denominator] = as_fraction(abs_coeff);
-            if (denominator == 1)
-                output += to_string(numerator);
-            else output += to_string(numerator) + ".0/" + to_string(denominator) + ".0";
+            int precision = minimum_precision(abs_coeff);
+            output += to_string_with_precision(abs_coeff, precision);
 
             // add multiplication sign if there are rhs vertices
             if (!rhs_.empty())
@@ -673,10 +668,24 @@ namespace pdaggerq {
 //                else einsum_string += "]";
 //            }
 
-            if (i != tensors.size() - 1) einsum_string += ", ";
-            else einsum_string += ")";
+            einsum_string += ", ";
+//            if (i != tensors.size() - 1)
+//            else einsum_string += ")";
         }
 
+        if (tensors.size() > 2) {
+            einsum_string += "optimize=['einsum_path',";
+            for (size_t i = 0; i < tensors.size()-1; i++) {
+                einsum_string += "(0,1),";
+            }
+            einsum_string.pop_back();
+            einsum_string += "]";
+        } else if (!tensors.empty()){
+            einsum_string.pop_back();
+            einsum_string.pop_back();
+        }
+
+        einsum_string += ')';
         output += einsum_string;
         return output;
     }
@@ -686,85 +695,82 @@ namespace pdaggerq {
             return "";
 
         string comment;
-        if (!only_flop) {
-
-            for (const auto & vertex : rhs_) {
-                if (vertex->is_linked())
-                    comment += as_link(vertex)->tot_str(true);
-                else
-                    comment += vertex->str();
-                if (vertex != rhs_.back())
-                    comment += " * ";
-            }
-
-            // add permutations to comment if there are any
-            if (!term_perms_.empty()){
-                string perm_str;
-                int count = 0;
-                switch (perm_type_){
-                    case 0: break;
-                    case 1:
-                        for (const auto & perm : term_perms_)
-                            perm_str += "P(" + perm.first + "," + perm.second + ") ";
-                        break;
-                    case 2:
-                        count = 0;
-                        for (const auto & perm : term_perms_) {
-                            if (count++ % 2 == 0)
-                                perm_str += "PP2(" + perm.first + "," + perm.second;
-                            else
-                                perm_str += ";" + perm.first + "," + perm.second + ") ";
-                        }
-                        break;
-                    case 3:
-                        count = 0;
-                        for (const auto & perm : term_perms_) {
-                            if (count % 3 == 0)
-                                perm_str += "PP3(" + perm.first + "," + perm.second;
-                            else
-                                perm_str += ";" + perm.first + "," + perm.second;
-                            if (count++ % 3 == 2)
-                                perm_str += ") ";
-                        }
-                        break;
-                    case 6:
-                        count = 0;
-                        for (const auto & perm : term_perms_) {
-                            if (count % 3 == 0)
-                                perm_str += "PP6(" + perm.first + "," + perm.second;
-                            else
-                                perm_str += ";" + perm.first + "," + perm.second;
-                            if (count++ % 3 == 2)
-                                perm_str += ") ";
-                        }
-                        break;
-                }
-
-                comment = perm_str + comment;
-            }
-
-            // get coefficient
-            double coeff = coefficient_;
-            bool is_negative = coeff < 0;
-
-            string assign_str = is_assignment_ ? " = " : " += ";
-
-            auto [numerator, denominator] = as_fraction(fabs(coeff));
-            string frac_coeff;
-            if (denominator == 1 && numerator == 1 && !is_negative)
-                 frac_coeff = "";
-            else if (denominator == 1)
-                 frac_coeff = to_string(numerator) + ".0 ";
-            else frac_coeff = to_string(numerator) + ".0/" + to_string(denominator) + ".0 ";
-            if (is_negative) frac_coeff = "-" + frac_coeff;
-
-            // add lhs to comment
-            comment = "// " + lhs_->str() + assign_str + frac_coeff + comment;
+        for (const auto &vertex: rhs_) {
+            if (vertex->is_linked())
+                comment += as_link(vertex)->tot_str(true);
+            else
+                comment += vertex->str();
+            if (vertex != rhs_.back())
+                comment += " * ";
         }
 
-        auto format_python = [](string& comment) {
+        // add permutations to comment if there are any
+        if (!term_perms_.empty()) {
+            string perm_str;
+            int count = 0;
+            switch (perm_type_) {
+                case 0:
+                    break;
+                case 1:
+                    for (const auto &perm: term_perms_)
+                        perm_str += "P(" + perm.first + "," + perm.second + ") ";
+                    break;
+                case 2:
+                    count = 0;
+                    for (const auto &perm: term_perms_) {
+                        if (count++ % 2 == 0)
+                            perm_str += "PP2(" + perm.first + "," + perm.second;
+                        else
+                            perm_str += ";" + perm.first + "," + perm.second + ") ";
+                    }
+                    break;
+                case 3:
+                    count = 0;
+                    for (const auto &perm: term_perms_) {
+                        if (count % 3 == 0)
+                            perm_str += "PP3(" + perm.first + "," + perm.second;
+                        else
+                            perm_str += ";" + perm.first + "," + perm.second;
+                        if (count++ % 3 == 2)
+                            perm_str += ") ";
+                    }
+                    break;
+                case 6:
+                    count = 0;
+                    for (const auto &perm: term_perms_) {
+                        if (count % 3 == 0)
+                            perm_str += "PP6(" + perm.first + "," + perm.second;
+                        else
+                            perm_str += ";" + perm.first + "," + perm.second;
+                        if (count++ % 3 == 2)
+                            perm_str += ") ";
+                    }
+                    break;
+            }
 
-        };
+            comment = perm_str + comment;
+        }
+
+        // get coefficient
+        double coeff = coefficient_;
+        bool is_negative = coeff < 0;
+
+        string assign_str = is_assignment_ ? " = " : " += ";
+
+        int precision = minimum_precision(coefficient_);
+        string coeff_str = to_string_with_precision(fabs(coefficient_), precision);
+        if (is_negative) coeff_str.insert(coeff_str.begin(), '-');
+        coeff_str += ' ';
+
+        if (original_pq_.empty()) {
+            // add lhs to comment
+            comment = "// " + lhs_->str() + assign_str + coeff_str + comment;
+        } else {
+            comment = "// " + lhs_->name() + assign_str + original_pq_;
+        }
+
+        if (only_flop) // clear comment if only flop is requested
+            comment.clear();
 
         // remove all quotes from comment
         comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
@@ -788,9 +794,6 @@ namespace pdaggerq {
             comment += " | mem: " + lhs_->dim().str();
             return comment; // if there is only one vertex, return comment (no scaling to add)
         }
-
-        string assign_str = ": ";
-        if (coefficient_ < 0 ) assign_str += "-";
 
         const auto &flop_scales = term_linkage_->flop_history();
         const auto &mem_scales  = term_linkage_->mem_history();

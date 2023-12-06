@@ -153,7 +153,7 @@ namespace pdaggerq {
 //            if (oa != other_oa) return oa < other_oa;
 
             // equal or greater scaling, return false
-            return false; 
+            return false;
         }
         bool operator>( const shape & other) const {
             return other < *this;

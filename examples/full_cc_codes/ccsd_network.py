@@ -73,200 +73,199 @@ def residuals(t1, t2, f, eri, o, v):
     perm_tmps_= {}
     perm_tmps_["vvoo"] = np.zeros_like(t2)
 
-
     tmps_ = {}
 
     ##########  Evaluate Equations  ##########
 
-    # rt1_[vo](a,i) = f_[vo](a,i) // flops: o1v1 | mem: o1v1
+    # rt1_[vo] = +1.00 f(a,i)  // flops: o1v1 | mem: o1v1
     rt1_["vo"] = np.einsum('ai->ai', f_["vo"])
 
-    # rt1_[vo](a,i) += -1.0 f_[oo](j,i) * t1_[vo](a,j) // flops: o1v1: -o2v1 | mem: o1v1: -o1v1
+    # rt1_[vo] += -1.00 f(j,i) t1(a,j)  // flops: o1v1 += o2v1 | mem: o1v1 += o1v1
     rt1_["vo"] -= np.einsum('ji,aj->ai', f_["oo"], t1_["vo"])
 
-    # rt1_[vo](a,i) += f_[vv](a,b) * t1_[vo](b,i) // flops: o1v1: o1v2 | mem: o1v1: o1v1
+    # rt1_[vo] += +1.00 f(a,b) t1(b,i)  // flops: o1v1 += o1v2 | mem: o1v1 += o1v1
     rt1_["vo"] += np.einsum('ab,bi->ai', f_["vv"], t1_["vo"])
 
-    # rt1_[vo](a,i) += -1.0 f_[ov](j,b) * t2_[vvoo](b,a,i,j) // flops: o1v1: -o2v2 | mem: o1v1: -o1v1
+    # rt1_[vo] += -1.00 f(j,b) t2(b,a,i,j)  // flops: o1v1 += o2v2 | mem: o1v1 += o1v1
     rt1_["vo"] -= np.einsum('jb,baij->ai', f_["ov"], t2_["vvoo"])
 
-    # rt1_[vo](a,i) += -1.0 f_[ov](j,b) * t1_[vo](b,i) * t1_[vo](a,j) // flops: o1v1: -o2v1 o2v1 | mem: o1v1: -o2v0 o1v1
-    rt1_["vo"] -= np.einsum('jb,bi,aj->ai', f_["ov"], t1_["vo"], t1_["vo"])
+    # rt1_[vo] += -1.00 f(j,b) t1(b,i) t1(a,j)  // flops: o1v1 += o2v1 o2v1 | mem: o1v1 += o2v0 o1v1
+    rt1_["vo"] -= np.einsum('jb,bi,aj->ai', f_["ov"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt1_[vo](a,i) += -1.0 eri_[vovo](a,j,b,i) * t1_[vo](b,j) // flops: o1v1: -o2v2 | mem: o1v1: -o1v1
+    # rt1_[vo] += +1.00 <j,a||b,i> t1(b,j)  // flops: o1v1 += o2v2 | mem: o1v1 += o1v1
     rt1_["vo"] -= np.einsum('ajbi,bj->ai', eri_["vovo"], t1_["vo"])
 
-    # rt1_[vo](a,i) += -1.0/2.0 eri_[oovo](k,j,b,i) * t2_[vvoo](b,a,k,j) // flops: o1v1: -o3v2 | mem: o1v1: -o1v1
-    rt1_["vo"] -= 1.0/2.0 * np.einsum('kjbi,bakj->ai', eri_["oovo"], t2_["vvoo"])
+    # rt1_[vo] += -0.50 <k,j||b,i> t2(b,a,k,j)  // flops: o1v1 += o3v2 | mem: o1v1 += o1v1
+    rt1_["vo"] -= 0.50 * np.einsum('kjbi,bakj->ai', eri_["oovo"], t2_["vvoo"])
 
-    # rt1_[vo](a,i) += 1.0/2.0 eri_[vovv](a,j,b,c) * t2_[vvoo](b,c,i,j) // flops: o1v1: o2v3 | mem: o1v1: o1v1
-    rt1_["vo"] += 1.0/2.0 * np.einsum('ajbc,bcij->ai', eri_["vovv"], t2_["vvoo"])
+    # rt1_[vo] += -0.50 <j,a||b,c> t2(b,c,i,j)  // flops: o1v1 += o2v3 | mem: o1v1 += o1v1
+    rt1_["vo"] += 0.50 * np.einsum('ajbc,bcij->ai', eri_["vovv"], t2_["vvoo"])
 
-    # rt1_[vo](a,i) += eri_[oovv](k,j,b,c) * t1_[vo](b,j) * t2_[vvoo](c,a,i,k) // flops: o1v1: o2v2 o2v2 | mem: o1v1: o1v1 o1v1
-    rt1_["vo"] += np.einsum('kjbc,bj,caik->ai', eri_["oovv"], t1_["vo"], t2_["vvoo"])
+    # rt1_[vo] += +1.00 <k,j||b,c> t1(b,j) t2(c,a,i,k)  // flops: o1v1 += o2v2 o2v2 | mem: o1v1 += o1v1 o1v1
+    rt1_["vo"] += np.einsum('kjbc,bj,caik->ai', eri_["oovv"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt1_[vo](a,i) += 1.0/2.0 eri_[oovv](k,j,b,c) * t1_[vo](b,i) * t2_[vvoo](c,a,k,j) // flops: o1v1: o3v2 o3v2 | mem: o1v1: o3v1 o1v1
-    rt1_["vo"] += 1.0/2.0 * np.einsum('kjbc,bi,cakj->ai', eri_["oovv"], t1_["vo"], t2_["vvoo"])
+    # rt1_[vo] += +0.50 <k,j||b,c> t1(b,i) t2(c,a,k,j)  // flops: o1v1 += o3v2 o3v2 | mem: o1v1 += o3v1 o1v1
+    rt1_["vo"] += 0.50 * np.einsum('kjbc,bi,cakj->ai', eri_["oovv"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt1_[vo](a,i) += 1.0/2.0 eri_[oovv](k,j,b,c) * t2_[vvoo](b,c,i,k) * t1_[vo](a,j) // flops: o1v1: o3v2 o2v1 | mem: o1v1: o2v0 o1v1
-    rt1_["vo"] += 1.0/2.0 * np.einsum('kjbc,bcik,aj->ai', eri_["oovv"], t2_["vvoo"], t1_["vo"])
+    # rt1_[vo] += +0.50 <k,j||b,c> t1(a,j) t2(b,c,i,k)  // flops: o1v1 += o3v2 o2v1 | mem: o1v1 += o2v0 o1v1
+    rt1_["vo"] += 0.50 * np.einsum('kjbc,bcik,aj->ai', eri_["oovv"], t2_["vvoo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt1_[vo](a,i) += eri_[oovo](k,j,b,i) * t1_[vo](b,j) * t1_[vo](a,k) // flops: o1v1: o3v1 o2v1 | mem: o1v1: o2v0 o1v1
-    rt1_["vo"] += np.einsum('kjbi,bj,ak->ai', eri_["oovo"], t1_["vo"], t1_["vo"])
+    # rt1_[vo] += +1.00 <k,j||b,i> t1(b,j) t1(a,k)  // flops: o1v1 += o3v1 o2v1 | mem: o1v1 += o2v0 o1v1
+    rt1_["vo"] += np.einsum('kjbi,bj,ak->ai', eri_["oovo"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt1_[vo](a,i) += -1.0 eri_[vovv](a,j,b,c) * t1_[vo](b,j) * t1_[vo](c,i) // flops: o1v1: -o1v3 o1v2 | mem: o1v1: -o0v2 o1v1
-    rt1_["vo"] -= np.einsum('ajbc,bj,ci->ai', eri_["vovv"], t1_["vo"], t1_["vo"])
+    # rt1_[vo] += +1.00 <j,a||b,c> t1(b,j) t1(c,i)  // flops: o1v1 += o1v3 o1v2 | mem: o1v1 += o0v2 o1v1
+    rt1_["vo"] -= np.einsum('ajbc,bj,ci->ai', eri_["vovv"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt1_[vo](a,i) += eri_[oovv](k,j,b,c) * t1_[vo](b,j) * t1_[vo](c,i) * t1_[vo](a,k) // flops: o1v1: o2v2 o2v1 o2v1 | mem: o1v1: o1v1 o2v0 o1v1
-    rt1_["vo"] += np.einsum('kjbc,bj,ci,ak->ai', eri_["oovv"], t1_["vo"], t1_["vo"], t1_["vo"])
+    # rt1_[vo] += +1.00 <k,j||b,c> t1(b,j) t1(c,i) t1(a,k)  // flops: o1v1 += o2v2 o2v1 o2v1 | mem: o1v1 += o1v1 o2v0 o1v1
+    rt1_["vo"] += np.einsum('kjbc,bj,ci,ak->ai', eri_["oovv"], t1_["vo"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1),(0,1)])
 
-    # rt2_[vvoo](a,b,i,j) = -1.0 P(i,j) f_[oo](k,j) * t2_[vvoo](a,b,i,k) // flops: o2v2: -o3v2 | mem: o2v2: -o2v2
+    # rt2_[vvoo] = -1.00 P(i,j) f(k,j) t2(a,b,i,k)  // flops: o2v2 = o3v2 | mem: o2v2 = o2v2
     perm_tmps_["vvoo"] = np.einsum('kj,abik->abij', f_["oo"], t2_["vvoo"])
-    rt2_["vvoo"] = -1 * np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] = -1.00 * np.einsum('abij->abij', perm_tmps_["vvoo"])
+    rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += P(a,b) f_[vv](a,c) * t2_[vvoo](c,b,i,j) // flops: o2v2: o2v3 | mem: o2v2: o2v2
+    # rt2_[vvoo] += +1.00 P(a,b) f(a,c) t2(c,b,i,j)  // flops: o2v2 += o2v3 | mem: o2v2 += o2v2
     perm_tmps_["vvoo"] = np.einsum('ac,cbij->abij', f_["vv"], t2_["vvoo"])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('baij->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('baij->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 P(i,j) f_[ov](k,c) * t1_[vo](c,j) * t2_[vvoo](a,b,i,k) // flops: o2v2: -o2v1 o3v2 | mem: o2v2: -o2v0 o2v2
-    perm_tmps_["vvoo"] = np.einsum('kc,cj,abik->abij', f_["ov"], t1_["vo"], t2_["vvoo"])
+    # rt2_[vvoo] += -1.00 P(i,j) f(k,c) t1(c,j) t2(a,b,i,k)  // flops: o2v2 += o2v1 o3v2 | mem: o2v2 += o2v0 o2v2
+    perm_tmps_["vvoo"] = np.einsum('kc,cj,abik->abij', f_["ov"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 P(a,b) f_[ov](k,c) * t2_[vvoo](c,b,i,j) * t1_[vo](a,k) // flops: o2v2: -o3v2 o3v2 | mem: o2v2: -o3v1 o2v2
-    perm_tmps_["vvoo"] = np.einsum('kc,cbij,ak->abij', f_["ov"], t2_["vvoo"], t1_["vo"])
+    # rt2_[vvoo] += -1.00 P(a,b) f(k,c) t1(a,k) t2(c,b,i,j)  // flops: o2v2 += o3v2 o3v2 | mem: o2v2 += o3v1 o2v2
+    perm_tmps_["vvoo"] = np.einsum('kc,cbij,ak->abij', f_["ov"], t2_["vvoo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += eri_[vvoo](a,b,i,j) // flops: o2v2 | mem: o2v2
+    # rt2_[vvoo] += +1.00 <a,b||i,j>  // flops: o2v2 | mem: o2v2
     rt2_["vvoo"] += np.einsum('abij->abij', eri_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 P(a,b) eri_[vooo](a,k,i,j) * t1_[vo](b,k) // flops: o2v2: -o3v2 | mem: o2v2: -o2v2
+    # rt2_[vvoo] += +1.00 P(a,b) <k,a||i,j> t1(b,k)  // flops: o2v2 += o3v2 | mem: o2v2 += o2v2
     perm_tmps_["vvoo"] = np.einsum('akij,bk->abij', eri_["vooo"], t1_["vo"])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += P(i,j) eri_[vvvo](a,b,c,j) * t1_[vo](c,i) // flops: o2v2: o2v3 | mem: o2v2: o2v2
+    # rt2_[vvoo] += +1.00 P(i,j) <a,b||c,j> t1(c,i)  // flops: o2v2 += o2v3 | mem: o2v2 += o2v2
     perm_tmps_["vvoo"] = np.einsum('abcj,ci->abij', eri_["vvvo"], t1_["vo"])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += 1.0/2.0 eri_[oooo](l,k,i,j) * t2_[vvoo](a,b,l,k) // flops: o2v2: o4v2 | mem: o2v2: o2v2
-    rt2_["vvoo"] += 1.0/2.0 * np.einsum('lkij,ablk->abij', eri_["oooo"], t2_["vvoo"])
+    # rt2_[vvoo] += +0.50 <l,k||i,j> t2(a,b,l,k)  // flops: o2v2 += o4v2 | mem: o2v2 += o2v2
+    rt2_["vvoo"] += 0.50 * np.einsum('lkij,ablk->abij', eri_["oooo"], t2_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 P(i,j) P(a,b) eri_[vovo](a,k,c,j) * t2_[vvoo](c,b,i,k) // flops: o2v2: -o3v3 | mem: o2v2: -o2v2
+    # rt2_[vvoo] += +1.00 P(i,j) P(a,b) <k,a||c,j> t2(c,b,i,k)  // flops: o2v2 += o3v3 | mem: o2v2 += o2v2
     perm_tmps_["vvoo"] = np.einsum('akcj,cbik->abij', eri_["vovo"], t2_["vvoo"])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('baji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('baji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += 1.0/2.0 eri_[vvvv](a,b,c,d) * t2_[vvoo](c,d,i,j) // flops: o2v2: o2v4 | mem: o2v2: o2v2
-    rt2_["vvoo"] += 1.0/2.0 * np.einsum('abcd,cdij->abij', eri_["vvvv"], t2_["vvoo"])
+    # rt2_[vvoo] += +0.50 <a,b||c,d> t2(c,d,i,j)  // flops: o2v2 += o2v4 | mem: o2v2 += o2v2
+    rt2_["vvoo"] += 0.50 * np.einsum('abcd,cdij->abij', eri_["vvvv"], t2_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += P(i,j) eri_[oovo](l,k,c,j) * t1_[vo](c,k) * t2_[vvoo](a,b,i,l) // flops: o2v2: o3v1 o3v2 | mem: o2v2: o2v0 o2v2
-    perm_tmps_["vvoo"] = np.einsum('lkcj,ck,abil->abij', eri_["oovo"], t1_["vo"], t2_["vvoo"])
+    # rt2_[vvoo] += +1.00 P(i,j) <l,k||c,j> t1(c,k) t2(a,b,i,l)  // flops: o2v2 += o3v1 o3v2 | mem: o2v2 += o2v0 o2v2
+    perm_tmps_["vvoo"] = np.einsum('lkcj,ck,abil->abij', eri_["oovo"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += 1.0/2.0 P(i,j) eri_[oovo](l,k,c,j) * t1_[vo](c,i) * t2_[vvoo](a,b,l,k) // flops: o2v2: o4v1 o4v2 | mem: o2v2: o4v0 o2v2
-    perm_tmps_["vvoo"] = 1.0/2.0 * np.einsum('lkcj,ci,ablk->abij', eri_["oovo"], t1_["vo"], t2_["vvoo"])
+    # rt2_[vvoo] += +0.50 P(i,j) <l,k||c,j> t1(c,i) t2(a,b,l,k)  // flops: o2v2 += o4v1 o4v2 | mem: o2v2 += o4v0 o2v2
+    perm_tmps_["vvoo"] = 0.50 * np.einsum('lkcj,ci,ablk->abij', eri_["oovo"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 P(i,j) P(a,b) eri_[oovo](l,k,c,j) * t2_[vvoo](c,b,i,l) * t1_[vo](a,k) // flops: o2v2: -o4v2 o3v2 | mem: o2v2: -o3v1 o2v2
-    perm_tmps_["vvoo"] = np.einsum('lkcj,cbil,ak->abij', eri_["oovo"], t2_["vvoo"], t1_["vo"])
+    # rt2_[vvoo] += -1.00 P(i,j) P(a,b) <l,k||c,j> t1(a,k) t2(c,b,i,l)  // flops: o2v2 += o4v2 o3v2 | mem: o2v2 += o3v1 o2v2
+    perm_tmps_["vvoo"] = np.einsum('lkcj,cbil,ak->abij', eri_["oovo"], t2_["vvoo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('baji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('baji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 P(a,b) eri_[vovv](a,k,c,d) * t1_[vo](c,k) * t2_[vvoo](d,b,i,j) // flops: o2v2: -o1v3 o2v3 | mem: o2v2: -o0v2 o2v2
-    perm_tmps_["vvoo"] = np.einsum('akcd,ck,dbij->abij', eri_["vovv"], t1_["vo"], t2_["vvoo"])
+    # rt2_[vvoo] += +1.00 P(a,b) <k,a||c,d> t1(c,k) t2(d,b,i,j)  // flops: o2v2 += o1v3 o2v3 | mem: o2v2 += o0v2 o2v2
+    perm_tmps_["vvoo"] = np.einsum('akcd,ck,dbij->abij', eri_["vovv"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += P(i,j) P(a,b) eri_[vovv](a,k,c,d) * t1_[vo](c,j) * t2_[vvoo](d,b,i,k) // flops: o2v2: o2v3 o3v3 | mem: o2v2: o2v2 o2v2
-    perm_tmps_["vvoo"] = np.einsum('akcd,cj,dbik->abij', eri_["vovv"], t1_["vo"], t2_["vvoo"])
+    # rt2_[vvoo] += -1.00 P(i,j) P(a,b) <k,a||c,d> t1(c,j) t2(d,b,i,k)  // flops: o2v2 += o2v3 o3v3 | mem: o2v2 += o2v2 o2v2
+    perm_tmps_["vvoo"] = np.einsum('akcd,cj,dbik->abij', eri_["vovv"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] -= np.einsum('baij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('baji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('baji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0/2.0 P(a,b) eri_[vovv](a,k,c,d) * t2_[vvoo](c,d,i,j) * t1_[vo](b,k) // flops: o2v2: -o3v3 o3v2 | mem: o2v2: -o3v1 o2v2
-    perm_tmps_["vvoo"] = 1.0/2.0 * np.einsum('akcd,cdij,bk->abij', eri_["vovv"], t2_["vvoo"], t1_["vo"])
+    # rt2_[vvoo] += +0.50 P(a,b) <k,a||c,d> t1(b,k) t2(c,d,i,j)  // flops: o2v2 += o3v3 o3v2 | mem: o2v2 += o3v1 o2v2
+    perm_tmps_["vvoo"] = 0.50 * np.einsum('akcd,cdij,bk->abij', eri_["vovv"], t2_["vvoo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 eri_[oooo](l,k,i,j) * t1_[vo](a,k) * t1_[vo](b,l) // flops: o2v2: -o4v1 o3v2 | mem: o2v2: -o3v1 o2v2
-    rt2_["vvoo"] -= np.einsum('lkij,ak,bl->abij', eri_["oooo"], t1_["vo"], t1_["vo"])
+    # rt2_[vvoo] += -1.00 <l,k||i,j> t1(a,k) t1(b,l)  // flops: o2v2 += o4v1 o3v2 | mem: o2v2 += o3v1 o2v2
+    rt2_["vvoo"] -= np.einsum('lkij,ak,bl->abij', eri_["oooo"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 P(i,j) P(a,b) eri_[vovo](a,k,c,j) * t1_[vo](c,i) * t1_[vo](b,k) // flops: o2v2: -o3v2 o3v2 | mem: o2v2: -o3v1 o2v2
-    perm_tmps_["vvoo"] = np.einsum('akcj,ci,bk->abij', eri_["vovo"], t1_["vo"], t1_["vo"])
+    # rt2_[vvoo] += +1.00 P(i,j) P(a,b) <k,a||c,j> t1(c,i) t1(b,k)  // flops: o2v2 += o3v2 o3v2 | mem: o2v2 += o3v1 o2v2
+    perm_tmps_["vvoo"] = np.einsum('akcj,ci,bk->abij', eri_["vovo"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] += np.einsum('baij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('baji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('baji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 eri_[vvvv](a,b,c,d) * t1_[vo](c,j) * t1_[vo](d,i) // flops: o2v2: -o1v4 o2v3 | mem: o2v2: -o1v3 o2v2
-    rt2_["vvoo"] -= np.einsum('abcd,cj,di->abij', eri_["vvvv"], t1_["vo"], t1_["vo"])
+    # rt2_[vvoo] += -1.00 <a,b||c,d> t1(c,j) t1(d,i)  // flops: o2v2 += o1v4 o2v3 | mem: o2v2 += o1v3 o2v2
+    rt2_["vvoo"] -= np.einsum('abcd,cj,di->abij', eri_["vvvv"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0/2.0 P(i,j) eri_[oovv](l,k,c,d) * t2_[vvoo](c,d,j,k) * t2_[vvoo](a,b,i,l) // flops: o2v2: -o3v2 o3v2 | mem: o2v2: -o2v0 o2v2
-    perm_tmps_["vvoo"] = 1.0/2.0 * np.einsum('lkcd,cdjk,abil->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"])
+    # rt2_[vvoo] += -0.50 P(i,j) <l,k||c,d> t2(c,d,j,k) t2(a,b,i,l)  // flops: o2v2 += o3v2 o3v2 | mem: o2v2 += o2v0 o2v2
+    perm_tmps_["vvoo"] = 0.50 * np.einsum('lkcd,cdjk,abil->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += 1.0/4.0 eri_[oovv](l,k,c,d) * t2_[vvoo](c,d,i,j) * t2_[vvoo](a,b,l,k) // flops: o2v2: o4v2 o4v2 | mem: o2v2: o4v0 o2v2
-    rt2_["vvoo"] += 1.0/4.0 * np.einsum('lkcd,cdij,ablk->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"])
+    # rt2_[vvoo] += +0.25 <l,k||c,d> t2(c,d,i,j) t2(a,b,l,k)  // flops: o2v2 += o4v2 o4v2 | mem: o2v2 += o4v0 o2v2
+    rt2_["vvoo"] += 0.25 * np.einsum('lkcd,cdij,ablk->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0/2.0 eri_[oovv](l,k,c,d) * t2_[vvoo](c,a,l,k) * t2_[vvoo](d,b,i,j) // flops: o2v2: -o2v3 o2v3 | mem: o2v2: -o0v2 o2v2
-    rt2_["vvoo"] -= 1.0/2.0 * np.einsum('lkcd,calk,dbij->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"])
+    # rt2_[vvoo] += -0.50 <l,k||c,d> t2(c,a,l,k) t2(d,b,i,j)  // flops: o2v2 += o2v3 o2v3 | mem: o2v2 += o0v2 o2v2
+    rt2_["vvoo"] -= 0.50 * np.einsum('lkcd,calk,dbij->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt2_[vvoo](a,b,i,j) += P(i,j) eri_[oovv](l,k,c,d) * t2_[vvoo](c,a,j,k) * t2_[vvoo](d,b,i,l) // flops: o2v2: o3v3 o3v3 | mem: o2v2: o2v2 o2v2
-    perm_tmps_["vvoo"] = np.einsum('lkcd,cajk,dbil->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"])
+    # rt2_[vvoo] += +1.00 P(i,j) <l,k||c,d> t2(c,a,j,k) t2(d,b,i,l)  // flops: o2v2 += o3v3 o3v3 | mem: o2v2 += o2v2 o2v2
+    perm_tmps_["vvoo"] = np.einsum('lkcd,cajk,dbil->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0/2.0 eri_[oovv](l,k,c,d) * t2_[vvoo](d,b,l,k) * t2_[vvoo](c,a,i,j) // flops: o2v2: -o2v3 o2v3 | mem: o2v2: -o0v2 o2v2
-    rt2_["vvoo"] -= 1.0/2.0 * np.einsum('lkcd,dblk,caij->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"])
+    # rt2_[vvoo] += -0.50 <l,k||c,d> t2(c,a,i,j) t2(d,b,l,k)  // flops: o2v2 += o2v3 o2v3 | mem: o2v2 += o0v2 o2v2
+    rt2_["vvoo"] -= 0.50 * np.einsum('lkcd,dblk,caij->abij', eri_["oovv"], t2_["vvoo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1)])
 
-    # rt2_[vvoo](a,b,i,j) += P(i,j) eri_[oovv](l,k,c,d) * t1_[vo](c,k) * t1_[vo](d,j) * t2_[vvoo](a,b,i,l) // flops: o2v2: o2v2 o2v1 o3v2 | mem: o2v2: o1v1 o2v0 o2v2
-    perm_tmps_["vvoo"] = np.einsum('lkcd,ck,dj,abil->abij', eri_["oovv"], t1_["vo"], t1_["vo"], t2_["vvoo"])
+    # rt2_[vvoo] += +1.00 P(i,j) <l,k||c,d> t1(c,k) t1(d,j) t2(a,b,i,l)  // flops: o2v2 += o2v2 o2v1 o3v2 | mem: o2v2 += o1v1 o2v0 o2v2
+    perm_tmps_["vvoo"] = np.einsum('lkcd,ck,dj,abil->abij', eri_["oovv"], t1_["vo"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1),(0,1)])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += P(a,b) eri_[oovv](l,k,c,d) * t1_[vo](c,k) * t2_[vvoo](d,b,i,j) * t1_[vo](a,l) // flops: o2v2: o2v2 o3v2 o3v2 | mem: o2v2: o1v1 o3v1 o2v2
-    perm_tmps_["vvoo"] = np.einsum('lkcd,ck,dbij,al->abij', eri_["oovv"], t1_["vo"], t2_["vvoo"], t1_["vo"])
+    # rt2_[vvoo] += +1.00 P(a,b) <l,k||c,d> t1(c,k) t1(a,l) t2(d,b,i,j)  // flops: o2v2 += o2v2 o3v2 o3v2 | mem: o2v2 += o1v1 o3v1 o2v2
+    perm_tmps_["vvoo"] = np.einsum('lkcd,ck,dbij,al->abij', eri_["oovv"], t1_["vo"], t2_["vvoo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1),(0,1)])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('baij->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('baij->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0/2.0 eri_[oovv](l,k,c,d) * t1_[vo](c,j) * t1_[vo](d,i) * t2_[vvoo](a,b,l,k) // flops: o2v2: -o3v2 o4v1 o4v2 | mem: o2v2: -o3v1 o4v0 o2v2
-    rt2_["vvoo"] -= 1.0/2.0 * np.einsum('lkcd,cj,di,ablk->abij', eri_["oovv"], t1_["vo"], t1_["vo"], t2_["vvoo"])
+    # rt2_[vvoo] += -0.50 <l,k||c,d> t1(c,j) t1(d,i) t2(a,b,l,k)  // flops: o2v2 += o3v2 o4v1 o4v2 | mem: o2v2 += o3v1 o4v0 o2v2
+    rt2_["vvoo"] -= 0.50 * np.einsum('lkcd,cj,di,ablk->abij', eri_["oovv"], t1_["vo"], t1_["vo"], t2_["vvoo"], optimize=['einsum_path',(0,1),(0,1),(0,1)])
 
-    # rt2_[vvoo](a,b,i,j) += P(i,j) P(a,b) eri_[oovv](l,k,c,d) * t1_[vo](c,j) * t2_[vvoo](d,b,i,l) * t1_[vo](a,k) // flops: o2v2: o3v2 o4v2 o3v2 | mem: o2v2: o3v1 o3v1 o2v2
-    perm_tmps_["vvoo"] = np.einsum('lkcd,cj,dbil,ak->abij', eri_["oovv"], t1_["vo"], t2_["vvoo"], t1_["vo"])
+    # rt2_[vvoo] += +1.00 P(i,j) P(a,b) <l,k||c,d> t1(c,j) t1(a,k) t2(d,b,i,l)  // flops: o2v2 += o3v2 o4v2 o3v2 | mem: o2v2 += o3v1 o3v1 o2v2
+    perm_tmps_["vvoo"] = np.einsum('lkcd,cj,dbil,ak->abij', eri_["oovv"], t1_["vo"], t2_["vvoo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1),(0,1)])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] -= np.einsum('abji->abij', perm_tmps_["vvoo"])
     rt2_["vvoo"] -= np.einsum('baij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('baji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('baji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0/2.0 eri_[oovv](l,k,c,d) * t2_[vvoo](c,d,i,j) * t1_[vo](a,k) * t1_[vo](b,l) // flops: o2v2: -o4v2 o4v1 o3v2 | mem: o2v2: -o4v0 o3v1 o2v2
-    rt2_["vvoo"] -= 1.0/2.0 * np.einsum('lkcd,cdij,ak,bl->abij', eri_["oovv"], t2_["vvoo"], t1_["vo"], t1_["vo"])
+    # rt2_[vvoo] += -0.50 <l,k||c,d> t1(a,k) t1(b,l) t2(c,d,i,j)  // flops: o2v2 += o4v2 o4v1 o3v2 | mem: o2v2 += o4v0 o3v1 o2v2
+    rt2_["vvoo"] -= 0.50 * np.einsum('lkcd,cdij,ak,bl->abij', eri_["oovv"], t2_["vvoo"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1),(0,1)])
 
-    # rt2_[vvoo](a,b,i,j) += -1.0 P(i,j) eri_[oovo](l,k,c,j) * t1_[vo](c,i) * t1_[vo](a,k) * t1_[vo](b,l) // flops: o2v2: -o4v1 o4v1 o3v2 | mem: o2v2: -o4v0 o3v1 o2v2
-    perm_tmps_["vvoo"] = np.einsum('lkcj,ci,ak,bl->abij', eri_["oovo"], t1_["vo"], t1_["vo"], t1_["vo"])
+    # rt2_[vvoo] += -1.00 P(i,j) <l,k||c,j> t1(c,i) t1(a,k) t1(b,l)  // flops: o2v2 += o4v1 o4v1 o3v2 | mem: o2v2 += o4v0 o3v1 o2v2
+    perm_tmps_["vvoo"] = np.einsum('lkcj,ci,ak,bl->abij', eri_["oovo"], t1_["vo"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1),(0,1)])
     rt2_["vvoo"] -= np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] += np.einsum('abji->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += P(a,b) eri_[vovv](a,k,c,d) * t1_[vo](c,j) * t1_[vo](d,i) * t1_[vo](b,k) // flops: o2v2: o2v3 o3v2 o3v2 | mem: o2v2: o2v2 o3v1 o2v2
-    perm_tmps_["vvoo"] = np.einsum('akcd,cj,di,bk->abij', eri_["vovv"], t1_["vo"], t1_["vo"], t1_["vo"])
+    # rt2_[vvoo] += -1.00 P(a,b) <k,a||c,d> t1(c,j) t1(d,i) t1(b,k)  // flops: o2v2 += o2v3 o3v2 o3v2 | mem: o2v2 += o2v2 o3v1 o2v2
+    perm_tmps_["vvoo"] = np.einsum('akcd,cj,di,bk->abij', eri_["vovv"], t1_["vo"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1),(0,1)])
     rt2_["vvoo"] += np.einsum('abij->abij', perm_tmps_["vvoo"])
-    rt2_["vvoo"] -= np.einsum('baij->abij', perm_tmps_["vvoo"]);
+    rt2_["vvoo"] -= np.einsum('baij->abij', perm_tmps_["vvoo"])
 
-    # rt2_[vvoo](a,b,i,j) += eri_[oovv](l,k,c,d) * t1_[vo](c,j) * t1_[vo](d,i) * t1_[vo](a,k) * t1_[vo](b,l) // flops: o2v2: o3v2 o4v1 o4v1 o3v2 | mem: o2v2: o3v1 o4v0 o3v1 o2v2
-    rt2_["vvoo"] += np.einsum('lkcd,cj,di,ak,bl->abij', eri_["oovv"], t1_["vo"], t1_["vo"], t1_["vo"], t1_["vo"])
+    # rt2_[vvoo] += +1.00 <l,k||c,d> t1(c,j) t1(d,i) t1(a,k) t1(b,l)  // flops: o2v2 += o3v2 o4v1 o4v1 o3v2 | mem: o2v2 += o3v1 o4v0 o3v1 o2v2
+    rt2_["vvoo"] += np.einsum('lkcd,cj,di,ak,bl->abij', eri_["oovv"], t1_["vo"], t1_["vo"], t1_["vo"], t1_["vo"], optimize=['einsum_path',(0,1),(0,1),(0,1),(0,1)])
 
     return rt1_["vo"], rt2_["vvoo"]
 

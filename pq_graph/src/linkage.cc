@@ -46,6 +46,26 @@ namespace pdaggerq {
         depth_  =  left_->depth();
         depth_ += right_->depth();
 
+        is_addition_ = is_addition;
+
+        // create hash for the name (should be unique and faster for comparisons)
+        base_name_  =  left_->name_;
+        base_name_ += ' ';
+        base_name_ += right_->name_;
+
+        // build internal and external lines with their index mapping
+        set_links();
+
+        // populate information from left and right vertices
+
+        // reserve space
+        all_vert_.reserve(depth_);
+        partial_vert_.reserve(depth_);
+        flop_history_.reserve(depth_+1);
+        mem_history_.reserve(depth_+1);
+
+        // check if linkages or pure vertex
+
         if (left_->is_linked()){
 
             ConstLinkagePtr left_link = as_link(left_);
@@ -54,15 +74,15 @@ namespace pdaggerq {
             worst_flop_ = left_link->worst_flop_;
             
             // insert flop/mem history from left
-            flop_history_.assign(left_link->flop_history_.begin(), left_link->flop_history_.end());
-            mem_history_.assign(left_link->mem_history_.begin(), left_link->mem_history_.end());
+            flop_history_.insert(flop_history_.end(), left_link->flop_history_.begin(), left_link->flop_history_.end());
+            mem_history_.insert(mem_history_.end(), left_link->mem_history_.begin(), left_link->mem_history_.end());
 
             // copy all_vert
-            all_vert_.assign(left_link->all_vert_.begin(), left_link->all_vert_.end());
+            all_vert_.insert(all_vert_.end(), left_link->all_vert_.begin(), left_link->all_vert_.end());
 
             // if left is not a tmp, copy partial_vert
             if (!left_link->is_temp())
-                partial_vert_.assign(left_link->partial_vert_.begin(), left_link->partial_vert_.end());
+                partial_vert_.insert(partial_vert_.end(), left_link->partial_vert_.begin(), left_link->partial_vert_.end());
             // else just add left
             else partial_vert_.push_back(left_);
 
@@ -78,24 +98,19 @@ namespace pdaggerq {
             ConstLinkagePtr right_link = as_link(right_);
 
             // set the worst scale from right
-            if (right_link->worst_flop_ > worst_flop_)
-                worst_flop_ = right_link->worst_flop_;
+            worst_flop_ = right_link->worst_flop_;
 
             // insert flop/mem history from right
-            flop_history_.insert(flop_history_.end(),
-                                 right_link->flop_history_.begin(), right_link->flop_history_.end());
-            mem_history_.insert(mem_history_.end(),
-                                 right_link->mem_history_.begin(), right_link->mem_history_.end());
+            flop_history_.insert(flop_history_.end(), right_link->flop_history_.begin(), right_link->flop_history_.end());
+            mem_history_.insert(mem_history_.end(), right_link->mem_history_.begin(), right_link->mem_history_.end());
 
             // copy all_vert
             all_vert_.insert(all_vert_.end(), right_link->all_vert_.begin(), right_link->all_vert_.end());
 
             // if right is not a tmp, copy partial_vert
-            if (!right_link->is_temp()) {
-                partial_vert_.insert(partial_vert_.end(), right_link->partial_vert_.begin(),
-                                     right_link->partial_vert_.end());
-            }
-            // else just add right
+            if (!right_link->is_temp())
+                partial_vert_.insert(partial_vert_.end(), right_link->partial_vert_.begin(), right_link->partial_vert_.end());
+                // else just add right
             else partial_vert_.push_back(right_);
 
         } else if (!right_->empty() && right_ != nullptr) {
@@ -104,16 +119,6 @@ namespace pdaggerq {
             all_vert_.push_back(right_);
             partial_vert_.push_back(right_);
         }
-
-        is_addition_ = is_addition;
-
-        // create hash for the name (should be unique and faster for comparisons)
-        base_name_  =  left_->name_;
-        base_name_ += ' ';
-        base_name_ += right_->name_;
-
-        // build internal and external lines with their index mapping
-        set_links();
         
         // update worst scale
         if (flop_scale_ > worst_flop_)
@@ -191,11 +196,6 @@ namespace pdaggerq {
 
     inline void Linkage::set_links() {
 
-        // clear internal and external lines and connections
-        lines_.clear();
-        connec_.clear();
-        disconnec_.clear();
-
         // grab data from left and right vertices
         const uint_fast8_t left_size = left_->size();
         const uint_fast8_t right_size = right_->size();
@@ -236,14 +236,16 @@ namespace pdaggerq {
         // visited
         line_map line_populations;
         lines_.reserve(total_size);
+        connec_.reserve(total_size);
+        disconnec_.reserve(total_size);
 
         // populate right lines
         bool skip[right_size]; memset(skip, 0, right_size);
         for (uint_fast8_t right_idx = 0; right_idx < right_size; right_idx++) {
+
+            // insert line into map and check if there is a match
             auto [has_match, index] = line_populations(&right_lines[right_idx], right_idx);
 
-            // get line
-            const Line &right_line = right_lines[right_idx];
             if (has_match) {
                 // this is a self-contraction; add to connection map and skip
                 pair<uint_fast8_t, uint_fast8_t>
@@ -279,7 +281,7 @@ namespace pdaggerq {
                 
                 skip[index] = true;
             } else {
-                // this is an external line to be added to the linkage
+                // this is an external line to be added to the linkage (inserts lines in normal order)
                 lines_.insert(
                     std::lower_bound( lines_.begin(), lines_.end(),
                                       left_line, line_compare()),
@@ -414,8 +416,8 @@ namespace pdaggerq {
         if (right_->is_linked() ^ other.right_->is_linked()) return false;
 
         // check that scales are equal
-        if (flop_scale_ != other.flop_scale_) return false;
-        if (mem_scale_  !=  other.mem_scale_) return false;
+        if (flop_history_ != other.flop_history_) return false;
+        if (mem_history_  !=  other.mem_history_) return false;
 
         // check linkage maps
         if (disconnec_ !=  other.disconnec_) return false;
@@ -424,16 +426,21 @@ namespace pdaggerq {
         // recursively check if left linkages are equivalent
         if (left_->is_linked()) {
             if (*as_link(left_) != *as_link(other.left_)) return false;
+        } else {
+            // check if left vertices are equivalent
+            if (!left_->equivalent(*other.left_))
+                return false;
         }
 
         // check if right linkages are equivalent
         if (right_->is_linked()) {
             if (*as_link(right_) != *as_link(other.right_))
                 return false;
+        } else {
+            // check if right vertices are equivalent
+            if (!right_->equivalent(*other.right_))
+                return false;
         }
-
-        if (!Vertex::equivalent(other))
-            return false;
 
         // if all tests pass, return true
         return true;
@@ -452,8 +459,8 @@ namespace pdaggerq {
         if (depth_ != other.depth_) return {false, false};
 
         // extract total vector of vertices
-        const list<ConstVertexPtr> &this_vert = get_vertices();
-        const list<ConstVertexPtr> &other_vert = other.get_vertices();
+        const vector<ConstVertexPtr> &this_vert = get_vertices();
+        const vector<ConstVertexPtr> &other_vert = other.get_vertices();
 
         // check if the vertices are isomorphic and keep track of the number of permutations
         bool swap_sign = false;
@@ -550,7 +557,7 @@ namespace pdaggerq {
         return output;
     }
 
-    const list<ConstVertexPtr> &Linkage::get_vertices(bool regenerate, bool full_expand) const {
+    const vector<ConstVertexPtr> &Linkage::get_vertices(bool regenerate, bool full_expand) const {
         return full_expand ? all_vert_ : partial_vert_;
     }
 

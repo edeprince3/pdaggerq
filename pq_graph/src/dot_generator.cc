@@ -172,8 +172,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
 
     // get vertices
-    const list<ConstVertexPtr> &vertex_list = this->get_vertices(true, true);
-    vector<ConstVertexPtr> vertices = vector<ConstVertexPtr>(vertex_list.begin(), vertex_list.end());
+    vector<ConstVertexPtr> vertices = this->get_vertices(true, true);
 
     // sort vertices
     std::sort(vertices.begin(), vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
@@ -181,8 +180,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     });
 
     bool track_temps = true; // TODO: make this a parameter
-    const list<ConstVertexPtr> &temp_list = this->get_vertices(true, false);
-    vector<ConstVertexPtr> temps = vector<ConstVertexPtr>(temp_list.begin(), temp_list.end());
+    vector<ConstVertexPtr> temps = this->get_vertices(true, false);
     vector<ConstVertexPtr> temp_verts;
     temp_verts.reserve(vertices.size());
 

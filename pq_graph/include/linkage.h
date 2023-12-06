@@ -99,15 +99,21 @@ namespace pdaggerq {
         ConstVertexPtr left_, right_; // the left and right vertices of the linkage
 
         /// cost of linkage (flops and memory) as pair of vir and occ counts
-        list<shape> flop_history_; // worst case within linkage
-        list<shape> mem_history_; // worst case within linkage
+        vector<shape> flop_history_; // worst case within linkage
+        vector<shape> mem_history_; // worst case within linkage
         shape worst_flop_{};
         shape flop_scale_{}; // flops
         shape mem_scale_{}; // memory
 
         // forward are more efficient for insertion TODO: main pdaggerq should use these to avoid malloc
-        list<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
-        list<ConstVertexPtr> partial_vert_; // all non-intermediate vertices from linkages
+        vector<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
+        vector<ConstVertexPtr> partial_vert_; // all non-intermediate vertices from linkages
+
+        /**
+         * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
+         * this function will populate the Vertex base class with the result of the contraction
+         */
+        void set_links();
 
     public:
         long id_ = -1; // id of the linkage (default to -1 if not set)
@@ -131,8 +137,8 @@ namespace pdaggerq {
 
         /// map of connections between lines
         typedef pair<uint_fast8_t, uint_fast8_t> connec_pair;
-        typedef list<connec_pair>      connec_type;
-        typedef list<uint_fast8_t>  disconnec_type;
+        typedef vector<connec_pair>      connec_type;
+        typedef vector<uint_fast8_t>  disconnec_type;
 
         connec_type connec_;           // connections between lines
         disconnec_type disconnec_;     // external indices of left and right vertices
@@ -147,12 +153,6 @@ namespace pdaggerq {
          * @param right vertex to contract with
          */
         Linkage(const ConstVertexPtr &left, const ConstVertexPtr &right, bool is_addition);
-
-        /**
-         * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
-         * this function will populate the Vertex base class with the result of the contraction
-         */
-        void set_links();
 
         /**
          * Sets propeties of the vertex data members
@@ -257,7 +257,7 @@ namespace pdaggerq {
             if (!other.is_linked())
                 return false;
 
-            auto otherPtr = static_cast<const Linkage *>(&other);
+            auto otherPtr = dynamic_cast<const Linkage *>(&other);
             return *this == *otherPtr;
         }
 
@@ -310,7 +310,7 @@ namespace pdaggerq {
          * @param regenerate whether to regenerate the vertices (deprecated; no-op)
          * @param full_expand whether to fully expand nested intermediates
          */
-         const list<ConstVertexPtr> &get_vertices(bool regenerate = false, bool full_expand = true) const;
+         const vector<ConstVertexPtr> &get_vertices(bool regenerate = false, bool full_expand = true) const;
 
         /**
          * Get connections
@@ -361,7 +361,7 @@ namespace pdaggerq {
         /**
          * get history of flops from nested linkages
          */
-        const list<shape> &flop_history() const { return flop_history_; }
+        const vector<shape> &flop_history() const { return flop_history_; }
 
         /**
          * Get memory cost of linkage
@@ -371,7 +371,7 @@ namespace pdaggerq {
         /**
          * get history of memory from nested linkages
          */
-        const list<shape> &mem_history() const  { return mem_history_;  }
+        const vector<shape> &mem_history() const  { return mem_history_;  }
 
         /**
          * Create generic string representation of linkage

@@ -323,8 +323,7 @@ namespace pdaggerq {
 
     linkage_set Equation::generate_linkages(bool compute_all) {
 
-        static linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
-        all_linkages.clear();
+        linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
 
         #pragma omp parallel for schedule(guided) shared(terms_, all_linkages) default(none) firstprivate(compute_all)
         for (auto & term : terms_) { // iterate over terms

@@ -53,6 +53,7 @@ namespace pdaggerq {
             ConstVertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
             vector<ConstVertexPtr> rhs_; // rhs of the term TODO: replace with list. much faster for permuting
             mutable vector<string> comments_; // string representation of the original rhs
+            string original_pq_;
 
             /// scaling of the term (stored as a pair of integers, (num virtual, num occupied))
             scaling_map flop_map_; // map of flop scaling with linkage occurrence in term
@@ -419,7 +420,7 @@ namespace pdaggerq {
              * @param threshold threshold for error of representation
              * @return pair of numerator and denominator
              */
-            static pair<int,int> as_fraction(double coeff, double threshold = 1e-6);
+//            static pair<int,int> as_fraction(double coeff, double threshold = 1e-6);
 
             /**
              * permute terms with a given set of permutations
