@@ -173,9 +173,9 @@ namespace pdaggerq {
                     l_ext_idx_.insert(
                             std::lower_bound( l_ext_idx_.begin(), l_ext_idx_.end(), indices.first), indices.first);
                 } else if (indices.second >= 0) {
-                    // add to right external lines
+                    // add to right external lines (from upper bound)
                     lines_.insert(
-                            std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
+                            std::upper_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
 
                     r_ext_idx_.insert(
                             std::lower_bound( r_ext_idx_.begin(), r_ext_idx_.end(), indices.second), indices.second);
