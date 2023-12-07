@@ -155,10 +155,20 @@ void PQGraph::substitute(bool format_sigma) {
     cout << " ==> Substituting linkages into all equations <==" << endl;
     cout << "     Total number of terms: " << num_terms << endl;
     cout << "        Total contractions: " << flop_map_.total() << endl;
-    cout << "       Use batch algorithm: " << (batched_ ? "Yes" : "No") << endl;
+    cout << "     Use batched algorithm: " << (batched_ ? "yes" : "no") << endl;
     cout << "         Max linkage depth: " << ((long)Term::max_depth_ == -1 ? "no limit" : to_string(Term::max_depth_)) << endl;
     cout << "    Possible intermediates: " << tmp_candidates_.size() << endl;
+    cout << "    Number of threads used: "  << nthreads_ << endl;
     cout << " ===================================================="  << endl << endl;
+
+    // give user a warning if the number of possible linkages is large
+    // suggest using the batch algorithm, making the max linkage smaller, or increasing number of threads
+    if (tmp_candidates_.size() > 10000) {
+        cout << "WARNING: There are " << tmp_candidates_.size() << " possible linkages." << endl;
+        cout << "         This may take a long time to run." << endl;
+        cout << "         Consider using the batch algorithm, making the max linkage smaller, or increasing number of threads." << endl;
+        cout << endl;
+    }
 
     static size_t total_num_merged = 0;
     size_t num_merged;
@@ -202,6 +212,11 @@ void PQGraph::substitute(bool format_sigma) {
         // populate with pairs of flop maps with linkage for each equation
         vector<pair<scaling_map, LinkagePtr>> test_data(n_linkages);
 
+
+        // print ratio for showing progress
+        cout << "PROGRESS:" << endl;
+        size_t print_ratio = n_linkages / 10;
+
         /**
          * Iterate over all linkages in parallel and test if they can be substituted into the equations.
          * If they can, save the flop map for each equation.
@@ -209,7 +224,8 @@ void PQGraph::substitute(bool format_sigma) {
          */
         omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
-            ignore_linkages, equations_) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, format_sigma)
+            ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
+            format_sigma, print_ratio, verbose)
         for (int i = 0; i < n_linkages; ++i) {
             LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr()); // copy linkage
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
@@ -269,7 +285,17 @@ void PQGraph::substitute(bool format_sigma) {
             } else { // if we didn't make a substitution, add linkage to ignore linkages
                 ignore_linkages.insert(linkage);
             }
+
+            if (i % print_ratio == 0) {
+                #pragma omp critical
+                {
+                    printf("  %4.2f%%", (double) i / (double) n_linkages * 100);
+                    std::fflush(stdout);
+                }
+            }
+
         } // end iterations over all linkages
+        std::cout << "  100%" << std::endl<< std::endl;
         omp_set_num_threads(1);
 
         /**
