@@ -162,16 +162,16 @@ namespace pdaggerq {
             } else {
                 // add to external lines
                 if (indices.first >= 0) {
-                    // add to left external lines (from lower bound)
+                    // add to left external lines (from upper bound)
                     lines_.insert(
-                            std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
+                            std::upper_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
 
                     l_ext_idx_.insert(
                             std::upper_bound( l_ext_idx_.begin(), l_ext_idx_.end(), indices.first), indices.first);
                 } else if (indices.second >= 0) {
-                    // add to right external lines (from upper bound)
+                    // add to right external lines (from lower bound)
                     lines_.insert(
-                            std::upper_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
+                            std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
 
                     r_ext_idx_.insert(
                             std::upper_bound( r_ext_idx_.begin(), r_ext_idx_.end(), indices.second), indices.second);
