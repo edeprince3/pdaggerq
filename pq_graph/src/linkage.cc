@@ -165,6 +165,7 @@ namespace pdaggerq {
                     // add to left external lines (from lower bound)
                     lines_.insert(
                             std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
+
                     l_ext_idx_.insert(
                             std::upper_bound( l_ext_idx_.begin(), l_ext_idx_.end(), indices.first), indices.first);
                 } else if (indices.second >= 0) {
@@ -331,8 +332,8 @@ namespace pdaggerq {
             if ( !right_->equivalent( *other.right_)) return false;
         }
 
-//        if (!Vertex::equivalent(other))
-//            return false;
+        if (!Vertex::equivalent(other))
+            return false;
 
         // if all tests pass, return true
         return true;
