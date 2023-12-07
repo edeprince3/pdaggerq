@@ -249,9 +249,6 @@ namespace pdaggerq {
 
     size_t Equation::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
 
-        if (this->is_temp_equation_)
-            return 0;
-
         // check if linkage is more expensive than current bottleneck
         if (linkage->flop_scale() > worst_flop()) return 0;
 
@@ -281,10 +278,7 @@ namespace pdaggerq {
     size_t Equation::test_substitute(const LinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality) {
 
 
-        if (name_ == "reuse") { // if tmps, return
-            return 0;
-        } else if (is_temp_equation_) {
-            test_flop_map += flop_map_; // add flop scaling map for whole equation
+        if (name_ == "reuse") { // if reuse tmps, do not add to flop scaling map (we want to remove them)
             return 0;
         }
 

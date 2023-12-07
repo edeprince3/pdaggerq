@@ -147,7 +147,7 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
 
     // do not allow self substitution of intermediate linkages
     if (lhs_->is_temp()){
-        if(as_link(lhs_)->id_ == linkage->id_)
+        if(as_link(lhs_)->id_ <= linkage->id_)
             return false;
     }
 

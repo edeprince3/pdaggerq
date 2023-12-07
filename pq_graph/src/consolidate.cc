@@ -461,16 +461,12 @@ void PQGraph::substitute(bool format_sigma) {
             // reapply substitutions to equations
             for (const auto & precon : all_linkages_[temp_type]) {
                 for (auto &[name, equation] : equations_) {
-                    if (equation.is_temp_equation_)
-                        continue;
                     equation.substitute(precon, true);
                 }
             }
             // repeat for scalars
             for (const auto & precon : all_linkages_["scalars"]) {
                 for (auto &[name, equation] : equations_) {
-                    if (equation.is_temp_equation_)
-                        continue;
                     equation.substitute(precon, true);
                 }
             }
