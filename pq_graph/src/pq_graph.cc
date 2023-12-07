@@ -740,6 +740,7 @@ namespace pdaggerq {
             // TODO: make this a flag.
             // expand permutations in equations since we are not limiting the number of temps
             expand_permutations();
+            substitute();
         }
 
         if (allow_merge_)

@@ -843,8 +843,7 @@ namespace pdaggerq {
             if (*term1_link != *term2_link) return false;
 
             // if so, ensure that the lines are exactly the same
-            term1_link->same_lines(*term2_link);
-            return true;
+            return term1_link->lines() == term1_link->lines();
         }
 
         return similar_vertices;

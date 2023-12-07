@@ -416,13 +416,6 @@ namespace pdaggerq {
         const Line& operator[](uint_fast8_t i) const { return lines_[i]; }
 
         /**
-         * checks if lines in other vertex are in this vertex and that the blocks are the same
-         * @param other other vertex to compare lines
-         * @return boolean indicating whether the lines are the same
-         */
-        bool same_lines(const Vertex &other) const;
-
-        /**
          * modifies the vertex to have generic indices
          */
         void genericize();

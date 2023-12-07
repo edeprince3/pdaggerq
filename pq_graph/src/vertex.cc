@@ -426,7 +426,7 @@ namespace pdaggerq {
 
         // ensure that blocking and occupation of original vertex are not different
         if (!equivalent(other)) return {};
-        if (!same_lines(other)) return {}; // ensure that lines are the same
+        if (lines_ != other.lines_) return {}; // ensure that lines are the same
 
         /// check permutations of this vertex to find one that matches other, or return empty vertex
         bool same_vertex; // flag to check if same structure
@@ -555,16 +555,6 @@ namespace pdaggerq {
 
     bool Vertex::operator<(const Vertex &other) const {
         return name_ < other.name_;
-    }
-
-    inline bool Vertex::same_lines(const Vertex &other) const {
-
-        // check if same rank
-        if (lines_.size() != other.lines_.size())
-             return false;
-
-        // check if same lines
-        return lines_ == other.lines_;
     }
 
     inline bool Vertex::equivalent(const Vertex &other) const {
