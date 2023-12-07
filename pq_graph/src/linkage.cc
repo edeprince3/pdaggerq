@@ -299,10 +299,10 @@ namespace pdaggerq {
     bool Linkage::operator==(const Linkage &other) const {
 
         // check if both linkage are empty or not
-        if (empty()) return other.empty();
+        if (empty() ^ other.empty()) return false;
 
         // check if linkage type is the same
-        if (is_addition_ != other.is_addition_) return false;
+        if (is_addition_ ^ other.is_addition_) return false;
 
         // check the depth of the linkage
         if (depth_ != other.depth_) return false;
@@ -334,11 +334,8 @@ namespace pdaggerq {
             if ( !right_->equivalent( *other.right_)) return false;
         }
 
-        if (!Vertex::equivalent(other))
-            return false;
-
-        // if all tests pass, return true
-        return true;
+        // lastly, check if the vertex representations are equivalent
+        return Vertex::equivalent(other);
     }
 
     // repeat code from == operator, but invert the logic to end recursion early if possible

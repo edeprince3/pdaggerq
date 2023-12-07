@@ -593,7 +593,8 @@ namespace pdaggerq {
             line_vector vertex_lines = vertex->lines();
             string line_string;
             for (auto & vertex_line : vertex_lines)
-                line_string += vertex_line.label_;
+                // einsum can only handle single character labels
+                line_string += vertex_line.label_.front();
 
             rhs_strings.push_back(line_string);
         }
@@ -604,7 +605,7 @@ namespace pdaggerq {
         if (!tensors.empty()) {
             // get string of lines from lhs vertex
             for (auto & line : lhs_->lines())
-                link_string += line.label_;
+                link_string += line.label_.front();
         }
 
         // make einsum string
@@ -617,26 +618,12 @@ namespace pdaggerq {
         einsum_string += "->" + link_string + "', ";
 
         // add tensor names to einsum string
-        for (size_t i = 0; i < tensors.size(); i++) {
-            if (tensors[i]->is_linked())
-                 einsum_string += as_link(tensors[i])->str(true, false);
-            else einsum_string += tensors[i]->name();
-
-            // add dimensions for tensor
-//            einsum_string += "[";
-//            for (const auto &line : tensors[i]->lines()) {
-//                einsum_string += line.type();
-//                if (line.has_blk())
-//                    einsum_string += line.block();
-//
-//
-//                if (line != tensors[i]->lines().back()) einsum_string += ",";
-//                else einsum_string += "]";
-//            }
+        for (auto & tensor : tensors) {
+            if (tensor->is_linked())
+                 einsum_string += as_link(tensor)->str(true, false);
+            else einsum_string += tensor->name();
 
             einsum_string += ", ";
-//            if (i != tensors.size() - 1)
-//            else einsum_string += ")";
         }
 
         if (tensors.size() > 2) {

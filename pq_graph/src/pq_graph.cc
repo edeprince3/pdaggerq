@@ -733,10 +733,13 @@ namespace pdaggerq {
         if (format_sigma)
             substitute(); // apply substitutions again to find any new sigma vectors
 
+        // substitute again for good measure
+        substitute();
+
         if (Term::allow_nesting_) {
+            // TODO: make this a flag.
             // expand permutations in equations since we are not limiting the number of temps
             expand_permutations();
-            substitute(); // apply substitutions again after expanding permutations
         }
 
         if (allow_merge_)

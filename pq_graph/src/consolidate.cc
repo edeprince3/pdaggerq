@@ -155,8 +155,9 @@ void PQGraph::substitute(bool format_sigma) {
     cout << " ==> Substituting linkages into all equations <==" << endl;
     cout << "     Total number of terms: " << num_terms << endl;
     cout << "        Total contractions: " << flop_map_.total() << endl;
-    cout << "    Possible Intermediates: " << tmp_candidates_.size() << endl;
     cout << "       Use batch algorithm: " << (batched_ ? "Yes" : "No") << endl;
+    cout << "         Max linkage depth: " << ((long)Term::max_depth_ == -1 ? "no limit" : to_string(Term::max_depth_)) << endl;
+    cout << "    Possible intermediates: " << tmp_candidates_.size() << endl;
     cout << " ===================================================="  << endl << endl;
 
     static size_t total_num_merged = 0;
@@ -607,6 +608,14 @@ void PQGraph::sort_tmps(Equation &equation) {
         bool a_has_temp = a_max_id != -1l;
         bool b_has_temp = b_max_id != -1l;
 
+        bool a_lhs_is_tmp = a_term.lhs()->is_temp();
+        bool b_lhs_is_tmp = b_term.lhs()->is_temp();
+
+        // TODO: make function `Term::rhs_has_temp()` and static function `Term::has_temp(vector<ConstVertexPtr>)`
+        // Also TODO: the ordering here works nice, but it good still be improved to prevent temps from staying
+        // in memory too long
+
+
         // if no temps, keep order
         if (!a_has_temp && !b_has_temp)
             return a_idx < b_idx;
@@ -629,7 +638,7 @@ void PQGraph::sort_tmps(Equation &equation) {
 
     };
 
-    stable_sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
+    sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
 
     // replace the terms in the equation with the sorted terms
     std::vector<Term> sorted_terms;
