@@ -384,6 +384,20 @@ void PQGraph::substitute(bool format_sigma) {
             all_linkages_[eq_type].insert(bestPreCon); // add tmp to tmps
             ignore_linkages.insert(bestPreCon); // add linkage to ignore list
 
+            // reapply substitutions to equations. (no need for this anymore)
+
+            for (const auto & precon : all_linkages_[temp_type]) {
+                for (auto &[name, equation] : equations_) {
+                    equation.substitute(precon, true);
+                }
+            }
+            // repeat for scalars
+            for (const auto & precon : all_linkages_["scalars"]) {
+                for (auto &[name, equation] : equations_) {
+                    equation.substitute(precon, true);
+                }
+            }
+
             // collect new scalings
             collect_scaling();
 
@@ -457,20 +471,6 @@ void PQGraph::substitute(bool format_sigma) {
                 num_merged = merge_terms();
                 total_num_merged += num_merged;
             }
-
-            // reapply substitutions to equations. (no need for this anymore)
-
-//            for (const auto & precon : all_linkages_[temp_type]) {
-//                for (auto &[name, equation] : equations_) {
-//                    equation.substitute(precon, true);
-//                }
-//            }
-//            // repeat for scalars
-//            for (const auto & precon : all_linkages_["scalars"]) {
-//                for (auto &[name, equation] : equations_) {
-//                    equation.substitute(precon, true);
-//                }
-//            }
 
 
             if (verbose) cout << endl << "Regenerating test set..." << flush;
