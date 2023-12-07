@@ -77,6 +77,7 @@ namespace pdaggerq {
             bool needs_update_ = true; // flag for if term needs to be updated (default is true)
             bool generated_linkages_ = false; // flag for if term has generated linkages (default is false)
             bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
+            string print_override_; // string to override print function
 
             static inline size_t max_depth_ = static_cast<size_t>(-1); // maximum number of rhs in a linkage
             static inline shape max_shape_; // maximum shape of a linkage
@@ -119,6 +120,11 @@ namespace pdaggerq {
              * @param linkage linkage to assign
              */
             explicit Term(const ConstLinkagePtr &linkage, double coeff);
+
+            /**
+             * Constructor that takes in a single string and overrides printing
+             */
+            explicit Term(const string &print_override);
 
             /**
              * Copy constructor
