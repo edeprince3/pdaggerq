@@ -179,7 +179,6 @@ namespace pdaggerq {
          * Return a deep copy of the linkage where all nested linkages are also copied
          * @return deep copy of the linkage
          */
-        Vertex deep_copy() const override;
         VertexPtr deep_copy_ptr() const override;
 
         /**

@@ -568,10 +568,6 @@ namespace pdaggerq {
         return link_copy;
     }
 
-    Vertex Linkage::deep_copy() const {
-        return *deep_copy_ptr();
-    }
-
     Linkage &Linkage::operator=(const Linkage &other) {
         // check for self-assignment
         if (this == &other) return *this;

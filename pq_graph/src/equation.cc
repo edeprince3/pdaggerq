@@ -66,19 +66,6 @@ namespace pdaggerq {
         for (auto &term: terms_)
             term.eq()  = assignment_vertex_;
 
-
-        // remove all terms that have 't1' in the base name of any rhs vertex
-        if (remove_t1) {
-            for (auto term_it = terms_.end() - 1; term_it >= terms_.begin(); --term_it) {
-                bool found_t1 = false;
-                for (auto &op : *term_it) {
-                    found_t1 = op->base_name_ == "t1";
-                    if (found_t1) break;
-                }
-                if (found_t1) terms_.erase(term_it);
-            }
-        }
-
         // collect scaling of equations
         collect_scaling();
 
@@ -98,19 +85,6 @@ namespace pdaggerq {
         // set equation vertex for all terms if applicable
         for (auto &term: terms_)
             term.eq()  = assignment_vertex_;
-
-
-        // remove all terms that have 't1' in the base name of any rhs vertex
-        if (remove_t1) {
-            for (auto term_it = terms_.end() - 1; term_it >= terms_.begin(); --term_it) {
-                bool found_t1 = false;
-                for (auto &op : *term_it) {
-                    found_t1 = op->base_name_ == "t1";
-                    if (found_t1) break;
-                }
-                if (found_t1) terms_.erase(term_it);
-            }
-        }
 
         // collect scaling of equations
         collect_scaling();

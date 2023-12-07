@@ -100,7 +100,9 @@ namespace pdaggerq {
                 }
         }
 
-        if (options.contains("t1_transform")) Equation::remove_t1 = options["t1_transform"].cast<bool>();
+        if (options.contains("permute_eri"))
+            Vertex::permute_eri_ = options["permute_eri"].cast<bool>();
+
         if (options.contains("verbose")) verbose = options["verbose"].cast<bool>();
         if (options.contains("output")) {
             auto output = options["output"].cast<std::string>();
@@ -162,7 +164,6 @@ namespace pdaggerq {
         if (options.contains("allow_nesting"))
             Term::allow_nesting_ = options["allow_nesting"].cast<bool>();
 
-
         if (options.contains("occ_labels"))
             Line::occ_labels_ = options["occ_labels"].cast<std::array<char, 32>>();
         if (options.contains("virt_labels"))
@@ -216,21 +217,20 @@ namespace pdaggerq {
         cout << "    output: " << (Term::make_einsum ? "Python" : "C++")
              << "  // whether to print equations in C++ or Python format (default: C++)." << endl;
 
-        cout << "    remove_t1: " << (Equation::remove_t1 ? "true" : "false")
-             << "  // removes all t1 terms; ideal when using t1-transformed "
-             << "two-electron integrals (default: false)" << endl;
-
-        cout << "    max_temps: " << max_temps_
+        cout << "    max_temps: " << (long) max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
 
-        cout << "    max_depth: " << Term::max_depth_
-             << "  // maximum depth for chain of contractions (default: -1 for unlimited)" << endl;
+        cout << "    max_depth: " << (long) Term::max_depth_
+             << "  // maximum depth for chain of contractions (default: -1 for no limit)" << endl;
 
-        cout << "    max_shape: " << Term::max_shape_.str() << "// a map of maximum sizes for each line type in an intermediate (default: {o: -1, v: -1}, "
+        cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
                 "for no limit of occupied and virtual lines.): " << endl;
 
         cout << "    allow_nesting: " << (Term::allow_nesting_ ? "true" : "false")
              << "  // whether to allow nested intermediates (default: true)" << endl;
+
+        cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
+                << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
 
         cout << "    format_sigma: " << (has_sigma_vecs_ ? "true" : "false")
              << "  // whether to format equations for sigma-vector build (default: false)" << endl;
@@ -288,6 +288,10 @@ namespace pdaggerq {
             cout << "WARNING: no pq_strings found in pq_helper. Skipping equation '" << equation_name << "'." << endl;
             return;
         }
+
+        // TODO: determine lines of lhs operator from pq.left_operators_ and pq.right_operators_
+
+
 
         // loop over each pq_string
         bool is_sigma_equation = false;

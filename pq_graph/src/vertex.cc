@@ -67,8 +67,8 @@ namespace pdaggerq {
         }
 
         // set lines
-        set_lines(delta.labels, blk_string);
         type_ = 'd';
+        set_lines(delta.labels, blk_string);
     }
 
     Vertex::Vertex(const integrals &integral, const string &type) {
@@ -98,8 +98,8 @@ namespace pdaggerq {
         }
 
         // set lines
-        set_lines(integral.labels, blk_string);
         type_ = 'i';
+        set_lines(integral.labels, blk_string);
     }
 
     Vertex::Vertex(const amplitudes &amp, char type) {
@@ -137,10 +137,8 @@ namespace pdaggerq {
         }
 
         // set lines
-        set_lines(labels, blk_string);
-
         type_ = 't';
-
+        set_lines(labels, blk_string);
 
     }
 
@@ -247,12 +245,15 @@ namespace pdaggerq {
 
         // create line objects
         has_blk_ = !blk_string.empty();
+
+        if (has_blk_ && rank_ != blk_string.size()){
+            throw std::invalid_argument("Vertex::set_lines(...) the spin/range blocking string must have the same length as the number of lines");
+        }
+
         uint_fast8_t c_blk = 0; // count_ current number of characters for blocking
         for (int i = 0; i < lines.size(); i++) { // loop over lines
 
             lines_[i] = Line(lines[i]); // create line without a block
-
-            has_blk_ = has_blk_ || lines_[i].has_blk(); // check if line has a block
 
             // check if line is not type
             bool is_sigma = lines_[i].sig_;
@@ -483,7 +484,7 @@ namespace pdaggerq {
     bool Vertex::permute_eri() {
 
         // if allow_permute is false, do nothing
-        if (!allow_permute_)
+        if (!allow_permute_ || !Vertex::permute_eri_)
             return false;
 
         // valid ovstrings for eri vertex

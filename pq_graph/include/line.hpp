@@ -273,10 +273,9 @@ namespace pdaggerq {
             // store each boolean as a bit in an integral type
             hash |= line.a_;
             hash = (hash << 1) | line.sig_;
-            hash = (hash << 1) | line.den_;
 
             // return the hash (4 bits)
-            return hash;
+            return (hash << 1) | line.den_;
         }
     }; // struct LineHash
 

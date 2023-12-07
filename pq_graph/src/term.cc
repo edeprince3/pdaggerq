@@ -529,6 +529,16 @@ namespace pdaggerq {
         // assignments of terms with negative coefficients need it to be added
         needs_coeff = (is_assignment_ && is_negative) || needs_coeff;
 
+        // this is weird einsum craziness:
+        // if there is only one operator on the right-hand side, and you DO NOT multiply by a scalar,
+        // einsum will make a shallow copy of the operator and not a deep copy. This will then overwrite your
+        // original operator (if it is a tensor). To avoid this, we always multiply by a scalar in this scenario.
+        if (rhs_.size() == 1) {
+            if (is_assignment_ && !rhs_[0]->is_scalar())
+                needs_coeff = true;
+        }
+
+
         if (needs_coeff) {
             // add coefficient to string
             added_coeff = true;

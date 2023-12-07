@@ -89,6 +89,7 @@ namespace pdaggerq {
         // indicates whether the vertex is allowed to be permuted
         static inline bool allow_permute_ = true;
         static inline bool print_trial_index = false;
+        static inline bool permute_eri_ = true;
 
         /****** Constructors ******/
 
@@ -122,18 +123,14 @@ namespace pdaggerq {
          * Copy constructor
          * @param other vertex to copy
          */
-        Vertex(const Vertex &other) = default;
+        Vertex(const Vertex &other) = default;;
+
 
         /**
-         * deep copy of vertex
-         * @return deep copy of vertex
+         * deep copy of vertex returned as a pointer
+         * @return pointer to deep copy of vertex
          */
-        virtual Vertex deep_copy() const{
-            // true vertex does not have any pointers; this function is just for inheritance
-            return *this;
-        };
         virtual VertexPtr deep_copy_ptr() const{ return std::make_shared<Vertex>(*this); }
-        ConstVertexPtr ptr() const { return shared_from_this(); }
 
 
         /**

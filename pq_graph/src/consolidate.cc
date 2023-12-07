@@ -466,13 +466,6 @@ void PQGraph::substitute(bool format_sigma) {
         bool remake_test_set = test_linkages.empty() || first_pass;
         if(remake_test_set){
 
-            // merge terms
-            if (allow_merge_) {
-                num_merged = merge_terms();
-                total_num_merged += num_merged;
-            }
-
-
             if (verbose) cout << endl << "Regenerating test set..." << flush;
             generate_linkages(true); // generate all possible linkages
             if (verbose) cout << " Done ( " << flush;
@@ -519,7 +512,8 @@ void PQGraph::substitute(bool format_sigma) {
     }
     cout << "    Total Time: " << total_timer.elapsed() << endl;
     cout << "    Total number of terms: " << num_terms << endl;
-    cout << "    Total terms merged: " << total_num_merged << endl;
+    if (allow_merge_)
+        cout << "    Total terms merged: " << total_num_merged << endl;
     cout << "    Total contractions: " << flop_map_.total() << (format_sigma ? " (ignoring assignments of intermediates)" : "") << endl;
     cout << endl;
 
@@ -840,7 +834,7 @@ void PQGraph::expand_permutations(){
 
 size_t PQGraph::merge_terms() {
 
-    return 0; // ignore for now TODO: test this
+//    return 0; // ignore for now TODO: test this
 
     if (verbose) cout << "Merging similar terms:" << endl;
 

@@ -87,7 +87,7 @@ namespace pdaggerq {
         bool batched_ = false; // whether to use batched substitution
         int nthreads_ = 1; // number of threads to use
         bool verbose = true; // whether to print verbose output
-        bool allow_merge_ = true; // whether to merge terms
+        bool allow_merge_ = false; // whether to merge terms
 
         /// options for building sigma vectors
         //bool format_eom_ = false; // whether to format equations for the sigma build

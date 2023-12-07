@@ -58,7 +58,6 @@ namespace pdaggerq {
     public:
         static inline size_t nthreads_ = 1; // number of threads to use when substituting
         static inline bool permuted_merge_ = false; // whether to merge terms with permutations
-        static inline bool remove_t1 = false; // whether to format t1 transformed integrals
         static inline bool separate_conditions_ = false; // whether to separate terms into their conditions
         bool is_temp_equation_ = false; // whether this is an equation to hold intermediates
         bool allow_substitution_ = true; // whether to allow substitution of linkages
