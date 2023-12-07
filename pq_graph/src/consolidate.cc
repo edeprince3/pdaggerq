@@ -215,7 +215,12 @@ void PQGraph::substitute(bool format_sigma) {
 
         // print ratio for showing progress
         cout << "PROGRESS:" << endl;
-        size_t print_ratio = n_linkages / 20;
+        size_t print_ratio;
+
+        if (n_linkages == 0)
+            print_ratio = 1;
+        else
+            print_ratio = n_linkages / 10;
 
         /**
          * Iterate over all linkages in parallel and test if they can be substituted into the equations.
@@ -289,13 +294,15 @@ void PQGraph::substitute(bool format_sigma) {
             if (i % print_ratio == 0) {
                 #pragma omp critical
                 {
-                    printf("  %3.1f%%", (double) i / (double) n_linkages * 100);
+                    if (n_linkages != 0)
+                        printf("  %2.1f%%", (double) i / (double) n_linkages * 100);
                     std::fflush(stdout);
                 }
             }
 
         } // end iterations over all linkages
         omp_set_num_threads(1);
+        std::cout << std::endl;
 
         /**
          * Iterate over all test scalings and find the best flop map.
@@ -897,12 +904,11 @@ double PQGraph::common_coefficient(vector<Term*> &terms) {
     map<size_t, size_t> reciprocal_counts;
     for (Term* term_ptr: terms) {
         Term& term = *term_ptr;
-        size_t reciprocal = 1;
-        try {
-            reciprocal = static_cast<size_t>(round(1.0 / fabs(term.coefficient_)));
-        } catch (std::exception &e) {
-            return 1.0;
-        }
+
+        if ((fabs(term.coefficient_) - 1e-10) < 1e-10)
+            return 1.0; // do not modify coefficients if any are close to 0
+
+        auto reciprocal = static_cast<size_t>(round(1.0 / fabs(term.coefficient_)));
         reciprocal_counts[reciprocal]++;
     }
 
@@ -917,6 +923,10 @@ double PQGraph::common_coefficient(vector<Term*> &terms) {
         }
     }
     double common_coefficient = 1.0 / static_cast<double>(most_common_reciprocal);
+
+    if (common_coefficient == 0)
+        return 1.0;
+
     return common_coefficient;
 }
 
