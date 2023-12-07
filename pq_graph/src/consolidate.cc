@@ -294,15 +294,16 @@ void PQGraph::substitute(bool format_sigma) {
             if (i % print_ratio == 0) {
                 #pragma omp critical
                 {
-                    if (n_linkages != 0)
+                    try {
                         printf("  %2.1f%%", (double) i / (double) n_linkages * 100);
+                    } catch (...) {}
                     std::fflush(stdout);
                 }
             }
 
         } // end iterations over all linkages
         omp_set_num_threads(1);
-        std::cout << std::endl;
+        std::cout << std::endl << std::endl;
 
         /**
          * Iterate over all test scalings and find the best flop map.
@@ -906,7 +907,7 @@ double PQGraph::common_coefficient(vector<Term*> &terms) {
         Term& term = *term_ptr;
 
         if ((fabs(term.coefficient_) - 1e-10) < 1e-10)
-            return 1.0; // do not modify coefficients if any are close to 0
+            continue; // skip terms with coefficient of 0
 
         auto reciprocal = static_cast<size_t>(round(1.0 / fabs(term.coefficient_)));
         reciprocal_counts[reciprocal]++;
@@ -922,8 +923,14 @@ double PQGraph::common_coefficient(vector<Term*> &terms) {
             most_common_reciprocal_count = reciprocal_count.second;
         }
     }
+
+    // do not modify coefficients if any are close to 0
+    if (most_common_reciprocal == 0)
+        return 1.0;
+
     double common_coefficient = 1.0 / static_cast<double>(most_common_reciprocal);
 
+    // do not modify coefficients if any are close to 0
     if (common_coefficient == 0)
         return 1.0;
 
