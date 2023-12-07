@@ -223,6 +223,15 @@ namespace pdaggerq {
 
     }
 
+    Term::Term(const string &print_override) {
+        // call default constructor
+        *this = Term();
+
+        // set print override
+        print_override_ = print_override;
+
+    }
+
     pair<scaling_map, scaling_map> Term::compute_scaling(const vector<ConstVertexPtr>& arrangement, bool recompute) {
 
         // reset flop and memory scaling maps
@@ -363,6 +372,10 @@ namespace pdaggerq {
     }
 
     string Term::str() const {
+
+        if (!print_override_.empty())
+            // return print override if it exists for custom printing
+            return print_override_;
 
         string output;
 

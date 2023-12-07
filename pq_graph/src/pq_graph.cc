@@ -507,13 +507,13 @@ namespace pdaggerq {
 
                     // create vertex with only the linkage's name
                     std::string lhs_name = temp->str(true, false);
-                    VertexPtr vert = make_shared<Vertex>(lhs_name);
 
                     // create term
                     Term newterm;
-                    if (!Term::make_einsum)
-                         newterm = Term(vert, {make_shared<Vertex>("reset_tmp")}, 1.0);
-                    else newterm = Term(vert, {make_shared<Vertex>("None")}, 1.0);
+                    if (Term::make_einsum)
+                         newterm = Term("del " + lhs_name);
+                    else newterm = Term(lhs_name + ".~TArrayD();");
+
                     newterm.is_assignment_ = true;
                     newterm.comments() = {};
 
