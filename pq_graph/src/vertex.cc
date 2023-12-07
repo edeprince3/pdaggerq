@@ -246,10 +246,6 @@ namespace pdaggerq {
         // create line objects
         has_blk_ = !blk_string.empty();
 
-        if (has_blk_ && rank_ != blk_string.size()){
-            throw std::invalid_argument("Vertex::set_lines(...) the spin/range blocking string must have the same length as the number of lines");
-        }
-
         uint_fast8_t c_blk = 0; // count_ current number of characters for blocking
         for (int i = 0; i < lines.size(); i++) { // loop over lines
 
