@@ -124,10 +124,11 @@ void PQGraph::substitute(bool format_sigma) {
     cout << " ===================================================="  << endl << endl;
 
     static size_t total_num_merged = 0;
-//    if (allow_merge_) {
-        size_t num_merged = merge_terms();
+    size_t num_merged;
+    if (allow_merge_) {
+        num_merged = merge_terms();
         total_num_merged += num_merged;
-//    }
+    }
 
     // initialize best flop map for all equations
     collect_scaling(true);
@@ -414,24 +415,24 @@ void PQGraph::substitute(bool format_sigma) {
         if(remake_test_set){
 
             // merge terms
-//            if (allow_merge_) {
+            if (allow_merge_) {
                 num_merged = merge_terms();
                 total_num_merged += num_merged;
-//            }
+            }
 
             // reapply substitutions to equations
             for (const auto & precon : all_linkages_[temp_type]) {
                 for (auto &[name, equation] : equations_) {
-//                    if (equation.is_temp_equation_)
-//                        continue;
+                    if (equation.is_temp_equation_)
+                        continue;
                     equation.substitute(precon, true);
                 }
             }
             // repeat for scalars
             for (const auto & precon : all_linkages_["scalars"]) {
                 for (auto &[name, equation] : equations_) {
-//                    if (equation.is_temp_equation_)
-//                        continue;
+                    if (equation.is_temp_equation_)
+                        continue;
                     equation.substitute(precon, true);
                 }
             }
@@ -498,7 +499,9 @@ void PQGraph::sort_tmps(Equation &equation) {
     // to sort the tmps while keeping the order of terms without tmps, we need to
     // make a map of the equation terms and their index in the equation and sort that (so annoying)
     std::vector<pair<Term*, size_t>> indexed_terms;
-    for (size_t i = 0; i < equation.terms().size(); ++i)
+    size_t eq_size = equation.terms().size();
+    indexed_terms.reserve(eq_size);
+    for (size_t i = 0; i < eq_size; ++i)
         indexed_terms.emplace_back(&equation.terms()[i], i);
 
     // sort the terms by the maximum id of the tmps in the term, then by the index of the term
@@ -529,7 +532,7 @@ void PQGraph::sort_tmps(Equation &equation) {
                 }
 
                 // recurse into nested tmps
-                for (const auto &nested_op: link->to_vector(false)) {
+                for (const auto &nested_op: link->to_vector()) {
                     test_vertex(nested_op, id, get_max);
                 }
             }

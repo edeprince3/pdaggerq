@@ -586,8 +586,8 @@ namespace pdaggerq {
     }
 
     string Vertex::line_str() const{
-        if (rank_ == 0) return ""; // if rank is 0, return empty string
-        if (rank_ == 1) {
+        if (size() == 0) return ""; // if rank is 0, return empty string
+        if (size() == 1) {
             // do not print sigma lines if print_trial_index is false for otherwise scalar vertices
             if (lines_[0].sig_ && !print_trial_index)
                 return "";

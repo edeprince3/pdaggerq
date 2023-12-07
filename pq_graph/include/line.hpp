@@ -212,6 +212,13 @@ namespace pdaggerq {
 
     /// *** Hash functions *** ///
 
+    // struct for comparing lines while ignoring the label
+    struct line_compare {
+        bool operator()(const Line &left, const Line &right) const {
+            return left.in_order(right);
+        }
+    };
+
     // define hash function for Line
     struct LineHash {
         uint_fast16_t operator()(const Line &line) const {
@@ -227,11 +234,7 @@ namespace pdaggerq {
             // because a char is 8 bits, we shift by 8 (8 bits; 12 total)
             hash = (hash << 8) | line.label_[0];
 
-            // if the label is longer than 1 character,
-            // we only shift by 4 and consider the last character (which can be the same as the first)
-            hash = (hash << 4) | line.label_.back(); // (4 bits; 16 total)
-
-            // return the hash (16 bits total)
+            // return the hash
             return hash;
         }
     }; // struct LineHash
