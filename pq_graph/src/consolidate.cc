@@ -215,7 +215,7 @@ void PQGraph::substitute(bool format_sigma) {
 
         // print ratio for showing progress
         cout << "PROGRESS:" << endl;
-        size_t print_ratio = n_linkages / 10;
+        size_t print_ratio = n_linkages / 20;
 
         /**
          * Iterate over all linkages in parallel and test if they can be substituted into the equations.
@@ -289,13 +289,12 @@ void PQGraph::substitute(bool format_sigma) {
             if (i % print_ratio == 0) {
                 #pragma omp critical
                 {
-                    printf("  %4.2f%%", (double) i / (double) n_linkages * 100);
+                    printf("  %3.1f%%", (double) i / (double) n_linkages * 100);
                     std::fflush(stdout);
                 }
             }
 
         } // end iterations over all linkages
-        std::cout << "  100%" << std::endl<< std::endl;
         omp_set_num_threads(1);
 
         /**
@@ -898,7 +897,12 @@ double PQGraph::common_coefficient(vector<Term*> &terms) {
     map<size_t, size_t> reciprocal_counts;
     for (Term* term_ptr: terms) {
         Term& term = *term_ptr;
-        auto reciprocal = static_cast<size_t>(round(1.0 / fabs(term.coefficient_)));
+        size_t reciprocal = 1;
+        try {
+            reciprocal = static_cast<size_t>(round(1.0 / fabs(term.coefficient_)));
+        } catch (std::exception &e) {
+            return 1.0;
+        }
         reciprocal_counts[reciprocal]++;
     }
 
