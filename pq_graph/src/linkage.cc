@@ -142,11 +142,6 @@ namespace pdaggerq {
                 auto &[left_id, right_id] = pos->second;
                 right_id = (char) i; // add index to right_id
 
-                // add to internal lines in order of left
-                pair<uint_fast8_t, uint_fast8_t> connec(left_id, right_id);
-                int_connec_.insert(
-                        std::lower_bound( int_connec_.begin(), int_connec_.end(), connec), connec);
-
             } else {
                 // line is only in right
                 auto &[left_id, right_id] = line_populations[&right_lines[i]];
@@ -163,22 +158,22 @@ namespace pdaggerq {
                 // add to int_connec_ in order
                 pair<uint_fast8_t, uint_fast8_t> connec(indices.first, indices.second);
                 int_connec_.insert(
-                        std::lower_bound( int_connec_.begin(), int_connec_.end(), connec), connec);
+                        std::upper_bound( int_connec_.begin(), int_connec_.end(), connec), connec);
             } else {
                 // add to external lines
                 if (indices.first >= 0) {
-                    // add to left external lines
+                    // add to left external lines (from lower bound)
                     lines_.insert(
                             std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
                     l_ext_idx_.insert(
-                            std::lower_bound( l_ext_idx_.begin(), l_ext_idx_.end(), indices.first), indices.first);
+                            std::upper_bound( l_ext_idx_.begin(), l_ext_idx_.end(), indices.first), indices.first);
                 } else if (indices.second >= 0) {
                     // add to right external lines (from upper bound)
                     lines_.insert(
                             std::upper_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
 
                     r_ext_idx_.insert(
-                            std::lower_bound( r_ext_idx_.begin(), r_ext_idx_.end(), indices.second), indices.second);
+                            std::upper_bound( r_ext_idx_.begin(), r_ext_idx_.end(), indices.second), indices.second);
                 } else {
                     // this should never happen
                     throw runtime_error("Linkage::set_links(): line not found in left or right");
