@@ -52,6 +52,42 @@ void PQGraph::generate_linkages(bool recompute) {
 
 }
 
+linkage_set PQGraph::make_test_set() {
+
+    if (!batched_)
+        return tmp_candidates_; // if not batched, return all candidates
+
+    // TODO: test if this still works (it should)
+
+    static linkage_set test_linkages(1024); // set of linkages to test (start with medium n_ops)
+    test_linkages.clear();
+
+    shape worst_scale; // worst cost (start with zero)
+    for (const auto & linkage : tmp_candidates_) { // get worst cost
+        if (linkage->flop_scale() > worst_scale)
+            worst_scale = linkage->flop_scale();
+    }
+
+    size_t max_size = __FP_LONG_MAX; // maximum n_ops of linkage found (start with 0)
+    for (const auto & linkage : tmp_candidates_) { // iterate over all linkages
+
+        if (linkage->flop_scale() >= worst_scale) {
+            if (linkage->depth() <= max_size ) { // we want to grab the smallest linkages first (easier to nest)
+                test_linkages.insert(linkage); // add linkage to the test set
+                max_size = linkage->depth(); // update maximum n_ops
+            }
+        }
+    }
+
+    return test_linkages; // return test linkages
+}
+
+Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff) {
+    // make term with tmp
+    equation.terms().insert(equation.end(), Term(precon, coeff));
+    return equation.terms().back();
+}
+
 void PQGraph::substitute(bool format_sigma) {
 
     // reorder if not already reordered
@@ -152,6 +188,8 @@ void PQGraph::substitute(bool format_sigma) {
         substitute_timer.start();
         if (verbose) {
             cout << "  Remaining Test combinations: " << test_linkages.size() << endl;
+            if (batched_)
+                cout << "  Total Remaining combinations: " << tmp_candidates_.size() << endl;
             cout << endl << endl;
         }
 
@@ -517,6 +555,8 @@ void PQGraph::sort_tmps(Equation &equation) {
         const ConstVertexPtr &a_lhs = a_term.lhs();
         const ConstVertexPtr &b_lhs = b_term.lhs();
 
+        // TODO: keep entire list of ids and use that to sort
+
         // recursive function to get min/max id of temp ids from a vertex
         std::function<void(const ConstVertexPtr&, long&, bool)> test_vertex;
         test_vertex = [&test_vertex](const ConstVertexPtr &op, long& id, bool get_max) {
@@ -559,11 +599,15 @@ void PQGraph::sort_tmps(Equation &equation) {
             else return -id;
         };
 
-        long a_max_id  = max(get_lhs_id(a_term, true),
-                             get_rhs_id(a_term, true));
+        long a_max_lhs = get_lhs_id(a_term, true);
+        long a_max_rhs = get_rhs_id(a_term, true);
+        long a_max_id  = max(a_max_lhs,
+                             a_max_rhs);
         long a_min_id  = min(get_lhs_id(a_term, false),
                              get_rhs_id(a_term, false));
 
+        long b_max_lhs = get_lhs_id(a_term, true);
+        long b_max_rhs = get_rhs_id(a_term, true);
         long b_max_id  = max(get_lhs_id(b_term, true),
                              get_rhs_id(b_term, true));
         long b_min_id  = min(get_lhs_id(b_term, false),

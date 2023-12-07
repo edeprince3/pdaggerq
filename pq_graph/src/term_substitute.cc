@@ -195,7 +195,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     // break out of loops if a substitution was made
     bool madeSub = false; // initialize boolean to track if substitution was made
 
-    auto break_perm_op = [&](const vector<size_t> &subset) { return madeSub && !allow_equality; };
+    auto break_perm_op = [&madeSub, &allow_equality](const vector<size_t> &subset) { return madeSub && !allow_equality; };
     auto break_subset_op = break_perm_op;
 
     // initialize best flop scaling and memory scaling with rhs
@@ -207,7 +207,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     size_t num_link = link_vec.size(); // get number of linkages in rhs
 
     /// determine if a linkage could possibly be substituted
-    auto valid_op = [&](const vector<size_t> &subset) {
+    auto valid_op = [this, &link_vec, num_link](const vector<size_t> &subset) {
 
         size_t num_set = subset.size();
 
@@ -251,7 +251,8 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     vector<ConstVertexPtr> new_vertices;
 
     // iterate over all possible orderings of vertex subsets
-    auto op = [&](const vector<size_t> &subset) {
+    auto op = [this, &new_vertices, &new_term, &best_flop_map, &best_mem_map, &best_vertices,
+               &madeSub, &linkage, allow_equality](const vector<size_t> &subset) {
         // build rhs from subset indices
         // TODO: test permutations of the lines in each vertex too
         new_vertices.clear();

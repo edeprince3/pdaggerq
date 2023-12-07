@@ -462,15 +462,25 @@ namespace pdaggerq {
             constexpr SimilarLineHash sim_line_hasher;
             constexpr std::hash<string> string_hasher;
 
-            string hash_string = v->name();
+            size_t hash_name = string_hasher(v->base_name());
 
             // write the vertex as a string with numeric labels
-            for (const auto &line : v->lines()) {
-                hash_string += to_string(sim_line_hasher(line)) + ',';
+            size_t hashline = 0;
+            uint_fast8_t rank = v->size();
+            const vector<Line> &lines = v->lines();
+            for (uint_fast8_t i = 0; i < rank;) {
+
+                // line hash is 4 bits
+                hashline = (hashline << 4) | sim_line_hasher(lines[i]);
+
+                if (++i % 8 == 0) { // handle overflow
+                    // modulus by arbitrary prime (must be prime and smaller than 2^32 to avoid collisions)
+                    hash_name %= 1000000007;
+                }
             }
 
-            // hash the string
-            return string_hasher(hash_string);
+            // return hash
+            return hash_name ^ hashline;
 
         }
     };

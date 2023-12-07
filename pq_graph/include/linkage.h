@@ -55,10 +55,10 @@ namespace pdaggerq {
 
     // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
-    static LinkagePtr as_link(const VertexPtr &vertex)  { return dynamic_pointer_cast<Linkage>(vertex); }
-    static VertexPtr as_vert(const LinkagePtr &linkage) { return dynamic_pointer_cast<Vertex>(linkage); }
-    static ConstLinkagePtr as_link(const ConstVertexPtr &vertex)  { return dynamic_pointer_cast<const Linkage>(vertex); }
-    static ConstVertexPtr as_vert(const ConstLinkagePtr &linkage) { return dynamic_pointer_cast<const Vertex>(linkage); }
+    static LinkagePtr as_link(const VertexPtr &vertex)  { return static_pointer_cast<Linkage>(vertex); }
+    static VertexPtr as_vert(const LinkagePtr &linkage) { return static_pointer_cast<Vertex>(linkage); }
+    static ConstLinkagePtr as_link(const ConstVertexPtr &vertex)  { return static_pointer_cast<const Linkage>(vertex); }
+    static ConstVertexPtr as_vert(const ConstLinkagePtr &linkage) { return static_pointer_cast<const Vertex>(linkage); }
 
     /**
      * Perform linkage of two vertices by overload of * operator

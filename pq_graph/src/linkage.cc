@@ -271,16 +271,18 @@ namespace pdaggerq {
         }
 
 
-        vector<shape> flop_list(op_vec_size - 1), mem_list(op_vec_size - 1);
+        vector<shape> flop_list, mem_list;
+        flop_list.reserve(op_vec_size - 1);
+        mem_list.reserve(op_vec_size - 1);
 
         LinkagePtr linkage = as_link(op_vec[0] * op_vec[1]);
-        flop_list[0] = linkage->flop_scale_;
-         mem_list[0] = linkage->mem_scale_;
+        flop_list.push_back(linkage->flop_scale_);
+        mem_list.push_back(linkage->mem_scale_);
 
         for (uint_fast8_t i = 2; i < op_vec_size; i++) {
             linkage = as_link(linkage * op_vec[i]);
-            flop_list[i-1] = linkage->flop_scale_;
-             mem_list[i-1] = linkage->mem_scale_;
+            flop_list.push_back(linkage->flop_scale_);
+            mem_list.push_back(linkage->mem_scale_);
         }
 
         return {linkage, flop_list, mem_list};

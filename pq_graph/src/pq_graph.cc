@@ -119,8 +119,12 @@ namespace pdaggerq {
         }
 
         if (options.contains("max_shape")) {
-            
-            const std::map<string, int> &max_shape_map = options["max_shape_map"].cast<std::map<string, int>>();
+            std::map<string, int> max_shape_map;
+            try {
+                max_shape_map = options["max_shape_map"].cast<std::map<string, int>>();
+            } catch (const std::exception &e) {
+                throw invalid_argument("max_shape_map must be a map with 'o' or 'v' as keys to int values");
+            }
 
             // throw error if max_shape_map contains an invalid key
             for (const auto &[key, val] : max_shape_map) {
@@ -695,11 +699,6 @@ namespace pdaggerq {
 
     void PQGraph::optimize() {
 
-        if (Term::allow_nesting_) {
-            // expand permutations in equations since we are not limiting the number of temps
-            expand_permutations();
-        }
-
         reorder(); // reorder contractions in equations
 
         if (allow_merge_)
@@ -711,63 +710,18 @@ namespace pdaggerq {
         if (format_sigma)
             substitute(); // apply substitutions again to find any new sigma vectors
 
+        if (Term::allow_nesting_) {
+            // expand permutations in equations since we are not limiting the number of temps
+            expand_permutations();
+            substitute(); // apply substitutions again after expanding permutations
+        }
+
         if (allow_merge_)
             merge_terms(); // merge similar terms
 
         // recollect scaling of equations
         collect_scaling(true, true);
         analysis(); // analyze equations
-    }
-
-    linkage_set PQGraph::make_test_set() {
-
-        if (!batched_)
-            return tmp_candidates_; // if not batched, return all candidates
-
-        // TODO: test if this still works (it should)
-
-        static linkage_set test_linkages(1024); // set of linkages to test (start with medium n_ops)
-        test_linkages.clear();
-
-        shape worst_scale; // worst cost (start with zero)
-        for (const auto & linkage : tmp_candidates_) { // get worst cost
-            const auto &link_vec = linkage->to_vector();
-            auto [link_copy, flop_scales, mem_scales] = Linkage::link_and_scale(link_vec);
-
-            shape contr_scale;
-            for (auto & scale : flop_scales) {
-                if (scale > contr_scale) contr_scale = scale;
-            }
-
-            if (contr_scale > worst_scale) worst_scale = contr_scale;
-        }
-
-        size_t max_size = 0; // maximum n_ops of linkage found (start with 0)
-        for (const auto & linkage : tmp_candidates_) { // iterate over all linkages
-            const auto &link_vec = linkage->to_vector();
-            auto [link_copy, flop_scales, mem_scales] = Linkage::link_and_scale(link_vec);
-
-            shape contr_scale;
-            for (auto & scale : flop_scales) {
-                if (scale > contr_scale) contr_scale = scale;
-            }
-
-            if (contr_scale >= worst_scale) {
-                if (link_vec.size() >= max_size ) { // if the linkage is large enough,
-                    // some smaller linkages may be added, but the test set is somewhat random anyway
-                    test_linkages.insert(linkage); // add linkage to the test set
-                    max_size = link_vec.size(); // update maximum n_ops
-                }
-            }
-        }
-
-        return test_linkages; // return test linkages
-    }
-
-    Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff) {
-        // make term with tmp
-        equation.terms().insert(equation.end(), Term(precon, coeff));
-        return equation.terms().back();
     }
 
 } // pdaggerq

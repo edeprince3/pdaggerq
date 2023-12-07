@@ -280,7 +280,7 @@ namespace pdaggerq {
     void Term::reorder(bool recompute) { // reorder rhs in term
 
         if (recompute)
-            request_update();
+            is_optimal_ = false;
 
         // recompute initial scaling if needed
         compute_scaling();
@@ -326,7 +326,7 @@ namespace pdaggerq {
             int scaling_check = flop_map.compare(best_flop_map); // check if current permutation is better than best permutation
 
             bool is_better = scaling_check == scaling_map::this_better; // check if current permutation is better than best permutation
-            if (scaling_check == 0) { // if scaling is equal, check memory scaling
+            if (scaling_check == scaling_map::is_same) { // if scaling is equal, check memory scaling
                 // check if current permutation is better than the best permutation in terms of memory scaling
                 is_better = mem_map.compare(best_mem_map) == scaling_map::this_better; // check if current permutation is better than best permutation
             }
