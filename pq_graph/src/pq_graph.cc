@@ -316,12 +316,28 @@ namespace pdaggerq {
 
             // use the term to build the assignment vertex
             if (!name_is_formatted || equation_name.empty()) {
-                VertexPtr assigment = make_shared<Vertex>(*term.term_linkage());
-                assigment->sort();
-                assigment->update_name(assigment_name);
+                VertexPtr assignment = make_shared<Vertex>(*term.term_linkage()->deep_copy_ptr());
+                assignment->sort();
 
-                term.lhs() = assigment;
-                term.eq() = assigment;
+                // do not format assignment vertices as a map
+                assignment->format_map_ = false;
+
+                assignment->update_name(assigment_name);
+
+                term.lhs() = assignment;
+                term.eq() = assignment;
+            } else {
+                VertexPtr assignment = term.lhs()->deep_copy_ptr();
+                assignment->sort();
+
+                // do not format assignment vertices as a map
+                assignment->format_map_ = false;
+
+                // update name of assignment vertex
+                assignment->update_name(assigment_name);
+
+                term.lhs() = assignment;
+                term.eq() = assignment;
             }
 
 
@@ -343,7 +359,10 @@ namespace pdaggerq {
 
         // build equation
         Equation& new_equation = equations_[assigment_name];
-        const ConstVertexPtr &assignment_vertex = terms.back().lhs();
+        VertexPtr assignment_vertex = terms.back().lhs()->deep_copy_ptr();
+
+        // do not format assignment vertices as a map
+        assignment_vertex->format_map_ = false;
         new_equation = Equation(assignment_vertex, terms);
 
         // save initial scaling

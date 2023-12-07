@@ -67,7 +67,6 @@ namespace pdaggerq {
         }
 
         // set lines
-        type_ = 'd';
         set_lines(delta.labels, blk_string);
     }
 
@@ -98,7 +97,6 @@ namespace pdaggerq {
         }
 
         // set lines
-        type_ = 'i';
         set_lines(integral.labels, blk_string);
     }
 
@@ -136,8 +134,10 @@ namespace pdaggerq {
             //TODO: add check in Term for more than one sigma and change line and replace with X, Y, or Z (should never have Z)
         }
 
+        // only represent amplitudes as maps if they have a block
+        format_map_ = !blk_string.empty();
+
         // set lines
-        type_ = 't';
         set_lines(labels, blk_string);
 
     }
@@ -276,13 +276,13 @@ namespace pdaggerq {
     }
 
     void Vertex::format_name() {
-        name_ = base_name_ + "_";
+        name_ = base_name_;
 
         // scalars have no dimension
         if (rank_ == 0) return;
 
         // format tensor block as a map if it is not an amplitude or if it has a block
-        if (type_ != 't' || has_blk_) {
+        if (format_map_) {
             name_ += "[\"";
             name_ += dimstring();
             name_ += "\"]";

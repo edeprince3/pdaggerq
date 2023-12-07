@@ -81,8 +81,8 @@ namespace pdaggerq {
         virtual size_t depth() const { return empty() ? 0 : 1; }
         virtual size_t partial_depth() const { return empty() ? 0 : 1; }
 
-        char type_ = '\0'; // type of the vertex (e.g. t: amplitude, i: integral, d: delta function, null: unknown)
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)
+        bool format_map_ = true; // whether the vertex is formatted as a map to access different blocks
         bool is_sigma_ = false; // whether the vertex is an excited state vertex
         bool is_den_ = false; // whether the vertex is a density-fitting vertex
 
