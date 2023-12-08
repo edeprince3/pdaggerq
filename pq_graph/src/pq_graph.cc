@@ -48,9 +48,9 @@ namespace pdaggerq {
                 .def("add", [](PQGraph& self, const pq_helper &pq, const std::string& equation_name) {
                     return self.add(pq, equation_name);
                 }, py::arg("pq") = pq_helper(), py::arg("equation_name") = "")
-                .def("print", [](PQGraph& self, const pq_helper &pq, const std::string &print_type) {
+                .def("print", [](PQGraph& self, const std::string &print_type) {
                     return self.print(print_type);
-                }, py::arg("pq") = pq_helper(), py::arg("print_type") = "")
+                }, py::arg("print_type") = "")
                 .def("str", &pdaggerq::PQGraph::str)
                 .def("reorder", &pdaggerq::PQGraph::reorder)
                 .def("optimize", &pdaggerq::PQGraph::optimize)
