@@ -213,7 +213,7 @@ void PQGraph::substitute(bool format_sigma) {
 
 
         // print ratio for showing progress
-        size_t print_ratio = n_linkages / 10;
+        size_t print_ratio = n_linkages / 20;
         bool print_progress = n_linkages > 200 && verbose;
 
         if (print_progress)
@@ -309,17 +309,18 @@ void PQGraph::substitute(bool format_sigma) {
             if (test_linkage == nullptr) continue;
             if (test_linkage->empty()) continue;
 
-            bool keep;
+            if (test_flop_map > flop_map_) {
+                // remove the linkage completely if the scaling only got worse
+                ignore_linkages.insert(test_linkage);
+                continue;
+            }
 
             bool is_scalar = test_linkage->is_scalar(); // check if linkage is a scalar
-
-            if (test_flop_map > flop_map_)
-                keep = false;
 
             // test if this is the best flop map seen
             int comparison = test_flop_map.compare(best_flop_map);
             bool is_equiv = comparison == scaling_map::is_same;
-            keep = comparison == scaling_map::this_better;
+            bool keep = comparison == scaling_map::this_better;
 
             // if we haven't made a substitution yet and this is either a
             // scalar or a sigma vector, keep it

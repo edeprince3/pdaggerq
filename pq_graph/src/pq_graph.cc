@@ -186,7 +186,7 @@ namespace pdaggerq {
         cout << "    max_temps: " << (long) max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
 
-        cout << "    max_depth: " << (long) Term::max_depth_
+        cout << "    max_depth: " << (long) Term::max_depth_ // TODO: should the default be 2? It works much nicer.
              << "  // maximum depth for chain of contractions (default: -1 for no limit)" << endl;
 
         cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
