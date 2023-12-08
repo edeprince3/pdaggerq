@@ -126,10 +126,11 @@ linkage_set Term::generate_linkages() const {
                 return; // skip linkages that are too large for the user-defined maximum
         }
 
+        if (this_linkage->flop_scale() > bottleneck_flop)
+            return; // skip linkages that are more expensive than the bottleneck
+
         // add linkage to set if it has a scaling less than or equal to the bottleneck
-        if (this_linkage->flop_scale() <= bottleneck_flop) {
-            linkages.insert(this_linkage);
-        }
+        linkages.insert(this_linkage);
 
     };
 
@@ -145,8 +146,9 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     // if no possible linkages, return false
     if (size() <= 1) return false;
 
-    // do not allow self substitution of intermediate linkages
+
     if (lhs_->is_temp()){
+        // do not allow substitution to intermediates with smaller ids
         if(as_link(lhs_)->id_ <= linkage->id_)
             return false;
     }

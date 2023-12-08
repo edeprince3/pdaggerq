@@ -305,7 +305,7 @@ namespace pdaggerq {
         void merge_permutations();
 
         // data structure that maps terms to their count_, comments, and net coefficient using a hash table
-        typedef unordered_map<Term, pair<size_t, pair<vector<string>, double>>, TermHash, TermEqual> merge_map_type;
+        typedef unordered_map<Term, pair<size_t, pair<string, double>>, TermHash, TermEqual> merge_map_type;
 
         /**
          * This tests if a term is found in the merge_terms_map when it is permuted

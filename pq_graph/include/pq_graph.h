@@ -92,7 +92,7 @@ namespace pdaggerq {
         /// options for building sigma vectors
         //bool format_eom_ = false; // whether to format equations for the sigma build
         bool has_sigma_vecs_ = false;
-        bool format_sigma_ = false; // whether to format equations for the sigma build
+        bool format_sigma_ = true; // whether to format equations for the sigma build
         bool print_trial_index = false; // whether to store the sigma vectors in the builder
 
 
@@ -205,12 +205,12 @@ namespace pdaggerq {
          * collect all possible linkages from all equations (remove none)
          * @param recompute whether to recompute all linkages or just the ones in modified terms
          */
-        void generate_linkages(bool recompute = true);
+        void generate_linkages(bool recompute, bool format_sigma);
 
         /**
          * Print all terms in each equation
          */
-        void print();
+        void print(string print_type = "");
 
         /**
          * turn pq_graph into a string

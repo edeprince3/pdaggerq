@@ -31,7 +31,7 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 
 using namespace pdaggerq;
 
-void PQGraph::generate_linkages(bool recompute) {
+void PQGraph::generate_linkages(bool recompute, bool format_sigma) {
 
     if (recompute)
         tmp_candidates_.clear(); // clear all prior candidates
@@ -42,9 +42,20 @@ void PQGraph::generate_linkages(bool recompute) {
     for (auto & [eq_name, equation] : equations_) { // iterate over equations in parallel
 
         // get all linkages of equation and add to candidates
-        tmp_candidates_ += equation.generate_linkages(recompute);
+        linkage_set candidates = equation.generate_linkages(recompute);
 
+        if (!format_sigma) tmp_candidates_ += candidates;
+        else {
+            // only add linkages that are not sigma vectors if formatting for sigma-build
+            // TODO: enforce this on a term-by-term basis
+            for (const auto &link: candidates) {
+                if (!link->is_sigma_) {
+                    tmp_candidates_.insert(link);
+                }
+            }
+        }
     }
+
     omp_set_num_threads(1);
 
     // collect scaling of all linkages
@@ -142,7 +153,7 @@ void PQGraph::substitute(bool format_sigma) {
 
     /// generate all possible linkages from all arrangements
     if (verbose) cout << "Generating all possible contractions from all combinations of tensors..."  << flush;
-    generate_linkages(true); // generate all possible linkages
+    generate_linkages(true, format_sigma); // generate all possible linkages
     if (verbose) cout << " Done" << endl;
 
     size_t num_terms = 0;
@@ -166,13 +177,13 @@ void PQGraph::substitute(bool format_sigma) {
     if (tmp_candidates_.size() > 10000) {
         cout << "WARNING: There are " << tmp_candidates_.size() << " possible linkages." << endl;
         cout << "         This may take a long time to run." << endl;
-        cout << "         Consider using the batch algorithm, making the max linkage smaller, or increasing number of threads." << endl;
+        cout << "         Consider increasing the number of threads, making the max depth smaller, or using the batch algorithm." << endl;
         cout << endl;
     }
 
     static size_t total_num_merged = 0;
-    size_t num_merged;
-    if (allow_merge_) {
+    size_t num_merged = 0;
+    if (allow_merge_ && !format_sigma) {
         num_merged = merge_terms();
         total_num_merged += num_merged;
     }
@@ -201,7 +212,7 @@ void PQGraph::substitute(bool format_sigma) {
             cout << "  Remaining Test combinations: " << test_linkages.size() << endl;
             if (batched_)
                 cout << "  Total Remaining combinations: " << tmp_candidates_.size() << endl;
-            cout << endl << endl;
+            cout << endl;
         }
 
         makeSub = false; // reset flag
@@ -221,7 +232,7 @@ void PQGraph::substitute(bool format_sigma) {
         else
             print_ratio = n_linkages / 10;
 
-        bool print_progress = n_linkages > 2000;
+        bool print_progress = n_linkages > 10000;
 
         if (print_progress) {
             cout << "PROGRESS:" << endl;
@@ -267,26 +278,29 @@ void PQGraph::substitute(bool format_sigma) {
                 Equation &equation = eq_pair.second; // get equation
 
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
-                numSubs += equation.test_substitute(linkage, test_flop_map, allow_equality || is_scalar);
+                numSubs += equation.test_substitute(linkage, test_flop_map, allow_equality || is_scalar || format_sigma);
             }
 
             // add to test scalings if we found a tmp that occurs in more than one term
             // or that occurs at least once and can be reused / is a scalar
 
             // include declaration for scaling?
-            bool include_declaration = !is_scalar && !format_sigma;
+            bool keep_declaration = !is_scalar && !format_sigma;
 
             // test if we made a valid substitution
-            int thresh = !include_declaration ? 0 : 1;
+            int thresh = keep_declaration ? 1 : 0;
             if (numSubs > thresh ) {
 
                 // make term of tmp declaration
-                if (include_declaration) {
-                    Term precon_term = Term(linkage, 1.0);
-                    precon_term.reorder(); // reorder term
+                Term precon_term = Term(linkage, 1.0);
+                precon_term.reorder(); // reorder term
 
+                if (keep_declaration) {
                     // add term scaling to test the flop map
                     test_flop_map += precon_term.flop_map();
+                } else {
+                    // remove from test flop map (since it will be extracted)
+                    test_flop_map -= precon_term.flop_map();
                 }
 
                 // save this test flop map and linkage for serial testing
@@ -303,7 +317,7 @@ void PQGraph::substitute(bool format_sigma) {
 
         } // end iterations over all linkages
         omp_set_num_threads(1);
-        std::cout << std::endl;
+        std::cout << std::endl << std::endl;
 
         /**
          * Iterate over all test scalings and find the best flop map.
@@ -314,24 +328,31 @@ void PQGraph::substitute(bool format_sigma) {
             if (test_linkage == nullptr) continue;
             if (test_linkage->empty()) continue;
 
+            bool keep;
+
             bool is_scalar = test_linkage->is_scalar(); // check if linkage is a scalar
 
             if (test_flop_map > flop_map_)
-                continue;
+                keep = false;
 
             // test if this is the best flop map seen
             int comparison = test_flop_map.compare(best_flop_map);
             bool is_equiv = comparison == scaling_map::is_same;
-            bool keep     = comparison == scaling_map::this_better;
+            keep = comparison == scaling_map::this_better;
 
-            if (!keep && is_equiv && allow_equality) {
-                // if the scaling is the same, prefer linkage with less operations
-                if (test_linkage->depth() <= bestPreCon->depth())
-                    keep = true;
+            // if we haven't made a substitution yet and this is either a
+            // scalar or a sigma vector, keep it
+            if (!makeSub && (format_sigma || is_scalar)) {
+                keep = true;
             }
 
-            if (!keep && !makeSub && (format_sigma || is_scalar)) {
+            if (!keep && is_equiv && allow_equality) {
                 keep = true;
+
+                // if the scaling is the same, and we've kept a sub, prefer linkage with less operations
+                if (makeSub)
+                     keep = test_linkage->depth() <= bestPreCon->depth();
+                else keep = true; // else set to true
             }
 
             if (keep) {
@@ -391,8 +412,14 @@ void PQGraph::substitute(bool format_sigma) {
             }
             omp_set_num_threads(1); // reset number of threads (for improved performance of non-parallel code)
             totalSubs += num_subs; // add number of substitutions to total
-            collect_scaling(); // collect new scaling
 
+            num_merged = 0;
+            if (allow_merge_ && !format_sigma) {
+                num_merged = merge_terms();
+                total_num_merged += num_merged;
+            }
+
+            collect_scaling(); // collect new scaling
 
             // format contractions
             vector<Term *> tmp_terms = get_matching_terms(bestPreCon);
@@ -441,7 +468,7 @@ void PQGraph::substitute(bool format_sigma) {
                 num_terms += equation.size();
             }
 
-            generate_linkages(false); // add new possible linkages to test set
+            generate_linkages(false, format_sigma); // add new possible linkages to test set
             tmp_candidates_ -= ignore_linkages; // remove ignored linkages
             test_linkages.clear(); // clear test set
             test_linkages = make_test_set(); // make new test set
@@ -500,8 +527,8 @@ void PQGraph::substitute(bool format_sigma) {
         bool remake_test_set = test_linkages.empty() || first_pass;
         if(remake_test_set){
 
-            if (verbose) cout << endl << "Regenerating test set..." << flush;
-            generate_linkages(true); // generate all possible linkages
+            if (verbose) cout << endl << "Regenerating test set..." << std::endl;
+            generate_linkages(true, format_sigma); // generate all possible linkages
             if (verbose) cout << " Done ( " << flush;
 
             tmp_candidates_ -= ignore_linkages; // remove ignored linkages
@@ -546,7 +573,7 @@ void PQGraph::substitute(bool format_sigma) {
     }
     cout << "    Total Time: " << total_timer.elapsed() << endl;
     cout << "    Total number of terms: " << num_terms << endl;
-    if (allow_merge_)
+    if (allow_merge_ && !format_sigma)
         cout << "    Total terms merged: " << total_num_merged << endl;
     cout << "    Total contractions: " << flop_map_.total() << (format_sigma ? " (ignoring assignments of intermediates)" : "") << endl;
     cout << endl;
@@ -876,7 +903,8 @@ void PQGraph::expand_permutations(){
 
 size_t PQGraph::merge_terms() {
 
-//    return 0; // ignore for now TODO: test this
+    if (!allow_merge_)
+        return 0; // do not merge terms if not allowed
 
     if (verbose) cout << "Merging similar terms:" << endl;
 
@@ -887,8 +915,8 @@ size_t PQGraph::merge_terms() {
     #pragma omp parallel for reduction(+:num_fuse) default(none) shared(equations_, eq_keys)
     for (const auto &key: eq_keys) {
         Equation &eq = equations_[key];
-        if (eq.name() == "tmps" || eq.name() == "reuse" || eq.name() == "scalars") continue; // skip tmps equation
-        if (eq.assignment_vertex()->rank() == 0) continue; // skip if lhs vertex is scalar
+        if (eq.is_temp_equation_) continue; // skip tmps equation
+
         num_fuse += eq.merge_terms(); // merge terms with same rhs up to a permutation
     }
     omp_set_num_threads(1);

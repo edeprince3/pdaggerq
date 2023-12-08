@@ -48,7 +48,9 @@ namespace pdaggerq {
                 .def("add", [](PQGraph& self, const pq_helper &pq, const std::string& equation_name) {
                     return self.add(pq, equation_name);
                 }, py::arg("pq") = pq_helper(), py::arg("equation_name") = "")
-                .def("print", &pdaggerq::PQGraph::print)
+                .def("print", [](PQGraph& self, const pq_helper &pq, const std::string &print_type) {
+                    return self.print(print_type);
+                }, py::arg("pq") = pq_helper(), py::arg("print_type") = "")
                 .def("str", &pdaggerq::PQGraph::str)
                 .def("reorder", &pdaggerq::PQGraph::reorder)
                 .def("optimize", &pdaggerq::PQGraph::optimize)
@@ -60,25 +62,6 @@ namespace pdaggerq {
 
     void PQGraph::set_options(const pybind11::dict& options) {
         cout << endl << "####################" << " PQ GRAPH " << "####################" << endl << endl;
-
-        constexpr auto to_lower = [](string str) {
-            // map uppercase to lowercase for output
-            for (auto &letter : str) {
-                static unordered_map<char, char>
-                        lowercase_map = {{'A', 'a'}, {'B', 'b'}, {'C', 'c'}, {'D', 'd'}, {'E', 'e'},
-                                        {'F', 'f'}, {'G', 'g'}, {'H', 'h'}, {'I', 'i'}, {'J', 'j'},
-                                        {'K', 'k'}, {'L', 'l'}, {'M', 'm'}, {'N', 'n'}, {'O', 'o'},
-                                        {'P', 'p'}, {'Q', 'q'}, {'R', 'r'}, {'S', 's'}, {'T', 't'},
-                                        {'U', 'u'}, {'V', 'v'}, {'W', 'w'}, {'X', 'x'}, {'Y', 'y'},
-                                        {'Z', 'z'}};
-
-                if (lowercase_map.find(letter) != lowercase_map.end())
-                    letter = lowercase_map[letter];
-            }
-
-            // return lowercase string
-            return str;
-        };
 
         if(options.contains("max_temps")) {
             max_temps_ = (size_t) options["max_temps"].cast<int>();;
@@ -103,22 +86,8 @@ namespace pdaggerq {
         if (options.contains("permute_eri"))
             Vertex::permute_eri_ = options["permute_eri"].cast<bool>();
 
-        if (options.contains("verbose")) verbose = options["verbose"].cast<bool>();
-        if (options.contains("output")) {
-            auto output = options["output"].cast<std::string>();
-            output = to_lower(output);
-
-            if (options["output"].cast<string>() == "python") {
-                Term::make_einsum = true;
-                cout << "Formatting equations for python" << endl;
-            } else if (options["output"].cast<string>() == "c++") {
-                Term::make_einsum = false;
-                cout << "Formatting equations for c++" << endl;
-            } else {
-                cout << "WARNING: output must be one of: python, einsum, c++" << endl;
-                cout << "         Setting output to c++" << endl;
-            }
-        }
+        if (options.contains("verbose"))
+            verbose = options["verbose"].cast<bool>();
 
         if (options.contains("max_shape")) {
             std::map<string, int> max_shape_map;
@@ -214,9 +183,6 @@ namespace pdaggerq {
         cout << "    verbose: " << (verbose ? "true" : "false")
              << "  // whether to print out verbose analysis (default: true)" << endl;
 
-        cout << "    output: " << (Term::make_einsum ? "Python" : "C++")
-             << "  // whether to print equations in C++ or Python format (default: C++)." << endl;
-
         cout << "    max_temps: " << (long) max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
 
@@ -233,7 +199,7 @@ namespace pdaggerq {
                 << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
 
         cout << "    format_sigma: " << (has_sigma_vecs_ ? "true" : "false")
-             << "  // whether to format equations for sigma-vector build (default: false)" << endl;
+             << "  // whether to format equations for sigma-vector build by extracting intermediates without trial vectors (default: true)" << endl;
 
         cout << "    print_trial_index: " << (Vertex::print_trial_index ? "true" : "false")
              << "  // whether to store trial vectors as an additional index/dimension for "
@@ -242,8 +208,8 @@ namespace pdaggerq {
         cout << "    batched: " << (batched_ ? "true" : "false")
              << "  // whether to substitute intermediates in batches for faster generation. (default: false)" << endl;
 
-        cout << "    allow_merge_: " << (allow_merge_ ? "true" : "false")
-             << "  // whether to merge similar terms during optimization (default: true)" << endl;
+        cout << "    allow_merge: " << (allow_merge_ ? "true" : "false")
+             << "  // whether to merge similar terms during optimization (default: false)" << endl;
 
         cout << "    nthreads: " << nthreads_
              << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
@@ -380,7 +346,41 @@ namespace pdaggerq {
         build_timer.stop(); // start timer
     }
 
-    void PQGraph::print() {
+    void PQGraph::print(string print_type) {
+
+        constexpr auto to_lower = [](string str) {
+            // map uppercase to lowercase for output
+            for (auto &letter : str) {
+                static unordered_map<char, char>
+                        lowercase_map = {{'A', 'a'}, {'B', 'b'}, {'C', 'c'}, {'D', 'd'}, {'E', 'e'},
+                                         {'F', 'f'}, {'G', 'g'}, {'H', 'h'}, {'I', 'i'}, {'J', 'j'},
+                                         {'K', 'k'}, {'L', 'l'}, {'M', 'm'}, {'N', 'n'}, {'O', 'o'},
+                                         {'P', 'p'}, {'Q', 'q'}, {'R', 'r'}, {'S', 's'}, {'T', 't'},
+                                         {'U', 'u'}, {'V', 'v'}, {'W', 'w'}, {'X', 'x'}, {'Y', 'y'},
+                                         {'Z', 'z'}};
+
+                if (lowercase_map.find(letter) != lowercase_map.end())
+                    letter = lowercase_map[letter];
+            }
+
+            // return lowercase string
+            return str;
+        };
+
+        print_type = to_lower(print_type);
+
+        if (print_type == "python" || print_type == "einsum") {
+            Term::make_einsum = true;
+            cout << "Formatting equations for python" << endl;
+        } else if (print_type == "c++" || print_type == "cpp") {
+            Term::make_einsum = false;
+            cout << "Formatting equations for c++" << endl;
+        } else {
+            cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
+            cout << "         Setting output to c++" << endl; // TODO: make default for python
+        }
+        cout << endl;
+
         // print output to stdout
         cout << this->str() << endl;
     }
@@ -733,15 +733,14 @@ namespace pdaggerq {
         if (format_sigma)
             substitute(); // apply substitutions again to find any new sigma vectors
 
-        // substitute again for good measure
-        substitute();
-
         if (Term::allow_nesting_) {
             // TODO: make this a flag.
             // expand permutations in equations since we are not limiting the number of temps
             expand_permutations();
-            substitute();
         }
+
+        // substitute again for good measure
+        substitute();
 
         if (allow_merge_)
             merge_terms(); // merge similar terms

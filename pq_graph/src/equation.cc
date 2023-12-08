@@ -251,12 +251,7 @@ namespace pdaggerq {
 
     size_t Equation::test_substitute(const LinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality) {
 
-
-        if (name_ == "reuse") { // if reuse tmps, do not add to flop scaling map (we want to remove them)
-            return 0;
-        }
-
-        // check if linkage is more expensive than current bottleneck
+        // check if linkage is more expensive than the current bottleneck
         if (linkage->flop_scale() > worst_flop()) {
             test_flop_map += flop_map_; // add flop scaling map for whole equation
             return 0; // return 0 substitutions
@@ -389,31 +384,27 @@ namespace pdaggerq {
             // see if term is in map
             bool term_in_map = merge_terms_map.find(term) != merge_terms_map.end();
 
-//            // if term is not in map, check if a permuted version is in map
-//            if (!term_in_map && permuted_merge_) // if permuted merge is enabled
-//                merge_permuted_term(merge_terms_map, term, term_in_map);
+            // if term is not in map, check if a permuted version is in map
+            if (!term_in_map && Vertex::permute_eri_) // if permuted eris are enabled
+                merge_permuted_term(merge_terms_map, term, term_in_map);
 
             // add term to map
             if (!term_in_map)
-                merge_terms_map[term] = make_pair(1, make_pair(term.comments(), term.coefficient_)); // initialize term count_ and coefficient
-            else { // term is in map; update term count_ and coefficient
+                merge_terms_map[term] = make_pair(1, make_pair(term.original_pq_, term.coefficient_)); // initialize term count_ and coefficient
+            else { // term is in map; update term count and coefficient
                 // get iterator to term in map
-                merge_terms_map[term].first++; // increment term count_
-                auto &pair = merge_terms_map[term].second; // get a pair of vertex strings and coefficient
+                auto & [term_count, string_coeff_pair] = merge_terms_map[term];
+                term_count++; // increment term count
 
-                pair.second += term.coefficient_; // accumulate coefficient
-                auto &op_strings = pair.first; // get vertex strings
-                auto &test_strings = term.comments(); // get vertex strings of test term
+                // extract pq strings and coefficient
+                auto & [pq_strings, total_coeff] = string_coeff_pair;
 
-                // update vertex strings
-                string pad = string(assignment_vertex_->name().size() + 2, ' ');
-                op_strings.emplace_back("+");
-                op_strings.push_back(pad + to_string(stod(test_strings[0]))); // add coefficient of test term to new term
+                total_coeff += term.coefficient_; // accumulate coefficient
+                string this_pq_string = term.original_pq_; // get pq_string of term
 
-                for (size_t j = 1; j < test_strings.size(); ++j) {
-                    const string &op_string = test_strings[j]; // get vertex string
-                    op_strings.push_back(op_string); // add vertex string to new term
-                }
+                // add to pq_strings
+                pq_strings += "\n";
+                pq_strings += this_pq_string;
             }
         }
 
@@ -422,16 +413,13 @@ namespace pdaggerq {
         // iterate over the map, adding each term to the new_terms vector
         for (auto &unique_term_pair: merge_terms_map) {
             Term new_term = unique_term_pair.first; // get term
+            auto &[term_count, string_coeff_pair] = unique_term_pair.second; // get term count and coefficient
+            auto &[new_pq_string, new_coeff] = string_coeff_pair; // get pq strings and coefficient
 
-            double new_coefficient = unique_term_pair.second.second.second; // get coefficient
-            new_term.coefficient_ = new_coefficient; // set coefficient
-
+            new_term.coefficient_ = new_coeff; // set coefficient
             if (fabs(new_term.coefficient_) <= 1e-12) continue; // skip terms with zero coefficients
 
-            vector<string> &new_op_strings = unique_term_pair.second.second.first; // get vertex strings
-            new_term.comments() = new_op_strings; // set vertex strings
-
-            size_t term_count = unique_term_pair.second.first; // get term count_
+            new_term.original_pq_ = new_pq_string; // set pq string
             num_merged += term_count - 1; // increment number of terms merged
 
             // add term to new_terms
@@ -458,12 +446,12 @@ namespace pdaggerq {
         for (int j = 0; j < permuted_term.size(); ++j) vertex_signs[j] = false; // initialize vertex signs
 
         while (op_index < permuted_term.size()) {
-            bool is_temp = term[op_index]->is_linked(); // is vertex an intermediate? (cannot permute)
+            bool is_temp = term[op_index]->is_temp(); // is vertex an intermediate? (cannot permute)
 
             bool vertex_swap_sign = false; // if true, this vertex has an odd number of permutations
             VertexPtr op = make_shared<Vertex>(term[op_index]->permute(perm_idx, vertex_swap_sign)); // permute vertex
-            if (op->empty() || is_temp) { // if no more permutations are possible, or vertex is temporary
-                // reset vertex and move to next vertex
+            if (op->empty() || is_temp) { // if no more permutations are possible, or a vertex is temporary
+                // reset the vertex and move to the next
                 permuted_term[op_index] = term[op_index];
                 vertex_signs[op_index] = false;
                 op_index++;
@@ -481,7 +469,7 @@ namespace pdaggerq {
             size_t other_op_index = op_index + 1;
             size_t other_perm_idx = 0;
             while (other_op_index < permuted_term.size()) {
-                bool other_is_temp = term[other_op_index]->is_linked(); // is vertex an intermediate? (cannot permute)
+                bool other_is_temp = term[other_op_index]->is_temp(); // is vertex an intermediate? (cannot permute)
 
                 bool other_vertex_swap_sign = false; // if true, this vertex has an odd number of permutations
                 VertexPtr other_op = make_shared<Vertex>(term[other_op_index]->permute(other_perm_idx, other_vertex_swap_sign)); // permute vertex

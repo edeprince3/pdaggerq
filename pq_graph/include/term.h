@@ -53,7 +53,6 @@ namespace pdaggerq {
             ConstVertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
             vector<ConstVertexPtr> rhs_; // rhs of the term
             mutable vector<string> comments_; // string representation of the original rhs
-            string original_pq_;
 
             /// scaling of the term (stored as a pair of integers, (num virtual, num occupied))
             scaling_map flop_map_; // map of flop scaling with linkage occurrence in term
@@ -85,6 +84,8 @@ namespace pdaggerq {
             static inline bool permute_vertices_ = false;
             static inline bool make_einsum = false;
             static inline size_t depth_ = 0; // depth of nested tmps
+
+            string original_pq_; // the original pq string representation
 
             /******** Constructors ********/
 
@@ -538,28 +539,10 @@ namespace pdaggerq {
 
     struct TermHash { // hash functor for finding similar terms
         size_t operator()(const Term& term) const {
+            constexpr LinkageHash link_hasher;
+            ConstVertexPtr total_representation = term.lhs() + term.term_linkage();
 
-            string term_str;
-            // add vertex names to string and sorted line names to string
-            for (const auto& op : term) {
-                term_str += op->name();
-
-                vector<string> labels;
-                for (const auto& line : op->lines()) labels.push_back(line.label_);
-                sort(labels.begin(), labels.end());
-
-                for (const auto& label : labels) term_str += label;
-            }
-
-            // finally, add permutation type and permutation pairs
-            term_str += to_string(term.perm_type());
-            for (const auto& pair : term.term_perms()) {
-                term_str += pair.first;
-                term_str += pair.second;
-            }
-
-            // return hash of string
-            return hash<string>()(term_str);
+            return link_hasher(as_link(total_representation));
         }
     };
 
