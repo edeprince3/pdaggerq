@@ -550,6 +550,11 @@ void PQGraph::substitute(bool format_sigma) {
     tmp_candidates_.clear();
     substitute_timer.stop(); // stop timer for substitution
 
+    // resort tmps
+    for (auto & [type, eq] : equations_) {
+        sort_tmps(eq);
+    }
+
     // recollect scaling of equations (now including sigma vectors)
     collect_scaling(true, true);
 
@@ -625,7 +630,16 @@ void PQGraph::sort_tmps(Equation &equation) {
 
                 // recurse into nested tmps
                 for (const auto &nested_op: link->to_vector()) {
-                    test_vertex(nested_op, id, get_max);
+                    if (nested_op->is_temp()) {
+                        link = as_link(nested_op);
+                        link_id = link->id_;
+                        if (!link->is_reused_ && !link->is_scalar()) {
+                            if (get_max)
+                                 id = std::max(id, link_id);
+                            else id = std::max(id, -link_id);
+                        }
+                    }
+//                    test_vertex(nested_op, id, get_max);
                 }
             }
         };

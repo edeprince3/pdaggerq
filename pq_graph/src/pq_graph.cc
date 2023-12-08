@@ -727,23 +727,20 @@ namespace pdaggerq {
         if (allow_merge_)
             merge_terms(); // merge similar terms
 
-        bool format_sigma = has_sigma_vecs_ && format_sigma_;
-        substitute(format_sigma); // find and substitute intermediate contractions
-
-        if (format_sigma)
-            substitute(); // apply substitutions again to find any new sigma vectors
-
         if (Term::allow_nesting_) {
             // TODO: make this a flag.
             // expand permutations in equations since we are not limiting the number of temps
             expand_permutations();
         }
 
+        bool format_sigma = has_sigma_vecs_ && format_sigma_;
+        substitute(format_sigma); // find and substitute intermediate contractions
+
+        if (format_sigma)
+            substitute(); // apply substitutions again to find any new sigma vectors
+
         // substitute again for good measure
         substitute();
-
-        if (allow_merge_)
-            merge_terms(); // merge similar terms
 
         // recollect scaling of equations
         collect_scaling(true, true);
