@@ -40,20 +40,8 @@ void PQGraph::generate_linkages(bool recompute, bool format_sigma) {
 
     omp_set_num_threads(nthreads_);
     for (auto & [eq_name, equation] : equations_) { // iterate over equations in parallel
-
         // get all linkages of equation and add to candidates
-        linkage_set candidates = equation.generate_linkages(recompute);
-
-        if (!format_sigma) tmp_candidates_ += candidates;
-        else {
-            // only add linkages that are not sigma vectors if formatting for sigma-build
-            // TODO: enforce this on a term-by-term basis
-            for (const auto &link: candidates) {
-                if (!link->is_sigma_) {
-                    tmp_candidates_.insert(link);
-                }
-            }
-        }
+        tmp_candidates_ += equation.generate_linkages(recompute);
     }
 
     omp_set_num_threads(1);
@@ -226,8 +214,7 @@ void PQGraph::substitute(bool format_sigma) {
 
         // print ratio for showing progress
         size_t print_ratio = n_linkages / 10;
-        if (print_ratio == 0)
-            print_ratio = 1;
+        bool print_progress = n_linkages > 200;
 
         cout << "PROGRESS:" << endl;
 
@@ -239,7 +226,7 @@ void PQGraph::substitute(bool format_sigma) {
         omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
             ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
-            format_sigma, print_ratio, verbose)
+            format_sigma, print_ratio, print_progress, verbose)
         for (int i = 0; i < n_linkages; ++i) {
             LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr()); // copy linkage
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
@@ -303,7 +290,7 @@ void PQGraph::substitute(bool format_sigma) {
                 ignore_linkages.insert(linkage);
             }
 
-            if (i % print_ratio == 0) {
+            if (print_progress && verbose && i % print_ratio == 0) {
                 printf("  %2.1lf%%", (double) i / (double) n_linkages * 100);
                 std::fflush(stdout);
             }
