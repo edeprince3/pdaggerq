@@ -186,11 +186,11 @@ namespace pdaggerq {
 
         inline bool has_blk() const { return blk_type_ != '\0'; }
 
-        inline char block() const {
+        inline string block() const {
             switch (blk_type_) {
-                case 's': return a_ ? 'a' : 'b';
-                case 'r': return a_ ? '1' : '0';
-                default:  return '\0';
+                case 's': return a_ ? "a" : "b";
+                case 'r': return a_ ? "1" : "0";
+                default: return "";
             }
         }
 

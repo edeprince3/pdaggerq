@@ -313,7 +313,7 @@ namespace pdaggerq {
         string blk_string;
         blk_string.reserve(blk_string.size());
         for (const Line &line : lines_) {
-            blk_string.push_back(line.block());
+            blk_string += line.block();
         }
 
         return blk_string;
