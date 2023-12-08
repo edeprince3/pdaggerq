@@ -650,9 +650,10 @@ namespace pdaggerq {
         vector<Term *> temp_terms;
         for (auto &term : terms_) {
             for (auto &op : term) {
-                if (op->is_linked()) {
+                if (op->is_temp()) {
                     const ConstLinkagePtr &linkage = as_link(op);
-                    if (linkage->id_ == contraction->id_ && *linkage == *contraction) {
+                    if (linkage->id_ == contraction->id_ && linkage->is_reused_ == contraction->is_reused_
+                        && *linkage == *contraction) {
                         temp_terms.push_back(&term);
                         break;
                     }
