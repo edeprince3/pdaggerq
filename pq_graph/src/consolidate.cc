@@ -214,13 +214,18 @@ void PQGraph::substitute(bool format_sigma) {
 
 
         // print ratio for showing progress
-        cout << "PROGRESS:" << endl;
         size_t print_ratio;
 
         if (n_linkages == 0)
             print_ratio = 1;
         else
             print_ratio = n_linkages / 10;
+
+        bool print_progress = n_linkages > 2000;
+
+        if (print_progress) {
+            cout << "PROGRESS:" << endl;
+        }
 
         /**
          * Iterate over all linkages in parallel and test if they can be substituted into the equations.
@@ -229,8 +234,8 @@ void PQGraph::substitute(bool format_sigma) {
          */
         omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
-            ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
-            format_sigma, print_ratio, verbose)
+            ignore_linkages, equations_, cout) firstprivate(print_progress, n_linkages, temp_counts_, temp_type, allow_equality, \
+            format_sigma, print_ratio, verbose, stdout)
         for (int i = 0; i < n_linkages; ++i) {
             LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr()); // copy linkage
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
@@ -298,7 +303,7 @@ void PQGraph::substitute(bool format_sigma) {
 
         } // end iterations over all linkages
         omp_set_num_threads(1);
-        std::cout << std::endl << std::endl;
+        std::cout << std::endl;
 
         /**
          * Iterate over all test scalings and find the best flop map.
