@@ -291,14 +291,9 @@ void PQGraph::substitute(bool format_sigma) {
                 ignore_linkages.insert(linkage);
             }
 
-            if (i % print_ratio == 0) {
-                #pragma omp critical
-                {
-                    try {
-                        printf("  %2.1f%%", (double) i / (double) n_linkages * 100);
-                    } catch (...) {}
-                    std::fflush(stdout);
-                }
+            if (print_ratio != 0 && i % print_ratio == 0) {
+                printf("  %2.1lf%%", (double) i / (double) n_linkages * 100);
+                std::fflush(stdout);
             }
 
         } // end iterations over all linkages
