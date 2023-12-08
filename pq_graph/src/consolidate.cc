@@ -394,12 +394,6 @@ void PQGraph::substitute(bool format_sigma) {
             omp_set_num_threads(1); // reset number of threads (for improved performance of non-parallel code)
             totalSubs += num_subs; // add number of substitutions to total
 
-            num_merged = 0;
-            if (allow_merge_ && !format_sigma) {
-                num_merged = merge_terms();
-                total_num_merged += num_merged;
-            }
-
             collect_scaling(); // collect new scaling
 
             // format contractions
@@ -493,6 +487,12 @@ void PQGraph::substitute(bool format_sigma) {
         // regenerate all valid linkages
         bool remake_test_set = test_linkages.empty() || first_pass;
         if(remake_test_set){
+
+            num_merged = 0;
+            if (allow_merge_ && !format_sigma) {
+                num_merged = merge_terms();
+                total_num_merged += num_merged;
+            }
 
             // reapply substitutions to equations.
 
