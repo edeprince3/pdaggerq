@@ -214,9 +214,10 @@ void PQGraph::substitute(bool format_sigma) {
 
         // print ratio for showing progress
         size_t print_ratio = n_linkages / 10;
-        bool print_progress = n_linkages > 200;
+        bool print_progress = n_linkages > 200 && verbose;
 
-        cout << "PROGRESS:" << endl;
+        if (print_progress)
+            cout << "PROGRESS:" << endl;
 
         /**
          * Iterate over all linkages in parallel and test if they can be substituted into the equations.
@@ -226,7 +227,7 @@ void PQGraph::substitute(bool format_sigma) {
         omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
             ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
-            format_sigma, print_ratio, print_progress, verbose)
+            format_sigma, print_ratio, print_progress)
         for (int i = 0; i < n_linkages; ++i) {
             LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr()); // copy linkage
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
@@ -290,7 +291,7 @@ void PQGraph::substitute(bool format_sigma) {
                 ignore_linkages.insert(linkage);
             }
 
-            if (print_progress && verbose && i % print_ratio == 0) {
+            if (print_progress && i % print_ratio == 0) {
                 printf("  %2.1lf%%", (double) i / (double) n_linkages * 100);
                 std::fflush(stdout);
             }
