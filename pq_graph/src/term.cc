@@ -278,9 +278,11 @@ namespace pdaggerq {
 
         // populate flop and memory scaling maps; get bottleneck scaling
         for (shape flop_scale : flop_scales)
-            add_scaling(flop_scale);
+            flop_map[flop_scale]++;
+//            add_scaling(flop_scale);
         for (shape mem_scale : mem_scales)
-            add_scaling(mem_scale);
+            mem_map[mem_scale]++;
+//            add_scaling(mem_scale);
 
         return {flop_map, mem_map};
 
