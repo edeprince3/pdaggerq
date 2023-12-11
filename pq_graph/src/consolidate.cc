@@ -210,8 +210,9 @@ void PQGraph::substitute(bool format_sigma) {
         size_t n_linkages = test_linkages.size(); // get number of linkages
         LinkagePtr bestPreCon; // best linkage to substitute
 
-        // populate with a multimap of flop scaling maps to linkages, for each equation
-        std::multimap<scaling_map, LinkagePtr> test_data;
+        // populate with pairs of flop maps with linkage for each equation
+        vector<pair<scaling_map, LinkagePtr>> test_data(n_linkages);
+
 
         // print ratio for showing progress
         size_t print_ratio = n_linkages / 20;
@@ -286,7 +287,7 @@ void PQGraph::substitute(bool format_sigma) {
                 }
 
                 // save this test flop map and linkage for serial testing
-                test_data.emplace(test_flop_map, linkage);
+                test_data[i] = make_pair(test_flop_map, linkage);
 
             } else { // if we didn't make a substitution, add linkage to ignore linkages
                 ignore_linkages.insert(linkage);
@@ -303,7 +304,6 @@ void PQGraph::substitute(bool format_sigma) {
 
         /**
          * Iterate over all test scalings and find the best flop map.
-         * TODO: this should be in order. Should only need to test the first few.
          */
         for (auto &[test_flop_map, test_linkage] : test_data) {
 
@@ -340,7 +340,6 @@ void PQGraph::substitute(bool format_sigma) {
             }
 
             if (keep) {
-                //TODO: there should be some logic to reuse the other linkages found.
                 bestPreCon = test_linkage; // save linkage
                 best_flop_map = test_flop_map; // set best flop map
                 makeSub = true; // set make substitution flag to true

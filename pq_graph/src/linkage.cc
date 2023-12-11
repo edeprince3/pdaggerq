@@ -122,8 +122,8 @@ namespace pdaggerq {
         r_ext_idx_.reserve(right_size);
 
         // create a map of lines to their corresponding indicies
-        unordered_map<const Line*, std::array<char, 2>, LinePtrHash, LinePtrEqual>
-                line_populations(total_size << 1);
+        unordered_map<const Line*, pair<char, char>, LinePtrHash, LinePtrEqual>
+                line_populations(total_size);
 
         // populate left lines
         for (uint_fast8_t i = 0; i < left_size; i++) {
@@ -153,21 +153,21 @@ namespace pdaggerq {
         // now we have a map of lines to their corresponding indices
         // populate data
         for (auto &[line_ptr, indices] : line_populations) {
-            uint_fast8_t left_id = indices[0], right_id = indices[1];
-            bool is_internal = indices[0] >= 0 && indices[1] >= 0;
+            uint_fast8_t left_id = indices.first, right_id = indices.second;
+            bool is_internal = indices.first >= 0 && indices.second >= 0;
             if (is_internal) {
                 // add to int_connec_ in order
                 int_connec_.push_back({left_id, right_id});
             } else {
                 // add to external lines
-                if (indices[0] >= 0) {
+                if (indices.first >= 0) {
                     // add to left external lines (from upper bound)
                     lines_.insert(
                             std::upper_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()),
                             *line_ptr);
                     l_ext_idx_.push_back(left_id);
 
-                } else if (indices[1] >= 0) {
+                } else if (indices.second >= 0) {
                     // add to right external lines (from lower bound)
                     lines_.insert(
                             std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()),
