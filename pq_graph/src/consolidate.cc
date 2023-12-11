@@ -52,33 +52,32 @@ void PQGraph::generate_linkages(bool recompute, bool format_sigma) {
 }
 
 linkage_set PQGraph::make_test_set() {
+      /// deprecated
 
-    if (!batched_)
+//    if (!batched_)
         return tmp_candidates_; // if not batched, return all candidates
-
-    // TODO: test if this still works (it should)
-
-    static linkage_set test_linkages(1024); // set of linkages to test (start with medium n_ops)
-    test_linkages.clear();
-
-    shape worst_scale; // worst cost (start with zero)
-    for (const auto & linkage : tmp_candidates_) { // get worst cost
-        if (linkage->flop_scale() > worst_scale)
-            worst_scale = linkage->flop_scale();
-    }
-
-    size_t max_size = __FP_LONG_MAX; // maximum n_ops of linkage found (start with 0)
-    for (const auto & linkage : tmp_candidates_) { // iterate over all linkages
-
-        if (linkage->flop_scale() >= worst_scale) {
-            if (linkage->depth() <= max_size ) { // we want to grab the smallest linkages first (easier to nest)
-                test_linkages.insert(linkage); // add linkage to the test set
-                max_size = linkage->depth(); // update maximum n_ops
-            }
-        }
-    }
-
-    return test_linkages; // return test linkages
+//
+//    static linkage_set test_linkages(1024); // set of linkages to test (start with medium n_ops)
+//    test_linkages.clear();
+//
+//    shape worst_scale; // worst cost (start with zero)
+//    for (const auto & linkage : tmp_candidates_) { // get worst cost
+//        if (linkage->flop_scale() > worst_scale)
+//            worst_scale = linkage->flop_scale();
+//    }
+//
+//    size_t max_size = __FP_LONG_MAX; // maximum n_ops of linkage found (start with 0)
+//    for (const auto & linkage : tmp_candidates_) { // iterate over all linkages
+//
+//        if (linkage->flop_scale() >= worst_scale) {
+//            if (linkage->depth() <= max_size ) { // we want to grab the smallest linkages first (easier to nest)
+//                test_linkages.insert(linkage); // add linkage to the test set
+//                max_size = linkage->depth(); // update maximum n_ops
+//            }
+//        }
+//    }
+//
+//    return test_linkages; // return test linkages
 }
 
 Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff) {
@@ -89,10 +88,12 @@ Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double
 
 void PQGraph::substitute(bool format_sigma) {
 
+    // begin timings
+    static Timer total_timer;
+    total_timer.start();
+
     // reorder if not already reordered
     if (!is_reordered_) reorder();
-
-    static Timer total_timer;
 
     update_timer.start();
 
@@ -198,17 +199,11 @@ void PQGraph::substitute(bool format_sigma) {
     bool makeSub = false; // flag to make a substitution
     while (!tmp_candidates_.empty() && temp_counts_[temp_type] < max_temps_) {
         substitute_timer.start();
-        if (verbose) {
-            cout << "  Remaining Test combinations: " << test_linkages.size() << endl;
-            if (batched_)
-                cout << "  Total Remaining combinations: " << tmp_candidates_.size() << endl;
-            cout << endl;
-        }
 
         makeSub = false; // reset flag
         bool allow_equality = true; // flag to allow equality in flop map
         size_t n_linkages = test_linkages.size(); // get number of linkages
-        LinkagePtr bestPreCon; // best linkage to substitute
+        LinkagePtr link_to_sub; // best linkage to substitute
 
         // populate with pairs of flop maps with linkage for each equation
         vector<pair<scaling_map, LinkagePtr>> test_data(n_linkages);
@@ -302,9 +297,13 @@ void PQGraph::substitute(bool format_sigma) {
         omp_set_num_threads(1);
         std::cout << std::endl << std::endl;
 
+
+
         /**
-         * Iterate over all test scalings and find the best flop map.
+         * Iterate over all test scalings, remove incompatible ones, and sort them
          */
+
+        std::multimap<scaling_map, LinkagePtr> sorted_test_data;
         for (auto &[test_flop_map, test_linkage] : test_data) {
 
             // skip empty linkages
@@ -320,37 +319,35 @@ void PQGraph::substitute(bool format_sigma) {
             bool is_scalar = test_linkage->is_scalar(); // check if linkage is a scalar
 
             // test if this is the best flop map seen
-            int comparison = test_flop_map.compare(best_flop_map);
+            int comparison = test_flop_map.compare(flop_map_);
             bool is_equiv = comparison == scaling_map::is_same;
             bool keep = comparison == scaling_map::this_better;
 
             // if we haven't made a substitution yet and this is either a
             // scalar or a sigma vector, keep it
-            if (!makeSub && (format_sigma || is_scalar)) {
-                keep = true;
-            }
+            if (!makeSub && (format_sigma || is_scalar)) keep = true;
 
-            if (!keep && is_equiv && allow_equality) {
-                keep = true;
+            // if the scaling is the same and it is allowed, set keep to true
+            if (!keep && is_equiv && allow_equality) keep = true;
 
-                // if the scaling is the same, and we've kept a sub, prefer linkage with less operations
-                if (makeSub)
-                     keep = test_linkage->depth() <= bestPreCon->depth();
-                else keep = true; // else set to true
-            }
 
             if (keep) {
-                bestPreCon = test_linkage; // save linkage
-                best_flop_map = test_flop_map; // set best flop map
-                makeSub = true; // set make substitution flag to true
+//                link_to_sub = test_linkage; // save linkage
+//                best_flop_map = test_flop_map; // set best flop map
+//                makeSub = true; // set make substitution flag to true
+
+                sorted_test_data.insert(make_pair(test_flop_map, test_linkage));
+            } else {
+                ignore_linkages.insert(test_linkage); // add linkage to ignore linkages
             }
         }
         substitute_timer.stop(); // stop timer for substitution
 
+        makeSub = !sorted_test_data.empty();
         if (makeSub) {
 
             /**
-             * we made a substitution, so we need to update the equations.
+             * we found substitutions, so we need to update the equations.
              * we need to:
              *     actually substitute the linkage in all equations
              *     store the declarations for the tmps.
@@ -358,122 +355,149 @@ void PQGraph::substitute(bool format_sigma) {
              *     update the total number of substitutions.
              *     update the total number of terms.
              *     generate a new test set without this linkage.
+             * we do this for every linkage that would improve the scaling in order of the linkage that
+             * improves the scaling the most.
              */
-
-            // check if precon is a scalar
-            bool is_scalar = bestPreCon->is_scalar();
-
-            // get number of temps for this type
-            string eq_type = is_scalar ? "scalars"
-                                       : temp_type;
-
-            // set linkage id
-            size_t temp_id = ++temp_counts_[eq_type];
-            bestPreCon->id_ = (long) temp_id;
 
             update_timer.start();
 
-            scaling_map last_flop_map = flop_map_;
+            for (const auto &[found_flop, found_linkage] : sorted_test_data){
 
-            /// substitute linkage in all equations
+                substitute_timer.start();
 
-            omp_set_num_threads(nthreads_);
-            vector<string> eq_keys = get_equation_keys();
-            size_t num_subs = 0; // number of substitutions made
+                link_to_sub = found_linkage;
 
-            #pragma omp parallel for schedule(guided) default(none) firstprivate(allow_equality, bestPreCon) \
-            shared(equations_, eq_keys) reduction(+:num_subs)
-            for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
-                // get equation
-                Equation &equation = equations_[eq_name]; // get equation
-                size_t this_subs = equation.substitute(bestPreCon, allow_equality);
-                bool madeSub = this_subs > 0;
-                if (madeSub) {
-                    // sort tmps in equation
-                    sort_tmps(equation);
-                    num_subs += this_subs;
+                // check if link is a scalar
+                bool is_scalar = link_to_sub->is_scalar();
+
+                // get number of temps for this type
+                string eq_type = is_scalar ? "scalars"
+                                           : temp_type;
+
+                // set linkage id
+                size_t temp_id = ++temp_counts_[eq_type];
+                link_to_sub->id_ = (long) temp_id;
+
+                scaling_map last_flop_map = flop_map_;
+
+                /// substitute linkage in all equations
+
+                omp_set_num_threads(nthreads_);
+                vector<string> eq_keys = get_equation_keys();
+                size_t num_subs = 0; // number of substitutions made
+
+                #pragma omp parallel for schedule(guided) default(none) firstprivate(allow_equality, link_to_sub) \
+                shared(equations_, eq_keys) reduction(+:num_subs)
+                for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
+                    // get equation
+                    Equation &equation = equations_[eq_name]; // get equation
+                    size_t this_subs = equation.substitute(link_to_sub, allow_equality);
+                    bool madeSub = this_subs > 0;
+                    if (madeSub) {
+                        // sort tmps in equation
+                        sort_tmps(equation);
+                        num_subs += this_subs;
+                    }
                 }
-            }
-            omp_set_num_threads(1); // reset number of threads (for improved performance of non-parallel code)
-            totalSubs += num_subs; // add number of substitutions to total
+                omp_set_num_threads(1); // reset number of threads (for improved performance of non-parallel code)
+                totalSubs += num_subs; // add number of substitutions to total
 
-            collect_scaling(); // collect new scaling
+                // prepares the next batch of substitutions
+                auto remake_candidates = [this, &ignore_linkages, & test_linkages, format_sigma](){
 
-            // format contractions
-            vector<Term *> tmp_terms = get_matching_terms(bestPreCon);
+                    // collect new scalings
+                    collect_scaling();
 
-            // find common coefficients and permutations
-            double common_coeff = common_coefficient(tmp_terms);
+                    // add new possible linkages to test set
+                    generate_linkages(false, format_sigma);
+                    tmp_candidates_ -= ignore_linkages; // remove ignored linkages
+                    test_linkages.clear(); // clear test set
+                    test_linkages = make_test_set(); // make new test set
 
-            // modify coefficients of terms
-            for (Term* term_ptr : tmp_terms)
-                term_ptr->coefficient_ /= common_coeff;
+                    // remove all saved linkages
+                    for (const auto & link_pair : all_linkages_) {
+                        const linkage_set & linkages = link_pair.second;
+                        test_linkages -= linkages;
+                    }
+                };
 
-            // add linkage to equations
-            const Term &precon_term = add_tmp(bestPreCon, equations_[eq_type], common_coeff);
 
-            // print linkage
-            if (verbose){
-                cout << " ====> Substitution " << to_string(temp_id) << " <==== " << endl;
-                cout << " ====> " << precon_term << endl;
-                cout << " Difference: " << flop_map_ - last_flop_map << std::endl << endl;
-            }
+                if (num_subs == 0) {
+                    // if we didn't make a substitution, add linkage to ignore linkages
+                    ignore_linkages.insert(link_to_sub);
+                    temp_counts_[eq_type]--;
+                    remake_candidates();
+                    substitute_timer.stop();
+                    continue;
+                }
 
-            // add linkage to this set
-            all_linkages_[eq_type].insert(bestPreCon); // add tmp to tmps
-            ignore_linkages.insert(bestPreCon); // add linkage to ignore list
+                collect_scaling(); // collect new scaling
 
-            // collect new scalings
-            collect_scaling();
+                // format contractions
+                vector<Term *> tmp_terms = get_matching_terms(link_to_sub);
 
-            num_terms = 0;
-            for (const auto& eq_pair : equations_) {
-                const Equation &equation = eq_pair.second;
-                num_terms += equation.size();
-            }
+                // find common coefficients and permutations
+                double common_coeff = common_coefficient(tmp_terms);
 
-            generate_linkages(false, format_sigma); // add new possible linkages to test set
-            tmp_candidates_ -= ignore_linkages; // remove ignored linkages
-            test_linkages.clear(); // clear test set
-            test_linkages = make_test_set(); // make new test set
+                // modify coefficients of terms
+                for (Term* term_ptr : tmp_terms)
+                    term_ptr->coefficient_ /= common_coeff;
 
-            // remove all saved linkages
-            for (const auto & link_pair : all_linkages_) {
-                const linkage_set & linkages = link_pair.second;
-                test_linkages -= linkages;
+                // add linkage to equations
+                const Term &precon_term = add_tmp(link_to_sub, equations_[eq_type], common_coeff);
+
+                // print linkage
+                if (verbose){
+                    cout << " ====> Substitution " << to_string(temp_id) << " <==== " << endl;
+                    cout << " ====> " << precon_term << endl;
+                    cout << " Difference: " << flop_map_ - last_flop_map << std::endl << endl;
+                }
+
+                // add linkage to this set
+                all_linkages_[eq_type].insert(link_to_sub); // add tmp to tmps
+                ignore_linkages.insert(link_to_sub); // add linkage to ignore list
+
+                num_terms = 0;
+                for (const auto& eq_pair : equations_) {
+                    const Equation &equation = eq_pair.second;
+                    num_terms += equation.size();
+                }
+
+                // prepare the next batch of substitutions
+                remake_candidates();
+
+                // print flop map
+                if (verbose) {
+
+                    // print total time elapsed
+                    substitute_timer.stop();
+                    update_timer.stop();
+                    total_timer.stop();
+
+                    cout << "                  Net time: " << total_timer.elapsed() << endl;
+                    cout << "              Reorder Time: " << reorder_timer.get_time() << endl;
+                    cout << "               Update Time: " << update_timer.get_time() << endl;
+                    cout << "         Average Sub. Time: " << substitute_timer.average_time() << endl;
+                    cout << "           Number of terms: " << num_terms << endl;
+                    cout << "    Number of Contractions: " << flop_map_.total() << endl;
+                    cout << "        Substitution count: " << num_subs << endl;
+                    cout << "  Total Substitution count: " << totalSubs << endl;
+                    cout << "      Remaining candidates: " << test_linkages.size() << endl;
+                    cout << endl;
+                }
+
+                total_timer.start();
+                update_timer.start();
+
+                // break if not batching substitutions
+                // this will only substitute the best link found and then completely regenerate the results
+                if (!batched_) {
+                    substitute_timer.stop();
+                    break;
+                }
             }
 
             update_timer.stop();
-
-            // print flop map
-            if (verbose) {
-
-                // print total time elapsed
-                total_timer = substitute_timer + update_timer + build_timer + reorder_timer;
-
-                cout << "                  Net time: "  << total_timer.elapsed() << endl;
-                cout << "               Update Time: "  << update_timer.get_time() << endl;
-                cout << "              Reorder Time: "  << reorder_timer.get_time() << endl;
-                cout << "                 Sub. Time: "  << substitute_timer.get_time() << endl;
-                cout << "         Average Sub. Time: "  << substitute_timer.average_time() << endl;
-                cout << "           Number of terms: "  << num_terms << endl;
-                cout << "    Number of Contractions: "  << flop_map_.total() << endl;
-                cout << "        Substitution count: " << num_subs << endl;
-                cout << "  Total Substitution count: " << totalSubs << endl;
-                cout << endl;
-
-//                    cout << "Total Flop scaling: " << endl;
-//                    cout << "------------------" << endl;
-//                    print_new_scaling(flop_map_init_, flop_map_pre_, flop_map_);
-//
-//                    cout << endl << endl;
-//                    cout << "              Substitution Time: " << substitute_timer.get_time() << endl;
-//                    cout << "      Average Substitution Time: " << substitute_timer.average_time() << endl;
-//                    cout << "        Total Substitution Time: " << substitute_timer.elapsed() << endl;
-//                    cout << "              Total Update Time: " << update_timer.elapsed() << endl;
-
-
-            }
         }
 
         update_timer.start();
@@ -533,6 +557,7 @@ void PQGraph::substitute(bool format_sigma) {
     } // end while linkage
     tmp_candidates_.clear();
     substitute_timer.stop(); // stop timer for substitution
+    update_timer.stop();
 
     // resort tmps
     for (auto & [type, eq] : equations_) {
@@ -543,7 +568,6 @@ void PQGraph::substitute(bool format_sigma) {
     collect_scaling(true, true);
 
     // print total time elapsed
-    total_timer = substitute_timer + update_timer + build_timer + reorder_timer;
 
     if (temp_counts_[temp_type] >= max_temps_)
         cout << "WARNING: Maximum number of substitutions reached. " << endl << endl;
@@ -560,7 +584,11 @@ void PQGraph::substitute(bool format_sigma) {
             continue;
         cout << "    Found " << count << " " << type << endl;
     }
+
+    total_timer.stop();
     cout << "    Total Time: " << total_timer.elapsed() << endl;
+    total_timer.start();
+
     cout << "    Total number of terms: " << num_terms << endl;
     if (allow_merge_ && !format_sigma)
         cout << "    Total terms merged: " << total_num_merged << endl;
@@ -568,6 +596,8 @@ void PQGraph::substitute(bool format_sigma) {
     cout << endl;
 
     cout << " ===================================================="  << endl << endl;
+
+    total_timer.stop();
 }
 
 void PQGraph::sort_tmps(Equation &equation) {

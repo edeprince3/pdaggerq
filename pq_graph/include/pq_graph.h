@@ -84,7 +84,7 @@ namespace pdaggerq {
 
         /// options for the builder
         size_t max_temps_ = -1; // maximum number of temporary rhs (-1 for no limit by overflow)
-        bool batched_ = false; // whether to use batched substitution
+        bool batched_ = true; // whether to use batched substitution
         int nthreads_ = 1; // number of threads to use
         bool verbose = true; // whether to print verbose output
         bool allow_merge_ = false; // whether to merge terms

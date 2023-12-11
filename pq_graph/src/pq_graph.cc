@@ -186,7 +186,7 @@ namespace pdaggerq {
         cout << "    max_temps: " << (long) max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
 
-        cout << "    max_depth: " << (long) Term::max_depth_ // TODO: should the default be 2? It works much nicer.
+        cout << "    max_depth: " << (long) Term::max_depth_
              << "  // maximum depth for chain of contractions (default: -1 for no limit)" << endl;
 
         cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
@@ -206,7 +206,7 @@ namespace pdaggerq {
              << "tensors in a sigma-vector build (default: false)" << endl;
 
         cout << "    batched: " << (batched_ ? "true" : "false")
-             << "  // whether to substitute intermediates in batches for faster generation. (default: false)" << endl;
+             << "  // whether to substitute intermediates in batches for faster generation. (default: true)" << endl;
 
         cout << "    allow_merge: " << (allow_merge_ ? "true" : "false")
              << "  // whether to merge similar terms during optimization (default: false)" << endl;
