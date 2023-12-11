@@ -384,7 +384,7 @@ namespace pdaggerq {
 
         bool no_permutations = term_perms_.empty() || perm_type_ == 0;
         if ( no_permutations ) { // if no permutations
-            if (Term::make_einsum)
+            if (make_einsum)
                 return einsum_str();
 
             // get lhs vertex string
@@ -506,17 +506,19 @@ namespace pdaggerq {
             // add permuted terms to output
             for (auto & permuted_term : perm_terms) {
                 output += permuted_term.str();
-                output += "\n";
+                if (!make_einsum)
+                    output += ';';
+                output += '\n';
             }
             output.pop_back(); // remove last newline character
         }
 
+        if (make_einsum)
+            return output;
+
         // ensure the last character is a semicolon (might not be there if no rhs vertices)
-        if (output.back() != ';' && !Term::make_einsum)
-            output += ";";
-        else if (output.back() == ';'){
-            output.pop_back();
-        }
+        if (output.back() != ';')
+            output += ';';
 
         return output;
     }
@@ -732,7 +734,7 @@ namespace pdaggerq {
         comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
 
         // format comment for python if needed
-        if (Term::make_einsum){
+        if (make_einsum){
             // turn '//' into '#'
             size_t pos = comment.find("//");
             while (pos != std::string::npos) {
