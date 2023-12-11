@@ -319,7 +319,12 @@ namespace pdaggerq {
                 }
             }
 
-            terms.push_back(term);
+            if (use_density_fitting_){
+                vector<Term> density_fitted_terms = term.density_fitting();
+                terms.insert(terms.end(), density_fitted_terms.begin(), density_fitted_terms.end());
+            } else {
+                terms.push_back(term);
+            }
         }
 
 

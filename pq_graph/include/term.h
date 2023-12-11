@@ -535,6 +535,7 @@ namespace pdaggerq {
              */
             Term genericize() const;
 
+        vector<Term> density_fitting();
     }; // end Term class
 
     struct TermHash { // hash functor for finding similar terms

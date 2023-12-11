@@ -197,7 +197,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     // break out of loops if a substitution was made
     bool madeSub = false; // initialize boolean to track if substitution was made
 
-    auto break_perm_op = [&madeSub, &allow_equality](const vector<size_t> &subset) { return madeSub && !allow_equality; };
+    auto break_perm_op = [&madeSub](const vector<size_t> &subset) { return madeSub; };
     auto break_subset_op = break_perm_op;
 
     // initialize best flop scaling and memory scaling with rhs
@@ -320,7 +320,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     if (madeSub) {
         rhs_ = best_vertices;
         request_update(); // set flags for optimization
-        compute_scaling(true);
+        reorder();
     }
 
     // return a boolean indicating if a substitution was made

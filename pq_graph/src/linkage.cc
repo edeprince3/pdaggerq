@@ -122,8 +122,8 @@ namespace pdaggerq {
         r_ext_idx_.reserve(right_size);
 
         // create a map of lines to their corresponding indicies
-        unordered_map<const Line*, pair<char, char>, LinePtrHash, LinePtrEqual>
-                line_populations(total_size);
+        unordered_map<const Line*, std::array<char, 2>, LinePtrHash, LinePtrEqual>
+                line_populations(total_size << 1);
 
         // populate left lines
         for (uint_fast8_t i = 0; i < left_size; i++) {
@@ -153,28 +153,27 @@ namespace pdaggerq {
         // now we have a map of lines to their corresponding indices
         // populate data
         for (auto &[line_ptr, indices] : line_populations) {
-            bool is_internal = indices.first >= 0 && indices.second >= 0;
+            uint_fast8_t left_id = indices[0], right_id = indices[1];
+            bool is_internal = indices[0] >= 0 && indices[1] >= 0;
             if (is_internal) {
                 // add to int_connec_ in order
-                pair<uint_fast8_t, uint_fast8_t> connec(indices.first, indices.second);
-                int_connec_.insert(
-                        std::upper_bound( int_connec_.begin(), int_connec_.end(), connec), connec);
+                int_connec_.push_back({left_id, right_id});
             } else {
                 // add to external lines
-                if (indices.first >= 0) {
+                if (indices[0] >= 0) {
                     // add to left external lines (from upper bound)
                     lines_.insert(
-                            std::upper_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
+                            std::upper_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()),
+                            *line_ptr);
+                    l_ext_idx_.push_back(left_id);
 
-                    l_ext_idx_.insert(
-                            std::upper_bound( l_ext_idx_.begin(), l_ext_idx_.end(), indices.first), indices.first);
-                } else if (indices.second >= 0) {
+                } else if (indices[1] >= 0) {
                     // add to right external lines (from lower bound)
                     lines_.insert(
-                            std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()), *line_ptr);
+                            std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()),
+                            *line_ptr);
+                    r_ext_idx_.push_back(right_id);
 
-                    r_ext_idx_.insert(
-                            std::upper_bound( r_ext_idx_.begin(), r_ext_idx_.end(), indices.second), indices.second);
                 } else {
                     // this should never happen
                     throw runtime_error("Linkage::set_links(): line not found in left or right");
@@ -316,9 +315,31 @@ namespace pdaggerq {
         if (mem_scale_  !=  other.mem_scale_) return false;
 
         // check linkage maps
-        if (l_ext_idx_  !=  other.l_ext_idx_) return false;
-        if (r_ext_idx_  !=  other.r_ext_idx_) return false;
-        if (int_connec_ != other.int_connec_) return false;
+        if (l_ext_idx_.size()  !=  other.l_ext_idx_.size()) return false;
+        if (r_ext_idx_.size()  !=  other.r_ext_idx_.size()) return false;
+        if (int_connec_.size() != other.int_connec_.size()) return false;
+
+        // use set to find equivalency
+        std::set<uint_fast8_t> l_ext_test, r_ext_test;
+
+        // l_ext_idx_
+        for (const uint_fast8_t &idx : l_ext_idx_) l_ext_test.insert(idx);
+        for (const uint_fast8_t &idx : other.l_ext_idx_) {
+            if (l_ext_test.find(idx) == l_ext_test.end()) return false;
+        }
+
+        // r_ext_idx_
+        for (const uint_fast8_t &idx : r_ext_idx_) r_ext_test.insert(idx);
+        for (const uint_fast8_t &idx : other.r_ext_idx_) {
+            if (r_ext_test.find(idx) == r_ext_test.end()) return false;
+        }
+
+        // int_connec_
+        set<std::array<uint_fast8_t, 2>> int_test;
+        for (const auto &connec : int_connec_) int_test.insert(connec);
+        for (const auto &connec : other.int_connec_) {
+            if (int_test.find(connec) == int_test.end()) return false;
+        }
 
         // recursively check if left linkages are equivalent
         if (left_->is_linked()) {

@@ -150,6 +150,8 @@ void PQGraph::substitute(bool format_sigma) {
         num_terms += equation.size();
     }
 
+    size_t num_contract = flop_map_.total();
+
     cout << endl;
     cout << " ==> Substituting linkages into all equations <==" << endl;
     cout << "     Total number of terms: " << num_terms << endl;
@@ -162,11 +164,11 @@ void PQGraph::substitute(bool format_sigma) {
 
     // give user a warning if the number of possible linkages is large
     // suggest using the batch algorithm, making the max linkage smaller, or increasing number of threads
-    if (tmp_candidates_.size() > 10000) {
-        cout << "WARNING: There are " << tmp_candidates_.size() << " possible linkages." << endl;
+    if (tmp_candidates_.size()*num_contract > 1000*10000) {
+        cout << "WARNING: There are a large number of contractions and candidate intermediates." << endl;
         cout << "         This may take a long time to run." << endl;
         cout << "         Consider increasing the number of threads, making the max depth smaller, or using the batch algorithm." << endl;
-        cout << endl;
+        cout << endl; //185
     }
 
     static size_t total_num_merged = 0;
@@ -208,9 +210,8 @@ void PQGraph::substitute(bool format_sigma) {
         size_t n_linkages = test_linkages.size(); // get number of linkages
         LinkagePtr bestPreCon; // best linkage to substitute
 
-        // populate with pairs of flop maps with linkage for each equation
-        vector<pair<scaling_map, LinkagePtr>> test_data(n_linkages);
-
+        // populate with a multimap of flop scaling maps to linkages, for each equation
+        std::multimap<scaling_map, LinkagePtr> test_data;
 
         // print ratio for showing progress
         size_t print_ratio = n_linkages / 20;
@@ -229,13 +230,10 @@ void PQGraph::substitute(bool format_sigma) {
             ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
             format_sigma, print_ratio, print_progress)
         for (int i = 0; i < n_linkages; ++i) {
-            LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr()); // copy linkage
+
+            // copy linkage
+            LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr());
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
-
-            size_t temp_id;
-
-            // set id of linkage
-            linkage->id_ = (long) temp_id;
 
             if (format_sigma) {
                 // when formatting for sigma vectors,
@@ -247,9 +245,12 @@ void PQGraph::substitute(bool format_sigma) {
                 linkage->is_reused_ = false;
             }
 
+            // set id of linkage
+            size_t temp_id;
             if (is_scalar)
                  temp_id = temp_counts_["scalars"] + 1; // get number of scalars
             else temp_id = temp_counts_[temp_type] + 1; // get number of temps
+            linkage->id_ = (long) temp_id;
 
             scaling_map test_flop_map; // flop map for test equation
             size_t numSubs = 0; // number of substitutions made
@@ -285,7 +286,7 @@ void PQGraph::substitute(bool format_sigma) {
                 }
 
                 // save this test flop map and linkage for serial testing
-                test_data[i] = make_pair(test_flop_map, linkage);
+                test_data.emplace(test_flop_map, linkage);
 
             } else { // if we didn't make a substitution, add linkage to ignore linkages
                 ignore_linkages.insert(linkage);
@@ -302,6 +303,7 @@ void PQGraph::substitute(bool format_sigma) {
 
         /**
          * Iterate over all test scalings and find the best flop map.
+         * TODO: this should be in order. Should only need to test the first few.
          */
         for (auto &[test_flop_map, test_linkage] : test_data) {
 
@@ -338,6 +340,7 @@ void PQGraph::substitute(bool format_sigma) {
             }
 
             if (keep) {
+                //TODO: there should be some logic to reuse the other linkages found.
                 bestPreCon = test_linkage; // save linkage
                 best_flop_map = test_flop_map; // set best flop map
                 makeSub = true; // set make substitution flag to true

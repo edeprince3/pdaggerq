@@ -113,7 +113,7 @@ namespace pdaggerq {
             const ConstVertexPtr &right() const { return right_; }
 
             /// map of connections between lines
-            std::vector<pair<uint_fast8_t, uint_fast8_t>> int_connec_; // connections between lines
+            std::vector<std::array<uint_fast8_t, 2>> int_connec_; // connections between lines
             std::vector<uint_fast8_t> l_ext_idx_, r_ext_idx_;     // external indices of left and right vertices
 
         /********** Constructors **********/
@@ -304,7 +304,7 @@ namespace pdaggerq {
          * Get connections
          * @return connections
          */
-        const vector<pair<uint_fast8_t, uint_fast8_t>> &connections() const { return int_connec_; }
+        const std::vector<std::array<uint_fast8_t, 2>> &connections() const { return int_connec_; }
 
         /**
          * get external left or right indices

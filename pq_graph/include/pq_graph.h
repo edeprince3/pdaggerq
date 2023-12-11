@@ -88,6 +88,7 @@ namespace pdaggerq {
         int nthreads_ = 1; // number of threads to use
         bool verbose = true; // whether to print verbose output
         bool allow_merge_ = false; // whether to merge terms
+        bool use_density_fitting_ = false;
 
         /// options for building sigma vectors
         //bool format_eom_ = false; // whether to format equations for the sigma build

@@ -112,7 +112,8 @@ namespace pdaggerq {
                 VertexPtr int_vert = make_shared<Vertex>(integral, type);
                 if (type == "eri") { // permute eri to proper form
                     // swap sign if eri is permuted with sign change
-                    if (int_vert->permute_eri()) swap_sign();
+                    if (int_vert->permute_eri())
+                        swap_sign();
                 }
                 rhs_.push_back(int_vert);
             }
@@ -1006,6 +1007,32 @@ namespace pdaggerq {
         comments_.push_back(to_string(coefficient_)); // add coefficient to vertex strings
         for (const auto &op : rhs_)
             comments_.push_back(op->str());
+    }
+
+    vector<Term> Term::density_fitting() {
+        // find every "eri" vertex and split it into two vertices and two terms using density fitting
+        // so <pq|rs> becomes (Q|pq)(Q|rs) - (Q|ps)(Q|qr)
+
+        vector<Term> new_terms; //
+        new_terms.reserve(rhs_.size()+1);
+
+        // iterate over all rhs and every time we see a vertex that is an eri,
+        // split it into two vertices and two terms using density fitting
+        if (rhs_.empty()) return {*this}; // if constant, return itself
+
+        for (auto & op : rhs_) {
+            // check if vertex is an eri
+            if (op->base_name() == "eri") {
+                // split eri into two vertices and two terms using density fitting
+//                vector<Term> density_terms = op->density_fitting();
+
+                // add new terms to vector
+                new_terms.insert(new_terms.end(), new_terms.begin(), new_terms.end());
+            }
+        }
+
+        if (new_terms.empty()) return {*this}; // if no eris, return itself
+        return new_terms;
     }
 
 } // pdaggerq
