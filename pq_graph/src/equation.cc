@@ -276,7 +276,16 @@ namespace pdaggerq {
             bool madeSub = term.substitute(linkage, allow_equality);
 
             // update test flop scaling map.
-            test_flop_map += term.flop_map();
+            if (!linkage->is_reused_ && !linkage->is_scalar()) {
+                // reused intermediates will be pulled out of the term,
+                // so we don't need to add the scaling
+                test_flop_map += term.flop_map();
+            } else {
+                // if the linkage is reused, we need to ensure no negative scalings
+                for (auto & [key, value] : term.flop_map()) {
+                    if (value < 0) test_flop_map[key] = 0l;
+                }
+            }
 
             // increment number of substitutions if substitution was successful
             if (madeSub) ++num_subs; // increment number of substitutions
@@ -645,7 +654,7 @@ namespace pdaggerq {
         return terms_.insert(terms_.begin() + index, term); // add term to index of terms
     }
 
-    vector<Term *> Equation::get_temp_terms(const LinkagePtr& contraction) {
+    vector<Term *> Equation::get_temp_terms(const ConstLinkagePtr& contraction) {
         // for every term, check if this contraction is within the term (do not check lhs)
         vector<Term *> temp_terms;
         for (auto &term : terms_) {

@@ -83,8 +83,9 @@ namespace pdaggerq {
         scaling_map mem_map_pre_; // map of memory scaling before reordering or before subexpression elimination
 
         /// options for the builder
-        size_t max_temps_ = -1; // maximum number of temporary rhs (-1 for no limit by overflow)
+        size_t max_temps_ = -1l; // maximum number of temporary rhs (-1 for no limit by overflow)
         bool batched_ = true; // whether to use batched substitution
+        size_t batch_size_ = 100; // size of the batch
         int nthreads_ = 1; // number of threads to use
         bool verbose = true; // whether to print verbose output
         bool allow_merge_ = false; // whether to merge terms
@@ -258,7 +259,7 @@ namespace pdaggerq {
 
         perm_list common_permutations(const vector<Term *>& terms);
 
-        vector<Term *> get_matching_terms(const LinkagePtr &contraction);
+        vector<Term *> get_matching_terms(const ConstLinkagePtr &contraction);
 
         void remove_redundant_tmps();
     }; // PQGraph

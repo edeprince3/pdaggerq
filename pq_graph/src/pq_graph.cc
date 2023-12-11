@@ -64,19 +64,11 @@ namespace pdaggerq {
         cout << endl << "####################" << " PQ GRAPH " << "####################" << endl << endl;
 
         if(options.contains("max_temps")) {
-            max_temps_ = (size_t) options["max_temps"].cast<int>();;
+            max_temps_ = (size_t) options["max_temps"].cast<long>();
         }
 
         if( options.contains("max_depth")) {
-                Term::max_depth_ = (size_t) options["max_depth"].cast<int>();
-                if (Term::max_depth_ < 1ul) {
-                    cout << "WARNING: max_depth must be greater than 1. Setting to 2." << endl;
-                    Term::max_depth_ = 2ul;
-                }
-        }
-
-        if( options.contains("max_depth")) {
-                Term::max_depth_ = (size_t) options["max_depth"].cast<int>();
+                Term::max_depth_ = (size_t) options["max_depth"].cast<long>();
                 if (Term::max_depth_ < 1ul) {
                     cout << "WARNING: max_depth must be greater than 1. Setting to 2." << endl;
                     Term::max_depth_ = 2ul;
@@ -90,9 +82,9 @@ namespace pdaggerq {
             verbose = options["verbose"].cast<bool>();
 
         if (options.contains("max_shape")) {
-            std::map<string, int> max_shape_map;
+            std::map<string, long> max_shape_map;
             try {
-                max_shape_map = options["max_shape_map"].cast<std::map<string, int>>();
+                max_shape_map = options["max_shape_map"].cast<std::map<string, long>>();
             } catch (const std::exception &e) {
                 throw invalid_argument("max_shape_map must be a map with 'o' or 'v' as keys to int values");
             }
@@ -122,12 +114,23 @@ namespace pdaggerq {
             }
             
         } else {
-            auto n_max = static_cast<size_t>(-1);
+            auto n_max = static_cast<size_t>(-1l);
             Term::max_shape_.oa_ = n_max;
             Term::max_shape_.va_ = n_max;
         }
 
         if (options.contains("batched")) batched_ = options["batched"].cast<bool>();
+        if (options.contains("batch_size")) {
+            batch_size_ = static_cast<size_t>(options["batch_size"].cast<long>());
+            if (batch_size_ < 1ul) {
+                cout << "WARNING: batch_size must be greater than 1. Setting to 100." << endl;
+                batch_size_ = 100ul;
+            } else if (batch_size_ == 1ul) {
+                cout << "WARNING: batch_size of 1 is equivalent to no batching." << endl;
+            }
+
+        }
+
         if (options.contains("allow_merge"))
             allow_merge_ = options["allow_merge"].cast<bool>();
         if (options.contains("allow_nesting"))
@@ -187,7 +190,7 @@ namespace pdaggerq {
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
 
         cout << "    max_depth: " << (long) Term::max_depth_
-             << "  // maximum depth for chain of contractions (default: -1 for no limit)" << endl;
+             << "  // maximum depth for chain of contractions (default: 2; -1 for no limit)" << endl;
 
         cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
                 "for no limit of occupied and virtual lines.): " << endl;
@@ -207,6 +210,9 @@ namespace pdaggerq {
 
         cout << "    batched: " << (batched_ ? "true" : "false")
              << "  // whether to substitute intermediates in batches for faster generation. (default: true)" << endl;
+
+        cout << "    batch_size: " << (long) batch_size_
+                << "  // size of the batch for batched substitution (default: 100; -1 for no limit; 1 is equivalent to no batching)" << endl;
 
         cout << "    allow_merge: " << (allow_merge_ ? "true" : "false")
              << "  // whether to merge similar terms during optimization (default: false)" << endl;
@@ -484,81 +490,76 @@ namespace pdaggerq {
         // where each tmp of a given id is first used
 
         sort_tmps(equations_["tmps"]); // sort tmps in tmps equation
-        vector<bool> found_tmp_ids(equations_["tmps"].size()); // keep track of tmp ids that have been found
-        bool found_all_tmp_ids = false; // flag to check if all tmp ids have been found
 
-        size_t retry = 0;
-        size_t max_retry = equations_["tmps"].size();
+        // keep track of tmp ids that have been found
+        map<size_t, bool> tmp_ids;
 
+        // add a term to destroy the tmp after its last use
+        for (auto &tempterm: equations_["tmps"]) {
+            if (!tempterm.lhs()->is_linked()) continue;
 
-        /** while not all tmp ids have been found:
-//         *      make declarations for tmps in order of first use;
-         *      make destructors in order of last use.
-         */
-        do {
-            size_t last_pos = 0; // tmps are inserted in order of first use; use this to reduce search time
-            for (auto &tempterm: equations_["tmps"]) {
-                if (!tempterm.lhs()->is_linked()) continue;
+            ConstLinkagePtr temp = as_link(tempterm.lhs());
+            size_t temp_id = temp->id_;
 
-                ConstLinkagePtr temp = as_link(tempterm.lhs());
-                size_t temp_id = temp->id_;
+            // insert temp id and continue if already found
+            auto inserted = tmp_ids.insert({temp_id, false}).second;
+            if (!inserted) continue;
 
-                // check if temp_id has been found
-                if (found_tmp_ids[temp_id-1])
-                    continue;
+            for (auto i = (long int) all_terms.size() - 1; i >= 0; --i) {
+                const Term &term = all_terms[i];
 
-                for (auto i = (long int) all_terms.size() - 1; i >= 0; --i) {
-                    const Term &term = all_terms[i];
+                // check if tmp is in the rhs of the term
+                bool found = false;
+                for (const auto &op: term.rhs()) {
+                    bool is_tmp = op->is_linked(); // must be a tmp
+                    if (!is_tmp) continue;
 
-                    // check if tmp is in the rhs of the term
-                    bool found = false;
-                    for (const auto &op: term.rhs()) {
-                        bool is_tmp = op->is_linked(); // must be a tmp
-                        if (!is_tmp) continue;
+                    ConstLinkagePtr link = as_link(op);
+                    is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
+                    is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
 
-                        ConstLinkagePtr link = as_link(op);
-                        is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
-                        is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
-
-                        if (is_tmp && link->id_ == temp_id) {
-                            found = true; break; // true if we found first use of tmp with this id
-                        }
+                    if (is_tmp && link->id_ == temp_id) {
+                        found = true; break; // true if we found first use of tmp with this id
                     }
-
-                    if (!found) continue; // tmp not found in rhs of term; continue
-
-                    // Create new term with tmp in the lhs and assign zero to the rhs
-
-                    // create vertex with only the linkage's name
-                    std::string lhs_name = temp->str(true, false);
-
-                    // create term
-                    Term newterm;
-                    if (Term::make_einsum)
-                         newterm = Term("del " + lhs_name);
-                    else newterm = Term(lhs_name + ".~TArrayD();");
-
-                    newterm.is_assignment_ = true;
-                    newterm.comments() = {};
-
-                    // add tmp term after this term
-                    all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
-                    found_tmp_ids[temp_id-1] = true; // mark tmp id as found
-
-                    break; // only add once
                 }
-            }
 
-            found_all_tmp_ids = true;
-            for (auto found : found_tmp_ids) {
-                if (!found) { found_all_tmp_ids = false; break; }
+                if (!found) continue; // tmp not found in rhs of term; continue
+                tmp_ids[temp_id] = true; // update tmp_ids map
+
+                // Create new term with tmp in the lhs and assign zero to the rhs
+
+                // create vertex with only the linkage's name
+                std::string lhs_name = temp->str(true, false);
+
+                // create term
+                Term newterm;
+                if (Term::make_einsum)
+                     newterm = Term("del " + lhs_name);
+                else newterm = Term(lhs_name + ".~TArrayD();");
+
+                newterm.is_assignment_ = true;
+                newterm.comments() = {};
+
+                // add tmp term after this term
+                all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
+
+                break; // only add once
             }
-        } while (!found_all_tmp_ids && retry++ < max_retry);
+        }
+
+        // make sure that all temps that were declared were also freed
+        bool found_all_tmp_ids = true;
+        for (const auto &[id, found] : tmp_ids) {
+            if (!found) {
+                found_all_tmp_ids = false;
+                break;
+            }
+        }
 
         if (!found_all_tmp_ids) {
             cout << "WARNING: could not find last use of tmps with ids: ";
-            for (size_t id = 0; id < found_tmp_ids.size(); ++id) {
-                if (!found_tmp_ids[id]) cout << id+1 << " ";
+            for (const auto &[id, found] : tmp_ids) {
+                if (!found) cout << id << " ";
             }
             cout << endl;
         }
@@ -629,6 +630,8 @@ namespace pdaggerq {
 
     void PQGraph::reorder() { // verbose if not already reordered
 
+        reorder_timer.start(); // start timer
+
         // save initial scaling
         static bool initial_saved = false;
         if (!initial_saved) {
@@ -636,8 +639,6 @@ namespace pdaggerq {
             mem_map_init_ = mem_map_;
             initial_saved = true;
         }
-
-        if (!is_reordered_) reorder_timer.start();
 
         if (!is_reordered_) cout << endl << "Reordering equations..." << flush;
 
@@ -658,12 +659,14 @@ namespace pdaggerq {
         collect_scaling(); // collect scaling of equations
         if (!is_reordered_) cout << " Done" << endl;
 
-        if (!is_reordered_) reorder_timer.stop();
-        if (!is_reordered_) cout << "Reordering time: " << reorder_timer.elapsed() << endl << endl;
-
-        is_reordered_ = true; // set reorder flag to true
         if (flop_map_pre_.empty()) flop_map_pre_ = flop_map_;
         if (mem_map_pre_.empty()) mem_map_pre_ = mem_map_;
+
+        reorder_timer.stop();
+        if (!is_reordered_)
+            cout << "Reordering time: " << reorder_timer.elapsed() << endl << endl;
+
+        is_reordered_ = true; // set reorder flag to true
     }
 
     void PQGraph::analysis() const {

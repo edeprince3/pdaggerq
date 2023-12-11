@@ -249,6 +249,15 @@ namespace pdaggerq {
             return *this; // return this
         }
 
+        /**
+         * erase a linkage from the set
+         * @param linkage linkage to erase
+         */
+        void erase(const ConstLinkagePtr &linkage) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            linkages_.erase(linkage);
+        }
+
     }; // class linkage_set
 
 } // namespace pdaggerq

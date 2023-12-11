@@ -78,7 +78,7 @@ namespace pdaggerq {
             bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
             string print_override_; // string to override print function
 
-            static inline size_t max_depth_ = static_cast<size_t>(-1); // maximum number of rhs in a linkage
+            static inline size_t max_depth_ = 2; // maximum number of rhs in a linkage
             static inline shape max_shape_; // maximum shape of a linkage
             static inline bool allow_nesting_ = true;
             static inline bool permute_vertices_ = false;
@@ -397,8 +397,9 @@ namespace pdaggerq {
                 // make sure both terms have exactly the same lhs
                 if (lhs_->Vertex::operator!=(*other.lhs_)) return false;
 
+                // exactly the same rhs
                 for (size_t i = 0; i < rhs_.size(); i++) {
-                    if (*rhs_[i] != *other.rhs_[i])
+                    if (rhs_[i]->Vertex::operator!=(*other.rhs_[i]))
                         return false;
                 }
 

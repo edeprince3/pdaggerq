@@ -126,9 +126,6 @@ linkage_set Term::generate_linkages() const {
                 return; // skip linkages that are too large for the user-defined maximum
         }
 
-        if (this_linkage->flop_scale() > bottleneck_flop)
-            return; // skip linkages that are more expensive than the bottleneck
-
         // add linkage to set if it has a scaling less than or equal to the bottleneck
         linkages.insert(this_linkage);
 
@@ -152,10 +149,6 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
         if(as_link(lhs_)->id_ <= linkage->id_)
             return false;
     }
-
-
-    // check if linkage is more expensive than the current bottleneck
-    if (linkage->flop_scale() > worst_flop()) return false;
 
 
     // get total vector of linkage vertices (without expanding nested linkages)
@@ -249,24 +242,18 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     // make copy of term to store new rhs and test scaling
     Term new_term(*this);
 
-    // initialize new rhs
-    vector<ConstVertexPtr> new_vertices;
-
     // iterate over all possible orderings of vertex subsets
-    auto op = [this, &new_vertices, &new_term, &best_flop_map, &best_mem_map, &best_vertices,
+    auto op = [this, &new_term, &best_flop_map, &best_mem_map, &best_vertices,
                &madeSub, &linkage, allow_equality](const vector<size_t> &subset) {
+
         // build rhs from subset indices
-        // TODO: test permutations of the lines in each vertex too
-        new_vertices.clear();
+        vector<ConstVertexPtr> subset_vec;
+        subset_vec.reserve(subset.size());
         for (size_t j: subset)
-            new_vertices.push_back(rhs_[j]);
+            subset_vec.push_back(rhs_[j]);
 
         // make linkage from rhs with subset indices
-        LinkagePtr this_linkage = Linkage::link(new_vertices);
-
-        // skip if linkage is more expensive than the bottleneck
-        if (this_linkage->flop_scale() > best_flop_map.worst())
-            return;
+        LinkagePtr this_linkage = Linkage::link(subset_vec);
 
         // skip if linkage is not equivalent to input linkage
         if (*linkage != *this_linkage)
@@ -294,9 +281,11 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
         // create a copy of the term with the new rhs
         new_term.rhs_ = new_rhs;
         new_term.compute_scaling(true);
+        scaling_map &new_flop = new_term.flop_map_;
+        scaling_map &new_mem = new_term.mem_map_;
 
         // check if flop and memory scaling are better than the best scaling
-        int scaling_comparison = new_term.flop_map_.compare(best_flop_map);
+        int scaling_comparison = new_flop.compare(best_flop_map);
         bool set_best = scaling_comparison == scaling_map::this_better;
 
         // check if we allow for substitutions with equal scaling
@@ -306,9 +295,9 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
 
         if (set_best) { // flop scaling is better
             // set the best scaling and rhs
-            best_flop_map = new_term.flop_map_;
-            best_mem_map = new_term.mem_map_;
-            best_vertices = new_term.rhs_;
+            best_flop_map = new_flop;
+            best_mem_map = new_mem;
+            best_vertices = new_rhs;
             madeSub = true;
         }
     };

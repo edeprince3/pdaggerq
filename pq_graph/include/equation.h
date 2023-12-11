@@ -327,7 +327,7 @@ namespace pdaggerq {
          * @param contraction contraction to search for
          * @return pointer to terms that contain a given contraction
          */
-        vector<Term *> get_temp_terms(const LinkagePtr& contraction);
+        vector<Term *> get_temp_terms(const ConstLinkagePtr& contraction);
 
     }; // class Equation
 
