@@ -38,54 +38,34 @@ namespace pdaggerq {
     struct LinkageHash {
         size_t operator()(const ConstLinkagePtr &linkage_ptr) const {
 
+            constexpr SimilarVertexPtrHash vertex_hash; // hash function for vertices
+            constexpr size_t magic_golden_ratio = 0x9e3779b9; // the golden ratio of hashing; prevents collisions
+
             const Linkage &linkage = *linkage_ptr;
 
-            constexpr SimilarVertexPtrHash vertex_hash;
-            size_t total_vert_hash = vertex_hash(linkage.left());
-            total_vert_hash ^= vertex_hash(linkage.right());
+            // blend the hashes of the left and right vertices
+            size_t left_vert_hash  = vertex_hash(linkage.left());
+            size_t right_vert_hash = vertex_hash(linkage.right());
+            size_t total_hash = (left_vert_hash ^ right_vert_hash) + magic_golden_ratio;
 
             size_t connection_hash = 0;
-            size_t count = 0;
             for (const auto &[leftidx, rightidx] : linkage.connections()) {
-                if (++count < 4) {
-                    // add pair to hash
-                    connection_hash ^= leftidx;
-                    connection_hash |= rightidx;
-                } else {
-                    // shift right by 4 bits
-                    // and add pair
-                    connection_hash >>= 4;
-                    connection_hash ^= leftidx;
-                    connection_hash ^= rightidx;
-                }
+                // create hash from leftidx and rightidx
+                constexpr std::hash<int_fast8_t> hasher;
+                size_t left_hash = hasher(leftidx);
+                size_t right_hash = hasher(rightidx);
 
-                // shift left by 8 bits (uint8_t)
-                connection_hash <<= 8;
+                // blend them together
+                connection_hash ^= (left_hash ^ right_hash) + magic_golden_ratio + (connection_hash << 6) + (connection_hash >> 2);
             }
 
-            size_t l_ext_hash = 0;
-            count = 0;
-            for (const auto & leftidx : linkage.l_ext_idx()){
-                if (++count < 4) {
-                    // add pair to hash
-                    l_ext_hash |= leftidx;
-                } else {
-                    // shift right by 4 bits
-                    // and add pair
-                    l_ext_hash >>= 4;
-                    l_ext_hash ^= leftidx;
-                }
-
-                // shift left by 8 bits (uint8_t)
-                l_ext_hash <<= 8;
-            }
-
-            return total_vert_hash ^ connection_hash | l_ext_hash;
+            total_hash ^= connection_hash + magic_golden_ratio + (total_hash << 6) + (total_hash >> 2);
+            return total_hash;
 
         }
     }; // struct linkage_hash
 
-    struct LinkagePred {
+    struct LinkageEqual {
         bool operator()(const ConstLinkagePtr &lhs, const ConstLinkagePtr &rhs) const {
             return *lhs == *rhs;
         }
@@ -94,7 +74,7 @@ namespace pdaggerq {
     class linkage_set {
 
         mutable std::mutex mtx_; // mutex for thread safety
-        typedef std::unordered_set<ConstLinkagePtr, LinkageHash, LinkagePred> linkage_container;
+        typedef std::unordered_set<ConstLinkagePtr, LinkageHash, LinkageEqual> linkage_container;
         linkage_container linkages_; // set of linkages
 
     public:

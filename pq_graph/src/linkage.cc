@@ -94,9 +94,12 @@ namespace pdaggerq {
 
             // update vertex members
             lines_ = right_lines;
-            r_ext_idx_.reserve(right_size);
+
+            // add right lines to connec_map_
+            connec_map_.reserve(right_size);
             for (uint_fast8_t i = 0; i < right_size; i++)
-                r_ext_idx_.push_back(i);
+                connec_map_.push_back({-1, (int_fast8_t) i});
+
             set_properties();
             return;
         }
@@ -106,9 +109,10 @@ namespace pdaggerq {
             flop_scale_ = left_->shape_;
             lines_  = left_lines;
 
-            l_ext_idx_.reserve(left_size);
+            // add left lines to connec_map_
+            connec_map_.reserve(left_size);
             for (uint_fast8_t i = 0; i < left_size; i++)
-                l_ext_idx_.push_back(i);
+                connec_map_.push_back({(int_fast8_t) i, -1});
 
             // update vertex members
             set_properties();
@@ -117,74 +121,55 @@ namespace pdaggerq {
 
         // reserve lines for vertex
         lines_.reserve(total_size);
-        int_connec_.reserve(total_size);
-        l_ext_idx_.reserve(left_size);
-        r_ext_idx_.reserve(right_size);
+        connec_map_.reserve(total_size);
 
         // create a map of lines to their corresponding indicies
-        unordered_map<const Line*, pair<char, char>, LinePtrHash, LinePtrEqual>
-                line_populations(total_size);
+        map<const Line*, std::array<int_fast8_t, 2>, line_compare>
+                line_populations;
 
         // populate left lines
         for (uint_fast8_t i = 0; i < left_size; i++) {
             auto &[left_id, right_id] = line_populations[&left_lines[i]];
-            left_id = (char) i; // add index to left_id
-            right_id = -1; // indicates that the line is not in the right
+            left_id = static_cast<int_fast8_t>(i);
+            right_id = -1;
         }
 
         // populate right lines and track index
         for (uint_fast8_t i = 0; i < right_size; i++) {
-            auto pos = line_populations.find(&right_lines[i]);
 
-            // if we found right line from left, add to internal lines
-            if (pos != line_populations.end()) {
-                // line is in both left and right
+            // attempt to insert right line into map
+            auto [pos, inserted] = line_populations.try_emplace(&right_lines[i], std::array<int_fast8_t, 2>{-1, static_cast<int_fast8_t>(i)});
+
+            if (!inserted) {
+                // if line already exists, update right_id
                 auto &[left_id, right_id] = pos->second;
-                right_id = (char) i; // add index to right_id
-
-            } else {
-                // line is only in right
-                auto &[left_id, right_id] = line_populations[&right_lines[i]];
-                right_id = (char) i; // add index to right_id
-                left_id = -1; // indicates that the line is not in the left
+                right_id = (int_fast8_t) i; // add index to right_id
             }
         }
 
         // now we have a map of lines to their corresponding indices
         // populate data
-        for (auto &[line_ptr, indices] : line_populations) {
-            uint_fast8_t left_id = indices.first, right_id = indices.second;
-            bool is_internal = indices.first >= 0 && indices.second >= 0;
-            if (is_internal) {
-                // add to int_connec_ in order
-                int_connec_.push_back({left_id, right_id});
-            } else {
+        for (auto &line_connection : line_populations) {
+
+            // add to connection map
+            connec_map_.push_back(line_connection.second);
+
+            // get line
+            const Line &line = *line_connection.first;
+
+            // check if line is external and should be added
+
+            bool is_internal = line_connection.second[0] >= 0 && line_connection.second[1] >= 0;
+            if (!is_internal) {
                 // add to external lines
-                if (indices.first >= 0) {
-                    // add to left external lines (from upper bound)
-                    lines_.insert(
-                            std::upper_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()),
-                            *line_ptr);
-                    l_ext_idx_.push_back(left_id);
-
-                } else if (indices.second >= 0) {
-                    // add to right external lines (from lower bound)
-                    lines_.insert(
-                            std::lower_bound( lines_.begin(), lines_.end(), *line_ptr, line_compare()),
-                            *line_ptr);
-                    r_ext_idx_.push_back(right_id);
-
-                } else {
-                    // this should never happen
-                    throw runtime_error("Linkage::set_links(): line not found in left or right");
-                }
+                lines_.push_back(line);
 
                 // update mem scaling
-                mem_scale_ += *line_ptr;
+                mem_scale_ += line;
             }
 
             // update flop scaling
-            flop_scale_ += *line_ptr;
+            flop_scale_ += line;
         }
 
         // update vertex members
@@ -212,16 +197,12 @@ namespace pdaggerq {
 
         int_lines.reserve(left_size + right_size - lines_.size());
 
-        // every internal line shows up in both the left and right vertices
-        // so let's use the smaller, nonzero set of lines
-        bool use_left = left_size != 0 && left_size <= right_size;
-
-        const vector<Line> &ref_lines = use_left ? left_->lines() : right_->lines();
-
-        // use int_connec_ to grab the internal lines
-        for (const auto &[left_idx, right_idx] : int_connec_) {
-            if (use_left) int_lines.push_back(ref_lines[left_idx]);
-            else int_lines.push_back(ref_lines[right_idx]);
+        // use connec_map_ to grab the internal lines
+        for (const auto &[left_idx, right_idx] : connec_map_) {
+            if (left_idx >= 0 && right_idx >= 0) {
+                // add to internal lines (just use left lines since the line is in both)
+                int_lines.push_back(lines_[left_idx]);
+            }
         }
 
         return int_lines;
@@ -307,49 +288,34 @@ namespace pdaggerq {
         if (depth_ != other.depth_) return false;
 
         // check if left and right vertices are linked in the same way
-        if ( left_->is_linked() ^  other.left_->is_linked()) return false;
-        if (right_->is_linked() ^ other.right_->is_linked()) return false;
+        bool left_linked = left_->is_linked(), right_linked = right_->is_linked();
+
+        if ( left_linked ^  other.left_->is_linked()) return false;
+        if (right_linked ^ other.right_->is_linked()) return false;
 
         // check that scales are equal
         if (flop_scale_ != other.flop_scale_) return false;
         if (mem_scale_  !=  other.mem_scale_) return false;
 
         // check linkage maps
-        if (l_ext_idx_.size()  !=  other.l_ext_idx_.size()) return false;
-        if (r_ext_idx_.size()  !=  other.r_ext_idx_.size()) return false;
-        if (int_connec_.size() != other.int_connec_.size()) return false;
+        if (connec_map_.size() != other.connec_map_.size()) return false;
 
-        // use set to find equivalency
-        std::set<uint_fast8_t> l_ext_test, r_ext_test;
-
-        // l_ext_idx_
-        for (const uint_fast8_t &idx : l_ext_idx_) l_ext_test.insert(idx);
-        for (const uint_fast8_t &idx : other.l_ext_idx_) {
-            if (l_ext_test.find(idx) == l_ext_test.end()) return false;
-        }
-
-        // r_ext_idx_
-        for (const uint_fast8_t &idx : r_ext_idx_) r_ext_test.insert(idx);
-        for (const uint_fast8_t &idx : other.r_ext_idx_) {
-            if (r_ext_test.find(idx) == r_ext_test.end()) return false;
-        }
-
-        // int_connec_
-        set<std::array<uint_fast8_t, 2>> int_test;
-        for (const auto &connec : int_connec_) int_test.insert(connec);
-        for (const auto &connec : other.int_connec_) {
-            if (int_test.find(connec) == int_test.end()) return false;
+        // check that every element of this connec_map_ is in other.connec_map_, in any order
+        for (const auto &connec : connec_map_) {
+            if (std::find(other.connec_map_.begin(),
+                          other.connec_map_.end(), connec) == other.connec_map_.end())
+                return false;
         }
 
         // recursively check if left linkages are equivalent
-        if (left_->is_linked()) {
+        if (left_linked) {
             if (*as_link(left_) != *as_link(other.left_)) return false;
         } else {
             if ( !left_->equivalent( *other.left_)) return false;
         }
 
         // check if right linkages are equivalent
-        if (right_->is_linked()) {
+        if (right_linked) {
             if (*as_link(right_) != *as_link(other.right_)) return false;
         } else {
             if ( !right_->equivalent( *other.right_)) return false;
@@ -562,9 +528,7 @@ namespace pdaggerq {
         id_ = other.id_;
         depth_ = other.depth_;
 
-        int_connec_ = other.int_connec_;
-        l_ext_idx_ = other.l_ext_idx_;
-        r_ext_idx_ = other.r_ext_idx_;
+        connec_map_ = other.connec_map_;
 
         flop_scale_ = other.flop_scale_;
         mem_scale_ = other.mem_scale_;
@@ -608,9 +572,7 @@ namespace pdaggerq {
         id_ = other.id_;
         depth_ = other.depth_;
 
-        int_connec_ = std::move(other.int_connec_);
-        l_ext_idx_ = std::move(other.l_ext_idx_);
-        r_ext_idx_ = std::move(other.r_ext_idx_);
+        connec_map_ = std::move(other.connec_map_);
 
         flop_scale_ = other.flop_scale_;
         mem_scale_ = other.mem_scale_;

@@ -456,29 +456,30 @@ namespace pdaggerq {
      */
     struct SimilarVertexPtrHash {
         size_t operator()(const ConstVertexPtr &v) const {
+
+            // hashing functions
             constexpr SimilarLineHash sim_line_hasher;
             constexpr std::hash<string> string_hasher;
 
-            size_t hash_name = string_hasher(v->base_name());
+            // the golden ratio of hashing; prevents collisions
+            constexpr size_t magic_golden_ratio = 0x9e3779b9;
+
+            size_t name_hash = string_hasher(v->base_name());
 
             // write the vertex as a string with numeric labels
-            size_t hashline = 0;
+            size_t line_hash = 0;
             uint_fast8_t rank = v->size();
             const vector<Line> &lines = v->lines();
-            for (uint_fast8_t i = 0; i < rank;) {
+            for (uint_fast8_t i = 0; i < rank; ++i) {
+                // get hash of line
+                size_t line_hash_i = sim_line_hasher(lines[i]);
 
-                // line hash is 4 bits
-                hashline = (hashline << 4) | sim_line_hasher(lines[i]);
-
-                if (++i % 8 == 0) { // handle overflow
-                    // modulus by arbitrary prime (must be prime and smaller than 2^32 to avoid collisions)
-                    hash_name %= 1000000007;
-                }
+                // blend them together
+                line_hash ^= (line_hash_i) + magic_golden_ratio + (line_hash << 6) + (line_hash >> 2);
             }
 
-            // return hash
-            return hash_name ^ hashline;
-
+            // blend name and line hashes together and return
+            return (name_hash ^ line_hash) + magic_golden_ratio;
         }
     };
 

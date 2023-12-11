@@ -107,14 +107,13 @@ namespace pdaggerq {
         // indicates the vertex is linked to another vertex
         bool is_linked() const override { return true; }
 
-            /// vertices in the linkage
+        /// vertices in the linkage
 
-            const ConstVertexPtr &left() const { return left_; }
-            const ConstVertexPtr &right() const { return right_; }
+        const ConstVertexPtr &left() const { return left_; }
+        const ConstVertexPtr &right() const { return right_; }
 
-            /// map of connections between lines
-            std::vector<std::array<uint_fast8_t, 2>> int_connec_; // connections between lines
-            std::vector<uint_fast8_t> l_ext_idx_, r_ext_idx_;     // external indices of left and right vertices
+        /// map of connections between lines
+        std::vector<std::array<int_fast8_t, 2>> connec_map_; // connections between lines
 
         /********** Constructors **********/
 
@@ -304,15 +303,7 @@ namespace pdaggerq {
          * Get connections
          * @return connections
          */
-        const std::vector<std::array<uint_fast8_t, 2>> &connections() const { return int_connec_; }
-
-        /**
-         * get external left or right indices
-         * @return external left or right indices as a set
-         */
-        const vector<uint_fast8_t> &l_ext_idx() const { return l_ext_idx_; }
-        const vector<uint_fast8_t> &r_ext_idx() const { return r_ext_idx_; }
-
+        const std::vector<std::array<int_fast8_t, 2>> &connections() const { return connec_map_; }
 
         /**
          * Make a series of linkages from vertices into a single linkage

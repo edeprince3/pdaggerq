@@ -215,7 +215,14 @@ namespace pdaggerq {
     // struct for comparing lines while ignoring the label
     struct line_compare {
         bool operator()(const Line &left, const Line &right) const {
-            return left.in_order(right);
+//            return left.in_order(right);
+            return left < right;
+        }
+
+        bool operator()(const Line *left, const Line *right) const {
+            if (!left || !right) return !right;
+//            else return left->in_order(*right);
+            else return left->operator<(*right);
         }
     };
 
@@ -235,13 +242,7 @@ namespace pdaggerq {
             // return the hash (12 bits)
             return hash;
         }
-    }; // struct LineHash
 
-    typedef std::vector<Line, std::allocator<Line>>
-    line_vector;
-
-    // define hash function for Line
-    struct LinePtrHash {
         size_t operator()(const Line *line) const {
             constexpr LineHash line_hash;
 
@@ -251,13 +252,17 @@ namespace pdaggerq {
             // otherwise, return the hash of the line
             return line_hash(*line);
         }
+
     }; // struct LineHash
+
+    typedef std::vector<Line, std::allocator<Line>>
+    line_vector;
 
     struct LinePtrEqual {
         bool operator()(const Line *lhs, const Line *rhs) const {
 
             // check if either pointer is null
-            if (!lhs || !rhs) return false;
+            if (!lhs || !rhs) return rhs == lhs;
 
             // check equality of the pointers
             return *lhs == *rhs;
