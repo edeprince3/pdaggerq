@@ -735,6 +735,8 @@ void PQGraph::sort_tmps(Equation &equation) {
 void PQGraph::remove_redundant_tmps() {
     // remove redundant contractions (only used in one term and its assignment)
 
+    return; // TODO: this is giving problems again...
+
     cout << "Removing redundant temps..." << endl << flush;
 
     std::unordered_map<ConstLinkagePtr, vector<Term*>, LinkageHash, LinkageEqual> to_replace;
@@ -807,6 +809,8 @@ void PQGraph::remove_redundant_tmps() {
     };
 
     // loop over all linkages to be replaced
+    //TODO: making these substitutions could invalidate the terms in to_replace
+    // we need regenerate to_replace after each substitution
     for (const auto & [linkage, terms] : to_replace) {
         // get assignment
         auto &[assignment_term, type] = to_remove[linkage];
