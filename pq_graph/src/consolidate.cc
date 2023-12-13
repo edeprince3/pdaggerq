@@ -519,24 +519,13 @@ void PQGraph::substitute(bool format_sigma) {
         bool remake_test_set = test_linkages.empty() || first_pass;
         if(remake_test_set) {
 
+            // remove intermediates that only occur once for printing
+            remove_redundant_tmps();
+
             num_merged = 0;
             if (allow_merge_ && !format_sigma) {
                 num_merged = merge_terms();
                 total_num_merged += num_merged;
-            }
-
-            // reapply substitutions to equations.
-
-            for (const auto & precon : all_linkages_[temp_type]) {
-                for (auto &[name, equation] : equations_) {
-                    equation.substitute(precon, true);
-                }
-            }
-            // repeat for scalars
-            for (const auto & precon : all_linkages_["scalars"]) {
-                for (auto &[name, equation] : equations_) {
-                    equation.substitute(precon, true);
-                }
             }
 
             if (verbose) cout << endl << "Regenerating test set..." << std::flush;
@@ -558,6 +547,9 @@ void PQGraph::substitute(bool format_sigma) {
 
     } // end while linkage
     cout << endl;
+
+    // remove intermediates that only occur once for printing
+    remove_redundant_tmps();
 
     // resort tmps
     for (auto & [type, eq] : equations_) {
@@ -856,6 +848,9 @@ void PQGraph::remove_redundant_tmps() {
 
             // multiply coefficient by assignment
             term->coefficient_ *= coeff;
+
+            term->request_update();
+            term->compute_scaling(true);
         }
     }
 
@@ -877,7 +872,6 @@ void PQGraph::remove_redundant_tmps() {
 
         // print to screen
         cout << "    Removed intermediate " << link_id << endl;
-
 
         // remove from all linkages
         all_linkages_[type].erase(linkage);
