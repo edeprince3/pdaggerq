@@ -539,9 +539,6 @@ void PQGraph::substitute(bool format_sigma) {
                 }
             }
 
-            // remove intermediates that only occur once
-            remove_redundant_tmps();
-
             if (verbose) cout << endl << "Regenerating test set..." << std::flush;
             generate_linkages(true, format_sigma); // generate all possible linkages
             tmp_candidates_ -= ignore_linkages; // remove ignored linkages
@@ -561,9 +558,6 @@ void PQGraph::substitute(bool format_sigma) {
 
     } // end while linkage
     cout << endl;
-
-    // remove intermediates that only occur once
-    remove_redundant_tmps();
 
     // resort tmps
     for (auto & [type, eq] : equations_) {
