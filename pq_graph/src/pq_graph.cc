@@ -152,6 +152,8 @@ namespace pdaggerq {
                 cout << "Warning: number of threads is larger than the maximum number of threads on this machine. "
                         "Using the maximum number of threads instead." << endl;
                 nthreads_ = (int) omp_get_max_threads();
+            } else if (nthreads_ < 0) {
+                nthreads_ = (int) omp_get_max_threads();
             }
             Equation::nthreads_ = nthreads_;
             
