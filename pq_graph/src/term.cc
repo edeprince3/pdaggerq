@@ -614,7 +614,7 @@ namespace pdaggerq {
         }
 
         // make einsum string
-        string einsum_string = "np.einsum('";
+        string einsum_string = "einsum('";
         for (const auto & rhs_string : rhs_strings){
             einsum_string += rhs_string;
             if (rhs_string != rhs_strings.back()) einsum_string += ",";
