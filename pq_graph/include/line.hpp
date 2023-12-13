@@ -215,14 +215,14 @@ namespace pdaggerq {
     // struct for comparing lines while ignoring the label
     struct line_compare {
         bool operator()(const Line &left, const Line &right) const {
-//            return left.in_order(right);
-            return left < right;
+            return left.in_order(right);
+//            return left < right;
         }
 
         bool operator()(const Line *left, const Line *right) const {
             if (!left || !right) return !right;
-//            else return left->in_order(*right);
-            else return left->operator<(*right);
+            else return left->in_order(*right);
+//            else return left->operator<(*right);
         }
     };
 

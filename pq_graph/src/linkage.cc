@@ -124,7 +124,7 @@ namespace pdaggerq {
         connec_map_.reserve(total_size);
 
         // create a map of lines to their corresponding indicies
-        map<const Line*, std::array<int_fast8_t, 2>, line_compare>
+        unordered_map<const Line*, std::array<int_fast8_t, 2>, LineHash, LinePtrEqual>
                 line_populations;
 
         // populate left lines
@@ -158,11 +158,20 @@ namespace pdaggerq {
             const Line &line = *line_connection.first;
 
             // check if line is external and should be added
-
-            bool is_internal = line_connection.second[0] >= 0 && line_connection.second[1] >= 0;
-            if (!is_internal) {
-                // add to external lines
-                lines_.push_back(line);
+            bool left_external  = line_connection.second[1] < 0;
+            bool right_external = line_connection.second[0] < 0;
+            if (left_external || right_external) {
+                // add to external lines (in order)
+                if (left_external)
+                    lines_.insert( // insert left from top
+                            std::upper_bound(lines_.begin(), lines_.end(), line, line_compare()),
+                            line
+                    );
+                else
+                    lines_.insert( // insert right from bottom
+                            std::lower_bound(lines_.begin(), lines_.end(), line, line_compare()),
+                            line
+                    );
 
                 // update mem scaling
                 mem_scale_ += line;
