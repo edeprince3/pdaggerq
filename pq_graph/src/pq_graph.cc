@@ -405,9 +405,6 @@ namespace pdaggerq {
 
         PQGraph copy = *this; // make copy of pq_graph
 
-        // remove redundant contractions (only used in one term)
-        remove_redundant_tmps();
-
         // get all terms from all equations except the scalars, and reuse_tmps
         vector<Term> all_terms;
 

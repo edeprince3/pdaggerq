@@ -539,6 +539,9 @@ void PQGraph::substitute(bool format_sigma) {
                 }
             }
 
+            // remove intermediates that only occur once
+            remove_redundant_tmps();
+
             if (verbose) cout << endl << "Regenerating test set..." << std::flush;
             generate_linkages(true, format_sigma); // generate all possible linkages
             tmp_candidates_ -= ignore_linkages; // remove ignored linkages
@@ -547,7 +550,7 @@ void PQGraph::substitute(bool format_sigma) {
 
             update_timer.stop();
             if (verbose) cout << " Done ( " << flush;
-            if (verbose) cout << update_timer.get_time() << " )" << endl << endl;
+            if (verbose) cout << update_timer.get_time() << " )" << endl;
             first_pass = false;
 
         } else update_timer.stop();
@@ -557,11 +560,10 @@ void PQGraph::substitute(bool format_sigma) {
         tmp_candidates_ -= ignore_linkages;
 
     } // end while linkage
+    cout << endl;
 
-    // remove tmps only used in one term
-    cout << "Removing redundant temps..." << endl << flush;
+    // remove intermediates that only occur once
     remove_redundant_tmps();
-    cout << " Done" << endl << endl << flush;
 
     // resort tmps
     for (auto & [type, eq] : equations_) {
@@ -636,81 +638,62 @@ void PQGraph::sort_tmps(Equation &equation) {
 
         // TODO: keep entire list of ids and use that to sort
 
-        // recursive function to get min/max id of temp ids from a vertex
-        std::function<void(const ConstVertexPtr&, long&, bool)> test_vertex;
-        test_vertex = [&test_vertex](const ConstVertexPtr &op, long& id, bool get_max) {
+        // recursive function to get nested temp ids from a vertex
+        std::function<set<long>(const ConstVertexPtr&)> test_vertex;
+        test_vertex = [&test_vertex](const ConstVertexPtr &op) {
+
+            set<long> ids;
             if (op->is_temp()) {
                 ConstLinkagePtr link = as_link(op);
                 long link_id = link->id_;
 
                 // ignore reuse_tmp linkages
                 if (!link->is_reused_ && !link->is_scalar()) {
-                    if (get_max)
-                         id = std::max(id,  link_id);
-                    else id = std::max(id, -link_id);
+                    ids.insert(link_id);
                 }
 
-                // recurse into nested tmps
+                // recurse into nested temps
                 for (const auto &nested_op: link->to_vector()) {
-                    if (nested_op->is_temp()) {
-                        link = as_link(nested_op);
-                        link_id = link->id_;
-                        if (!link->is_reused_ && !link->is_scalar()) {
-                            if (get_max)
-                                 id = std::max(id, link_id);
-                            else id = std::max(id, -link_id);
-                        }
-                    }
-//                    test_vertex(nested_op, id, get_max);
+                    set<long> sub_ids = test_vertex(nested_op);
+                    ids.insert(sub_ids.begin(), sub_ids.end());
                 }
             }
+
+            return ids;
         };
 
         // get min id of temps from lhs
-        auto get_lhs_id = [&test_vertex](const Term &term, bool get_max) {
-            long id = get_max ? -1l : -__FP_LONG_MAX;
-
-            test_vertex(term.lhs(), id, get_max);
-
-            if (get_max) return id;
-            else return -id;
+        auto get_lhs_id = [&test_vertex](const Term &term) {
+            return test_vertex(term.lhs());
         };
 
         // get min id of temps from rhs
-        auto get_rhs_id = [&test_vertex](const Term &term, bool get_max) {
-            long id = get_max ? -1l : -__FP_LONG_MAX;
+        auto get_rhs_id = [&test_vertex](const Term &term) {
 
-            for (const auto &op: term.rhs())
-                test_vertex(op, id, get_max);
-
-            if (get_max) return id;
-            else return -id;
+            set<long> ids;
+            for (const auto &op: term.rhs()) {
+                set<long> sub_ids = test_vertex(op);
+                ids.insert(sub_ids.begin(), sub_ids.end());
+            }
+            return ids;
         };
 
-        long a_max_lhs = get_lhs_id(a_term, true);
-        long a_max_rhs = get_rhs_id(a_term, true);
-        long a_max_id  = max(a_max_lhs,
-                             a_max_rhs);
-        long a_min_id  = min(get_lhs_id(a_term, false),
-                             get_rhs_id(a_term, false));
+        set<long> a_lhs_ids = get_lhs_id(a_term);
+        set<long> b_lhs_ids = get_lhs_id(b_term);
 
-        long b_max_lhs = get_lhs_id(a_term, true);
-        long b_max_rhs = get_rhs_id(a_term, true);
-        long b_max_id  = max(get_lhs_id(b_term, true),
-                             get_rhs_id(b_term, true));
-        long b_min_id  = min(get_lhs_id(b_term, false),
-                             get_rhs_id(b_term, false));
+        set<long> a_rhs_ids = get_rhs_id(a_term);
+        set<long> b_rhs_ids = get_rhs_id(b_term);
 
-        bool a_has_temp = a_max_id != -1l;
-        bool b_has_temp = b_max_id != -1l;
+        set<long> a_total_ids = a_lhs_ids, b_total_ids = b_lhs_ids;
+        a_total_ids.insert(a_rhs_ids.begin(), a_rhs_ids.end());
+        b_total_ids.insert(b_rhs_ids.begin(), b_rhs_ids.end());
+
 
         bool a_lhs_is_tmp = a_term.lhs()->is_temp();
         bool b_lhs_is_tmp = b_term.lhs()->is_temp();
 
-        // TODO: make function `Term::rhs_has_temp()` and static function `Term::has_temp(vector<ConstVertexPtr>)`
-        // Also TODO: the ordering here works nice, but it good still be improved to prevent temps from staying
-        // in memory too long
-
+        bool a_has_temp = a_lhs_is_tmp || !a_lhs_ids.empty() || !a_rhs_ids.empty();
+        bool b_has_temp = b_lhs_is_tmp || !b_lhs_ids.empty() || !b_rhs_ids.empty();
 
         // if no temps, keep order
         if (!a_has_temp && !b_has_temp)
@@ -720,21 +703,24 @@ void PQGraph::sort_tmps(Equation &equation) {
         if (a_has_temp ^ b_has_temp)
             return b_has_temp;
 
-        if ( a_min_id == b_min_id ) {
-            if (a_max_id == b_max_id) {
-                if (a_term.is_assignment_ ^ b_term.is_assignment_)
-                    return a_term.is_assignment_;
-                return a_idx < b_idx;
-            }
-            else return a_max_id < b_max_id;
-        } else return a_min_id < b_min_id;
+        // keep in total lexicographical order
+        if (a_total_ids > b_total_ids)
+            return false;
+        else if (a_total_ids == b_total_ids) {
+            // if total ids are equal, keep assignments first
+            if (a_term.is_assignment_ ^ b_term.is_assignment_)
+                return a_term.is_assignment_;
 
-        // should never get here
+            // preserve order if all else is equal
+            return a_idx < b_idx;
+        }
+
+        // if total ids of a are less than b, keep order
         return true;
 
     };
 
-    sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
+    stable_sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
 
     // replace the terms in the equation with the sorted terms
     std::vector<Term> sorted_terms;
@@ -748,6 +734,8 @@ void PQGraph::sort_tmps(Equation &equation) {
 
 void PQGraph::remove_redundant_tmps() {
     // remove redundant contractions (only used in one term and its assignment)
+
+    cout << "Removing redundant temps..." << endl << flush;
 
     std::unordered_map<ConstLinkagePtr, vector<Term*>, LinkageHash, LinkageEqual> to_replace;
     std::unordered_map<ConstLinkagePtr, pair<Term, string>, LinkageHash, LinkageEqual> to_remove;
@@ -783,10 +771,48 @@ void PQGraph::remove_redundant_tmps() {
         }
     }
 
+    // helper function to recursively remove nested tmps with a given id
+    std::function<ConstVertexPtr(const ConstVertexPtr&, long)> remove_nested_id;
+    remove_nested_id = [&remove_nested_id](const ConstVertexPtr &op, long id) {
+
+        VertexPtr ret_op = op->deep_copy_ptr();
+
+        if (ret_op->is_temp()) {
+            vector<ConstVertexPtr> expanded_tmp;
+
+            for (auto &sub_op : as_link(ret_op)->to_vector()) {
+                ConstVertexPtr new_op = sub_op->deep_copy_ptr();
+
+                // fully replace nested tmps
+                if (sub_op->is_temp() && as_link(sub_op)->id_ == id) {
+                    for (auto &nested_op : as_link(sub_op)->to_vector()) {
+                        expanded_tmp.push_back(nested_op);
+                    }
+                    continue;
+
+                // remove nested tmps
+                } else if (sub_op->is_temp()) {
+                    new_op = remove_nested_id(new_op, id);
+                }
+
+                // add to expanded tmp
+                expanded_tmp.push_back(new_op);
+            }
+
+            ret_op = Linkage::link(expanded_tmp);
+            as_link(ret_op)->copy_misc(as_link(op));
+        }
+
+        return ret_op;
+    };
+
     // loop over all linkages to be replaced
     for (const auto & [linkage, terms] : to_replace) {
         // get assignment
         auto &[assignment_term, type] = to_remove[linkage];
+
+        // get id of tmp
+        long link_id = linkage->id_;
 
         // get coefficient of assignment
         double coeff = assignment_term.coefficient_;
@@ -797,7 +823,7 @@ void PQGraph::remove_redundant_tmps() {
             vector<ConstVertexPtr> new_rhs;
 
             for (const ConstVertexPtr &op : term->rhs()){
-                if (op->is_temp() && as_link(op)->id_ == linkage->id_){
+                if (op->is_temp() && as_link(op)->id_ == link_id){
                     // replace tmp with assignment
                     for (const ConstVertexPtr &new_op : as_link(op)->to_vector())
                         new_rhs.push_back(new_op);
@@ -810,44 +836,28 @@ void PQGraph::remove_redundant_tmps() {
             // replace rhs
             term->rhs() = new_rhs;
 
-            // if the lhs is a tmp, regenerate it
-            ConstLinkagePtr original_lhs = as_link(term->lhs()->deep_copy_ptr());
-            if (term->lhs()->is_temp()) {
-                // get new lhs
-                LinkagePtr new_lhs = Linkage::link(new_rhs);
-                new_lhs->copy_misc(original_lhs);
+            // find everywhere this tmp is nested and replace it
+            for (auto& [name, equation] : equations_) {
+                for (auto &ref_term: equation.terms()) {
 
-                // replace lhs
-                term->lhs() = new_lhs;
+                    // store copy
+                    ConstVertexPtr original_lhs = ref_term.lhs()->deep_copy_ptr();
 
-                // remove old tmp from all_linkages
-                all_linkages_[type].erase(original_lhs);
+                    // replace lhs
+                    ref_term.lhs() = as_link(remove_nested_id(ref_term.lhs(), link_id)->deep_copy_ptr());
 
-                // add new tmp to all_linkages
-                all_linkages_[type].insert(new_lhs);
+                    // if lhs is a linkage, remove from all linkages
+                    if (ref_term.lhs()->is_temp()) {
 
-                // find everywhere this tmp occurs and replace it
-                for (auto& [name, equation] : equations_)
-                    for (auto &ref_term : equation.terms())
-                        for (auto &ref_op : ref_term.rhs())
-                            if (ref_op->is_temp() && as_link(ref_op)->id_ == original_lhs->id_) {
-                                // regenerate tmp
-                                vector<ConstVertexPtr> expanded_tmp = new_lhs->to_vector();
+                        // replace in all linkages
+                        all_linkages_[name].erase(as_link(original_lhs));
+                        all_linkages_[name].insert(as_link(ref_term.lhs()));
+                    }
 
-                                vector<ConstVertexPtr> new_expanded_tmp;
-                                for (auto &new_op : expanded_tmp) {
-                                    // replace tmp
-                                    if (new_op->is_temp() && as_link(new_op)->id_ == original_lhs->id_) {
-                                        // replace tmp with assignment
-                                        for (const ConstVertexPtr &new_op2 : as_link(new_op)->to_vector())
-                                            new_expanded_tmp.push_back(new_op2);
-                                    } else new_expanded_tmp.push_back(new_op);
-                                }
-
-                                LinkagePtr new_link = Linkage::link(new_expanded_tmp);
-                                new_link->copy_misc(as_link(ref_op));
-                                ref_op = new_link;
-                            }
+                    // replace rhs
+                    for (auto &ref_op: ref_term.rhs())
+                        ref_op = remove_nested_id(ref_op, link_id);
+                }
             }
 
             // multiply coefficient by assignment
@@ -871,10 +881,16 @@ void PQGraph::remove_redundant_tmps() {
         // remove assignment
         eq_terms.erase(term_it);
 
+        // print to screen
+        cout << "    Removed intermediate " << link_id << endl;
+
 
         // remove from all linkages
         all_linkages_[type].erase(linkage);
     }
+
+    cout << "Done" << endl << endl;
+
 }
 
 vector<Term *> PQGraph::get_matching_terms(const ConstLinkagePtr &contraction) {
