@@ -685,10 +685,6 @@ void PQGraph::sort_tmps(Equation &equation) {
         if (!a_has_temp && !b_has_temp)
             return a_idx < b_idx;
 
-        // if only one has temps, keep temp last
-        if (a_has_temp ^ b_has_temp)
-            return b_has_temp;
-
         // keep in total lexicographical order
         if (a_total_ids > b_total_ids)
             return false;
@@ -696,6 +692,16 @@ void PQGraph::sort_tmps(Equation &equation) {
             // if total ids are equal, keep assignments first
             if (a_term.is_assignment_ ^ b_term.is_assignment_)
                 return a_term.is_assignment_;
+            else if (a_term.is_assignment_ && b_term.is_assignment_) {
+                // if both are assignments sort by lhs id
+                if (a_lhs_ids > b_lhs_ids)
+                    return false;
+                else if (a_lhs_ids == b_lhs_ids) {
+                    // if lhs ids are equal, sort by rhs ids
+                    if (a_rhs_ids > b_rhs_ids)
+                        return false;
+                }
+            }
 
             // preserve order if all else is equal
             return a_idx < b_idx;
@@ -703,7 +709,6 @@ void PQGraph::sort_tmps(Equation &equation) {
 
         // if total ids of a are less than b, keep order
         return true;
-
     };
 
     stable_sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
