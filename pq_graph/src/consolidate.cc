@@ -693,6 +693,11 @@ void PQGraph::sort_tmps(Equation &equation) {
             if (a_term.is_assignment_ ^ b_term.is_assignment_)
                 return a_term.is_assignment_;
             else if (a_term.is_assignment_ && b_term.is_assignment_) {
+
+                // Keep temp assignments first if total ids are equal
+                if (a_lhs_is_tmp ^ b_lhs_is_tmp)
+                    return a_lhs_is_tmp;
+
                 // if both are assignments sort by lhs id
                 if (a_lhs_ids > b_lhs_ids)
                     return false;
@@ -700,6 +705,10 @@ void PQGraph::sort_tmps(Equation &equation) {
                     // if lhs ids are equal, sort by rhs ids
                     if (a_rhs_ids > b_rhs_ids)
                         return false;
+                    else if (a_rhs_ids == b_rhs_ids) {
+                        // if rhs ids are equal, sort by index
+                        return a_idx < b_idx;
+                    }
                 }
             }
 
@@ -711,7 +720,7 @@ void PQGraph::sort_tmps(Equation &equation) {
         return true;
     };
 
-    stable_sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
+    sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
 
     // replace the terms in the equation with the sorted terms
     std::vector<Term> sorted_terms;
