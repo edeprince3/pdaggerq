@@ -149,6 +149,9 @@ namespace pdaggerq {
 
         // now we have a map of lines to their corresponding indices
         // populate data
+        bool left_ext_idx[left_size], right_ext_idx[right_size];
+        memset( left_ext_idx, '\0',  left_size);
+        memset(right_ext_idx, '\0', right_size);
         for (auto &line_connection : line_populations) {
 
             // add to connection map
@@ -161,24 +164,34 @@ namespace pdaggerq {
             bool left_external  = line_connection.second[1] < 0;
             bool right_external = line_connection.second[0] < 0;
             if (left_external || right_external) {
-                // add to external lines (in order)
-                if (left_external)
-                    lines_.insert( // insert left from top
-                            std::upper_bound(lines_.begin(), lines_.end(), line, line_compare()),
-                            line
-                    );
-                else
-                    lines_.insert( // insert right from bottom
-                            std::lower_bound(lines_.begin(), lines_.end(), line, line_compare()),
-                            line
-                    );
-
                 // update mem scaling
                 mem_scale_ += line;
             }
 
+            // keep track of external indicies
+            left_ext_idx[ line_connection.second[0]] =  left_external;
+            right_ext_idx[line_connection.second[1]] = right_external;
+
             // update flop scaling
             flop_scale_ += line;
+        }
+
+        // make external lines
+        for (int i = 0; i < left_size; ++i) {
+            if (!left_ext_idx[i]) continue;
+            const Line &line = left_lines[i];
+            lines_.insert(
+                    std::lower_bound( lines_.begin(), lines_.end(), line, line_compare() ),
+                    line
+                    );
+        }
+        for (int i = 0; i < right_size; ++i) {
+            if (!right_ext_idx[i]) continue;
+            const Line &line = right_lines[i];
+            lines_.insert(
+                    std::lower_bound( lines_.begin(), lines_.end(), line, line_compare() ),
+                    line
+                    );
         }
 
         // update vertex members

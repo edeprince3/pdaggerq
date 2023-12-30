@@ -511,9 +511,6 @@ void PQGraph::substitute(bool format_sigma) {
         bool remake_test_set = test_linkages.empty() || first_pass;
         if(remake_test_set) {
 
-            // remove intermediates that only occur once for printing
-            remove_redundant_tmps();
-
             num_merged = 0;
             if (allow_merge_ && !format_sigma) {
                 num_merged = merge_terms();
@@ -539,9 +536,6 @@ void PQGraph::substitute(bool format_sigma) {
 
     } // end while linkage
     cout << endl;
-
-    // remove intermediates that only occur once for printing
-    remove_redundant_tmps();
 
     // resort tmps
     for (auto & [type, eq] : equations_) {
@@ -726,8 +720,6 @@ void PQGraph::sort_tmps(Equation &equation) {
 
 void PQGraph::remove_redundant_tmps() {
     // remove redundant contractions (only used in one term and its assignment)
-
-    return; // TODO: fix this
 
     cout << "Removing redundant temps..." << endl << flush;
 
