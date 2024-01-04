@@ -730,6 +730,10 @@ void PQGraph::remove_redundant_tmps() {
     for (const auto & [type, linkage_set] : all_linkages_) {
         for (const auto & linkage : linkage_set) {
 
+            // ignore scalar linkages (they do not use much memory)
+            if (linkage->is_scalar())
+                continue;
+
             // get all terms with this tmp
             vector<Term*> tmp_terms = get_matching_terms(linkage);
 
