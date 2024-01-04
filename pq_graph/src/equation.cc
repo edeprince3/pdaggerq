@@ -644,8 +644,8 @@ namespace pdaggerq {
         }
         terms_ = new_terms;
 
-        // reorder and collect scaling
-        reorder(true);
+        // collect scaling
+        collect_scaling(true);
     }
 
     vector<Term>::iterator Equation::insert_term(const Term &term, int index) {

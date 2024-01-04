@@ -178,7 +178,7 @@ namespace pdaggerq {
         }
 
         if(options.contains("format_sigma"))
-            has_sigma_vecs_ = options["format_sigma"].cast<bool>();
+            format_sigma_ = options["format_sigma"].cast<bool>();
 
         if (options.contains("print_trial_index"))
             Vertex::print_trial_index = options["print_trial_index"].cast<bool>();
@@ -203,7 +203,7 @@ namespace pdaggerq {
         cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
                 << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
 
-        cout << "    format_sigma: " << (has_sigma_vecs_ ? "true" : "false")
+        cout << "    format_sigma: " << (format_sigma_ ? "true" : "false")
              << "  // whether to format equations for sigma-vector build by extracting intermediates without trial vectors (default: true)" << endl;
 
         cout << "    print_trial_index: " << (Vertex::print_trial_index ? "true" : "false")
@@ -264,8 +264,6 @@ namespace pdaggerq {
         }
 
         // TODO: determine lines of lhs operator from pq.left_operators_ and pq.right_operators_
-
-
 
         // loop over each pq_string
         bool is_sigma_equation = false;
@@ -580,6 +578,8 @@ namespace pdaggerq {
 
     void PQGraph::collect_scaling(bool recompute, bool include_reuse) {
 
+        include_reuse = true;
+
         // reset scaling maps
         flop_map_.clear(); // clear flop scaling map
         mem_map_.clear(); // clear memory scaling map
@@ -726,6 +726,11 @@ namespace pdaggerq {
             // expand permutations in equations since we are not limiting the number of temps
             expand_permutations();
         }
+
+        // save initial scaling
+        collect_scaling(true, true);
+        flop_map_init_ = flop_map_;
+        mem_map_init_ = mem_map_;
 
         // reorder contractions in equations
         reorder();
