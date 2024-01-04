@@ -97,14 +97,6 @@ void PQGraph::substitute(bool format_sigma) {
 
     update_timer.start();
 
-    // save original scaling
-    static bool prior_saved = false;
-    if (!prior_saved) {
-        flop_map_pre_ = flop_map_;
-        mem_map_pre_ = mem_map_;
-        prior_saved = true;
-    }
-
     /// ensure necessary equations exist
     bool missing_temp_eq   = equations_.find("tmps")    == equations_.end();
     bool missing_reuse_eq  = equations_.find("reuse")   == equations_.end();
@@ -519,9 +511,6 @@ void PQGraph::substitute(bool format_sigma) {
         bool remake_test_set = test_linkages.empty() || first_pass;
         if(remake_test_set) {
 
-            // remove intermediates that only occur once for printing
-            remove_redundant_tmps();
-
             num_merged = 0;
             if (allow_merge_ && !format_sigma) {
                 num_merged = merge_terms();
@@ -547,9 +536,6 @@ void PQGraph::substitute(bool format_sigma) {
 
     } // end while linkage
     cout << endl;
-
-    // remove intermediates that only occur once for printing
-    remove_redundant_tmps();
 
     // resort tmps
     for (auto & [type, eq] : equations_) {
@@ -734,8 +720,6 @@ void PQGraph::sort_tmps(Equation &equation) {
 
 void PQGraph::remove_redundant_tmps() {
     // remove redundant contractions (only used in one term and its assignment)
-
-    return; // TODO: this is giving problems again...
 
     cout << "Removing redundant temps..." << endl << flush;
 
@@ -934,7 +918,7 @@ void PQGraph::expand_permutations(){
 
 size_t PQGraph::merge_terms() {
 
-    if (!allow_merge_)
+//    if (!allow_merge_)
         return 0; // do not merge terms if not allowed
 
     if (verbose) cout << "Merging similar terms:" << endl;

@@ -350,11 +350,8 @@ namespace pdaggerq {
         const scaling_map &eq_flop_map_ = new_equation.flop_map();
         const scaling_map &eq_mem_map_  = new_equation.mem_map();
 
-        flop_map_      += eq_flop_map_;
-        mem_map_       += eq_mem_map_;
-
-        flop_map_init_ += eq_flop_map_;
-        mem_map_init_  += eq_mem_map_;
+        flop_map_ += eq_flop_map_;
+        mem_map_  += eq_mem_map_;
 
         build_timer.stop(); // start timer
     }
@@ -459,9 +456,6 @@ namespace pdaggerq {
                  sout << "// initialize -> ";
             else sout << "## initialize -> ";
             sout << name << ";" << endl;
-        }
-        if (!equations_["tmps"].empty() && !Term::make_einsum) {
-            sout << "TA::TArrayD reset_tmp();" << endl;
         }
         sout << endl;
 
@@ -634,12 +628,10 @@ namespace pdaggerq {
 
         reorder_timer.start(); // start timer
 
-        // save initial scaling
-        static bool initial_saved = false;
-        if (!initial_saved) {
+        // save initial scaling if never saved
+        if (flop_map_init_.empty()) {
             flop_map_init_ = flop_map_;
             mem_map_init_ = mem_map_;
-            initial_saved = true;
         }
 
         if (!is_reordered_) cout << endl << "Reordering equations..." << flush;
@@ -660,9 +652,6 @@ namespace pdaggerq {
         if (!is_reordered_) cout << "Collecting scalings of each equation...";
         collect_scaling(); // collect scaling of equations
         if (!is_reordered_) cout << " Done" << endl;
-
-        if (flop_map_pre_.empty()) flop_map_pre_ = flop_map_;
-        if (mem_map_pre_.empty()) mem_map_pre_ = mem_map_;
 
         reorder_timer.stop();
         if (!is_reordered_)
@@ -732,16 +721,21 @@ namespace pdaggerq {
 
     void PQGraph::optimize() {
 
-        reorder(); // reorder contractions in equations
-
-        if (allow_merge_)
-            merge_terms(); // merge similar terms
-
         if (Term::allow_nesting_) {
             // TODO: make this a flag.
             // expand permutations in equations since we are not limiting the number of temps
             expand_permutations();
         }
+
+        // reorder contractions in equations
+        reorder();
+
+        // save scaling after reorder
+        flop_map_pre_ = flop_map_;
+        mem_map_pre_ = mem_map_;
+
+        if (allow_merge_)
+            merge_terms(); // merge similar terms
 
         bool format_sigma = has_sigma_vecs_ && format_sigma_;
         substitute(format_sigma); // find and substitute intermediate contractions
