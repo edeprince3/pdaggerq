@@ -119,10 +119,6 @@ namespace pdaggerq {
             return;
         }
 
-        // reserve lines for vertex
-        lines_.reserve(total_size);
-        connec_map_.reserve(total_size);
-
         // create a map of lines to their corresponding indicies
         unordered_map<const Line*, std::array<int_fast8_t, 2>, LineHash, LinePtrEqual>
                 line_populations;
@@ -148,50 +144,53 @@ namespace pdaggerq {
         }
 
         // now we have a map of lines to their corresponding indices
-        // populate data
+        // determine which lines are internal and external and store their indices
         bool left_ext_idx[left_size], right_ext_idx[right_size];
         memset( left_ext_idx, '\0',  left_size);
         memset(right_ext_idx, '\0', right_size);
-        for (auto &line_connection : line_populations) {
+
+        // reserve lines for indices
+        connec_map_.reserve(line_populations.size());
+
+        // populate connec_map_, rank, memory and flop scaling
+        for (auto &[line_ptr, line_connec] : line_populations) {
+
+            // get indices
+            const auto &[left_idx, right_idx] = line_connec;
 
             // add to connection map
-            connec_map_.push_back(line_connection.second);
+            connec_map_.push_back(line_connec);
 
             // get line
-            const Line &line = *line_connection.first;
+            const Line &line = *line_ptr;
 
             // check if line is external and should be added
-            bool left_external  = line_connection.second[1] < 0;
-            bool right_external = line_connection.second[0] < 0;
-            if (left_external || right_external) {
-                // update mem scaling
+            bool left_external  = right_idx < 0;
+            bool right_external =  left_idx < 0;
+
+            // update mem scaling
+            if (left_external || right_external)
                 mem_scale_ += line;
-            }
 
             // keep track of external indicies
-            left_ext_idx[ line_connection.second[0]] =  left_external;
-            right_ext_idx[line_connection.second[1]] = right_external;
+            left_ext_idx[  left_idx] =  left_external;
+            right_ext_idx[right_idx] = right_external;
 
             // update flop scaling
             flop_scale_ += line;
         }
 
         // make external lines
-        for (int i = 0; i < left_size; ++i) {
+        lines_.reserve(mem_scale_.n_);
+        for (uint_fast8_t i = 0; i < left_size; ++i) {
             if (!left_ext_idx[i]) continue;
             const Line &line = left_lines[i];
-            lines_.insert(
-                    std::lower_bound( lines_.begin(), lines_.end(), line, line_compare() ),
-                    line
-                    );
+            lines_.push_back(line);
         }
-        for (int i = 0; i < right_size; ++i) {
+        for (uint_fast8_t i = 0; i < right_size; ++i) {
             if (!right_ext_idx[i]) continue;
             const Line &line = right_lines[i];
-            lines_.insert(
-                    std::lower_bound( lines_.begin(), lines_.end(), line, line_compare() ),
-                    line
-                    );
+            lines_.push_back(line);
         }
 
         // update vertex members
@@ -220,10 +219,11 @@ namespace pdaggerq {
         int_lines.reserve(left_size + right_size - lines_.size());
 
         // use connec_map_ to grab the internal lines
+        const auto & left_lines = left_->lines();
         for (const auto &[left_idx, right_idx] : connec_map_) {
             if (left_idx >= 0 && right_idx >= 0) {
                 // add to internal lines (just use left lines since the line is in both)
-                int_lines.push_back(lines_[left_idx]);
+                int_lines.push_back(left_lines[left_idx]);
             }
         }
 
