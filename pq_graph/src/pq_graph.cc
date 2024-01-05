@@ -45,9 +45,9 @@ namespace pdaggerq {
         py::class_<pdaggerq::PQGraph, std::shared_ptr<pdaggerq::PQGraph> >(m, "pq_graph")
                 .def(py::init<const pybind11::dict&>())
                 .def("set_options", &pdaggerq::PQGraph::set_options)
-                .def("add", [](PQGraph& self, const pq_helper &pq, const std::string& equation_name) {
-                    return self.add(pq, equation_name);
-                }, py::arg("pq") = pq_helper(), py::arg("equation_name") = "")
+                .def("add", [](PQGraph& self, const pq_helper &pq, const std::string& equation_name, const vector<string> &label_order) {
+                    return self.add(pq, equation_name, label_order);
+                }, py::arg("pq") = pq_helper(), py::arg("equation_name") = "", py::arg("label_order") = vector<string>())
                 .def("print", [](PQGraph& self, const std::string &print_type) {
                     return self.print(print_type);
                 }, py::arg("print_type") = "")
@@ -226,14 +226,24 @@ namespace pdaggerq {
         cout << endl;
     }
 
-    void PQGraph::add(const pq_helper& pq, const std::string &equation_name) {
+    void PQGraph::add(const pq_helper& pq, const std::string &equation_name, const vector<std::string>& label_order) {
 
         build_timer.start(); // start timer
-        //TODO: loop over left and right operators to determine lines on lhs operator
 
         // check if equation already exists; if so, print warning
-        if (equations_.find(equation_name) != equations_.end()) {
-            cout << "WARNING: equation '" << equation_name << "' already exists. Overwriting." << endl;
+        bool equation_exists = equations_.find(equation_name) != equations_.end();
+        if (equation_exists) {
+            cout << "WARNING: equation '" << equation_name << "' already exists. "
+                     "The terms will be merged with the existing equation." << endl;
+        }
+
+        // print that custom label order is being used
+        if (!label_order.empty()) {
+            cout << "Using custom label order: ";
+            for (const auto &label : label_order) {
+                cout << label << " ";
+            }
+            cout << endl;
         }
 
         if (equations_.empty()) {
@@ -263,16 +273,12 @@ namespace pdaggerq {
             return;
         }
 
-        // TODO: determine lines of lhs operator from pq.left_operators_ and pq.right_operators_
-
         // loop over each pq_string
-        bool is_sigma_equation = false;
         for (const auto& pq_string : ordered) {
 
             // skip if pq_string is empty
             if (pq_string->skip)
                 continue;
-
 
             Term term;
             if (name_is_formatted) {
@@ -289,7 +295,37 @@ namespace pdaggerq {
             // use the term to build the assignment vertex
             if (!name_is_formatted || equation_name.empty()) {
                 VertexPtr assignment = make_shared<Vertex>(*term.term_linkage()->deep_copy_ptr());
-                assignment->sort();
+
+                if (label_order.empty())
+                    assignment->sort();
+                else {
+                    vector<Line> lines = assignment->lines();
+
+                    // check that label_order is the same size as the number of lines
+                    if (label_order.size() != lines.size()) {
+                        throw invalid_argument("label_order must be the same size as the number of lines in the assignment vertex");
+                    }
+
+                    // reorder lines according to label_order
+                    vector<Line> new_lines;
+
+                    for (const auto &label : label_order) {
+                        bool found = false;
+                        for (auto &line : lines) {
+                            if (line.label_ == label) {
+                                new_lines.push_back(line);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            throw invalid_argument("label_order must contain all labels in the assignment vertex."
+                                                    "The label '" + label + "' was not found.");
+                        }
+                    }
+
+                    assignment->update_lines(new_lines);
+                }
 
                 // do not format assignment vertices as a map
                 assignment->format_map_ = false;
@@ -300,7 +336,36 @@ namespace pdaggerq {
                 term.eq() = assignment;
             } else {
                 VertexPtr assignment = term.lhs()->deep_copy_ptr();
-                assignment->sort();
+                if (label_order.empty())
+                    assignment->sort();
+                else {
+                    vector<Line> lines = assignment->lines();
+
+                    // check that label_order is the same size as the number of lines
+                    if (label_order.size() != lines.size()) {
+                        throw invalid_argument("label_order must be the same size as the number of lines in the assignment vertex");
+                    }
+
+                    // reorder lines according to label_order
+                    vector<Line> new_lines;
+
+                    for (const auto &label : label_order) {
+                        bool found = false;
+                        for (auto &line : lines) {
+                            if (line.label_ == label) {
+                                new_lines.push_back(line);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            throw invalid_argument("label_order must contain all labels in the assignment vertex."
+                                                   "The label '" + label + "' was not found.");
+                        }
+                    }
+
+                    assignment->update_lines(new_lines);
+                }
 
                 // do not format assignment vertices as a map
                 assignment->format_map_ = false;
@@ -309,7 +374,7 @@ namespace pdaggerq {
                 assignment->update_name(assigment_name);
 
                 term.lhs() = assignment;
-                term.eq() = assignment;
+                term.eq()  = assignment;
             }
 
 
@@ -317,11 +382,7 @@ namespace pdaggerq {
             for (const auto &op : term.rhs()) {
                 if (op->is_sigma_) {
                     // mark that this equation has sigma vectors
-                    has_sigma_vecs_ = true;
-
-                    // mark that there is at least one equation in the pq_graph that has sigma vectors
-                    is_sigma_equation = true;
-                    break;
+                    has_sigma_vecs_ = true; break;
                 }
             }
 
@@ -340,7 +401,10 @@ namespace pdaggerq {
 
         // do not format assignment vertices as a map
         assignment_vertex->format_map_ = false;
-        new_equation = Equation(assignment_vertex, terms);
+
+        if (equation_exists) // TODO: have a check for assignment vertex consistency
+             new_equation.terms().insert(new_equation.terms().end(), terms.begin(), terms.end());
+        else new_equation = Equation(assignment_vertex, terms);
 
         // save initial scaling
         new_equation.collect_scaling();

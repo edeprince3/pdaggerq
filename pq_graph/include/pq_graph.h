@@ -123,7 +123,7 @@ namespace pdaggerq {
          * @param pq pq_helper object of the equation
          * @param equation_name name of the equation (optional)
          */
-        void add(const pq_helper &pq, const string &equation_name = "");
+        void add(const pq_helper &pq, const std::string &equation_name = "", const vector<std::string>& label_order = vector<string>());
 
         /**
          * clears everything in the builder

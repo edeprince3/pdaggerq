@@ -59,12 +59,26 @@ class pq_helper {
 
     /**
      *
+     * get operators to apply to the left of any operator products we add
+     *
+     */
+    const std::vector<std::vector<std::string>> & get_left_operators() const { return left_operators; }
+
+    /**
+     *
      * set operators to apply to the right of any operator products we add
      *
      * @param in: strings indicating a sum (outer list) of products (inner lists) of operators that define the ket state
      *
      */
     void set_right_operators(const std::vector<std::vector<std::string>> &in);
+
+    /**
+     *
+     * get operators to apply to the right of any operator products we add
+     *
+     */
+    const std::vector<std::vector<std::string>> & get_right_operators() const { return right_operators; }
 
     /**
      *
