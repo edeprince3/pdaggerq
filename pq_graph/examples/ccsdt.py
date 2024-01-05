@@ -99,5 +99,5 @@ generate_pq()
 graph = load_pq()
 
 graph.optimize()
-graph.print("c++")
+graph.print("python")
 graph.analysis()
