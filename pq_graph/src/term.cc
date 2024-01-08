@@ -270,6 +270,8 @@ namespace pdaggerq {
         if (arrangement.size() == 1) {
             add_scaling(arrangement[0]->dim());
             return {flop_map, mem_map};
+        } else if (arrangement.empty()) {
+            return {flop_map, mem_map};
         }
 
         /// add scaling from rhs
@@ -747,7 +749,7 @@ namespace pdaggerq {
         if (only_flop) comment += "\n";
 
         // add comment with flop and memory scaling
-        if (term_linkage_->depth() <= 1) {
+        if (term_linkage_->depth() <= 1 || rhs_.empty()) {
             comment += " // flops: " + lhs_->dim().str();
             comment += " | mem: " + lhs_->dim().str();
             return comment; // if there is only one vertex, return comment (no scaling to add)

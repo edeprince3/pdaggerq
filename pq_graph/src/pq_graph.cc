@@ -531,7 +531,7 @@ namespace pdaggerq {
         // print scalar declarations
         if (!equations_["scalars"].empty()) {
             sout << " #####  Scalars  ##### " << endl << endl;
-            sort_tmps(equations_["scalars"]);
+            sort_tmps(equations_["scalars"], 's');
             sout << equations_["scalars"] << endl;
             sout << " ### End of Scalars ### " << endl << endl;
         }

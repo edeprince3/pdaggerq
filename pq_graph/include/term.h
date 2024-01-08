@@ -349,7 +349,8 @@ namespace pdaggerq {
                 mem_map_  = mem_map;
                 if (rhs_.size() > 1)
                      term_linkage_ = Linkage::link(rhs_);
-                else term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
+                else if (!rhs_.empty()) term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
+                else term_linkage_ = as_link(make_shared<Vertex>() * make_shared<Vertex>());
 
                 // indicate that term no longer needs updating
                 needs_update_ = false;

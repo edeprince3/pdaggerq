@@ -582,7 +582,7 @@ void PQGraph::substitute(bool format_sigma) {
     total_timer.stop();
 }
 
-void PQGraph::sort_tmps(Equation &equation) {
+void PQGraph::sort_tmps(Equation &equation, char type) {
 
     // no terms, return
     if ( equation.terms().empty() ) return;
@@ -597,7 +597,7 @@ void PQGraph::sort_tmps(Equation &equation) {
 
     // sort the terms by the maximum id of the tmps in the term, then by the index of the term
 
-    auto is_in_order = [](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
+    auto is_in_order = [type](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
 
         const Term &a_term = *a.first;
         const Term &b_term = *b.first;
@@ -612,17 +612,20 @@ void PQGraph::sort_tmps(Equation &equation) {
 
         // recursive function to get nested temp ids from a vertex
         std::function<set<long>(const ConstVertexPtr&)> test_vertex;
-        test_vertex = [&test_vertex](const ConstVertexPtr &op) {
+        test_vertex = [&test_vertex, type](const ConstVertexPtr &op) {
 
             set<long> ids;
             if (op->is_temp()) {
                 ConstLinkagePtr link = as_link(op);
                 long link_id = link->id_;
 
-                // ignore reuse_tmp linkages
-                if (!link->is_reused_ && !link->is_scalar()) {
+                bool insert_id;
+                insert_id  = type == 't' && !link->is_scalar() && !link->is_reused_; // only non-scalar temps
+                insert_id |= type == 'r' &&  link->is_reused_; // only reuse tmps
+                insert_id |= type == 's' &&  link->is_scalar(); // only scalars
+
+                if (insert_id)
                     ids.insert(link_id);
-                }
 
                 // recurse into nested temps
                 for (const auto &nested_op: link->to_vector()) {

@@ -239,8 +239,9 @@ namespace pdaggerq {
         /**
          * Sorts tmps by the maximum id of the rhs in the linkage and the tmp itself
          * @param equation equation to sort tmps for
+         * @param type type of tmps to sort (t for tmps, s for scalars, r for reuse)
          */
-        static void sort_tmps(Equation &equation);
+        static void sort_tmps(Equation &equation, char type = 't');
 
         /**
          * Find the common coefficient of a set of terms
