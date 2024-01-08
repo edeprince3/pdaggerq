@@ -185,12 +185,19 @@ namespace pdaggerq {
         for (uint_fast8_t i = 0; i < left_size; ++i) {
             if (!left_ext_idx[i]) continue;
             const Line &line = left_lines[i];
-            lines_.push_back(line);
+
+            if (!line.sig_)
+                lines_.push_back(line);
+            else
+                lines_.insert(lines_.begin(), line);
         }
         for (uint_fast8_t i = 0; i < right_size; ++i) {
             if (!right_ext_idx[i]) continue;
             const Line &line = right_lines[i];
-            lines_.push_back(line);
+            if (!line.sig_)
+                lines_.push_back(line);
+            else
+                lines_.insert(lines_.begin(), line);
         }
 
         // update vertex members
