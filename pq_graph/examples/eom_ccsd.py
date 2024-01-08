@@ -58,10 +58,6 @@ def load_pq():
         'nthreads': -1,
     })
 
-    # load energy
-    pq.load("energy.bin")
-    graph.add(pq, "energy")
-
     # load singles_resid
     pq.load("eom_singles_resid.bin")
     graph.add(pq, "singles_resid")
@@ -72,7 +68,7 @@ def load_pq():
 
     return graph
 
-generate_pq()
+# generate_pq()
 graph = load_pq()
 
 graph.optimize()
