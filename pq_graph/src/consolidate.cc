@@ -724,12 +724,13 @@ void PQGraph::sort_tmps(Equation &equation, char type) {
 void PQGraph::remove_redundant_tmps() {
     // remove redundant contractions (only used in one term and its assignment)
 
+    return;
+
     cout << "Removing redundant temps..." << endl << flush;
 
-    std::unordered_map<ConstLinkagePtr, vector<Term*>, LinkageHash, LinkageEqual> to_replace;
-    std::unordered_map<ConstLinkagePtr, pair<Term, string>, LinkageHash, LinkageEqual> to_remove;
+    std::set<size_t> redundant_ids; // ids of redundant temps
 
-    // iterate over all linkages and determine which linkages only occur in one term and its assignment
+    // iterate over all linkages and determine which linkage ids only occur in one term
     for (const auto & [type, linkage_set] : all_linkages_) {
         for (const auto & linkage : linkage_set) {
 
@@ -750,140 +751,88 @@ void PQGraph::remove_redundant_tmps() {
                     }
                 }
 
-                // add term to be replaced
-                to_replace[linkage].push_back(tmp_terms.front());
+                // add to redundant ids
+                redundant_ids.insert(linkage->id_);
 
-                // find assignment
-                for (auto term_it = equations_[type].terms().begin(); term_it != equations_[type].terms().end(); ++term_it){
-                    if (term_it->lhs()->is_temp() && as_link(term_it->lhs())->id_ == linkage->id_){
-                        to_remove[linkage] = {*term_it, type};
-                        break;
-                    }
-                }
             }
         }
     }
 
-    // helper function to recursively remove nested tmps with a given id
-    std::function<ConstVertexPtr(const ConstVertexPtr&, long)> remove_nested_id;
-    remove_nested_id = [&remove_nested_id](const ConstVertexPtr &op, long id) {
+    cout << "Found " << redundant_ids.size() << " redundant temps." << endl << flush;
+    cout << "Removing temps: " << endl;
+    size_t count = 0, wrap = 10;
+    for (const auto & id : redundant_ids) {
+        cout << id << " ";
+        if (++count % wrap == 0) cout << endl;
+    }
+    cout << endl;
 
-        VertexPtr ret_op = op->deep_copy_ptr();
+    std::function<VertexPtr(const ConstVertexPtr&)> remove_redundance;
+    remove_redundance = [&remove_redundance, &redundant_ids](const ConstVertexPtr& refop) {
+        bool has_redundant = true;
 
-        if (ret_op->is_temp()) {
-            vector<ConstVertexPtr> expanded_tmp;
+        // if not a temp, return
+        if (!refop->is_temp()) { return refop->deep_copy_ptr(); }
 
-            for (auto &sub_op : as_link(ret_op)->to_vector()) {
-                ConstVertexPtr new_op = sub_op->deep_copy_ptr();
+        ConstLinkagePtr reflink = as_link(refop);
+        vector<ConstVertexPtr> new_ops = reflink->to_vector();
 
-                // fully replace nested tmps
-                if (sub_op->is_temp() && as_link(sub_op)->id_ == id) {
-                    for (auto &nested_op : as_link(sub_op)->to_vector()) {
-                        expanded_tmp.push_back(nested_op);
-                    }
+        while(has_redundant) {
+            vector<ConstVertexPtr> trial_ops = new_ops;
+            new_ops.clear();
+
+            has_redundant = false;
+            for (const auto &op : trial_ops) {
+                if (!op->is_temp()) {
+                    new_ops.push_back(op);
                     continue;
-
-                // remove nested tmps
-                } else if (sub_op->is_temp()) {
-                    new_op = remove_nested_id(new_op, id);
                 }
 
-                // add to expanded tmp
-                expanded_tmp.push_back(new_op);
-            }
+                ConstLinkagePtr link = as_link(op);
 
-            ret_op = Linkage::link(expanded_tmp);
-            as_link(ret_op)->copy_misc(as_link(op));
+                // this is a temp. Now we recursively replace the left and the right.
+                ConstVertexPtr leftlink = link->left(), rightlink = link->right();
+
+                // check if left and right are redundant
+                bool left_redundant =
+                        leftlink->is_temp() && redundant_ids.find(as_link(leftlink)->id_) != redundant_ids.end();
+                bool right_redundant =
+                        rightlink->is_temp() && redundant_ids.find(as_link(rightlink)->id_) != redundant_ids.end();
+
+                has_redundant |= left_redundant || right_redundant;
+
+                if (!left_redundant && !right_redundant) {
+                    new_ops.push_back(op);
+                    continue;
+                }
+
+                // if we get here, we have a redundant temp. We need to replace it with its left and right.
+                new_ops.push_back(remove_redundance( leftlink));
+                new_ops.push_back(remove_redundance(rightlink));
+            }
         }
 
-        return ret_op;
+        // construct new linkage from new_ops
+        LinkagePtr new_link = Linkage::link(new_ops);
+        new_link->copy_misc(reflink); // copy misc data from reflink
+
+        return new_link->deep_copy_ptr();
     };
 
-    // loop over all linkages to be replaced
-    //TODO: making these substitutions could invalidate the terms in to_replace
-    // we need regenerate to_replace after each substitution
-    for (const auto & [linkage, terms] : to_replace) {
-        // get assignment
-        auto &[assignment_term, type] = to_remove[linkage];
-
-        // get id of tmp
-        long link_id = linkage->id_;
-
-        // get coefficient of assignment
-        double coeff = assignment_term.coefficient_;
-
-        // loop over all terms to be replaced
-        for (Term* term : terms) {
-            // replace rhs of term
-            vector<ConstVertexPtr> new_rhs;
-
-            for (const ConstVertexPtr &op : term->rhs()){
-                if (op->is_temp() && as_link(op)->id_ == link_id){
-                    // replace tmp with assignment
-                    for (const ConstVertexPtr &new_op : as_link(op)->to_vector())
-                        new_rhs.push_back(new_op);
-                } else {
-                    // keep op
-                    new_rhs.push_back(op);
-                }
+    // iterate over all equations and remove redundant ids from ops
+    for (auto & [type, equation] : equations_) {
+        vector<Term> new_terms;
+        for (auto & term : equation.terms()) {
+            // check if lhs is redundant
+            if (term.lhs()->is_temp() && redundant_ids.find(as_link(term.lhs())->id_) != redundant_ids.end()) {
+                continue; // do not add term
             }
 
-            // replace rhs
-            term->rhs() = new_rhs;
-
-            // find everywhere this tmp is nested and replace it
-            for (auto& [name, equation] : equations_) {
-                for (auto &ref_term: equation.terms()) {
-
-                    // store copy
-                    ConstVertexPtr original_lhs = ref_term.lhs()->deep_copy_ptr();
-
-                    // replace lhs
-                    ref_term.lhs() = as_link(remove_nested_id(ref_term.lhs(), link_id)->deep_copy_ptr());
-
-                    // if lhs is a linkage, remove from all linkages
-                    if (ref_term.lhs()->is_temp()) {
-
-                        // replace in all linkages
-                        all_linkages_[name].erase(as_link(original_lhs));
-                        all_linkages_[name].insert(as_link(ref_term.lhs()));
-                    }
-
-                    // replace rhs
-                    for (auto &ref_op: ref_term.rhs())
-                        ref_op = remove_nested_id(ref_op, link_id);
-                }
+            term.lhs() = remove_redundance(term.lhs());
+            for (auto & op : term.rhs()) {
+                op = remove_redundance(op);
             }
-
-            // multiply coefficient by assignment
-            term->coefficient_ *= coeff;
-
-            term->request_update();
-            term->compute_scaling(true);
         }
-    }
-
-    for (const auto & [linkage, term_type] : to_remove) {
-        // remove all occurrences of this tmp
-        const Term& assignment_term = term_type.first;
-        size_t link_id = linkage->id_;
-        const string &type = term_type.second;
-
-
-        // find the assignment in the equation
-        std::vector<Term>& eq_terms = equations_[type].terms();
-        auto term_it = find_if(eq_terms.begin(), eq_terms.end(), [&assignment_term, link_id](const Term& term){
-            return term.lhs()->is_temp() && as_link(term.lhs())->id_ == link_id;
-        });
-
-        // remove assignment
-        eq_terms.erase(term_it);
-
-        // print to screen
-        cout << "    Removed intermediate " << link_id << endl;
-
-        // remove from all linkages
-        all_linkages_[type].erase(linkage);
     }
 
     cout << "Done" << endl << endl;
