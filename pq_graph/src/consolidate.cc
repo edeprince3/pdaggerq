@@ -833,6 +833,7 @@ void PQGraph::remove_redundant_tmps() {
                 op = remove_redundance(op);
             }
         }
+        equation.terms() = new_terms;
     }
 
     cout << "Done" << endl << endl;
