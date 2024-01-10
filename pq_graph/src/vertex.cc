@@ -290,9 +290,9 @@ namespace pdaggerq {
         string dimstring;
         if (rank_ == 0) return dimstring;
 
-        dimstring += ovstring();
         if (has_blk_)
-            dimstring += "_" + blk_string();
+            dimstring += blk_string() + "_";
+        dimstring += ovstring();
 
         return dimstring;
     }
@@ -603,7 +603,7 @@ namespace pdaggerq {
         // return a map of the labels of the self-contractions of the vertex
         //        and a pair of the line with the frequency of the label
         map<Line, uint_fast8_t> self_links;
-        for (auto & line : this->lines()) {
+        for (auto & line : this->lines_) {
             // count the number of times the line appears
             self_links[line]++;
         }
@@ -636,6 +636,7 @@ namespace pdaggerq {
 
             // create generic labels for the delta function
             line_vector delta_lines;
+            delta_lines.reserve(freq);
             for (uint_fast8_t i = 0; i < freq; i++) {
                 Line new_line = line;
                 new_line.label_ = new_line.label_ + to_string(i);
@@ -643,7 +644,9 @@ namespace pdaggerq {
             }
 
             // create delta function
-            ConstVertexPtr delta_op = std::make_shared<const Vertex>("Id", delta_lines);
+            VertexPtr delta_op = deep_copy_ptr();
+            delta_op->base_name_ = "Id";
+            delta_op->update_lines(delta_lines);
 
             // add delta function to vector
             delta_ops.push_back(delta_op);
