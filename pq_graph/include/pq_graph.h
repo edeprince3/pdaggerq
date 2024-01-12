@@ -262,7 +262,7 @@ namespace pdaggerq {
 
         vector<Term *> get_matching_terms(const ConstLinkagePtr &contraction);
 
-        void remove_redundant_tmps();
+        void remove_unused_tmps();
     }; // PQGraph
 
 } // pdaggerq

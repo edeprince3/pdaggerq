@@ -56,6 +56,9 @@ namespace pdaggerq {
         // set name of equation
         name_ = name;
 
+        if (terms.empty()) // throw error if no terms
+            throw invalid_argument("Empty terms for Equation: " + name);
+
         // set assignment vertex
         assignment_vertex_ = terms.back().lhs();
 
@@ -666,6 +669,13 @@ namespace pdaggerq {
                         temp_terms.push_back(&term);
                         break;
                     }
+                }
+            }
+            if (term.lhs()->is_temp()) {
+                const ConstLinkagePtr &linkage = as_link(term.lhs());
+                if (linkage->id_ == contraction->id_ && linkage->is_reused_ == contraction->is_reused_
+                    && *linkage == *contraction) {
+                    temp_terms.push_back(&term);
                 }
             }
         }

@@ -511,6 +511,9 @@ void PQGraph::substitute(bool format_sigma) {
         bool remake_test_set = test_linkages.empty() || first_pass;
         if(remake_test_set) {
 
+            // remove tmps that are not used
+            remove_unused_tmps();
+
             num_merged = 0;
             if (allow_merge_ && !format_sigma) {
                 num_merged = merge_terms();
@@ -721,14 +724,12 @@ void PQGraph::sort_tmps(Equation &equation, char type) {
     equation.terms() = sorted_terms;
 }
 
-void PQGraph::remove_redundant_tmps() {
-    // remove redundant contractions (only used in one term and its assignment)
+void PQGraph::remove_unused_tmps() {
+    // remove unused contractions (only used in one term and its assignment)
 
-    return;
+    cout << "Removing unused temps..." << endl << flush;
 
-    cout << "Removing redundant temps..." << endl << flush;
-
-    std::set<size_t> redundant_ids; // ids of redundant temps
+    std::set<size_t> unused_ids; // ids of unused temps
 
     // iterate over all linkages and determine which linkage ids only occur in one term
     for (const auto & [type, linkage_set] : all_linkages_) {
@@ -741,8 +742,8 @@ void PQGraph::remove_redundant_tmps() {
             // get all terms with this tmp
             vector<Term*> tmp_terms = get_matching_terms(linkage);
 
-            // if found in only one term, find assignment and add to to_replace
-            if (tmp_terms.size() == 1){
+            // if found in less than one term, find assignment and add to to_replace
+            if (tmp_terms.size() <= 2){
 
                 if (type == "reuse") {
                     if (!tmp_terms.front()->lhs()->is_temp()){
@@ -751,90 +752,140 @@ void PQGraph::remove_redundant_tmps() {
                     }
                 }
 
-                // add to redundant ids
-                redundant_ids.insert(linkage->id_);
+                // add to unused ids
+                unused_ids.insert(linkage->id_);
 
+                // multiply coefficient of matching term by coefficient of assignment
+                if (tmp_terms.size() == 2) {
+                    Term *assignment = tmp_terms.front();
+                    Term *term = tmp_terms.back();
+                    term->coefficient_ *= assignment->coefficient_;
+                }
             }
         }
     }
 
-    cout << "Found " << redundant_ids.size() << " redundant temps." << endl << flush;
+    cout << "Found " << unused_ids.size() << " unused temps." << endl << flush;
     cout << "Removing temps: " << endl;
     size_t count = 0, wrap = 10;
-    for (const auto & id : redundant_ids) {
+    for (const auto & id : unused_ids) {
         cout << id << " ";
         if (++count % wrap == 0) cout << endl;
     }
     cout << endl;
 
     std::function<VertexPtr(const ConstVertexPtr&)> remove_redundance;
-    remove_redundance = [&remove_redundance, &redundant_ids](const ConstVertexPtr& refop) {
-        bool has_redundant = true;
+    remove_redundance = [&remove_redundance, &unused_ids](const ConstVertexPtr& refop) {
+        bool has_unused = true;
 
         // if not a temp, return
         if (!refop->is_temp()) { return refop->deep_copy_ptr(); }
 
-        ConstLinkagePtr reflink = as_link(refop);
-        vector<ConstVertexPtr> new_ops = reflink->to_vector();
+        bool ref_is_unused = unused_ids.find(as_link(refop)->id_) != unused_ids.end();
 
-        while(has_redundant) {
+        ConstLinkagePtr reflink = as_link(refop);
+        vector<ConstVertexPtr> new_ops = reflink->to_vector(true);
+
+        while(has_unused) {
             vector<ConstVertexPtr> trial_ops = new_ops;
             new_ops.clear();
 
-            has_redundant = false;
-            for (const auto &op : trial_ops) {
+            has_unused = false;
+            for (auto &op : trial_ops) {
                 if (!op->is_temp()) {
                     new_ops.push_back(op);
                     continue;
                 }
 
                 ConstLinkagePtr link = as_link(op);
+                bool link_unused = unused_ids.find(link->id_) != unused_ids.end();
 
                 // this is a temp. Now we recursively replace the left and the right.
                 ConstVertexPtr leftlink = link->left(), rightlink = link->right();
 
-                // check if left and right are redundant
-                bool left_redundant =
-                        leftlink->is_temp() && redundant_ids.find(as_link(leftlink)->id_) != redundant_ids.end();
-                bool right_redundant =
-                        rightlink->is_temp() && redundant_ids.find(as_link(rightlink)->id_) != redundant_ids.end();
+                // check if left and right are unused
+                bool left_unused =
+                        leftlink->is_temp() && unused_ids.find(as_link(leftlink)->id_) != unused_ids.end();
+                bool right_unused =
+                        rightlink->is_temp() && unused_ids.find(as_link(rightlink)->id_) != unused_ids.end();
 
-                has_redundant |= left_redundant || right_redundant;
+                has_unused |= left_unused || right_unused || link_unused;
 
-                if (!left_redundant && !right_redundant) {
-                    new_ops.push_back(op);
-                    continue;
+                // remove unused ids
+                auto left_uniqued = remove_redundance(leftlink);
+                auto right_uniqued = remove_redundance(rightlink);
+                if (!link_unused) {
+                    // build new link from left and right
+                    VertexPtr new_link = left_uniqued * right_uniqued;
+                    as_link(new_link)->copy_misc(link);
+                    new_ops.push_back(new_link);
                 }
-
-                // if we get here, we have a redundant temp. We need to replace it with its left and right.
-                new_ops.push_back(remove_redundance( leftlink));
-                new_ops.push_back(remove_redundance(rightlink));
+                else {
+                    new_ops.push_back(left_uniqued);
+                    new_ops.push_back(right_uniqued);
+                }
             }
         }
 
         // construct new linkage from new_ops
         LinkagePtr new_link = Linkage::link(new_ops);
-        new_link->copy_misc(reflink); // copy misc data from reflink
+        if (!ref_is_unused)
+            new_link->copy_misc(reflink); // copy misc data from reflink
 
         return new_link->deep_copy_ptr();
     };
 
-    // iterate over all equations and remove redundant ids from ops
+    // iterate over all equations and remove unused ids from ops
     for (auto & [type, equation] : equations_) {
         vector<Term> new_terms;
+        new_terms.reserve(equation.size());
         for (auto & term : equation.terms()) {
-            // check if lhs is redundant
-            if (term.lhs()->is_temp() && redundant_ids.find(as_link(term.lhs())->id_) != redundant_ids.end()) {
+            // check if lhs is unused
+            if (term.lhs()->is_temp() && unused_ids.find(as_link(term.lhs())->id_) != unused_ids.end()) {
                 continue; // do not add term
             }
 
-            term.lhs() = remove_redundance(term.lhs());
-            for (auto & op : term.rhs()) {
+            Term new_term = term;
+            new_term.lhs() = remove_redundance(new_term.lhs());
+            vector<ConstVertexPtr> new_rhs;
+            for (auto & op : new_term.rhs()) {
                 op = remove_redundance(op);
+                if (op->is_linked() && !op->is_temp()){
+                    auto sub_ops = as_link(op)->to_vector(true);
+                    new_rhs.insert(new_rhs.end(), sub_ops.begin(), sub_ops.end());
+                } else {
+                    new_rhs.push_back(op);
+                }
             }
+
+            // compute scaling of new term
+            new_term.rhs() = new_rhs;
+            new_term.request_update();
+            new_term.compute_scaling(true);
+            new_term.rhs() = new_term.term_linkage()->to_vector(true);
+            new_term.reorder(true);
+
+            // add term to new terms
+            new_terms.push_back(new_term);
         }
         equation.terms() = new_terms;
     }
+
+    // rebuild all linkages
+    for (auto & [type, linkages] : all_linkages_) {
+        linkage_set new_linkage_set;
+        for (auto & linkage : linkages) {
+            if (unused_ids.find(linkage->id_) != unused_ids.end())
+                continue;
+            ConstVertexPtr new_linkage = remove_redundance(linkage);
+            new_linkage_set.insert(as_link(new_linkage));
+        }
+        all_linkages_[type] = new_linkage_set;
+    }
+
+    // recompute scaling and reorder terms
+    reorder();
+    collect_scaling(true);
 
     cout << "Done" << endl << endl;
 

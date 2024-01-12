@@ -467,7 +467,7 @@ namespace pdaggerq {
         PQGraph copy = *this; // make copy of pq_graph
 
         // remove intermediates that only occur once for printing
-        remove_redundant_tmps();
+        remove_unused_tmps();
 
         // get all terms from all equations except the scalars, and reuse_tmps
         vector<Term> all_terms;
@@ -531,7 +531,11 @@ namespace pdaggerq {
         // print scalar declarations
         if (!equations_["scalars"].empty()) {
             sout << " #####  Scalars  ##### " << endl << endl;
-            sort_tmps(equations_["scalars"], 's');
+            sort_tmps(equations_["scalars"], 's'); // sort scalars in scalars equation
+            for (auto &term: equations_["scalars"])
+                term.comments() = {}; // remove comments from scalars
+
+            // print scalars
             sout << equations_["scalars"] << endl;
             sout << " ### End of Scalars ### " << endl << endl;
         }
@@ -539,7 +543,11 @@ namespace pdaggerq {
         // print declarations for reuse_tmps
         if (!equations_["reuse"].empty()){
             sout << " #####  Shared  Operators  ##### " << endl << endl;
-            sort_tmps(equations_["reuse"]);
+            sort_tmps(equations_["reuse"]); // sort reuse_tmps in reuse_tmps equation
+            for (auto &term: equations_["reuse"])
+                term.comments() = {}; // remove comments from reuse_tmps
+
+            // print reuse_tmps
             sout << equations_["reuse"] << endl;
             sout << " ### End of Shared Operators ### " << endl << endl;
         }

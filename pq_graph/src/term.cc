@@ -755,7 +755,7 @@ namespace pdaggerq {
             return comment; // if there is only one vertex, return comment (no scaling to add)
         }
 
-        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(rhs_);
+        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(term_linkage_->to_vector());
         if (flop_scales.empty() && mem_scales.empty()) { // no scaling to add as an additional comment
             return comment;
         }
