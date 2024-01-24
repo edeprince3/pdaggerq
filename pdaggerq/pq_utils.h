@@ -44,14 +44,17 @@ bool is_occ(const std::string &idx);
 /// is a label classified as virtual?
 bool is_vir(const std::string &idx);
 
-/// how many times does an index appear deltas?
+/// how many times does an index appear in deltas?
 int index_in_deltas(const std::string &idx, const std::vector<delta_functions> &deltas);
 
-/// how many times does an index appear integrals?
+/// how many times does an index appear in integrals?
 int index_in_integrals(const std::string &idx, const std::vector<integrals> &ints);
 
-/// how many times does an index appear amplitudes?
+/// how many times does an index appear in amplitudes?
 int index_in_amplitudes(const std::string &idx, const std::vector<amplitudes> &amps);
+
+/// how many times does an index appear in operators (symbol)?
+int index_in_operators(const std::string &idx, const std::vector<std::string> &ops);
 
 /// how many times does an index appear amplitudes, deltas, and integrals?
 int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx);
@@ -64,6 +67,9 @@ void replace_index_in_integrals(const std::string &old_idx, const std::string &n
 
 /// replace one label with another (in a given set of amplitudes)
 void replace_index_in_amplitudes(const std::string &old_idx, const std::string &new_idx, std::vector<amplitudes> &amps);
+
+/// replace one label with another (in a given set of operators (symbol))
+void replace_index_in_operators(const std::string &old_idx, const std::string &new_idx, std::vector<std::string> &ops);
 
 /// replace one label with another (in integrals and amplitudes)
 void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string &old_idx, const std::string &new_idx);
