@@ -1228,6 +1228,9 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
     static std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
                                     "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
+    static std::vector<std::string> gen_labels{"p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9",
+                                    "p10", "p11", "p12", "p13", "p14", "p15", "p16", "p17", "p18", "p19",
+                                    "p20", "p21", "p22", "p23", "p24", "p25", "p26", "p27", "p28", "p29"};
 
     std::vector<std::string> sum_labels;
     for (const std::string & occ_label : occ_labels) {
@@ -1238,6 +1241,11 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
     for (const std::string & vir_label : vir_labels) {
         if ( index_in_anywhere(in, vir_label) == 2 ) {
             sum_labels.push_back(vir_label);
+        }
+    }
+    for (const std::string & gen_label : gen_labels) {
+        if ( index_in_anywhere(in, gen_label) == 2 ) {
+            sum_labels.push_back(gen_label);
         }
     }
                                     
