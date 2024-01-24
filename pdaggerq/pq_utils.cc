@@ -135,7 +135,19 @@ int index_in_amplitudes(const std::string &idx, const std::vector<amplitudes> &a
     return n;
 }
 
-// how many times does an index appear amplitudes, deltas, and integrals?
+// how many times does an index appear in operators (symbol)?
+int index_in_operators(const std::string &idx, const std::vector<std::string> &ops) {
+
+    int n = 0;
+    for (const std::string & op : ops) {
+        if ( op == idx ) {
+            n++;
+        }
+    }
+    return n;
+}
+
+// how many times does an index appear amplitudes, deltas, integrals, and operators?
 int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx) {
 
     // find index in deltas
@@ -154,6 +166,9 @@ int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &i
         const std::vector<amplitudes> &amps = amp_pair.second;
         n += index_in_amplitudes(idx, amps);
     }
+
+    // find index in operators
+    n += index_in_operators(idx, in->symbol);
 
     return n;
 }
@@ -197,6 +212,16 @@ void replace_index_in_integrals(const std::string &old_idx, const std::string &n
     }
 }
 
+/// replace one label with another (in a given set of operators (symbol))
+void replace_index_in_operators(const std::string &old_idx, const std::string &new_idx, std::vector<std::string> &ops) {
+
+    for (std::string & op : ops) {
+        if (op == old_idx ) {
+            op = new_idx;
+        }
+    }
+}
+
 // swap two labels
 void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, const std::string &label2) {
 
@@ -205,7 +230,7 @@ void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, 
     replace_index_everywhere(in, "xyz", label2);
 }
 
-// replace one label with another (in integrals and amplitudes)
+// replace one label with another (in integrals, amplitudes, and operators)
 void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string &old_idx, const std::string &new_idx) {
 
     for (auto &int_pair : in->ints) {
@@ -213,11 +238,15 @@ void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string 
         std::vector<integrals> &ints = int_pair.second;
         replace_index_in_integrals(old_idx, new_idx, ints);
     }
+
     for (auto &amp_pair : in->amps) {
         char type = amp_pair.first;
         std::vector<amplitudes> &amps = amp_pair.second;
         replace_index_in_amplitudes(old_idx, new_idx, amps);
     }
+
+    replace_index_in_operators(old_idx, new_idx, in->symbol);
+
     in->sort_labels();
 }
 
@@ -1212,6 +1241,25 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
             }
         }
     }
+
+    // now general
+    static std::vector<std::string> gen_in{"p0", "p1", "p2", "p3"};
+    static std::vector<std::string> gen_out{"p", "q", "r", "s"};
+
+    for (const std::string & in_idx : gen_in) {
+
+        if (index_in_anywhere(in, in_idx) > 0 ) {
+
+            for (const std::string & out_idx : gen_out) {
+
+                if (index_in_anywhere(in, out_idx) == 0 ) {
+
+                    replace_index_everywhere(in, in_idx, out_idx);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 /// apply delta functions to amplitude and integral labels
@@ -1228,6 +1276,9 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
     static std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
                                     "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
+    static std::vector<std::string> gen_labels{"p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9",
+                                    "p10", "p11", "p12", "p13", "p14", "p15", "p16", "p17", "p18", "p19",
+                                    "p20", "p21", "p22", "p23", "p24", "p25", "p26", "p27", "p28", "p29"};
 
     std::vector<std::string> sum_labels;
     for (const std::string & occ_label : occ_labels) {
@@ -1238,6 +1289,11 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
     for (const std::string & vir_label : vir_labels) {
         if ( index_in_anywhere(in, vir_label) == 2 ) {
             sum_labels.push_back(vir_label);
+        }
+    }
+    for (const std::string & gen_label : gen_labels) {
+        if ( index_in_anywhere(in, gen_label) == 2 ) {
+            sum_labels.push_back(gen_label);
         }
     }
                                     
