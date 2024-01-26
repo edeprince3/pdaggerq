@@ -113,6 +113,22 @@ class pq_helper {
 
     /**
      *
+     * set whether final strings contain bare creation / annihilation operators or their expectation value (rdms)?
+     *
+     * @param do_use_rdms
+     *
+     */
+    void set_use_rdms(bool do_use_rdms);
+
+    /**
+     *
+     * this function defines rdms as the expectation value of normal-ordered creationa / annihilation operators
+     *
+     */
+    void rdms();
+
+    /**
+     *
      * add a product of operators (i.e., {'h','t1'} )
      *
      * @param in: a list of strings defining the operator product
@@ -290,6 +306,13 @@ private:
      *
      */
     int print_level;
+
+    /**
+     *
+     * should final strings contain bare creation / annihilation operators or their expectation value (rdms)?
+     *
+     */
+    bool use_rdms;
 
     /**
      *

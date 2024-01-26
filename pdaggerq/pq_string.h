@@ -243,6 +243,13 @@ class pq_string {
 
     /**
      *
+     * reduced density matrices corresponding to the expectation value of the creation / annihilation operators (symbols)
+     *
+     */
+    std::vector<std::string> rdms;
+
+    /**
+     *
      * is the string in normal order? checks both fermion and boson parts
      *
      */

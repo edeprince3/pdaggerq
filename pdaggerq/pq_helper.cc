@@ -49,6 +49,7 @@ void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
+        .def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
@@ -117,6 +118,8 @@ pq_helper::pq_helper(const std::string &vacuum_type)
         exit(1);
     }
 
+    use_rdms = false;
+
     print_level = 0;
 
     // assume operators entering a similarity transformation
@@ -141,6 +144,10 @@ void pq_helper::set_find_paired_permutations(bool do_find_paired_permutations) {
 void pq_helper::set_print_level(int level) {
     print_level = level;
 }
+void pq_helper::set_use_rdms(bool do_use_rdms) {
+    use_rdms = do_use_rdms;
+}
+
 
 void pq_helper::set_right_operators(const std::vector<std::vector<std::string>> &in) {
 
@@ -1072,6 +1079,37 @@ void pq_helper::simplify() {
 
         // replace any funny labels that were added with conventional ones
         use_conventional_labels(pq_str);
+
+        // replace creation / annihilation operators with rdms
+        if ( use_rdms ) {
+
+            size_t n = pq_str->symbol.size();
+
+            if ( n % 2 != 0 ) {
+                printf("\n");
+                printf("    error: cannot define rdms\n");
+                printf("\n");
+                exit(1);
+            }
+
+            std::string rdm = "D" + std::to_string(n/2) + "(";
+
+            for (size_t i = 0; i < n/2; i++) {
+                rdm += pq_str->symbol[i];
+                rdm += ",";
+            }
+            for (size_t i = 0; i < n/2; i++) {
+                rdm += pq_str->symbol[n-i-1];
+                if ( i + 1 < n/2 ) {
+                    rdm += ",";
+                }
+            }
+            rdm += ")";
+            pq_str->rdms.push_back(rdm);
+            pq_str->symbol.clear();
+        }
+
+
     }
 
     // try to cancel similar terms
