@@ -375,11 +375,6 @@ std::vector<std::string> pq_string::get_string() {
         }
     }
 
-    // rdms
-    for (const std::string & rdm : rdms) {
-        my_string.push_back(rdm);
-    }
-
     // creation / annihilation operators
     for (size_t i = 0; i < symbol.size(); i++) {
 
@@ -486,9 +481,6 @@ void pq_string::copy(void * copy_me, bool copy_daggers_and_symbols) {
 
     // permutations
     permutations = in->permutations;
-
-    // rdms
-    rdms = in->rdms;
 
     // paired permutations (2)
     paired_permutations_2 = in->paired_permutations_2;

@@ -122,13 +122,6 @@ class pq_helper {
 
     /**
      *
-     * this function defines rdms as the expectation value of normal-ordered creationa / annihilation operators
-     *
-     */
-    void rdms();
-
-    /**
-     *
      * add a product of operators (i.e., {'h','t1'} )
      *
      * @param in: a list of strings defining the operator product

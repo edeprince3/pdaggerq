@@ -1084,32 +1084,31 @@ void pq_helper::simplify() {
         if ( use_rdms ) {
 
             size_t n = pq_str->symbol.size();
+            size_t n_create = 0;
+            size_t n_annihilate = 0;
+            for (size_t i = 0; i < n; i++) {
+                if ( pq_str->is_dagger[i] ) n_create++;
+                else                        n_annihilate++;
+            }
 
-            if ( n % 2 != 0 ) {
+            if ( n_create != n_annihilate ) {
                 printf("\n");
-                printf("    error: cannot define rdms\n");
+                printf("    error: rdms not defined for this case\n");
                 printf("\n");
                 exit(1);
             }
 
-            std::string rdm = "D" + std::to_string(n/2) + "(";
+            std::vector<std::string> rdm_labels;
+            for (size_t i = 0; i < n_create; i++) {
+                rdm_labels.push_back(pq_str->symbol[i]);
+            }
+            for (size_t i = 0; i < n_annihilate; i++) {
+                rdm_labels.push_back(pq_str->symbol[n - i - 1]);
+            }
 
-            for (size_t i = 0; i < n/2; i++) {
-                rdm += pq_str->symbol[i];
-                rdm += ",";
-            }
-            for (size_t i = 0; i < n/2; i++) {
-                rdm += pq_str->symbol[n-i-1];
-                if ( i + 1 < n/2 ) {
-                    rdm += ",";
-                }
-            }
-            rdm += ")";
-            pq_str->rdms.push_back(rdm);
+            pq_str->set_amplitudes('D', n_create, n_annihilate, rdm_labels);
             pq_str->symbol.clear();
         }
-
-
     }
 
     // try to cancel similar terms

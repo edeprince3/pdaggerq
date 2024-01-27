@@ -305,11 +305,6 @@ bool compare_amplitudes( const std::vector<amplitudes> &amps1,
 // compare two strings
 bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::shared_ptr<pq_string> &ordered_2, int & n_permute) {
 
-    // rdm comparisons not yet working
-    if ( ordered_1->rdms.size() > 0 || ordered_2->rdms.size() ) {
-        return false;
-    }
-
     // don't forget w0
     if ( ordered_1->has_w0 != ordered_2->has_w0 ) {
         return false;
