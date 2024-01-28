@@ -45,11 +45,12 @@ using namespace pybind11::literals;
 
 namespace pdaggerq {
 
+std::vector<int> empty_list = {};
+
 void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
-        .def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
@@ -58,6 +59,12 @@ void export_pq_helper(py::module& m) {
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
+        //.def("set_use_rdms", &pq_helper::set_use_rdms)
+        .def("set_use_rdms",
+             [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
+                 return self.set_use_rdms(do_use_rdms, ignore_cumulant);
+             },
+             py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
         .def("print",
              [](pq_helper& self, const std::string& string_type) {
                  return self.print(string_type);
@@ -144,8 +151,9 @@ void pq_helper::set_find_paired_permutations(bool do_find_paired_permutations) {
 void pq_helper::set_print_level(int level) {
     print_level = level;
 }
-void pq_helper::set_use_rdms(bool do_use_rdms) {
+void pq_helper::set_use_rdms(bool do_use_rdms, std::vector<int> ignore_cumulant = {}) {
     use_rdms = do_use_rdms;
+    ignore_cumulant_rdms = ignore_cumulant;
 }
 
 
@@ -1114,7 +1122,203 @@ void pq_helper::simplify() {
     // try to cancel similar terms
     cleanup(ordered, find_paired_permutations);
 
+    // replace rdms with cumulant expansion, ignoring the n-body cumulant
+    if ( ignore_cumulant_rdms.size() != 0 ) {
+
+        // TODO: D3, D4
+        for (size_t n = 2; n > 1; n--) {
+
+            if(std::find(ignore_cumulant_rdms.begin(), ignore_cumulant_rdms.end(), n) == ignore_cumulant_rdms.end()) {
+                continue;
+            }
+            
+            bool done_expanding_rdms = false;
+            do {
+
+                std::vector< std::shared_ptr<pq_string> > list;
+
+                // add strings that don't contain target rdm to list before starting. otherwise, expand_rdms() will miss them
+
+                for (std::shared_ptr<pq_string> & pq_str : ordered) {
+
+                    auto rdm_pos = pq_str->amps.find('D');
+                    if ( rdm_pos == pq_str->amps.end() ) {
+
+                        // no rdms
+                        list.push_back(pq_str);
+
+                    }else {
+ 
+                        std::vector<amplitudes> & rdms = rdm_pos->second;
+
+
+                        bool found_rdm = false;
+                        for (size_t i = 0; i < rdms.size(); i++) {
+                            if ( rdms[i].labels.size() == 2 * n ) {
+                                found_rdm = true;
+                            }
+                        }
+                        if ( !found_rdm ) {
+                            // no target rdm
+                            list.push_back(pq_str);
+                        }
+                    }
+                }
+
+
+                done_expanding_rdms = true;
+                for (std::shared_ptr<pq_string> & pq_str : ordered) {
+                    bool am_i_done = expand_rdms(pq_str, list, n);
+                    if ( !am_i_done ) done_expanding_rdms = false;
+                }
+                if ( !done_expanding_rdms ) {
+                    ordered.clear();
+                    for (std::shared_ptr<pq_string> & pq_str : list) {
+                        if ( !pq_str->skip ) {
+                            ordered.push_back(pq_str);
+                        }
+                    }
+                }
+            }while(!done_expanding_rdms);
+
+        }
+    }
 }
+
+bool pq_helper::expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &list, int order) {
+
+    if ( in->skip ) return true;
+
+    // get rdms
+    auto rdm_pos = in->amps.find('D');
+    if ( rdm_pos == in->amps.end() ) return true; // no rdms
+ 
+    std::vector<amplitudes> & rdms = rdm_pos->second;
+
+    bool found_rdm = false;
+    for (size_t i = 0; i < rdms.size(); i++) {
+        if ( rdms[i].labels.size() == 2 * order ) {
+            found_rdm = true;
+        }
+    }
+    if ( !found_rdm ) {
+        return true; // no rdms of correct order
+    }
+
+    std::vector<std::shared_ptr<pq_string> > newguys;
+    int n_new_terms = 2;
+    if ( order == 3 ) {
+        n_new_terms = 15;
+    }
+    for (int i = 0; i < n_new_terms; i++) {
+        std::shared_ptr<pq_string> tmp (new pq_string(in->vacuum));
+        tmp->copy(in.get());
+        newguys.push_back(tmp);
+    }
+
+
+/*
+    L3aaa("pqrstu") -= g1a("ps") * g2aa("qrtu");
+    L3aaa("pqrstu") += g1a("pt") * g2aa("qrsu");
+    L3aaa("pqrstu") += g1a("pu") * g2aa("qrts");
+
+    L3aaa("pqrstu") -= g1a("qt") * g2aa("prsu");
+    L3aaa("pqrstu") += g1a("qs") * g2aa("prtu");
+    L3aaa("pqrstu") += g1a("qu") * g2aa("prst");
+
+    L3aaa("pqrstu") -= g1a("ru") * g2aa("pqst");
+    L3aaa("pqrstu") += g1a("rs") * g2aa("pqut");
+    L3aaa("pqrstu") += g1a("rt") * g2aa("pqsu");
+
+    L3aaa("pqrstu") += 2.0 * g1a("ps") * g1a("qt") * g1a("ru");
+    L3aaa("pqrstu") += 2.0 * g1a("pt") * g1a("qu") * g1a("rs");
+    L3aaa("pqrstu") += 2.0 * g1a("pu") * g1a("qs") * g1a("rt");
+
+    L3aaa("pqrstu") -= 2.0 * g1a("ps") * g1a("qu") * g1a("rt");
+    L3aaa("pqrstu") -= 2.0 * g1a("pu") * g1a("qt") * g1a("rs");
+    L3aaa("pqrstu") -= 2.0 * g1a("pt") * g1a("qs") * g1a("ru");
+
+
+    L2aa("pqrs") -= g1a("pr") * g1a("qs");
+    L2aa("pqrs") += g1a("ps") * g1a("qr");
+*/
+
+    
+    std::vector<amplitudes> new_rdms;
+    for (size_t i = 0; i < rdms.size(); i++) {
+        if ( rdms[i].labels.size() == 2 * order ) {
+
+           std::vector<std::string> upper;
+           for (size_t j = 0; j < order; j++) {
+               upper.push_back(rdms[i].labels[j]);
+           }
+           std::vector<std::string> lower;
+           for (size_t j = 0; j < order; j++) {
+               lower.push_back(rdms[i].labels[2 * order - j - 1]);
+           }
+
+           if ( order == 2 ) {
+               std::vector<std::string> new_labels1;
+               std::vector<std::string> new_labels2;
+               std::vector<std::string> new_labels3;
+               std::vector<std::string> new_labels4;
+
+               new_labels1.push_back(upper[0]);
+               new_labels1.push_back(lower[0]);
+
+               new_labels2.push_back(upper[1]);
+               new_labels2.push_back(lower[1]);
+
+               new_labels3.push_back(upper[0]);
+               new_labels3.push_back(lower[1]);
+
+               new_labels4.push_back(upper[1]);
+               new_labels4.push_back(lower[0]);
+
+               // overwrite rdm
+               newguys[0]->amps['D'][i].labels = new_labels1;
+               newguys[0]->amps['D'][i].n_create = 1;
+               newguys[0]->amps['D'][i].n_annihilate = 1;
+               // and add another
+               newguys[0]->set_amplitudes('D', 1, 1, new_labels2);
+
+               // overwrite rdm
+               newguys[1]->amps['D'][i].labels = new_labels3;
+               newguys[1]->amps['D'][i].n_create = 1;
+               newguys[1]->amps['D'][i].n_annihilate = 1;
+               // and add another
+               newguys[1]->set_amplitudes('D', 1, 1, new_labels4);
+               newguys[1]->sign *= -1;
+
+           }
+           
+/* 
+            std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*pq_str);
+ 
+            amplitudes rdms;
+            rdms.labels = in;
+            rdms.n_create = 2;
+            rdms.n_annihilate = 2;
+            rdms.sort();
+            new_rdms[type].push_back(new_amps);
+ 
+*/
+ 
+        }else {
+/*
+            new_rdms.push_back(rdms[i]);
+*/
+        }
+    }
+
+
+    // new expanded list
+    for (int i = 0; i < n_new_terms; i++) {
+        list.push_back(newguys[i]);
+    }
+    return false; 
+}
+
 
 void pq_helper::print(const std::string &string_type) const {
 

@@ -118,7 +118,7 @@ class pq_helper {
      * @param do_use_rdms
      *
      */
-    void set_use_rdms(bool do_use_rdms);
+    void set_use_rdms(bool do_use_rdms, std::vector<int> ignore_cumulant);
 
     /**
      *
@@ -309,6 +309,13 @@ private:
 
     /**
      *
+     * if final string contains rdms, which n-body cumulants should we ignore
+     *
+     */
+    std::vector<int> ignore_cumulant_rdms = {};
+
+    /**
+     *
      * sum (outer list) of products (inner list) defining the bra state
      *
      */
@@ -348,6 +355,9 @@ private:
      *
      */
     bool find_paired_permutations;
+
+    bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &list, int order);
+
 
 };
 
