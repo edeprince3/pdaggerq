@@ -1125,8 +1125,8 @@ void pq_helper::simplify() {
     // replace rdms with cumulant expansion, ignoring the n-body cumulant
     if ( ignore_cumulant_rdms.size() != 0 ) {
 
-        // TODO: D3, D4
-        for (size_t n = 2; n > 1; n--) {
+        // TODO: D4
+        for (size_t n = 3; n > 1; n--) {
 
             if(std::find(ignore_cumulant_rdms.begin(), ignore_cumulant_rdms.end(), n) == ignore_cumulant_rdms.end()) {
                 continue;
@@ -1218,29 +1218,29 @@ bool pq_helper::expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<st
 
 
 /*
-    L3aaa("pqrstu") -= g1a("ps") * g2aa("qrtu");
-    L3aaa("pqrstu") += g1a("pt") * g2aa("qrsu");
-    L3aaa("pqrstu") += g1a("pu") * g2aa("qrts");
+    L3aaa("012345") -= d1("03") * d2("1245");
+    L3aaa("012345") += d1("04") * d2("1235");
+    L3aaa("012345") += d1("05") * d2("1243");
 
-    L3aaa("pqrstu") -= g1a("qt") * g2aa("prsu");
-    L3aaa("pqrstu") += g1a("qs") * g2aa("prtu");
-    L3aaa("pqrstu") += g1a("qu") * g2aa("prst");
+    L3aaa("012345") -= d1("14") * d2("0235");
+    L3aaa("012345") += d1("13") * d2("0245");
+    L3aaa("012345") += d1("15") * d2("0234");
 
-    L3aaa("pqrstu") -= g1a("ru") * g2aa("pqst");
-    L3aaa("pqrstu") += g1a("rs") * g2aa("pqut");
-    L3aaa("pqrstu") += g1a("rt") * g2aa("pqsu");
+    L3aaa("012345") -= d1("25") * d2("0134");
+    L3aaa("012345") += d1("23") * d2("0154");
+    L3aaa("012345") += d1("24") * d2("0135");
 
-    L3aaa("pqrstu") += 2.0 * g1a("ps") * g1a("qt") * g1a("ru");
-    L3aaa("pqrstu") += 2.0 * g1a("pt") * g1a("qu") * g1a("rs");
-    L3aaa("pqrstu") += 2.0 * g1a("pu") * g1a("qs") * g1a("rt");
+    L3aaa("012345") += 2.0 * d1("03") * d1("14") * d1("25");
+    L3aaa("012345") += 2.0 * d1("04") * d1("15") * d1("23");
+    L3aaa("012345") += 2.0 * d1("05") * d1("13") * d1("24");
 
-    L3aaa("pqrstu") -= 2.0 * g1a("ps") * g1a("qu") * g1a("rt");
-    L3aaa("pqrstu") -= 2.0 * g1a("pu") * g1a("qt") * g1a("rs");
-    L3aaa("pqrstu") -= 2.0 * g1a("pt") * g1a("qs") * g1a("ru");
+    L3aaa("012345") -= 2.0 * d1("03") * d1("15") * d1("24");
+    L3aaa("012345") -= 2.0 * d1("05") * d1("14") * d1("23");
+    L3aaa("012s45") -= 2.0 * d1("04") * d1("1s") * d1("25");
 
 
-    L2aa("pqrs") -= g1a("pr") * g1a("qs");
-    L2aa("pqrs") += g1a("ps") * g1a("qr");
+    L2aa("pqrs") -= d1("pr") * d1("qs");
+    L2aa("pqrs") += d1("ps") * d1("qr");
 */
 
     
@@ -1289,6 +1289,259 @@ bool pq_helper::expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<st
                // and add another
                newguys[1]->set_amplitudes('D', 1, 1, new_labels4);
                newguys[1]->sign *= -1;
+
+           }else if ( order == 3 ) {
+
+               std::vector<std::string> lab = rdms[i].labels;
+
+               // term 0: + d1("03") * d2("1245");
+               std::vector<std::string> new_labels1 = {lab[0], lab[3]};
+               std::vector<std::string> new_labels2 = {lab[1], lab[2], lab[4], lab[5]};
+
+               // overwrite rdm
+               newguys[0]->amps['D'][i].labels = new_labels1;
+               newguys[0]->amps['D'][i].n_create = 1;
+               newguys[0]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[0]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // term 1: - d1("04") * d2("1235");
+               new_labels1 = {lab[0], lab[4]};
+               new_labels2 = {lab[1], lab[2], lab[3], lab[5]};
+
+               // overwrite rdm
+               newguys[1]->amps['D'][i].labels = new_labels1;
+               newguys[1]->amps['D'][i].n_create = 1;
+               newguys[1]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[1]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // adjust sign
+               newguys[1]->sign *= -1;
+
+               // term 2: - d1("05") * d2("1243");
+               new_labels1 = {lab[0], lab[5]};
+               new_labels2 = {lab[1], lab[2], lab[3], lab[4]};
+
+               // overwrite rdm
+               newguys[2]->amps['D'][i].labels = new_labels1;
+               newguys[2]->amps['D'][i].n_create = 1;
+               newguys[2]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[2]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // adjust sign
+               newguys[2]->sign *= -1;
+
+               // term 3: + d1("14") * d2("0235");
+               new_labels1 = {lab[1], lab[4]};
+               new_labels2 = {lab[0], lab[2], lab[3], lab[5]};
+
+               // overwrite rdm
+               newguys[3]->amps['D'][i].labels = new_labels1;
+               newguys[3]->amps['D'][i].n_create = 1;
+               newguys[3]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[3]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // term 4: - d1("13") * d2("0245");
+               new_labels1 = {lab[1], lab[3]};
+               new_labels2 = {lab[0], lab[2], lab[4], lab[5]};
+
+               // overwrite rdm
+               newguys[4]->amps['D'][i].labels = new_labels1;
+               newguys[4]->amps['D'][i].n_create = 1;
+               newguys[4]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[4]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // adjust sign
+               newguys[4]->sign *= -1;
+
+               // term 5: - d1("15") * d2("0234");
+               new_labels1 = {lab[1], lab[5]};
+               new_labels2 = {lab[0], lab[2], lab[3], lab[4]};
+
+               // overwrite rdm
+               newguys[5]->amps['D'][i].labels = new_labels1;
+               newguys[5]->amps['D'][i].n_create = 1;
+               newguys[5]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[5]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // adjust sign
+               newguys[5]->sign *= -1;
+
+               // term 6: + d1("25") * d2("0134");
+               new_labels1 = {lab[2], lab[5]};
+               new_labels2 = {lab[0], lab[1], lab[3], lab[4]};
+
+               // overwrite rdm
+               newguys[6]->amps['D'][i].labels = new_labels1;
+               newguys[6]->amps['D'][i].n_create = 1;
+               newguys[6]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[6]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // term 7: - d1("23") * d2("0154");
+               new_labels1 = {lab[2], lab[3]};
+               new_labels2 = {lab[0], lab[1], lab[5], lab[4]};
+
+               // overwrite rdm
+               newguys[7]->amps['D'][i].labels = new_labels1;
+               newguys[7]->amps['D'][i].n_create = 1;
+               newguys[7]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[7]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // adjust sign
+               newguys[7]->sign *= -1;
+
+               // term 8: - d1("24") * d2("0135");
+               new_labels1 = {lab[2], lab[4]};
+               new_labels2 = {lab[0], lab[1], lab[3], lab[5]};
+
+               // overwrite rdm
+               newguys[8]->amps['D'][i].labels = new_labels1;
+               newguys[8]->amps['D'][i].n_create = 1;
+               newguys[8]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[8]->set_amplitudes('D', 2, 2, new_labels2);
+
+               // adjust sign
+               newguys[8]->sign *= -1;
+
+               // term 9: - 2.0 * d1("03") * d1("14") * d1("25");
+               new_labels1 = {lab[0], lab[3]};
+               new_labels2 = {lab[1], lab[4]};
+               std::vector<std::string> new_labels3 = {lab[2], lab[5]};
+
+               // overwrite rdm
+               newguys[9]->amps['D'][i].labels = new_labels1;
+               newguys[9]->amps['D'][i].n_create = 1;
+               newguys[9]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[9]->set_amplitudes('D', 1, 1, new_labels2);
+
+               // and another
+               newguys[9]->set_amplitudes('D', 1, 1, new_labels3);
+
+               // adjust sign
+               newguys[9]->sign *= -1;
+
+               // adjust factor
+               newguys[9]->factor *= 2.0;
+
+               // term 10: - 2.0 * d1("04") * d1("15") * d1("23");
+               new_labels1 = {lab[0], lab[4]};
+               new_labels2 = {lab[1], lab[5]};
+               new_labels3 = {lab[2], lab[3]};
+
+               // overwrite rdm
+               newguys[10]->amps['D'][i].labels = new_labels1;
+               newguys[10]->amps['D'][i].n_create = 1;
+               newguys[10]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[10]->set_amplitudes('D', 1, 1, new_labels2);
+
+               // and another
+               newguys[10]->set_amplitudes('D', 1, 1, new_labels3);
+
+               // adjust sign
+               newguys[10]->sign *= -1;
+
+               // adjust factor
+               newguys[10]->factor *= 2.0;
+
+               // term 11: - 2.0 * d1("05") * d1("13") * d1("24");
+               new_labels1 = {lab[0], lab[5]};
+               new_labels2 = {lab[1], lab[3]};
+               new_labels3 = {lab[2], lab[4]};
+
+               // overwrite rdm
+               newguys[11]->amps['D'][i].labels = new_labels1;
+               newguys[11]->amps['D'][i].n_create = 1;
+               newguys[11]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[11]->set_amplitudes('D', 1, 1, new_labels2);
+
+               // and another
+               newguys[11]->set_amplitudes('D', 1, 1, new_labels3);
+
+               // adjust sign
+               newguys[11]->sign *= -1;
+
+               // adjust factor
+               newguys[11]->factor *= 2.0;
+
+               // term 12: + 2.0 * d1("03") * d1("15") * d1("24");
+               new_labels1 = {lab[0], lab[3]};
+               new_labels2 = {lab[1], lab[5]};
+               new_labels3 = {lab[2], lab[4]};
+
+               // overwrite rdm
+               newguys[12]->amps['D'][i].labels = new_labels1;
+               newguys[12]->amps['D'][i].n_create = 1;
+               newguys[12]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[12]->set_amplitudes('D', 1, 1, new_labels2);
+
+               // and another
+               newguys[12]->set_amplitudes('D', 1, 1, new_labels3);
+
+               // adjust factor
+               newguys[12]->factor *= 2.0;
+
+               // term 13: + 2.0 * d1("05") * d1("14") * d1("23");
+               new_labels1 = {lab[0], lab[5]};
+               new_labels2 = {lab[1], lab[4]};
+               new_labels3 = {lab[2], lab[3]};
+
+               // overwrite rdm
+               newguys[13]->amps['D'][i].labels = new_labels1;
+               newguys[13]->amps['D'][i].n_create = 1;
+               newguys[13]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[13]->set_amplitudes('D', 1, 1, new_labels2);
+
+               // and another
+               newguys[13]->set_amplitudes('D', 1, 1, new_labels3);
+
+               // adjust factor
+               newguys[13]->factor *= 2.0;
+
+               // term 14: + 2.0 * d1("04") * d1("13") * d1("25");
+               new_labels1 = {lab[0], lab[4]};
+               new_labels2 = {lab[1], lab[3]};
+               new_labels3 = {lab[2], lab[5]};
+
+               // overwrite rdm
+               newguys[14]->amps['D'][i].labels = new_labels1;
+               newguys[14]->amps['D'][i].n_create = 1;
+               newguys[14]->amps['D'][i].n_annihilate = 1;
+
+               // and add another
+               newguys[14]->set_amplitudes('D', 1, 1, new_labels2);
+
+               // and another
+               newguys[14]->set_amplitudes('D', 1, 1, new_labels3);
+
+               // adjust factor
+               newguys[14]->factor *= 2.0;
 
            }
            
