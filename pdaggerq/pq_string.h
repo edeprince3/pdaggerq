@@ -48,22 +48,38 @@ template <typename T> int minimum_precision(T factor) {
     if (fabs(factor_abs - epsilon) < epsilon)
         return 0;
 
+    // represent factor as a string of a fixed precision
+    std::stringstream ss;
+    ss << std::fixed << 10*factor_abs;
+    std::string str = ss.str();
+
     int precision = 0;
-    if (factor_abs > 1.0) {
-        // divide by 10 until we get to less than 1.0
-        while (factor_abs > 1.0) {
-            factor_abs /= 10.0;
-            precision++;
-        }
-    } else {
-        // multiply by 10 until we get to greater than 1.0.
-        while (factor_abs < 1.0 && floor(factor_abs) != factor_abs) {
-            factor_abs *= 10.0;
-            precision++;
+    bool decimal_point_encountered = false;
+    bool found_copy = false;
+    char last_char = ' ';
+    int  copy_count = 0;
+
+    for (char c : str) {
+        found_copy = (c == last_char);
+        last_char = c;
+        if (c == '.') {
+            decimal_point_encountered = true;
+        } else if (decimal_point_encountered && found_copy) {
+            if (++copy_count >= 4) break;
         }
 
-        // now, 
+        if (!found_copy)
+            copy_count = 0;
+
+
+        if (decimal_point_encountered) {
+            precision++;
+        }
     }
+
+    if (precision >= copy_count)
+         precision -= copy_count;
+    else precision = 2;
 
     // always have at least two digits
     if (precision < 2)
