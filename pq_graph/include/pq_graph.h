@@ -61,6 +61,8 @@ namespace pdaggerq {
 
         bool is_reordered_ = false; // whether the equations have been reordered
         bool is_reused_ = false; // whether the equations have been reused
+        bool is_assembled_ = false;
+        bool prune_tmps_ = false; // whether to prune unused temps after substitution
         bool has_perms_merged_ = false; // whether the equations have merged permutations
         bool reuse_permutations_ = true; // whether to reuse permutations during the reusing step
         bool use_as_array_ = true; // whether to use the array version of the tmps
@@ -123,7 +125,12 @@ namespace pdaggerq {
          * @param pq pq_helper object of the equation
          * @param equation_name name of the equation (optional)
          */
-        void add(const pq_helper &pq, const std::string &equation_name = "", const vector<std::string>& label_order = vector<string>());
+        void add(const pq_helper &pq, const std::string &equation_name = "", vector<std::string> label_order = vector<string>());
+
+        /**
+         * assemble the equations into a pq_graph
+         */
+        void assemble();
 
         /**
          * clears everything in the builder
@@ -190,7 +197,7 @@ namespace pdaggerq {
         /**
          * Substitute common linkages in each equation
          */
-        void substitute(bool format_sigma = false);
+        void substitute(bool format_sigma, bool only_scalars);
 
         /**
          * make set of linkages to test for subexpression elimination
@@ -263,6 +270,10 @@ namespace pdaggerq {
         vector<Term *> get_matching_terms(const ConstLinkagePtr &contraction);
 
         void remove_unused_tmps();
+
+        PQGraph clone() const;
+
+        void make_scalars();
     }; // PQGraph
 
 } // pdaggerq

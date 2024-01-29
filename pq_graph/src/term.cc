@@ -102,7 +102,7 @@ namespace pdaggerq {
 
         // add lhs vertex
         lhs_ = make_shared<Vertex>(name);
-        eq_ = lhs_->deep_copy_ptr();
+        eq_ = lhs_->clone_ptr();
 
         // create rhs vertices
         for (const auto & delta : pq_str->deltas) // add delta functions
@@ -180,7 +180,7 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if eri is in name
             if (op->base_name() =="eri") {
-                VertexPtr new_eri = op->deep_copy_ptr();
+                VertexPtr new_eri = op->clone_ptr();
                 if (new_eri->permute_eri()) swap_sign(); // swap sign if eri is permuted with sign change
                 op = new_eri;
             }
@@ -425,39 +425,45 @@ namespace pdaggerq {
             // check if lhs vertex rank is zero
             bool lhs_zero_rank = lhs_->rank() == 0;
 
-            bool format_dot = false;
-            size_t vertex_count = rhs_.size();
-            if (lhs_zero_rank && vertex_count > 1){
-                // if there is more than one vertex with a rank greater than zero, format for a dot product
-                size_t num_high_rank_ = 0;
-                for (const auto & vertex : rhs_) {
-                    if (vertex->rank() > 0) num_high_rank_++;
-                    if (num_high_rank_ > 1) {
-                        format_dot = true;
-                        break;
-                    }
-                }
+            // seperate scalars and tensors in rhs vertices
+            vector<ConstVertexPtr> scalars;
+            vector<ConstVertexPtr> tensors;
+            for (const ConstVertexPtr &vertex : rhs_) {
+                if (vertex->rank() == 0)
+                     scalars.push_back(vertex);
+                else tensors.push_back(vertex);
             }
+
+            bool format_dot = false;
+            format_dot = lhs_zero_rank && tensors.size() > 1;
 
             if (format_dot){
                 // if lhs vertex rank is zero but has more than one vertex, format for dot product
-                if (!added_coeff) {
+                if (!added_coeff && scalars.empty()) {
                     int precision = minimum_precision(abs_coeff);
                     output += to_string_with_precision(abs_coeff, precision);
                     output += " * ";
                 }
-                output += "dot(";
-                // add rhs
-                for (size_t i = 0; i < vertex_count; i++) {
-                    output += rhs_[i]->str();
 
-                    if (i < vertex_count - 2) output += " * ";
-                    else if (i == vertex_count - 2) output += ", ";
+                // first add scalars
+                for (size_t i = 0; i < scalars.size(); i++) {
+                    output += scalars[i]->str();
+                    if (i != scalars.size() - 1 || !tensors.empty()) output += " * ";
+                }
+
+                // now add tensors with dot product
+                output += "dot(";
+                for (size_t i = 0; i < tensors.size(); i++) {
+                    output += tensors[i]->str();
+
+                    if (i < tensors.size() - 2) output += " * ";
+                    else if (i == tensors.size() - 2) output += ", ";
                     else output += ");";
                 }
+
             } else {
                 // add rhs
-                for (size_t i = 0; i < vertex_count; i++) {
+                for (size_t i = 0; i < rhs_.size(); i++) {
                     output += rhs_[i]->str();
                     if (i != rhs_.size() - 1) output += " * ";
                     else output += ";";
@@ -469,14 +475,13 @@ namespace pdaggerq {
             VertexPtr perm_vertex;
 
             bool make_perm_tmp = rhs_.size() == 1;
-            if (make_perm_tmp) perm_vertex = rhs_[0]->deep_copy_ptr(); // no need to create intermediate vertex if there is only one
+            if (make_perm_tmp) perm_vertex = rhs_[0]->clone_ptr(); // no need to create intermediate vertex if there is only one
             else { // else, create the intermediate vertex and its assignment term
-                perm_vertex = lhs_->deep_copy_ptr();
+                perm_vertex = lhs_->clone_ptr();
                 string perm_name = "perm_tmps";
-                perm_name += "_" + perm_vertex->dimstring();
-                perm_vertex->set_name(perm_name); // set name of permutation vertex
-                perm_vertex->set_base_name("perm_tmps"); // set base name of permutation vertex
+                perm_vertex->format_map_ = true; // format permutation vertex to print as map
                 perm_vertex->sort(); // sort permutation vertex
+                perm_vertex->update_name("perm_tmps"); // set name of permutation vertex
 
                 // initialize initial permutation term
                 Term perm_term = *this; // copy term
@@ -508,8 +513,6 @@ namespace pdaggerq {
             // add permuted terms to output
             for (auto & permuted_term : perm_terms) {
                 output += permuted_term.str();
-                if (!make_einsum)
-                    output += ';';
                 output += '\n';
             }
             output.pop_back(); // remove last newline character
@@ -788,7 +791,7 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if vertex is a trace
             // get self-contracted lines
-            VertexPtr copy = op->deep_copy_ptr();
+            VertexPtr copy = op->clone_ptr();
             map<Line, uint_fast8_t> self_links = copy->self_links();
 
             bool has_self_link = false;
@@ -963,17 +966,17 @@ namespace pdaggerq {
         std::vector<ConstVertexPtr> new_rhs;
         new_rhs.reserve(rhs_.size());
         for (const auto & vertex : rhs_) {
-            VertexPtr new_vertex = vertex->deep_copy_ptr();
+            VertexPtr new_vertex = vertex->clone_ptr();
             new_vertex->replace_lines(line_map);
             new_rhs.push_back(new_vertex);
         }
 
         // make eq vertex generic
-        VertexPtr new_eq = (eq_ != nullptr) ? eq_->deep_copy_ptr() : lhs_->deep_copy_ptr();
+        VertexPtr new_eq = (eq_ != nullptr) ? eq_->clone_ptr() : lhs_->clone_ptr();
         new_eq->replace_lines(line_map);
 
         // make lhs generic
-        VertexPtr new_lhs = lhs_->deep_copy_ptr();
+        VertexPtr new_lhs = lhs_->clone_ptr();
         new_lhs->replace_lines(line_map);
 
         // make permutation generic
@@ -1037,6 +1040,20 @@ namespace pdaggerq {
 
         if (new_terms.empty()) return {*this}; // if no eris, return itself
         return new_terms;
+    }
+
+    Term Term::clone() const {
+        Term new_term = *this;
+
+        // make deep copies of all vertices
+        new_term.lhs_ = clone_ptr(lhs_);
+        new_term.eq_ = clone_ptr(eq_);
+        new_term.rhs_.clear();
+        for (const auto & vertex : rhs_)
+            new_term.rhs_.push_back(vertex->clone_ptr());
+        new_term.term_linkage_ = as_link(term_linkage_->clone_ptr());
+
+        return new_term;
     }
 
 } // pdaggerq

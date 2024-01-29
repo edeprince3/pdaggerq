@@ -130,7 +130,13 @@ namespace pdaggerq {
          * deep copy of vertex returned as a pointer
          * @return pointer to deep copy of vertex
          */
-        virtual VertexPtr deep_copy_ptr() const{ return std::make_shared<Vertex>(*this); }
+        virtual VertexPtr clone_ptr() const{
+            return std::make_shared<Vertex>(*this);
+        }
+        friend ConstVertexPtr clone_ptr(const ConstVertexPtr &v) {
+            if (!v) return nullptr;
+            return v->clone_ptr();
+        }
 
 
         /**
@@ -347,7 +353,7 @@ namespace pdaggerq {
          * @return string representation of the vertex
          */
         virtual string str() const;
-        string line_str() const;
+        string line_str(bool sort = false) const;
         string operator+(const string &other) const { return str() + other; }
         friend string operator+(const string &other, const Vertex &op) { return other + op.str(); }
 

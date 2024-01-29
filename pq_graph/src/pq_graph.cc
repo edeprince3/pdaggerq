@@ -52,6 +52,7 @@ namespace pdaggerq {
                     return self.print(print_type);
                 }, py::arg("print_type") = "")
                 .def("str", &pdaggerq::PQGraph::str)
+                .def("assemble", &pdaggerq::PQGraph::assemble)
                 .def("reorder", &pdaggerq::PQGraph::reorder)
                 .def("optimize", &pdaggerq::PQGraph::optimize)
                 .def("analysis", &pdaggerq::PQGraph::analysis)
@@ -73,6 +74,10 @@ namespace pdaggerq {
                     cout << "WARNING: max_depth must be greater than 1. Setting to 2." << endl;
                     Term::max_depth_ = 2ul;
                 }
+        }
+
+        if (options.contains("prune_tmps")){
+            prune_tmps_ = options["prune_tmps"].cast<bool>();
         }
 
         if (options.contains("permute_eri"))
@@ -191,6 +196,9 @@ namespace pdaggerq {
         cout << "    max_temps: " << (long) max_temps_
              << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
 
+        cout << "    prune_tmps: " << (prune_tmps_ ? "true" : "false")
+                << "  // whether to prune intermediates that are not used in the final equations (default: false)" << endl;
+
         cout << "    max_depth: " << (long) Term::max_depth_
              << "  // maximum depth for chain of contractions (default: 2; -1 for no limit)" << endl;
 
@@ -226,7 +234,7 @@ namespace pdaggerq {
         cout << endl;
     }
 
-    void PQGraph::add(const pq_helper& pq, const std::string &equation_name, const vector<std::string>& label_order) {
+    void PQGraph::add(const pq_helper& pq, const std::string &equation_name, vector<std::string> label_order) {
 
         build_timer.start(); // start timer
 
@@ -294,7 +302,7 @@ namespace pdaggerq {
 
             // use the term to build the assignment vertex
             if (!name_is_formatted || equation_name.empty()) {
-                VertexPtr assignment = make_shared<Vertex>(*term.term_linkage()->deep_copy_ptr());
+                VertexPtr assignment = make_shared<Vertex>(*term.term_linkage()->clone_ptr());
 
                 if (label_order.empty())
                     assignment->sort();
@@ -303,7 +311,21 @@ namespace pdaggerq {
 
                     // check that label_order is the same size as the number of lines
                     if (label_order.size() != lines.size()) {
-                        throw invalid_argument("label_order must be the same size as the number of lines in the assignment vertex");
+
+                        // check if any sigma lines are in the lines and add them to the label_order
+                        for (const auto &line : lines) {
+                            if (line.sig_) {
+                                // add sigma label to label_order if it is not already there
+                                if (std::find(label_order.begin(), label_order.end(), line.label_) == label_order.end()) {
+                                    label_order.insert(label_order.begin(), line.label_);
+                                }
+                            }
+                        }
+
+                        if (label_order.size() != lines.size())
+                            throw invalid_argument("label_order must be the same size as the number of lines in the assignment vertex:"
+                                                   "The label_order size is " + to_string(label_order.size()) + " and the number of lines is "
+                                                      + to_string(lines.size()));
                     }
 
                     // reorder lines according to label_order
@@ -335,7 +357,7 @@ namespace pdaggerq {
                 term.lhs() = assignment;
                 term.eq() = assignment;
             } else {
-                VertexPtr assignment = term.lhs()->deep_copy_ptr();
+                VertexPtr assignment = term.lhs()->clone_ptr();
                 if (label_order.empty())
                     assignment->sort();
                 else {
@@ -343,7 +365,21 @@ namespace pdaggerq {
 
                     // check that label_order is the same size as the number of lines
                     if (label_order.size() != lines.size()) {
-                        throw invalid_argument("label_order must be the same size as the number of lines in the assignment vertex");
+
+                        // check if any sigma lines are in the lines and add them to the label_order
+                        for (const auto &line : lines) {
+                            if (line.sig_) {
+                                // add sigma label to label_order if it is not already there
+                                if (std::find(label_order.begin(), label_order.end(), line.label_) == label_order.end()) {
+                                    label_order.insert(label_order.begin(), line.label_);
+                                }
+                            }
+                        }
+
+                        if (label_order.size() != lines.size())
+                            throw invalid_argument("label_order must be the same size as the number of lines in the assignment vertex:"
+                                                   "The label_order size is " + to_string(label_order.size()) + " and the number of lines is "
+                                                   + to_string(lines.size()));
                     }
 
                     // reorder lines according to label_order
@@ -397,7 +433,7 @@ namespace pdaggerq {
 
         // build equation
         Equation& new_equation = equations_[assigment_name];
-        VertexPtr assignment_vertex = terms.back().lhs()->deep_copy_ptr();
+        VertexPtr assignment_vertex = terms.back().lhs()->clone_ptr();
 
         // do not format assignment vertices as a map
         assignment_vertex->format_map_ = false;
@@ -459,21 +495,25 @@ namespace pdaggerq {
 
     string PQGraph::str() {
 
+        // recompute scaling
+        if (!is_assembled_)
+            assemble();
+
         stringstream sout; // string stream to hold output
 
         // add banner for PQ GRAPH results
         sout << "####################" << " PQ GRAPH Output " << "####################" << endl << endl;
 
-        PQGraph copy = *this; // make copy of pq_graph
+        PQGraph copy = this->clone(); // make a clone of pq_graph
 
         // remove intermediates that only occur once for printing
-        remove_unused_tmps();
+        copy.remove_unused_tmps();
 
         // get all terms from all equations except the scalars, and reuse_tmps
         vector<Term> all_terms;
 
 //        bool has_tmps = false;
-        for (auto &eq_pair : equations_) { // iterate over equations in serial
+        for (auto &eq_pair : copy.equations_) { // iterate over equations in serial
             const string &eq_name = eq_pair.first;
             Equation &equation = eq_pair.second;
             vector<Term> &terms = equation.terms();
@@ -492,7 +532,10 @@ namespace pdaggerq {
 
             if (eq_name != "tmps")
                 terms.front().is_assignment_ = true; // mark first term as assignment
-            all_terms.insert(all_terms.end(), terms.begin(), terms.end());
+//            all_terms.insert(all_terms.end(), terms.begin(), terms.end());
+            for (auto &term : terms) {
+                all_terms.push_back(term.clone());
+            }
         }
 
         // make set of all unique base names (ignore linkages and scalars)
@@ -529,39 +572,39 @@ namespace pdaggerq {
         all_terms = merged_eq.terms(); // get sorted terms
 
         // print scalar declarations
-        if (!equations_["scalars"].empty()) {
+        if (!copy.equations_["scalars"].empty()) {
             sout << " #####  Scalars  ##### " << endl << endl;
-            sort_tmps(equations_["scalars"], 's'); // sort scalars in scalars equation
-            for (auto &term: equations_["scalars"])
+            sort_tmps(copy.equations_["scalars"], 's'); // sort scalars in scalars equation
+            for (auto &term: copy.equations_["scalars"])
                 term.comments() = {}; // remove comments from scalars
 
             // print scalars
-            sout << equations_["scalars"] << endl;
+            sout << copy.equations_["scalars"] << endl;
             sout << " ### End of Scalars ### " << endl << endl;
         }
 
         // print declarations for reuse_tmps
-        if (!equations_["reuse"].empty()){
+        if (!copy.equations_["reuse"].empty()){
             sout << " #####  Shared  Operators  ##### " << endl << endl;
-            sort_tmps(equations_["reuse"]); // sort reuse_tmps in reuse_tmps equation
-            for (auto &term: equations_["reuse"])
+            sort_tmps(copy.equations_["reuse"]); // sort reuse_tmps in reuse_tmps equation
+            for (auto &term: copy.equations_["reuse"])
                 term.comments() = {}; // remove comments from reuse_tmps
 
             // print reuse_tmps
-            sout << equations_["reuse"] << endl;
+            sout << copy.equations_["reuse"] << endl;
             sout << " ### End of Shared Operators ### " << endl << endl;
         }
 
         // for each term in tmps, add the term to the merged equation
         // where each tmp of a given id is first used
 
-        sort_tmps(equations_["tmps"]); // sort tmps in tmps equation
+        sort_tmps(copy.equations_["tmps"]); // sort tmps in tmps equation
 
         // keep track of tmp ids that have been found
         map<size_t, bool> tmp_ids;
 
         // add a term to destroy the tmp after its last use
-        for (auto &tempterm: equations_["tmps"]) {
+        for (auto &tempterm: copy.equations_["tmps"]) {
             if (!tempterm.lhs()->is_linked()) continue;
 
             ConstLinkagePtr temp = as_link(tempterm.lhs());
@@ -640,8 +683,6 @@ namespace pdaggerq {
 
         // add closing banner
         sout << "####################" << "######################" << "####################" << endl << endl;
-
-        *this = copy; // restore pq_graph
 
         // return string stream as string
         return sout.str();
@@ -791,6 +832,19 @@ namespace pdaggerq {
 
     }
 
+    void PQGraph::assemble() {
+        // save initial scaling
+        collect_scaling(true, true);
+        flop_map_init_ = flop_map_;
+        mem_map_init_ = mem_map_;
+
+        // set assembled flag to true
+        is_assembled_ = true;
+
+        // find scalars in each equation
+        make_scalars();
+    }
+
     void PQGraph::optimize() {
 
         if (Term::allow_nesting_) {
@@ -799,10 +853,8 @@ namespace pdaggerq {
             expand_permutations();
         }
 
-        // save initial scaling
-        collect_scaling(true, true);
-        flop_map_init_ = flop_map_;
-        mem_map_init_ = mem_map_;
+        if (!is_assembled_)
+            assemble();
 
         // reorder contractions in equations
         reorder();
@@ -811,17 +863,24 @@ namespace pdaggerq {
         flop_map_pre_ = flop_map_;
         mem_map_pre_ = mem_map_;
 
+        bool format_sigma = has_sigma_vecs_ && format_sigma_;
+
         if (allow_merge_)
             merge_terms(); // merge similar terms
 
-        bool format_sigma = has_sigma_vecs_ && format_sigma_;
-        substitute(format_sigma); // find and substitute intermediate contractions
+        // substitute scalars first
+        substitute(format_sigma, true);
 
-        if (format_sigma)
-            substitute(); // apply substitutions again to find any new sigma vectors
+        // find and substitute intermediate contractions
+        substitute(format_sigma, false);
+
+        if (format_sigma) {
+            // apply substitutions again to find any new sigma vectors
+            substitute(false, false);
+        }
 
         // substitute again for good measure
-        substitute();
+        substitute(false, false);
 
         // recollect scaling of equations
         collect_scaling(true, true);

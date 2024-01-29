@@ -290,8 +290,13 @@ namespace pdaggerq {
         string dimstring;
         if (rank_ == 0) return dimstring;
 
-        if (has_blk_)
-            dimstring += blk_string() + "_";
+        if (has_blk_) {
+            string blk_string = this->blk_string();
+            if (!blk_string.empty()) {
+                dimstring += blk_string;
+                dimstring += "_";
+            }
+        }
         dimstring += ovstring();
 
         return dimstring;
@@ -572,7 +577,7 @@ namespace pdaggerq {
         return name_ == other.name_;
     }
 
-    string Vertex::line_str() const{
+    string Vertex::line_str(bool sort) const{
         if (size() == 0) return ""; // if rank is 0, return empty string
         if (size() == 1) {
             // do not print sigma lines if print_trial_index is false for otherwise scalar vertices
@@ -580,9 +585,19 @@ namespace pdaggerq {
                 return "";
         }
 
+        // make a copy of lines that is sorted if sort is true
+        line_vector lines;
+        if (!sort) lines = lines_;
+        else {
+            lines.reserve(lines_.size());
+            for (const Line &line : lines_)
+                lines.insert(
+                        std::lower_bound(lines.begin(), lines.end(), line, line_compare()), line);
+        }
+
         // loop over lines
         string line_str = "(\"";
-        for (const Line &line : lines_) {
+        for (const Line &line : lines) {
             if (!print_trial_index && line.sig_) continue;
             line_str += line.label_;
             line_str += ",";
@@ -623,7 +638,10 @@ namespace pdaggerq {
 
             while (it != lines_.end()) {
                 // replace the repeated lines with arbitrary lines
-                it->label_ += to_string(counts[line]++);
+                if (counts[line] != 0)
+                    it->label_ += to_string(counts[line]);
+                counts[line]++;
+
                 it = std::find(it+1, lines_.end(), line);
             }
         }
@@ -639,12 +657,13 @@ namespace pdaggerq {
             delta_lines.reserve(freq);
             for (uint_fast8_t i = 0; i < freq; i++) {
                 Line new_line = line;
-                new_line.label_ = new_line.label_ + to_string(i);
+                if (i != 0)
+                    new_line.label_ = new_line.label_ + to_string(i);
                 delta_lines.push_back(new_line);
             }
 
             // create delta function
-            VertexPtr delta_op = deep_copy_ptr();
+            VertexPtr delta_op = clone_ptr();
             delta_op->base_name_ = "Id";
             delta_op->update_lines(delta_lines);
 

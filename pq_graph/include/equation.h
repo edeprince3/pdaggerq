@@ -278,7 +278,7 @@ namespace pdaggerq {
          * @param n_temps reference to number of tmps
          * @return linkage set of scalars
          */
-        void form_dot_products(linkage_set &scalars, size_t &n_temps);
+        void make_scalars(linkage_set &scalars, size_t &n_temps);
 
         /**
           * find vertices with self-contractions and format with delta functions
@@ -329,6 +329,7 @@ namespace pdaggerq {
          */
         vector<Term *> get_temp_terms(const ConstLinkagePtr& contraction);
 
+        Equation clone() const;
     }; // class Equation
 
 } // pdaggerq

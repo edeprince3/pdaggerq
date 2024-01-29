@@ -457,7 +457,7 @@ namespace pdaggerq {
                     const std::function<void(const vector<size_t>&)>& op, // operation to perform on each subset
                     const std::function<bool(const vector<size_t>&)>& valid_op = nullptr, // operation to check if subset is valid
                     const std::function<bool(const vector<size_t>&)>& break_perm_op = nullptr, // operation to check if permutation should be broken
-                    const std::function<bool(const vector<size_t>&)>& break_subset_op = nullptr // operation to check if subset should be broken
+                    const std::function<bool(const vector<size_t>&)>& terminate_op = nullptr // operation to check if subset should be broken
             );
 
             /**
@@ -482,10 +482,10 @@ namespace pdaggerq {
 
             /**
              * find best scalar linkage for a given term
-             * @param id id of the scalar linkage
-             * @return best scalar linkage
+             * @param scalars set of scalars to add to
+             * @param id id of the term
              */
-            LinkagePtr make_dot_products(size_t id);
+            bool make_scalar(linkage_set &scalars, size_t id);
 
              /**
               * find vertices with self-contractions and format with delta functions
@@ -537,7 +537,8 @@ namespace pdaggerq {
              */
             Term genericize() const;
 
-        vector<Term> density_fitting();
+            vector<Term> density_fitting();
+            Term clone() const;
     }; // end Term class
 
     struct TermHash { // hash functor for finding similar terms

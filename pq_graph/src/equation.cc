@@ -328,51 +328,30 @@ namespace pdaggerq {
         terms_.insert(terms_.begin() + index, term); // add term to index of terms
     }
 
-    void Equation::form_dot_products(linkage_set &scalars, size_t &n_temps) {
+    void Equation::make_scalars(linkage_set &scalars, size_t &n_temps) {
 
         // iterate over terms
         for (auto &term: terms_) {
+            if (term.size() <= 2) continue; // skip terms with two or fewer operators
 
-            Term term_copy = term;
-            LinkagePtr dot_product = term_copy.make_dot_products(0); // make dot product
+            // make scalars in term
+            bool made_scalar = true;
 
-            // skip if no dot product
-            if (dot_product == nullptr) continue;
-            if (dot_product->empty()) continue;
+            // current size of scalars
+            size_t cur_size = scalars.size();
 
-            // check if all_scalars contains dot_product
-            bool found = scalars.contains(dot_product);
-            if (found) {
-                size_t idx = scalars[dot_product]->id_;
-                dot_product = term.make_dot_products(idx); // apply dot product
-            } else {
-                dot_product = term.make_dot_products(n_temps++); // apply dot product
-                scalars.insert(dot_product); // add linkage to set
-            }
+            while (made_scalar) {
 
-            bool has_more = true;
-            while (has_more) { // iterate until no more dot products
-                dot_product = term_copy.make_dot_products(0); // find next dot product
+                // make scalars in term
+                made_scalar = term.make_scalar(scalars, n_temps);
 
-                // break if null pointer
-                if (dot_product == nullptr) break;
-
-
-                // if the dot product is empty, there are no more dot products
-                has_more = !dot_product->empty();
-                if (has_more) {
-                    found = scalars.contains(dot_product);
-                    if (found) {
-                        size_t idx = scalars[dot_product]->id_;
-                        dot_product = term.make_dot_products(idx); // apply dot product
-                    } else {
-                        dot_product = term.make_dot_products(n_temps++); // apply dot product
-                        scalars.insert(dot_product); // add linkage to set
-                    }
-                }
-
-            }
+                // increment number of temps if new scalars were made
+                size_t new_size = scalars.size();
+                n_temps += new_size - cur_size;
+                cur_size = new_size;
+            } // eventually no more scalars will be made
         }
+
     }
 
     void Equation::apply_self_links() {
@@ -581,7 +560,7 @@ namespace pdaggerq {
 
             // append "perm" to the name of the lhs vertex
             const ConstVertexPtr lhs_op = terms[0].lhs();
-            VertexPtr new_lhs_op = lhs_op->deep_copy_ptr();
+            VertexPtr new_lhs_op = lhs_op->clone_ptr();
             new_lhs_op->set_base_name("perm_tmps_" + perm_str + new_lhs_op->base_name());
             new_lhs_op->update_lines(new_lhs_op->lines());
 
@@ -680,6 +659,19 @@ namespace pdaggerq {
             }
         }
         return temp_terms;
+    }
+
+    Equation Equation::clone() const {
+        Equation copy = *this;
+
+        // deep copy terms
+        copy.terms_.clear();
+
+        for (const auto &term : terms_) {
+            copy.terms_.push_back(term.clone());
+        }
+
+        return copy;
     }
 
 } // pdaggerq

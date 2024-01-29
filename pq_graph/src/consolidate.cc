@@ -86,7 +86,7 @@ Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double
     return equation.terms().back();
 }
 
-void PQGraph::substitute(bool format_sigma) {
+void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     // begin timings
     static Timer total_timer;
@@ -115,21 +115,21 @@ void PQGraph::substitute(bool format_sigma) {
 
 
     /// format contracted scalars
-    static bool made_scalars = false;
-    if (!made_scalars) {
-        for (auto &eq_pair: equations_) {
-            const string &eq_name = eq_pair.first;
-            Equation &equation = eq_pair.second;
-            equation.form_dot_products(all_linkages_["scalars"], temp_counts_["scalars"]);
-        }
-        for (const auto &scalar: all_linkages_["scalars"])
-            // add term to scalars equation
-            add_tmp(scalar, equations_["scalars"]);
-        for (Term &term: equations_["scalars"].terms())
-            term.comments() = {}; // comments should be self-explanatory
-
-        made_scalars = true;
-    }
+//    static bool made_scalars = false;
+//    if (!made_scalars) {
+//        for (auto &eq_pair: equations_) {
+//            const string &eq_name = eq_pair.first;
+//            Equation &equation = eq_pair.second;
+//            equation.make_scalars(all_linkages_["scalars"], temp_counts_["scalars"]);
+//        }
+//        for (const auto &scalar: all_linkages_["scalars"])
+//            // add term to scalars equation
+//            add_tmp(scalar, equations_["scalars"]);
+//        for (Term &term: equations_["scalars"].terms())
+//            term.comments() = {}; // comments should be self-explanatory
+//
+//        made_scalars = true;
+//    }
 
 
     /// generate all possible linkages from all arrangements
@@ -218,15 +218,30 @@ void PQGraph::substitute(bool format_sigma) {
         omp_set_num_threads(nthreads_);
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
             ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
-            format_sigma, print_ratio, print_progress)
+            format_sigma, print_ratio, print_progress, only_scalars)
         for (int i = 0; i < n_linkages; ++i) {
 
             // copy linkage
-            LinkagePtr linkage = as_link(test_linkages[i]->deep_copy_ptr());
+            LinkagePtr linkage = as_link(test_linkages[i]->clone_ptr());
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
 
+            if (is_scalar) {
+                // make sure the scalar does not have any nested temps that are not scalars
+                bool has_nested_tmps = false; //TODO: allow nested temps
+                for (const auto &nested_op: linkage->to_vector()) {
+                    if (nested_op->is_temp() && !as_link(nested_op)->is_scalar()) {
+                        has_nested_tmps = true;
+                        break;
+                    }
+                }
+                if (has_nested_tmps) {
+                    ignore_linkages.insert(linkage);
+                    continue;
+                }
+            }
 
-            if (format_sigma && linkage->is_sigma_) {
+
+            if ((format_sigma && linkage->is_sigma_) || (only_scalars && !is_scalar)) {
                 // when formatting for sigma vectors,
                 // we only keep linkages without a sigma vector and are not scalars
                 ignore_linkages.insert(linkage);
@@ -727,7 +742,15 @@ void PQGraph::sort_tmps(Equation &equation, char type) {
 void PQGraph::remove_unused_tmps() {
     // remove unused contractions (only used in one term and its assignment)
 
+    if (!prune_tmps_)
+        return; // do not remove unused temps if pruning is disabled
+
     cout << "Removing unused temps..." << endl << flush;
+    if (verbose)
+        cout << " WARNING: This may yield incorrect results if there are too many nested temps. set"
+                " prune_tmps=false to disable this (recommended for large problems)." << endl << flush;
+
+
 
     std::set<size_t> unused_ids; // ids of unused temps
 
@@ -779,7 +802,7 @@ void PQGraph::remove_unused_tmps() {
         bool has_unused = true;
 
         // if not a temp, return
-        if (!refop->is_temp()) { return refop->deep_copy_ptr(); }
+        if (!refop->is_temp()) { return refop->clone_ptr(); }
 
         bool ref_is_unused = unused_ids.find(as_link(refop)->id_) != unused_ids.end();
 
@@ -832,7 +855,7 @@ void PQGraph::remove_unused_tmps() {
         if (!ref_is_unused)
             new_link->copy_misc(reflink); // copy misc data from reflink
 
-        return new_link->deep_copy_ptr();
+        return new_link->clone_ptr();
     };
 
     // iterate over all equations and remove unused ids from ops
@@ -926,7 +949,7 @@ void PQGraph::expand_permutations(){
 
 size_t PQGraph::merge_terms() {
 
-//    if (!allow_merge_)
+    if (!allow_merge_)
         return 0; // do not merge terms if not allowed
 
     if (verbose) cout << "Merging similar terms:" << endl;
@@ -1039,6 +1062,52 @@ perm_list PQGraph::common_permutations(const vector<Term *>& terms) {
     }
 
     return common_perms;
+}
+
+PQGraph PQGraph::clone() const {
+    // make initial copy
+    PQGraph copy = *this;
+
+    // copy equations and make deep copies of terms
+    copy.equations_.clear();
+    for (auto & [name, eq] : equations_) {
+        copy.equations_[name] = eq.clone();
+    }
+
+    // copy all linkages
+    copy.all_linkages_.clear();
+    for (const auto & [type, linkages] : all_linkages_) {
+        linkage_set new_linkages;
+        for (const auto & linkage : linkages) {
+            ConstLinkagePtr link = as_link(linkage->clone_ptr());
+            new_linkages.insert(link) ;
+        }
+        copy.all_linkages_[type] = new_linkages;
+    }
+
+    return copy;
+
+}
+
+void PQGraph::make_scalars() {
+
+    // find scalars in all equations and substitute them
+    linkage_set scalars = all_linkages_["scalars"];
+    for (auto &[name, eq]: equations_) {
+        eq.make_scalars(scalars, temp_counts_["scalars"]);
+    }
+
+    // add new scalars to all linkages and equations
+    for (const auto &scalar: scalars) {
+        // add term to scalars equation
+        add_tmp(scalar, equations_["scalars"]);
+        all_linkages_["scalars"].insert(scalar);
+    }
+
+    // remove comments from scalars
+    for (Term &term: equations_["scalars"].terms())
+        term.comments() = {}; // comments should be self-explanatory
+
 }
 
 //}

@@ -49,7 +49,7 @@ void Term::operate_subsets(
         const std::function<void(const vector<size_t>&)>& op, // operation to perform on each subset
         const std::function<bool(const vector<size_t>&)>& valid_op, // operation to check if subset is valid
         const std::function<bool(const vector<size_t>&)>& break_perm_op, // operation to check if permutation should be broken
-        const std::function<bool(const vector<size_t>&)>& break_subset_op // operation to check if subset should be broken
+        const std::function<bool(const vector<size_t>&)>& terminate_op // operation to check if lambda should be terminated
 ) {
 
     // magic bit manipulation to get all 0->n permutations of n indices
@@ -76,8 +76,8 @@ void Term::operate_subsets(
             }
         } while (next_permutation(subset.begin(), subset.end()));
 
-        if (break_subset_op != nullptr) {
-            if (break_subset_op(subset)) break; // break subset loop if user-defined function returns true
+        if (terminate_op != nullptr) {
+            if (terminate_op(subset)) return; // break subset loop if user-defined function returns true
         }
     }
 }
@@ -316,52 +316,50 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     return madeSub;
 }
 
-LinkagePtr Term::make_dot_products(size_t id) {
+bool Term::make_scalar(linkage_set &scalars, size_t id) {
 
-    if (rhs_.empty()) return {}; // if constant, return empty linkage
+    if (rhs_.empty())
+        return false; // do nothing if term is empty
 
     // break out of loops if a substitution was made
-    bool madeSub = false; // initialize boolean to track if substitution was made
-    bool swap_sign = false; // initialize boolean to track if sign of term should be swapped
-    LinkagePtr scalar; // initialize scalar to track if a scalar was found
-
-    // break out of permutation loop if a scalar was found
-    const auto break_perm_op = [&madeSub](const vector<size_t> &subset) {
-        return madeSub;
-    };
-
-    // break out of subset loop if a scalar was found
-    auto break_subset_op = [&scalar](const vector<size_t> &subset) {
-        if (scalar == nullptr)
-            return false;
-        else return !scalar->empty();
-    };
+    bool made_scalar = false; // initialize boolean to track if substitution was made
 
     /// determine if a linkage could possibly be substituted
-    auto valid_op = [&](const vector<size_t> &subset) {
+    auto valid_op = [this](const vector<size_t> &subset) {
 
         // skip subsets with invalid sizes
         if (subset.size() <= 1) return false;
-        else return true;
 
-    };
-
-    // initialize best flop scaling and memory scaling with rhs
-    scaling_map best_flop_map = flop_map_;
-    scaling_map best_mem_map = mem_map_;
-    vector<ConstVertexPtr> best_vertices = rhs_;
-
-    // make copy of term to store new rhs and test scaling
-    Term new_term(*this);
-
-    auto op = [&](const vector<size_t> &subset) {
-        // extract subset vertices
+        // make the linkage of the subset
         vector<ConstVertexPtr> subset_vec;
         subset_vec.reserve(subset.size());
         for (size_t i : subset)
             subset_vec.push_back(rhs_[i]);
 
+        LinkagePtr this_linkage = Linkage::link(subset_vec);
+
+        // subset is valid if the linkage is a scalar for the first permutation (any permutation will do)
+        bool is_scalar = this_linkage->is_scalar();
+        return is_scalar;
+    };
+
+    // initialize best flop scaling and memory scaling with rhs
+    scaling_map best_flop_map = flop_map_;
+    scaling_map best_mem_map = mem_map_;
+    LinkagePtr  best_scalar;
+    vector<ConstVertexPtr> best_vertices = rhs_;
+
+    // make copy of term to store new rhs and test scaling
+    Term new_term(*this);
+
+    auto op = [this, &scalars, &made_scalar, &new_term, &best_scalar, &id, &best_flop_map, &best_mem_map, &best_vertices]
+            (const vector<size_t> &subset) {
+
         // make the linkage of the subset
+        vector<ConstVertexPtr> subset_vec;
+        subset_vec.reserve(subset.size());
+        for (size_t i : subset)
+            subset_vec.push_back(rhs_[i]);
         LinkagePtr this_linkage = Linkage::link(subset_vec);
 
         // check if the linkage is a scalar
@@ -370,8 +368,16 @@ LinkagePtr Term::make_dot_products(size_t id) {
         vector<ConstVertexPtr> new_rhs;
         if (is_scalar) {
 
-            // set the id of the linkage
-            this_linkage->id_ = (long) id;
+            // check if scalar is already in set of scalars
+            auto scalar_pos = scalars.find(this_linkage);
+            long new_id = (long) id;
+            if (scalar_pos != scalars.end()) {
+                // if scalar is already in set of scalars, change the id
+                new_id = scalar_pos->get()->id_;
+            }
+
+            // get the id of the linkage
+            this_linkage->id_ = (long) new_id;
 
             // remove subset vertices from rhs
             bool added_linkage = false;
@@ -394,27 +400,47 @@ LinkagePtr Term::make_dot_products(size_t id) {
         new_term.compute_scaling(true);
 
         // check if flop and memory scaling are better than best scaling
-        if (new_term.flop_map_ <= best_flop_map) { // flop scaling is better
+        if (new_term.flop_map_ <= best_flop_map || !made_scalar) { // flop scaling is better
             // set the best scaling and rhs
             best_flop_map = new_term.flop_map_;
             best_mem_map  = new_term.mem_map_;
             best_vertices = new_term.rhs_;
-            scalar = this_linkage; // set scalar
-            madeSub = true;
+            best_scalar = this_linkage; // set scalar
+            made_scalar = true;
         }
-
     };
 
-    operate_subsets(rhs_.size(), op, valid_op, break_perm_op, break_subset_op);
-
-    // set new rhs
-    rhs_ = best_vertices;
+    operate_subsets(rhs_.size(), op, valid_op);
 
     // reorder rhs
-    if (madeSub) {
+    if (made_scalar) {
+
+        // check if scalar is already in set of scalars
+        auto scalar_pos = scalars.find(best_scalar);
+        long new_id = (long)id;
+        if (scalar_pos != scalars.end()) {
+            // if scalar is already in set of scalars, change the id
+            new_id = scalar_pos->get()->id_;
+        } else {
+            // if scalar is not in set of scalars, add it
+            scalars.insert(best_scalar);
+        }
+
+        // change the best vertices to the new id
+        for (auto &v : best_vertices) {
+            if (v->is_temp() && as_link(v)->id_ == id && v->is_scalar()) {
+                // change id of scalar if it is a temp
+                VertexPtr link = as_link(v)->clone_ptr();
+                as_link(link)->id_ = new_id;
+                v = link;
+            }
+        }
+
+        // set new rhs
+        rhs_ = best_vertices;
         request_update(); // set flags for optimization
-        reorder();
+        reorder(); // reorder the term
     }
 
-    return scalar; // return scalar
+    return made_scalar;
 }

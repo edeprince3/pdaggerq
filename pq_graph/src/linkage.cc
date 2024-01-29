@@ -182,23 +182,50 @@ namespace pdaggerq {
 
         // make external lines
         lines_.reserve(mem_scale_.n_);
+        bool left_first = left_size <= right_size;
+        line_vector sig_lines;
+        line_vector den_lines;
+
+        auto add_line = [this, &sig_lines, &den_lines](const Line &line) {
+            if (!line.sig_ && !line.den_)
+                lines_.push_back(line);
+            else if (line.sig_)
+                sig_lines.push_back(line);
+            else
+                den_lines.push_back(line);
+        };
+
+//        auto add_line_sorted = [this, &sig_lines, &den_lines](const Line &line) {
+//            if (!line.sig_ && !line.den_)
+//                lines_.insert(std::upper_bound(lines_.begin(), lines_.end(), line, line_compare()), line);
+//            else if (line.sig_)
+//                sig_lines.push_back(line);
+//            else
+//                den_lines.push_back(line);
+//        };
+
+        // left half
         for (uint_fast8_t i = 0; i < left_size; ++i) {
             if (!left_ext_idx[i]) continue;
-            const Line &line = left_lines[i];
-
-            if (!line.sig_)
-                lines_.push_back(line);
-            else
-                lines_.insert(lines_.begin(), line);
+            add_line(left_lines[i]);
         }
+
+        // right half
         for (uint_fast8_t i = 0; i < right_size; ++i) {
             if (!right_ext_idx[i]) continue;
-            const Line &line = right_lines[i];
-            if (!line.sig_)
-                lines_.push_back(line);
-            else
-                lines_.insert(lines_.begin(), line);
+            add_line(right_lines[i]);
         }
+
+        // sort lines by properties
+        std::stable_sort(lines_.begin(), lines_.end(), line_compare());
+
+        // add sigma lines to the beginning of lines_
+        if (!sig_lines.empty())
+            lines_.insert(lines_.begin(), sig_lines.begin(), sig_lines.end());
+
+        // add density lines to the beginning of lines_
+        if (!den_lines.empty())
+            lines_.insert(lines_.begin(), den_lines.begin(), den_lines.end());
 
         // update vertex members
         set_properties();
@@ -387,34 +414,34 @@ namespace pdaggerq {
 
     string Linkage::str(bool make_generic, bool include_lines) const {
 
-        if (!is_temp()) { // TODO: this might be annoying if we want to reuse a tmp. We will see when we get there...
+        if (!is_temp()) {
             // this is not an intermediate vertex (generic linkage).
             // return the str of the left and right vertices
             return tot_str(false, true);
         }
 
-        if (!make_generic) return str();
+        if (!make_generic) return Vertex::str();
 
-        // prepare output string as a map of tmps (or reuse_tmps) to a generic name
-        string generic_str = is_reused_ ? "reuse_tmps_[\"" : "tmps_[\"";
-
-        // add dimension string
-        generic_str += dimstring();
-        generic_str += "_";
-
-        // format for scalars
+        // prepare output string as a map of tmps, scalars, or reuse_tmps to a generic name
+        string generic_str;
         if (is_scalar())
-            generic_str = "scalars_[\"";
-
+             generic_str = "scalars_[\"";
+        else if (is_reused_)
+             generic_str = "reuse_tmps_[\"";
+        else generic_str = "tmps_[\"";
 
         // use id_ to create a generic name
+        string dimstring = this->dimstring();
         if (id_ >= 0)
             generic_str += to_string(id_);
+
+        if (!dimstring.empty())
+            generic_str += "_" + dimstring;
 
         generic_str += "\"]";
 
         if (include_lines) // if lines are included, add them to the generic name (default)
-            generic_str += line_str();
+            generic_str += line_str(); // sorts print order
 
         // create a generic vertex that has the same lines as this linkage.
         // this adds the spin and type strings to name
@@ -573,8 +600,8 @@ namespace pdaggerq {
         clone_link(other);
     }
 
-    VertexPtr Linkage::deep_copy_ptr() const {
-        LinkagePtr link_copy = make_shared<Linkage>(left_->deep_copy_ptr(), right_->deep_copy_ptr(), is_addition_);
+    VertexPtr Linkage::clone_ptr() const {
+        LinkagePtr link_copy = make_shared<Linkage>(left_->clone_ptr(), right_->clone_ptr(), is_addition_);
         link_copy->copy_misc(*this);
         return link_copy;
     }

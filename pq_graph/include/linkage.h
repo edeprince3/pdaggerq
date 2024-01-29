@@ -150,8 +150,8 @@ namespace pdaggerq {
          */
         void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override {
             // replace the lines of the vertices
-            left_->deep_copy_ptr()->replace_lines(line_map);
-            right_->deep_copy_ptr()->replace_lines(line_map);
+            left_->clone_ptr()->replace_lines(line_map);
+            right_->clone_ptr()->replace_lines(line_map);
 
 
             // rebuild the linkage
@@ -178,7 +178,7 @@ namespace pdaggerq {
          * Return a deep copy of the linkage where all nested linkages are also copied
          * @return deep copy of the linkage
          */
-        VertexPtr deep_copy_ptr() const override;
+        VertexPtr clone_ptr() const override;
 
         /**
          * Move constructor
@@ -390,7 +390,7 @@ namespace pdaggerq {
          * Get depth of linkage
          * @return depth of linkage
          */
-        size_t depth() const { return depth_; }
+        size_t depth() const override { return depth_; }
 
     }; // class linkage
 
