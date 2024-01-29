@@ -356,9 +356,6 @@ private:
      */
     bool find_paired_permutations;
 
-    bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &list, int order);
-
-
 };
 
 }
