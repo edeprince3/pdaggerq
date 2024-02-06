@@ -171,16 +171,13 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     });
 
     // check if all linkages are found in the term
-    std::vector<ConstVertexPtr> diff;
+    bool all_found = std::includes(term_list.begin(), term_list.end(), link_list.begin(), link_list.end(),
+                                  [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                                      return a->name_ < b->name_;
+                                  });
 
-    // we use an unsymmetric set difference to check if all linkages are found in the term
-    std::set_difference(link_list.begin(), link_list.end(), term_list.begin(), term_list.end(),
-                        std::inserter(diff, diff.begin()), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-                            return a->name_ < b->name_;
-                        });
-
-    // if there are any differences, return false
-    return diff.empty();
+    // return true if all linkages are found in the term
+    return all_found;
 
 }
 
