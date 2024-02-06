@@ -696,9 +696,5 @@ namespace pdaggerq {
         return generic_op;
     }
 
-    void Vertex::density_fitting() {
-        // set all occupied and virtual lines to 'ox' and 'vx', where x is the index
-//        update_lines(density_fitting_lines(lines_));
-    }
 
 } // pdaggerq

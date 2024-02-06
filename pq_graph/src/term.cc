@@ -1027,14 +1027,49 @@ namespace pdaggerq {
         // split it into two vertices and two terms using density fitting
         if (rhs_.empty()) return {*this}; // if constant, return itself
 
-        for (auto & op : rhs_) {
+        for (int i = 0; i < rhs_.size(); i++) {
+            auto & op = rhs_[i];
+
             // check if vertex is an eri
             if (op->base_name() == "eri") {
-                // split eri into two vertices and two terms using density fitting
-//                vector<Term> density_terms = op->density_fitting();
+                // term with eri looks like <pq||rs>
+                // to do density fitting, we need to replace it with a product of two density fitting vertices within
+                // two terms, so we need to create two new vertices and two new terms
+                // <pq||rs> = <pq|rs> - <pq|sr> = (pr|qs) - (ps|qr) = (Q|pr)(Q|qs) - (Q|ps)(Q|qr)
+
+                // grab the lines from the eri
+                const line_vector &lines = op->lines();
+
+                // create lines for the density fitting vertices
+                Line den_line = Line("Q");
+
+                line_vector B1_lines{den_line, lines[0], lines[2]};
+                line_vector B2_lines{den_line, lines[1], lines[3]};
+                line_vector B3_lines{den_line, lines[0], lines[3]};
+                line_vector B4_lines{den_line, lines[1], lines[2]};
+
+                // create vertices
+                ConstVertexPtr B1 = make_shared<const Vertex>("B", B1_lines);
+                ConstVertexPtr B2 = make_shared<const Vertex>("B", B2_lines);
+                ConstVertexPtr B3 = make_shared<const Vertex>("B", B3_lines);
+                ConstVertexPtr B4 = make_shared<const Vertex>("B", B4_lines);
+
+                // create two new terms replacing the eri with the two new vertices
+                Term new_term1 = *this, new_term2 = *this;
+
+                // set new rhs of term1
+                new_term1.rhs_[i] = B1;
+                new_term1.rhs_.insert(new_term1.rhs_.begin() + (i+1), B2);
+
+                // set new rhs of term2
+                new_term2.rhs_[i] = B3;
+                new_term2.rhs_.insert(new_term2.rhs_.begin() + (i+1), B4);
+                new_term2.coefficient_ *= -1; // change sign of term2
+
 
                 // add new terms to vector
-                new_terms.insert(new_terms.end(), new_terms.begin(), new_terms.end());
+                new_terms.push_back(new_term1);
+                new_terms.push_back(new_term2);
             }
         }
 

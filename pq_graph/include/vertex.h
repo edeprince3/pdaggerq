@@ -447,13 +447,6 @@ namespace pdaggerq {
          */
         virtual bool equivalent(const Vertex &other) const;
 
-        /**
-         * split the eri vertex into two vertices using density fitting
-         * so <pq|rs> becomes (Q|pq)(Q|rs) - (Q|ps)(Q|qr). Otherwise returns empty vector
-         * @return vector of two vertices
-         */
-        void density_fitting();
-
 
     }; // end Vertex class
 
