@@ -145,36 +145,42 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
 
 
     if (lhs_->is_temp()){
-        // do not allow substitution to intermediates with smaller ids
-        if(as_link(lhs_)->id_ <= linkage->id_)
-            return false;
+        const auto &lhs_link = as_link(lhs_);
+
+        // do not allow substitution to intermediates with smaller ids unless they are different types
+        if(lhs_link->id_ <= linkage->id_) {
+            if (lhs_link->is_reused_ == linkage->is_reused_ &&
+                lhs_link->is_scalar() == linkage->is_scalar()) return false;
+        }
+
+        // do not allow substitution of scalar intermediates with non-scalar linkages
+        if (lhs_link->is_scalar() && (!linkage->is_scalar() || !linkage->is_reused_)) return false;
     }
 
 
     // get total vector of linkage vertices (without expanding nested linkages)
-    const vector<ConstVertexPtr> &link_list = linkage->to_vector();
-    const vector<ConstVertexPtr> &term_list = term_linkage_->to_vector();
+    vector<ConstVertexPtr> link_list = linkage->to_vector();
+    vector<ConstVertexPtr> term_list = term_linkage_->to_vector();
 
-    size_t num_ops = term_list.size(); // get number of rhs
-    size_t num_link = link_list.size(); // get number of linkages in rhs
+    // sort lists by name
+    sort(link_list.begin(), link_list.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+        return a->name_ < b->name_;
+    });
+    sort(term_list.begin(), term_list.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+        return a->name_ < b->name_;
+    });
 
-    // create hash set for vertices
-    std::unordered_set<ConstVertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual>
-            vert_set(num_ops + num_link);
+    // check if all linkages are found in the term
+    std::vector<ConstVertexPtr> diff;
 
-    // add rhs to hash set
-    for (const ConstVertexPtr &v : term_list)
-        vert_set.insert(v);
+    // we use an unsymmetric set difference to check if all linkages are found in the term
+    std::set_difference(link_list.begin(), link_list.end(), term_list.begin(), term_list.end(),
+                        std::inserter(diff, diff.begin()), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                            return a->name_ < b->name_;
+                        });
 
-    // add linkage vertices to hash set; if no equivalent vertex is found, return false
-    for (const ConstVertexPtr &v : link_list) {
-        if (vert_set.find(v) == vert_set.end()) {
-            return false;
-        }
-    }
-
-    // if not all rhs were found, return false
-    return true;
+    // if there are any differences, return false
+    return diff.empty();
 
 }
 
@@ -198,8 +204,13 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     scaling_map best_mem_map = mem_map_;
     vector<ConstVertexPtr> best_vertices = rhs_;
 
-    const vector<ConstVertexPtr> &link_vec = linkage->to_vector();
+    vector<ConstVertexPtr> link_vec = linkage->to_vector();
     size_t num_link = link_vec.size(); // get number of linkages in rhs
+
+    // sort link_vec by name
+    sort(link_vec.begin(), link_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+        return a->name_ < b->name_;
+    });
 
     /// determine if a linkage could possibly be substituted
     auto valid_op = [this, &link_vec, num_link](const vector<size_t> &subset) {
@@ -207,30 +218,35 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
         size_t num_set = subset.size();
 
         // skip subsets with invalid sizes
-        if (num_set > max_depth_ || num_set <= 1 || num_set != link_vec.size())
+        if (num_set != num_link || num_set > max_depth_ || num_set <= 1)
             return false;
 
-        // make a linkage of the first permutation of the subset
+        // build subset vertices
         vector<ConstVertexPtr> subset_vec;
         subset_vec.reserve(num_set);
-        for (size_t i : subset)
-            subset_vec.push_back(rhs_[i]);
+        for (size_t i : subset) {
+            // do not allow subsets with scalars
+            if (rhs_[i]->is_scalar())
+                return false;
 
-        // check if each vertex in the subset has an equivalent vertex in the linkage
-        // create hash set for vertices
-        std::unordered_set<ConstVertexPtr, SimilarVertexPtrHash, SimilarVertexPtrEqual>
-            vert_set(num_set + num_link);
-
-        // add linkage to hash set (return false if scalar is found)
-        for (const ConstVertexPtr &v : link_vec) {
-            vert_set.insert(v);
+            // insert by name order
+            subset_vec.insert(
+                    std::lower_bound(subset_vec.begin(), subset_vec.end(), rhs_[i],
+                                     [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                                         return a->name_ < b->name_;
+                                     }),
+                    rhs_[i] // insert rhs vertex at correct position
+            );
         }
 
-        // add subset vertices to hash set; if no equivalent vertex is found, return false
-        for (const ConstVertexPtr &v : subset_vec) {
-            if (v->is_scalar())
-                return false;
-            if (vert_set.find(v) == vert_set.end()) {
+        // sort subset_vec by name
+        sort(subset_vec.begin(), subset_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+            return a->name_ < b->name_;
+        });
+
+        // ensure sorted subset vertices are equivalent to sorted linkage vertices
+        for (size_t i = 0; i < num_set; i++) {
+            if (subset_vec[i]->name_ != link_vec[i]->name_) {
                 return false;
             }
         }
