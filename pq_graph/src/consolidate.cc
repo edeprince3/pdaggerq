@@ -626,13 +626,13 @@ void PQGraph::sort_tmps(Equation &equation, char type) {
         const ConstVertexPtr &a_lhs = a_term.lhs();
         const ConstVertexPtr &b_lhs = b_term.lhs();
 
-        // TODO: keep entire list of ids and use that to sort
+        typedef std::set<long, std::less<>> idset;
 
         // recursive function to get nested temp ids from a vertex
-        std::function<set<long>(const ConstVertexPtr&)> test_vertex;
+        std::function<idset(const ConstVertexPtr&)> test_vertex;
         test_vertex = [&test_vertex, type](const ConstVertexPtr &op) {
 
-            set<long> ids;
+            idset ids;
             if (op->is_temp()) {
                 ConstLinkagePtr link = as_link(op);
                 long link_id = link->id_;
@@ -647,7 +647,7 @@ void PQGraph::sort_tmps(Equation &equation, char type) {
 
                 // recurse into nested temps
                 for (const auto &nested_op: link->to_vector()) {
-                    set<long> sub_ids = test_vertex(nested_op);
+                    idset sub_ids = test_vertex(nested_op);
                     ids.insert(sub_ids.begin(), sub_ids.end());
                 }
             }
@@ -663,68 +663,53 @@ void PQGraph::sort_tmps(Equation &equation, char type) {
         // get min id of temps from rhs
         auto get_rhs_id = [&test_vertex](const Term &term) {
 
-            set<long> ids;
+            idset ids;
             for (const auto &op: term.rhs()) {
-                set<long> sub_ids = test_vertex(op);
+                idset sub_ids = test_vertex(op);
                 ids.insert(sub_ids.begin(), sub_ids.end());
             }
             return ids;
         };
 
-        set<long> a_lhs_ids = get_lhs_id(a_term);
-        set<long> b_lhs_ids = get_lhs_id(b_term);
+        // get all ids from lhs and rhs
+        idset a_lhs_ids = get_lhs_id(a_term), a_rhs_ids = get_rhs_id(a_term);
+        idset b_lhs_ids = get_lhs_id(b_term), b_rhs_ids = get_rhs_id(b_term);
 
-        set<long> a_rhs_ids = get_rhs_id(a_term);
-        set<long> b_rhs_ids = get_rhs_id(b_term);
-
-        set<long> a_total_ids = a_lhs_ids, b_total_ids = b_lhs_ids;
+        // get total ids
+        idset a_total_ids = a_lhs_ids, b_total_ids = b_lhs_ids;
         a_total_ids.insert(a_rhs_ids.begin(), a_rhs_ids.end());
         b_total_ids.insert(b_rhs_ids.begin(), b_rhs_ids.end());
 
+        // get number of ids
+        bool a_has_temp = !a_lhs_ids.empty() || !a_rhs_ids.empty();
+        bool b_has_temp = !b_lhs_ids.empty() || !b_rhs_ids.empty();
 
-        bool a_lhs_is_tmp = a_term.lhs()->is_temp();
-        bool b_lhs_is_tmp = b_term.lhs()->is_temp();
+        // keep terms without temps first and if both have no temps, keep order
+        if (a_has_temp ^ b_has_temp) return !a_has_temp;
+        else if (!a_has_temp)        return a_idx < b_idx;
 
-        bool a_has_temp = a_lhs_is_tmp || !a_lhs_ids.empty() || !a_rhs_ids.empty();
-        bool b_has_temp = b_lhs_is_tmp || !b_lhs_ids.empty() || !b_rhs_ids.empty();
+        // keep in lexicographical order of ids
+        if (a_total_ids != b_total_ids)
+            return a_total_ids < b_total_ids;
 
-        // if no temps, keep order
-        if (!a_has_temp && !b_has_temp)
+        // if lhs ids are empty, ignore assignment
+        if (a_lhs_ids.empty() && b_lhs_ids.empty())
             return a_idx < b_idx;
 
-        // keep in total lexicographical order
-        if (a_total_ids > b_total_ids)
-            return false;
-        else if (a_total_ids == b_total_ids) {
-            // if total ids are equal, keep assignments first
-            if (a_term.is_assignment_ ^ b_term.is_assignment_)
-                return a_term.is_assignment_;
-            else if (a_term.is_assignment_ && b_term.is_assignment_) {
+        // if ids are the same, ensure assignment is first
+        if (a_term.is_assignment_ ^ b_term.is_assignment_)
+            return a_term.is_assignment_;
 
-                // Keep temp assignments first if total ids are equal
-                if (a_lhs_is_tmp ^ b_lhs_is_tmp)
-                    return a_lhs_is_tmp;
+        // keep in order of lhs ids
+        if (a_lhs_ids != b_lhs_ids)
+            return a_lhs_ids < b_lhs_ids;
 
-                // if both are assignments sort by lhs id
-                if (a_lhs_ids > b_lhs_ids)
-                    return false;
-                else if (a_lhs_ids == b_lhs_ids) {
-                    // if lhs ids are equal, sort by rhs ids
-                    if (a_rhs_ids > b_rhs_ids)
-                        return false;
-                    else if (a_rhs_ids == b_rhs_ids) {
-                        // if rhs ids are equal, sort by index
-                        return a_idx < b_idx;
-                    }
-                }
-            }
+        // keep in order of rhs ids
+        if (a_rhs_ids != b_rhs_ids)
+            return a_rhs_ids < b_rhs_ids;
 
-            // preserve order if all else is equal
-            return a_idx < b_idx;
-        }
-
-        // if total ids of a are less than b, keep order
-        return true;
+        // preserve order if all else is equal
+        return a_idx < b_idx;
     };
 
     sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
