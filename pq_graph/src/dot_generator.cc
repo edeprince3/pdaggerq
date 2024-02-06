@@ -31,17 +31,17 @@ void PQGraph::write_dot(string &filepath) {
 
 //    os << padding << "newrank=true;\n";
     os << padding << "rankdir=LR;\n";
-//    os << padding << "mode=hier;";
+    os << padding << "mode=hier;\n";
 //    os << padding << "overlap=\"20:prism\";\n";
 //    os << padding << "ordering=out;\n";
-//    os << padding << "compound=false;\n";
-//    os << padding << "sep=1.25;\n";
+    os << padding << "compound=false;\n";
+//    os << padding << "sep=1.0;\n";
 //    os << padding << "K=1.0;\n";
-//    os << padding << "splines=spline;\n";
+    os << padding << "splines=spline;\n";
 
 
-//    os << padding << "node [fontname=\"Helvetica\"];\n";
-//    os << padding << "edge [concentrate=false];\n";
+    os << padding << "node [fontname=\"Helvetica\"];\n";
+    os << padding << "edge [concentrate=false];\n";
 
     // foreach in reverse order
     padding += "    ";
@@ -184,7 +184,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
         return a->base_name() < b->base_name();
     });
 
-    bool track_temps = true; // TODO: make this a parameter
+    bool track_temps = false; // TODO: make this a parameter
     vector<ConstVertexPtr> temps = this->to_vector(false);
     vector<ConstVertexPtr> temp_verts;
     temp_verts.reserve(vertices.size());
@@ -236,7 +236,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
 
 
     std::string node_style = "color=\"" + color + "\", fontsize=20, style=bold";
-    std::string null_node_style = "style=invis, shape=none, height=0.1,width=0.1";
+    std::string null_node_style = "style=invis, shape=none, height=0.01,width=0.01";
     std::string ext_edge_style = "color=\"" + color + "\", style=bold, arrowsize=1.25";
     std::string int_edge_style = "color=\"" + color + "\", concentrate=false";
 
