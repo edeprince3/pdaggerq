@@ -83,10 +83,13 @@ namespace pdaggerq {
         if (options.contains("permute_eri"))
             Vertex::permute_eri_ = options["permute_eri"].cast<bool>();
 
+        if (options.contains("density_fitting"))
+            use_density_fitting_ = options["density_fitting"].cast<bool>();
+
         if (options.contains("verbose"))
             verbose = options["verbose"].cast<bool>();
 
-        if (options.contains("max_shape")) {
+        if (options.contains("max_shape_map")) {
             std::map<string, long> max_shape_map;
             try {
                 max_shape_map = options["max_shape_map"].cast<std::map<string, long>>();
@@ -97,7 +100,7 @@ namespace pdaggerq {
             // throw error if max_shape_map contains an invalid key
             for (const auto &[key, val] : max_shape_map) {
                 if (key != "o" && key != "v") {
-                    throw invalid_argument("max_shape_map must contain only 'o' and 'v' keys");
+                    throw invalid_argument("max_shape_map must contain only 'o' and 'v' keys; found key: " + key);
                 }
             }
             
@@ -513,9 +516,12 @@ namespace pdaggerq {
         vector<Term> all_terms;
 
 //        bool has_tmps = false;
-        for (auto &eq_pair : copy.equations_) { // iterate over equations in serial
-            const string &eq_name = eq_pair.first;
-            Equation &equation = eq_pair.second;
+        for (auto &[eq_name, equation] : copy.equations_) { // iterate over equations in serial
+
+            // skip "tmps" equation
+            if (eq_name == "tmps")
+                continue;
+
             vector<Term> &terms = equation.terms();
 
             if (terms.empty())
@@ -530,9 +536,26 @@ namespace pdaggerq {
 
             sort_tmps(equation); // sort tmps in equation
 
-            if (eq_name != "tmps")
-                terms.front().is_assignment_ = true; // mark first term as assignment
-//            all_terms.insert(all_terms.end(), terms.begin(), terms.end());
+            // find first term without a tmp on the rhs, make it an assigment, and bring it to the front
+            for (size_t i = 0; i < terms.size(); ++i) {
+                bool has_tmp = false;
+                for (const auto &op : terms[i].rhs()) {
+                    if (op->is_temp()) {
+                        if (!op->is_scalar() && !as_link(op)->is_reused_) {
+                            has_tmp = true;
+                            break;
+                        }
+                    }
+                }
+                if (!has_tmp) {
+                    std::swap(terms[i], terms[0]);
+                    break;
+                }
+            }
+
+            // make first term an assignment
+            terms[0].is_assignment_ = true;
+
             for (auto &term : terms) {
                 all_terms.push_back(term.clone());
             }
@@ -603,7 +626,48 @@ namespace pdaggerq {
         // keep track of tmp ids that have been found
         map<size_t, bool> tmp_ids;
 
+        // add declaration for each tmp
+        for (auto &tempterm: copy.equations_["tmps"]) {
+            if (!tempterm.lhs()->is_linked()) continue;
+
+            ConstLinkagePtr temp = as_link(tempterm.lhs());
+            size_t temp_id = temp->id_;
+
+            // insert temp id and continue if already found
+            auto inserted = tmp_ids.insert({temp_id, false}).second;
+            if (!inserted) continue;
+
+            for (auto i = 0ul; i < all_terms.size(); ++i) {
+                const Term &term = all_terms[i];
+
+                // check if tmp is in the rhs of the term
+                bool found = false;
+                for (const auto &op: term.rhs()) {
+                    bool is_tmp = op->is_linked(); // must be a tmp
+                    if (!is_tmp) continue;
+
+                    ConstLinkagePtr link = as_link(op);
+                    is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
+                    is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
+
+                    if (is_tmp && link->id_ == temp_id) {
+                        found = true; break; // true if we found first use of tmp with this id
+                    }
+                }
+
+                if (!found) continue; // tmp not found in rhs of term; continue
+                tmp_ids[temp_id] = true; // update tmp_ids map
+
+                // add tmp term before this term
+                all_terms.insert(all_terms.begin() + i, tempterm);
+
+                break; // only add once
+            }
+        }
+
+
         // add a term to destroy the tmp after its last use
+        tmp_ids.clear();
         for (auto &tempterm: copy.equations_["tmps"]) {
             if (!tempterm.lhs()->is_linked()) continue;
 
