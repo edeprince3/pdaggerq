@@ -230,14 +230,16 @@ namespace pdaggerq {
     struct LineHash {
         uint_fast16_t operator()(const Line &line) const {
 
+            constexpr uint_fast16_t shift = 1;
+
             // only use first character (8 bits)
-            uint_fast16_t hash = line.label_[0] << 1;
+            uint_fast16_t hash = line.label_[0] << shift;
 
             // we can store each boolean as a bit in an integral type (4 bits)
             hash |= line.o_;
-            hash = (hash << 1) | line.a_;
-            hash = (hash << 1) | line.sig_;
-            hash = (hash << 1) | line.den_;
+            hash = (hash << shift) | line.a_;
+            hash = (hash << shift) | line.sig_;
+            hash = (hash << shift) | line.den_;
 
             // return the hash (12 bits)
             return hash;
@@ -272,15 +274,17 @@ namespace pdaggerq {
     struct SimilarLineHash {
         uint_fast8_t operator()(const Line &line) const {
 
+            constexpr uint_fast8_t shift = 1;
+
             //  We do not care about the label for this hash function.
-            uint_fast8_t hash = line.o_ << 1;
+            uint_fast8_t hash = line.o_ << shift;
 
             // store each boolean as a bit in an integral type
             hash |= line.a_;
-            hash = (hash << 1) | line.sig_;
+            hash = (hash << shift) | line.sig_;
 
             // return the hash (4 bits)
-            return (hash << 1) | line.den_;
+            return (hash << shift) | line.den_;
         }
     }; // struct LineHash
 
