@@ -620,50 +620,68 @@ namespace pdaggerq {
 
         // for each term in tmps, add the term to the merged equation
         // where each tmp of a given id is first used
+        sort_tmps(copy.equations_["tmps"]);
 
-        sort_tmps(copy.equations_["tmps"]); // sort tmps in tmps equation
+        auto &tempterms = copy.equations_["tmps"];
+        std::stable_sort(tempterms.begin(), tempterms.end(), [](const Term &a, const Term &b) {
+            return as_link(a.lhs())->id_ < as_link(b.lhs())->id_;
+        });
 
         // keep track of tmp ids that have been found
         map<size_t, bool> tmp_ids;
 
         // add declaration for each tmp
-        for (auto &tempterm: copy.equations_["tmps"]) {
-            if (!tempterm.lhs()->is_linked()) continue;
+        bool added_declare;
+        size_t attempts = 0;
 
-            ConstLinkagePtr temp = as_link(tempterm.lhs());
-            size_t temp_id = temp->id_;
+        do {
+            added_declare = false;
 
-            // insert temp id and continue if already found
-            auto inserted = tmp_ids.insert({temp_id, false}).second;
-            if (!inserted) continue;
+            for (long k = tempterms.size()-1; k >= 0; --k) {
+                auto &tempterm = copy.equations_["tmps"][k];
 
-            for (auto i = 0ul; i < all_terms.size(); ++i) {
-                const Term &term = all_terms[i];
+                if (!tempterm.lhs()->is_linked()) continue;
 
-                // check if tmp is in the rhs of the term
-                bool found = false;
-                for (const auto &op: term.rhs()) {
-                    bool is_tmp = op->is_linked(); // must be a tmp
-                    if (!is_tmp) continue;
+                ConstLinkagePtr temp = as_link(tempterm.lhs());
+                size_t temp_id = temp->id_;
 
-                    ConstLinkagePtr link = as_link(op);
-                    is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
-                    is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
+                // check if tmp is already declared
+                if (tmp_ids.find(temp_id) != tmp_ids.end()) continue;
 
-                    if (is_tmp && link->id_ == temp_id) {
-                        found = true; break; // true if we found first use of tmp with this id
+                bool found_anywhere = false;
+                for (auto i = 0ul; i < all_terms.size(); ++i) {
+                    const Term &term = all_terms[i];
+
+                    // check if tmp is in the rhs of the term
+                    bool found = false;
+                    for (const auto &op: term.rhs()) {
+                        bool is_tmp = op->is_linked(); // must be a tmp
+                        if (!is_tmp) continue;
+
+                        ConstLinkagePtr link = as_link(op);
+                        is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
+                        is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
+
+                        if (is_tmp && link->id_ == temp_id) {
+                            found = true;
+                            break; // true if we found first use of tmp with this id
+                        }
                     }
+
+                    if (!found) continue; // tmp not found in rhs of term; continue
+                    tmp_ids[temp_id] = true; // update tmp_ids map
+
+                    // add tmp term before this term
+                    all_terms.insert(all_terms.begin() + i, tempterm);
+
+                    // only add once
+                    found_anywhere = true;
+                    tmp_ids[temp_id] = true;
+                    added_declare = true;
+                    break;
                 }
-
-                if (!found) continue; // tmp not found in rhs of term; continue
-                tmp_ids[temp_id] = true; // update tmp_ids map
-
-                // add tmp term before this term
-                all_terms.insert(all_terms.begin() + i, tempterm);
-
-                break; // only add once
             }
-        }
+        } while (added_declare && ++attempts < equations_["tmps"].size());
 
 
         // add a term to destroy the tmp after its last use
@@ -917,8 +935,13 @@ namespace pdaggerq {
             expand_permutations();
         }
 
+        // set initial scaling and format scalars
         if (!is_assembled_)
             assemble();
+
+        // merge similar terms
+        if (allow_merge_)
+            merge_terms();
 
         // reorder contractions in equations
         reorder();
@@ -928,9 +951,6 @@ namespace pdaggerq {
         mem_map_pre_ = mem_map_;
 
         bool format_sigma = has_sigma_vecs_ && format_sigma_;
-
-        if (allow_merge_)
-            merge_terms(); // merge similar terms
 
         // substitute scalars first
         substitute(format_sigma, true);
@@ -942,6 +962,10 @@ namespace pdaggerq {
             // apply substitutions again to find any new sigma vectors
             substitute(false, false);
         }
+
+        // merge similar terms
+        if (allow_merge_)
+            merge_terms();
 
         // substitute again for good measure
         substitute(false, false);
