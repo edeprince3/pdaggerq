@@ -847,13 +847,14 @@ namespace pdaggerq {
         if (term1.size() > 1 && !similar_vertices) {
 
             // check that the linkages are equivalent
-            LinkagePtr term1_link = as_link(term1.lhs_ + term1.term_linkage_);
-            LinkagePtr term2_link = as_link(term2.lhs_ + term2.term_linkage_);
+            auto term1_link = term1.lhs_ + term1.term_linkage_;
+            auto term2_link = term2.lhs_ + term2.term_linkage_;
 
             if (*term1_link != *term2_link) return false;
+            return true;
 
             // if so, ensure that the lines are exactly the same
-            return term1_link->lines() == term1_link->lines();
+//            return term1_link->lines() == term2_link->lines();
         }
 
         return similar_vertices;

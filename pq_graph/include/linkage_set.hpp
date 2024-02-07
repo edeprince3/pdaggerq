@@ -71,6 +71,12 @@ namespace pdaggerq {
         }
     }; // struct linkage_pred
 
+    struct LinkagePermutedEqual {
+        bool operator()(const ConstLinkagePtr &lhs, const ConstLinkagePtr &rhs) const {
+            return lhs->permuted_equals(*rhs).first;
+        }
+    }; // struct linkage_pred
+
     class linkage_set {
 
         mutable std::mutex mtx_; // mutex for thread safety

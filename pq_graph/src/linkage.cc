@@ -26,6 +26,7 @@
 #include <memory>
 #include <utility>
 #include <cstring>
+#include <numeric>
 #include "../include/linkage.h"
 
 namespace pdaggerq {
@@ -386,28 +387,84 @@ namespace pdaggerq {
         return !(*this == other);
     }
 
+    /**
+     * Tests if two linkages are equivalent up to permutation of the external lines
+     * @param other linkage to compare
+     * @return pair of bools:
+     *      1) true if equivalent up to permutation
+     *      2) true if the parity of the permutation is odd
+     */
     pair<bool, bool> Linkage::permuted_equals(const Linkage &other) const {
-        // first test if the linkages are equal
+
+        throw std::runtime_error("Linkage::permuted_equals() is not operational");
+
+        // check if the linkages are equivalent
         if (*this == other) return {true, false};
 
-        // test if the linkages have the same number of vertices
-        if (depth_ != other.depth_) return {false, false};
+        // check if the names of the linkages are the same (indicates same vertices are being linked)
+        if (this->name() != other.name()) return {false, false};
 
-        // extract total vector of vertices
-        const vector<ConstVertexPtr> &this_vert = vertices();
-        const vector<ConstVertexPtr> &other_vert = other.vertices();
+        // ensure the same number of lines
+        if (this->rank() != other.rank())
+            return {false, false};
 
-        // check if the vertices are isomorphic and keep track of the number of permutations
-        bool swap_sign = false;
-        for (size_t i = 0; i < depth_; i++) {
-            bool odd_perm = false;
-            bool same_to_perm = is_isomorphic(*this_vert[i], *other_vert[i], odd_perm);
-            if (!same_to_perm) return {false, false};
-            if (odd_perm) swap_sign = !swap_sign;
+        // ensure same number of line types (the sum of the similarLineHashes should be the same for both linkages)
+        constexpr SimilarLineHash similarLineHash;
+        size_t this_line_sum = 0, other_line_sum = 0;
+        for (const Line &line : this->lines_) this_line_sum  += similarLineHash(line);
+        for (const Line &line : other.lines_) other_line_sum += similarLineHash(line);
+
+        if (this_line_sum != other_line_sum)
+            return {false, false};
+
+        // create a new linkage of this for every permutation of the external lines
+        size_t rank = this->rank();
+        size_t perm_vec[rank];
+        std::iota(perm_vec, perm_vec + this->rank(), 0);
+
+        // initialize map of lines to their replacement lines
+        unordered_map<Line, Line, LineHash> replacement_map;
+
+        // recursively replace the lines of the vertices with the permuted lines
+        vector<ConstVertexPtr> this_vertices = this->vertices();
+        vector<ConstVertexPtr> other_vertices = other.vertices();
+
+        // remake the other linkage from its vertices (in case the tree structure is different, but equivalent)
+        LinkagePtr other_linkage = link(other_vertices);
+
+        bool is_odd = false;
+        while (std::next_permutation(perm_vec, perm_vec + rank)) {
+
+            // update parity of permutation
+            is_odd = !is_odd;
+
+            // map the lines to their replacement lines
+            replacement_map.clear();
+            for (size_t i = 0; i < rank; i++) {
+                replacement_map[this->lines_[i]] = other.lines_[perm_vec[i]];
+            }
+
+            // generate permuted vertices
+            vector<ConstVertexPtr> permuted_vertices;
+            permuted_vertices.reserve(this_vertices.size());
+            for (const ConstVertexPtr &vertex : this_vertices){
+                VertexPtr permuted_vertex = vertex->clone_ptr();
+                permuted_vertex->replace_lines(replacement_map);
+                permuted_vertices.push_back(permuted_vertex);
+            }
+
+            // create linkage from permuted vertices and
+            LinkagePtr permuted_linkage = link(permuted_vertices);
+
+            // return whether the permuted linkage is equivalent to the other linkage
+            // and the parity of the permutation
+            if (*permuted_linkage == *other_linkage)
+                return {true, is_odd};
+
         }
 
-        // if the linkages are isomorphic, return true and if the permutation is odd
-        return {true, swap_sign};
+        // if no permutation is equivalent, return false
+        return {false, false};
 
     }
 

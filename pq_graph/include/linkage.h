@@ -234,8 +234,13 @@ namespace pdaggerq {
             return *this == *otherPtr;
         }
 
-        // TODO: we need an equality operator to test if two linkages are the same up to a permutation of the
-        //  lines in the vertices and return the number of permutations made.
+        /**
+         * Tests if two linkages are equivalent up to permutation of the external lines
+         * @param other linkage to compare
+         * @return pair of bools:
+         *      1) true if equivalent up to permutation
+         *      2) true if the parity of the permutation is odd
+         */
         pair<bool, bool> permuted_equals(const Linkage &other) const;
 
 

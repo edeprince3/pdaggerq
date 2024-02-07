@@ -199,6 +199,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     // initialize best flop scaling and memory scaling with rhs
     scaling_map best_flop_map = flop_map_;
     scaling_map best_mem_map = mem_map_;
+    bool best_is_odd = false;
     vector<ConstVertexPtr> best_vertices = rhs_;
 
     vector<ConstVertexPtr> link_vec = linkage->to_vector();
@@ -256,7 +257,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     Term new_term(*this);
 
     // iterate over all possible orderings of vertex subsets
-    auto op = [this, &new_term, &best_flop_map, &best_mem_map, &best_vertices,
+    auto op = [this, &new_term, &best_flop_map, &best_mem_map, &best_vertices, &best_is_odd,
                &madeSub, &linkage, allow_equality](const vector<size_t> &subset) {
 
         // build rhs from subset indices
@@ -268,7 +269,11 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
         // make linkage from rhs with subset indices
         LinkagePtr this_linkage = Linkage::link(subset_vec);
 
-        // skip if linkage is not equivalent to input linkage
+        // skip if linkage is not equivalent to input linkage, up to permutation
+//        auto [is_equiv, odd_parity] = this_linkage->permuted_equals(*linkage);
+//        if (!is_equiv) return;
+
+        bool odd_parity = false;
         if (*linkage != *this_linkage)
             return;
 
@@ -311,6 +316,8 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
             best_flop_map = new_flop;
             best_mem_map = new_mem;
             best_vertices = new_rhs;
+            best_is_odd = odd_parity;
+
             madeSub = true;
         }
     };
@@ -323,6 +330,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
         rhs_ = best_vertices;
         request_update(); // set flags for optimization
         reorder();
+        if (best_is_odd) coefficient_ *= -1;
     }
 
     // return a boolean indicating if a substitution was made
