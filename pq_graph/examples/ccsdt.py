@@ -75,11 +75,12 @@ def load_pq():
     graph = pdaggerq.pq_graph({
         'verbose': True,
         'nthreads': -1,
+        'allow_merge': True,
     })
     
     # load energy
-    pq.load("energy.bin")
-    graph.add(pq, "energy")
+    #pq.load("energy.bin")
+    #graph.add(pq, "energy")
 
     # load singles_resid
     pq.load("singles_resid.bin")
@@ -95,7 +96,7 @@ def load_pq():
     
     return graph
     
-generate_pq()
+#generate_pq()
 graph = load_pq()
 
 graph.optimize()
