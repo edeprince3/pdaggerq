@@ -1081,10 +1081,8 @@ void pq_helper::simplify() {
         // re-classify fluctuation potential terms
         reclassify_integrals(pq_str);
 
-        // replace any funny labels that were added with conventional ones (fermi vacumm only)
-        if ( vacuum == "FERMI" ) {
-            use_conventional_labels(pq_str);
-        }
+        // replace any funny labels that were added with conventional ones
+        use_conventional_labels(pq_str);
     }
 
     // try to cancel similar terms
