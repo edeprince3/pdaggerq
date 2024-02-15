@@ -26,7 +26,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 # find python and set variables for:
 #     the interpreter, include dirs, libraries, and version
-find_package(Python3 REQUIRED)
+#find_package(Python3 REQUIRED)
+find_package(Python 3.11 EXACT COMPONENTS Interpreter Development)
+
 set(PYTHON_EXECUTABLE   ${Python3_EXECUTABLE})
 set(PYTHON_INCLUDE_DIRS ${Python3_INCLUDE_DIRS})
 set(PYTHON_LIBRARIES    ${Python3_LIBRARIES})
@@ -36,7 +38,7 @@ include(FetchContent)
 FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11
-    GIT_TAG        v2.5.0
+    GIT_TAG        v2.11.1
 )
 
 FetchContent_GetProperties(pybind11)
