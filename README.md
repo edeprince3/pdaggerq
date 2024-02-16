@@ -7,7 +7,8 @@ In the examples section we provide worked examples that generate equations and P
 lambda-CCSD, CC3, CCSDT, CCSDTQ and more.
 
 ## Installation
-Installing pdaggerq requires cmake is installed on your system.  To install first clone the package
+Installing pdaggerq requires cmake is installed on your system.  The package is also requires Python version 3.11.
+To install first clone the package
 
 ```
 git clone git@github.com:edeprince3/pdaggerq.git
@@ -28,6 +29,13 @@ be rebuilt by running
 ```
 python setup.py clean; python setup.py install
 ```
+
+If you would like to install pdaggerq with a version of Python other than 3.11, you can change the line in 
+CMakeLists.txt that reads 
+```
+find_package(Python 3.11 EXACT COMPONENTS Interpreter Development)
+```
+to use your preferred version of Python.
 
 ## Quickstart
 
