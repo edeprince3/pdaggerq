@@ -153,7 +153,7 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in);
 void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
+void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count);
 
 // split strings containing objects with general indices into many strings
 void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > & mystrings, int & occ_label_count, int & vir_label_count);

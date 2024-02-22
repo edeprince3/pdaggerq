@@ -1827,13 +1827,12 @@ void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
 }*/
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count){
         
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators
     // (h, g, f, and v). If it does, then the string must be split to account 
     // explicitly for sums over occupied and virtual labels
-
 
     // how many integrals objects are we dealing with?
 
@@ -1851,8 +1850,8 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
     }
 
     std::vector<std::shared_ptr<pq_string> > mystrings;
-    int occ_label_count = 0;
-    int vir_label_count = 0;
+    //int occ_label_count = 0;
+    //int vir_label_count = 0;
     add_many_strings(0, n, in, mystrings, occ_label_count, vir_label_count);
 
     for (auto & mystring: mystrings ) {
@@ -1923,9 +1922,13 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
     //}   
     //printf("this is the string on input\n");
     //in->print();
-    
+
     // need number of strings to be square of number of general indices  (or one)
     for (int string_num = 0; string_num < n_gen_idx * n_gen_idx; string_num++) {
+
+        // reset occ/vir labels
+        int my_occ_label_count = occ_label_count;
+        int my_vir_label_count = vir_label_count;
 
         std::shared_ptr<pq_string> mystring (new pq_string("FERMI"));
 
@@ -1942,6 +1945,16 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
                 }
                 count++;
             }
+        }
+        // symbols are missing?
+        for (auto & me : in->symbol) {
+            mystring->symbol.push_back(me);
+        }
+        for (auto me : in->is_dagger_fermi) {
+            mystring->is_dagger_fermi.push_back(me);
+        }
+        for (auto me : in->is_dagger) {
+            mystring->is_dagger.push_back(me);
         }
             
         // factors:
@@ -2190,8 +2203,8 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
 
             }
         }
-        occ_label_count += n_gen_idx;
-        vir_label_count += n_gen_idx;
+        my_occ_label_count += n_gen_idx;
+        my_vir_label_count += n_gen_idx;
 
 	// at this point, we've expanded all of the integral objects
 	// and are ready to add the amplitudes, etc. to the strings
@@ -2257,20 +2270,14 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
                     count++;
                 }
             }
-            //printf("// what is going on:\n");
-            //mystring->print();
-            add_many_strings(iter + 1, n, mystring, mystrings, occ_label_count, vir_label_count);
+            add_many_strings(iter + 1, n, mystring, mystrings, my_occ_label_count, my_vir_label_count);
 
 	}else {
 
+            // ok, now we're done
             //printf("// ok, now we're done?\n");
             //mystring->print();
-
-            // ok, now we're done
             mystrings.push_back(mystring);
-            // can reset these label counters now
-            occ_label_count = 0;
-            vir_label_count = 0;
 	}
     }
 }

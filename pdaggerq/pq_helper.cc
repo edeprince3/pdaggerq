@@ -376,9 +376,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             bool has_w0       = false;
 
-            // stupid design choice ... o1-o4 and v1-v4 are already used
-            int occ_label_count = 5;
-            int vir_label_count = 5;
+            int occ_label_count = 0;
+            int vir_label_count = 0;
             int gen_label_count = 0;
 
             // apply any extra operators on left or right:
@@ -1051,7 +1050,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             if (vacuum == "TRUE") {
                 add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
             } else {
-                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations);
+                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations, occ_label_count, vir_label_count);
             }
         }
     }
