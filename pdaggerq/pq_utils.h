@@ -155,6 +155,9 @@ void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
 void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
+// split strings containing objects with general indices into many strings
+void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > & mystrings, int & occ_label_count, int & vir_label_count);
+
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops);
 
