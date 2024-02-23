@@ -1133,9 +1133,12 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
     //   exit(1);
     //}
    
+    static std::vector<std::string> occ_out {"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", 
+                                             "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
+
     for (size_t i = 0; i < in->ints["occ_repulsion"].size(); i++) {
+
         // pick summation label not included in string already
-        static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
         std::string idx;
         
         int do_skip = -999;
@@ -1154,8 +1157,8 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
             exit(1);
         }
         
-        std::string idx1 = occ_repulsion[0].labels[0];
-        std::string idx2 = occ_repulsion[0].labels[1];
+        std::string idx1 = occ_repulsion[i].labels[0];
+        std::string idx2 = occ_repulsion[i].labels[1];
 
         // new eri
         integrals ints;
