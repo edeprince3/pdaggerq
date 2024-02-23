@@ -167,6 +167,9 @@ void removeStar(std::string &x);
 /// remove "(" and ")" from std::string
 void removeParentheses(std::string &x);
 
+/// expand general labels, p -> o,v
+bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<std::shared_ptr<pq_string> > & list, int occ_label_count, int vir_label_count);
+
 }
 
 #endif 

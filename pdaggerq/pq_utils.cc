@@ -1124,7 +1124,6 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
     
     std::vector<integrals> & occ_repulsion = occ_pos->second;
     
-    
     //if ( occ_repulsion.size() > 1 ) {
     //   printf("\n");
     //   printf("error: only support for one integral type object per string\n");
@@ -1467,62 +1466,86 @@ void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
     cleanup(ordered, find_paired_permutations);
 }
 
+// expand general labels, p -> o, v
+bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<std::shared_ptr<pq_string> > & list, int occ_label_count, int vir_label_count) {
+
+    for (size_t i = 0; i < in->string.size(); i++) {
+
+        std::string me = in->string[i];
+
+        std::string me_nostar = me;
+	std::string maybe_a_star = "";
+        if (me_nostar.find('*') != std::string::npos ){
+	    maybe_a_star = "*";
+            removeStar(me_nostar);
+        }
+
+        // is this a general label?
+        if ( !is_occ(me_nostar) && !is_vir(me_nostar) ) {
+
+            std::shared_ptr<pq_string> newguy_occ = std::make_shared<pq_string>(in.get(), true);
+            std::shared_ptr<pq_string> newguy_vir = std::make_shared<pq_string>(in.get(), true);
+
+	    std::string occ_label = "o" + std::to_string(occ_label_count+1);
+	    std::string vir_label = "v" + std::to_string(vir_label_count+1);
+
+            newguy_occ->string = in->string;
+            newguy_vir->string = in->string;
+
+            newguy_occ->string[i] = occ_label + maybe_a_star;
+            newguy_vir->string[i] = vir_label + maybe_a_star;
+
+            replace_index_everywhere(newguy_occ, me_nostar, occ_label);
+            replace_index_everywhere(newguy_vir, me_nostar, vir_label);
+
+            list.push_back(newguy_occ);
+            list.push_back(newguy_vir);
+
+            return false;
+	}
+    }
+    return true;
+}
+
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-/*void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count){
         
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators
     // (h, g, f, and v). If it does, then the string must be split to account 
     // explicitly for sums over occupied and virtual labels
-    
-    int n_gen_idx = 1;
-    int n_integral_objects = 0;
-    std::string integral_type = "none";
-    for (auto & ints_pair : in->ints) {
-        std::string type = ints_pair.first;
-        std::vector<integrals> & ints = ints_pair.second;
-        for (integrals & integral : ints) {
-            n_integral_objects++;
-            n_gen_idx = integral.labels.size();
-            integral_type = type;
-        }
-    }
-    //if ( n_integral_objects > 1 ) {
-    //    printf("\n");
-    //    printf("    error: only support for a single integral object per string\n");
-    //    printf("\n");
-    //    exit(1);
-    //}   
-    
-    // need number of strings to be square of number of general indices  (or one)
-    for (int string_num = 0; string_num < n_gen_idx * n_gen_idx; string_num++) {
 
-        std::shared_ptr<pq_string> mystring (new pq_string("FERMI"));
-            
-        // factors:
-        if ( in->factor > 0.0 ) {
-            mystring->sign = 1;
-            mystring->factor = fabs(in->factor);
-        }else {
-            mystring->sign = -1;
-            mystring->factor = fabs(in->factor);
-        }
-        
-        mystring->has_w0       = in->has_w0;
-    
-        integrals ints;
+    std::vector< std::shared_ptr<pq_string> > mystrings;
+    mystrings.push_back(in);
 
-        int my_gen_idx = 0;
-        for (size_t i = 0; i < in->string.size(); i++) {
-            std::string me = in->string[i];
-    
+    bool done_expanding = false;
+    do {
+        std::vector< std::shared_ptr<pq_string> > list;
+        done_expanding = true;
+        for (const std::shared_ptr<pq_string> & pq_str : mystrings) {
+            bool am_i_done = expand_general_labels(pq_str, list, occ_label_count, vir_label_count);
+            if ( !am_i_done ) done_expanding = false;
+        }
+        if (!done_expanding) {
+            mystrings.clear();
+            for (std::shared_ptr<pq_string> & pq_str : list) {
+                mystrings.push_back(pq_str);
+            }
+            occ_label_count++;
+            vir_label_count++;
+        }
+    }while(!done_expanding);
+
+    // now, we need to convert the list "mystrings[i]->string" into symbols and daggers
+    for (auto & mystring: mystrings ) {
+        for (size_t i = 0; i < mystring->string.size(); i++) {
+            std::string me = mystring->string[i];
 
             std::string me_nostar = me;
             if (me_nostar.find('*') != std::string::npos ){
                 removeStar(me_nostar);
             }
 
-            // fermi vacuum 
             if ( is_vir(me_nostar) ) {
                 if (me.find('*') != std::string::npos ){
                     mystring->is_dagger.push_back(true);
@@ -1541,318 +1564,12 @@ void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
                     mystring->is_dagger_fermi.push_back(true);
                 }
                 mystring->symbol.push_back(me_nostar);
-            }else {
-
-                //two-index integrals
-                // 00, 01, 10, 11
-                if ( n_gen_idx == 2 ) {
-                    if ( my_gen_idx == 0 ) {
-                        if ( string_num == 0 || string_num == 1 ) {
-                            // first index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o1");
-                            mystring->symbol.emplace_back("o1");
-                        }else {
-                            // first index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger_fermi.push_back(false);
-                                mystring->is_dagger.push_back(false);
-                            }
-                            ints.labels.emplace_back("v1");
-                            mystring->symbol.emplace_back("v1");
-                        }
-                    }else {
-                        if ( string_num == 0 || string_num == 2 ) {
-                            // second index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o2");
-                            mystring->symbol.emplace_back("o2");
-                        }else {
-                            // second index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v2");
-                            mystring->symbol.emplace_back("v2");
-                        }
-                    }
-                }
-
-                //four-index integrals
-
-                // managing these labels is so very confusing:
-                // p*q*sr (pr|qs) -> o*t*uv (ov|tu), etc.
-                // p*q*sr (pr|qs) -> w*x*yz (wz|xy), etc.
-
-                if ( n_gen_idx == 4 ) {
-                    if ( my_gen_idx == 0 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num == 0 ||
-                             string_num == 1 ||
-                             string_num == 2 ||
-                             string_num == 3 ||
-                             string_num == 4 ||
-                             string_num == 5 ||
-                             string_num == 6 ||
-                             string_num == 7 ) {
-
-                            // first index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o1");
-                            mystring->symbol.emplace_back("o1");
-                        }else {
-                            // first index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v1");
-                            mystring->symbol.emplace_back("v1");
-                        }
-                    }else if ( my_gen_idx == 1 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num ==  0 ||
-                             string_num ==  1 ||
-                             string_num ==  2 ||
-                             string_num ==  3 ||
-                             string_num ==  8 ||
-                             string_num ==  9 ||
-                             string_num == 10 ||
-                             string_num == 11 ) {
-                            // second index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o2");
-                            mystring->symbol.emplace_back("o2");
-                        }else {
-                            // second index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v2");
-                            mystring->symbol.emplace_back("v2");
-                        }
-                    }else if ( my_gen_idx == 2 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num ==  0 ||
-                             string_num ==  1 ||
-                             string_num ==  4 ||
-                             string_num ==  5 ||
-                             string_num ==  8 ||
-                             string_num ==  9 ||
-                             string_num == 12 ||
-                             string_num == 13 ) {
-                            // third index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o3");
-                            mystring->symbol.emplace_back("o3");
-                        }else {
-                            // third index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v3");
-                            mystring->symbol.emplace_back("v3");
-                        }
-                    }else {
-                        if ( string_num ==  0 ||
-                             string_num ==  2 ||
-                             string_num ==  4 ||
-                             string_num ==  6 ||
-                             string_num ==  8 ||
-                             string_num == 10 ||
-                             string_num == 12 ||
-                             string_num == 14 ) {
-                            // fourth index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o4");
-                            mystring->symbol.emplace_back("o4");
-                        }else {
-                            // fourth index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v4");
-                            mystring->symbol.emplace_back("v4");
-                        }
-                    }
-                }
-                my_gen_idx++;
             }
-        }
-
-	// at this point, we've expanded all of the integral objects
-	// and are ready to add the amplitudes, etc. to the strings
-
-        for (auto & amps_pair : in->amps) {
-            char type = amps_pair.first;
-            std::vector<amplitudes> & amps = amps_pair.second;
-
-            // find amplitudes of this type in mystring
-            auto amps_pos = mystring->amps.find(type);
-            if ( amps_pos == mystring->amps.end() ) {
-                // create empty vector for this type
-                mystring->amps[type];
-                amps_pos = mystring->amps.find(type);
-            }
-            std::vector<amplitudes> & myamps = amps_pos->second;
-            for (const amplitudes & amp : amps) {
-                myamps.push_back( amp );
-            }
-        }
-
-        // now, string is complete, but ints need to be pushed onto the 
-        // string, and the labels in four-index integrals need to be 
-        // reordered p*q*sr(pq|sr) -> (pr|qs)
-        if ( integral_type == "eri" || integral_type == "two_body" ) {
-
-            // dirac notation: g(pqrs) p*q*sr
-            std::vector<std::string> tmp;
-            tmp.push_back(ints.labels[0]);
-            tmp.push_back(ints.labels[1]);
-            tmp.push_back(ints.labels[3]);
-            tmp.push_back(ints.labels[2]);
-
-            ints.labels.clear();
-            ints.labels.push_back(tmp[0]);
-            ints.labels.push_back(tmp[1]);
-            ints.labels.push_back(tmp[2]);
-            ints.labels.push_back(tmp[3]);
-
-            mystring->ints[integral_type].push_back(ints);
-
-        }else if ( integral_type != "none" ) {
-
-            mystring->ints[integral_type].push_back(ints);
-        }
-
-        for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
-            mystring->is_boson_dagger.push_back(in->is_boson_dagger[i]);
-        }
-
-        if ( print_level > 0 ) {
-            printf("\n");
-            printf("    ");
-            printf("// starting string:\n");
-            mystring->print();
-        }
-
-        // rearrange strings
-
-        std::vector< std::shared_ptr<pq_string> > tmp;
-        tmp.push_back(mystring);
-
-        bool done_rearranging = false;
-        do {
-            std::vector< std::shared_ptr<pq_string> > list;
-            done_rearranging = true;
-            for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-                bool am_i_done = swap_operators_fermi_vacuum(pq_str, list);
-                if ( !am_i_done ) done_rearranging = false;
-            }
-            tmp.clear();
-            for (std::shared_ptr<pq_string> & pq_str : list) {
-                if ( !pq_str->skip ) {
-                    tmp.push_back(pq_str);
-                }
-            }
-        }while(!done_rearranging);
-
-        //ordered.clear();
-        for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-            ordered.push_back(pq_str);
-        }
-        tmp.clear();
-    }
-}*/
-
-// bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count){
-        
-    // if normal order is defined with respect to the fermi vacuum, we must
-    // check here if the input string contains any general-index operators
-    // (h, g, f, and v). If it does, then the string must be split to account 
-    // explicitly for sums over occupied and virtual labels
-
-    // how many integrals objects are we dealing with?
-
-    int n_integral_objects = 0;
-    std::string integral_type = "none";
-    for (auto & ints_pair : in->ints) {
-        std::vector<integrals> & ints = ints_pair.second;
-        for (integrals & integral : ints) {
-            n_integral_objects++;
         }
     }
-    int n = 1;
-    if ( n_integral_objects > 1 ) {
-        n = n_integral_objects;
-    }
 
-    std::vector<std::shared_ptr<pq_string> > mystrings;
-    //int occ_label_count = 0;
-    //int vir_label_count = 0;
-    add_many_strings(0, n, in, mystrings, occ_label_count, vir_label_count);
+    // at this point, we've expanded all of the general labels
+    // and are ready to bring the strings to normal order
 
     for (auto & mystring: mystrings ) {
 
@@ -1891,401 +1608,5 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
         tmp.clear();
     }
 }
-
-void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > & mystrings,
-                      int & occ_label_count, int & vir_label_count) {
-  
- 
-    int n_gen_idx = 1;
-    int n_integral_objects = 0;
-    std::string integral_type = "none";
-    int count = 0;
-    printf("target integral is iter = %5i\n", iter);
-    std::vector<std::string> target_labels;
-    for (size_t i = 0; i < std::size(in->integral_types); i++) {
-        std::string type = in->integral_types[i];
-        for (size_t j = 0; j < in->ints[type].size(); j++) {
-            // am i looking at the correct integrals?
-            if ( count == iter ) {
-                n_gen_idx = in->ints[type][j].labels.size();
-
-                // which are the labels in this integral object? we need to
-                // know which labels from in->string to work on
-                for (size_t k = 0; k < n_gen_idx; k++) {
-                    target_labels.push_back(in->ints[type][j].labels[k]);
-                    printf("this is the one we want: %5i %5s %5s\n",j, type.c_str(), in->ints[type][j].labels[k].c_str());fflush(stdout);
-                }
-                integral_type = type;
-            }
-            count++;
-        }
-    }
-
-    printf("this is the string on input\n");
-    //in->print();
-
-    // need number of strings to be square of number of general indices  (or one)
-    for (int string_num = 0; string_num < n_gen_idx * n_gen_idx; string_num++) {
-
-        // reset occ/vir labels
-        int my_occ_label_count = occ_label_count;
-        int my_vir_label_count = vir_label_count;
-
-        std::shared_ptr<pq_string> mystring (new pq_string("FERMI"));
-
-        // make sure this string has integral objects we've already handled
-        int count = 0;
-        for (size_t i = 0; i < std::size(in->integral_types); i++) {
-            std::string type = in->integral_types[i];
-            for (size_t j = 0; j < in->ints[type].size(); j++) {
-                // am i looking at the correct integrals?
-                if ( count < iter ) {
-                    mystring->ints[type].push_back(in->ints[type][j]);
-                }
-                count++;
-            }
-        }
-
-        // symbols are missing?
-        for (auto & me : in->symbol) {
-            mystring->symbol.push_back(me);
-        }
-        for (auto me : in->is_dagger_fermi) {
-            mystring->is_dagger_fermi.push_back(me);
-        }
-        for (auto me : in->is_dagger) {
-            mystring->is_dagger.push_back(me);
-        }
-            
-        // factors:
-        if ( in->factor > 0.0 ) {
-            mystring->sign = 1;
-            mystring->factor = fabs(in->factor);
-        }else {
-            mystring->sign = -1;
-            mystring->factor = fabs(in->factor);
-        }
-        
-        mystring->has_w0       = in->has_w0;
-    
-        integrals ints;
-
-        int my_gen_idx = 0;
-        for (size_t i = 0; i < in->string.size(); i++) {
-            std::string me = in->string[i];
-            printf("ok, this is the string we're working on %s\n", me.c_str());
-
-            std::string me_nostar = me;
-            if (me_nostar.find('*') != std::string::npos ){
-                removeStar(me_nostar);
-            }
-
-            // fermi vacuum 
-            if ( is_vir(me_nostar) ) {
-                if (me.find('*') != std::string::npos ){
-                    mystring->is_dagger.push_back(true);
-                    mystring->is_dagger_fermi.push_back(true);
-                }else {
-                    mystring->is_dagger.push_back(false);
-                    mystring->is_dagger_fermi.push_back(false);
-                }
-                mystring->symbol.push_back(me_nostar);
-            }else if ( is_occ(me_nostar) ) {
-                if (me.find('*') != std::string::npos ){
-                    mystring->is_dagger.push_back(true);
-                    mystring->is_dagger_fermi.push_back(false);
-                }else {
-                    mystring->is_dagger.push_back(false);
-                    mystring->is_dagger_fermi.push_back(true);
-                }
-                mystring->symbol.push_back(me_nostar);
-
-            // is this one of the general labels we're targeting?
-            }else if ( std::find(target_labels.begin(), target_labels.end(), me_nostar) != target_labels.end() ) {
-                printf("this is the general label we're supposed to be working on: %s\n", me.c_str());
-
-                //two-index integrals
-                // 00, 01, 10, 11
-                if ( n_gen_idx == 2 ) {
-                    if ( my_gen_idx == 0 ) {
-                        if ( string_num == 0 || string_num == 1 ) {
-                            // first index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o" + std::to_string(occ_label_count+1));
-                            mystring->symbol.emplace_back("o" + std::to_string(occ_label_count+1));
-                        }else {
-                            // first index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger_fermi.push_back(false);
-                                mystring->is_dagger.push_back(false);
-                            }
-                            ints.labels.emplace_back("v" + std::to_string(vir_label_count+1));
-                            mystring->symbol.emplace_back("v" + std::to_string(vir_label_count+1));
-                        }
-                    }else {
-                        if ( string_num == 0 || string_num == 2 ) {
-                            // second index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o" + std::to_string(occ_label_count+2));
-                            mystring->symbol.emplace_back("o" + std::to_string(occ_label_count+2));
-                        }else {
-                            // second index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v" + std::to_string(vir_label_count+2));
-                            mystring->symbol.emplace_back("v" + std::to_string(vir_label_count+2));
-                        }
-                    }
-                }
-
-                //four-index integrals
-
-                // managing these labels is so very confusing:
-                // p*q*sr (pr|qs) -> o*t*uv (ov|tu), etc.
-                // p*q*sr (pr|qs) -> w*x*yz (wz|xy), etc.
-
-                if ( n_gen_idx == 4 ) {
-                    if ( my_gen_idx == 0 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num == 0 ||
-                             string_num == 1 ||
-                             string_num == 2 ||
-                             string_num == 3 ||
-                             string_num == 4 ||
-                             string_num == 5 ||
-                             string_num == 6 ||
-                             string_num == 7 ) {
-
-                            // first index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o" + std::to_string(occ_label_count+1));
-                            mystring->symbol.emplace_back("o" + std::to_string(occ_label_count+1));
-                        }else {
-                            // first index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v" + std::to_string(vir_label_count+1));
-                            mystring->symbol.emplace_back("v" + std::to_string(vir_label_count+1));
-                        }
-                    }else if ( my_gen_idx == 1 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num ==  0 ||
-                             string_num ==  1 ||
-                             string_num ==  2 ||
-                             string_num ==  3 ||
-                             string_num ==  8 ||
-                             string_num ==  9 ||
-                             string_num == 10 ||
-                             string_num == 11 ) {
-                            // second index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o" + std::to_string(occ_label_count+2));
-                            mystring->symbol.emplace_back("o" + std::to_string(occ_label_count+2));
-                        }else {
-                            // second index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v" + std::to_string(vir_label_count+2));
-                            mystring->symbol.emplace_back("v" + std::to_string(vir_label_count+2));
-                        }
-                    }else if ( my_gen_idx == 2 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num ==  0 ||
-                             string_num ==  1 ||
-                             string_num ==  4 ||
-                             string_num ==  5 ||
-                             string_num ==  8 ||
-                             string_num ==  9 ||
-                             string_num == 12 ||
-                             string_num == 13 ) {
-                            // third index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o" + std::to_string(occ_label_count+3));
-                            mystring->symbol.emplace_back("o" + std::to_string(occ_label_count+3));
-                        }else {
-                            // third index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v" + std::to_string(vir_label_count+3));
-                            mystring->symbol.emplace_back("v" + std::to_string(vir_label_count+3));
-                        }
-                    }else if ( my_gen_idx == 3 ) {
-                        if ( string_num ==  0 ||
-                             string_num ==  2 ||
-                             string_num ==  4 ||
-                             string_num ==  6 ||
-                             string_num ==  8 ||
-                             string_num == 10 ||
-                             string_num == 12 ||
-                             string_num == 14 ) {
-                            // fourth index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o" + std::to_string(occ_label_count+4));
-                            mystring->symbol.emplace_back("o" + std::to_string(occ_label_count+4));
-                        }else {
-                            // fourth index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v" + std::to_string(vir_label_count+4));
-                            mystring->symbol.emplace_back("v" + std::to_string(vir_label_count+4));
-                        }
-                    }
-                }
-
-                my_gen_idx++;
-
-            }else {
-                // we should save this general label for next call to add_many_strings
-                printf("save this string for next time: %s\n", me.c_str());fflush(stdout);
-                mystring->string.push_back(me);
-            }
-            
-        }
-        my_occ_label_count += n_gen_idx;
-        my_vir_label_count += n_gen_idx;
-
-	// at this point, we've expanded all of the integral objects
-	// and are ready to add the amplitudes, etc. to the strings
-
-        for (auto & amps_pair : in->amps) {
-            char type = amps_pair.first;
-            std::vector<amplitudes> & amps = amps_pair.second;
-
-            // find amplitudes of this type in mystring
-            auto amps_pos = mystring->amps.find(type);
-            if ( amps_pos == mystring->amps.end() ) {
-                // create empty vector for this type
-                mystring->amps[type];
-                amps_pos = mystring->amps.find(type);
-            }
-            std::vector<amplitudes> & myamps = amps_pos->second;
-            for (const amplitudes & amp : amps) {
-                myamps.push_back( amp );
-            }
-        }
-
-        for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
-            mystring->is_boson_dagger.push_back(in->is_boson_dagger[i]);
-        }
-
-        // now, string is complete, but ints need to be pushed onto the 
-        // string, and the labels in four-index integrals need to be 
-        // reordered p*q*sr(pq|sr) -> (pr|qs)
-        if ( integral_type == "eri" || integral_type == "two_body" ) {
-
-            // dirac notation: g(pqrs) p*q*sr
-            std::vector<std::string> tmp;
-            tmp.push_back(ints.labels[0]);
-            tmp.push_back(ints.labels[1]);
-            tmp.push_back(ints.labels[3]);
-            tmp.push_back(ints.labels[2]);
-
-            ints.labels.clear();
-            ints.labels.push_back(tmp[0]);
-            ints.labels.push_back(tmp[1]);
-            ints.labels.push_back(tmp[2]);
-            ints.labels.push_back(tmp[3]);
-
-            mystring->ints[integral_type].push_back(ints);
-
-        }else if ( integral_type != "none" ) {
-
-            mystring->ints[integral_type].push_back(ints);
-        }
-
-	// if not done, add remaining integrals terms and try again
-        if ( iter < n - 1 ) { 
-            int count = 0;
-            for (auto & ints_pair : in->ints) {
-                std::string type = ints_pair.first;
-                //std::vector<integrals> & ints = ints_pair.second;
-                //for (integrals & integral : ints) 
-                for (size_t i = 0; i < ints_pair.second.size(); i++) {
-                    // integrals we haven't covered yet ...
-                    if ( count > iter ) {
-                        mystring->ints[type].push_back(ints_pair.second[i]);
-                    }
-                    count++;
-                }
-            }
-            add_many_strings(iter + 1, n, mystring, mystrings, my_occ_label_count, my_vir_label_count);
-
-	}else {
-
-            // ok, now we're done
-            printf("// ok, now we're done? %s %i\n", integral_type.c_str(), n_gen_idx); fflush(stdout);
-            //mystring->print();
-            mystrings.push_back(mystring);
-	}
-    }
-}
-
 
 } // End namespaces
