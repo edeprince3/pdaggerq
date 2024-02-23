@@ -1117,6 +1117,8 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
 
 // re-classify fluctuation potential terms
 void reclassify_integrals(std::shared_ptr<pq_string> &in) {
+
+    //return;
     
     // find if occ_repulsion is present
     auto occ_pos = in->ints.find("occ_repulsion");
@@ -1130,9 +1132,8 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
     //   printf("\n");
     //   exit(1);
     //}
-    
-    if ( !occ_repulsion.empty() ) {
-        
+   
+    for (size_t i = 0; i < in->ints["occ_repulsion"].size(); i++) {
         // pick summation label not included in string already
         static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
         std::string idx;
@@ -1156,8 +1157,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
         std::string idx1 = occ_repulsion[0].labels[0];
         std::string idx2 = occ_repulsion[0].labels[1];
 
-        occ_repulsion.clear();
-        
+        // new eri
         integrals ints;
         
         ints.labels.clear();
@@ -1170,26 +1170,10 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
         
         ints.sort();
         
-        // check if the eri is already present in the map
-        auto eri_pos = in->ints.find("eri");
-        if ( eri_pos == in->ints.end() ) {
-            // create eri
-            in->ints["eri"].push_back(ints);
-            return;
-        }
-        
-        // else, check if any eris are in the vector
-        std::vector<integrals> & eri = eri_pos->second;
-        
-        //if ( !eri.empty() ) {
-        //    printf("\n");
-        //    printf("error: only support for one integral type object per string\n");
-        //    printf("\n");
-        //    exit(1);
-        //}
-        //eri.clear();
-        eri.push_back(ints);
+        in->ints["eri"].push_back(ints);
     }
+    in->ints["occ_repulsion"].clear();
+
 }
 
 // find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a
