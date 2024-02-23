@@ -1894,33 +1894,34 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
 
 void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > & mystrings,
                       int & occ_label_count, int & vir_label_count) {
-    
+  
+ 
     int n_gen_idx = 1;
     int n_integral_objects = 0;
     std::string integral_type = "none";
     int count = 0;
-    for (auto & ints_pair : in->ints) {
-        std::string type = ints_pair.first;
-        std::vector<integrals> & ints = ints_pair.second;
-        //for (integrals & integral : ints) 
-        for (size_t i = 0; i < ints_pair.second.size(); i++) {
+    printf("target integral is iter = %5i\n", iter);
+    std::vector<std::string> target_labels;
+    for (size_t i = 0; i < std::size(in->integral_types); i++) {
+        std::string type = in->integral_types[i];
+        for (size_t j = 0; j < in->ints[type].size(); j++) {
             // am i looking at the correct integrals?
             if ( count == iter ) {
-                //n_gen_idx = integral.labels.size();
-                n_gen_idx = ints_pair.second[i].labels.size();
+                n_gen_idx = in->ints[type][j].labels.size();
+
+                // which are the labels in this integral object? we need to
+                // know which labels from in->string to work on
+                for (size_t k = 0; k < n_gen_idx; k++) {
+                    target_labels.push_back(in->ints[type][j].labels[k]);
+                    printf("this is the one we want: %5i %5s %5s\n",j, type.c_str(), in->ints[type][j].labels[k].c_str());fflush(stdout);
+                }
                 integral_type = type;
             }
             count++;
         }
     }
 
-    //if ( n_integral_objects > 1 ) {
-    //    printf("\n");
-    //    printf("    error: only support for a single integral object per string\n");
-    //    printf("\n");
-    //    exit(1);
-    //}   
-    //printf("this is the string on input\n");
+    printf("this is the string on input\n");
     //in->print();
 
     // need number of strings to be square of number of general indices  (or one)
@@ -1934,18 +1935,17 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
 
         // make sure this string has integral objects we've already handled
         int count = 0;
-        for (auto & ints_pair : in->ints) {
-            std::string type = ints_pair.first;
-            std::vector<integrals> & ints = ints_pair.second;
-            //for (integrals & integral : ints) 
-            for (size_t i = 0; i < ints_pair.second.size(); i++) {
+        for (size_t i = 0; i < std::size(in->integral_types); i++) {
+            std::string type = in->integral_types[i];
+            for (size_t j = 0; j < in->ints[type].size(); j++) {
                 // am i looking at the correct integrals?
                 if ( count < iter ) {
-                    mystring->ints[type].push_back(ints_pair.second[i]);
+                    mystring->ints[type].push_back(in->ints[type][j]);
                 }
                 count++;
             }
         }
+
         // symbols are missing?
         for (auto & me : in->symbol) {
             mystring->symbol.push_back(me);
@@ -1973,6 +1973,7 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
         int my_gen_idx = 0;
         for (size_t i = 0; i < in->string.size(); i++) {
             std::string me = in->string[i];
+            printf("ok, this is the string we're working on %s\n", me.c_str());
 
             std::string me_nostar = me;
             if (me_nostar.find('*') != std::string::npos ){
@@ -1998,7 +1999,10 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
                     mystring->is_dagger_fermi.push_back(true);
                 }
                 mystring->symbol.push_back(me_nostar);
-            }else {
+
+            // is this one of the general labels we're targeting?
+            }else if ( std::find(target_labels.begin(), target_labels.end(), me_nostar) != target_labels.end() ) {
+                printf("this is the general label we're supposed to be working on: %s\n", me.c_str());
 
                 //two-index integrals
                 // 00, 01, 10, 11
@@ -2195,13 +2199,14 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
                     }
                 }
 
-                // extra general labels ...
-                if ( my_gen_idx >= n_gen_idx ) {
-                    mystring->string.push_back(in->string[i]);
-		}
                 my_gen_idx++;
 
+            }else {
+                // we should save this general label for next call to add_many_strings
+                printf("save this string for next time: %s\n", me.c_str());fflush(stdout);
+                mystring->string.push_back(me);
             }
+            
         }
         my_occ_label_count += n_gen_idx;
         my_vir_label_count += n_gen_idx;
@@ -2275,7 +2280,7 @@ void add_many_strings(int iter, int n, const std::shared_ptr<pq_string> &in, std
 	}else {
 
             // ok, now we're done
-            //printf("// ok, now we're done?\n");
+            printf("// ok, now we're done? %s %i\n", integral_type.c_str(), n_gen_idx); fflush(stdout);
             //mystring->print();
             mystrings.push_back(mystring);
 	}
