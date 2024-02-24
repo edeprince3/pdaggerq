@@ -375,7 +375,9 @@ std::vector<std::string> pq_string::get_string() {
         }
     }
 
+    // creation / annihilation operators
     for (size_t i = 0; i < symbol.size(); i++) {
+
         std::string tmp_symbol = symbol[i];
         if ( is_dagger[i] ) {
             tmp_symbol += "*";

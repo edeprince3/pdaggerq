@@ -37,6 +37,8 @@
 #include "pq_string.h"
 #include "pq_add_label_ranges.h"
 #include "pq_add_spin_labels.h"
+#include "pq_cumulant_expansion.h"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -44,6 +46,8 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 
 namespace pdaggerq {
+
+std::vector<int> empty_list = {};
 
 void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
@@ -57,6 +61,12 @@ void export_pq_helper(py::module& m) {
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
+        //.def("set_use_rdms", &pq_helper::set_use_rdms)
+        .def("set_use_rdms",
+             [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
+                 return self.set_use_rdms(do_use_rdms, ignore_cumulant);
+             },
+             py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
         .def("print",
              [](pq_helper& self, const std::string& string_type) {
                  return self.print(string_type);
@@ -117,6 +127,8 @@ pq_helper::pq_helper(const std::string &vacuum_type)
         exit(1);
     }
 
+    use_rdms = false;
+
     print_level = 0;
 
     // assume operators entering a similarity transformation
@@ -141,6 +153,11 @@ void pq_helper::set_find_paired_permutations(bool do_find_paired_permutations) {
 void pq_helper::set_print_level(int level) {
     print_level = level;
 }
+void pq_helper::set_use_rdms(bool do_use_rdms, std::vector<int> ignore_cumulant = {}) {
+    use_rdms = do_use_rdms;
+    ignore_cumulant_rdms = ignore_cumulant;
+}
+
 
 void pq_helper::set_right_operators(const std::vector<std::vector<std::string>> &in) {
 
@@ -1072,7 +1089,40 @@ void pq_helper::simplify() {
 
         // replace any funny labels that were added with conventional ones
         use_conventional_labels(pq_str);
+
+        // replace creation / annihilation operators with rdms
+        if ( use_rdms ) {
+
+            size_t n = pq_str->symbol.size();
+            size_t n_create = 0;
+            size_t n_annihilate = 0;
+            for (size_t i = 0; i < n; i++) {
+                if ( pq_str->is_dagger[i] ) n_create++;
+                else                        n_annihilate++;
+            }
+
+            if ( n_create != n_annihilate ) {
+                printf("\n");
+                printf("    error: rdms not defined for this case\n");
+                printf("\n");
+                exit(1);
+            }
+
+            std::vector<std::string> rdm_labels;
+            for (size_t i = 0; i < n_create; i++) {
+                rdm_labels.push_back(pq_str->symbol[i]);
+            }
+            for (size_t i = 0; i < n_annihilate; i++) {
+                rdm_labels.push_back(pq_str->symbol[n - i - 1]);
+            }
+
+            pq_str->set_amplitudes('D', n_create, n_annihilate, rdm_labels);
+            pq_str->symbol.clear();
+        }
     }
+
+    // replace rdms with cumulant expansion, ignoring the n-body cumulant
+    cumulant_expansion(ordered, ignore_cumulant_rdms);
 
     // try to cancel similar terms
     cleanup(ordered, find_paired_permutations);
