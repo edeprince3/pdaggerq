@@ -125,6 +125,15 @@ class pq_helper {
 
     /**
      *
+     * set whether final strings contain bare creation / annihilation operators or their expectation value (rdms)?
+     *
+     * @param do_use_rdms
+     *
+     */
+    void set_use_rdms(bool do_use_rdms, std::vector<int> ignore_cumulant);
+
+    /**
+     *
      * add a product of operators (i.e., {'h','t1'} )
      *
      * @param in: a list of strings defining the operator product
@@ -373,6 +382,20 @@ private:
      *
      */
     int print_level;
+
+    /**
+     *
+     * should final strings contain bare creation / annihilation operators or their expectation value (rdms)?
+     *
+     */
+    bool use_rdms;
+
+    /**
+     *
+     * if final string contains rdms, which n-body cumulants should we ignore
+     *
+     */
+    std::vector<int> ignore_cumulant_rdms = {};
 
     /**
      *

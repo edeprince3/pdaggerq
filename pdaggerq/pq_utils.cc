@@ -994,7 +994,7 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
         if ( pq_str->skip ) continue;
 
-        // for normal order relative to fermi vacuum, pq_str doubt anyone will care 
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
         if (pq_str->vacuum == "FERMI" ) {
@@ -1026,7 +1026,9 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     // probably only relevant for vacuum = fermi
     if ( ordered.empty() ) return;
-    if ( ordered[0]->vacuum != "FERMI" ) return;
+
+    // probably only relevant for vacuum = fermi
+    //if ( ordered[0]->vacuum != "FERMI" ) return;
 
     // look for paired permutations of non-summed labels:
     if ( find_paired_permutations ) {
