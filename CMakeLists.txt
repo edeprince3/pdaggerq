@@ -21,18 +21,22 @@
 #   limitations under the License.
 
 cmake_minimum_required(VERSION 3.11)
-project(pdaggerq)
+project(pdaggerq LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # find python and set variables for:
 #     the interpreter, include dirs, libraries, and version
-#find_package(Python3 REQUIRED)
-find_package(Python 3.11 EXACT COMPONENTS Interpreter Development)
-
+set(Python3_FIND_STRATEGY LOCATION)
+find_package(Python3 REQUIRED COMPONENTS Development Interpreter)
 set(PYTHON_EXECUTABLE   ${Python3_EXECUTABLE})
 set(PYTHON_INCLUDE_DIRS ${Python3_INCLUDE_DIRS})
 set(PYTHON_LIBRARIES    ${Python3_LIBRARIES})
 set(PYTHON_VERSION      ${Python3_VERSION})
+
+# find pybind11 and set variables for:
+set(PYBIND11_PYTHON_VERSION 3)
+set(PYBIND11_FINDPYTHON ON)
 
 include(FetchContent)
 FetchContent_Declare(
