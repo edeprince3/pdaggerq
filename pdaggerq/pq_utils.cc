@@ -247,6 +247,8 @@ void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string 
 
     replace_index_in_operators(old_idx, new_idx, in->symbol);
 
+    replace_index_in_deltas(old_idx, new_idx, in->deltas);
+
     in->sort_labels();
 }
 
