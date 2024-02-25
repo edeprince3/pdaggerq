@@ -164,6 +164,9 @@ void removeStar(std::string &x);
 /// remove "(" and ")" from std::string
 void removeParentheses(std::string &x);
 
+/// remove " " from std::string
+void removeSpaces(std::string &x);
+
 }
 
 #endif 

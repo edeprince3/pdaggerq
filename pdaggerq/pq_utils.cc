@@ -66,6 +66,13 @@ void removeParentheses(std::string &x) {
   x.erase(it, std::end(x));
 }
 
+// remove " " from std::string
+void removeSpaces(std::string &x) {
+
+  auto it = std::remove_if(std::begin(x), std::end(x), [](char c){return (c == ' ');});
+  x.erase(it, std::end(x));
+}
+
 // is a label classified as occupied?
 bool is_occ(const std::string &idx) {
 
