@@ -125,13 +125,13 @@ namespace pdaggerq {
                 // create deep copy of rhs vertices
                 vector<ConstVertexPtr> perm_vertices;
                 for (const auto &vertex: rhs_) {
-                    perm_vertices.push_back(vertex->clone_ptr());
+                    perm_vertices.push_back(vertex->safe_clone());
                 }
 
                 // single index permutations
                 for (const auto &perm: perm_combo) {
                     for (ConstVertexPtr &vertex: perm_vertices) {
-                        VertexPtr non_const_vertex = vertex->clone_ptr();
+                        VertexPtr non_const_vertex = vertex->clone();
 
                         if (!non_const_vertex->is_linked()){
                             // directly permute labels of vertex
@@ -145,7 +145,7 @@ namespace pdaggerq {
                             vector<ConstVertexPtr> non_const_expanded_vertices;
                             non_const_expanded_vertices.reserve(expanded_vertices.size());
                             for (const auto &expanded_vertex: expanded_vertices) {
-                                VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                                VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                                 single_perm(non_const_expanded_vertex, perm);
                                 non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                             }
@@ -188,7 +188,7 @@ namespace pdaggerq {
         Term perm_term = *this; // copy term
         vector<ConstVertexPtr> perm_vertices;
         for (const auto &vertex: rhs_)
-            perm_vertices.push_back(vertex->clone_ptr());
+            perm_vertices.push_back(vertex->safe_clone());
 
         // paired permutations
         if (perm_type == 2) {
@@ -215,7 +215,7 @@ namespace pdaggerq {
 
             // swap line pairs
             for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->clone_ptr();
+                VertexPtr non_const_vertex = vertex->clone();
 
                 if (!non_const_vertex->is_linked()){
                     // directly permute labels of vertex
@@ -229,7 +229,7 @@ namespace pdaggerq {
                     vector<ConstVertexPtr> non_const_expanded_vertices;
                     non_const_expanded_vertices.reserve(expanded_vertices.size());
                     for (const auto &expanded_vertex: expanded_vertices) {
-                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                         PP2_perm(non_const_expanded_vertex);
                         non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                     }
@@ -294,7 +294,7 @@ namespace pdaggerq {
 
             // swap line pairs
             for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->clone_ptr();
+                VertexPtr non_const_vertex = vertex->clone();
                 if (!non_const_vertex->is_linked()){
                     // directly permute labels of vertex
                     PP3_perm1(non_const_vertex);
@@ -307,7 +307,7 @@ namespace pdaggerq {
                     vector<ConstVertexPtr> non_const_expanded_vertices;
                     non_const_expanded_vertices.reserve(expanded_vertices.size());
                     for (const auto &expanded_vertex: expanded_vertices) {
-                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                         PP3_perm1(non_const_expanded_vertex);
                         non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                     }
@@ -335,12 +335,12 @@ namespace pdaggerq {
             // make another deep copy of the term
             perm_vertices.clear();
             for (const auto &vertex: rhs_)
-                perm_vertices.push_back(vertex->clone_ptr());
+                perm_vertices.push_back(vertex->safe_clone());
             perm_term.rhs_ = perm_vertices;
 
             // second pair permutation
             for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->clone_ptr();
+                VertexPtr non_const_vertex = vertex->clone();
                 if (!non_const_vertex->is_linked()){
                     // directly permute labels of vertex
                     PP3_perm2(non_const_vertex);
@@ -353,7 +353,7 @@ namespace pdaggerq {
                     vector<ConstVertexPtr> non_const_expanded_vertices;
                     non_const_expanded_vertices.reserve(expanded_vertices.size());
                     for (const auto &expanded_vertex: expanded_vertices) {
-                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                         PP3_perm2(non_const_expanded_vertex);
                         non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                     }
@@ -448,7 +448,7 @@ namespace pdaggerq {
 
             // pair permutation (acb;ikj)
             for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->clone_ptr();
+                VertexPtr non_const_vertex = vertex->clone();
                 if (!non_const_vertex->is_linked()){
                     // directly permute labels of vertex
                     PP6_perm1(non_const_vertex);
@@ -461,7 +461,7 @@ namespace pdaggerq {
                     vector<ConstVertexPtr> non_const_expanded_vertices;
                     non_const_expanded_vertices.reserve(expanded_vertices.size());
                     for (const auto &expanded_vertex: expanded_vertices) {
-                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                         PP6_perm1(non_const_expanded_vertex);
                         non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                     }
@@ -489,12 +489,12 @@ namespace pdaggerq {
             // make another deep copy of the term
             perm_vertices.clear();
             for (const auto &vertex: rhs_)
-                perm_vertices.push_back(vertex->clone_ptr());
+                perm_vertices.push_back(vertex->safe_clone());
             perm_term.rhs_ = perm_vertices;
 
             // pair permutation (bac;jik)
             for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->clone_ptr();
+                VertexPtr non_const_vertex = vertex->clone();
                 if (!non_const_vertex->is_linked()){
                     // directly permute labels of vertex
                     PP6_perm2(non_const_vertex);
@@ -507,7 +507,7 @@ namespace pdaggerq {
                     vector<ConstVertexPtr> non_const_expanded_vertices;
                     non_const_expanded_vertices.reserve(expanded_vertices.size());
                     for (const auto &expanded_vertex: expanded_vertices) {
-                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                         PP6_perm2(non_const_expanded_vertex);
                         non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                     }
@@ -534,7 +534,7 @@ namespace pdaggerq {
 
             // pair permutation (cab;kij)
             for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->clone_ptr();
+                VertexPtr non_const_vertex = vertex->clone();
                 if (!non_const_vertex->is_linked()){
                     // directly permute labels of vertex
                     PP6_perm3(non_const_vertex);
@@ -547,7 +547,7 @@ namespace pdaggerq {
                     vector<ConstVertexPtr> non_const_expanded_vertices;
                     non_const_expanded_vertices.reserve(expanded_vertices.size());
                     for (const auto &expanded_vertex: expanded_vertices) {
-                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                         PP6_perm3(non_const_expanded_vertex);
                         non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                     }
@@ -574,7 +574,7 @@ namespace pdaggerq {
 
             // pair permutation (cba;kji)
             for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->clone_ptr();
+                VertexPtr non_const_vertex = vertex->clone();
                 if (!non_const_vertex->is_linked()){
                     // directly permute labels of vertex
                     PP6_perm4(non_const_vertex);
@@ -587,7 +587,7 @@ namespace pdaggerq {
                     vector<ConstVertexPtr> non_const_expanded_vertices;
                     non_const_expanded_vertices.reserve(expanded_vertices.size());
                     for (const auto &expanded_vertex: expanded_vertices) {
-                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                         PP6_perm4(non_const_expanded_vertex);
                         non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                     }
@@ -614,7 +614,7 @@ namespace pdaggerq {
 
             // pair permutation (bca;jki)
             for (ConstVertexPtr & vertex : perm_vertices) {
-                VertexPtr non_const_vertex = vertex->clone_ptr();
+                VertexPtr non_const_vertex = vertex->clone();
                 if (!non_const_vertex->is_linked()){
                     // directly permute labels of vertex
                     PP6_perm5(non_const_vertex);
@@ -627,7 +627,7 @@ namespace pdaggerq {
                     vector<ConstVertexPtr> non_const_expanded_vertices;
                     non_const_expanded_vertices.reserve(expanded_vertices.size());
                     for (const auto &expanded_vertex: expanded_vertices) {
-                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone_ptr();
+                        VertexPtr non_const_expanded_vertex = expanded_vertex->clone();
                         PP6_perm5(non_const_expanded_vertex);
                         non_const_expanded_vertices.push_back(non_const_expanded_vertex);
                     }

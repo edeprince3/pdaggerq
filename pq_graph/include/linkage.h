@@ -67,6 +67,7 @@ namespace pdaggerq {
      * @note this is an extern function to allow for operator overloading outside of the namespace
      */
     extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right);
+    extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right);
 
     /**
      * Perform linkage of two vertices by overload of + operator
@@ -82,7 +83,7 @@ namespace pdaggerq {
      */
     class Linkage;
 
-    class Linkage : public Vertex, public std::enable_shared_from_this<Linkage> {
+    class Linkage : public Vertex {
 
         /// vertices in the linkage
         ConstVertexPtr left_, right_; // the left and right vertices of the linkage
@@ -101,19 +102,20 @@ namespace pdaggerq {
         bool is_addition_ = false; // whether the linkage is an addition; else it is a contraction
         bool is_reused_ = false; // whether the linkage is a shared operator (can be extracted)
 
-        // whether the linkage corresponds to an intermediate contraction
-        bool is_temp() const override { return id_ != -1 || is_reused_; }
 
-        // indicates the vertex is linked to another vertex
-        bool is_linked() const override { return true; }
+        bool is_temp() const override { return id_ != -1 || is_reused_; } // whether the linkage corresponds to an intermediate contraction
+        bool is_linked() const override { return true; } // indicates the vertex is linked to another vertex
+        long id() const override { return id_; } // get the id of the linkage
+        bool is_reused() const override { return is_reused_; } // whether the linkage is reused
+
 
         /// vertices in the linkage
 
         const ConstVertexPtr &left() const { return left_; }
         const ConstVertexPtr &right() const { return right_; }
 
-        /// map of connections between lines
-        std::vector<std::array<int_fast8_t, 2>> connec_map_; // connections between lines
+        /// map of connec_map between lines
+        std::vector<std::array<int_fast8_t, 2>> connec_map_; // connec_map between lines
 
         /********** Constructors **********/
 
@@ -148,20 +150,16 @@ namespace pdaggerq {
          * @param lines new lines
          * @note this function will recursively replace the lines of the vertices
          */
-        void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override {
-            // replace the lines of the vertices
-            left_->clone_ptr()->replace_lines(line_map);
-            right_->clone_ptr()->replace_lines(line_map);
+        void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override;
 
-
-            // rebuild the linkage
-            long id = id_;
-            bool is_reused = is_reused_;
-            *this = Linkage(left_, right_, is_addition_);
-            id_ = id;
-            is_reused_ = is_reused;
-
-        }
+        /**
+         * This function will rebalance the linkage by sorting the left and right vertices
+         * @note this function is recursive
+         * @note this function will not modify intermediates
+         * @return the rebalanced linkage
+         */
+        static ConstVertexPtr tree_sort(const ConstVertexPtr &root);
+        ConstVertexPtr tree_sort() const override;
 
         /**
          * Destructor
@@ -178,7 +176,9 @@ namespace pdaggerq {
          * Return a deep copy of the linkage where all nested linkages are also copied
          * @return deep copy of the linkage
          */
-        VertexPtr clone_ptr() const override;
+        ConstVertexPtr safe_clone() const override;
+        VertexPtr clone() const override;
+
 
         /**
          * Move constructor
@@ -196,7 +196,7 @@ namespace pdaggerq {
          * helper to clone only the linkage data
          * @param other linkage to clone
          */
-        void clone_link(const Linkage &other);
+        void copy_link(const Linkage &other);
 
         /****** operator overloads ******/
 
@@ -288,14 +288,21 @@ namespace pdaggerq {
         * @param result vector of vertices
         * @note this function is recursive
         */
-        void to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const;
+        void link_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const;
+
+        /**
+         * convert the linkage to a vector of vertices in order
+         * @param regenerate whether to regenerate the vertices (deprecated; no-op)
+         * @param full_expand whether to fully expand nested intermediates
+         */
+
 
         /**
          * convert the linkage to a const vector of vertices
          * @return vector of vertices
          * @note this function is recursive
          */
-        const vector<ConstVertexPtr> &to_vector(bool regenerate = false, bool full_expand = false) const;
+        const vector<ConstVertexPtr> &link_vector(bool regenerate = false, bool full_expand = false) const;
 
         /**
          * return a vector of vertices in order
@@ -305,22 +312,16 @@ namespace pdaggerq {
          const vector<ConstVertexPtr> &vertices(bool regenerate = false) const;
 
         /**
-         * Get connections
-         * @return connections
+         * Get connec_map, the map of connections between lines
+         * @return connec_map
          */
-        const std::vector<std::array<int_fast8_t, 2>> &connections() const { return connec_map_; }
+        const std::vector<std::array<int_fast8_t, 2>> &connec_map() const { return connec_map_; }
 
         /**
          * Make a series of linkages from vertices into a single linkage
          * @param op_vec list of vertices
          */
         static LinkagePtr link(const vector<ConstVertexPtr> &op_vec);
-
-        /**
-         * Make a series of linkages from vertices and keep each linkage as a separate vertex
-         * @param op_vec list of vertices
-         */
-        static vector<LinkagePtr> links(const vector<ConstVertexPtr> &op_vec);
 
         /**
          * copy just the members of the linkage that do not depend on the vertices

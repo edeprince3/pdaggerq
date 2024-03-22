@@ -69,7 +69,6 @@ namespace pdaggerq {
 
         // build internal and external lines with their index mapping
         set_links();
-
     }
 
     inline void Linkage::set_links() {
@@ -169,10 +168,6 @@ namespace pdaggerq {
             bool left_external  = right_idx < 0;
             bool right_external =  left_idx < 0;
 
-            // update mem scaling
-            if (left_external || right_external)
-                mem_scale_ += line;
-
             // keep track of external indicies
             left_ext_idx[  left_idx] =  left_external;
             right_ext_idx[right_idx] = right_external;
@@ -196,26 +191,22 @@ namespace pdaggerq {
                 den_lines.push_back(line);
         };
 
-//        auto add_line_sorted = [this, &sig_lines, &den_lines](const Line &line) {
-//            if (!line.sig_ && !line.den_)
-//                lines_.insert(std::upper_bound(lines_.begin(), lines_.end(), line, line_compare()), line);
-//            else if (line.sig_)
-//                sig_lines.push_back(line);
-//            else
-//                den_lines.push_back(line);
-//        };
 
         // left half
         for (uint_fast8_t i = 0; i < left_size; ++i) {
-            if (!left_ext_idx[i]) continue;
+            // skip internal lines, and keep all left lines if addition
+            if (!is_addition_ && !left_ext_idx[i]) continue;
             add_line(left_lines[i]);
+            mem_scale_ += left_lines[i];
         }
 
         // right half
         for (uint_fast8_t i = 0; i < right_size; ++i) {
             if (!right_ext_idx[i]) continue;
             add_line(right_lines[i]);
+            mem_scale_ += right_lines[i];
         }
+
 
         // sort lines by properties
         std::stable_sort(lines_.begin(), lines_.end(), line_compare());
@@ -273,29 +264,13 @@ namespace pdaggerq {
             throw invalid_argument("Linkage::link(): op_vec must have at least two elements");
 
 
-        VertexPtr linkage = op_vec[0] * op_vec[1];
-        for (uint_fast8_t i = 2; i < op_vec_size; i++)
-            linkage = linkage * op_vec[i];
-
-        return as_link(linkage);
-    }
-
-    vector<LinkagePtr> Linkage::links(const vector<ConstVertexPtr> &op_vec){
-        uint_fast8_t op_vec_size = op_vec.size();
-        if (op_vec_size <= 1) {
-            throw invalid_argument("Linkage::link(): op_vec must have at least two elements");
+        LinkagePtr linkage = as_link(op_vec[0] * op_vec[1]);
+        for (uint_fast8_t i = 2; i < op_vec_size; i++){
+            LinkagePtr link = as_link(linkage * op_vec[i]);
+            linkage = link;
         }
 
-        vector<LinkagePtr> linkages(op_vec_size - 1);
-
-        VertexPtr linkage = op_vec[0] * op_vec[1];
-        linkages[0] = as_link(linkage);
-        for (uint_fast8_t i = 2; i < op_vec_size; i++) {
-            linkage = linkage * op_vec[i];
-            linkages[i - 1] = as_link(linkage);
-        }
-
-        return linkages;
+        return linkage;
     }
 
     tuple<ConstLinkagePtr, vector<shape>, vector<shape>> Linkage::link_and_scale(const vector<ConstVertexPtr> &op_vec) {
@@ -448,7 +423,7 @@ namespace pdaggerq {
             vector<ConstVertexPtr> permuted_vertices;
             permuted_vertices.reserve(this_vertices.size());
             for (const ConstVertexPtr &vertex : this_vertices){
-                VertexPtr permuted_vertex = vertex->clone_ptr();
+                VertexPtr permuted_vertex = vertex->clone();
                 permuted_vertex->replace_lines(replacement_map);
                 permuted_vertices.push_back(permuted_vertex);
             }
@@ -523,8 +498,8 @@ namespace pdaggerq {
         // build right string representation recursively
         if (right_->is_linked() && expand) right_string = as_link(right_)->tot_str(expand, make_dot);
         else right_string = right_->str();
-        
-        
+
+
         if (!is_addition_) output = left_string + " * " + right_string;
         else { output = "(" + left_string + " + " + right_string + ")"; }
 
@@ -547,7 +522,7 @@ namespace pdaggerq {
         return output;
     }
 
-    inline void Linkage::to_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const {
+    inline void Linkage::link_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const {
 
         if (empty()) return;
 
@@ -568,7 +543,7 @@ namespace pdaggerq {
                 } else {
 
                     // compute the left vertices recursively and save them
-                    for (const ConstVertexPtr &link_vertex: link->to_vector(regenerate, full_expand))
+                    for (const ConstVertexPtr &link_vertex: link->link_vector(regenerate, full_expand))
                         expand_vertex(link_vertex, result, i);
                 }
 
@@ -582,7 +557,7 @@ namespace pdaggerq {
         expand_vertex(right_, result, i);
     }
 
-    const vector<ConstVertexPtr> &Linkage::to_vector(bool regenerate, bool full_expand) const {
+    const vector<ConstVertexPtr> &Linkage::link_vector(bool regenerate, bool full_expand) const {
 
         // Lock the mutex for the scope of the function
         std::lock_guard<std::mutex> lock(mtx_);
@@ -597,7 +572,7 @@ namespace pdaggerq {
 
                 size_t i = 0;
                 auto result = std::vector<ConstVertexPtr>(depth_);
-                to_vector(result, i, regenerate, full_expand);
+                link_vector(result, i, regenerate, full_expand);
                 if (i != depth_)
                   result.resize(i);
 
@@ -613,7 +588,7 @@ namespace pdaggerq {
 
             size_t i = 0;
             auto result = std::vector<ConstVertexPtr>(depth_);
-            to_vector(result, i, regenerate, full_expand);
+            link_vector(result, i, regenerate, full_expand);
             if (i != depth_)
                 result.resize(i);
             all_vert_ = result;
@@ -624,12 +599,12 @@ namespace pdaggerq {
     }
 
     const vector<ConstVertexPtr> &Linkage::vertices(bool regenerate) const {
-        return to_vector(regenerate, true);
+        return link_vector(regenerate, true);
     }
 
-    void Linkage::clone_link(const Linkage &other) {
+    void Linkage::copy_link(const Linkage &other) {
         // Lock the mutex for the scope of the function
-        std::lock_guard<std::mutex> lock(mtx_);
+//        std::lock_guard<std::mutex> lock(mtx_);
 
         // call base class copy constructor
         Vertex::operator=(other);
@@ -654,19 +629,17 @@ namespace pdaggerq {
     }
 
     Linkage::Linkage(const Linkage &other) {
-        clone_link(other);
+        copy_link(other);
     }
 
-    VertexPtr Linkage::clone_ptr() const {
-        LinkagePtr link_copy = make_shared<Linkage>(left_->clone_ptr(), right_->clone_ptr(), is_addition_);
-        link_copy->copy_misc(*this);
-        return link_copy;
+    ConstVertexPtr Linkage::safe_clone() const {
+        return shared_from_this();
     }
 
     Linkage &Linkage::operator=(const Linkage &other) {
         // check for self-assignment
         if (this == &other) return *this;
-        else clone_link(other);
+        else copy_link(other);
 
         return *this;
     }
@@ -711,12 +684,127 @@ namespace pdaggerq {
         return *this;
     }
 
+    ConstVertexPtr Linkage::tree_sort() const {
+        return tree_sort(shared_from_this());
+    }
+
+    ConstVertexPtr Linkage::tree_sort(const ConstVertexPtr & root) {
+
+        // this is a vertex; nothing to do
+        if (!root->is_linked()) return root;
+        // else it is a linkage of vertices
+
+        // do not modify intermediates (they are assumed to not change once made)
+        if (root->is_temp()) return root;
+        // else we can modify the connectivity of the vertices
+
+        ConstLinkagePtr root_link = as_link(root);
+
+        // clone the vertices
+        ConstVertexPtr left  = root_link->left()->safe_clone();
+        ConstVertexPtr right = root_link->right()->safe_clone();
+
+        // recursively sort the sub-linkages (if they are not intermediates)
+        if (left->is_linked() && !left->is_temp()) // left is a linkage
+            left = tree_sort(as_link(left));
+        if (right->is_linked() && !right->is_temp()) // right is a linkage
+            right = tree_sort(as_link(right));
+
+        // addition
+        if (root_link->is_addition_){
+            LinkagePtr new_tree = as_link(left + right); // additions cannot be swapped
+            new_tree->copy_misc(root_link);
+            return new_tree;
+        }
+
+        // multiplication
+        LinkagePtr LR = as_link(left * right);
+        LinkagePtr RL = as_link(right * left);
+        LinkagePtr &new_tree = LR; // default to left * right
+
+        // get the flop and mem scales of the linkages
+        shape flop_LR = LR->flop_scale(), flop_RL = RL->flop_scale();
+        shape mem_LR  = LR->mem_scale(),  mem_RL  = RL->mem_scale();
+
+        // sort by scaling
+        if (flop_LR > flop_RL) { new_tree = RL; }
+        if (mem_LR  > mem_RL)  { new_tree = RL; }
+
+        // sort by depth if scales are equal
+        if (LR->depth() > RL->depth()) { new_tree = RL; }
+
+        // sort by connectivity if scales are equal
+        if (LR->connec_map() > RL->connec_map()) { new_tree = RL; }
+
+        // sort by name if scales are equal
+        if (LR->name() > RL->name()) { new_tree = RL; }
+
+        // set the id and is_reused flags
+        new_tree->copy_misc(root_link);
+
+        return new_tree;
+
+    }
+
+    void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map) {
+        // replace the lines of the vertices
+        left_->clone()->replace_lines(line_map);
+        right_->clone()->replace_lines(line_map);
+
+
+        // rebuild the linkage
+        long id = id_;
+        bool is_reused = is_reused_;
+        *this = Linkage(left_, right_, is_addition_);
+        id_ = id;
+        is_reused_ = is_reused;
+
+    }
+
+    VertexPtr Linkage::clone() const {
+        VertexPtr left_clone = left_->clone();
+        VertexPtr right_clone = right_->clone();
+
+        LinkagePtr clone = make_shared<Linkage>(*this);
+        clone->left_ = left_clone;
+        clone->right_ = right_clone;
+
+        return clone;
+    }
+
     extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right){
-        return make_shared<Linkage>(left, right, false);
+        if (left && !right)
+            return left->clone();
+        if (!left && right)
+            return right->clone();
+        if (!left && !right)
+            return make_shared<Vertex>();
+
+        LinkagePtr &&linkage = make_shared<Linkage>(left, right, false);
+        return linkage;
+    }
+    extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right){
+        if (left && !right)
+            return left->clone();
+        if (!left && right)
+            return right->clone();
+        if (!left && !right)
+            return make_shared<Vertex>();
+
+        LinkagePtr &&linkage = make_shared<Linkage>(left, right, false);
+        return linkage;
     }
 
     extern VertexPtr operator+(const ConstVertexPtr &left, const ConstVertexPtr &right){
-        return make_shared<Linkage>(left, right, true);
+        if (left && !right)
+            return left->clone();
+        if (!left && right)
+            return right->clone();
+        if (!left && !right)
+            return make_shared<Vertex>();
+
+        LinkagePtr &&linkage = make_shared<Linkage>(left, right, true);
+        return linkage;
     }
 
 } // pdaggerq

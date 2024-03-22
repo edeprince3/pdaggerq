@@ -68,7 +68,7 @@ namespace pdaggerq {
             perm_list term_perms_; // list of permutation indices
             size_t perm_type_ = 0; // default is no permutation
 
-            mutable ConstLinkagePtr term_linkage_; // linkage of the term
+            mutable LinkagePtr term_linkage_; // linkage of the term
 
     public:
 
@@ -78,13 +78,15 @@ namespace pdaggerq {
             bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
             string print_override_; // string to override print function
 
-            static inline size_t max_depth_ = 2; // maximum number of rhs in a linkage
+            static inline size_t max_depth_ = -1; // maximum number of rhs in a linkage (no limit by default)
             static inline shape max_shape_; // maximum shape of a linkage
             static inline bool allow_nesting_ = true;
             static inline bool permute_vertices_ = false;
             static inline bool make_einsum = false;
             static inline size_t depth_ = 0; // depth of nested tmps
 
+
+            static inline set<string> defined_conditions_{}; // set of terms that are conditional
             string original_pq_; // the original pq string representation
 
             /******** Constructors ********/
@@ -147,6 +149,12 @@ namespace pdaggerq {
              * @return reference to this term
              */
             Term &operator=(const Term &other) = default;
+
+            /**
+             * Deep copy of term where all vertices are cloned
+             * @return cloned term
+             */
+            Term clone() const;
 
             /**
              * Move assignment operator
@@ -339,22 +347,13 @@ namespace pdaggerq {
              /**
               * Populate flop and memory scaling maps with identity permutation
               */
-            void compute_scaling(bool recompute = false){
-                if (!needs_update_ && !recompute)
-                     return; // if term does not need updating, return
+            void compute_scaling(bool recompute = false);
 
-                auto [flop_map, mem_map] = compute_scaling(rhs_, recompute); // compute scaling of current rhs
-
-                flop_map_ = flop_map;
-                mem_map_  = mem_map;
-                if (rhs_.size() > 1)
-                     term_linkage_ = Linkage::link(rhs_);
-                else if (!rhs_.empty()) term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
-                else term_linkage_ = as_link(make_shared<Vertex>() * make_shared<Vertex>());
-
-                // indicate that term no longer needs updating
-                needs_update_ = false;
-            }
+            /**
+             * Determine which defined_conditions_ are needed for the term
+             * @return a map of defined_conditions_ to their condition (T/F) in this term
+             */
+            set<string> conditions() const;
 
             /**
             * Update booleans for optimization
@@ -471,12 +470,20 @@ namespace pdaggerq {
             /**
              * collect all possible linkages from all equations
              */
-            linkage_set generate_linkages() const;
+            linkage_set make_all_links() const;
 
             /**
              * get the term linkage
              */
             ConstLinkagePtr term_linkage() const {
+                if (term_linkage_)
+                    return term_linkage_;
+
+                if (rhs_.size() > 1)
+                    term_linkage_ = Linkage::link(rhs_);
+                else if (!rhs_.empty()) term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
+                else term_linkage_ = as_link(make_shared<Vertex>() * make_shared<Vertex>());
+
                 return term_linkage_;
             }
 
@@ -538,7 +545,7 @@ namespace pdaggerq {
             Term genericize() const;
 
             vector<Term> density_fitting();
-            Term clone() const;
+
     }; // end Term class
 
     struct TermHash { // hash functor for finding similar terms

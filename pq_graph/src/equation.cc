@@ -104,52 +104,49 @@ namespace pdaggerq {
         bool is_declaration = is_temp_equation_; // whether this is a declaration
 
         // set of conditions already found. Used to avoid printing duplicate conditions
-        set<string> current_conditions = {"initialize"}; // initialize with arbitrary string
-        if (Term::make_einsum)
-            current_conditions = {}; // ignore conditions if make_einsum is true
+        set<string> current_conditions = {};
         bool closed_condition = true; // whether the current condition has been closed
         for (const auto & term : terms_) { // iterate over terms
 
+
             // check if condition is already printed
-            set<string> conditions = {}; //term.which_conditions();
-            if (Term::make_einsum)
-                conditions = {}; // ignore conditions if make_einsum is true
+            set<string> conditions = term.conditions();
             if (conditions != current_conditions) { // if conditions are different, print new condition
 
-                if (!closed_condition) {
+                bool has_condition = !conditions.empty();
+                bool had_condition = !current_conditions.empty();
+
+                if (had_condition && !closed_condition) {
                     // if the previous condition was not closed, close it
-                    output.emplace_back("}");
-                    closed_condition = true;
+                    if (!Term::make_einsum)
+                        output.emplace_back("}");
+                    closed_condition = true; // indicate that the condition is closed
                 }
 
-                if (conditions.empty()) {
-                    // if there are no conditions, print '{'
-                    output.emplace_back("\n{");
-                } else {
+                if (has_condition) {
+                    closed_condition = false; // set condition to be closed
 
-                    string if_block = "\nif (";
-                    for (const string &condition : conditions) if_block += "include_" + condition + "_ && ";
-
-
-                    if_block.pop_back();
-                    if_block.pop_back();
-                    if_block.pop_back();
-                    if_block.pop_back();
-                    if_block += ") {";
+                    string if_block = condition_string(conditions);
                     output.push_back(if_block);
                 }
-
-                // set closed condition to false
-                closed_condition = false;
 
                 // set current conditions
                 current_conditions = conditions;
 
             } // else do nothing
 
+            // if override is set, print override
+            bool override = !term.print_override_.empty();
+            if (override) {
+                string padding = !conditions.empty() ? "    " : "";
+                output.push_back(padding += term.print_override_);
+                continue;
+            }
+
+
             // add comments
             string comment = term.make_comments();
-            if (!comment.empty()) {
+            if (!comment.empty() && !override) {
 
                 if (is_declaration) comment = term.make_comments(true);
                 else comment.insert(0, "\n"); // add newline to the beginning of the comment
@@ -162,18 +159,25 @@ namespace pdaggerq {
                 }
 
                 // replace all "\n" with "\n    " in comment
-                pos = 0;
-                while ((pos = comment.find('\n', pos)) != string::npos) {
-                    comment.replace(pos, 1, "\n    ");
-                    pos += 5;
+                if (!conditions.empty()) {
+                    pos = 0;
+                    while ((pos = comment.find('\n', pos)) != string::npos) {
+                        comment.replace(pos, 1, "\n    ");
+                        pos += 5;
+                    }
                 }
 
                 output.push_back(comment); // add comment
             }
 
             // get string representation of term
-            string term_string = "    ";
+
+            string term_string;
+            if(!conditions.empty())
+                term_string += "    ";
+
             term_string += term.str();
+
 
             // replace all "\n" with "\n    " in term_string
             size_t pos = 0;
@@ -185,13 +189,34 @@ namespace pdaggerq {
             output.push_back(term_string);
         }
 
-        if (!closed_condition) {
+        if (!closed_condition && !Term::make_einsum && !current_conditions.empty()) {
             // if the final condition was not closed, close it
             output.emplace_back("}");
-            closed_condition = true;
         }
 
         return output;
+    }
+
+    string Equation::condition_string(set<string> &conditions) {
+
+        // if no conditions, return empty string
+        if (conditions.empty()) return "";
+
+        string if_block;
+        if (!Term::make_einsum) {
+            if_block = "\nif (";
+            for (const string &condition: conditions)
+                if_block += "includes_[\"" + condition + "\"] && ";
+            if_block.resize(if_block.size() - 4);
+            if_block += ") {";
+        } else {
+            if_block = "\nif ";
+            for (const string &condition: conditions)
+                if_block += "includes_[\"" + condition + "\"] and ";
+            if_block.resize(if_block.size() - 5);
+            if_block += ":";
+        }
+        return if_block;
     }
 
     void Equation::collect_scaling(bool regenerate) {
@@ -212,6 +237,26 @@ namespace pdaggerq {
 
             flop_map_ += term_flop_map; // add flop scaling map
             mem_map_  += term_mem_map; // add memory scaling map
+        }
+
+        VertexPtr eq_linkage;
+        if (terms_.size() > 1) {
+            // build equation linkages
+            eq_linkage = terms_[0].term_linkage() * terms_[1].term_linkage();
+            for (size_t i = 2; i < terms_.size(); i++) {
+                if (terms_[i].term_linkage())
+                    continue;
+
+                eq_linkage = eq_linkage_ * terms_[i].term_linkage();
+            }
+        }
+        else if (!terms_.empty())
+             eq_linkage = make_shared<Vertex>() * terms_[0].term_linkage();
+        else eq_linkage = make_shared<Vertex>() * make_shared<Vertex>();
+
+        if (eq_linkage) {
+            eq_linkage->tree_sort();
+            eq_linkage_ = as_link(assignment_vertex_ + eq_linkage);
         }
     }
 
@@ -298,11 +343,10 @@ namespace pdaggerq {
         return num_subs;
     }
 
-    linkage_set Equation::generate_linkages(bool compute_all) {
+    linkage_set Equation::make_all_links(bool compute_all) {
 
         linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
 
-        omp_set_num_threads((int)nthreads_);
         #pragma omp parallel for schedule(guided) shared(terms_, all_linkages) default(none) firstprivate(compute_all)
         for (auto & term : terms_) { // iterate over terms
 
@@ -312,13 +356,12 @@ namespace pdaggerq {
             if (!term.is_optimal_ || term.needs_update_)
                 term.reorder(); // reorder term if it is not optimal
 
-            linkage_set term_linkages = term.generate_linkages(); // generate linkages in term
+            linkage_set &&term_linkages = term.make_all_links(); // generate linkages in term TODO: lazy evaluate
             all_linkages += term_linkages; // add linkages to the set of all linkages
 
             term.generated_linkages_ = true; // set term to have generated linkages
 
         } // iterate over terms
-        omp_set_num_threads(1);
 
         return all_linkages;
     }
@@ -364,63 +407,58 @@ namespace pdaggerq {
     size_t Equation::merge_terms() {
         if (is_temp_equation_) return 0; // don't merge temporary equations
 
-        // map to store term counts, comments, and merged coefficients using a hash of the term
-        merge_map_type merge_terms_map;
-        size_t terms_size = terms_.size();
+        size_t terms_size = terms_.size(); // number of terms before merging
 
-        // iterate over terms and accumulate similar terms
-        for (int i = 0; i < terms_size; ++i) {
-            Term term = terms_[i]; // get term
-
-            // see if term is in map
-            bool term_in_map = merge_terms_map.find(term) != merge_terms_map.end();
-
-            // if term is not in map, check if a permuted version is in map
-            if (!term_in_map && Vertex::permute_eri_) // if permuted eris are enabled
-                merge_permuted_term(merge_terms_map, term, term_in_map);
-
-            // add term to map
-            if (!term_in_map)
-                merge_terms_map[term] = make_pair(1, make_pair(term.original_pq_, term.coefficient_)); // initialize term count_ and coefficient
-            else { // term is in map; update term count and coefficient
-                // get iterator to term in map
-                auto & [term_count, string_coeff_pair] = merge_terms_map[term];
-                term_count++; // increment term count
-
-                // extract pq strings and coefficient
-                auto & [pq_strings, total_coeff] = string_coeff_pair;
-
-                total_coeff += term.coefficient_; // accumulate coefficient
-                string this_pq_string = term.original_pq_; // get pq_string of term
-
-                // add to pq_strings
-                pq_strings += "\n";
-                pq_strings += this_pq_string;
-            }
+        // split terms into groups by permutation type
+        map<pair<perm_list, size_t>, vector<Term*>> perm_type_to_terms;
+        for (auto &term : terms_) {
+            perm_type_to_terms[{term.term_perms(), term.perm_type()}].push_back(&term);
         }
 
-        size_t num_merged = 0;
+        // iterate over terms and accumulate similar terms
         vector<Term> new_terms; // new terms
-        // iterate over the map, adding each term to the new_terms vector
-        for (auto &unique_term_pair: merge_terms_map) {
-            Term new_term = unique_term_pair.first; // get term
-            auto &[term_count, string_coeff_pair] = unique_term_pair.second; // get term count and coefficient
-            auto &[new_pq_string, new_coeff] = string_coeff_pair; // get pq strings and coefficient
+        for (auto& [perm_type, terms] : perm_type_to_terms) {
 
-            new_term.coefficient_ = new_coeff; // set coefficient
-            if (fabs(new_term.coefficient_) <= 1e-12) continue; // skip terms with zero coefficients
+            std::unordered_map<ConstLinkagePtr, pair<Term, double>, LinkageHash, LinkageEqual>
+                    linkage_count; // map of term linkages to their associated terms and counts
 
-            new_term.original_pq_ = new_pq_string; // set pq string
-            num_merged += term_count - 1; // increment number of terms merged
+            for (auto &term : terms) {
+                // if term does not have a linkage, skip it
+                if (!term->term_linkage()) {
+                    new_terms.push_back(*term);
+                    continue;
+                }
 
-            // add term to new_terms
-            new_terms.push_back(new_term);
+                LinkagePtr term_link = as_link(term->term_linkage()->clone()); // get linkage of term
+                term_link->tree_sort(); // sort linkage
+                term_link = as_link(term->lhs() + term_link); // add lhs to linkage
+
+                const auto & pos = linkage_count.find(term_link);
+                if (pos == linkage_count.end()) {
+                    linkage_count[term_link] = make_pair(*term, term->coefficient_);
+                } else {
+                    pos->second.second += term->coefficient_;
+                    pos->second.first.original_pq_ = pos->second.first.original_pq_ + "@ " + term->original_pq_;
+                }
+            }
+
+            // iterate over the map, adding each term to the new_terms vector
+            for (auto &[linkage, unique_term_pair] : linkage_count) {
+                auto &[new_term, new_coeff] = unique_term_pair; // get term
+
+                new_term.coefficient_ = new_coeff; // set coefficient
+                if (fabs(new_term.coefficient_) <= 1e-12) continue; // skip terms with zero coefficients
+
+                // add term to new_terms
+                new_terms.push_back(new_term);
+            }
+
         }
 
         terms_ = new_terms;
         collect_scaling(true);
 
-        return num_merged;
+        return terms_size - terms_.size();
     }
 
     void Equation::merge_permuted_term(merge_map_type &merge_terms_map, Term &term, bool &term_in_map) {
@@ -560,7 +598,7 @@ namespace pdaggerq {
 
             // append "perm" to the name of the lhs vertex
             const ConstVertexPtr lhs_op = terms[0].lhs();
-            VertexPtr new_lhs_op = lhs_op->clone_ptr();
+            VertexPtr new_lhs_op = lhs_op->clone();
             new_lhs_op->set_base_name("perm_tmps_" + perm_str + new_lhs_op->base_name());
             new_lhs_op->update_lines(new_lhs_op->lines());
 
@@ -673,5 +711,161 @@ namespace pdaggerq {
 
         return copy;
     }
+
+    void Equation::sort_tmp_type(Equation &equation, char type) {
+
+        // no terms, return
+        if ( equation.terms().empty() ) return;
+
+        // to sort the tmps while keeping the order of terms without tmps, we need to
+        // make a map of the equation terms and their index in the equation and sort that (so annoying)
+        std::vector<pair<Term*, size_t>> indexed_terms;
+        size_t eq_size = equation.terms().size();
+        indexed_terms.reserve(eq_size);
+        for (size_t i = 0; i < eq_size; ++i)
+            indexed_terms.emplace_back(&equation.terms()[i], i);
+
+        // sort the terms by the maximum id of the tmps in the term, then by the index of the term
+
+        auto is_in_order = [type](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
+
+            const Term &a_term = *a.first;
+            const Term &b_term = *b.first;
+
+            size_t a_idx = a.second;
+            size_t b_idx = b.second;
+
+            const ConstVertexPtr &a_lhs = a_term.lhs();
+            const ConstVertexPtr &b_lhs = b_term.lhs();
+
+            typedef std::set<long, std::less<>> idset;
+
+            // recursive function to get nested temp ids from a vertex
+            std::function<idset(const ConstVertexPtr&)> test_vertex;
+            test_vertex = [&test_vertex, type](const ConstVertexPtr &op) {
+
+                idset ids;
+                if (op->is_temp()) {
+                    ConstLinkagePtr link = as_link(op);
+                    long link_id = link->id_;
+
+                    bool insert_id;
+                    insert_id  = type == 't' && !link->is_scalar() && !link->is_reused_; // only non-scalar temps
+                    insert_id |= type == 'r' &&  link->is_reused_; // only reuse tmps
+                    insert_id |= type == 's' &&  (link->is_reused_ || link->is_scalar()); // only scalars
+
+                    if (insert_id)
+                        ids.insert(link_id);
+
+                    // recurse into nested temps
+                    for (const auto &nested_op: link->link_vector()) {
+                        idset sub_ids = test_vertex(nested_op);
+                        ids.insert(sub_ids.begin(), sub_ids.end());
+                    }
+                }
+
+                return ids;
+            };
+
+            // get min id of temps from lhs
+            auto get_lhs_id = [&test_vertex](const Term &term) {
+                return test_vertex(term.lhs());
+            };
+
+            // get min id of temps from rhs
+            auto get_rhs_id = [&test_vertex](const Term &term) {
+
+                idset ids;
+                for (const auto &op: term.rhs()) {
+                    idset sub_ids = test_vertex(op);
+                    ids.insert(sub_ids.begin(), sub_ids.end());
+                }
+                return ids;
+            };
+
+            // get all ids from lhs and rhs
+            idset a_lhs_ids = get_lhs_id(a_term), a_rhs_ids = get_rhs_id(a_term);
+            idset b_lhs_ids = get_lhs_id(b_term), b_rhs_ids = get_rhs_id(b_term);
+
+            // get total ids
+            idset a_total_ids = a_lhs_ids, b_total_ids = b_lhs_ids;
+            a_total_ids.insert(a_rhs_ids.begin(), a_rhs_ids.end());
+            b_total_ids.insert(b_rhs_ids.begin(), b_rhs_ids.end());
+
+            // get number of ids
+            bool a_has_temp = !a_lhs_ids.empty() || !a_rhs_ids.empty();
+            bool b_has_temp = !b_lhs_ids.empty() || !b_rhs_ids.empty();
+
+            // keep terms without temps first and if both have no temps, keep order
+            if (a_has_temp ^ b_has_temp) return !a_has_temp;
+            else if (!a_has_temp)        return a_idx < b_idx;
+
+            // keep in lexicographical order of ids
+            if (a_total_ids != b_total_ids)
+                return a_total_ids < b_total_ids;
+
+            // if lhs ids are empty, ignore assignment
+            if (a_lhs_ids.empty() && b_lhs_ids.empty())
+                return a_idx < b_idx;
+
+            // if ids are the same, ensure assignment is first
+            if (a_term.is_assignment_ ^ b_term.is_assignment_)
+                return a_term.is_assignment_;
+
+            // keep in order of lhs ids
+            if (a_lhs_ids != b_lhs_ids)
+                return a_lhs_ids < b_lhs_ids;
+
+            // keep in order of rhs ids
+            if (a_rhs_ids != b_rhs_ids)
+                return a_rhs_ids < b_rhs_ids;
+
+            // preserve order if all else is equal
+            return a_idx < b_idx;
+        };
+
+        stable_sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
+
+        // replace the terms in the equation with the sorted terms
+        std::vector<Term> sorted_terms;
+        sorted_terms.reserve(indexed_terms.size());
+        for (const auto &indexed_term : indexed_terms) {
+            sorted_terms.push_back(*indexed_term.first);
+        }
+
+        equation.terms() = sorted_terms;
+    }
+
+    void Equation::rearrange(char type) {
+
+        // sort by conditionals, then by permutation type, then by number of operators, then by cost.
+        // This is a stable sort, so the order of terms with the same cost will be preserved.
+        std::stable_sort(terms_.begin(), terms_.end(), [](const Term &a, const Term &b) {
+
+            if (a.conditions() != b.conditions())
+                return a.conditions() < b.conditions();
+
+            // sort by permutation type
+            if (a.perm_type() != b.perm_type())
+                return a.perm_type() < b.perm_type();
+
+            // sort by number of permutations
+            if (a.perm_type() != 0) {
+                return a.term_perms() < b.term_perms();
+            }
+
+            // sort by number of operators
+            if (a.size() != b.size())
+                return a.size() < b.size();
+
+            // sort by cost
+            return *a.term_linkage() < *b.term_linkage();
+
+        });
+
+        // lastly, sort the terms by the maximum id of the tmps type in the term, then by the index of the term
+        sort_tmp_type(*this, type);
+    }
+
 
 } // pdaggerq

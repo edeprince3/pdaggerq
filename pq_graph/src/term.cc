@@ -102,7 +102,7 @@ namespace pdaggerq {
 
         // add lhs vertex
         lhs_ = make_shared<Vertex>(name);
-        eq_ = lhs_->clone_ptr();
+        eq_ = lhs_->safe_clone();
 
         // create rhs vertices
         for (const auto & delta : pq_str->deltas) // add delta functions
@@ -180,7 +180,7 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if eri is in name
             if (op->base_name() =="eri") {
-                VertexPtr new_eri = op->clone_ptr();
+                VertexPtr new_eri = op->clone();
                 if (new_eri->permute_eri()) swap_sign(); // swap sign if eri is permuted with sign change
                 op = new_eri;
             }
@@ -203,7 +203,7 @@ namespace pdaggerq {
         // initialize lhs vertex
         lhs_ = linkage;
 
-        rhs_ = linkage->to_vector();
+        rhs_ = linkage->link_vector();
 
         // set permutation indices as empty
         term_perms_ = {};
@@ -293,11 +293,17 @@ namespace pdaggerq {
 
     void Term::reorder(bool recompute) { // reorder rhs in term
 
-        if (recompute)
+        if (recompute) {
             is_optimal_ = false;
+            needs_update_ = true;
+        }
 
-        // recompute initial scaling if needed
+        if (is_optimal_ && !needs_update_) return; // if term is already optimal return
+
+        // recompute initial scaling
         compute_scaling();
+
+        if (is_optimal_) return; // if term is optimal return
 
         /// Reorder by taking every permutation of vertex ordering and compute the scaling of the linkages.
         /// Keep permutation that minimizes the floating point cost of each linkage.
@@ -305,10 +311,7 @@ namespace pdaggerq {
         // get number of rhs
         size_t n_vertices = rhs_.size();
 
-        if (is_optimal_) return; // if term is already optimal return
-        if (n_vertices <= 2) { // check if term has only one linkage or only one vertex; if so, compute scaling and return
-            return;
-        }
+        if (n_vertices <= 2) { return; } // not enough vertices to reorder
 
         size_t initial_permutation[n_vertices]; // array to store initial permutation
         size_t current_permutation[n_vertices]; // initialize index for current permutation (initially 0, 1, 2, ...)
@@ -475,9 +478,9 @@ namespace pdaggerq {
             VertexPtr perm_vertex;
 
             bool make_perm_tmp = rhs_.size() == 1;
-            if (make_perm_tmp) perm_vertex = rhs_[0]->clone_ptr(); // no need to create intermediate vertex if there is only one
+            if (make_perm_tmp) perm_vertex = rhs_[0]->clone(); // no need to create intermediate vertex if there is only one
             else { // else, create the intermediate vertex and its assignment term
-                perm_vertex = lhs_->clone_ptr();
+                perm_vertex = lhs_->clone();
                 string perm_name = "perm_tmps";
                 perm_vertex->format_map_ = true; // format permutation vertex to print as map
                 perm_vertex->sort(); // sort permutation vertex
@@ -758,7 +761,7 @@ namespace pdaggerq {
             return comment; // if there is only one vertex, return comment (no scaling to add)
         }
 
-        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(term_linkage_->to_vector());
+        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(term_linkage_->link_vector());
         if (flop_scales.empty() && mem_scales.empty()) { // no scaling to add as an additional comment
             return comment;
         }
@@ -791,7 +794,7 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if vertex is a trace
             // get self-contracted lines
-            VertexPtr copy = op->clone_ptr();
+            VertexPtr copy = op->clone();
             map<Line, uint_fast8_t> self_links = copy->self_links();
 
             bool has_self_link = false;
@@ -967,17 +970,17 @@ namespace pdaggerq {
         std::vector<ConstVertexPtr> new_rhs;
         new_rhs.reserve(rhs_.size());
         for (const auto & vertex : rhs_) {
-            VertexPtr new_vertex = vertex->clone_ptr();
+            VertexPtr new_vertex = vertex->clone();
             new_vertex->replace_lines(line_map);
             new_rhs.push_back(new_vertex);
         }
 
         // make eq vertex generic
-        VertexPtr new_eq = (eq_ != nullptr) ? eq_->clone_ptr() : lhs_->clone_ptr();
+        VertexPtr new_eq = (eq_ != nullptr) ? eq_->clone() : lhs_->clone();
         new_eq->replace_lines(line_map);
 
         // make lhs generic
-        VertexPtr new_lhs = lhs_->clone_ptr();
+        VertexPtr new_lhs = lhs_->clone();
         new_lhs->replace_lines(line_map);
 
         // make permutation generic
@@ -1082,14 +1085,62 @@ namespace pdaggerq {
         Term new_term = *this;
 
         // make deep copies of all vertices
-        new_term.lhs_ = clone_ptr(lhs_);
-        new_term.eq_ = clone_ptr(eq_);
+        new_term.lhs_ = lhs_ ? lhs_->clone() : nullptr;
+        new_term.eq_  =  eq_ ? eq_->clone() : nullptr;
         new_term.rhs_.clear();
         for (const auto & vertex : rhs_)
-            new_term.rhs_.push_back(vertex->clone_ptr());
-        new_term.term_linkage_ = as_link(term_linkage_->clone_ptr());
+            new_term.rhs_.push_back(vertex->clone());
+        new_term.term_linkage_ = as_link(term_linkage_->clone());
 
         return new_term;
+    }
+
+    void Term::compute_scaling(bool recompute) {
+        if (!needs_update_ && !recompute)
+            return; // if term does not need updating, return
+
+        auto [flop_map, mem_map] = compute_scaling(rhs_, recompute); // compute scaling of current rhs
+
+        flop_map_ = flop_map;
+        mem_map_  = mem_map;
+        if (rhs_.size() > 1)
+            term_linkage_ = Linkage::link(rhs_);
+        else if (!rhs_.empty()) term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
+        else term_linkage_ = as_link(make_shared<Vertex>() * make_shared<Vertex>());
+
+        // indicate that term no longer needs updating
+        needs_update_ = false;
+    }
+
+    set<string> Term::conditions() const {
+
+        ConstLinkagePtr term_linkage = term_linkage_; // get linkage representation of term
+        set<string> conditions{}; // set to store conditions
+
+        if (!term_linkage) {
+            // return current conditions if no linkage
+            if (rhs_.empty())
+                return conditions;
+
+            // if rhs is not empty, create a new term and get its linkage
+            Term new_term = *this;
+            new_term.compute_scaling(true); // force recomputation of scaling
+            term_linkage = new_term.term_linkage_; // get linkage
+        }
+
+        if (!term_linkage)
+            return conditions; // return current conditions if no linkage
+
+        // create a set of operator basenames
+        vector<ConstVertexPtr> vertices = term_linkage->vertices();
+        for (const auto & vertex : vertices) {
+            const auto &pos = defined_conditions_.find(vertex->base_name());
+            if (pos != defined_conditions_.end())
+                conditions.insert(vertex->base_name());
+        }
+
+        // return set of operator basenames that have conditions
+        return conditions;
     }
 
 } // pdaggerq

@@ -82,7 +82,7 @@ void Term::operate_subsets(
     }
 }
 
-linkage_set Term::generate_linkages() const {
+linkage_set Term::make_all_links() const {
 
     if (rhs_.empty())
         return {}; // if constant, return an empty set of linkages
@@ -113,6 +113,7 @@ linkage_set Term::generate_linkages() const {
 
         // make linkages from subset vertices
         LinkagePtr this_linkage = Linkage::link(subset_vec);
+        this_linkage->tree_sort(); // sort the linkage tree
 
         shape link_shape = this_linkage->shape_;
         size_t link_occ = (size_t) link_shape.oa_ + (size_t) link_shape.ob_;
@@ -159,8 +160,8 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
 
 
     // get total vector of linkage vertices (without expanding nested linkages)
-    vector<ConstVertexPtr> link_list = linkage->to_vector();
-    vector<ConstVertexPtr> term_list = term_linkage_->to_vector();
+    vector<ConstVertexPtr> link_list = linkage->link_vector();
+    vector<ConstVertexPtr> term_list = term_linkage_->link_vector();
 
     // sort lists by name
     sort(link_list.begin(), link_list.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
@@ -202,7 +203,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     bool best_is_odd = false;
     vector<ConstVertexPtr> best_vertices = rhs_;
 
-    vector<ConstVertexPtr> link_vec = linkage->to_vector();
+    vector<ConstVertexPtr> link_vec = linkage->link_vector();
     size_t num_link = link_vec.size(); // get number of linkages in rhs
 
     // sort link_vec by name
@@ -451,7 +452,7 @@ bool Term::make_scalar(linkage_set &scalars, size_t id) {
         for (auto &v : best_vertices) {
             if (v->is_temp() && as_link(v)->id_ == id && v->is_scalar()) {
                 // change id of scalar if it is a temp
-                VertexPtr link = as_link(v)->clone_ptr();
+                VertexPtr link = as_link(v)->clone();
                 as_link(link)->id_ = new_id;
                 v = link;
             }

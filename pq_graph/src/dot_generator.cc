@@ -185,7 +185,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
     });
 
     bool track_temps = false; // TODO: make this a parameter
-    vector<ConstVertexPtr> temps = this->to_vector(false);
+    vector<ConstVertexPtr> temps = this->link_vector(false);
     vector<ConstVertexPtr> temp_verts;
     temp_verts.reserve(vertices.size());
 
@@ -302,7 +302,7 @@ ostream &Linkage::write_dot(ostream &os, const std::string& color, bool reset) c
             std::string r_id = std::to_string(j) + to_string(term_id);
             std::string next_node = next->base_name() + "_" + r_id;
 
-            // Add vertices as nodes. connect the current and next vertices with edges from the connections map
+            // Add vertices as nodes. connect the current and next vertices with edges from the connec_map map
             // (-1 indicates no match and should use a dummy node)
 
             const auto & current_lines = current->lines();

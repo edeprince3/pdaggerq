@@ -49,7 +49,7 @@ namespace pdaggerq {
 
     class PQGraph {
         map<string, Equation> equations_; // equations to be optimized
-        map<string, linkage_set> all_linkages_ = { // all intermediate linkages
+        map<string, linkage_set> saved_linkages_ = { // all intermediate linkages
                                                     {"scalars", linkage_set(256)},
                                                     {"tmps", linkage_set(256)},
                                                     {"reuse", linkage_set(256)}
@@ -57,7 +57,7 @@ namespace pdaggerq {
 
         // counts of tmps and scalars
         map<string, size_t> temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse", 0}};
-        linkage_set tmp_candidates_; // all possible linkages in the equations
+        linkage_set all_links_; // all possible linkages in the equations
 
         bool is_reordered_ = false; // whether the equations have been reordered
         bool is_reused_ = false; // whether the equations have been reused
@@ -87,10 +87,10 @@ namespace pdaggerq {
         /// options for the builder
         size_t max_temps_ = -1l; // maximum number of temporary rhs (-1 for no limit by overflow)
         bool batched_ = true; // whether to use batched substitution
-        size_t batch_size_ = 100; // size of the batch
+        size_t batch_size_ = 10; // size of the batch
         int nthreads_ = 1; // number of threads to use
-        bool verbose = true; // whether to print verbose output
-        bool allow_merge_ = false; // whether to merge terms
+        bool verbose_ = true; // whether to print verbose output
+        bool allow_merge_ = true; // whether to merge terms
         bool use_density_fitting_ = false; // whether to use density fitting
 
         /// options for building sigma vectors
@@ -137,13 +137,13 @@ namespace pdaggerq {
          */
         void clear() {
             equations_.clear();
-            all_linkages_.clear();
+            saved_linkages_.clear();
 
             flop_map_.clear(); flop_map_init_.clear(); flop_map_pre_.clear();
             mem_map_.clear(); mem_map_init_.clear(); mem_map_pre_.clear();
 
             temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse", 0}};
-            tmp_candidates_.clear();
+            all_links_.clear();
             is_reordered_ = false;
             is_reused_ = false;
             has_perms_merged_ = false;
@@ -214,7 +214,7 @@ namespace pdaggerq {
          * collect all possible linkages from all equations (remove none)
          * @param recompute whether to recompute all linkages or just the ones in modified terms
          */
-        void generate_linkages(bool recompute, bool format_sigma);
+        void make_all_links(bool recompute);
 
         /**
          * Print all terms in each equation
@@ -237,18 +237,11 @@ namespace pdaggerq {
         void write_dot(std::string &filepath);
 
         /**
-         * adds a tmp to all_linkages_ and adds to equations
+         * adds a tmp to saved_linkages_ and adds to equations
          * @param precon tmp to add
          * @note recomputes scaling after adding tmps
          */
         static Term &add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff = 1.0);
-
-        /**
-         * Sorts tmps by the maximum id of the rhs in the linkage and the tmp itself
-         * @param equation equation to sort tmps for
-         * @param type type of tmps to sort (t for tmps, s for scalars, r for reuse)
-         */
-        static void sort_tmps(Equation &equation, char type = 't');
 
         /**
          * Find the common coefficient of a set of terms

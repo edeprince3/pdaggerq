@@ -50,6 +50,7 @@ namespace pdaggerq {
         string name_; // name of the equation
         ConstVertexPtr assignment_vertex_; // assignment vertex
         vector<Term> terms_; // terms in the equation
+        ConstLinkagePtr eq_linkage_; // linkage of the equation
 
         /// scaling of the equation
         scaling_map flop_map_; // map of flop scaling with linkage occurrence in equation
@@ -58,7 +59,7 @@ namespace pdaggerq {
     public:
         static inline size_t nthreads_ = 1; // number of threads to use when substituting
         static inline bool permuted_merge_ = false; // whether to merge terms with permutations
-        static inline bool separate_conditions_ = false; // whether to separate terms into their conditions
+        static inline bool separate_conditions_ = true; // whether to separate terms into their conditions
         bool is_temp_equation_ = false; // whether this is an equation to hold intermediates
         bool allow_substitution_ = true; // whether to allow substitution of linkages
 
@@ -270,7 +271,7 @@ namespace pdaggerq {
         /**
          * collect all possible linkages from all terms
          */
-        linkage_set generate_linkages(bool compute_all = true);
+        linkage_set make_all_links(bool compute_all = true);
 
         /**
          * substitute scalars into the equation
@@ -329,7 +330,36 @@ namespace pdaggerq {
          */
         vector<Term *> get_temp_terms(const ConstLinkagePtr& contraction);
 
+        /**
+         * Make a deep copy of the equation, making new shared pointers for vertices and linkages
+         * @return deep copy of the equation
+         */
         Equation clone() const;
+
+        /**
+         * Sort terms in the equation
+         * group together terms by
+         *      1) their conditions
+         *      2) the scaling of their linkages
+         *      3) their permutation container
+         *      4) the rhs of the terms
+         * @return sorted equation
+         */
+        void rearrange(char type = 't');
+
+        /**
+         * Sorts tmps by the maximum id of the rhs in the linkage and the tmp itself
+         * @param equation equation to sort tmps for
+         * @param type type of tmps to sort (t for tmps, s for scalars, r for reuse)
+         */
+        static void sort_tmp_type(Equation &equation, char type = 't');
+
+        /**
+         * get 'if' block string formatting
+         * @param conditions set of conditions
+         * @return string of 'if' block
+         */
+        static string condition_string(set<string> &conditions);
     }; // class Equation
 
 } // pdaggerq

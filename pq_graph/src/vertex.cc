@@ -663,7 +663,7 @@ namespace pdaggerq {
             }
 
             // create delta function
-            VertexPtr delta_op = clone_ptr();
+            VertexPtr delta_op = clone();
             delta_op->base_name_ = "Id";
             delta_op->update_lines(delta_lines);
 

@@ -77,7 +77,9 @@ namespace pdaggerq {
 
         // indicates the vertex is not linked to another vertex
         virtual bool is_linked() const { return false; }
+        virtual long id() const { return -1; }
         virtual bool is_temp() const { return false; }
+        virtual bool is_reused() const { return false; }
         virtual size_t depth() const { return empty() ? 0 : 1; }
         virtual size_t partial_depth() const { return empty() ? 0 : 1; }
 
@@ -130,14 +132,19 @@ namespace pdaggerq {
          * deep copy of vertex returned as a pointer
          * @return pointer to deep copy of vertex
          */
-        virtual VertexPtr clone_ptr() const{
+        virtual ConstVertexPtr safe_clone() const{
+            return shared_from_this();
+        }
+        virtual VertexPtr clone() const{
             return std::make_shared<Vertex>(*this);
         }
-        friend ConstVertexPtr clone_ptr(const ConstVertexPtr &v) {
-            if (!v) return nullptr;
-            return v->clone_ptr();
-        }
 
+        /**
+         * return
+         */
+        virtual ConstVertexPtr tree_sort() const {
+            return shared_from_this();
+        }
 
         /**
          * move constructor

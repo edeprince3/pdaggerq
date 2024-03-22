@@ -49,7 +49,7 @@ namespace pdaggerq {
             size_t total_hash = (left_vert_hash ^ right_vert_hash) + magic_golden_ratio;
 
             size_t connection_hash = 0;
-            for (const auto &[leftidx, rightidx] : linkage.connections()) {
+            for (const auto &[leftidx, rightidx] : linkage.connec_map()) {
                 // create hash from leftidx and rightidx
                 constexpr std::hash<int_fast8_t> hasher;
                 size_t left_hash = hasher(leftidx);
@@ -262,6 +262,15 @@ namespace pdaggerq {
         void erase(const ConstLinkagePtr &linkage) {
             std::lock_guard<std::mutex> lock(mtx_);
             linkages_.erase(linkage);
+        }
+
+        /**
+         * overload == operator
+         * @param other linkage set to compare
+         * @return true if the sets are equal
+         */
+        bool operator==(const linkage_set &other) const {
+            return linkages_ == other.linkages_;
         }
 
     }; // class linkage_set

@@ -87,7 +87,7 @@ namespace pdaggerq {
             use_density_fitting_ = options["density_fitting"].cast<bool>();
 
         if (options.contains("verbose"))
-            verbose = options["verbose"].cast<bool>();
+            verbose_ = options["verbose"].cast<bool>();
 
         if (options.contains("max_shape_map")) {
             std::map<string, long> max_shape_map;
@@ -178,11 +178,14 @@ namespace pdaggerq {
                 Equation::nthreads_ = nthreads_;
             }
         }
-        omp_set_num_threads(1); // set to 1 to speed up non-parallel code
 
-        if (options.contains("separate_conditions")){
-            //TODO: implement this
-            Equation::separate_conditions_ = options["separate_conditions"].cast<bool>();
+        // set defined conditions
+        if (options.contains("conditions")){
+            vector<string> conditions = options["conditions"].cast<vector<string>>();
+            Term::defined_conditions_.clear();
+            for (const auto &condition : conditions) {
+                Term::defined_conditions_.insert(condition);
+            }
         }
 
         if(options.contains("format_sigma"))
@@ -191,9 +194,17 @@ namespace pdaggerq {
         if (options.contains("print_trial_index"))
             Vertex::print_trial_index = options["print_trial_index"].cast<bool>();
 
+        if (options.contains("conditions")){
+            cout << "Defined conditions: ";
+            for (const auto &condition : Term::defined_conditions_) {
+                cout << condition << " ";
+            }
+            cout << endl;
+        }
+
         cout << "Options:" << endl;
         cout << "--------" << endl;
-        cout << "    verbose: " << (verbose ? "true" : "false")
+        cout << "    verbose: " << (verbose_ ? "true" : "false")
              << "  // whether to print out verbose analysis (default: true)" << endl;
 
         cout << "    max_temps: " << (long) max_temps_
@@ -203,7 +214,7 @@ namespace pdaggerq {
                 << "  // whether to prune intermediates that are not used in the final equations (default: false)" << endl;
 
         cout << "    max_depth: " << (long) Term::max_depth_
-             << "  // maximum depth for chain of contractions (default: 2; -1 for no limit)" << endl;
+             << "  // maximum depth for chain of contractions (default: -1 for no limit)" << endl;
 
         cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
                 "for no limit of occupied and virtual lines.): " << endl;
@@ -225,10 +236,10 @@ namespace pdaggerq {
              << "  // whether to substitute intermediates in batches for faster generation. (default: true)" << endl;
 
         cout << "    batch_size: " << (long) batch_size_
-                << "  // size of the batch for batched substitution (default: 100; -1 for no limit; 1 is equivalent to no batching)" << endl;
+                << "  // size of the batch for batched substitution (default: 10; -1 for no limit; 1 is equivalent to no batching)" << endl;
 
         cout << "    allow_merge: " << (allow_merge_ ? "true" : "false")
-             << "  // whether to merge similar terms during optimization (default: false)" << endl;
+             << "  // whether to merge similar terms during optimization (default: true)" << endl;
 
         cout << "    nthreads: " << nthreads_
              << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
@@ -305,7 +316,7 @@ namespace pdaggerq {
 
             // use the term to build the assignment vertex
             if (!name_is_formatted || equation_name.empty()) {
-                VertexPtr assignment = make_shared<Vertex>(*term.term_linkage()->clone_ptr());
+                VertexPtr assignment = make_shared<Vertex>(*term.term_linkage()->safe_clone());
 
                 if (label_order.empty())
                     assignment->sort();
@@ -360,7 +371,7 @@ namespace pdaggerq {
                 term.lhs() = assignment;
                 term.eq() = assignment;
             } else {
-                VertexPtr assignment = term.lhs()->clone_ptr();
+                VertexPtr assignment = term.lhs()->clone();
                 if (label_order.empty())
                     assignment->sort();
                 else {
@@ -436,7 +447,7 @@ namespace pdaggerq {
 
         // build equation
         Equation& new_equation = equations_[assigment_name];
-        VertexPtr assignment_vertex = terms.back().lhs()->clone_ptr();
+        VertexPtr assignment_vertex = terms.back().lhs()->clone();
 
         // do not format assignment vertices as a map
         assignment_vertex->format_map_ = false;
@@ -534,7 +545,7 @@ namespace pdaggerq {
 //                continue; // skip tmps equation
 //            }
 
-            sort_tmps(equation); // sort tmps in equation
+            equation.rearrange(); // sort tmps in equation
 
             // find first term without a tmp on the rhs, make it an assigment, and bring it to the front
             for (size_t i = 0; i < terms.size(); ++i) {
@@ -591,13 +602,13 @@ namespace pdaggerq {
 
         // create merged equation to sort tmps
         Equation merged_eq = Equation("", all_terms);
-        sort_tmps(merged_eq); // sort tmps in merged equation
+        merged_eq.rearrange('t'); // sort tmps in merged equation
         all_terms = merged_eq.terms(); // get sorted terms
 
         // print scalar declarations
         if (!copy.equations_["scalars"].empty()) {
             sout << " #####  Scalars  ##### " << endl << endl;
-            sort_tmps(copy.equations_["scalars"], 's'); // sort scalars in scalars equation
+            copy.equations_["scalars"].rearrange('s'); // sort scalars in scalars equation
             for (auto &term: copy.equations_["scalars"])
                 term.comments() = {}; // remove comments from scalars
 
@@ -609,7 +620,7 @@ namespace pdaggerq {
         // print declarations for reuse_tmps
         if (!copy.equations_["reuse"].empty()){
             sout << " #####  Shared  Operators  ##### " << endl << endl;
-            sort_tmps(copy.equations_["reuse"]); // sort reuse_tmps in reuse_tmps equation
+            copy.equations_["reuse"].rearrange('t'); // sort reuse_tmps in reuse_tmps equation
             for (auto &term: copy.equations_["reuse"])
                 term.comments() = {}; // remove comments from reuse_tmps
 
@@ -620,7 +631,7 @@ namespace pdaggerq {
 
         // for each term in tmps, add the term to the merged equation
         // where each tmp of a given id is first used
-        sort_tmps(copy.equations_["tmps"]);
+        copy.equations_["tmps"].rearrange('t'); // sort tmps in tmps equation
 
         auto &tempterms = copy.equations_["tmps"];
         std::stable_sort(tempterms.begin(), tempterms.end(), [](const Term &a, const Term &b) {
@@ -720,19 +731,19 @@ namespace pdaggerq {
                 // Create new term with tmp in the lhs and assign zero to the rhs
 
                 // create vertex with only the linkage's name
-                std::string lhs_name = temp->str(true, false);
+                string newname;
+                string lhs_name = temp->str(true, false);
 
-                // create term
-                Term newterm;
                 if (Term::make_einsum)
-                     newterm = Term("del " + lhs_name);
-                else newterm = Term(lhs_name + ".~TArrayD();");
+                     newname = "del " + lhs_name;
+                else newname = lhs_name + ".~TArrayD();";
 
-                newterm.is_assignment_ = true;
-                newterm.comments() = {};
+                Term newterm(tempterm);
+                newterm.print_override_ = newname;
 
                 // add tmp term after this term
                 all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
+
 
                 break; // only add once
             }
@@ -829,17 +840,15 @@ namespace pdaggerq {
             mem_map_init_ = mem_map_;
         }
 
-        if (!is_reordered_) cout << endl << "Reordering equations..." << flush;
+        if (!is_reordered_) cout << "Reordering equations..." << flush;
 
         // get list of keys in equations
         vector<string> eq_keys = get_equation_keys();
 
-        omp_set_num_threads(nthreads_); // set number of threads
         #pragma omp parallel for schedule(guided) shared(equations_, eq_keys) default(none)
         for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
             equations_[eq_name].reorder(true); // reorder terms in equation
         }
-        omp_set_num_threads(1); // set to 1 to speed up non-parallel code
 
         if (!is_reordered_) cout << " Done" << endl << endl;
 
@@ -952,8 +961,11 @@ namespace pdaggerq {
 
         bool format_sigma = has_sigma_vecs_ && format_sigma_;
 
+
         // substitute scalars first
+        bool verbose = verbose_; verbose_ = false; // mute verbose output
         substitute(format_sigma, true);
+        verbose_ = verbose;
 
         // find and substitute intermediate contractions
         substitute(format_sigma, false);
