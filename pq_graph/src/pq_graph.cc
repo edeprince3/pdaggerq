@@ -620,7 +620,7 @@ namespace pdaggerq {
         // print declarations for reuse_tmps
         if (!copy.equations_["reuse"].empty()){
             sout << " #####  Shared  Operators  ##### " << endl << endl;
-            copy.equations_["reuse"].rearrange('t'); // sort reuse_tmps in reuse_tmps equation
+            copy.equations_["reuse"].rearrange('r'); // sort reuse_tmps in reuse_tmps equation
             for (auto &term: copy.equations_["reuse"])
                 term.comments() = {}; // remove comments from reuse_tmps
 
