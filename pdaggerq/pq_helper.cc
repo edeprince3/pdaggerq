@@ -99,6 +99,7 @@ void export_pq_helper(py::module& m) {
              },
                 py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("add_st_operator", &pq_helper::add_st_operator)
+        .def("add_anticommutator", &pq_helper::add_anticommutator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
         .def("add_triple_commutator", &pq_helper::add_triple_commutator)
@@ -200,6 +201,15 @@ void pq_helper::set_right_operators_type(const std::string &type) {
 // do operators entering similarity transformation commute? default true
 void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
     cluster_operators_commute = do_cluster_operators_commute;
+}
+
+void pq_helper::add_anticommutator(double factor,
+                               const std::vector<std::string> &op0,
+                               const std::vector<std::string> &op1){
+
+    add_operator_product(factor, concatinate_operators({op0, op1}) );
+    add_operator_product(factor, concatinate_operators({op1, op0}) );
+
 }
 
 void pq_helper::add_commutator(double factor,

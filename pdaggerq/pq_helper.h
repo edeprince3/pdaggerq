@@ -143,6 +143,17 @@ class pq_helper {
 
     /**
      *
+     * add a anticommutator of two operators, {op0, op1}
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     *
+     */
+    void add_anticommutator(double factor, const std::vector<std::string> &op0,
+                                           const std::vector<std::string> &op1);
+
+    /**
+     *
      * add a commutator of two operators, [op0, op1]
      *
      * @param op0: a list of strings defining an operator product
