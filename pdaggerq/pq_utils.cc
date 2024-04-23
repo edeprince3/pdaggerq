@@ -510,6 +510,8 @@ void consolidate_permutations_non_summed(
     for (size_t i = 0; i < ordered.size(); i++) {
 
         // not sure if this logic works with existing permutation operators ... skip those for now
+        //if ( !ordered[i]->permutations.empty() ) continue;
+
         if ( !ordered[i]->paired_permutations_2.empty() ) continue;
         if ( !ordered[i]->paired_permutations_3.empty() ) continue;
         if ( !ordered[i]->paired_permutations_6.empty() ) continue;
@@ -550,6 +552,31 @@ void consolidate_permutations_non_summed(
             int n_permute;
             bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
+            // now that we've identified some permutations, it is possible for strings to be the same without swaps
+            if (strings_same) {
+
+                double factor_i = ordered[i]->factor * ordered[i]->sign;
+                double factor_j = ordered[j]->factor * ordered[j]->sign;
+
+                double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
+
+                // if terms exactly cancel, do so
+                if ( fabs(combined_factor) < 1e-12 ) {
+                    ordered[i]->skip = true;
+                    ordered[j]->skip = true;
+                    break;
+                }
+
+                // otherwise, combine terms
+                ordered[i]->factor = fabs(combined_factor);
+                if ( combined_factor > 0.0 ) {
+                    ordered[i]->sign =  1;
+                }else {
+                    ordered[i]->sign = -1;
+                }
+                ordered[j]->skip = true;
+            }
+
             std::string permutation_1;
             std::string permutation_2;
 
@@ -565,7 +592,6 @@ void consolidate_permutations_non_summed(
                     strings_same = compare_strings(ordered[j], newguy, n_permute);
 
                     if ( strings_same ) {
-
                         permutation_1 = labels[id1];
                         permutation_2 = labels[id2];
                         break;
