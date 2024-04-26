@@ -57,6 +57,8 @@ void export_pq_helper(py::module& m) {
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
         .def("set_right_operators_type", &pq_helper::set_right_operators_type)
+        .def("get_right_operators_type", &pq_helper::get_right_operators_type)
+        .def("get_left_operators_type", &pq_helper::get_left_operators_type)
         .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)

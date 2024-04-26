@@ -77,12 +77,30 @@ class pq_helper {
 
     /**
      *
+     * get right-hand operators type
+     *
+     * @return type: a string specifying the type of operators that define the ket state ("EE", "IP", "EA", "DEA", "DIP")
+     *
+     */
+    std::string get_right_operators_type(){return right_operators_type;}
+
+    /**
+     *
      * set left-hand operators type
      *
      * @param type: a string specifying the type of operators that define the bra state ("EE", "IP", "EA", "DEA", "DIP")
      *
      */
     void set_left_operators_type(const std::string& type);
+
+    /**
+     *
+     * get left-hand operators type
+     *
+     * @return type: a string specifying the type of operators that define the ket state ("EE", "IP", "EA", "DEA", "DIP")
+     *
+     */
+    std::string get_left_operators_type(){return left_operators_type;}
 
     /**
      *
