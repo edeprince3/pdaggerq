@@ -26,7 +26,7 @@ def is_occ(idx):
         return True
     return False
 
-def latex(pq, terms, input_string = '', kill_deltas = False):
+def latex(pq, terms, input_string = '', kill_deltas = False, terms_per_line = 2):
     """
     generate latex equations from pq-generated terms
 
@@ -34,6 +34,7 @@ def latex(pq, terms, input_string = '', kill_deltas = False):
     :param terms: the terms for which we want latex
     :param input_string: the input latex string to which the current terms should be added
     :param kill_deltas: do kill delta functions involving occupied/virtual pairs?
+    :param terms_per_line: how many terms before a line break?
 
     :return output_string: the output latex string
     """
@@ -174,7 +175,7 @@ def latex(pq, terms, input_string = '', kill_deltas = False):
         if this_string != '':
             line_break += 1
 
-        if count < len(terms) - 1 and line_break == 2:
+        if count < len(terms) - 1 and line_break == terms_per_line:
             line_break = 0
             output_string += ' \\nonumber \\\\ &'
                   
