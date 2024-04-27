@@ -7,15 +7,14 @@ def main():
 
     print("T2 mappings")
     pq = pdaggerq.pq_helper('true')
-    pq.add_operator_product(1.0, ['a*(i)', 'a*(j)', 'a(k)', 'a*(n)', 'a(m)', 'a(l)'])
-    pq.add_operator_product(1.0, ['a*(n)', 'a(m)', 'a(l)', 'a*(i)', 'a*(j)', 'a(k)'])
+    pq.add_anticommutator(1.0, ['a*(i)', 'a*(j)', 'a(k)'], ['a*(n)', 'a(m)', 'a(l)'])
+
     pq.simplify()
     pq.print(string_type = 'all')
     pq.clear()
 
     print("T1 mappings")
-    pq.add_operator_product(1.0, ['a*(i)', 'a*(j)', 'a*(k)', 'a(n)', 'a(m)', 'a(l)'])
-    pq.add_operator_product(1.0, ['a(n)', 'a(m)', 'a(l)', 'a*(i)', 'a*(j)', 'a*(k)'])
+    pq.add_anticommutator(1.0, ['a*(i)', 'a*(j)', 'a*(k)'], ['a(n)', 'a(m)', 'a(l)'])
     pq.simplify()
     pq.print(string_type = 'all')
     pq.clear()
