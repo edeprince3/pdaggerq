@@ -483,6 +483,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 // lowercase indices
                 std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
 
+                // remove spaces
+                removeSpaces(op);
+
                 // remove parentheses
                 removeParentheses(op);
 
