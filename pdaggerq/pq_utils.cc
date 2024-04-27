@@ -180,8 +180,6 @@ void replace_index_in_deltas(const std::string &old_idx, const std::string &new_
         if ( delta.labels[0] == old_idx ) {
             delta.labels[0] = new_idx;
         }
-    }
-    for (delta_functions & delta : deltas) {
         if ( delta.labels[1] == old_idx ) {
             delta.labels[1] = new_idx;
         }
