@@ -101,12 +101,22 @@ void export_pq_helper(py::module& m) {
              },
                 py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("add_st_operator", &pq_helper::add_st_operator)
+        .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
         .def("add_triple_commutator", &pq_helper::add_triple_commutator)
         .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
         .def("add_operator_product", &pq_helper::add_operator_product);
+
+    //py::class_<pdaggerq::pq_operator_terms, std::shared_ptr<pdaggerq::pq_operator_terms> >(m, "pq_operator_terms")
+    //    .def(py::init< double, std::vector<std::string> >())
+    //    .def("factor", &pq_operator_terms::factor)
+    //    .def("operators", &pq_operator_terms::operators);
+    py::class_<pdaggerq::pq_operator_terms>(m, "pq_operator_terms")
+        .def(py::init<double, std::vector<std::string>>())
+        .def("factor", &pq_operator_terms::get_factor)
+        .def("operators", &pq_operator_terms::get_operators);
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {
@@ -218,21 +228,49 @@ void pq_helper::add_commutator(double factor,
                                const std::vector<std::string> &op0,
                                const std::vector<std::string> &op1){
 
-    add_operator_product( factor, concatinate_operators({op0, op1}) );
-    add_operator_product(-factor, concatinate_operators({op1, op0}) );
+    std::vector<pq_operator_terms> ops = get_commutator_terms(factor, op0, op1);
+    for (auto op : ops){
+        add_operator_product(op.factor, op.operators);
+    }
+}
 
+std::vector<pq_operator_terms> pq_helper::get_commutator_terms(double factor,
+                                                                          const std::vector<std::string> &op0,
+                                                                          const std::vector<std::string> &op1){
+
+    std::vector<pq_operator_terms> ops;
+
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0})));
+
+    return ops;  
 }
 
 void pq_helper::add_double_commutator(double factor,
-                                        const std::vector<std::string> &op0,
-                                        const std::vector<std::string> &op1,
-                                        const std::vector<std::string> &op2){
+                                      const std::vector<std::string> &op0,
+                                      const std::vector<std::string> &op1,
+                                      const std::vector<std::string> &op2){
 
-    add_operator_product( factor, concatinate_operators({op0, op1, op2}) );
-    add_operator_product(-factor, concatinate_operators({op1, op0, op2}) );
-    add_operator_product(-factor, concatinate_operators({op2, op0, op1}) );
-    add_operator_product( factor, concatinate_operators({op2, op1, op0}) );
+    std::vector<pq_operator_terms> ops = get_double_commutator_terms(factor, op0, op1, op2);
+    for (auto op : ops){
+        add_operator_product(op.factor, op.operators);
+    }
 
+}
+
+std::vector<pq_operator_terms> pq_helper::get_double_commutator_terms(double factor,
+                                                                                 const std::vector<std::string> &op0,
+                                                                                 const std::vector<std::string> &op1,
+                                                                                 const std::vector<std::string> &op2){
+
+    std::vector<pq_operator_terms> ops;
+
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1, op2})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0, op2})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op2, op0, op1})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op2, op1, op0})));
+
+    return ops;  
 }
 
 void pq_helper::add_triple_commutator(double factor,
@@ -241,15 +279,31 @@ void pq_helper::add_triple_commutator(double factor,
                                         const std::vector<std::string> &op2,
                                         const std::vector<std::string> &op3){
 
-    add_operator_product( factor, concatinate_operators({op0, op1, op2, op3}) );
-    add_operator_product(-factor, concatinate_operators({op1, op0, op2, op3}) );
-    add_operator_product(-factor, concatinate_operators({op2, op0, op1, op3}) );
-    add_operator_product( factor, concatinate_operators({op2, op1, op0, op3}) );
-    add_operator_product(-factor, concatinate_operators({op3, op0, op1, op2}) );
-    add_operator_product( factor, concatinate_operators({op3, op1, op0, op2}) );
-    add_operator_product( factor, concatinate_operators({op3, op2, op0, op1}) );
-    add_operator_product(-factor, concatinate_operators({op3, op2, op1, op0}) );
+    std::vector<pq_operator_terms> ops = get_triple_commutator_terms(factor, op0, op1, op2, op3);
+    for (auto op : ops){
+        add_operator_product(op.factor, op.operators);
+    }
 
+}
+
+std::vector<pq_operator_terms> pq_helper::get_triple_commutator_terms(double factor,
+                                                                                 const std::vector<std::string> &op0,
+                                                                                 const std::vector<std::string> &op1,
+                                                                                 const std::vector<std::string> &op2,
+                                                                                 const std::vector<std::string> &op3){
+
+    std::vector<pq_operator_terms> ops;
+
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1, op2, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0, op2, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op2, op0, op1, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op2, op1, op0, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op0, op1, op2})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op1, op0, op2})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op2, op0, op1})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op2, op1, op0})));
+
+    return ops;  
 }
 
 void pq_helper::add_quadruple_commutator(double factor,
@@ -259,24 +313,39 @@ void pq_helper::add_quadruple_commutator(double factor,
                                            const std::vector<std::string> &op3,
                                            const std::vector<std::string> &op4){
 
+    std::vector<pq_operator_terms> ops = get_quadruple_commutator_terms(factor, op0, op1, op2, op3, op4);
+    for (auto op : ops){
+        add_operator_product(op.factor, op.operators);
+    }
+}
 
-    add_operator_product( factor, concatinate_operators({op0, op1, op2, op3, op4}) );
-    add_operator_product(-factor, concatinate_operators({op1, op0, op2, op3, op4}) );
-    add_operator_product(-factor, concatinate_operators({op2, op0, op1, op3, op4}) );
-    add_operator_product( factor, concatinate_operators({op2, op1, op0, op3, op4}) );
-    add_operator_product(-factor, concatinate_operators({op3, op0, op1, op2, op4}) );
-    add_operator_product( factor, concatinate_operators({op3, op1, op0, op2, op4}) );
-    add_operator_product( factor, concatinate_operators({op3, op2, op0, op1, op4}) );
-    add_operator_product(-factor, concatinate_operators({op3, op2, op1, op0, op4}) );
-    add_operator_product(-factor, concatinate_operators({op4, op0, op1, op2, op3}) );
-    add_operator_product( factor, concatinate_operators({op4, op1, op0, op2, op3}) );
-    add_operator_product( factor, concatinate_operators({op4, op2, op0, op1, op3}) );
-    add_operator_product(-factor, concatinate_operators({op4, op2, op1, op0, op3}) );
-    add_operator_product( factor, concatinate_operators({op4, op3, op0, op1, op2}) );
-    add_operator_product(-factor, concatinate_operators({op4, op3, op1, op0, op2}) );
-    add_operator_product(-factor, concatinate_operators({op4, op3, op2, op0, op1}) );
-    add_operator_product( factor, concatinate_operators({op4, op3, op2, op1, op0}) );
+std::vector<pq_operator_terms> pq_helper::get_quadruple_commutator_terms(double factor,
+                                                                                    const std::vector<std::string> &op0,
+                                                                                    const std::vector<std::string> &op1,
+                                                                                    const std::vector<std::string> &op2,
+                                                                                    const std::vector<std::string> &op3,
+                                                                                    const std::vector<std::string> &op4){
 
+    std::vector<pq_operator_terms> ops;
+
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1, op2, op3, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0, op2, op3, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op2, op0, op1, op3, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op2, op1, op0, op3, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op0, op1, op2, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op1, op0, op2, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op2, op0, op1, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op2, op1, op0, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op0, op1, op2, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op1, op0, op2, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op2, op0, op1, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op2, op1, op0, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op0, op1, op2})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op1, op0, op2})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op2, op0, op1})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op2, op1, op0})));
+
+    return ops;  
 }
 
 // add a string of operators
@@ -405,9 +474,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
             bool has_w0       = false;
 
-            // stupid design choice ... o1-o4 and v1-v4 are already used
-            int occ_label_count = 5;
-            int vir_label_count = 5;
+            int occ_label_count = 0;
+            int vir_label_count = 0;
             int gen_label_count = 0;
 
             // apply any extra operators on left or right:
@@ -1083,7 +1151,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             if (vacuum == "TRUE") {
                 add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
             } else {
-                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations);
+                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations, occ_label_count, vir_label_count);
             }
         }
     }
@@ -1349,134 +1417,148 @@ void pq_helper::clear() {
 void pq_helper::add_st_operator(double factor, const std::vector<std::string> &targets,
                                                const std::vector<std::string> &ops){
 
+    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops);
+    for (auto op : st_ops){
+        add_operator_product(op.factor, op.operators);
+    }
+
+}
+
+std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops){
+
     int dim = (int)ops.size();
 
-    add_operator_product( factor, targets);
-    simplify();
+    std::vector<pq_operator_terms> st;
+    st.push_back(pq_operator_terms(factor, targets));
 
     for (int i = 0; i < dim; i++) {
-        add_commutator( factor, targets, {ops[i]});
+        std::vector<pq_operator_terms> tmp = get_commutator_terms(factor, targets, {ops[i]});
+        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
     }
-    simplify();
 
-    // for higher than single commutators, if operators commute, then
-    // we only need to consider unique pairs/triples/quadruplets of
-    // operators. need to add logic to handle cases where the operators
-    // do not commute.
     if ( cluster_operators_commute ) {
 
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
-                add_double_commutator(factor, targets, {ops[i]}, {ops[j]});
+                std::vector<pq_operator_terms> tmp = get_double_commutator_terms(factor, targets, {ops[i]}, {ops[j]});
+                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
             }
         }
-        simplify();
         for (int i = 0; i < dim; i++) {
-            add_double_commutator(0.5 * factor, targets, {ops[i]}, {ops[i]});
+            std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]});
+            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
         }
-        simplify();
 
         // ijk
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 for (int k = j + 1; k < dim; k++) {
-                    add_triple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+                    std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+                    st.insert(std::end(st), std::begin(tmp), std::end(tmp));
                 }
             }
         }
-        simplify();
 
         // ijj
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
-                add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
-                add_triple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]});
+                std::vector<pq_operator_terms> tmp1 = get_triple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
+                std::vector<pq_operator_terms> tmp2 = get_triple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]});
+
+                st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
+                st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
             }
         }
-        simplify();
 
          // iii
         for (int i = 0; i < dim; i++) {
-            add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
+            std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
+            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
         }
-        simplify();
 
         // ijkl
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 for (int k = j + 1; k < dim; k++) {
                     for (int l = k + 1; l < dim; l++) {
-                        add_quadruple_commutator( factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                        std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
                     }
                 }
             }
         }
-        simplify();
 
         // ijkk
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 for (int k = j + 1; k < dim; k++) {
-                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]});
-                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]});
-                    add_quadruple_commutator( 0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]});
+                    std::vector<pq_operator_terms> tmp1 = get_quadruple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[k]});
+                    std::vector<pq_operator_terms> tmp2 = get_quadruple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]});
+                    std::vector<pq_operator_terms> tmp3 = get_quadruple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]});
+
+                    st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
+                    st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
+                    st.insert(std::end(st), std::begin(tmp3), std::end(tmp3));
                 }
             }
         }
-        simplify();
 
         // iijj
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
-                add_quadruple_commutator( 0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
+                std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
+                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
             }
         }
-        simplify();
 
         // iiij
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
-                add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
-                add_quadruple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]});
+                std::vector<pq_operator_terms> tmp1 = get_quadruple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
+                std::vector<pq_operator_terms> tmp2 = get_quadruple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]});
+
+                st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
+                st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
             }
         }
-        simplify();
 
         // iiii
         for (int i = 0; i < dim; i++) {
-            add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
+            std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
+            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
         }
-        simplify();
+
     }else {
 
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
-                add_double_commutator( 0.5 * factor, targets, {ops[i]}, {ops[j]});
+                std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]});
+                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
             }
         }
-        simplify();
 
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
-                    add_triple_commutator( 1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+                    std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
+                    st.insert(std::end(st), std::begin(tmp), std::end(tmp));
                 }
             }
         }
-        simplify();
 
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
                     for (int l = 0; l < dim; l++) {
-                        add_quadruple_commutator( 1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                        std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
+                        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
                     }
                 }
             }
         }
-        simplify();
-
     }
+
+    return st;
 }
 
 } // End namespaces
