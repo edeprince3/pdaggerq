@@ -31,7 +31,6 @@
 #include <cctype>
 #include <algorithm>
 
-
 #include "pq_helper.h"
 #include "pq_utils.h"
 #include "pq_string.h"
@@ -53,6 +52,7 @@ void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
+        .def("add_new_string", &pq_helper::py_add_new_string)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
@@ -63,7 +63,6 @@ void export_pq_helper(py::module& m) {
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
-        //.def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_use_rdms",
              [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
                  return self.set_use_rdms(do_use_rdms, ignore_cumulant);
@@ -78,7 +77,6 @@ void export_pq_helper(py::module& m) {
         .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings_with_spin",
              [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
-//                 return self.fully_contracted_strings_with_spin(spin_labels);
                     self.block_by_spin(spin_labels);
                     return self.fully_contracted_strings();
              },
@@ -90,7 +88,6 @@ void export_pq_helper(py::module& m) {
                 py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("fully_contracted_strings_with_ranges",
              [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
-//                 return self.fully_contracted_strings_with_ranges(label_ranges);
                     self.block_by_range(label_ranges);
                     return self.fully_contracted_strings();
              },
@@ -109,14 +106,11 @@ void export_pq_helper(py::module& m) {
         .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
         .def("add_operator_product", &pq_helper::add_operator_product);
 
-    //py::class_<pdaggerq::pq_operator_terms, std::shared_ptr<pdaggerq::pq_operator_terms> >(m, "pq_operator_terms")
-    //    .def(py::init< double, std::vector<std::string> >())
-    //    .def("factor", &pq_operator_terms::factor)
-    //    .def("operators", &pq_operator_terms::operators);
     py::class_<pdaggerq::pq_operator_terms>(m, "pq_operator_terms")
         .def(py::init<double, std::vector<std::string>>())
         .def("factor", &pq_operator_terms::get_factor)
         .def("operators", &pq_operator_terms::get_operators);
+
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {
@@ -1154,6 +1148,26 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations, occ_label_count, vir_label_count);
             }
         }
+    }
+}
+
+void pq_helper::py_add_new_string(std::vector<char> type, 
+                                  std::vector<int> order, 
+                                  std::vector<std::vector<std::string>> amps_labels, 
+                                  std::vector<std::string> ops_labels){
+
+    std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
+    for (size_t i = 0; i < type.size(); i++){ 
+        newguy->set_amplitudes(type[i], order[i], order[i], amps_labels[i]);
+    }
+    newguy->string = ops_labels;
+
+    if (vacuum == "TRUE") {
+        add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
+    } else {
+        int occ_label_count = 0;
+        int vir_label_count = 0;
+        add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations, occ_label_count, vir_label_count);
     }
 }
 

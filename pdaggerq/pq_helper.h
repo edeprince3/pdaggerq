@@ -62,6 +62,23 @@ class pq_helper {
 
     /**
      *
+     * add a new string from python
+     *
+     * @param type: list of labels for amplitudes (e.g., 't')
+     * @param order: list of order for amplitudes (e.g., 2 -> 't2')
+     * @param amps_labels: list of labels for the amplitudes
+     * @param ops_labels: list of labels for the creation/annihilation operators (include "*" for creators)
+     *
+     */
+    void py_add_new_string(std::vector<char> type, 
+                           std::vector<int> order, 
+                           std::vector<std::vector<std::string>> amps_labels, 
+                           std::vector<std::string> ops_labels);
+
+
+
+    /**
+     *
      * set operators to apply to the left of any operator products we add
      *
      * @param in: strings indicating a sum (outer list) of products (inner lists) of operators that define the bra state
@@ -467,6 +484,7 @@ private:
      *
      */
     bool find_paired_permutations;
+
 
 };
 

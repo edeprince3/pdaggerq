@@ -136,6 +136,13 @@ class pq_string {
 
     /**
      *
+     * set a list of labels for fermionic creation / annihilation operators (from python side)
+     *
+     */
+    void set_operator_string(std::vector<std::string> in){string = in;}
+
+    /**
+     *
      * supported integral types
      *
      */
@@ -155,7 +162,7 @@ class pq_string {
      *
      */
     static inline
-    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's', 'D'};
+    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's', 'D', 'a', 'b'};
 
     /**
      *
@@ -329,7 +336,6 @@ class pq_string {
      * @param in: the list of labels for the amplitudes
      */
     void set_amplitudes(char type, int n_create, int n_annihilate, const std::vector<std::string> &in);
-
 };
 
 }

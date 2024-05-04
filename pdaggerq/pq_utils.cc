@@ -1293,13 +1293,13 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
                                      
     static std::vector<std::string> occ_labels{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
                                     "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
-                                    "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
+                                    "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29", "i", "j", "k", "l", "m", "n"};
     static std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
-                                    "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
+                                    "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "a", "b", "c", "d", "e", "f"};
     static std::vector<std::string> gen_labels{"p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9",
                                     "p10", "p11", "p12", "p13", "p14", "p15", "p16", "p17", "p18", "p19",
-                                    "p20", "p21", "p22", "p23", "p24", "p25", "p26", "p27", "p28", "p29"};
+                                    "p20", "p21", "p22", "p23", "p24", "p25", "p26", "p27", "p28", "p29", "p", "q", "r", "s", "t", "u"};
 
     std::vector<std::string> sum_labels;
     for (const std::string & occ_label : occ_labels) {
@@ -1396,7 +1396,7 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
 
 
         do_continue = false;
-        static char types[] = {'t', 'l', 'r', 'u', 'm', 's'};
+        static char types[] = {'t', 'l', 'r', 'u', 'm', 's', 'a', 'b'};
         for (auto & type : types) {
             std::vector<amplitudes> & amps = in->amps[type];
             
