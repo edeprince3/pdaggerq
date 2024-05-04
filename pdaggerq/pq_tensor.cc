@@ -45,6 +45,8 @@ void amplitudes::sort() {
 
     permutations = 0;
 
+    if (!has_permutational_symmetry) return;
+
     // sort labels and accumulate permutations
     for (size_t step = 1; step < numerical_labels.size(); step++) {
         

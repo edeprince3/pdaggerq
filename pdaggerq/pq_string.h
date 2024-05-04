@@ -334,8 +334,9 @@ class pq_string {
      * @param n_create: the number of labels corresponding to creation operators
      * @param n_annihilate: the number of labels corresponding to annihilation operators
      * @param in: the list of labels for the amplitudes
+     * @param has_permutational_symmetry: do the amplitudes have permutational symmetry? e.g., t2(a,b,i,j) = -t2(b,a,i,j), etc.
      */
-    void set_amplitudes(char type, int n_create, int n_annihilate, const std::vector<std::string> &in);
+    void set_amplitudes(char type, int n_create, int n_annihilate, const std::vector<std::string> &in, bool has_permutational_symmetry = true);
 };
 
 }

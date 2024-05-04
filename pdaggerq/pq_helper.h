@@ -68,14 +68,14 @@ class pq_helper {
      * @param order: list of order for amplitudes (e.g., 2 -> 't2')
      * @param amps_labels: list of labels for the amplitudes
      * @param ops_labels: list of labels for the creation/annihilation operators (include "*" for creators)
+     * @param has_permutational_symmetry: do the amplitudes have permutational symmetry, e.g., t2(a,b,i,j) = -t2(b,a,i,j), etc.?
      *
      */
     void py_add_new_string(std::vector<char> type, 
                            std::vector<int> order, 
                            std::vector<std::vector<std::string>> amps_labels, 
-                           std::vector<std::string> ops_labels);
-
-
+                           std::vector<std::string> ops_labels,
+                           bool has_permutational_symmetry);
 
     /**
      *
