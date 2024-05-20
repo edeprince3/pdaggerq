@@ -70,7 +70,7 @@ Python:
     pq.add_double_commutator(0.5, ['v'],['t1'],['t1'])
 
     pq.simplify()
-    pq.print_fully_contracted()
+    pq.print()
     pq.clear()
 
 Output:
