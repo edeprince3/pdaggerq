@@ -83,7 +83,12 @@ bool is_occ(const std::string &idx) {
     char c_idx = idx.at(0);
     if ( c_idx >= 'i' && c_idx <= 'n' ) return true;
     else if ( c_idx >= 'I' && c_idx <= 'N' ) return true;
-    else if ( c_idx == 'O' || c_idx == 'o' ) return true;
+    else if ( c_idx == 'O' || c_idx == 'o' ) {
+        // avoid categorizing a lone 'o' or 'O' as an occupied label
+        if ( idx.size() > 1 ) {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -95,7 +100,12 @@ bool is_vir(const std::string &idx) {
     char c_idx = idx.at(0);
     if ( c_idx >= 'a' && c_idx <= 'f' ) return true;
     else if ( c_idx >= 'A' && c_idx <= 'F' ) return true;
-    else if ( c_idx == 'V' || c_idx == 'v' ) return true;
+    else if ( c_idx == 'V' || c_idx == 'v' ) {
+        // avoid categorizing a lone 'v' or 'V' as an occupied label
+        if ( idx.size() > 1 ) {
+            return true;
+        }
+    }
     return false;
 }
 
