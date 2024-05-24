@@ -71,7 +71,8 @@ class pq_helper {
      * @param has_permutational_symmetry: do the amplitudes have permutational symmetry, e.g., t2(a,b,i,j) = -t2(b,a,i,j), etc.?
      *
      */
-    void py_add_new_string(std::vector<char> type, 
+    void py_add_new_string(double factor,
+                           std::vector<char> type, 
                            std::vector<int> order, 
                            std::vector<std::vector<std::string>> amps_labels, 
                            std::vector<std::string> ops_labels,

@@ -1151,13 +1151,17 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     }
 }
 
-void pq_helper::py_add_new_string(std::vector<char> type, 
+void pq_helper::py_add_new_string(double factor,
+                                  std::vector<char> type, 
                                   std::vector<int> order, 
                                   std::vector<std::vector<std::string>> amps_labels, 
                                   std::vector<std::string> ops_labels,
                                   bool has_permutational_symmetry){
 
     std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
+
+    newguy->factor = factor; 
+
     for (size_t i = 0; i < type.size(); i++){ 
         newguy->set_amplitudes(type[i], order[i], order[i], amps_labels[i], has_permutational_symmetry);
     }
