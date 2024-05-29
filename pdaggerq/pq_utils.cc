@@ -66,6 +66,13 @@ void removeParentheses(std::string &x) {
   x.erase(it, std::end(x));
 }
 
+// remove " " from std::string
+void removeSpaces(std::string &x) {
+
+  auto it = std::remove_if(std::begin(x), std::end(x), [](char c){return (c == ' ');});
+  x.erase(it, std::end(x));
+}
+
 // is a label classified as occupied?
 bool is_occ(const std::string &idx) {
 
@@ -76,7 +83,12 @@ bool is_occ(const std::string &idx) {
     char c_idx = idx.at(0);
     if ( c_idx >= 'i' && c_idx <= 'n' ) return true;
     else if ( c_idx >= 'I' && c_idx <= 'N' ) return true;
-    else if ( c_idx == 'O' || c_idx == 'o' ) return true;
+    else if ( c_idx == 'O' || c_idx == 'o' ) {
+        // avoid categorizing a lone 'o' or 'O' as an occupied label
+        if ( idx.size() > 1 ) {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -88,7 +100,12 @@ bool is_vir(const std::string &idx) {
     char c_idx = idx.at(0);
     if ( c_idx >= 'a' && c_idx <= 'f' ) return true;
     else if ( c_idx >= 'A' && c_idx <= 'F' ) return true;
-    else if ( c_idx == 'V' || c_idx == 'v' ) return true;
+    else if ( c_idx == 'V' || c_idx == 'v' ) {
+        // avoid categorizing a lone 'v' or 'V' as an occupied label
+        if ( idx.size() > 1 ) {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -180,8 +197,6 @@ void replace_index_in_deltas(const std::string &old_idx, const std::string &new_
         if ( delta.labels[0] == old_idx ) {
             delta.labels[0] = new_idx;
         }
-    }
-    for (delta_functions & delta : deltas) {
         if ( delta.labels[1] == old_idx ) {
             delta.labels[1] = new_idx;
         }
@@ -246,6 +261,8 @@ void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string 
     }
 
     replace_index_in_operators(old_idx, new_idx, in->symbol);
+
+    replace_index_in_deltas(old_idx, new_idx, in->deltas);
 
     in->sort_labels();
 }
@@ -501,6 +518,8 @@ void consolidate_permutations_non_summed(
     for (size_t i = 0; i < ordered.size(); i++) {
 
         // not sure if this logic works with existing permutation operators ... skip those for now
+        //if ( !ordered[i]->permutations.empty() ) continue;
+
         if ( !ordered[i]->paired_permutations_2.empty() ) continue;
         if ( !ordered[i]->paired_permutations_3.empty() ) continue;
         if ( !ordered[i]->paired_permutations_6.empty() ) continue;
@@ -541,6 +560,31 @@ void consolidate_permutations_non_summed(
             int n_permute;
             bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
+            // now that we've identified some permutations, it is possible for strings to be the same without swaps
+            if (strings_same) {
+
+                double factor_i = ordered[i]->factor * ordered[i]->sign;
+                double factor_j = ordered[j]->factor * ordered[j]->sign;
+
+                double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
+
+                // if terms exactly cancel, do so
+                if ( fabs(combined_factor) < 1e-12 ) {
+                    ordered[i]->skip = true;
+                    ordered[j]->skip = true;
+                    break;
+                }
+
+                // otherwise, combine terms
+                ordered[i]->factor = fabs(combined_factor);
+                if ( combined_factor > 0.0 ) {
+                    ordered[i]->sign =  1;
+                }else {
+                    ordered[i]->sign = -1;
+                }
+                ordered[j]->skip = true;
+            }
+
             std::string permutation_1;
             std::string permutation_2;
 
@@ -556,7 +600,6 @@ void consolidate_permutations_non_summed(
                     strings_same = compare_strings(ordered[j], newguy, n_permute);
 
                     if ( strings_same ) {
-
                         permutation_1 = labels[id1];
                         permutation_2 = labels[id2];
                         break;
@@ -994,7 +1037,7 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
         if ( pq_str->skip ) continue;
 
-        // for normal order relative to fermi vacuum, pq_str doubt anyone will care 
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
         if (pq_str->vacuum == "FERMI" ) {
@@ -1026,7 +1069,9 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     // probably only relevant for vacuum = fermi
     if ( ordered.empty() ) return;
-    if ( ordered[0]->vacuum != "FERMI" ) return;
+
+    // probably only relevant for vacuum = fermi
+    //if ( ordered[0]->vacuum != "FERMI" ) return;
 
     // look for paired permutations of non-summed labels:
     if ( find_paired_permutations ) {
@@ -1117,6 +1162,8 @@ void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
 
 // re-classify fluctuation potential terms
 void reclassify_integrals(std::shared_ptr<pq_string> &in) {
+
+    //return;
     
     // find if occ_repulsion is present
     auto occ_pos = in->ints.find("occ_repulsion");
@@ -1124,18 +1171,19 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
     
     std::vector<integrals> & occ_repulsion = occ_pos->second;
     
-    
-    if ( occ_repulsion.size() > 1 ) {
-       printf("\n");
-       printf("only support for one integral type object per string\n");
-       printf("\n");
-       exit(1);
-    }
-    
-    if ( !occ_repulsion.empty() ) {
-        
+    //if ( occ_repulsion.size() > 1 ) {
+    //   printf("\n");
+    //   printf("error: only support for one integral type object per string\n");
+    //   printf("\n");
+    //   exit(1);
+    //}
+   
+    static std::vector<std::string> occ_out {"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", 
+                                             "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
+
+    for (size_t i = 0; i < in->ints["occ_repulsion"].size(); i++) {
+
         // pick summation label not included in string already
-        static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
         std::string idx;
         
         int do_skip = -999;
@@ -1154,11 +1202,10 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
             exit(1);
         }
         
-        std::string idx1 = occ_repulsion[0].labels[0];
-        std::string idx2 = occ_repulsion[0].labels[1];
+        std::string idx1 = occ_repulsion[i].labels[0];
+        std::string idx2 = occ_repulsion[i].labels[1];
 
-        occ_repulsion.clear();
-        
+        // new eri
         integrals ints;
         
         ints.labels.clear();
@@ -1171,26 +1218,10 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
         
         ints.sort();
         
-        // check if the eri is already present in the map
-        auto eri_pos = in->ints.find("eri");
-        if ( eri_pos == in->ints.end() ) {
-            // create eri
-            in->ints["eri"].push_back(ints);
-            return;
-        }
-        
-        // else, check if any eris are in the vector
-        std::vector<integrals> & eri = eri_pos->second;
-        
-        if ( !eri.empty() ) {
-           printf("\n");
-           printf("only support for one integral type object per string\n");
-           printf("\n");
-           exit(1);
-        }
-        eri.clear();
-        eri.push_back(ints);
+        in->ints["eri"].push_back(ints);
     }
+    in->ints["occ_repulsion"].clear();
+
 }
 
 // find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a
@@ -1467,62 +1498,86 @@ void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
     cleanup(ordered, find_paired_permutations);
 }
 
+// expand general labels, p -> o, v
+bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<std::shared_ptr<pq_string> > & list, int occ_label_count, int vir_label_count) {
+
+    for (size_t i = 0; i < in->string.size(); i++) {
+
+        std::string me = in->string[i];
+
+        std::string me_nostar = me;
+	std::string maybe_a_star = "";
+        if (me_nostar.find('*') != std::string::npos ){
+	    maybe_a_star = "*";
+            removeStar(me_nostar);
+        }
+
+        // is this a general label?
+        if ( !is_occ(me_nostar) && !is_vir(me_nostar) ) {
+
+            std::shared_ptr<pq_string> newguy_occ = std::make_shared<pq_string>(in.get(), true);
+            std::shared_ptr<pq_string> newguy_vir = std::make_shared<pq_string>(in.get(), true);
+
+	    std::string occ_label = "o" + std::to_string(occ_label_count+1);
+	    std::string vir_label = "v" + std::to_string(vir_label_count+1);
+
+            newguy_occ->string = in->string;
+            newguy_vir->string = in->string;
+
+            newguy_occ->string[i] = occ_label + maybe_a_star;
+            newguy_vir->string[i] = vir_label + maybe_a_star;
+
+            replace_index_everywhere(newguy_occ, me_nostar, occ_label);
+            replace_index_everywhere(newguy_vir, me_nostar, vir_label);
+
+            list.push_back(newguy_occ);
+            list.push_back(newguy_vir);
+
+            return false;
+	}
+    }
+    return true;
+}
+
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count){
         
     // if normal order is defined with respect to the fermi vacuum, we must
     // check here if the input string contains any general-index operators
     // (h, g, f, and v). If it does, then the string must be split to account 
     // explicitly for sums over occupied and virtual labels
-    
-    int n_gen_idx = 1;
-    int n_integral_objects = 0;
-    std::string integral_type = "none";
-    for (auto & ints_pair : in->ints) {
-        std::string type = ints_pair.first;
-        std::vector<integrals> & ints = ints_pair.second;
-        for (integrals & integral : ints) {
-            n_integral_objects++;
-            n_gen_idx = integral.labels.size();
-            integral_type = type;
-        }
-    }
-    if ( n_integral_objects > 1 ) {
-        printf("\n");
-        printf("    error: only support for a single integral object per string\n");
-        printf("\n");
-        exit(1);
-    }   
-    
-    // need number of strings to be square of number of general indices  (or one)
-    for (int string_num = 0; string_num < n_gen_idx * n_gen_idx; string_num++) {
 
-        std::shared_ptr<pq_string> mystring (new pq_string("FERMI"));
-            
-        // factors:
-        if ( in->factor > 0.0 ) {
-            mystring->sign = 1;
-            mystring->factor = fabs(in->factor);
-        }else {
-            mystring->sign = -1;
-            mystring->factor = fabs(in->factor);
-        }
-        
-        mystring->has_w0       = in->has_w0;
-    
-        integrals ints;
+    std::vector< std::shared_ptr<pq_string> > mystrings;
+    mystrings.push_back(in);
 
-        int my_gen_idx = 0;
-        for (size_t i = 0; i < in->string.size(); i++) {
-            std::string me = in->string[i];
-    
+    bool done_expanding = false;
+    do {
+        std::vector< std::shared_ptr<pq_string> > list;
+        done_expanding = true;
+        for (const std::shared_ptr<pq_string> & pq_str : mystrings) {
+            bool am_i_done = expand_general_labels(pq_str, list, occ_label_count, vir_label_count);
+            if ( !am_i_done ) done_expanding = false;
+        }
+        if (!done_expanding) {
+            mystrings.clear();
+            for (std::shared_ptr<pq_string> & pq_str : list) {
+                mystrings.push_back(pq_str);
+            }
+            occ_label_count++;
+            vir_label_count++;
+        }
+    }while(!done_expanding);
+
+    // now, we need to convert the list "mystrings[i]->string" into symbols and daggers
+    for (auto & mystring: mystrings ) {
+        for (size_t i = 0; i < mystring->string.size(); i++) {
+            std::string me = mystring->string[i];
 
             std::string me_nostar = me;
             if (me_nostar.find('*') != std::string::npos ){
                 removeStar(me_nostar);
             }
 
-            // fermi vacuum 
             if ( is_vir(me_nostar) ) {
                 if (me.find('*') != std::string::npos ){
                     mystring->is_dagger.push_back(true);
@@ -1541,260 +1596,23 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
                     mystring->is_dagger_fermi.push_back(true);
                 }
                 mystring->symbol.push_back(me_nostar);
-            }else {
-
-                //two-index integrals
-                // 00, 01, 10, 11
-                if ( n_gen_idx == 2 ) {
-                    if ( my_gen_idx == 0 ) {
-                        if ( string_num == 0 || string_num == 1 ) {
-                            // first index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o1");
-                            mystring->symbol.emplace_back("o1");
-                        }else {
-                            // first index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger_fermi.push_back(false);
-                                mystring->is_dagger.push_back(false);
-                            }
-                            ints.labels.emplace_back("v1");
-                            mystring->symbol.emplace_back("v1");
-                        }
-                    }else {
-                        if ( string_num == 0 || string_num == 2 ) {
-                            // second index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o2");
-                            mystring->symbol.emplace_back("o2");
-                        }else {
-                            // second index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v2");
-                            mystring->symbol.emplace_back("v2");
-                        }
-                    }
-                }
-
-                //four-index integrals
-
-                // managing these labels is so very confusing:
-                // p*q*sr (pr|qs) -> o*t*uv (ov|tu), etc.
-                // p*q*sr (pr|qs) -> w*x*yz (wz|xy), etc.
-
-                if ( n_gen_idx == 4 ) {
-                    if ( my_gen_idx == 0 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num == 0 ||
-                             string_num == 1 ||
-                             string_num == 2 ||
-                             string_num == 3 ||
-                             string_num == 4 ||
-                             string_num == 5 ||
-                             string_num == 6 ||
-                             string_num == 7 ) {
-
-                            // first index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o1");
-                            mystring->symbol.emplace_back("o1");
-                        }else {
-                            // first index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v1");
-                            mystring->symbol.emplace_back("v1");
-                        }
-                    }else if ( my_gen_idx == 1 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num ==  0 ||
-                             string_num ==  1 ||
-                             string_num ==  2 ||
-                             string_num ==  3 ||
-                             string_num ==  8 ||
-                             string_num ==  9 ||
-                             string_num == 10 ||
-                             string_num == 11 ) {
-                            // second index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o2");
-                            mystring->symbol.emplace_back("o2");
-                        }else {
-                            // second index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v2");
-                            mystring->symbol.emplace_back("v2");
-                        }
-                    }else if ( my_gen_idx == 2 ) {
-                        //    0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-                        // 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-                        if ( string_num ==  0 ||
-                             string_num ==  1 ||
-                             string_num ==  4 ||
-                             string_num ==  5 ||
-                             string_num ==  8 ||
-                             string_num ==  9 ||
-                             string_num == 12 ||
-                             string_num == 13 ) {
-                            // third index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o3");
-                            mystring->symbol.emplace_back("o3");
-                        }else {
-                            // third index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v3");
-                            mystring->symbol.emplace_back("v3");
-                        }
-                    }else {
-                        if ( string_num ==  0 ||
-                             string_num ==  2 ||
-                             string_num ==  4 ||
-                             string_num ==  6 ||
-                             string_num ==  8 ||
-                             string_num == 10 ||
-                             string_num == 12 ||
-                             string_num == 14 ) {
-                            // fourth index occ
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }
-                            ints.labels.emplace_back("o4");
-                            mystring->symbol.emplace_back("o4");
-                        }else {
-                            // fourth index vir
-                            if ( me.find('*') != std::string::npos ) {
-                                mystring->is_dagger.push_back(true);
-                                mystring->is_dagger_fermi.push_back(true);
-                            }else {
-                                mystring->is_dagger.push_back(false);
-                                mystring->is_dagger_fermi.push_back(false);
-                            }
-                            ints.labels.emplace_back("v4");
-                            mystring->symbol.emplace_back("v4");
-                        }
-                    }
-                }
-                my_gen_idx++;
             }
         }
+    }
 
-        for (auto & amps_pair : in->amps) {
-            char type = amps_pair.first;
-            std::vector<amplitudes> & amps = amps_pair.second;
+    // at this point, we've expanded all of the general labels
+    // and are ready to bring the strings to normal order
 
-            // find amplitudes of this type in mystring
-            auto amps_pos = mystring->amps.find(type);
-            if ( amps_pos == mystring->amps.end() ) {
-                // create empty vector for this type
-                mystring->amps[type];
-                amps_pos = mystring->amps.find(type);
-            }
-            std::vector<amplitudes> & myamps = amps_pos->second;
-            for (const amplitudes & amp : amps) {
-                myamps.push_back( amp );
-            }
-        }
+    for (auto & mystring: mystrings ) {
 
-        // now, string is complete, but ints need to be pushed onto the 
-        // string, and the labels in four-index integrals need to be 
-        // reordered p*q*sr(pq|sr) -> (pr|qs)
-        if ( integral_type == "eri" || integral_type == "two_body" ) {
-
-            // dirac notation: g(pqrs) p*q*sr
-            std::vector<std::string> tmp;
-            tmp.push_back(ints.labels[0]);
-            tmp.push_back(ints.labels[1]);
-            tmp.push_back(ints.labels[3]);
-            tmp.push_back(ints.labels[2]);
-
-            ints.labels.clear();
-            ints.labels.push_back(tmp[0]);
-            ints.labels.push_back(tmp[1]);
-            ints.labels.push_back(tmp[2]);
-            ints.labels.push_back(tmp[3]);
-
-            mystring->ints[integral_type].push_back(ints);
-
-        }else if ( integral_type != "none" ) {
-
-            mystring->ints[integral_type].push_back(ints);
-        }
-
-        for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
-            mystring->is_boson_dagger.push_back(in->is_boson_dagger[i]);
-        }
-
+        // rearrange strings
+	//
         if ( print_level > 0 ) {
             printf("\n");
             printf("    ");
             printf("// starting string:\n");
             mystring->print();
         }
-
-        // rearrange strings
 
         std::vector< std::shared_ptr<pq_string> > tmp;
         tmp.push_back(mystring);

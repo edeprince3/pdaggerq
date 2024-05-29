@@ -28,6 +28,18 @@
 
 namespace pdaggerq {
 
+class pq_operator_terms {
+  public:
+    pq_operator_terms(double in_factor, std::vector<std::string> in_operators):
+        factor(in_factor), operators(in_operators)
+    {
+    }
+    std::vector<std::string> get_operators() { return operators; }
+    double get_factor() { return factor; }
+    double factor;
+    std::vector<std::string> operators;
+};
+
 class pq_helper {
 
   public:
@@ -91,12 +103,30 @@ class pq_helper {
 
     /**
      *
+     * get right-hand operators type
+     *
+     * @return type: a string specifying the type of operators that define the ket state ("EE", "IP", "EA", "DEA", "DIP")
+     *
+     */
+    std::string get_right_operators_type(){return right_operators_type;}
+
+    /**
+     *
      * set left-hand operators type
      *
      * @param type: a string specifying the type of operators that define the bra state ("EE", "IP", "EA", "DEA", "DIP")
      *
      */
     void set_left_operators_type(const std::string& type);
+
+    /**
+     *
+     * get left-hand operators type
+     *
+     * @return type: a string specifying the type of operators that define the ket state ("EE", "IP", "EA", "DEA", "DIP")
+     *
+     */
+    std::string get_left_operators_type(){return left_operators_type;}
 
     /**
      *
@@ -127,6 +157,15 @@ class pq_helper {
 
     /**
      *
+     * set whether final strings contain bare creation / annihilation operators or their expectation value (rdms)?
+     *
+     * @param do_use_rdms
+     *
+     */
+    void set_use_rdms(bool do_use_rdms, std::vector<int> ignore_cumulant);
+
+    /**
+     *
      * add a product of operators (i.e., {'h','t1'} )
      *
      * @param in: a list of strings defining the operator product
@@ -148,6 +187,28 @@ class pq_helper {
 
     /**
      *
+     * generate list of terms resulting from a similarity-transformed operator using the BCH expansion and four nested commutators
+     * exp(-T) f exp(T) = f + [f, T] + 1/2 [[f, T], T] + 1/6 [[[f, T], T], T] + 1/24 [[[[f, T], T], T], T]
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     *
+     */
+    std::vector<pq_operator_terms> get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops);
+
+    /**
+     *
+     * add a anticommutator of two operators, {op0, op1}
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     *
+     */
+    void add_anticommutator(double factor, const std::vector<std::string> &op0,
+                                           const std::vector<std::string> &op1);
+
+    /**
+     *
      * add a commutator of two operators, [op0, op1]
      *
      * @param op0: a list of strings defining an operator product
@@ -156,6 +217,18 @@ class pq_helper {
      */
     void add_commutator(double factor, const std::vector<std::string> &op0,
                                        const std::vector<std::string> &op1);
+
+    /**
+     *
+     * generate list of terms resulting from a commutator of two operators, [op0, op1]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     *
+     */
+     std::vector<pq_operator_terms> get_commutator_terms(double factor,
+                                                         const std::vector<std::string> &op0,
+                                                         const std::vector<std::string> &op1);
 
     /**
      *
@@ -169,6 +242,20 @@ class pq_helper {
     void add_double_commutator(double factor, const std::vector<std::string> &op0,
                                               const std::vector<std::string> &op1,
                                               const std::vector<std::string> &op2);
+
+    /**
+     *
+     * generate list of terms resulting from double commutator involving three operators, [[op0, op1], op2]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     *
+     */
+    std::vector<pq_operator_terms> get_double_commutator_terms(double factor,
+                                                               const std::vector<std::string> &op0,
+                                                               const std::vector<std::string> &op1,
+                                                               const std::vector<std::string> &op2);
 
     /**
      *
@@ -187,6 +274,22 @@ class pq_helper {
 
     /**
      *
+     * generate a list of operators resulting from a triple commutator involving four operators, [[[op0, op1], op2], op3]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     * @param op3: a list of strings defining an operator product
+     *
+     */
+    std::vector<pq_operator_terms> get_triple_commutator_terms(double factor,
+                                                               const std::vector<std::string> &op0,
+                                                               const std::vector<std::string> &op1,
+                                                               const std::vector<std::string> &op2,
+                                                               const std::vector<std::string> &op3);
+
+    /**
+     *
      * add a quadrupole commutator involving five operators, [[[[op0, op1], op2], op3], op4]
      *
      * @param op0: a list of strings defining an operator product
@@ -201,6 +304,24 @@ class pq_helper {
                                                  const std::vector<std::string> &op2,
                                                  const std::vector<std::string> &op3,
                                                  const std::vector<std::string> &op4);
+
+    /**
+     *
+     * generate a list of operators resulting from a quadrupole commutator involving five operators, [[[[op0, op1], op2], op3], op4]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     * @param op3: a list of strings defining an operator product
+     * @param op4: a list of strings defining an operator product
+     *
+     */
+    std::vector<pq_operator_terms> get_quadruple_commutator_terms(double factor,
+                                                                  const std::vector<std::string> &op0,
+                                                                  const std::vector<std::string> &op1,
+                                                                  const std::vector<std::string> &op2,
+                                                                  const std::vector<std::string> &op3,
+                                                                  const std::vector<std::string> &op4);
 
     /**
      *
@@ -330,6 +451,20 @@ private:
      *
      */
     int print_level;
+
+    /**
+     *
+     * should final strings contain bare creation / annihilation operators or their expectation value (rdms)?
+     *
+     */
+    bool use_rdms;
+
+    /**
+     *
+     * if final string contains rdms, which n-body cumulants should we ignore
+     *
+     */
+    std::vector<int> ignore_cumulant_rdms = {};
 
     /**
      *

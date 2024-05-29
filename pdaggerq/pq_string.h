@@ -209,11 +209,11 @@ class pq_string {
 
     /**
      *
-     * supported amplitude types
+     * supported amplitude and rdm types
      *
      */
     static inline
-    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's'};
+    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's', 'D'};
 
     /**
      *

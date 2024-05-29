@@ -23,18 +23,11 @@
 cmake_minimum_required(VERSION 3.11)
 project(pdaggerq LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# allow for interprocedural generation if applicable
-include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported OUTPUT error)
-
-if(ipo_supported)
-    # set default cmake policy
-    set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+# enable interprocedural optimization if using release build
+if($CMAKE_BUILD_TYPE == "Release")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-else()
-    message(STATUS "IPO / LTO not supported: ${error}")
 endif()
 
 # find python and set variables for:
@@ -52,9 +45,9 @@ set(PYBIND11_FINDPYTHON ON)
 
 include(FetchContent)
 FetchContent_Declare(
-        pybind11
-        GIT_REPOSITORY https://github.com/pybind/pybind11
-        GIT_TAG        v2.11.1
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11
+    GIT_TAG        v2.11.1
 )
 
 FetchContent_GetProperties(pybind11)
@@ -65,23 +58,18 @@ endif()
 
 set(PYBIND11_CPP_STANDARD -std=c++17)
 
-# find openmp and set variables
+# find openmp and set variables (required for pq_graph)
 find_package(OpenMP REQUIRED) #TODO: make this optional
-if(OpenMP_CXX_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
-
 
 # we are adding a private module _pdaggerq so we don't have a naming collision
-pybind11_add_module( 
-    _pdaggerq
+pybind11_add_module(_pdaggerq
         pdaggerq/pq_tensor.cc
-        pdaggerq/pq_string.cc 
+        pdaggerq/pq_string.cc
         pdaggerq/pq_utils.cc
-        pdaggerq/pq_serialize.cc
         pdaggerq/pq_swap_operators.cc
         pdaggerq/pq_add_spin_labels.cc
         pdaggerq/pq_add_label_ranges.cc
+        pdaggerq/pq_cumulant_expansion.cc
         pdaggerq/pq_helper.cc
 
         pq_graph/src/pq_graph.cc
@@ -97,5 +85,4 @@ pybind11_add_module(
         pq_graph/src/vertex.cc
         pq_graph/include/line.hpp
         pq_graph/src/timer.cc
-
-        )
+)

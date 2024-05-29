@@ -74,8 +74,8 @@ class CMakeBuild(build_ext):
 setup(
     name="pdaggerq",
     version="0.0.1",
-    author="Eugene A. dePrince and Nicholas C. Rubin",
-    author_email="deprince@chem.fsu.edu, rubinnc0@gmail.com",
+    author="A. Eugene DePrince and Nicholas C. Rubin",
+    author_email="eugene.deprince@gmail.com, rubinnc0@gmail.com",
     description="A computer algebra program for fermions in second quantization",
     long_description="",
     ext_modules=[CMakeExtension("pdaggerq._pdaggerq")],

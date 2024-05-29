@@ -153,7 +153,7 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in);
 void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
+void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops);
@@ -163,6 +163,12 @@ void removeStar(std::string &x);
 
 /// remove "(" and ")" from std::string
 void removeParentheses(std::string &x);
+
+/// remove " " from std::string
+void removeSpaces(std::string &x);
+
+/// expand general labels, p -> o,v
+bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<std::shared_ptr<pq_string> > & list, int occ_label_count, int vir_label_count);
 
 }
 
