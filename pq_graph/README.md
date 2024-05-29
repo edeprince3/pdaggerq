@@ -12,7 +12,6 @@ The expressions are stored in data structures that represent tensor contractions
 
 ```python
 import pdaggerq
-pq = pdaggerq.pq_helper('fermi')
 
 # set up pq_graph
 graph = pdaggerq.pq_graph({
@@ -43,6 +42,7 @@ left_ops = { # projection equations
 }
 
 for eq_name, ops in left_ops.items():
+    pq = pdaggerq.pq_helper('fermi')
     pq.set_left_operators(ops)
     pq.add_st_operator(1.0,['f'], T)
     pq.add_st_operator(1.0,['v'], T)
