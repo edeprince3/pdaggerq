@@ -26,7 +26,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # enable interprocedural optimization if using release build
-if($CMAKE_BUILD_TYPE == "Release")
+if(${CMAKE_BUILD_TYPE} EQUAL "Release" OR ${CMAKE_BUILD_TYPE} EQUAL "RelWithDebInfo")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
@@ -66,6 +66,7 @@ pybind11_add_module(_pdaggerq
         pdaggerq/pq_tensor.cc
         pdaggerq/pq_string.cc
         pdaggerq/pq_utils.cc
+        pdaggerq/pq_serialize.cc
         pdaggerq/pq_swap_operators.cc
         pdaggerq/pq_add_spin_labels.cc
         pdaggerq/pq_add_label_ranges.cc
