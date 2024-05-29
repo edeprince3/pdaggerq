@@ -86,6 +86,11 @@ namespace pdaggerq {
         if (options.contains("density_fitting"))
             use_density_fitting_ = options["density_fitting"].cast<bool>();
 
+        if (options.contains("no_scalars")) {
+            Equation::no_scalars_ = options["no_scalars"].cast<bool>();
+            cout << "'no_scalars' is set to true. Scalars will not be included in the final equations." << endl;
+        }
+
         if (options.contains("verbose"))
             verbose_ = options["verbose"].cast<bool>();
 
@@ -181,10 +186,23 @@ namespace pdaggerq {
 
         // set defined conditions
         if (options.contains("conditions")){
-            vector<string> conditions = options["conditions"].cast<vector<string>>();
-            Term::defined_conditions_.clear();
-            for (const auto &condition : conditions) {
-                Term::defined_conditions_.insert(condition);
+
+            map<string, vector<string>> conditions;
+
+            // check if conditions is a map of strings to vectors of strings
+            try {
+                conditions = options["conditions"].cast<map<string, vector<string>>>();
+            } // else, check if it is a vector of strings; if so, make a map to the condition with single element vector
+            catch (const std::exception &e) {
+                auto conditions_vec = options["conditions"].cast<vector<string>>();
+                for (const auto &cond : conditions_vec) {
+                    conditions[cond] = {cond};
+                }
+            }
+
+            Term::mapped_conditions_.clear();
+            for (const auto &[condition, restrict_ops] : conditions) {
+                Term::mapped_conditions_[condition] = restrict_ops;
             }
         }
 
@@ -196,8 +214,14 @@ namespace pdaggerq {
 
         if (options.contains("conditions")){
             cout << "Defined conditions: ";
-            for (const auto &condition : Term::defined_conditions_) {
-                cout << condition << " ";
+            for (const auto &[condition, restrict_ops] : Term::mapped_conditions_) {
+                cout << condition << " -> [";
+                for (const auto &op : restrict_ops) {
+                    cout << op;
+                    if (op != restrict_ops.back())
+                        cout << ", ";
+                }
+                cout << "]\n";
             }
             cout << endl;
         }
@@ -212,6 +236,9 @@ namespace pdaggerq {
 
         cout << "    prune_tmps: " << (prune_tmps_ ? "true" : "false")
                 << "  // whether to prune intermediates that are not used in the final equations (default: false)" << endl;
+
+        cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")
+                << "  // whether to skip the scalar terms in the final equations (default: false)" << endl;
 
         cout << "    max_depth: " << (long) Term::max_depth_
              << "  // maximum depth for chain of contractions (default: -1 for no limit)" << endl;
@@ -295,6 +322,47 @@ namespace pdaggerq {
             return;
         }
 
+        auto reorder_labels = [&label_order](VertexPtr &vertex) {
+            if (label_order.empty()) {
+                vertex->sort();
+                return;
+            }
+
+
+            // reorder lines according to label_order
+            const auto &lines = vertex->lines();
+            size_t rank = vertex->rank();
+            vector<Line> new_lines;
+
+            bool found[rank];
+            for (size_t i = 0; i < rank; ++i)
+                found[i] = false;
+
+            for (const auto &label: label_order) {
+                auto pos = find_if(lines.begin(), lines.end(), [&label](const Line &line) {
+                    return line.label_ == label;
+                });
+
+                if (pos != lines.end()) {
+                    new_lines.push_back(*pos);
+                    size_t index = pos - lines.begin();
+                    found[index] = true;
+                }
+            }
+
+            for (size_t i = 0; i < rank; ++i) {
+                const Line &line = lines[i];
+                if (line.sig_)
+                    new_lines.insert(new_lines.begin(), line);
+                else if (!found[i])
+                    new_lines.push_back(line);
+            }
+
+            vertex->update_lines(new_lines);
+
+        };
+
+
         // loop over each pq_string
         for (const auto& pq_string : ordered) {
 
@@ -312,120 +380,27 @@ namespace pdaggerq {
             }
 
             // format self-contractions
-            term.apply_self_links();
+            bool has_self_link = term.apply_self_links();
+
+            // skip term if it has a self-link and scalars are not allowed
+            if (has_self_link && Equation::no_scalars_)
+                continue;
 
             // use the term to build the assignment vertex
-            if (!name_is_formatted || equation_name.empty()) {
-                VertexPtr assignment = make_shared<Vertex>(*term.term_linkage()->safe_clone());
+            VertexPtr assignment;
+            if (!name_is_formatted || equation_name.empty())
+                 assignment = make_shared<Vertex>(*term.term_linkage()->safe_clone());
+            else assignment = term.lhs()->clone();
 
-                if (label_order.empty())
-                    assignment->sort();
-                else {
-                    vector<Line> lines = assignment->lines();
+            reorder_labels(assignment);
 
-                    // check that label_order is the same size as the number of lines
-                    if (label_order.size() != lines.size()) {
+            // update name of assignment vertex
+            assignment->format_map_ = false;
+            assignment->update_name(assigment_name);
 
-                        // check if any sigma lines are in the lines and add them to the label_order
-                        for (const auto &line : lines) {
-                            if (line.sig_) {
-                                // add sigma label to label_order if it is not already there
-                                if (std::find(label_order.begin(), label_order.end(), line.label_) == label_order.end()) {
-                                    label_order.insert(label_order.begin(), line.label_);
-                                }
-                            }
-                        }
-
-                        if (label_order.size() != lines.size())
-                            throw invalid_argument("label_order must be the same size as the number of lines in the assignment vertex:"
-                                                   "The label_order size is " + to_string(label_order.size()) + " and the number of lines is "
-                                                      + to_string(lines.size()));
-                    }
-
-                    // reorder lines according to label_order
-                    vector<Line> new_lines;
-
-                    for (const auto &label : label_order) {
-                        bool found = false;
-                        for (auto &line : lines) {
-                            if (line.label_ == label) {
-                                new_lines.push_back(line);
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (!found) {
-                            throw invalid_argument("label_order must contain all labels in the assignment vertex."
-                                                    "The label '" + label + "' was not found.");
-                        }
-                    }
-
-                    assignment->update_lines(new_lines);
-                }
-
-                // do not format assignment vertices as a map
-                assignment->format_map_ = false;
-
-                assignment->update_name(assigment_name);
-
-                term.lhs() = assignment;
-                term.eq() = assignment;
-            } else {
-                VertexPtr assignment = term.lhs()->clone();
-                if (label_order.empty())
-                    assignment->sort();
-                else {
-                    vector<Line> lines = assignment->lines();
-
-                    // check that label_order is the same size as the number of lines
-                    if (label_order.size() != lines.size()) {
-
-                        // check if any sigma lines are in the lines and add them to the label_order
-                        for (const auto &line : lines) {
-                            if (line.sig_) {
-                                // add sigma label to label_order if it is not already there
-                                if (std::find(label_order.begin(), label_order.end(), line.label_) == label_order.end()) {
-                                    label_order.insert(label_order.begin(), line.label_);
-                                }
-                            }
-                        }
-
-                        if (label_order.size() != lines.size())
-                            throw invalid_argument("label_order must be the same size as the number of lines in the assignment vertex:"
-                                                   "The label_order size is " + to_string(label_order.size()) + " and the number of lines is "
-                                                   + to_string(lines.size()));
-                    }
-
-                    // reorder lines according to label_order
-                    vector<Line> new_lines;
-
-                    for (const auto &label : label_order) {
-                        bool found = false;
-                        for (auto &line : lines) {
-                            if (line.label_ == label) {
-                                new_lines.push_back(line);
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (!found) {
-                            throw invalid_argument("label_order must contain all labels in the assignment vertex."
-                                                   "The label '" + label + "' was not found.");
-                        }
-                    }
-
-                    assignment->update_lines(new_lines);
-                }
-
-                // do not format assignment vertices as a map
-                assignment->format_map_ = false;
-
-                // update name of assignment vertex
-                assignment->update_name(assigment_name);
-
-                term.lhs() = assignment;
-                term.eq()  = assignment;
-            }
+            // update term with assignment vertex
+            term.lhs() = assignment;
+            term.eq()  = assignment;
 
 
             // check if any operator in term is a sigma operator

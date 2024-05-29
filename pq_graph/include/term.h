@@ -86,7 +86,8 @@ namespace pdaggerq {
             static inline size_t depth_ = 0; // depth of nested tmps
 
 
-            static inline set<string> defined_conditions_{}; // set of terms that are conditional
+            typedef map<string, vector<string>> condition_map;
+            static inline condition_map mapped_conditions_{}; // map of conditionals to their relevant operators
             string original_pq_; // the original pq string representation
 
             /******** Constructors ********/
@@ -350,8 +351,8 @@ namespace pdaggerq {
             void compute_scaling(bool recompute = false);
 
             /**
-             * Determine which defined_conditions_ are needed for the term
-             * @return a map of defined_conditions_ to their condition (T/F) in this term
+             * Determine which mapped_conditions_ are needed for the term
+             * @return a map of mapped_conditions_ to their condition (T/F) in this term
              */
             set<string> conditions() const;
 
@@ -496,8 +497,9 @@ namespace pdaggerq {
 
              /**
               * find vertices with self-contractions and format with delta functions
+              * @return boolean indicating if self-links were applied
               */
-             void apply_self_links();
+             bool apply_self_links();
 
             /**
              * pop_back vertex from term

@@ -355,8 +355,14 @@ bool Term::make_scalar(linkage_set &scalars, size_t id) {
         // make the linkage of the subset
         vector<ConstVertexPtr> subset_vec;
         subset_vec.reserve(subset.size());
-        for (size_t i : subset)
+        for (size_t i : subset) {
+            // ensure no scalars are in the subset (no nested scalars allowed)
+            if (rhs_[i]->is_scalar())
+                return false;
+
+            // add vertex to subset
             subset_vec.push_back(rhs_[i]);
+        }
 
         LinkagePtr this_linkage = Linkage::link(subset_vec);
 
@@ -422,7 +428,7 @@ bool Term::make_scalar(linkage_set &scalars, size_t id) {
         new_term.compute_scaling(true);
 
         // check if flop and memory scaling are better than best scaling
-        if (new_term.flop_map_ <= best_flop_map || !made_scalar) { // flop scaling is better
+        if ( !made_scalar || new_term.flop_map_ <= best_flop_map ) { // flop scaling is better
             // set the best scaling and rhs
             best_flop_map = new_term.flop_map_;
             best_mem_map  = new_term.mem_map_;

@@ -786,8 +786,9 @@ namespace pdaggerq {
         return comment;
     }
 
-    void Term::apply_self_links() {
-        if (rhs_.empty()) return; // if constant, exit
+    bool Term::apply_self_links() {
+        if (rhs_.empty()) return false; // if constant, exit
+        bool has_any_self_link = false;
 
         // iterate over all rhs and convert traces to dot products with delta functions
         vector<ConstVertexPtr> new_rhs; new_rhs.reserve(rhs_.size());
@@ -806,6 +807,8 @@ namespace pdaggerq {
             if (!has_self_link) {
                 new_rhs.push_back(copy); continue;
             }
+
+            has_any_self_link = true;
 
             vector<ConstVertexPtr> deltas = copy->make_self_linkages(self_links);
 
@@ -827,6 +830,8 @@ namespace pdaggerq {
 
         // recompute the flop and memory cost of the term
         compute_scaling(true); // force recomputation of scaling
+
+        return has_any_self_link;
     }
 
     bool Term::equivalent(const Term &term1, const Term &term2) {
@@ -1114,6 +1119,8 @@ namespace pdaggerq {
 
     set<string> Term::conditions() const {
 
+        // TODO: use map instead of set to group similar conditions together
+
         ConstLinkagePtr term_linkage = term_linkage_; // get linkage representation of term
         set<string> conditions{}; // set to store conditions
 
@@ -1131,12 +1138,18 @@ namespace pdaggerq {
         if (!term_linkage)
             return conditions; // return current conditions if no linkage
 
+        // map that stores conditions to their related operators
+        const map<string, vector<string>> &mapped_conditions = mapped_conditions_;
+
         // create a set of operator basenames
         vector<ConstVertexPtr> vertices = term_linkage->vertices();
         for (const auto & vertex : vertices) {
-            const auto &pos = defined_conditions_.find(vertex->base_name());
-            if (pos != defined_conditions_.end())
-                conditions.insert(vertex->base_name());
+            // loop over named conditions
+            for (const auto & [condition, restrict_ops] : mapped_conditions) {
+                // check if vertex is in the list of operators
+                if (std::find(restrict_ops.begin(), restrict_ops.end(), vertex->base_name()) != restrict_ops.end())
+                    conditions.insert(condition); // if so, add named condition to set
+            }
         }
 
         // return set of operator basenames that have conditions

@@ -239,25 +239,32 @@ namespace pdaggerq {
             mem_map_  += term_mem_map; // add memory scaling map
         }
 
-        VertexPtr eq_linkage;
-        if (terms_.size() > 1) {
-            // build equation linkages
-            eq_linkage = terms_[0].term_linkage() * terms_[1].term_linkage();
-            for (size_t i = 2; i < terms_.size(); i++) {
-                if (terms_[i].term_linkage())
-                    continue;
-
-                eq_linkage = eq_linkage_ * terms_[i].term_linkage();
-            }
+        vector<ConstVertexPtr> all_term_linkages;
+        for (auto & term : terms_) {
+            if (term.term_linkage())
+                all_term_linkages.push_back(term.term_linkage());
         }
-        else if (!terms_.empty())
-             eq_linkage = make_shared<Vertex>() * terms_[0].term_linkage();
-        else eq_linkage = make_shared<Vertex>() * make_shared<Vertex>();
 
-        if (eq_linkage) {
-            eq_linkage->tree_sort();
-            eq_linkage_ = as_link(assignment_vertex_ + eq_linkage);
+        // if there are no terms with linkages, return
+        if (all_term_linkages.empty()) return;
+
+        // if only one term with a linkage, set eq_linkage_ to that linkage
+        if (all_term_linkages.size() == 1) {
+            eq_linkage_ = assignment_vertex_ * all_term_linkages.front();
+            return;
         }
+
+        // if there are multiple terms with linkages, set eq_linkage_ to the sum of all linkages
+        eq_linkage_ = all_term_linkages.front();
+
+        for (size_t i = 1; i < all_term_linkages.size(); ++i) {
+            eq_linkage_ = eq_linkage_ + all_term_linkages[i];
+        }
+
+        // add assignment vertex to eq_linkage_
+        eq_linkage_ = assignment_vertex_ * eq_linkage_;
+
+
     }
 
     void Equation::reorder(bool recompute) {
@@ -372,9 +379,13 @@ namespace pdaggerq {
     }
 
     void Equation::make_scalars(linkage_set &scalars, size_t &n_temps) {
+        
+        // term ids with scalars
+        set<size_t> scalar_term_idxs;
 
         // iterate over terms
-        for (auto &term: terms_) {
+        for (size_t i = 0; i < terms_.size(); ++i) {
+            Term &term = terms_[i]; // get term
             if (term.size() <= 2) continue; // skip terms with two or fewer operators
 
             // make scalars in term
@@ -388,19 +399,15 @@ namespace pdaggerq {
                 // make scalars in term
                 made_scalar = term.make_scalar(scalars, n_temps);
 
+                // add term to scalar_terms if a scalar was made
+                if (made_scalar)
+                    scalar_term_idxs.insert(i);
+
                 // increment number of temps if new scalars were made
                 size_t new_size = scalars.size();
                 n_temps += new_size - cur_size;
                 cur_size = new_size;
             } // eventually no more scalars will be made
-        }
-
-    }
-
-    void Equation::apply_self_links() {
-        // iterate over terms
-        for (auto& term : terms_) {
-            term.apply_self_links(); // make trace
         }
     }
 

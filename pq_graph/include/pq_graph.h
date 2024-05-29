@@ -267,6 +267,8 @@ namespace pdaggerq {
         PQGraph clone() const;
 
         void make_scalars();
+
+        void fusion();
     }; // PQGraph
 
 } // pdaggerq

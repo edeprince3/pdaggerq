@@ -182,6 +182,12 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
 
             if (is_scalar) {
+                // if no scalars are allowed, skip this linkage
+                if (Equation::no_scalars_) {
+                    ignore_linkages.insert(linkage);
+                    continue;
+                }
+
                 // make sure the scalar does not have any nested temps that are not scalars
                 bool has_nested_tmps = false; //TODO: allow nested temps
                 for (const auto &nested_op: linkage->link_vector()) {
@@ -214,10 +220,11 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
             scaling_map test_flop_map; // flop map for test equation
             size_t numSubs = 0; // number of substitutions made
-            for (auto &eq_pair: equations_) { // iterate over equations
+            for (auto &[eq_name, equation]: equations_) { // iterate over equations
 
-                const string &eq_name = eq_pair.first; // get equation name
-                Equation &equation = eq_pair.second; // get equation
+                // skip scalar equations
+                if (eq_name == "scalars") continue;
+
 
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
                 numSubs += equation.test_substitute(linkage, test_flop_map,
@@ -289,7 +296,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
             // if we haven't made a substitution yet and this is either a
             // scalar or a sigma vector, keep it
-            if (!makeSub && (format_sigma || is_scalar)) keep = true;
+            if (!makeSub && (format_sigma || (is_scalar && !Equation::no_scalars_))) keep = true;
 
             // if the scaling is the same and it is allowed, set keep to true
             if (!keep && is_equiv && allow_equality) keep = true;
@@ -779,6 +786,137 @@ size_t PQGraph::merge_terms() {
     return num_fuse;
 }
 
+void PQGraph::fusion(){
+
+    //TODO: find a way to do this efficiently and accurately
+
+    // iterate over all equations and add unique operators to pool
+    for (auto & [name, eq] : equations_) {
+
+        // create pool of all unique operators in terms and their corresponding terms
+        unordered_map<string, std::pair<ConstVertexPtr, vector<Term*>>> unique_ops;
+        for (auto & term : eq.terms()) {
+            // skip terms with less than 2 operators
+            if (term.size() < 2) continue;
+
+            for (auto &op: term.rhs()) {
+                // find if operator is in pool
+                auto it = unique_ops.find(op->name());
+                if (it == unique_ops.end()) {
+                    // add operator to pool
+                    unique_ops[op->name()] = std::make_pair(op, vector<Term *>{&term});
+                } else {
+                    // add term to operator
+                    it->second.second.push_back(&term);
+                }
+            }
+        }
+
+        // sort pool by total cost of terms
+        vector<std::pair<ConstVertexPtr, vector<Term*>>> sorted_ops(unique_ops.size());
+        for (auto & [op, term_pair] : unique_ops) {
+            sorted_ops.push_back(term_pair);
+        }
+
+        // sort by total cost of terms
+        std::sort(sorted_ops.begin(), sorted_ops.end(), [](const auto &lhs, const auto &rhs) {
+            scaling_map lhs_cost, rhs_cost;
+            for (auto & term : lhs.second)
+                lhs_cost += term->flop_map();
+            for (auto & term : rhs.second)
+                rhs_cost += term->flop_map();
+
+            return lhs_cost > rhs_cost;
+        });
+
+        // iterate over sorted operators and merge terms
+        vector<Term> new_terms;
+        set<Term*> modified_terms;
+        for (auto & [op, terms] : sorted_ops) {
+            if (terms.size() < 2) continue;
+            if (op == nullptr) continue;
+
+            ConstVertexPtr ref_op;
+            vector<ConstVertexPtr> new_links;
+            for (auto & term : terms) {
+                // check if term has already been modified
+                if (modified_terms.find(term) != modified_terms.end())
+                    continue;
+
+                // create new rhs without operator
+                vector<ConstVertexPtr> new_rhs;
+                for (auto &rhs: term->rhs()) {
+                    if (rhs->name() != op->name())
+                        new_rhs.push_back(rhs);
+                    else
+                        ref_op = rhs;
+                }
+
+                // skip if ref_op is not found
+                if (ref_op == nullptr) continue;
+
+                // create new term
+                Term term_copy = *term;
+                term_copy.rhs() = new_rhs;
+
+                // skip if new rhs is empty
+                if (new_rhs.empty()) continue;
+
+                // set new lhs to ref_op
+                term_copy.lhs() = ref_op;
+
+                // genericize term
+                term_copy = term_copy.genericize();
+
+                // add linkages
+                if (new_rhs.size() == 1)
+                    new_links.push_back(term_copy.rhs().front());
+                else
+                    new_links.push_back(Linkage::link(term_copy.rhs()));
+            }
+
+            // if new links is less than 2, add terms to keep_terms
+            if (new_links.size() < 2) continue;
+
+            // now add up all linkages
+            ConstVertexPtr link_op = new_links.front();
+            for (size_t i = 1; i < new_links.size(); i++) {
+                link_op = link_op + new_links[i];
+            }
+
+            // link with op
+            ConstVertexPtr new_op = ref_op * link_op;
+
+            // create new term
+            Term new_term = terms.front()->clone();
+
+            // replace rhs with new op
+            new_term.rhs() = {new_op};
+
+            // add term to new terms
+            new_terms.push_back(new_term);
+
+            // add terms to modified terms
+            for (auto & term : terms)
+                modified_terms.insert(term);
+        }
+
+        // create new terms for the equation
+        for (auto & term : eq.terms()) {
+            if (modified_terms.find(&term) == modified_terms.end())
+                new_terms.push_back(term);
+        }
+
+        // set new terms
+        eq.terms() = new_terms;
+
+        // reorder terms
+        eq.reorder(true);
+        Equation::sort_tmp_type(eq, 't');
+
+    }
+}
+
 double PQGraph::common_coefficient(vector<Term*> &terms) {
 
     // make a count_ of the reciprocal of the coefficients of the terms
@@ -903,6 +1041,46 @@ void PQGraph::make_scalars() {
         eq.make_scalars(scalars, temp_counts_["scalars"]);
     }
 
+    if (Equation::no_scalars_) {
+
+        cout << "Removing scalars from equations..." << endl;
+
+        // remove scalar equation
+        equations_.erase("scalars");
+
+        // remove scalars from all equations
+        vector<string> to_remove;
+        for (auto &[name, eq]: equations_) {
+            vector<Term> new_terms;
+            for (auto &term: eq.terms()) {
+                bool has_scalar = false;
+                for (auto &op: term.rhs()) {
+                    if (op->is_linked() && op->is_scalar()) {
+                        has_scalar = true;
+                        break;
+                    }
+                }
+
+                if (!has_scalar)
+                    new_terms.push_back(term);
+            }
+            // if no terms left, remove equation
+            if (new_terms.empty())
+                to_remove.push_back(name);
+            else
+                eq.terms() = new_terms;
+        }
+
+        // remove equations
+        for (const auto &name: to_remove) {
+            cout << "Removing equation: " << name << " (no terms left after removing scalars)" << endl;
+            equations_.erase(name);
+        }
+
+        // remove scalars from saved linkages
+        scalars.clear();
+    }
+
     // add new scalars to all linkages and equations
     for (const auto &scalar: scalars) {
         // add term to scalars equation
@@ -913,6 +1091,9 @@ void PQGraph::make_scalars() {
     // remove comments from scalars
     for (Term &term: equations_["scalars"].terms())
         term.comments() = {}; // comments should be self-explanatory
+
+    // collect scaling
+    collect_scaling(true);
 
 }
 

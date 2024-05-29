@@ -50,7 +50,7 @@ namespace pdaggerq {
         string name_; // name of the equation
         ConstVertexPtr assignment_vertex_; // assignment vertex
         vector<Term> terms_; // terms in the equation
-        ConstLinkagePtr eq_linkage_; // linkage of the equation
+        ConstVertexPtr eq_linkage_; // linkage of the equation
 
         /// scaling of the equation
         scaling_map flop_map_; // map of flop scaling with linkage occurrence in equation
@@ -60,6 +60,7 @@ namespace pdaggerq {
         static inline size_t nthreads_ = 1; // number of threads to use when substituting
         static inline bool permuted_merge_ = false; // whether to merge terms with permutations
         static inline bool separate_conditions_ = true; // whether to separate terms into their conditions
+        static inline bool no_scalars_ = false; // whether to remove scalar terms
         bool is_temp_equation_ = false; // whether this is an equation to hold intermediates
         bool allow_substitution_ = true; // whether to allow substitution of linkages
 
@@ -280,13 +281,6 @@ namespace pdaggerq {
          * @return linkage set of scalars
          */
         void make_scalars(linkage_set &scalars, size_t &n_temps);
-
-        /**
-          * find vertices with self-contractions and format with delta functions
-          * @param scalars set of scalars currently added
-          * @param id id of the delta function
-          */
-        void apply_self_links();
 
         /**
          * add a term to the equation

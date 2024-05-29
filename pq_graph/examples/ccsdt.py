@@ -99,6 +99,6 @@ def load_pq():
 #generate_pq()
 graph = load_pq()
 
-graph.optimize()
+#graph.optimize()
 graph.print("python")
 graph.analysis()
