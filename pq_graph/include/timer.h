@@ -21,9 +21,10 @@
 //  limitations under the License.
 //
 
-#ifndef CC_CAVITY_TIMER_H
-#define CC_CAVITY_TIMER_H
+#ifndef PQ_GRAPH_TIMER_H
+#define PQ_GRAPH_TIMER_H
 #include <string>
+#include <sstream>
 
 namespace pdaggerq {
 
@@ -132,4 +133,4 @@ namespace pdaggerq {
 }
 
 
-#endif //CC_CAVITY_TIMER_H
+#endif //PQ_GRAPH_TIMER_H
