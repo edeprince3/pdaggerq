@@ -22,7 +22,13 @@
 //
 
 #include "../include/timer.h"
+// include omp only if defined
+#ifdef _OPENMP
 #include <omp.h>
+#else
+#define omp_get_max_threads() 1
+#define omp_get_wtime() (double)clock()/CLOCKS_PER_SEC
+#endif
 #include <iomanip>
 #include <cmath>
 

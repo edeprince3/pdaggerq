@@ -26,9 +26,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # enable interprocedural optimization if using release build
-if(${CMAKE_BUILD_TYPE} EQUAL "Release" OR ${CMAKE_BUILD_TYPE} EQUAL "RelWithDebInfo")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
+#if(${CMAKE_BUILD_TYPE} EQUAL "Release" OR ${CMAKE_BUILD_TYPE} EQUAL "RelWithDebInfo")
+#    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+#endif()
 
 # find python and set variables for:
 #     the interpreter, include dirs, libraries, and version
@@ -59,7 +59,7 @@ endif()
 set(PYBIND11_CPP_STANDARD -std=c++17)
 
 # find openmp and set variables (required for pq_graph)
-find_package(OpenMP)
+#find_package(OpenMP)
 
 # we are adding a private module _pdaggerq so we don't have a naming collision
 pybind11_add_module(_pdaggerq

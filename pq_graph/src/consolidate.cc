@@ -23,7 +23,12 @@
 
 #include "../include/pq_graph.h"
 #include "iostream"
+// include omp only if defined
+#ifdef _OPENMP
 #include <omp.h>
+#else
+#define omp_get_max_threads() 1
+#endif
 
 using std::ostream, std::string, std::vector, std::map, std::unordered_map, std::shared_ptr, std::make_shared,
         std::set, std::unordered_set, std::pair, std::make_pair, std::to_string, std::invalid_argument,
