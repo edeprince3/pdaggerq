@@ -59,7 +59,7 @@ endif()
 set(PYBIND11_CPP_STANDARD -std=c++17)
 
 # find openmp and set variables (required for pq_graph)
-find_package(OpenMP REQUIRED) #TODO: make this optional
+find_package(OpenMP)
 
 # we are adding a private module _pdaggerq so we don't have a naming collision
 pybind11_add_module(_pdaggerq

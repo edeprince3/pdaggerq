@@ -27,7 +27,13 @@
 #include "pybind11/stl.h"
 #include "../../pdaggerq/pq_string.h"
 #include "../../pdaggerq/pq_helper.h"
-#include <omp.h>
+
+// include omp only if defined
+#ifdef _OPENMP
+    #include <omp.h>
+#else
+    #define omp_get_max_threads() 1
+#endif
 #include <memory>
 #include <sstream>
 
