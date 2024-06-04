@@ -32,10 +32,10 @@ namespace pdaggerq {
 
     private:
         /***** TIMERS *****/
-        long double start_time_; // current start time
-        long double end_time_; // current end time
+        long double start_time_ = 0.0; // current start time
+        long double end_time_ = 0.0; // current end time
         long double runtime_ = 0.0; // total runtime
-        bool running_ = false; // whether the timer is running_
+        bool running_ = false; // whether the timer is running
         size_t count_ = 0; // number of times the timer has been started
     public:
 
