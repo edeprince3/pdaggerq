@@ -21,6 +21,8 @@
 //  limitations under the License.
 //
 
+#include <memory>
+
 #include "../include/pq_graph.h"
 #include "iostream"
 // include omp only if defined
@@ -79,7 +81,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     // add missing equations
     for (const auto &missing: missing_eqs) {
-        equations_[missing] = Equation(missing);
+        equations_.emplace(missing, Equation(make_shared<Vertex>(missing), {}));
         equations_[missing].is_temp_equation_ = true; // do not allow substitution of tmp declarations
     }
 
@@ -1043,7 +1045,15 @@ void PQGraph::make_scalars() {
     // find scalars in all equations and substitute them
     linkage_set scalars = saved_linkages_["scalars"];
     for (auto &[name, eq]: equations_) {
+        // do not make scalars in scalar equation
+        if (name == "scalars") continue;
         eq.make_scalars(scalars, temp_counts_["scalars"]);
+    }
+
+    // create new equation for scalars if it does not exist
+    if (equations_.find("scalars") == equations_.end()) {
+        equations_.emplace("scalars", Equation(make_shared<Vertex>("scalars"), {}));
+        equations_["scalars"].is_temp_equation_ = true;
     }
 
     if (Equation::no_scalars_) {

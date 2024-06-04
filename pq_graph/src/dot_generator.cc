@@ -52,7 +52,7 @@ void PQGraph::write_dot(string &filepath) {
             continue;
 
         // declare subgraph
-        std::string graphname = "cluster_equation_" + eq.assignment_vertex()->base_name_;
+        std::string graphname = "cluster_equation_" + it->first;
         os << padding << "subgraph " << graphname << " {\n";
         os << padding << "    style=rounded;\n";
         os << padding << "    clusterrank=local;\n";
