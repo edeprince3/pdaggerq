@@ -15,23 +15,23 @@ import pdaggerq
 
 # set up pq_graph
 graph = pdaggerq.pq_graph({
-    "verbose": True,            # print out verbose analysis?    
-    "permute_eri": True,        # permute ERI integrals to a common order? (ovov -> vovo; ovvo -> -vovo)
-    "allow_merge": True,        # merge similar terms during optimization?    
-    "batched": True,            # substitute intermediates in batches?
-    "batch_size": 100,          # batch size for substitution
-    "max_temps": -1,            # maximum number of intermediates to find
-    "max_depth": 2,             # maximum depth for chain of contractions
-    "max_shape": {              # a map of maximum container size for intermediates
-        'o':-1,                 
-        'v':-1,                 
-    },                          
-    "allow_nesting": True,      # allow nested intermediates?
-    "format_sigma": True,       # format equations for a sigma-build? (separates inteermediates w/o sigma vectors)
-    "print_trial_index"         # print an additional index for each trial sigma vector
-    "nthreads": -1,             # number of threads to use for optimization (-1 = all)
-    "conditions": {             # map of the named conditions for each operator type 
-        "include_t1":  ['t1'],  # terms that have any of these operators will be in an if statement
+    "verbose": True,       # print out verbose analysis?    
+    "permute_eri": True,   # permute ERI integrals to a common order? (ovov -> vovo; ovvo -> -vovo)
+    "allow_merge": True,   # merge similar terms during optimization?    
+    "batched": True,       # substitute intermediates in batches?
+    "batch_size": 100,     # batch size for substitution
+    "max_temps": -1,       # maximum number of intermediates to find
+    "max_depth": 2,        # maximum depth for chain of contractions
+    "max_shape": {         # a map of maximum container size for intermediates
+        'o':-1,            
+        'v':-1,            
+    },                     
+    "allow_nesting": True, # allow nested intermediates?
+    "format_sigma": True,  # format equations for a sigma-build? (separates inteermediates w/o sigma vectors)
+    "print_trial_index"    # print an additional index for each trial sigma vector
+    "nthreads": -1,        # number of threads to use for optimization (-1 = all)
+    "conditions": {        # map of the named conditions for each operator type 
+        "t1":  ['t1'],     # terms that have any of these operators will be in an if statement
     }
 })
 
