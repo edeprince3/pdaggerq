@@ -208,9 +208,9 @@ namespace pdaggerq {
         }
 
 
-        // sort lines by properties
-        std::stable_sort(lines_.begin(), lines_.end(), line_compare());
-
+//        // sort lines by properties
+//        std::stable_sort(lines_.begin(), lines_.end(), line_compare());
+//
         // add sigma lines to the beginning of lines_
         if (!sig_lines.empty())
             lines_.insert(lines_.begin(), sig_lines.begin(), sig_lines.end());

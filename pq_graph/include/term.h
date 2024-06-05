@@ -341,9 +341,9 @@ namespace pdaggerq {
              /**
               * Populate flop and memory scaling maps
               * @param perm permutation of the rhs
-              * @return a pair of the flop_scale and term linkage
+              * @return a tuple of the flop_scale, mem_scale, and term linkage
               */
-             pair<scaling_map, scaling_map> compute_scaling(const vector<ConstVertexPtr> &arrangement, bool recompute = true);
+             tuple<scaling_map, scaling_map, LinkagePtr> compute_scaling(const vector<ConstVertexPtr> &arrangement, bool recompute = true);
 
              /**
               * Populate flop and memory scaling maps with identity permutation

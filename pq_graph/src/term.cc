@@ -233,7 +233,7 @@ namespace pdaggerq {
 
     }
 
-    pair<scaling_map, scaling_map> Term::compute_scaling(const vector<ConstVertexPtr>& arrangement, bool recompute) {
+    tuple<scaling_map, scaling_map, LinkagePtr> Term::compute_scaling(const vector<ConstVertexPtr>& arrangement, bool recompute) {
 
         // reset flop and memory scaling maps
         scaling_map flop_map; // clear flop scaling map
@@ -269,9 +269,9 @@ namespace pdaggerq {
         // check if number of rhs is <= 1
         if (arrangement.size() == 1) {
             add_scaling(arrangement[0]->dim());
-            return {flop_map, mem_map};
+            return {flop_map, mem_map, term_linkage_};
         } else if (arrangement.empty()) {
-            return {flop_map, mem_map};
+            return {flop_map, mem_map, term_linkage_};
         }
 
         /// add scaling from rhs
@@ -287,7 +287,7 @@ namespace pdaggerq {
             mem_map[mem_scale]++;
 //            add_scaling(mem_scale);
 
-        return {flop_map, mem_map};
+        return {flop_map, mem_map, term_linkage_};
 
     }
 
@@ -325,6 +325,7 @@ namespace pdaggerq {
         // store best scaling as current scaling (scaling is performed in compute_scaling and called in constructor)
         scaling_map best_flop_map = flop_map_; // initialize the best flop scaling map
         scaling_map best_mem_map = mem_map_; // initialize the best memory scaling map
+        LinkagePtr best_linkage = term_linkage_; // initialize the best line order
         bool found_better = false;
 
         // iterate over all permutations of the rhs
@@ -338,7 +339,7 @@ namespace pdaggerq {
             }
 
             // compute scaling for current permutation (populates flop and memory scaling maps)
-            auto [flop_map, mem_map] = compute_scaling(new_arrangement);
+            auto [flop_map, mem_map, linkage] = compute_scaling(new_arrangement);
 
             int scaling_check = flop_map.compare(best_flop_map); // check if current permutation is better than best permutation
 
@@ -346,6 +347,31 @@ namespace pdaggerq {
             if (scaling_check == scaling_map::is_same) { // if scaling is equal, check memory scaling
                 // check if current permutation is better than the best permutation in terms of memory scaling
                 is_better = mem_map.compare(best_mem_map) == scaling_map::this_better; // check if current permutation is better than best permutation
+
+                // if still equal, prefer linkage with the closest indices to the lhs (requires less index permutations)
+                if (!is_better) {
+                    // get lines of lhs and the term linkage
+                    line_vector lhs_lines = lhs_->lines();
+                    line_vector cur_link_lines = linkage->lines(), best_link_lines = best_linkage->lines();
+
+                    // count number of indices that match the lhs
+                    size_t cur_match_dist = 0, best_match_dist = 0;
+                    auto cur_begin = cur_link_lines.begin(), best_begin = best_link_lines.begin();
+                    auto cur_end = cur_link_lines.end(), best_end = best_link_lines.end();
+                    for (size_t i = 0; i < lhs_lines.size(); i++) {
+                        // find the index in the current linkage that matches the lhs index
+                        auto cur_match = std::find(cur_begin, cur_end, lhs_lines[i]);
+                        auto best_match = std::find(best_begin, best_end, lhs_lines[i]);
+                        // get index for the match
+                        size_t cur_dist = std::distance(cur_begin, cur_match);
+                        size_t best_dist = std::distance(best_begin, best_match);
+                        // add difference in index to the total distance (should be 0 if exact match)
+                        cur_match_dist  += i >  cur_dist ? i -  cur_dist :  cur_dist - i;
+                        best_match_dist += i > best_dist ? i - best_dist : best_dist - i;
+                    }
+                    // keep permutation with more matching indices
+                    is_better = cur_match_dist > best_match_dist;
+                }
             }
 
             if (is_better) { // if current permutation is better than the best permutation
@@ -354,6 +380,7 @@ namespace pdaggerq {
                 for (size_t i = 0; i < n_vertices; i++) { // copy current permutation to best permutation
                     best_permutation[i] = current_permutation[i];
                 }
+                best_linkage = linkage; // set best linkage to current permutation
                 found_better = true;
             } // else, current permutation is worse than the best permutation and does not need to be saved
         }
@@ -1104,12 +1131,12 @@ namespace pdaggerq {
         if (!needs_update_ && !recompute)
             return; // if term does not need updating, return
 
-        auto [flop_map, mem_map] = compute_scaling(rhs_, recompute); // compute scaling of current rhs
+        auto [flop_map, mem_map, linkage] = compute_scaling(rhs_, recompute); // compute scaling of current rhs
 
         flop_map_ = flop_map;
         mem_map_  = mem_map;
         if (rhs_.size() > 1)
-            term_linkage_ = Linkage::link(rhs_);
+            term_linkage_ = linkage;
         else if (!rhs_.empty()) term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
         else term_linkage_ = as_link(make_shared<Vertex>() * make_shared<Vertex>());
 
