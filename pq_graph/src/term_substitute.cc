@@ -427,8 +427,23 @@ bool Term::make_scalar(linkage_set &scalars, size_t id) {
         new_term.rhs_ = new_rhs; // replace rhs with new rhs
         new_term.compute_scaling(true);
 
+        int scaling_check =  new_term.flop_map_.compare(best_flop_map); // check if current permutation is better than best permutation
+        bool is_better = scaling_check == scaling_map::this_better; // check if current permutation is better than best permutation
+        bool is_same = scaling_check == scaling_map::is_same; // check if current permutation is the same as the best permutation
+        if (!is_better && is_same) {
+            int mem_scaling_check = new_term.mem_map_.compare(best_mem_map); // check if current permutation is better than best permutation
+            is_better = mem_scaling_check == scaling_map::this_better; // check if current permutation is better than best permutation
+            is_same = mem_scaling_check == scaling_map::is_same; // check if current permutation is the same as the best permutation
+
+            if (!is_better && is_same) {
+                size_t cur_perm_count = count_idx_perm(lhs_->lines(), new_rhs);
+                size_t best_perm_count = count_idx_perm(lhs_->lines(), best_vertices);
+                is_better = cur_perm_count < best_perm_count;
+            }
+        }
+
         // check if flop and memory scaling are better than best scaling
-        if ( !made_scalar || new_term.flop_map_ <= best_flop_map ) { // flop scaling is better
+        if ( !made_scalar || is_better ) { // flop scaling is better
             // set the best scaling and rhs
             best_flop_map = new_term.flop_map_;
             best_mem_map  = new_term.mem_map_;

@@ -335,6 +335,14 @@ namespace pdaggerq {
              */
             void reorder(bool recompute = false);
 
+            /**
+             * function to count permutations of lines in arrangment to match those in the reference lines
+             * @param ref_lines the reference lines (usually the lhs of the term)
+             * @param arrangement the arrangement of lines to count permutations of
+             * @return the number of permutations
+             */
+            static size_t count_idx_perm(const line_vector &ref_lines, const vector<ConstVertexPtr> &arrangement);
+
 
             //TODO: make this a static function when called with a term as an argument
 

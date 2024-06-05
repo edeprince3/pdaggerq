@@ -291,6 +291,24 @@ namespace pdaggerq {
 
     }
 
+    size_t Term::count_idx_perm(const line_vector& ref_lines, const vector<ConstVertexPtr>& arrangement) {
+        line_vector lines;
+
+        for (const auto & vertex : arrangement)
+            for (const auto & line : vertex->lines())
+                if (std::find(ref_lines.begin(), ref_lines.end(), line) != ref_lines.end())
+                    lines.push_back(line);
+        lines.erase(std::unique(lines.begin(), lines.end()), lines.end());
+
+        size_t perms = 0;
+        do {
+            if (lines == ref_lines) break;
+            perms++;
+        } while (std::next_permutation(lines.begin(), lines.end()));
+
+        return perms;
+    }
+
     void Term::reorder(bool recompute) { // reorder rhs in term
 
         if (recompute) {
@@ -327,7 +345,6 @@ namespace pdaggerq {
         scaling_map best_mem_map = mem_map_; // initialize the best memory scaling map
         vector<ConstVertexPtr> best_arrangement = rhs_; // initialize best arrangement
         line_vector left_lines = lhs_->lines(); // get lines of lhs
-        auto best_perm_count = static_cast<size_t>(-1); // initialize best permutation count
         bool found_better = false;
 
         // iterate over all permutations of the rhs
@@ -352,29 +369,11 @@ namespace pdaggerq {
 
                 // if still equal, prefer linkage with the closest indices to the lhs (requires less index permutations)
                 if (!is_better) {
-                    auto get_perms = [&](const vector<ConstVertexPtr>& arrangement) {
-                        line_vector lines;
-                        for (const auto & vertex : arrangement)
-                            for (const auto & line : vertex->lines())
-                                if (std::find(left_lines.begin(), left_lines.end(), line) != left_lines.end())
-                                    lines.push_back(line);
-                        lines.erase(std::unique(lines.begin(), lines.end()), lines.end());
-
-                        size_t perms = 0;
-                        do {
-                            if (lines == left_lines) break;
-                            perms++;
-                        } while (std::next_permutation(lines.begin(), lines.end()));
-
-                        return perms;
-                    };
-
-                    size_t current_perm_count = get_perms(new_arrangement);
-                    best_perm_count = get_perms(best_arrangement);
+                    size_t current_perm_count = count_idx_perm(left_lines, new_arrangement);
+                    size_t best_perm_count = count_idx_perm(left_lines, best_arrangement);
 
                     // check if current permutation is better than the best permutation
                     is_better = current_perm_count < best_perm_count;
-                    best_perm_count = current_perm_count;
                 }
             }
 
