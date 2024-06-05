@@ -370,8 +370,7 @@ namespace pdaggerq {
                     };
 
                     size_t current_perm_count = get_perms(new_arrangement);
-                    if (best_perm_count == static_cast<size_t>(-1))
-                        best_perm_count = get_perms(best_arrangement);
+                    best_perm_count = get_perms(best_arrangement);
 
                     // check if current permutation is better than the best permutation
                     is_better = current_perm_count < best_perm_count;
