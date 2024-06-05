@@ -354,20 +354,18 @@ namespace pdaggerq {
                 if (!is_better) {
                     auto get_perms = [&](const vector<ConstVertexPtr>& arrangement) {
                         line_vector lines;
-
-                        // get unique lines that are in the arrangement and the lhs
-                        for (const auto & vertex : arrangement) {
-                            auto vertex_lines = vertex->lines();
-                            std::copy_if(vertex_lines.begin(), vertex_lines.end(), std::back_inserter(lines),
-                                         [&](const auto& line) { return std::find(left_lines.begin(), left_lines.end(), line) != left_lines.end(); });
-                        }
+                        for (const auto & vertex : arrangement)
+                            for (const auto & line : vertex->lines())
+                                if (std::find(left_lines.begin(), left_lines.end(), line) != left_lines.end())
+                                    lines.push_back(line);
                         lines.erase(std::unique(lines.begin(), lines.end()), lines.end());
 
-                        // get number of permutations to match the lhs
                         size_t perms = 0;
-                        while (std::next_permutation(lines.begin(), lines.end()) && lines != left_lines) {
+                        do {
+                            if (lines == left_lines) break;
                             perms++;
-                        }
+                        } while (std::next_permutation(lines.begin(), lines.end()));
+
                         return perms;
                     };
 
