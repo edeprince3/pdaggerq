@@ -183,7 +183,7 @@ namespace pdaggerq {
         line_vector den_lines;
 
         auto add_line = [this, &sig_lines, &den_lines](const Line &line) {
-            if (!line.sig_ && !line.den_)
+            if (!line.sig_ & !line.den_)
                 lines_.push_back(line);
             else if (line.sig_)
                 sig_lines.push_back(line);
@@ -195,7 +195,7 @@ namespace pdaggerq {
         // left half
         for (uint_fast8_t i = 0; i < left_size; ++i) {
             // skip internal lines, and keep all left lines if addition
-            if (!is_addition_ && !left_ext_idx[i]) continue;
+            if (!is_addition_ & !left_ext_idx[i]) continue;
             add_line(left_lines[i]);
             mem_scale_ += left_lines[i];
         }

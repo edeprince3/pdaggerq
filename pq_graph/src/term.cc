@@ -311,7 +311,7 @@ namespace pdaggerq {
         // get number of rhs
         size_t n_vertices = rhs_.size();
 
-        if (n_vertices <= 2) { return; } // not enough vertices to reorder
+        if (n_vertices < 2) { return; } // not enough vertices to reorder
 
         size_t initial_permutation[n_vertices]; // array to store initial permutation
         size_t current_permutation[n_vertices]; // initialize index for current permutation (initially 0, 1, 2, ...)
@@ -325,7 +325,9 @@ namespace pdaggerq {
         // store best scaling as current scaling (scaling is performed in compute_scaling and called in constructor)
         scaling_map best_flop_map = flop_map_; // initialize the best flop scaling map
         scaling_map best_mem_map = mem_map_; // initialize the best memory scaling map
-        LinkagePtr best_linkage = term_linkage_; // initialize the best line order
+        vector<ConstVertexPtr> best_arrangement = rhs_; // initialize best arrangement
+        line_vector left_lines = lhs_->lines(); // get lines of lhs
+        auto best_perm_count = static_cast<size_t>(-1); // initialize best permutation count
         bool found_better = false;
 
         // iterate over all permutations of the rhs
@@ -350,27 +352,32 @@ namespace pdaggerq {
 
                 // if still equal, prefer linkage with the closest indices to the lhs (requires less index permutations)
                 if (!is_better) {
-                    // get lines of lhs and the term linkage
-                    line_vector lhs_lines = lhs_->lines();
-                    line_vector cur_link_lines = linkage->lines(), best_link_lines = best_linkage->lines();
+                    auto get_perms = [&](const vector<ConstVertexPtr>& arrangement) {
+                        line_vector lines;
 
-                    // count number of indices that match the lhs
-                    size_t cur_match_dist = 0, best_match_dist = 0;
-                    auto cur_begin = cur_link_lines.begin(), best_begin = best_link_lines.begin();
-                    auto cur_end = cur_link_lines.end(), best_end = best_link_lines.end();
-                    for (size_t i = 0; i < lhs_lines.size(); i++) {
-                        // find the index in the current linkage that matches the lhs index
-                        auto cur_match = std::find(cur_begin, cur_end, lhs_lines[i]);
-                        auto best_match = std::find(best_begin, best_end, lhs_lines[i]);
-                        // get index for the match
-                        size_t cur_dist = std::distance(cur_begin, cur_match);
-                        size_t best_dist = std::distance(best_begin, best_match);
-                        // add difference in index to the total distance (should be 0 if exact match)
-                        cur_match_dist  += i >  cur_dist ? i -  cur_dist :  cur_dist - i;
-                        best_match_dist += i > best_dist ? i - best_dist : best_dist - i;
-                    }
-                    // keep permutation with more matching indices
-                    is_better = cur_match_dist > best_match_dist;
+                        // get unique lines that are in the arrangement and the lhs
+                        for (const auto & vertex : arrangement) {
+                            auto vertex_lines = vertex->lines();
+                            std::copy_if(vertex_lines.begin(), vertex_lines.end(), std::back_inserter(lines),
+                                         [&](const auto& line) { return std::find(left_lines.begin(), left_lines.end(), line) != left_lines.end(); });
+                        }
+                        lines.erase(std::unique(lines.begin(), lines.end()), lines.end());
+
+                        // get number of permutations to match the lhs
+                        size_t perms = 0;
+                        while (std::next_permutation(lines.begin(), lines.end()) && lines != left_lines) {
+                            perms++;
+                        }
+                        return perms;
+                    };
+
+                    size_t current_perm_count = get_perms(new_arrangement);
+                    if (best_perm_count == static_cast<size_t>(-1))
+                        best_perm_count = get_perms(best_arrangement);
+
+                    // check if current permutation is better than the best permutation
+                    is_better = current_perm_count < best_perm_count;
+                    best_perm_count = current_perm_count;
                 }
             }
 
@@ -380,7 +387,7 @@ namespace pdaggerq {
                 for (size_t i = 0; i < n_vertices; i++) { // copy current permutation to best permutation
                     best_permutation[i] = current_permutation[i];
                 }
-                best_linkage = linkage; // set best linkage to current permutation
+                best_arrangement = new_arrangement; // set best arrangement to current permutation
                 found_better = true;
             } // else, current permutation is worse than the best permutation and does not need to be saved
         }
