@@ -55,11 +55,11 @@ namespace pdaggerq {
         // valid line names
         static inline array<char, 32> occ_labels_ = {               // names of occupied lines
                 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-                'I', 'J', 'K', 'L', 'M', 'N', 'O'};
+                'I', 'J', 'K', 'M', 'N', 'O'};
         static inline array<char, 32> virt_labels_ = {              // names of virtual lines
                 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'v',
                 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'V'};
-        static inline array<char, 32> sig_labels_ = {'X', 'Y', 'Z'}; // names of excited state lines
+        static inline array<char, 32> sig_labels_ = {'L', 'R', 'X', 'Y'}; // names of excited state lines
         static inline array<char, 32> den_labels_ = {'Q', 'U'};      // names of density fitting lines
 
         Line() = default;
@@ -134,18 +134,18 @@ namespace pdaggerq {
         /// *** Comparisons *** ///
 
         bool operator==(const Line& other) const {
-            return label_ == other.label_ &&
-                       o_ == other.o_     &&
-                       a_ == other.a_     &&
-                     sig_ == other.sig_   &&
-                     den_ == other.den_;
+            return (label_ == other.label_) &
+                       (o_ == other.o_)     &
+                       (a_ == other.a_)     &
+                     (sig_ == other.sig_)   &
+                     (den_ == other.den_);
         }
 
         inline bool equivalent(const Line& other) const {
-            return   o_ == other.o_   &&
-                     a_ == other.a_   &&
-                   sig_ == other.sig_ &&
-                   den_ == other.den_;
+            return   (o_ == other.o_)   &
+                     (a_ == other.a_)   &
+                   (sig_ == other.sig_) &
+                   (den_ == other.den_);
         }
 
         bool operator!=(const Line& other) const {
@@ -167,6 +167,7 @@ namespace pdaggerq {
             if (den_ ^ other.den_) return den_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
+            if (sig_ & other.sig_) return label_ < other.label_; // L should be first
             return true;
         }
 

@@ -128,10 +128,13 @@ namespace pdaggerq {
         vector<string> labels = amp.labels;
 
         // if this is a sigma vertex, add a sigma line
-        if (type == 'r' || type == 's' || type == 'l' || type == 'm') {
-            is_sigma_ = true;
-            labels.emplace(labels.begin(), "X");
-            //TODO: add check in Term for more than one sigma and change line and replace with X, Y, or Z (should never have Z)
+        for (char sig_type : pq_string::left_sigma_types) {
+            if (type == sig_type)
+                labels.emplace(labels.begin(), "L");
+        }
+        for (char sig_type : pq_string::right_sigma_types) {
+            if (type == sig_type)
+                labels.emplace(labels.begin(), "R");
         }
 
         // only represent amplitudes as maps if they have a block

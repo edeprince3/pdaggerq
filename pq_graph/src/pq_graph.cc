@@ -329,11 +329,8 @@ namespace pdaggerq {
         }
 
         auto reorder_labels = [&label_order](VertexPtr &vertex) {
-            if (label_order.empty()) {
-                vertex->sort();
-                return;
-            }
-
+            vertex->sort();
+            if (label_order.empty()) return;
 
             // reorder lines according to label_order
             const auto &lines = vertex->lines();
@@ -358,10 +355,20 @@ namespace pdaggerq {
 
             for (size_t i = 0; i < rank; ++i) {
                 const Line &line = lines[i];
-                if (line.sig_)
+                if (line.sig_) {
+                    // check if beginning of line is a sigma operator
+                    auto first_line = new_lines.begin();
                     new_lines.insert(new_lines.begin(), line);
+                }
                 else if (!found[i])
                     new_lines.push_back(line);
+            }
+
+            // ensure sigma line labels appear in order (unless it is in the label_order)
+            size_t sigma_count = 0;
+            for (size_t i = 0; i < new_lines.size(); ++i) {
+                Line &line = new_lines[i];
+                if (line.sig_) line.label_ = Line::sig_labels_[sigma_count++];
             }
 
             vertex->update_lines(new_lines);
