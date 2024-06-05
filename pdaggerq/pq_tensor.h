@@ -335,7 +335,7 @@ class integrals: public tensor {
      * sort numerical integrals labels, keep track of permutations
      *
      */
-    void sort();
+    void sort() override;
 
     /**
      *
