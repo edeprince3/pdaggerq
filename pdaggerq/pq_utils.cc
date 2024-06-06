@@ -1024,12 +1024,13 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
 
         // order amplitudes such that they're ordered t1, t2, t3, etc.
-        reorder_t_amplitudes(pq_str);
+        reorder_amplitudes(pq_str);
 
         // sort amplitude labels
         pq_str->sort_labels();
 
     }
+    //exit(0);
 
     // prune list so it only contains non-skipped ones
     std::vector< std::shared_ptr<pq_string> > pruned;
@@ -1110,54 +1111,39 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     pruned.clear();
 }
 
-// reorder t amplitudes as t1, t2, t3, t4
-void reorder_t_amplitudes(std::shared_ptr<pq_string> &in) {
+// reorder t, l, r, s, m amplitudes as t1, t2, t3, t4
+void reorder_amplitudes(std::shared_ptr<pq_string> &in) {
 
-    // get t amplitudes
-    auto amp_pos = in->amps.find('t');
-    if ( amp_pos == in->amps.end() ) return; // no t amplitudes
+    for (auto & amp_pair : in->amps) {
+
+        std::vector<amplitudes> &amps = amp_pair.second;
+
+        size_t dim = amps.size();
+        if ( dim == 0 ) continue;
     
-    std::vector<amplitudes> & t_amps = amp_pos->second;
-        
-    size_t dim = t_amps.size();
-    if ( dim == 0 ) return;
-    
-    bool* nope = (bool*)malloc(dim * sizeof(bool));
-    memset((void*)nope, '\0', dim * sizeof(bool));
+        bool* nope = (bool*)malloc(dim * sizeof(bool));
+        memset((void*)nope, '\0', dim * sizeof(bool));
 
-    std::vector<std::vector<std::string> > tmp;
-    std::vector<amplitudes> tmp_new;
+        std::vector<std::vector<std::string> > tmp;
+        std::vector<amplitudes> tmp_new;
 
-    for (size_t order = 1; order < 7; order++) {
-        for (int i = 0; i < dim; i++) {
-            for (int j = 0; j < dim; j++) {
-                if ( nope[j] ) continue;
+        for (size_t len = 0; len < 10; len++) {
+            for (int i = 0; i < dim; i++) {
+                for (int j = 0; j < dim; j++) {
+                    if ( nope[j] ) continue;
 
-                if ( t_amps[j].labels.size() == 2 * order ) {
-                    tmp_new.push_back(t_amps[j]);
-                    nope[j] = true;
-                    break;
+                    if ( amps[j].labels.size() == len ) {
+                        tmp_new.push_back(amps[j]);
+                        nope[j] = true;
+                        break;
+                    }
                 }
-
             }
         }
-    }
 
-    if ( dim != tmp_new.size() ) {
-        printf("\n");
-        printf("    something went very wrong in reorder_t_amplitudes()\n");
-        printf("    this function breaks for t6 and higher. why would\n");
-        printf("    you want that, anyway?\n");
-        printf("\n");
-        exit(1);
-        
-        //TODO: (MDL 11/14/23) 
-        // likely this was because of the implementation of the assignment operator for the amplitude class. 
-        // This could be fixed now, but requires running that expensive test again
+        amps = tmp_new;
+        free(nope);
     }
-    
-    t_amps = tmp_new;
-    free(nope);
 }
 
 // re-classify fluctuation potential terms
