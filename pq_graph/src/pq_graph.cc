@@ -283,6 +283,7 @@ namespace pdaggerq {
 
     void PQGraph::add(const pq_helper& pq, const std::string &equation_name, vector<std::string> label_order) {
 
+        total_timer.start(); // start timer
         build_timer.start(); // start timer
 
         // check if equation already exists; if so, print warning
@@ -456,7 +457,8 @@ namespace pdaggerq {
         flop_map_init_ = flop_map_;
         mem_map_init_  = mem_map_;
 
-        build_timer.stop(); // start timer
+        build_timer.stop(); // stop timer
+        total_timer.stop(); // stop timer
     }
 
     void PQGraph::print(string print_type) {
@@ -823,6 +825,7 @@ namespace pdaggerq {
 
     void PQGraph::reorder() { // verbose if not already reordered
 
+        total_timer.start(); // start timer
         reorder_timer.start(); // start timer
 
         static bool is_reordered = !verbose_; // flag to check if reordered
@@ -863,14 +866,14 @@ namespace pdaggerq {
             flop_map_pre_ = flop_map_;
             mem_map_pre_ = mem_map_;
         }
+        total_timer.stop();
     }
 
     void PQGraph::analysis() const {
         cout << "####################" << " PQ GRAPH Analysis " << "####################" << endl << endl;
 
         // print total time elapsed
-        long double total_time = build_timer.get_runtime() + reorder_timer.get_runtime()
-                                 + substitute_timer.get_runtime() + update_timer.get_runtime();
+        long double total_time = total_timer.get_runtime();
         cout << "Net time: " << Timer::format_time(total_time) << endl << endl;
 
         // get total number of linkages
@@ -925,11 +928,13 @@ namespace pdaggerq {
     }
 
     void PQGraph::assemble() {
+        total_timer.start();
         // find scalars in each equation
         make_scalars();
 
         // set assembled flag to true
         is_assembled_ = true;
+        total_timer.stop();
     }
 
     void PQGraph::optimize() {

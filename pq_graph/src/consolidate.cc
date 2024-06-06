@@ -61,7 +61,6 @@ Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double
 void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     // begin timings
-    static Timer total_timer;
     total_timer.start();
 
     // reorder if not already reordered

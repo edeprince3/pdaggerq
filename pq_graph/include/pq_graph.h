@@ -68,6 +68,7 @@ namespace pdaggerq {
         bool reuse_permutations_ = true; // whether to reuse permutations during the reusing step
         bool use_as_array_ = true; // whether to use the array version of the tmps
 
+        Timer total_timer; // timer for the total time of the builder
         Timer build_timer; // timer for construction of the equations
         Timer reorder_timer; // timer for the reorder function
         Timer substitute_timer; // timer for the substitute function
@@ -137,17 +138,8 @@ namespace pdaggerq {
          * clears everything in the builder
          */
         void clear() {
-            equations_.clear();
-            saved_linkages_.clear();
-
-            flop_map_.clear(); flop_map_init_.clear(); flop_map_pre_.clear();
-            mem_map_.clear(); mem_map_init_.clear(); mem_map_pre_.clear();
-
-            temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse", 0}};
-            all_links_.clear();
-            is_reordered_ = false;
-            is_reused_ = false;
-            has_perms_merged_ = false;
+            PQGraph::~PQGraph(); // call destructor
+            *this = PQGraph();   // reset the builder
         }
 
         /**
