@@ -90,7 +90,9 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
     if (verbose_) cout << "Generating all possible linkages..." << flush;
 
     size_t org_max_depth = Term::max_depth_;
-//    Term::max_depth_ = 2; // set max depth to 2 for initial linkage generation
+
+    if (batched_)
+        Term::max_depth_ = 2; // set max depth to 2 for initial linkage generation
     size_t current_depth = 2; // current depth of linkages
 
     make_all_links(true); // generate all possible linkages
@@ -464,15 +466,13 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             total_num_merged += num_merged;
         }
 
-        // gradually increase max depth if we have not found any linkages (start from lowest depth)
-        while (test_linkages.empty() && recompute) {
+        // gradually increase max depth if we have not found any linkages (start from lowest depth; only if batching)
+        while (test_linkages.empty() && recompute && batched_) {
 
-            // do not increment max depth
-            Term::max_depth_ = org_max_depth; //++current_depth; // increase max depth
+            Term::max_depth_ = ++current_depth; // increase max depth
 
-
-//            if (verbose_)
-//                cout << endl << "Regenerating test set with max depth (" << current_depth << ") ... " << std::flush;
+            if (verbose_)
+                cout << endl << "Regenerating test set with max depth (" << current_depth << ") ... " << std::flush;
 
             // regenerate all valid linkages with the new depth
             make_all_links(true);
