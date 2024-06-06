@@ -697,23 +697,19 @@ namespace pdaggerq {
         if (!left_linked && !right_linked) return root;
 
         // clone the left/right vertices
-        ConstVertexPtr left  = root_link->left()->safe_clone();
-        ConstVertexPtr right = root_link->right()->safe_clone();
-
-        // sort the left and right vertices
-        if (left_linked)  left  = tree_sort(left);
-        if (right_linked) right = tree_sort(right);
+        const ConstVertexPtr &left  = root_link->left()->safe_clone();
+        const ConstVertexPtr &right = root_link->right()->safe_clone();
 
         // swap the right operator of the left vertex with the left operator of the right vertex
         ConstVertexPtr LL, LR, RL, RR;
 
         if (left_linked) {
-            LL  = as_link(left)->left()->safe_clone();
-            LR  = as_link(left)->right()->safe_clone();
+            LL = as_link(left)->left()->tree_sort();
+            LR = as_link(left)->right()->tree_sort();
         }
         if (right_linked) {
-            RL  = as_link(right)->left()->safe_clone();
-            RR = as_link(right)->right()->safe_clone();
+            RL = as_link(right)->left()->tree_sort();
+            RR = as_link(right)->right()->tree_sort();
         }
 
         // try all pairwise combinations of LL, LR with RL, RR
@@ -729,30 +725,45 @@ namespace pdaggerq {
 
         // create the best linkage as initial linkage
         ConstLinkagePtr best_link = as_link(root->safe_clone());
+        string best_name = best_link->str();
+        string best_flop_str;
+        scaling_map best_flop_map, best_mem_map;
 
-        // set the best flop and memory scales
-        shape best_flop_scale = best_link->flop_scale_;
-        shape best_mem_scale = best_link->mem_scale_;
+        do {
 
-        while (std::next_permutation(permutation.begin(), permutation.end())) {
+
             // create the new linkage
-            ConstLinkagePtr new_link = link(permutation);
+            auto [new_link, new_flop_vec, new_mem_vec] = Linkage::link_and_scale(permutation);
+
+            // build scaling maps
+            scaling_map new_flop_map(new_flop_vec);
+            scaling_map new_mem_map(new_mem_vec);
+
+            string new_name = new_link->str();
+            string new_flop_str = new_flop_map.str();
+
+            if (best_flop_map.empty()) {
+                best_flop_map = new_flop_map;
+                best_mem_map  = new_mem_map;
+                best_link = new_link;
+                best_name = new_name;
+                best_flop_str = new_flop_str;
+                continue;
+            }
 
             // check if the new linkage is better than the current best and update if so
-            shape new_flop_scale = new_link->flop_scale_;
-            shape new_mem_scale = new_link->mem_scale_;
-
-            // check if the new linkage is better than the current best and update if so
-            bool update = new_flop_scale < best_flop_scale;
-            if (!update) // if flop scales are equal, check memory scales
-                update = best_flop_scale == new_flop_scale && best_mem_scale < new_mem_scale;
+            bool update = new_flop_map < best_flop_map;
+            if (!update) // if flop maps are equal, check memory maps
+                update = best_flop_map == new_flop_map && best_mem_map < new_mem_map;
 
             if (update) {
                 best_link = new_link;
-                best_flop_scale = new_flop_scale;
-                best_mem_scale = new_mem_scale;
+                best_flop_map = new_flop_map;
+                best_mem_map  = new_mem_map;
+                best_name = new_name;
+                best_flop_str = new_flop_str;
             }
-        }
+        } while (std::next_permutation(permutation.begin(), permutation.end()));
 
         // return the best linkage
         return best_link;
