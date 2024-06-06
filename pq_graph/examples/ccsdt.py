@@ -14,11 +14,9 @@ graph = pdaggerq.pq_graph({
         'v':-1,            
     },                     
     "allow_nesting": True,   # allow nested intermediates?
-    "format_sigma": True,    # format equations for a sigma-build? (separates inteermediates w/o sigma vectors)
-    "use_trial_index": True, # print an additional index for each trial sigma vector
     "nthreads": -1,          # number of threads to use for optimization (-1 = all)
     "conditions": {          # map of the named conditions for each operator type
-        "t1":  ['t1'],       # terms that have any of these operators will be in an if statement
+        "t3":  ['t3'],       # terms that have any of these operators will be in an if statement
     }
 })
 
@@ -44,7 +42,7 @@ for eq_name, ops in left_ops.items():
     pq.clear()
 
 # optimize the equations
-graph.reorder()        # reorder contractions for optimal performance (redundant if optimize is called)
+#graph.reorder()        # reorder contractions for optimal performance (redundant if optimize is called)
 graph.optimize()       # reorders contraction and generates intermediates
 graph.print("cpp")  # print the optimized equations for Python.
 graph.analysis()       # prints the FLOP scaling (permutations are expanded into repeated terms for analysis)
