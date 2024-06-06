@@ -39,6 +39,13 @@ namespace pdaggerq {
         left_ = left;
         right_ = right;
 
+        if (!left->is_linked() && !right->is_linked()) {
+            // a binary linkage of pure vertices is associative (left and right are interchangeable)
+            // sort left and right vertices by name to prevent duplicates
+            if (left->name() > right->name())
+                std::swap(left_, right_);
+        }
+
         // count_ the left and right vertices
         depth_ = 0;
 
