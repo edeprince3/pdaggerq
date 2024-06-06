@@ -280,12 +280,8 @@ namespace pdaggerq {
         auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(arrangement);
 
         // populate flop and memory scaling maps; get bottleneck scaling
-        for (shape flop_scale : flop_scales)
-            flop_map[flop_scale]++;
-//            add_scaling(flop_scale);
-        for (shape mem_scale : mem_scales)
-            mem_map[mem_scale]++;
-//            add_scaling(mem_scale);
+        flop_map = scaling_map(flop_scales);
+        mem_map = scaling_map(mem_scales);
 
         return {flop_map, mem_map, term_linkage_};
 

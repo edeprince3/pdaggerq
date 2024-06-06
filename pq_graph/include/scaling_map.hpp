@@ -235,6 +235,10 @@ namespace pdaggerq {
          * Constructors
          */
         explicit scaling_map() = default;
+        explicit scaling_map(const vector<shape>& shapes) {
+            for (const shape &shape : shapes) map_[shape]++;
+        }
+
         scaling_map(const scaling_map &other) = default;
         scaling_map(scaling_map &&other) = default;
 
