@@ -259,7 +259,7 @@ namespace pdaggerq {
                 << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
 
         cout << "    format_sigma: " << (format_sigma_ ? "true" : "false")
-             << "  // whether to format equations for sigma-vector build by extracting intermediates without trial vectors (default: true)" << endl;
+             << "  // whether to format equations for sigma-vector build by extracting intermediates without trial vectors (default: false)" << endl;
 
         cout << "    use_trial_index: " << (Vertex::use_trial_index ? "true" : "false")
              << "  // whether to store trial vectors as an additional index/dimension for "

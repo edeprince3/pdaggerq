@@ -97,7 +97,7 @@ namespace pdaggerq {
         /// options for building sigma vectors
         //bool format_eom_ = false; // whether to format equations for the sigma build
         bool has_sigma_vecs_ = false;
-        bool format_sigma_ = true; // whether to format equations for the sigma build
+        bool format_sigma_   = false; // whether to format equations for the sigma build
         bool use_trial_index = false; // whether to store the sigma vectors in the builder
 
 
