@@ -694,56 +694,79 @@ namespace pdaggerq {
         if (!root->is_linked()) return root;
         // else it is a linkage of vertices
 
-        // do not modify intermediates (they are assumed to not change once made)
+        // do not modify intermediates (they cannot change once made)
         if (root->is_temp()) return root;
         // else we can modify the connectivity of the vertices
 
         ConstLinkagePtr root_link = as_link(root);
 
-        // clone the vertices
+        // check if left or right vertices are linkages
+        bool left_linked = root_link->left()->is_linked();
+        bool right_linked = root_link->right()->is_linked();
+
+        // nothing should be done if both left and right are vertices
+        if (!left_linked && !right_linked) return root;
+
+        // clone the left/right vertices
         ConstVertexPtr left  = root_link->left()->safe_clone();
         ConstVertexPtr right = root_link->right()->safe_clone();
 
-        // recursively sort the sub-linkages (if they are not intermediates)
-        if (left->is_linked() && !left->is_temp()) // left is a linkage
-            left = tree_sort(as_link(left));
-        if (right->is_linked() && !right->is_temp()) // right is a linkage
-            right = tree_sort(as_link(right));
+        // sort the left and right vertices
+        if (left_linked)  left  = tree_sort(left);
+        if (right_linked) right = tree_sort(right);
 
-        // addition
-        if (root_link->is_addition_){
-            LinkagePtr new_tree = as_link(left + right); // additions cannot be swapped
-            new_tree->copy_misc(root_link);
-            return new_tree;
+        // swap the right operator of the left vertex with the left operator of the right vertex
+        ConstVertexPtr LL, LR, RL, RR;
+
+        if (left_linked) {
+            LL  = as_link(left)->left()->safe_clone();
+            LR  = as_link(left)->right()->safe_clone();
+        }
+        if (right_linked) {
+            RL  = as_link(right)->left()->safe_clone();
+            RR = as_link(right)->right()->safe_clone();
         }
 
-        // multiplication
-        LinkagePtr LR = as_link(left * right);
-        LinkagePtr RL = as_link(right * left);
-        LinkagePtr &new_tree = LR; // default to left * right
+        // try all pairwise combinations of LL, LR with RL, RR
+        vector<ConstVertexPtr> permutation;
+        if (left_linked && right_linked) {
+            permutation = {LL, LR, RL, RR};
+        } else if (left_linked) {
+            permutation = {LL, LR, right};
+        } else { // right must be linked at this point
+            permutation = {left, RL, RR};
+        }
 
-        // get the flop and mem scales of the linkages
-        shape flop_LR = LR->flop_scale(), flop_RL = RL->flop_scale();
-        shape mem_LR  = LR->mem_scale(),  mem_RL  = RL->mem_scale();
+        // create the best linkage as initial linkage
+        ConstLinkagePtr best_link = as_link(root->safe_clone());
 
-        // sort by scaling
-        if (flop_LR > flop_RL) { new_tree = RL; }
-        if (mem_LR  > mem_RL)  { new_tree = RL; }
+        // set the best flop and memory scales
+        shape best_flop_scale = best_link->flop_scale_;
+        shape best_mem_scale = best_link->mem_scale_;
 
-        // sort by depth if scales are equal
-        if (LR->depth() > RL->depth()) { new_tree = RL; }
+        while (std::next_permutation(permutation.begin(), permutation.end())) {
+            // create the new linkage
+            ConstLinkagePtr new_link = link(permutation);
 
-        // sort by connectivity if scales are equal
-        if (LR->connec_map() > RL->connec_map()) { new_tree = RL; }
+            // check if the new linkage is better than the current best and update if so
+            shape new_flop_scale = new_link->flop_scale_;
+            shape new_mem_scale = new_link->mem_scale_;
 
-        // sort by name if scales are equal
-        if (LR->name() > RL->name()) { new_tree = RL; }
 
-        // set the id and is_reused flags
-        new_tree->copy_misc(root_link);
+            // check if the new linkage is better than the current best and update if so
+            bool update = best_flop_scale < new_flop_scale;
+            if (!update) // if flop scales are equal, check memory scales
+                update = best_flop_scale == new_flop_scale && best_mem_scale < new_mem_scale;
 
-        return new_tree;
+            if (update) {
+                best_link = new_link;
+                best_flop_scale = new_flop_scale;
+                best_mem_scale = new_mem_scale;
+            }
+        }
 
+        // return the best linkage
+        return best_link;
     }
 
     void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map) {

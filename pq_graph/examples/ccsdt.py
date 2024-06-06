@@ -1,104 +1,53 @@
 import pdaggerq
 
-def generate_pq():
-    pq = pdaggerq.pq_helper("fermi")
-    pq.set_print_level(0)
-    
-    # energy equation
-    T = ['t1','t2','t3']
-    
-    pq.set_left_operators([['1']])
-    
-    print('')
-    print('    < 0 | e(-T) H e(T) | 0> :')
-    print('')
-    
-    pq.add_st_operator(1.0,['f'],T)
-    pq.add_st_operator(1.0,['v'],T)
-    
+# set up pq_graph
+graph = pdaggerq.pq_graph({
+    "verbose": True,         # print out verbose analysis?
+    "permute_eri": True,     # permute ERI integrals to a common order? (ovov -> vovo; ovvo -> -vovo)
+    "allow_merge": True,     # merge similar terms during optimization?
+    "batched": False,         # substitute intermediates in batches?
+    "batch_size": 100,       # batch size for substitution
+    "max_temps": -1,         # maximum number of intermediates to find
+    "max_depth": 2,          # maximum depth for chain of contractions
+    "max_shape": {           # a map of maximum container size for intermediates
+        'o':-1,            
+        'v':-1,            
+    },                     
+    "allow_nesting": True,   # allow nested intermediates?
+    "format_sigma": True,    # format equations for a sigma-build? (separates inteermediates w/o sigma vectors)
+    "use_trial_index": True, # print an additional index for each trial sigma vector
+    "nthreads": -1,          # number of threads to use for optimization (-1 = all)
+    "conditions": {          # map of the named conditions for each operator type
+        "t1":  ['t1'],       # terms that have any of these operators will be in an if statement
+    }
+})
+
+T = ['t1', 't2', 't3'] # cluster amplitudes
+left_ops = { # projection equations
+    "singles_residual": [['e1(i,a)']],         # singles ( 0 = <0| i* a e(-T) H e(T) |0> )
+    "doubles_residual": [['e2(i,j,b,a)']],     # doubles ( 0 = <0| i* j* b a e(-T) H e(T) |0> )
+    "triples_residual": [['e3(i,j,k,c,b,a)']], # triples ( 0 = <0| i* j* k* b a e(-T) H e(T) |0> )        
+}
+
+for eq_name, ops in left_ops.items():
+    pq = pdaggerq.pq_helper('fermi')
+    pq.set_left_operators(ops)
+    pq.add_st_operator(1.0,['f'], T)
+    pq.add_st_operator(1.0,['v'], T)
     pq.simplify()
-    pq.save('energy.bin')
-    pq.clear()
-    
-    # singles equations
-    
-    pq.set_left_operators([['e1(i,a)']])
-    
-    print('')
-    print('    < 0 | i* a e(-T) H e(T) | 0> :')
-    print('')
-    
-    pq.add_st_operator(1.0,['f'],T)
-    pq.add_st_operator(1.0,['v'],T)
-    
-    pq.simplify()
-    pq.save('singles_resid.bin')
-    pq.clear()
-    
-    # doubles equations
-    
-    pq.set_left_operators([['e2(i,j,b,a)']])
-    
-    print('')
-    print('    < 0 | i* j* b a e(-T) H e(T) | 0> :')
-    print('')
-    
-    pq.add_st_operator(1.0,['f'],T)
-    pq.add_st_operator(1.0,['v'],T)
-    
-    pq.simplify()
-    pq.save('doubles_resid.bin')
-    pq.clear()
-    
-    # triples equations
-    
-    pq.set_left_operators([['e3(i,j,k,c,b,a)']])
-    
-    print('')
-    print('    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
-    print('')
-    
-    pq.add_st_operator(1.0,['f'],T)
-    pq.add_st_operator(1.0,['v'],T)
-    
-    pq.simplify()
-    pq.save('triples_resid.bin')
+
+    # queue up the equation for optimization:
+    # 1) pass the pq_helper object and the name of the equation.
+    # 2) the name is used to label the left-hand side (lhs) of the equation
+    # 3) the last argument (optional) overrides the ordering of the lhs indices
+    graph.add(pq, eq_name, ['a', 'b', 'c', 'i', 'j', 'k'])
     pq.clear()
 
-def load_pq():
-    
-    # set up pq_helper
-    pq = pdaggerq.pq_helper("fermi")
-    pq.set_print_level(0)
-    
-    # set up pq_graph
-    graph = pdaggerq.pq_graph({
-        'verbose': True,
-        'nthreads': -1,
-        'allow_merge': True,
-    })
-    
-    # load energy
-    #pq.load("energy.bin")
-    #graph.add(pq, "energy")
+# optimize the equations
+graph.reorder()        # reorder contractions for optimal performance (redundant if optimize is called)
+graph.optimize()       # reorders contraction and generates intermediates
+graph.print("cpp")  # print the optimized equations for Python.
+graph.analysis()       # prints the FLOP scaling (permutations are expanded into repeated terms for analysis)
 
-    # load singles_resid
-    pq.load("singles_resid.bin")
-    graph.add(pq, "singles_resid")
-
-    # load doubles_resid
-    pq.load("doubles_resid.bin")
-    graph.add(pq, "doubles_resid")
-
-    # load triples_resid
-    pq.load("triples_resid.bin")
-    graph.add(pq, "triples_resid")
-    
-    return graph
-    
-#generate_pq()
-graph = load_pq()
-
-#graph.optimize()
-graph.print("python")
-graph.analysis()
+# create a DOT file for use with Graphviz
+graph.write_dot("ccsd.dot") 
