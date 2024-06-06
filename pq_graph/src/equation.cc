@@ -117,10 +117,6 @@ namespace pdaggerq {
 
             // check if condition is already printed
             set<string> conditions = term.conditions();
-            if (!term.print_override_.empty()){
-                conditions.clear(); // ignore conditions if override is set
-            }
-
             if (conditions != current_conditions) { // if conditions are different, print new condition
 
                 bool has_condition = !conditions.empty();
