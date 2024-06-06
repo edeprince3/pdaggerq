@@ -679,6 +679,8 @@ namespace pdaggerq {
 
     ConstVertexPtr Linkage::tree_sort(const ConstVertexPtr & root) {
 
+        return root; // ignore tree sorting until fixed
+
         // this is a vertex; nothing to do
         if (!root->is_linked()) return root;
         // else it is a linkage of vertices
