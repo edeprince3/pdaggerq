@@ -543,6 +543,16 @@ namespace pdaggerq {
             return os;
         }
 
+        /**
+         * print the scaling map to a string
+         * @return string representation of the scaling map
+         */
+        string str() const {
+            std::stringstream output;
+            output << *this;
+            return output.str();
+        }
+
     }; // class scaling_map
 } // pdaggerq
 
