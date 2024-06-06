@@ -200,10 +200,6 @@ namespace pdaggerq {
             mem_scale_ += right_lines[i];
         }
 
-
-//        // sort lines by properties
-//        std::stable_sort(lines_.begin(), lines_.end(), line_compare());
-//
         // add sigma lines to the beginning of lines_
         if (!sig_lines.empty())
             lines_.insert(lines_.begin(), sig_lines.begin(), sig_lines.end());
@@ -729,6 +725,7 @@ namespace pdaggerq {
         } else { // right must be linked at this point
             permutation = {left, RL, RR};
         }
+        size_t n = permutation.size();
 
         // create the best linkage as initial linkage
         ConstLinkagePtr best_link = as_link(root->safe_clone());
@@ -745,9 +742,8 @@ namespace pdaggerq {
             shape new_flop_scale = new_link->flop_scale_;
             shape new_mem_scale = new_link->mem_scale_;
 
-
             // check if the new linkage is better than the current best and update if so
-            bool update = best_flop_scale < new_flop_scale;
+            bool update = new_flop_scale < best_flop_scale;
             if (!update) // if flop scales are equal, check memory scales
                 update = best_flop_scale == new_flop_scale && best_mem_scale < new_mem_scale;
 
