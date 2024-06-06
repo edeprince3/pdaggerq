@@ -960,15 +960,19 @@ namespace pdaggerq {
 
         bool format_sigma = has_sigma_vecs_ && format_sigma_;
 
-
         // substitute scalars first
-        bool verbose = verbose_; verbose_ = false; // mute verbose output
-        substitute(format_sigma, true);
-        verbose_ = verbose;
-
+        if (verbose_) {
+            cout << "----- Substituting scalars -----" << endl;
+            substitute(format_sigma, true);
+        }
         // find and substitute intermediate contractions
+        if (verbose_) {
+            if (format_sigma)
+                cout << "----- Substituting intermediates for sigma-vector build -----" << endl;
+        }
         substitute(format_sigma, false);
 
+        cout << "----- Substituting all intermediates -----" << endl;
         if (format_sigma) {
             // apply substitutions again to find any new sigma vectors
             substitute(false, false);
