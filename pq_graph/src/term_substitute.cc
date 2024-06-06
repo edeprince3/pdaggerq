@@ -305,14 +305,17 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
 
         // check if flop and memory scaling are better than the best scaling
         int scaling_comparison = new_flop.compare(best_flop_map);
-        bool set_best = scaling_comparison == scaling_map::this_better;
+        bool is_better = scaling_comparison == scaling_map::this_better;
+        bool is_same   = scaling_comparison == scaling_map::is_same;
 
-        // check if we allow for substitutions with equal scaling
-        if (allow_equality && !set_best) {
-            set_best = scaling_comparison == scaling_map::is_same;
+
+        // check if we allow for substitutions with equal flop scaling
+        if (is_same && allow_equality) {
+            // check if memory scaling is better or the same
+            is_better = new_mem <= best_mem_map;
         }
 
-        if (set_best) { // flop scaling is better
+        if (is_better) { // flop scaling is better
             // set the best scaling and rhs
             best_flop_map = new_flop;
             best_mem_map = new_mem;
