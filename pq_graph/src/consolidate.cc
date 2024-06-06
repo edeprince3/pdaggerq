@@ -180,9 +180,9 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          * If they can, save the flop map for each equation.
          * If the flop map is better than the current best flop map, save the linkage.
          */
-#pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
-            ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
-            format_sigma, print_ratio, print_progress, only_scalars)
+//#pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
+//            ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
+//            format_sigma, print_ratio, print_progress, only_scalars)
         for (int i = 0; i < n_linkages; ++i) {
 
             // copy linkage
@@ -467,7 +467,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         }
 
         // gradually increase max depth if we have not found any linkages (start from lowest depth; only if batching)
-        while (test_linkages.empty() && recompute && batched_) {
+        while (test_linkages.empty() && recompute) {
 
             Term::max_depth_ = ++current_depth; // increase max depth
 
@@ -483,8 +483,11 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             if (current_depth >= org_max_depth)
                 break; // break if we have reached the maximum depth
 
-            if (last_empty && test_linkages.empty())
-                current_depth = org_max_depth-1; // none found twice, so test up to max depth
+            if (last_empty && test_linkages.empty()) {
+                current_depth = org_max_depth - 1; // none found twice, so test up to max depth
+
+                if (!batched_) break; // break if not batching
+            }
             last_empty = test_linkages.empty();
         }
 
