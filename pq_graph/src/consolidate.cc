@@ -180,9 +180,9 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          * If they can, save the flop map for each equation.
          * If the flop map is better than the current best flop map, save the linkage.
          */
-//#pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
-//            ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
-//            format_sigma, print_ratio, print_progress, only_scalars)
+#pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
+            ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
+            format_sigma, print_ratio, print_progress, only_scalars)
         for (int i = 0; i < n_linkages; ++i) {
 
             // copy linkage
