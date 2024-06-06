@@ -36,32 +36,33 @@ namespace pdaggerq {
     * hash function class for linkages
     */
     struct LinkageHash {
-        size_t operator()(const ConstLinkagePtr &linkage_ptr) const {
+        size_t operator()(const ConstLinkagePtr &linkage) const {
 
-            constexpr SimilarVertexPtrHash vertex_hash; // hash function for vertices
-            constexpr size_t magic_golden_ratio = 0x9e3779b9; // the golden ratio of hashing; prevents collisions
+            // get names of left and right vertices
+            string left_str = linkage->left()->name();
+            string right_str = linkage->right()->name();
 
-            const Linkage &linkage = *linkage_ptr;
-
-            // blend the hashes of the left and right vertices
-            size_t left_vert_hash  = vertex_hash(linkage.left());
-            size_t right_vert_hash = vertex_hash(linkage.right());
-            size_t total_hash = (left_vert_hash ^ right_vert_hash) + magic_golden_ratio;
-
-            size_t connection_hash = 0;
-            for (const auto &[leftidx, rightidx] : linkage.connec_map()) {
-                // create hash from leftidx and rightidx
-                constexpr std::hash<int_fast8_t> hasher;
-                size_t left_hash = hasher(leftidx);
-                size_t right_hash = hasher(rightidx);
-
-                // blend them together
-                connection_hash ^= (left_hash ^ right_hash) + magic_golden_ratio + (connection_hash << 6) + (connection_hash >> 2);
+            // get string of connection map between left and right vertices
+            string connec_string;
+            for (const auto &[leftidx, rightidx] : linkage->connec_map()) {
+                connec_string += std::to_string(leftidx) + "->" + std::to_string(rightidx);
             }
 
-            total_hash ^= connection_hash + magic_golden_ratio + (total_hash << 6) + (total_hash >> 2);
-            return total_hash;
+            // hash the root hash
+            size_t total_hash = hash<string>{}(left_str + right_str + connec_string);
 
+            // blend hashes of nested linkages
+            constexpr size_t magic_golden_ratio = 0x9e3779b9; // the golden ratio of hashing; prevents collisions
+            if (linkage->left()->is_linked()) {
+                size_t left_hash = LinkageHash::operator()(as_link(linkage->left())); // call hash recursively
+                total_hash ^= left_hash + magic_golden_ratio + (total_hash << 6) + (total_hash >> 2);
+            }
+            if (linkage->right()->is_linked()) {
+                size_t right_hash = LinkageHash::operator()(as_link(linkage->right())); // call hash recursively
+                total_hash ^= right_hash + magic_golden_ratio + (total_hash << 6) + (total_hash >> 2);
+            }
+
+            return total_hash;
         }
     }; // struct linkage_hash
 
