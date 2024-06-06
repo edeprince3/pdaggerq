@@ -292,7 +292,7 @@ namespace pdaggerq {
     }
 
     size_t Term::count_idx_perm(const line_vector& ref_lines, const vector<ConstVertexPtr>& arrangement) {
-        line_vector lines;
+        line_vector lines; lines.reserve(2*ref_lines.size());
 
         for (const auto & vertex : arrangement)
             for (const auto & line : vertex->lines())

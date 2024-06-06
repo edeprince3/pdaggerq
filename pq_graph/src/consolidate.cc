@@ -91,7 +91,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
     if (verbose_) cout << "Generating all possible linkages..." << flush;
 
     size_t org_max_depth = Term::max_depth_;
-    Term::max_depth_ = 2; // set max depth to 2 for initial linkage generation
+//    Term::max_depth_ = 2; // set max depth to 2 for initial linkage generation
     size_t current_depth = 2; // current depth of linkages
 
     make_all_links(true); // generate all possible linkages
@@ -191,19 +191,6 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             if (is_scalar) {
                 // if no scalars are allowed, skip this linkage
                 if (Equation::no_scalars_) {
-                    ignore_linkages.insert(linkage);
-                    continue;
-                }
-
-                // make sure the scalar does not have any nested temps that are not scalars
-                bool has_nested_tmps = false; //TODO: allow nested temps
-                for (const auto &nested_op: linkage->link_vector()) {
-                    if (nested_op->is_temp() && !as_link(nested_op)->is_scalar()) {
-                        has_nested_tmps = true;
-                        break;
-                    }
-                }
-                if (has_nested_tmps) {
                     ignore_linkages.insert(linkage);
                     continue;
                 }
@@ -481,10 +468,12 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         // gradually increase max depth if we have not found any linkages (start from lowest depth)
         while (test_linkages.empty() && recompute) {
 
-            Term::max_depth_ = ++current_depth; // increase max depth
+            // do not increment max depth
+            Term::max_depth_ = org_max_depth; //++current_depth; // increase max depth
 
-            if (verbose_)
-                cout << endl << "Regenerating test set with max depth (" << current_depth << ") ... " << std::flush;
+
+//            if (verbose_)
+//                cout << endl << "Regenerating test set with max depth (" << current_depth << ") ... " << std::flush;
 
             // regenerate all valid linkages with the new depth
             make_all_links(true);
