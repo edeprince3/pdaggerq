@@ -583,8 +583,8 @@ namespace pdaggerq {
     string Vertex::line_str(bool sort) const{
         if (size() == 0) return ""; // if rank is 0, return empty string
         if (size() == 1) {
-            // do not print sigma lines if print_trial_index is false for otherwise scalar vertices
-            if (lines_[0].sig_ && !print_trial_index)
+            // do not print sigma lines if use_trial_index is false for otherwise scalar vertices
+            if (lines_[0].sig_ && !use_trial_index)
                 return "";
         }
 
@@ -601,7 +601,7 @@ namespace pdaggerq {
         // loop over lines
         string line_str = "(\"";
         for (const Line &line : lines) {
-            if (!print_trial_index && line.sig_) continue;
+            if (!use_trial_index && line.sig_) continue;
             line_str += line.label_;
             line_str += ",";
         }

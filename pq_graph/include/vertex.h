@@ -90,7 +90,7 @@ namespace pdaggerq {
 
         // indicates whether the vertex is allowed to be permuted
         static inline bool allow_permute_ = true;
-        static inline bool print_trial_index = false;
+        static inline bool use_trial_index = false;
         static inline bool permute_eri_ = true;
 
         /****** Constructors ******/

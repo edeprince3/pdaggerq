@@ -215,8 +215,8 @@ namespace pdaggerq {
         if(options.contains("format_sigma"))
             format_sigma_ = options["format_sigma"].cast<bool>();
 
-        if (options.contains("print_trial_index"))
-            Vertex::print_trial_index = options["print_trial_index"].cast<bool>();
+        if (options.contains("use_trial_index"))
+            Vertex::use_trial_index = options["use_trial_index"].cast<bool>();
 
         if (options.contains("conditions")){
             cout << "Defined conditions: ";
@@ -261,7 +261,7 @@ namespace pdaggerq {
         cout << "    format_sigma: " << (format_sigma_ ? "true" : "false")
              << "  // whether to format equations for sigma-vector build by extracting intermediates without trial vectors (default: true)" << endl;
 
-        cout << "    print_trial_index: " << (Vertex::print_trial_index ? "true" : "false")
+        cout << "    use_trial_index: " << (Vertex::use_trial_index ? "true" : "false")
              << "  // whether to store trial vectors as an additional index/dimension for "
              << "tensors in a sigma-vector build (default: false)" << endl;
 
