@@ -453,6 +453,9 @@ namespace pdaggerq {
         flop_map_ += eq_flop_map_;
         mem_map_  += eq_mem_map_;
 
+        flop_map_init_ = flop_map_;
+        mem_map_init_  = mem_map_;
+
         build_timer.stop(); // start timer
     }
 
@@ -822,13 +825,15 @@ namespace pdaggerq {
 
         reorder_timer.start(); // start timer
 
+        static bool is_reordered = !verbose_; // flag to check if reordered
+
         // save initial scaling if never saved
         if (flop_map_init_.empty()) {
             flop_map_init_ = flop_map_;
             mem_map_init_ = mem_map_;
         }
 
-        if (!is_reordered_) cout << "Reordering equations..." << flush;
+        if (!is_reordered) cout << "Reordering equations..." << flush;
 
         // get list of keys in equations
         vector<string> eq_keys = get_equation_keys();
@@ -838,18 +843,26 @@ namespace pdaggerq {
             equations_[eq_name].reorder(true); // reorder terms in equation
         }
 
-        if (!is_reordered_) cout << " Done" << endl << endl;
+        if (!is_reordered) cout << " Done" << endl << endl;
 
         // collect scaling
-        if (!is_reordered_) cout << "Collecting scalings of each equation...";
+        if (!is_reordered) cout << "Collecting scalings of each equation...";
         collect_scaling(); // collect scaling of equations
-        if (!is_reordered_) cout << " Done" << endl;
+        if (!is_reordered) cout << " Done" << endl;
 
         reorder_timer.stop();
-        if (!is_reordered_)
+        if (!is_reordered)
             cout << "Reordering time: " << reorder_timer.elapsed() << endl << endl;
 
-        is_reordered_ = true; // set reorder flag to true
+        // set reorder flags to true
+        is_reordered = true;
+        is_reordered_ = true;
+
+        // save scaling after reorder
+        if (flop_map_pre_.empty()) {
+            flop_map_pre_ = flop_map_;
+            mem_map_pre_ = mem_map_;
+        }
     }
 
     void PQGraph::analysis() const {
@@ -876,12 +889,12 @@ namespace pdaggerq {
         cout << "Total FLOP scaling: " << endl;
         cout << "------------------" << endl;
         size_t last_order;
-        print_new_scaling(flop_map_init_, flop_map_pre_, flop_map_);
+        print_new_scaling(flop_map_init_, flop_map_pre_, is_optimized_ ? flop_map_ : flop_map_pre_);
 
         cout << endl << "Total MEM scaling: " << endl;
         cout << "------------------" << endl;
 
-        print_new_scaling(mem_map_init_, mem_map_pre_, mem_map_);
+        print_new_scaling(mem_map_init_, mem_map_pre_, is_optimized_ ? mem_map_ : mem_map_pre_);
         cout << endl << endl;
         cout << "####################" << "######################" << "####################" << endl << endl;
 
@@ -912,25 +925,18 @@ namespace pdaggerq {
     }
 
     void PQGraph::assemble() {
-        // save initial scaling
-        collect_scaling(true, true);
-        flop_map_init_ = flop_map_;
-        mem_map_init_ = mem_map_;
+        // find scalars in each equation
+        make_scalars();
 
         // set assembled flag to true
         is_assembled_ = true;
-
-        // find scalars in each equation
-        make_scalars();
     }
 
     void PQGraph::optimize() {
 
-        if (Term::allow_nesting_) {
-            // TODO: make this a flag.
-            // expand permutations in equations since we are not limiting the number of temps
-            expand_permutations();
-        }
+        expand_permutations();
+        flop_map_init_ = flop_map_;
+        mem_map_init_ = mem_map_;
 
         // set initial scaling and format scalars
         if (!is_assembled_)
@@ -973,6 +979,8 @@ namespace pdaggerq {
         // recollect scaling of equations
         collect_scaling(true, true);
         analysis(); // analyze equations
+
+        is_optimized_ = true; // set optimized flag to true
     }
 
 } // pdaggerq

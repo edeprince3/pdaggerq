@@ -59,9 +59,10 @@ namespace pdaggerq {
         map<string, size_t> temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse", 0}};
         linkage_set all_links_; // all possible linkages in the equations
 
+        bool is_assembled_ = false; // whether equations have been assembled for printing
         bool is_reordered_ = false; // whether the equations have been reordered
+        bool is_optimized_ = false; // whether the equations have been optimized
         bool is_reused_ = false; // whether the equations have been reused
-        bool is_assembled_ = false;
         bool prune_tmps_ = false; // whether to prune unused temps after substitution
         bool has_perms_merged_ = false; // whether the equations have merged permutations
         bool reuse_permutations_ = true; // whether to reuse permutations during the reusing step
