@@ -60,6 +60,9 @@ set(PYBIND11_CPP_STANDARD -std=c++17)
 
 # find openmp and set variables (required for pq_graph)
 find_package(OpenMP)
+if (OpenMP_CXX_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 # we are adding a private module _pdaggerq so we don't have a naming collision
 pybind11_add_module(_pdaggerq
