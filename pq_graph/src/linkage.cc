@@ -565,6 +565,11 @@ namespace pdaggerq {
                 if (i != depth_)
                   result.resize(i);
 
+                // remove any empty vertices
+                result.erase(std::remove_if(result.begin(), result.end(), [](const ConstVertexPtr &vertex) {
+                    return vertex->empty(); }), result.end()
+                );
+
                 link_vector_ = result;
                 return link_vector_;
             } else {
@@ -580,6 +585,12 @@ namespace pdaggerq {
             link_vector(result, i, regenerate, full_expand);
             if (i != depth_)
                 result.resize(i);
+
+            // remove any empty vertices
+            result.erase(std::remove_if(result.begin(), result.end(), [](const ConstVertexPtr &vertex) {
+                return vertex->empty(); }), result.end()
+            );
+
             all_vert_ = result;
             return all_vert_;
         } else {
@@ -699,8 +710,8 @@ namespace pdaggerq {
         if (!left_linked && !right_linked) return root;
 
         // clone the left/right vertices
-        const ConstVertexPtr &left  = root_link->left()->safe_clone();
-        const ConstVertexPtr &right = root_link->right()->safe_clone();
+        ConstVertexPtr left  = root_link->left()->tree_sort();
+        ConstVertexPtr right = root_link->right()->tree_sort();
 
         // swap the right operator of the left vertex with the left operator of the right vertex
         ConstVertexPtr LL, LR, RL, RR;

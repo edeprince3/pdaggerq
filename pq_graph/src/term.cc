@@ -317,6 +317,8 @@ namespace pdaggerq {
         // recompute initial scaling
         compute_scaling();
 
+        if (rhs_.size() < 2) return; // not enough vertices to reorder
+
         if (is_optimal_) return; // if term is optimal return
 
         /// Reorder by taking every permutation of vertex ordering and compute the scaling of the linkages.
@@ -394,11 +396,6 @@ namespace pdaggerq {
             reordered_vertices.push_back(rhs_[best_permutation[i]]); // add vertex to reordered rhs
         }
         rhs_ = reordered_vertices; // set reordered rhs
-
-        // remove any empty vertices
-        rhs_.erase(std::remove_if(rhs_.begin(), rhs_.end(), [](const ConstVertexPtr &vertex) {
-            return vertex->empty(); }), rhs_.end()
-        );
 
         // re-populate flop and memory scaling maps/bottlenecks and linkages
         compute_scaling(true);
