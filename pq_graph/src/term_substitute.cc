@@ -158,10 +158,9 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
         if (lhs_link->is_scalar() && (!linkage->is_scalar() || !linkage->is_reused_)) return false;
     }
 
-
     // get total vector of linkage vertices (without expanding nested linkages)
     vector<ConstVertexPtr> link_list = linkage->link_vector();
-    vector<ConstVertexPtr> term_list = term_linkage_->link_vector();
+    vector<ConstVertexPtr> term_list = rhs_;
 
     // sort lists by name
     sort(link_list.begin(), link_list.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
@@ -206,11 +205,6 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     vector<ConstVertexPtr> link_vec = linkage->link_vector();
     size_t num_link = link_vec.size(); // get number of linkages in rhs
 
-    // sort link_vec by name
-    sort(link_vec.begin(), link_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-        return a->name_ < b->name_;
-    });
-
     /// determine if a linkage could possibly be substituted
     auto valid_op = [this, &link_vec, num_link](const vector<size_t> &subset) {
 
@@ -220,37 +214,6 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
         if (num_set != num_link || num_set > max_depth_ || num_set <= 1)
             return false;
 
-        // build subset vertices
-        vector<ConstVertexPtr> subset_vec;
-        subset_vec.reserve(num_set);
-        for (size_t i : subset) {
-            // do not allow subsets with scalars
-            if (rhs_[i]->is_scalar())
-                return false;
-
-            // insert by name order
-            subset_vec.insert(
-                    std::lower_bound(subset_vec.begin(), subset_vec.end(), rhs_[i],
-                                     [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-                                         return a->name_ < b->name_;
-                                     }),
-                    rhs_[i] // insert rhs vertex at correct position
-            );
-        }
-
-        // sort subset_vec by name
-        sort(subset_vec.begin(), subset_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-            return a->name_ < b->name_;
-        });
-
-        // ensure sorted subset vertices are equivalent to sorted linkage vertices
-        for (size_t i = 0; i < num_set; i++) {
-            if (subset_vec[i]->name_ != link_vec[i]->name_) {
-                return false;
-            }
-        }
-
-        // all tests passed
         return true;
     };
 
