@@ -578,6 +578,25 @@ namespace pdaggerq {
             vector<ConstVertexPtr> term1_vertices = term1.term_linkage()->link_vector(true);
             vector<ConstVertexPtr> term2_vertices = term2.term_linkage()->link_vector(true);
 
+            // same number of vertices required
+            if (term1_vertices.size() != term2_vertices.size()) return false;
+
+            // build linkage of vertices
+            ConstLinkagePtr term1_linkage;
+            ConstLinkagePtr term2_linkage;
+
+            // must have more than one vertex
+            if (term1_vertices.size() == 1) {
+                // only one vertex; check if they are the same relative to the lhs
+                term1_linkage = as_link(term1.lhs() + term1_vertices.front());
+                term2_linkage = as_link(term2.lhs() + term2_vertices.front());
+
+                return *term1_linkage == *term2_linkage;
+            } else if (term1_vertices.empty()) {
+                // the terms are only different by coefficient and can be combined
+                return true;
+            }
+
             // sort by vertex name
             sort(term1_vertices.begin(), term1_vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b){
                 return a->name() < b->name();
@@ -587,8 +606,8 @@ namespace pdaggerq {
             });
 
             // create linkage of vertices
-            ConstLinkagePtr term1_linkage = Linkage::link(term1_vertices);
-            ConstLinkagePtr term2_linkage = Linkage::link(term2_vertices);
+            term1_linkage = Linkage::link(term1_vertices);
+            term2_linkage = Linkage::link(term2_vertices);
 
             // create total representation of terms
             ConstLinkagePtr total_repr1 = as_link(term1.lhs() + term1_linkage);
