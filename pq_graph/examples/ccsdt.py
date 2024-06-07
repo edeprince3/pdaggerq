@@ -48,4 +48,4 @@ graph.print("python")  # print the optimized equations for Python.
 graph.analysis()       # prints the FLOP scaling (permutations are expanded into repeated terms for analysis)
 
 # create a DOT file for use with Graphviz
-graph.write_dot("ccsd.dot") 
+graph.write_dot("ccsdt.dot") 
