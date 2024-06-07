@@ -381,7 +381,7 @@ namespace pdaggerq {
          * @param linkage linkage to write
          * @return output stream
          */
-        ostream &write_dot(ostream &os, const std::string &color = "black", bool reset = false) const;
+        ostream &write_dot(ostream &os, size_t &term_id, size_t &dummy_count, const std::string &color = "black") const;
 
         /**
          * check if linkage is empty
