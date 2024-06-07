@@ -44,7 +44,7 @@ for eq_name, ops in left_ops.items():
 # optimize the equations
 #graph.reorder()        # reorder contractions for optimal performance (redundant if optimize is called)
 graph.optimize()       # reorders contraction and generates intermediates
-graph.print("cpp")  # print the optimized equations for Python.
+graph.print("python")  # print the optimized equations for Python.
 graph.analysis()       # prints the FLOP scaling (permutations are expanded into repeated terms for analysis)
 
 # create a DOT file for use with Graphviz

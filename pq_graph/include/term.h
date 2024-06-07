@@ -483,17 +483,18 @@ namespace pdaggerq {
 
             /**
              * get the term linkage
+             * @param recompute whether to recompute the linkage
              */
-            ConstLinkagePtr term_linkage() const {
-                if (term_linkage_)
-                    return term_linkage_;
+            ConstLinkagePtr term_linkage(bool recompute = true) const {
+                if (!recompute && term_linkage_) return term_linkage_;
 
                 if (rhs_.size() > 1)
                     term_linkage_ = Linkage::link(rhs_);
                 else if (!rhs_.empty()) term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
                 else term_linkage_ = as_link(make_shared<Vertex>() * make_shared<Vertex>());
 
-                return term_linkage_;
+                // return a clone of the term linkage
+                return as_link(term_linkage_->clone());
             }
 
             /**
@@ -569,7 +570,34 @@ namespace pdaggerq {
 
     struct TermEqual { // predicate functor for finding similar terms
         bool operator()(const Term& term1, const Term& term2) const {
-            return Term::equivalent(term1, term2);
+            // determine if permutation is the same
+            if (term1.perm_type()  != term2.perm_type()) return false;
+            if (term1.term_perms() != term2.term_perms()) return false;
+
+            // get vertices of terms
+            vector<ConstVertexPtr> term1_vertices = term1.term_linkage()->link_vector(true);
+            vector<ConstVertexPtr> term2_vertices = term2.term_linkage()->link_vector(true);
+
+            // sort by vertex name
+            sort(term1_vertices.begin(), term1_vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b){
+                return a->name() < b->name();
+            });
+            sort(term2_vertices.begin(), term2_vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b){
+                return a->name() < b->name();
+            });
+
+            // create linkage of vertices
+            ConstLinkagePtr term1_linkage = Linkage::link(term1_vertices);
+            ConstLinkagePtr term2_linkage = Linkage::link(term2_vertices);
+
+            // create total representation of terms
+            ConstLinkagePtr total_repr1 = as_link(term1.lhs() + term1_linkage);
+            ConstLinkagePtr total_repr2 = as_link(term2.lhs() + term2_linkage);
+
+            bool same_terms = *total_repr1 == *total_repr2;
+
+            // ensure sorted linkage representations are the same
+            return same_terms;
         }
     };
 

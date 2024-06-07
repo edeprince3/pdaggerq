@@ -125,7 +125,7 @@ namespace pdaggerq {
                 // create deep copy of rhs vertices
                 vector<ConstVertexPtr> perm_vertices;
                 for (const auto &vertex: rhs_) {
-                    perm_vertices.push_back(vertex->safe_clone());
+                    perm_vertices.push_back(vertex->shallow());
                 }
 
                 // single index permutations
@@ -188,7 +188,7 @@ namespace pdaggerq {
         Term perm_term = *this; // copy term
         vector<ConstVertexPtr> perm_vertices;
         for (const auto &vertex: rhs_)
-            perm_vertices.push_back(vertex->safe_clone());
+            perm_vertices.push_back(vertex->shallow());
 
         // paired permutations
         if (perm_type == 2) {
@@ -335,7 +335,7 @@ namespace pdaggerq {
             // make another deep copy of the term
             perm_vertices.clear();
             for (const auto &vertex: rhs_)
-                perm_vertices.push_back(vertex->safe_clone());
+                perm_vertices.push_back(vertex->shallow());
             perm_term.rhs_ = perm_vertices;
 
             // second pair permutation
@@ -489,7 +489,7 @@ namespace pdaggerq {
             // make another deep copy of the term
             perm_vertices.clear();
             for (const auto &vertex: rhs_)
-                perm_vertices.push_back(vertex->safe_clone());
+                perm_vertices.push_back(vertex->shallow());
             perm_term.rhs_ = perm_vertices;
 
             // pair permutation (bac;jik)

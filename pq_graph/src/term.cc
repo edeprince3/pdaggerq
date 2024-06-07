@@ -102,7 +102,7 @@ namespace pdaggerq {
 
         // add lhs vertex
         lhs_ = make_shared<Vertex>(name);
-        eq_ = lhs_->safe_clone();
+        eq_ = lhs_->shallow();
 
         // create rhs vertices
         for (const auto & delta : pq_str->deltas) // add delta functions

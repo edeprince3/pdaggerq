@@ -176,7 +176,7 @@ namespace pdaggerq {
          * Return a deep copy of the linkage where all nested linkages are also copied
          * @return deep copy of the linkage
          */
-        ConstVertexPtr safe_clone() const override;
+        ConstVertexPtr shallow() const override;
         VertexPtr clone() const override;
 
 

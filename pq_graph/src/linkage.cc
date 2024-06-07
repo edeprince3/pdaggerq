@@ -39,8 +39,10 @@ namespace pdaggerq {
         left_ = left;
         right_ = right;
 
-        if (!left->is_linked() && !right->is_linked()) {
-            // a binary linkage of pure vertices is associative (left and right are interchangeable)
+        is_addition_ = is_addition;
+
+        if (!left->is_linked() && !right->is_linked() && !is_addition_) {
+            // a binary multiplication of pure vertices is associative (left and right are interchangeable)
             // sort left and right vertices by name to prevent duplicates
             if (left->name() > right->name())
                 std::swap(left_, right_);
@@ -58,8 +60,6 @@ namespace pdaggerq {
             // add the number of vertices in right
             depth_ += as_link(right_)->depth_;
         } else depth_++;
-
-        is_addition_ = is_addition;
 
         // create hash for the name (should be unique and faster for comparisons)
         base_name_ = left_->name_;
@@ -639,7 +639,7 @@ namespace pdaggerq {
         copy_link(other);
     }
 
-    ConstVertexPtr Linkage::safe_clone() const {
+    ConstVertexPtr Linkage::shallow() const {
         return shared_from_this();
     }
 
@@ -744,7 +744,7 @@ namespace pdaggerq {
         size_t n = permutation.size();
 
         // create the best linkage as initial linkage
-        ConstLinkagePtr best_link = as_link(root->safe_clone());
+        ConstLinkagePtr best_link = as_link(root->shallow());
         string best_name = best_link->str();
         string best_flop_str;
         scaling_map best_flop_map, best_mem_map;

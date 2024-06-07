@@ -403,7 +403,7 @@ namespace pdaggerq {
             // use the term to build the assignment vertex
             VertexPtr assignment;
             if (!name_is_formatted || equation_name.empty())
-                 assignment = make_shared<Vertex>(*term.term_linkage()->safe_clone());
+                 assignment = make_shared<Vertex>(*term.term_linkage()->shallow());
             else assignment = term.lhs()->clone();
 
             reorder_labels(assignment);

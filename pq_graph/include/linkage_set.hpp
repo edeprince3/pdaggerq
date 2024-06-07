@@ -38,31 +38,51 @@ namespace pdaggerq {
     struct LinkageHash {
         size_t operator()(const ConstLinkagePtr &linkage) const {
 
-            // get names of left and right vertices
-            string left_str = linkage->left()->name();
-            string right_str = linkage->right()->name();
+            // blend hashes together
+            constexpr size_t magic_golden_ratio = 0x9e3779b9; // the golden ratio of hashing; prevents collisions
+            constexpr auto blend_hash = [](size_t totalhash, size_t otherhash) {
+                return totalhash ^ otherhash + magic_golden_ratio + (totalhash << 6) + (totalhash >> 2);
+            };
+
+            // total string representation of linkage
+            string total_string;
+
+
+            // get name of linkage
+            total_string += linkage->name();
 
             // get string of connection map between left and right vertices
-            string connec_string;
             for (const auto &[leftidx, rightidx] : linkage->connec_map()) {
-                connec_string += std::to_string(leftidx) + "->" + std::to_string(rightidx);
+                total_string += std::to_string(leftidx) + "->" + std::to_string(rightidx);
             }
 
-            // hash the root hash
-            size_t total_hash = hash<string>{}(left_str + right_str + connec_string);
-
-            // blend hashes of nested linkages
-            constexpr size_t magic_golden_ratio = 0x9e3779b9; // the golden ratio of hashing; prevents collisions
-            if (linkage->left()->is_linked()) {
-                size_t left_hash = LinkageHash::operator()(as_link(linkage->left())); // call hash recursively
-                total_hash ^= left_hash + magic_golden_ratio + (total_hash << 6) + (total_hash >> 2);
+            // get hashes of the lines
+            static SimilarLineHash line_hash;
+            size_t linehashs = 0;
+            for (const auto &line : linkage->lines()) {
+                linehashs = blend_hash(linehashs, line_hash(line));
             }
-            if (linkage->right()->is_linked()) {
-                size_t right_hash = LinkageHash::operator()(as_link(linkage->right())); // call hash recursively
-                total_hash ^= right_hash + magic_golden_ratio + (total_hash << 6) + (total_hash >> 2);
-            }
+            total_string += std::to_string(linehashs);
 
-            return total_hash;
+            // get hash of nested linkages
+            size_t nestedhashs = 0;
+            constexpr SimilarVertexPtrHash vertexPtrHash;
+
+            if (linkage->left()->is_linked())
+                 nestedhashs += (*this)(as_link(linkage->left()));
+            else nestedhashs += vertexPtrHash(linkage->left());
+
+
+            if (linkage->right()->is_linked())
+                 nestedhashs += (*this)(as_link(linkage->right()));
+            else nestedhashs += vertexPtrHash(linkage->right());
+
+            total_string += std::to_string(nestedhashs);
+
+            // get hash of the total string
+            constexpr hash<string> str_hash;
+            return str_hash(total_string);
+
         }
     }; // struct linkage_hash
 

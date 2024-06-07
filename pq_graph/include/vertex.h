@@ -132,11 +132,16 @@ namespace pdaggerq {
          * deep copy of vertex returned as a pointer
          * @return pointer to deep copy of vertex
          */
-        virtual ConstVertexPtr safe_clone() const{
-            return shared_from_this();
-        }
         virtual VertexPtr clone() const{
             return std::make_shared<Vertex>(*this);
+        }
+
+        /**
+         * shallow copy of vertex returned as a pointer
+         * @return pointer to shallow copy of vertex
+         */
+        virtual ConstVertexPtr shallow() const{
+            return shared_from_this();
         }
 
         /**

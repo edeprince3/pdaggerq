@@ -227,6 +227,9 @@ namespace pdaggerq {
         }
     };
 
+    // define a vector of lines
+    typedef std::vector<Line, std::allocator<Line>> line_vector;
+
     // define hash function for Line
     struct LineHash {
         uint_fast16_t operator()(const Line &line) const {
@@ -257,9 +260,6 @@ namespace pdaggerq {
         }
 
     }; // struct LineHash
-
-    typedef std::vector<Line, std::allocator<Line>>
-    line_vector;
 
     struct LinePtrEqual {
         bool operator()(const Line *lhs, const Line *rhs) const {

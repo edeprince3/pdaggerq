@@ -1021,7 +1021,7 @@ PQGraph PQGraph::clone() const {
     for (const auto & [type, linkages] : saved_linkages_) {
         linkage_set new_linkages;
         for (const auto & linkage : linkages) {
-            ConstLinkagePtr link = as_link(linkage->safe_clone());
+            ConstLinkagePtr link = as_link(linkage->shallow());
             new_linkages.insert(link) ;
         }
         copy.saved_linkages_[type] = new_linkages;
