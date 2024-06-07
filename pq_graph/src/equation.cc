@@ -421,239 +421,45 @@ namespace pdaggerq {
         if (is_temp_equation_) return 0; // don't merge temporary equations
 
         size_t terms_size = terms_.size(); // number of terms before merging
-
-        // split terms into groups by permutation type
-        map<pair<perm_list, size_t>, vector<Term*>> perm_type_to_terms;
-        for (auto &term : terms_) {
-            perm_type_to_terms[{term.term_perms(), term.perm_type()}].push_back(&term);
-        }
-
-        // iterate over terms and accumulate similar terms
         vector<Term> new_terms; // new terms
-        for (auto& [perm_type, terms] : perm_type_to_terms) {
 
-            std::unordered_map<ConstLinkagePtr, pair<Term, double>, LinkageHash, LinkageEqual>
-                    linkage_count; // map of term linkages to their associated terms and counts
 
-            for (auto &term : terms) {
-                // if term does not have a linkage, skip it
-                if (!term->term_linkage()) {
-                    new_terms.push_back(*term);
-                    continue;
-                }
-
-                LinkagePtr term_link = as_link(term->term_linkage()->clone()); // get linkage of term
-                term_link->tree_sort(); // sort linkage
-                term_link = as_link(term->lhs() + term_link); // add lhs to linkage
-
-                const auto & pos = linkage_count.find(term_link);
-                if (pos == linkage_count.end()) {
-                    linkage_count[term_link] = make_pair(*term, term->coefficient_);
-                } else {
-                    pos->second.second += term->coefficient_;
-                    pos->second.first.original_pq_ = pos->second.first.original_pq_ + "@ " + term->original_pq_;
-                }
+        // iterate over the map, adding each term to the new_terms vector
+        // map of terms to their associated coefficients
+        std::unordered_map<Term, double, TermHash, TermEqual> term_count;
+        for (auto &term : terms_) {
+            string term_str = term.str(); // get term string
+            // check if term is in map
+            auto it = term_count.find(term);
+            if (it != term_count.end()) {
+                string unique_term_str = it->first.str(); // get unique term string
+                // if term is in map, increment coefficient
+                it->second += term.coefficient_;
+            } else {
+                // if term is not in map, add term to map
+                term_count[term] = term.coefficient_;
             }
-
-            // iterate over the map, adding each term to the new_terms vector
-            for (auto &[linkage, unique_term_pair] : linkage_count) {
-                auto &[new_term, new_coeff] = unique_term_pair; // get term
-
-                new_term.coefficient_ = new_coeff; // set coefficient
-                if (fabs(new_term.coefficient_) <= 1e-12) continue; // skip terms with zero coefficients
-
-                // add term to new_terms
-                new_terms.push_back(new_term);
-            }
-
         }
+
+
+        for (auto &[unique_term, coeff] : term_count) {
+
+            Term new_term = unique_term; // copy term
+            new_term.coefficient_ = coeff; // set coefficient
+
+            // skip terms with zero coefficients
+            if (fabs(new_term.coefficient_) <= 1e-12)
+                continue;
+
+            // add term to new_terms
+            new_terms.push_back(new_term);
+        }
+
 
         terms_ = new_terms;
         collect_scaling(true);
 
         return terms_size - terms_.size();
-    }
-
-    void Equation::merge_permuted_term(merge_map_type &merge_terms_map, Term &term, bool &term_in_map) {
-        // test all possible permutations of each vertex.
-        // If no more permutations are possible, an empty vertex is returned.
-        // In this case, reset the vertex and move to the next vertex.
-        // Do this for all possible permutations of all rhs.
-
-        Term permuted_term = term;
-        size_t num_ops = permuted_term.size(); // number of operators in term
-        size_t op_index = 0; // index of vertex to permute
-        size_t perm_idx = 0; // the n'th permutation of the vertex
-        bool vertex_signs[permuted_term.size()]; // if true, the i'th vertex has an odd parity
-        for (int j = 0; j < permuted_term.size(); ++j) vertex_signs[j] = false; // initialize vertex signs
-
-        while (op_index < permuted_term.size()) {
-            bool is_temp = term[op_index]->is_temp(); // is vertex an intermediate? (cannot permute)
-
-            bool vertex_swap_sign = false; // if true, this vertex has an odd number of permutations
-            VertexPtr op = make_shared<Vertex>(term[op_index]->permute(perm_idx, vertex_swap_sign)); // permute vertex
-            if (op->empty() || is_temp) { // if no more permutations are possible, or a vertex is temporary
-                // reset the vertex and move to the next
-                permuted_term[op_index] = term[op_index];
-                vertex_signs[op_index] = false;
-                op_index++;
-                perm_idx = 0;
-                if (op_index == permuted_term.size()) break; // if no more rhs, break
-            } else { // if vertex is not empty, set vertex and increment permutation index
-                permuted_term[op_index] = op;
-                perm_idx++;
-            }
-
-            // update vertex sign
-            vertex_signs[op_index] = vertex_swap_sign;
-
-            // now test every permutation of the other rhs
-            size_t other_op_index = op_index + 1;
-            size_t other_perm_idx = 0;
-            while (other_op_index < permuted_term.size()) {
-                bool other_is_temp = term[other_op_index]->is_temp(); // is vertex an intermediate? (cannot permute)
-
-                bool other_vertex_swap_sign = false; // if true, this vertex has an odd number of permutations
-                VertexPtr other_op = make_shared<Vertex>(term[other_op_index]->permute(other_perm_idx, other_vertex_swap_sign)); // permute vertex
-                if (other_op->empty() || other_is_temp) { // if no more permutations, or vertex is temporary
-                    // reset vertex and move to next vertex
-                    permuted_term[other_op_index] = term[other_op_index];
-                    vertex_signs[other_op_index] = false;
-                    other_op_index++;
-                    other_perm_idx = 0;
-                    if (other_op_index == permuted_term.size()) break; // if no more rhs, break
-                } else { // if vertex is not empty, set vertex and increment permutation index
-                    permuted_term[other_op_index] = other_op;
-                    other_perm_idx++;
-                }
-
-                // update vertex sign
-                vertex_signs[other_op_index] = other_vertex_swap_sign;
-
-                // there are more permutations of the vertex, so test if term is now in map
-                term_in_map = merge_terms_map.find(permuted_term) != merge_terms_map.end();
-                if (term_in_map) {
-                    // if term is in map, determine if the permutation has an odd number of swaps
-                    bool term_swap_sign = false;
-                    for (int j = 0; j < permuted_term.size(); ++j) {
-                        if (vertex_signs[j]) term_swap_sign = !term_swap_sign;
-                    }
-
-                    // change coefficient sign if necessary
-                    permuted_term.coefficient_ = term.coefficient_ * (term_swap_sign ? -1 : 1);
-
-                    // set term to permuted term
-                    term = permuted_term;
-
-                    term_in_map = true; // term is now in map
-
-                    break; // break out of while linkage
-                }
-            } // end while iterate over other rhs
-
-            // if term is not in map, reset other rhs
-            if (term_in_map) break; // break out of while iterate over rhs if term is in map
-            else{ // term is not in map, so reset other rhs
-                for (size_t j = op_index + 1; j < permuted_term.size(); ++j) {
-                    permuted_term[j] = term[j];
-                    vertex_signs[j] = false;
-                }
-            }
-
-            // there may be more permutations of the first vertex, so test if term is now in map
-            term_in_map = merge_terms_map.find(permuted_term) != merge_terms_map.end();
-            if (term_in_map) {
-                // if term is in map, determine if the permutation has an odd number of swaps
-                bool term_swap_sign = false;
-                for (int j = 0; j < permuted_term.size(); ++j) {
-                    if (vertex_signs[j]) term_swap_sign = !term_swap_sign;
-                }
-
-                // change coefficient sign if necessary
-                permuted_term.coefficient_ = term.coefficient_ * (term_swap_sign ? -1 : 1);
-
-                // set term to permuted term
-                term = permuted_term;
-
-                term_in_map = true; // term is now in map
-
-                break; // break out of while linkage
-            }
-        } // end while iterate over rhs
-    }
-
-    void Equation::merge_permutations() {
-        if (is_temp_equation_) return; // if tmps, return
-
-        // make a map permutation types with their associated terms
-        map<pair<perm_list, size_t>, vector<Term>> perm_type_to_terms;
-        for (auto &term : terms_) perm_type_to_terms[{term.term_perms(), term.perm_type()}].push_back(term);
-
-        vector<Term> new_terms;
-        for (auto &perm_type_to_term : perm_type_to_terms){
-            // get terms
-            vector<Term> &terms = perm_type_to_term.second;
-
-            // get permutation type
-            const perm_list &perm = perm_type_to_term.first.first;
-            size_t perm_type = perm_type_to_term.first.second;
-
-            // if no permutation, just add terms
-            if (perm_type == 0){
-                for (auto &term : terms) new_terms.push_back(term);
-                continue;
-            }
-
-            // make string representation of permutation
-            string perm_str;
-            for (auto &p : perm) perm_str += p.first + p.second + "_";
-            perm_str += to_string(perm_type) + "_";
-
-            // append "perm" to the name of the lhs vertex
-            const ConstVertexPtr lhs_op = terms[0].lhs();
-            VertexPtr new_lhs_op = lhs_op->clone();
-            new_lhs_op->set_base_name("perm_tmps_" + perm_str + new_lhs_op->base_name());
-            new_lhs_op->update_lines(new_lhs_op->lines());
-
-            bool first_assignment = false;
-            for (Term term : terms){
-
-                // reassigning the lhs vertex
-                term.set_lhs(new_lhs_op);
-
-                // reset permutation type
-                term.set_perm(perm_list(), 0);
-
-                // set term to be updated
-                term.request_update();
-                term.reorder();
-
-                if (!first_assignment){
-                    term.is_assignment_ = true;
-                    first_assignment = true;
-                }
-
-                // add term to new terms
-                new_terms.push_back(term);
-            }
-
-            // create new term that permutes the container
-            Term perm_term = Term(lhs_op, {new_lhs_op}, 1.0);
-            perm_term.set_perm(perm, perm_type);
-            perm_term.eq() = assignment_vertex_;
-            perm_term.request_update();
-            perm_term.reorder();
-
-            // add term to new terms
-            new_terms.push_back(perm_term);
-        }
-
-        // set terms to new terms
-        terms_ = std::move(new_terms);
-
-        // reorder and collect scaling
-        reorder();
-        collect_scaling();
     }
 
     void Equation::expand_permutations() {
