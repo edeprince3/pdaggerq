@@ -547,7 +547,7 @@ namespace pdaggerq {
         if (shape_ != other.shape_) return false;
 
         // check if rhs have equivalent label properties
-        if (lines_ == other.lines_) return false;
+        if (lines_ != other.lines_) return false;
 
         // check if the vertex names are equal
         return name_ == other.name_;
