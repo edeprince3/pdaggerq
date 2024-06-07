@@ -359,21 +359,20 @@ namespace pdaggerq {
                 if (line.sig_) {
                     // check if beginning of line is a sigma operator
                     auto first_line = new_lines.begin();
-                    new_lines.insert(new_lines.begin(), line);
+
+                    // if beginning line has label 'L', insert sigma line after it
+                    if (first_line->label_ == "L") {
+                        new_lines.insert(first_line + 1, line);
+                    } else {
+                        // if sigma line is not found, insert it at the beginning
+                        new_lines.insert(new_lines.begin(), line);
+                    }
                 }
                 else if (!found[i])
                     new_lines.push_back(line);
             }
 
-            // ensure sigma line labels appear in order (unless it is in the label_order)
-            size_t sigma_count = 0;
-            for (size_t i = 0; i < new_lines.size(); ++i) {
-                Line &line = new_lines[i];
-                if (line.sig_) line.label_ = Line::sig_labels_[sigma_count++];
-            }
-
             vertex->update_lines(new_lines);
-
         };
 
 
