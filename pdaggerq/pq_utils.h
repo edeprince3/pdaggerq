@@ -80,16 +80,6 @@ void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, 
 /// compare two strings
 bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::shared_ptr<pq_string> &ordered_2, int & n_permute);
 
-/// compare two lists of amplitudes
-bool compare_amplitudes( const std::vector<amplitudes> &amps1,
-                         const std::vector<amplitudes> &amps2,
-                         int & n_permute );
-
-/// compare two lists of integrals
-bool compare_integrals( const std::vector<integrals> &ints1,
-                        const std::vector<integrals> &ints2,
-                        int & n_permute );
-
 // consolidate terms that differ may differ by permutations of summed labels
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
                                           const std::vector<std::vector<std::string> > &labels);

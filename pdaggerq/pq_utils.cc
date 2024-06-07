@@ -243,6 +243,8 @@ void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, 
     replace_index_everywhere(in, label1, "xyz");
     replace_index_everywhere(in, label2, label1);
     replace_index_everywhere(in, "xyz", label2);
+
+    in->sort();
 }
 
 // replace one label with another (in integrals, amplitudes, and operators)
@@ -264,156 +266,35 @@ void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string 
 
     replace_index_in_deltas(old_idx, new_idx, in->deltas);
 
-    in->sort_labels();
-}
-
-/// compare two lists of integrals
-bool compare_integrals(const std::vector<integrals> &ints1,
-                       const std::vector<integrals> &ints2,
-                       int & n_permute ) {
-
-    if ( ints1.size() != ints2.size() ) return false;
-
-    size_t nsame_ints = 0;
-    for (const integrals & int1 : ints1) {
-        for (const integrals & int2 : ints2) {
-
-            if (int1 == int2 ) {
-
-                n_permute += int1.permutations + int2.permutations;
-
-                nsame_ints++;
-                break;
-            }
-        }
-    }
-
-    if ( nsame_ints != ints1.size() ) return false;
-
-    return true;
-}
-
-/// compare two lists of amplitudes
-bool compare_amplitudes( const std::vector<amplitudes> &amps1,
-                         const std::vector<amplitudes> &amps2,
-                         int & n_permute ) {
-
-    if ( amps1.size() != amps2.size() ) return false;
-   
-    size_t nsame_amps = 0;
-    for (const amplitudes & amp1 : amps1) {
-        for (const amplitudes & amp2 : amps2) {
-
-            if (amp1 == amp2 ) {
-
-                n_permute += amp1.permutations + amp2.permutations;
-
-                nsame_amps++;
-                break;
-            }
-        }
-    }
-
-    if ( nsame_amps != amps1.size() ) return false;
-
-    return true;
+    //in->sort();
 }
 
 // compare two strings
 bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::shared_ptr<pq_string> &ordered_2, int & n_permute) {
 
-    // don't forget w0
-    if ( ordered_1->has_w0 != ordered_2->has_w0 ) {
+    if ( ordered_1->string_identifier != ordered_2->string_identifier ) {
         return false;
     }
 
-    // are strings same?
-    if ( ordered_1->symbol.size() != ordered_2->symbol.size() ) return false;
-    int nsame_s = 0;
-    for (size_t k = 0; k < ordered_1->symbol.size(); k++) {
-        if ( ordered_1->symbol[k] == ordered_2->symbol[k] ) {
-            nsame_s++;
-        }
-    }
-    if ( nsame_s != ordered_1->symbol.size() ) return false;
-
-    // same delta functions (recall these aren't sorted in any way)
-    int nsame_d = 0;
-    for (const delta_functions & deltas1 : ordered_1->deltas) {
-        for (const delta_functions & deltas2 : ordered_2->deltas) {
-            if ( deltas1.labels[0] == deltas2.labels[0]
-              && deltas1.labels[1] == deltas2.labels[1] ) {
-                nsame_d++;
-                //break;
-            }else if ( deltas1.labels[0] == deltas2.labels[1]
-                    && deltas1.labels[1] == deltas2.labels[0] ) {
-                nsame_d++;
-                //break;
-            }
-        }
-    }
-    if ( nsame_d != ordered_1->deltas.size() ) return false;
-
-    // amplitude comparisons, with permutations
+    // accumulate permutations of amplitudes
     n_permute = 0;
-
-    bool same_string = false;
     for (const auto &amp_pair : ordered_1->amps) {
         char type = amp_pair.first;
         const std::vector<amplitudes> &amps1 = amp_pair.second;
-
-        // ensure that the same amplitude type exists in both strings
-        if ( ordered_2->amps.find(type) == ordered_2->amps.end() ) {
-            return false; // nope
-        }
-
-        // compare amplitudes
         const std::vector<amplitudes> &amps2 = ordered_2->amps.at(type);
-        same_string = compare_amplitudes(amps1, amps2, n_permute);
-        if ( !same_string ) return false;
+        for (size_t i = 0; i < amps1.size(); i++) {
+            n_permute += amps1[i].permutations + amps2[i].permutations;
+        }
     }
 
-    // integral comparisons, with permutations
+    // accumulate permutations of integrals
     for (const auto &int_pair : ordered_1->ints) {
         std::string type = int_pair.first;
         const std::vector<integrals> &ints1 = int_pair.second;
-
-        // ensure that the same integral type exists in both strings
-        if ( ordered_2->ints.find(type) == ordered_2->ints.end() ) {
-            return false; // nope
-        }
-
-        // compare integrals
         const std::vector<integrals> &ints2 = ordered_2->ints.at(type);
-        same_string = compare_integrals(ints1, ints2, n_permute);
-        if ( !same_string ) return false;
-    }
-
-    // also need to check if the permutations are the same...
-    // otherwise, we shouldn't be combining these terms
-    if ( ordered_1->permutations.size() != ordered_2->permutations.size() ) {
-        return false;
-    }
-
-    int nsame_permutations = 0;
-    // remember, permutations come in pairs
-    size_t n = ordered_1->permutations.size() / 2;
-    int count = 0;
-    for (int i = 0; i < n; i++) {
-
-        if ( ordered_1->permutations[count] == ordered_2->permutations[count] ) {
-            nsame_permutations++;
-        }else if (  ordered_1->permutations[count]   == ordered_2->permutations[count+1] ) {
-            nsame_permutations++;
-        }else if (  ordered_1->permutations[count+1] == ordered_2->permutations[count]   ) {
-            nsame_permutations++;
-        }else if (  ordered_1->permutations[count+1] == ordered_2->permutations[count+1] ) {
-            nsame_permutations++;
+        for (size_t i = 0; i < ints1.size(); i++) {
+            n_permute += ints1[i].permutations + ints2[i].permutations;
         }
-        count += 2;
-    }
-    if ( nsame_permutations != n ) {
-        return false;
     }
 
     return true;
@@ -438,7 +319,7 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
     
             std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
-            newguy->sort_labels();
+            //newguy->sort();
 
             compare_strings_with_swapped_summed_labels(labels, iter+1, newguy, in2, n_permute, strings_same);
             if ( strings_same ) return;
@@ -596,6 +477,7 @@ void consolidate_permutations_non_summed(
 
                     std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
                     swap_two_labels(newguy, labels[id1], labels[id2]);
+                    //newguy->sort();
 
                     strings_same = compare_strings(ordered[j], newguy, n_permute);
 
@@ -625,6 +507,9 @@ void consolidate_permutations_non_summed(
                 ordered[i]->permutations.push_back(permutation_1);
                 ordered[i]->permutations.push_back(permutation_2);
                 ordered[j]->skip = true;
+
+                // don't forget to call sort labels so the permutation operator ends up on the identifier
+                ordered[i]->sort();
                 break;
             }
 
@@ -721,7 +606,7 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
                             swap_two_labels(newguy, v2, v3);
 
                         }
-                        newguy->sort_labels();
+                        //newguy->sort();
 
                         strings_same = compare_strings(in2, newguy, n_permute);
 
@@ -766,7 +651,7 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
     
             std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
-            newguy->sort_labels();
+            //newguy->sort();
 
             compare_strings_with_swapped_summed_and_nonsummed_labels(labels, 
                                                                      pairs, 
@@ -1021,10 +906,9 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 // compare strings and remove terms that cancel
 void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations) {
 
+    // sort amplitude labels, etc.
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
-
-        // sort amplitude labels
-        pq_str->sort_labels();
+        pq_str->sort();
     }
 
     // prune list so it only contains non-skipped ones

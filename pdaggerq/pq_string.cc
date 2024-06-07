@@ -47,8 +47,8 @@ pq_string::pq_string(const std::string &vacuum_type){
     vacuum = vacuum_type;
 }
 
-// sort amplitude, integral, and delta function labels
-void pq_string::sort_labels() {
+// sort amplitude, integral,and delta function labels and define string_identifier
+void pq_string::sort() {
 
     // define numerical labels and permutations
 
@@ -77,27 +77,23 @@ void pq_string::sort_labels() {
         size_t dim = my_amps.size();
         if ( dim == 0 ) continue;
    
-        bool* nope = (bool*)malloc(dim * sizeof(bool));
-        memset((void*)nope, '\0', dim * sizeof(bool));
-
-        std::vector<amplitudes> tmp_new;
-
-        for (int i = 0; i < dim; i++) {
-            std::string min = "\x7F";
-            int minj = 0;
-            for (int j = 0; j < dim; j++) {
-                if ( nope[j] ) continue;
-                if ( my_amps[j].full_label < min ) {
-                    min = my_amps[j].full_label;
-                    minj = j;
-                }
-            }
-            nope[minj] = true;
-            tmp_new.push_back(my_amps[minj]);
+        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
+        for (size_t i = 0; i < dim; i++) {
+            numerical_labels_with_index.emplace_back(my_amps[i].numerical_labels, i);
         }
 
-        my_amps = tmp_new;
-        free(nope);
+        // sort the list of pairs lexicographically by the numerical labels
+        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(), 
+                  [](const std::pair<std::vector<int>, int> &a, 
+                     const std::pair<std::vector<int>, int> &b) {
+                      return a.first < b.first;
+                  });
+    
+        std::vector<amplitudes> tmp;
+        for (const auto& pair : numerical_labels_with_index) {
+            tmp.push_back(my_amps[pair.second]);
+        }
+        my_amps = tmp;
     }
 
     for (auto & ints_pair : ints) {
@@ -106,54 +102,49 @@ void pq_string::sort_labels() {
 
         size_t dim = my_int.size();
         if ( dim == 0 ) continue;
-   
-        bool* nope = (bool*)malloc(dim * sizeof(bool));
-        memset((void*)nope, '\0', dim * sizeof(bool));
-
-        std::vector<integrals> tmp_new;
-
-        for (int i = 0; i < dim; i++) {
-            std::string min = "\x7F";
-            int minj = 0;
-            for (int j = 0; j < dim; j++) {
-                if ( nope[j] ) continue;
-                if ( my_int[j].full_label < min ) {
-                    min = my_int[j].full_label;
-                    minj = j;
-                }
-            }
-            nope[minj] = true;
-            tmp_new.push_back(my_int[minj]);
+  
+        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
+        for (size_t i = 0; i < dim; i++) {
+            numerical_labels_with_index.emplace_back(my_int[i].numerical_labels, i);
         }
 
-        my_int = tmp_new;
-        free(nope);
+        // sort the list of pairs lexicographically by the numerical labels
+        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
+                  [](const std::pair<std::vector<int>, int> &a,
+                     const std::pair<std::vector<int>, int> &b) {
+                      return a.first < b.first;
+                  });
+   
+        std::vector<integrals> tmp;
+        for (const auto& pair : numerical_labels_with_index) {
+            tmp.push_back(my_int[pair.second]);
+        }
+        my_int = tmp; 
     }
 
     size_t dim = deltas.size();
-    if ( dim == 0 ) return;
-   
-    bool* nope = (bool*)malloc(dim * sizeof(bool));
-    memset((void*)nope, '\0', dim * sizeof(bool));
+    if ( dim > 0 ) {
 
-    std::vector<delta_functions> tmp_new;
-
-    for (int i = 0; i < dim; i++) {
-        std::string min = "\x7F";
-        int minj = 0;
-        for (int j = 0; j < dim; j++) {
-            if ( nope[j] ) continue;
-            if ( deltas[j].full_label < min ) {
-                min = deltas[j].full_label;
-                minj = j;
-            }
+        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
+        for (size_t i = 0; i < dim; i++) {
+            numerical_labels_with_index.emplace_back(deltas[i].numerical_labels, i);
         }
-        nope[minj] = true;
-        tmp_new.push_back(deltas[minj]);
+
+        // sort the list of pairs lexicographically by the numerical labels
+        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
+                  [](const std::pair<std::vector<int>, int> &a,
+                     const std::pair<std::vector<int>, int> &b) {
+                      return a.first < b.first;
+                  });
+   
+        std::vector<delta_functions> tmp;
+        for (const auto& pair : numerical_labels_with_index) {
+            tmp.push_back(deltas[pair.second]);
+        }
+        deltas = tmp;
     }
 
-    deltas = tmp_new;
-    free(nope);
+    string_identifier = get_string_identifier();
 }
 
 // is string in normal order? both fermion and boson parts
@@ -359,6 +350,157 @@ void pq_string::print() {
     }
 
     printf("\n");
+}
+
+// return identifier for pq_string as std::string
+std::string pq_string::get_string_identifier() {
+
+    if (is_spin_blocked || is_range_blocked) {
+        printf("\n");
+        printf("    >>> WARNING <<<\n");
+        printf("\n");
+        printf("    pq_string::get_string_identifier() is not meant to work with spin or range blocking\n");
+        printf("\n");
+    }
+
+    std::string my_string = "";
+
+    std::string tmp;
+
+    if ( skip ) return my_string;
+
+    if ( !permutations.empty() ) {
+        // should have an even number of symbols...how many pairs?
+        size_t n = permutations.size() / 2;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "P(";
+            tmp += permutations[count++];
+            tmp += ",";
+            tmp += permutations[count++];
+            tmp += ")";
+            my_string += tmp;
+        }
+    }
+
+    if ( !paired_permutations_2.empty() ) {
+        // should have a number of symbols divisible by 4
+        size_t n = paired_permutations_2.size() / 4;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP2(";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ")";
+            my_string += tmp;
+        }
+    }
+
+    if ( !paired_permutations_6.empty() ) {
+        // should have a number of symbols divisible by 6
+        size_t n = paired_permutations_6.size() / 6;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP6(";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ")";
+            my_string += tmp;
+        }
+    }
+
+    if ( !paired_permutations_3.empty() ) {
+        // should have a number of symbols divisible by 6
+        size_t n = paired_permutations_3.size() / 6;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP3(";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ")";
+            my_string += tmp;
+        }
+    }
+
+    // creation / annihilation operators
+    for (size_t i = 0; i < symbol.size(); i++) {
+
+        std::string tmp_symbol = symbol[i];
+        if ( is_dagger[i] ) {
+            tmp_symbol += "*";
+        }
+        my_string += tmp_symbol;
+    }
+
+    // deltas
+    for (const delta_functions & delta : deltas) {
+        std::string delta_string = "delta";
+        for (auto label : delta.numerical_labels) {
+            delta_string += std::to_string(label);
+        }
+        my_string += delta_string;
+    }
+
+    // integrals
+    for (auto & type : integral_types) {
+        std::vector<integrals> &ints_vec = ints[type];
+        for (integrals & integral : ints_vec) {
+            std::string int_string = type;
+            for (auto label : integral.numerical_labels) {
+                int_string += std::to_string(label);
+            }
+            my_string += int_string;
+        }
+    }
+
+    // amplitudes
+    for (auto & type : amplitude_types) {
+        std::vector<amplitudes> &amps_vec = amps[type];
+        for (amplitudes & amp : amps_vec) {
+            std::string amp_string (1, type);
+            for (auto label : amp.numerical_labels) {
+                amp_string += std::to_string(label);
+            }
+            my_string += amp_string;
+        }
+    }
+
+    // bosons:
+    for (auto && is_bdag : is_boson_dagger) {
+        if ( is_bdag ) {
+            my_string += "B*";
+        }else {
+            my_string += "B";
+        }
+    }
+    if ( has_w0 ) {
+        my_string += "w0";
+    }
+
+    return my_string;
 }
 
 // return string information
