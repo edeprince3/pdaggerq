@@ -137,9 +137,6 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 /// cancel terms where appropriate
 void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations);
 
-/// reorder t, l, r, m, s amplitudes as t1, t2, t3, t4
-void reorder_amplitudes(std::shared_ptr<pq_string> &in);
-
 /// re-classify fluctuation potential terms
 void reclassify_integrals(std::shared_ptr<pq_string> &in);
 

@@ -71,6 +71,11 @@ void amplitudes::sort() {
         }
     }
 
+    // full label
+    full_label = "";
+    for (auto label : labels) {
+        full_label += label;
+    }
 }
 
 /// copy amplitudes
@@ -271,6 +276,12 @@ void integrals::sort() {
             permutations++;
         }
 
+    }
+
+    // full label
+    full_label = "";
+    for (auto label : labels) {
+        full_label += label;
     }
 }
 
@@ -545,6 +556,12 @@ void delta_functions::sort() {
     }
 
     permutations = 0;
+
+    // full label
+    full_label = "";
+    for (auto label : labels) {
+        full_label += label;
+    }
 }
 
 /// copy deltas

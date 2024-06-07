@@ -61,6 +61,13 @@ class tensor {
 
     /**
      *
+     * human readable tensor labels as a single string
+     *
+     */
+     std::string full_label;
+
+    /**
+     *
      * numerical representation of tensor labels
      *
      */

@@ -1023,14 +1023,9 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
 
-        // order amplitudes such that they're ordered t1, t2, t3, etc.
-        reorder_amplitudes(pq_str);
-
         // sort amplitude labels
         pq_str->sort_labels();
-
     }
-    //exit(0);
 
     // prune list so it only contains non-skipped ones
     std::vector< std::shared_ptr<pq_string> > pruned;
@@ -1109,41 +1104,6 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
         ordered.push_back(pq_str);
     }
     pruned.clear();
-}
-
-// reorder t, l, r, s, m amplitudes as t1, t2, t3, t4
-void reorder_amplitudes(std::shared_ptr<pq_string> &in) {
-
-    for (auto & amp_pair : in->amps) {
-
-        std::vector<amplitudes> &amps = amp_pair.second;
-
-        size_t dim = amps.size();
-        if ( dim == 0 ) continue;
-    
-        bool* nope = (bool*)malloc(dim * sizeof(bool));
-        memset((void*)nope, '\0', dim * sizeof(bool));
-
-        std::vector<std::vector<std::string> > tmp;
-        std::vector<amplitudes> tmp_new;
-
-        for (size_t len = 0; len < 10; len++) {
-            for (int i = 0; i < dim; i++) {
-                for (int j = 0; j < dim; j++) {
-                    if ( nope[j] ) continue;
-
-                    if ( amps[j].labels.size() == len ) {
-                        tmp_new.push_back(amps[j]);
-                        nope[j] = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        amps = tmp_new;
-        free(nope);
-    }
 }
 
 // re-classify fluctuation potential terms

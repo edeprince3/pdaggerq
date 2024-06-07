@@ -50,15 +50,15 @@ pq_string::pq_string(const std::string &vacuum_type){
 // sort amplitude, integral, and delta function labels
 void pq_string::sort_labels() {
 
+    // define numerical labels and permutations
+
     for (auto &ints_pair : ints) {
-        std::string type = ints_pair.first;
         std::vector<integrals> &ints_vec = ints_pair.second;
         for (integrals & integral : ints_vec) {
             integral.sort();
         }
     }
     for (auto &amps_pair : amps) {
-        char type = amps_pair.first;
         std::vector<amplitudes> &amps_vec = amps_pair.second;
         for (amplitudes & amp : amps_vec) {
             amp.sort();
@@ -67,6 +67,93 @@ void pq_string::sort_labels() {
     for (delta_functions & delta : deltas) {
         delta.sort();
     }
+
+    // sort each list of tensors based on labels (lexicographically)
+
+    for (auto & amp_pair : amps) {
+
+        std::vector<amplitudes> &my_amps = amp_pair.second;
+
+        size_t dim = my_amps.size();
+        if ( dim == 0 ) continue;
+   
+        bool* nope = (bool*)malloc(dim * sizeof(bool));
+        memset((void*)nope, '\0', dim * sizeof(bool));
+
+        std::vector<amplitudes> tmp_new;
+
+        for (int i = 0; i < dim; i++) {
+            std::string min = "\x7F";
+            int minj = 0;
+            for (int j = 0; j < dim; j++) {
+                if ( nope[j] ) continue;
+                if ( my_amps[j].full_label < min ) {
+                    min = my_amps[j].full_label;
+                    minj = j;
+                }
+            }
+            nope[minj] = true;
+            tmp_new.push_back(my_amps[minj]);
+        }
+
+        my_amps = tmp_new;
+        free(nope);
+    }
+
+    for (auto & ints_pair : ints) {
+
+        std::vector<integrals> &my_int = ints_pair.second;
+
+        size_t dim = my_int.size();
+        if ( dim == 0 ) continue;
+   
+        bool* nope = (bool*)malloc(dim * sizeof(bool));
+        memset((void*)nope, '\0', dim * sizeof(bool));
+
+        std::vector<integrals> tmp_new;
+
+        for (int i = 0; i < dim; i++) {
+            std::string min = "\x7F";
+            int minj = 0;
+            for (int j = 0; j < dim; j++) {
+                if ( nope[j] ) continue;
+                if ( my_int[j].full_label < min ) {
+                    min = my_int[j].full_label;
+                    minj = j;
+                }
+            }
+            nope[minj] = true;
+            tmp_new.push_back(my_int[minj]);
+        }
+
+        my_int = tmp_new;
+        free(nope);
+    }
+
+    size_t dim = deltas.size();
+    if ( dim == 0 ) return;
+   
+    bool* nope = (bool*)malloc(dim * sizeof(bool));
+    memset((void*)nope, '\0', dim * sizeof(bool));
+
+    std::vector<delta_functions> tmp_new;
+
+    for (int i = 0; i < dim; i++) {
+        std::string min = "\x7F";
+        int minj = 0;
+        for (int j = 0; j < dim; j++) {
+            if ( nope[j] ) continue;
+            if ( deltas[j].full_label < min ) {
+                min = deltas[j].full_label;
+                minj = j;
+            }
+        }
+        nope[minj] = true;
+        tmp_new.push_back(deltas[minj]);
+    }
+
+    deltas = tmp_new;
+    free(nope);
 }
 
 // is string in normal order? both fermion and boson parts
