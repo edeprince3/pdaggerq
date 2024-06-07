@@ -348,6 +348,13 @@ void integrals::print(const std::string &symbol) const {
         printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
+    }else if ( symbol == "occ_repulsion") {
+        printf("<?");
+        printf("%s", labels[0].c_str());
+        printf("||?");
+        printf("%s", labels[1].c_str());
+        printf(">");
+        printf(" ");
     }else {
         printf("\n");
         printf("    unknown integral type: %s\n", symbol.c_str());
@@ -406,6 +413,12 @@ std::string integrals::to_string(const std::string &symbol) const {
             + ","
             + labels[1]
             + ")";
+    }else if ( symbol == "occ_repulsion") {
+        val = "<?"
+            + labels[0]
+            + "||?"
+            + labels[1]
+            + ">";
     }else {
         printf("\n");
         printf("    unknown integral type: %s\n", symbol.c_str());
