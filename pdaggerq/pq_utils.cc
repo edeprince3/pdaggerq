@@ -272,7 +272,7 @@ void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string 
 // compare two strings
 bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::shared_ptr<pq_string> &ordered_2, int & n_permute) {
 
-    if ( ordered_1->string_identifier != ordered_2->string_identifier ) {
+    if ( ordered_1->key != ordered_2->key ) {
         return false;
     }
 
@@ -298,6 +298,50 @@ bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::sha
     }
 
     return true;
+}
+
+/// check map for strings when swapping (multiple) summed labels
+std::string check_map_for_strings_with_swapped_summed_labels(
+    const std::vector<std::vector<std::string> > &labels,
+    size_t iter,
+    const std::shared_ptr<pq_string> &in,
+    //std::unordered_map<std::string, std::pair<std::shared_ptr<pq_string>,size_t>> & string_map,
+    std::unordered_map<std::string, std::shared_ptr<pq_string>> string_map,
+    int & n_permute, 
+    bool & string_in_map) {
+ 
+    if ( iter == labels.size() ) {
+
+        std::string key = in->key;
+
+        // is string in map?
+        if (string_map.find(key) != string_map.end()) {
+            //strings_same = compare_strings(string_map[key].first, in, n_permute);
+            //return string_map[key].first;
+            string_in_map = compare_strings(string_map[key], in, n_permute);
+            //strings_same = compare_strings(in, string_map[key], n_permute);
+            // HERE
+            return key;
+        }else {
+            string_in_map = false;
+            return "blurf";
+        }
+    }
+
+    // try swapping non-summed labels
+    for (size_t id1 = 0; id1 < labels[iter].size(); id1++) {
+        for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
+    
+            std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in);
+            swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
+
+            //compare_strings_with_swapped_summed_labels(labels, iter+1, newguy, in2, n_permute, string_in_map);
+            std::string res = check_map_for_strings_with_swapped_summed_labels(labels, iter+1, newguy, string_map, n_permute, string_in_map);
+            if ( string_in_map ) return res; 
+        }
+    }
+    string_in_map = false;
+    return "blurf";
 }
 
 /// compare two strings when swapping (multiple) summed labels
@@ -337,6 +381,84 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
     // However, that would require us to define a hash function for pq_string (doable, but not trivial).
     // For now, we'll just live with the O(N^2) time complexity.
 
+    if ( ordered.size() == 0 ) {
+        return;
+    }
+
+/*
+    // TODO: map begin
+    std::unordered_map<std::string, std::shared_ptr<pq_string>> string_map;
+
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->skip ) continue;
+
+        // ok, what summed / repeated labels do we have?
+        std::vector<std::vector<std::string> > found_labels;
+        for (const std::vector<std::string> & label : labels) {
+            std::vector<std::string> tmp;
+            tmp.reserve(label.size());
+            for (const auto & index : label) {
+                int found = index_in_anywhere(ordered[i], index);
+                if ( found == 2 ) {
+                    tmp.push_back(index);
+                }
+            }
+            found_labels.push_back(tmp);
+        }
+
+        // check if this string is in the map
+        int n_permute = 0;
+        bool strings_same = false;
+
+        std::string res = check_map_for_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], string_map, n_permute, strings_same);
+
+        if ( !strings_same ) {
+
+            // new term in map
+            string_map[ordered[i]->key] = ordered[i];
+
+        }else {
+
+            // update factor for existing term in map
+            std::shared_ptr<pq_string> existing = std::make_shared<pq_string>(*string_map[res]);
+
+            double factor_i = ordered[i]->factor * ordered[i]->sign;
+            double factor_existing = existing->factor * existing->sign;
+
+            double combined_factor = factor_existing + factor_i * pow(-1.0, n_permute);
+            //double combined_factor = factor_i + factor_existing * pow(-1.0, n_permute);
+
+            existing->factor = fabs(combined_factor);
+            if ( combined_factor > 0.0 ) {
+                existing->sign =  1;
+            }else {
+                existing->sign = -1;
+            }
+            ordered[i]->skip = true;
+
+            //auto it = string_map.find(existing->key);
+            //string_map.erase(it);
+
+            //if ( fabs(existing->factor) > 1e-12 ) {
+            //    auto it = string_map.find(existing->key);
+            //    string_map.erase(it);
+            //}else {
+                string_map[existing->key] = existing; //std::make_pair(res, string_map[res->key].second);
+            //}
+        }
+    }
+    // TODO: map end
+
+    // clear ordered and repopulate using map contents
+    ordered.clear();
+    for (const auto& pair : string_map) {
+        if ( pair.second->factor > 1e-12 && !pair.second->skip) {
+            ordered.push_back(pair.second);
+        }
+    }
+
+*/
     for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -361,7 +483,7 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
             if ( ordered[j]->skip ) continue;
 
             int n_permute;
-            bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
+            bool strings_same = false;
 
             compare_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], ordered[j], n_permute, strings_same);
 
@@ -935,6 +1057,14 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
+
+    // make sure factor > 0
+    for (size_t i = 0; i < ordered.size(); i++) {
+        if ( ordered[i]->factor < 0.0 ) {
+            ordered[i]->factor = fabs(ordered[i]->factor);
+            ordered[i]->sign *= -1;
+        }
+    }
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 

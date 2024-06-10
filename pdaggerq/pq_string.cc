@@ -47,7 +47,7 @@ pq_string::pq_string(const std::string &vacuum_type){
     vacuum = vacuum_type;
 }
 
-// sort amplitude, integral,and delta function labels and define string_identifier
+// sort amplitude, integral,and delta function labels and define key
 void pq_string::sort() {
 
     // define numerical labels and permutations
@@ -144,7 +144,7 @@ void pq_string::sort() {
         deltas = tmp;
     }
 
-    string_identifier = get_string_identifier();
+    key = get_key();
 }
 
 // is string in normal order? both fermion and boson parts
@@ -353,13 +353,13 @@ void pq_string::print() {
 }
 
 // return identifier for pq_string as std::string
-std::string pq_string::get_string_identifier() {
+std::string pq_string::get_key() {
 
     if (is_spin_blocked || is_range_blocked) {
         printf("\n");
         printf("    >>> WARNING <<<\n");
         printf("\n");
-        printf("    pq_string::get_string_identifier() is not meant to work with spin or range blocking\n");
+        printf("    pq_string::get_key() is not meant to work with spin or range blocking\n");
         printf("\n");
     }
 

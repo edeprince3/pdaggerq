@@ -115,7 +115,7 @@ class pq_string {
 
     /**
      *
-     * sort amplitude, integral,and delta function labels and define string_identifier (for comparing strings)
+     * sort amplitude, integral,and delta function labels and define key (for comparing strings)
      *
      */
     void sort();
@@ -274,14 +274,14 @@ class pq_string {
      * return string identifier as std::string
      *
      */
-    std::string get_string_identifier();
+    std::string get_key();
 
     /**
      *
      * string identifier as std::string
      *
      */
-    std::string string_identifier;
+    std::string key;
 
     /**
      *
