@@ -190,6 +190,16 @@ int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &i
     return n;
 }
 
+/// replace one label with another (in a given set of permutations)
+void replace_index_in_permutations(const std::string &old_idx, const std::string &new_idx, std::vector<std::string> &permutations) {
+
+    for (std::string & label : permutations) {
+        if ( label == old_idx ) {
+            label = new_idx;
+        }
+    }
+}
+
 /// replace one label with another (in a given set of deltas)
 void replace_index_in_deltas(const std::string &old_idx, const std::string &new_idx, std::vector<delta_functions> &deltas) {
 
@@ -266,6 +276,7 @@ void replace_index_everywhere(std::shared_ptr<pq_string> &in, const std::string 
 
     replace_index_in_deltas(old_idx, new_idx, in->deltas);
 
+    //replace_index_in_permutations(old_idx, new_idx, in->permutations);
     //in->sort();
 }
 
@@ -573,6 +584,9 @@ void consolidate_permutations_non_summed(
 
         std::string permutation_1;
         std::string permutation_2;
+        int n_permute = 0;
+        bool string_in_map = false;
+        std::string key = "";
 
         // try swapping non-summed labels
         for (size_t id1 = 0; id1 < labels.size(); id1++) {
@@ -584,36 +598,35 @@ void consolidate_permutations_non_summed(
                 swap_two_labels(newguy, labels[id1], labels[id2]);
 
                 // is new string in map?
-                bool string_in_map = false;
+                string_in_map = false;
 
                 if (string_map.find(newguy->key) != string_map.end()) {
 
+                    key = newguy->key;
                     string_in_map = true;
-                    size_t j = string_map.at(newguy->key);
+                    size_t j = string_map.at(key);
 
                     // accumulate permutations of amplitudes
                     n_permute = 0;
-                    for (const auto &amp_pair : in->amps) {
+                    for (const auto &amp_pair : newguy->amps) {
                         char type = amp_pair.first;
                         const std::vector<amplitudes> &amps1 = amp_pair.second;
                         const std::vector<amplitudes> &amps2 = ordered[j]->amps.at(type);
-                        for (size_t i = 0; i < amps1.size(); i++) {
-                            n_permute += amps1[i].permutations + amps2[i].permutations;
+                        for (size_t k = 0; k < amps1.size(); k++) {
+                            n_permute += amps1[k].permutations + amps2[k].permutations;
                         }
                     }
 
                     // accumulate permutations of integrals
-                    for (const auto &int_pair : in->ints) {
+                    for (const auto &int_pair : newguy->ints) {
                         std::string type = int_pair.first;
                         const std::vector<integrals> &ints1 = int_pair.second;
                         const std::vector<integrals> &ints2 = ordered[j]->ints.at(type);
-                        for (size_t i = 0; i < ints1.size(); i++) {
-                            n_permute += ints1[i].permutations + ints2[i].permutations;
+                        for (size_t k = 0; k < ints1.size(); k++) {
+                            n_permute += ints1[k].permutations + ints2[k].permutations;
                         }
                     }
-                }
 
-                if ( string_in_map ) {
                     permutation_1 = labels[id1];
                     permutation_2 = labels[id2];
                     break;
@@ -622,14 +635,15 @@ void consolidate_permutations_non_summed(
             if ( string_in_map ) break;
         }
 
-        if ( !string_in_map ) continue;
+        // if the string is not in the map already, add it
+        if ( !string_in_map ) {
+            string_map[ordered[i]->key] = i; 
+            continue;
+        }
 
-        // it is possible to have made it through the previous logic without 
-        // assigning permutation labels, if strings are identical but 
-        // permutation operators differ
-        //if ( permutation_1 == "" || permutation_2 == "" ) continue;
+        // if the string is in the map, 
 
-        size_t j = string_map.at(newguy->key);
+        size_t j = string_map.at(key);
 
         double factor_i = ordered[i]->factor * ordered[i]->sign;
         double factor_j = ordered[j]->factor * ordered[j]->sign;
@@ -644,10 +658,14 @@ void consolidate_permutations_non_summed(
 
             // don't forget to call sort labels so the permutation operator ends up on the identifier
             ordered[j]->sort();
+        }else {
+            // otherwise, something has gone wrong in the previous consolidation step...
+            printf("somethign has gone wrong\n");fflush(stdout);
+            exit(0);
         }
-
-        // otherwise, something has gone wrong in the previous consolidation step...
     }
+
+    return;
 */
 
     for (size_t i = 0; i < ordered.size(); i++) {
