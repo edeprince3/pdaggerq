@@ -1,0 +1,269 @@
+//
+// pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+// Filename: pq_graph.h
+// Copyright (C) 2020 A. Eugene DePrince III
+//
+// Author: A. Eugene DePrince III <adeprince@fsu.edu>
+// Maintainer: DePrince group
+//
+// This file is part of the pdaggerq package.
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+//
+
+#ifndef PDAGGERQ_PQ_GRAPH_H
+#define PDAGGERQ_PQ_GRAPH_H
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    #include "pybind11/pybind11.h" // surpresses warnings from pybind11
+#pragma GCC diagnostic pop
+
+
+#include <string>
+#include <vector>
+#include <fstream>
+#include "equation.h"
+#include "term.h"
+#include "vertex.h"
+#include "linkage.h"
+#include "scaling_map.hpp"
+#include "linkage_set.hpp"
+#include "timer.h"
+#include "../../pdaggerq/pq_string.h"
+#include "../../pdaggerq/pq_helper.h"
+
+using std::ofstream;
+
+namespace pdaggerq {
+
+    class PQGraph {
+        map<string, Equation> equations_; // equations to be optimized
+        map<string, linkage_set> saved_linkages_ = { // all intermediate linkages
+                                                    {"scalars", linkage_set(256)},
+                                                    {"tmps", linkage_set(256)},
+                                                    {"reuse", linkage_set(256)}
+                                                 };
+
+        // counts of tmps and scalars
+        map<string, size_t> temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse", 0}};
+        linkage_set all_links_; // all possible linkages in the equations
+
+        bool is_assembled_ = false; // whether equations have been assembled for printing
+        bool is_reordered_ = false; // whether the equations have been reordered
+        bool is_optimized_ = false; // whether the equations have been optimized
+        bool is_reused_ = false; // whether the equations have been reused
+        bool prune_tmps_ = false; // whether to prune unused temps after substitution
+        bool has_perms_merged_ = false; // whether the equations have merged permutations
+        bool reuse_permutations_ = true; // whether to reuse permutations during the reusing step
+        bool use_as_array_ = true; // whether to use the array version of the tmps
+
+        Timer total_timer; // timer for the total time of the builder
+        Timer build_timer; // timer for construction of the equations
+        Timer reorder_timer; // timer for the reorder function
+        Timer substitute_timer; // timer for the substitute function
+
+        Timer update_timer; // timer for updating equations
+
+        /// scaling of the equations
+        scaling_map flop_map_; // map of flop scaling with linkage occurrence in all equations
+
+        scaling_map mem_map_; // map of memory scaling with linkage occurrence in all equations
+        scaling_map flop_map_init_; // map of flop scaling before reordering
+
+        scaling_map mem_map_init_; // map of memory scaling before reordering
+        scaling_map flop_map_pre_; // map of flop scaling before reordering or before subexpression elimination
+
+        scaling_map mem_map_pre_; // map of memory scaling before reordering or before subexpression elimination
+
+        /// options for the builder
+        size_t max_temps_ = -1l; // maximum number of temporary rhs (-1 for no limit by overflow)
+        bool batched_ = true; // whether to use batched substitution
+        size_t batch_size_ = 10; // size of the batch
+        int nthreads_ = 1; // number of threads to use
+        bool verbose_ = true; // whether to print verbose output
+        bool allow_merge_ = true; // whether to merge terms
+        bool use_density_fitting_ = false; // whether to use density fitting
+
+        /// options for building sigma vectors
+        //bool format_eom_ = false; // whether to format equations for the sigma build
+        bool has_sigma_vecs_ = false;
+        bool format_sigma_   = false; // whether to format equations for the sigma build
+        bool use_trial_index = false; // whether to store the sigma vectors in the builder
+
+
+    public:
+
+        // default constructor
+        PQGraph() = default;
+
+        explicit PQGraph(const pybind11::dict& options){
+            substitute_timer.precision_ = 2;
+            reorder_timer.precision_    = 2;
+            build_timer.precision_      = 2;
+            update_timer.precision_     = 2;
+
+            set_options(options);
+        }
+
+        /**
+         * Set options for PQ GRAPH
+         * @param options dictionary of options
+         */
+        void set_options(const pybind11::dict& options);
+
+        /**
+         * add an equation to the builder from a pq_helper object
+         * @param pq pq_helper object of the equation
+         * @param equation_name name of the equation (optional)
+         */
+        void add(const pq_helper &pq, const std::string &equation_name = "", vector<std::string> label_order = vector<string>());
+
+        /**
+         * assemble the equations into a pq_graph
+         */
+        void assemble();
+
+        /**
+         * clears everything in the builder
+         */
+        void clear() {
+            PQGraph::~PQGraph(); // call destructor
+            *this = PQGraph();   // reset the builder
+        }
+
+        /**
+         * export tabuilder to python
+         * @param m module
+         */
+        static void export_pq_graph(pybind11::module &m);
+
+        /**
+         * string representation of the equations
+         */
+        vector<string> to_strings();
+
+        /**
+         * keys of the equations
+         * @return vector of equation keys
+         */
+        vector<string> get_equation_keys();
+
+        /**
+         * Reorder terms in each equation
+         */
+        void reorder();
+
+        /**
+         * merge terms in each equation
+         * @return number of terms merged
+         */
+        size_t merge_terms();
+
+        /**
+         * Fully optimize equations by reordering, substituting, merging, and reusing intermediates.
+         * @note this is a shortcut for calling reorder, substitute, merge_terms, and reuse on the python side
+         */
+        void optimize();
+
+        /**
+         * collect scaling of all equations
+         * @param regenerate whether to regenerate the scaling for terms
+         */
+        void collect_scaling(bool recompute = true, bool include_reuse = false);
+
+        /**
+         * report summary of scaling for all equations
+         */
+        void analysis() const;
+
+        /**
+         * Substitute common linkages in each equation
+         */
+        void substitute(bool format_sigma, bool only_scalars);
+
+        /**
+         * make set of linkages to test for subexpression elimination
+         * @return set of linkages to test
+         */
+        linkage_set make_test_set();
+
+        /**
+         * separate terms with permutations in each equation into separate terms
+         */
+        void expand_permutations();
+
+        /**
+         * collect all possible linkages from all equations (remove none)
+         * @param recompute whether to recompute all linkages or just the ones in modified terms
+         */
+        void make_all_links(bool recompute);
+
+        /**
+         * Print all terms in each equation
+         */
+        void print(string print_type = "");
+
+        /**
+         * turn pq_graph into a string
+         * @return string representation of the pq_graph
+         * TODO: make this a true const function
+         */
+        string str();
+
+        /**
+         * Write DOT representation of equations to file stream (to visualize linkage in graphviz)
+         * @param os output stream
+         * @param color color of the vertices and edges
+         * @return output stream
+         */
+        void write_dot(std::string &filepath);
+
+        /**
+         * adds a tmp to saved_linkages_ and adds to equations
+         * @param precon tmp to add
+         * @note recomputes scaling after adding tmps
+         */
+        static Term &add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff = 1.0);
+
+        /**
+         * Find the common coefficient of a set of terms
+         * @param terms terms to find common coefficient of
+         * @return common coefficient
+         */
+        static double common_coefficient(vector<Term*> &terms);
+
+        /**
+         * print the scaling of the current equations and difference from previous scalings
+         * @param original_map The original scaling map
+         * @param previous_map the previous scaling map
+         * @param current_map the current scaling map
+         */
+        static void print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) ;
+
+        perm_list common_permutations(const vector<Term *>& terms);
+
+        vector<Term *> get_matching_terms(const ConstLinkagePtr &contraction);
+
+        void remove_unused_tmps();
+
+        PQGraph clone() const;
+
+        void make_scalars();
+
+        void fusion();
+    }; // PQGraph
+
+} // pdaggerq
+
+#endif //PDAGGERQ_PQ_GRAPH_H

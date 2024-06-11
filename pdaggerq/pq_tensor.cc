@@ -23,6 +23,8 @@
 #include"pq_tensor.h"
 
 #include<string>
+#include <iostream>
+#include <fstream>
 
 namespace pdaggerq {
 
@@ -526,7 +528,6 @@ std::string integrals::to_string_with_spin(const std::string &symbol) const {
 
     return val;
 }
-
 
 /// sort deltas labels
 void delta_functions::sort() {

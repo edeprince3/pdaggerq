@@ -32,15 +32,22 @@
 #include <algorithm>
 
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+// include pybind11 and surpresses deprecated warnings
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#pragma GCC diagnostic pop
+
 #include "pq_helper.h"
 #include "pq_utils.h"
 #include "pq_string.h"
 #include "pq_add_label_ranges.h"
 #include "pq_add_spin_labels.h"
 #include "pq_cumulant_expansion.h"
+#include "../pq_graph/include/pq_graph.h"
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -63,6 +70,8 @@ void export_pq_helper(py::module& m) {
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
+        .def("save", &pq_helper::serialize)
+        .def("load", &pq_helper::deserialize)
         //.def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_use_rdms",
              [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
@@ -117,6 +126,9 @@ void export_pq_helper(py::module& m) {
         .def(py::init<double, std::vector<std::string>>())
         .def("factor", &pq_operator_terms::get_factor)
         .def("operators", &pq_operator_terms::get_operators);
+
+    // add pq graph class for optimizing, visualizing, and generating code from pq_helper
+    PQGraph::export_pq_graph(m);
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {
@@ -243,7 +255,7 @@ std::vector<pq_operator_terms> pq_helper::get_commutator_terms(double factor,
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1})));
     ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0})));
 
-    return ops;  
+    return ops;
 }
 
 void pq_helper::add_double_commutator(double factor,
@@ -270,7 +282,7 @@ std::vector<pq_operator_terms> pq_helper::get_double_commutator_terms(double fac
     ops.push_back(pq_operator_terms(-factor, concatinate_operators({op2, op0, op1})));
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op2, op1, op0})));
 
-    return ops;  
+    return ops;
 }
 
 void pq_helper::add_triple_commutator(double factor,
@@ -303,7 +315,7 @@ std::vector<pq_operator_terms> pq_helper::get_triple_commutator_terms(double fac
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op2, op0, op1})));
     ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op2, op1, op0})));
 
-    return ops;  
+    return ops;
 }
 
 void pq_helper::add_quadruple_commutator(double factor,
@@ -345,7 +357,7 @@ std::vector<pq_operator_terms> pq_helper::get_quadruple_commutator_terms(double 
     ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op2, op0, op1})));
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op2, op1, op0})));
 
-    return ops;  
+    return ops;
 }
 
 // add a string of operators
