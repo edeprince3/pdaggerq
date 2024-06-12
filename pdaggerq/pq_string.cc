@@ -55,58 +55,18 @@ void pq_string::sort() {
 
     for (auto &ints_pair : ints) {
         std::vector<integrals> &ints_vec = ints_pair.second;
+
+        // sort labels in integrals
         for (integrals & integral : ints_vec) {
             integral.sort();
         }
-    }
-    for (auto &amps_pair : amps) {
-        std::vector<amplitudes> &amps_vec = amps_pair.second;
-        for (amplitudes & amp : amps_vec) {
-            amp.sort();
-        }
-    }
-    for (delta_functions & delta : deltas) {
-        delta.sort();
-    }
 
-    // sort each list of tensors based on labels (lexicographically)
-
-    for (auto & amp_pair : amps) {
-
-        std::vector<amplitudes> &my_amps = amp_pair.second;
-
-        size_t dim = my_amps.size();
-        if ( dim == 0 ) continue;
-   
-        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
-        for (size_t i = 0; i < dim; i++) {
-            numerical_labels_with_index.emplace_back(my_amps[i].numerical_labels, i);
-        }
-
-        // sort the list of pairs lexicographically by the numerical labels
-        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(), 
-                  [](const std::pair<std::vector<int>, int> &a, 
-                     const std::pair<std::vector<int>, int> &b) {
-                      return a.first < b.first;
-                  });
-    
-        std::vector<amplitudes> tmp;
-        for (const auto& pair : numerical_labels_with_index) {
-            tmp.push_back(my_amps[pair.second]);
-        }
-        my_amps = tmp;
-    }
-
-    for (auto & ints_pair : ints) {
-
-        std::vector<integrals> &my_int = ints_pair.second;
-
-        size_t dim = my_int.size();
-        if ( dim == 0 ) continue;
+        // now, sort list of amplitudes based on labels 
+        size_t dim = ints_vec.size();
   
         std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
         for (size_t i = 0; i < dim; i++) {
-            numerical_labels_with_index.emplace_back(my_int[i].numerical_labels, i);
+            numerical_labels_with_index.emplace_back(ints_vec[i].numerical_labels, i);
         }
 
         // sort the list of pairs lexicographically by the numerical labels
@@ -118,11 +78,45 @@ void pq_string::sort() {
    
         std::vector<integrals> tmp;
         for (const auto& pair : numerical_labels_with_index) {
-            tmp.push_back(my_int[pair.second]);
+            tmp.push_back(ints_vec[pair.second]);
         }
-        my_int = tmp; 
+        ints_vec = tmp; 
     }
 
+    for (auto &amps_pair : amps) {
+        std::vector<amplitudes> &amps_vec = amps_pair.second;
+
+        // sort labels in amplitudes 
+        for (amplitudes & amp : amps_vec) {
+            amp.sort();
+        }
+
+        // now, sort list of amplitudes based on labels 
+        size_t dim = amps_vec.size();
+        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
+        for (size_t i = 0; i < dim; i++) {
+            numerical_labels_with_index.emplace_back(amps_vec[i].numerical_labels, i);
+        }
+        // sort the list of pairs lexicographically by the numerical labels
+        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(), 
+                  [](const std::pair<std::vector<int>, int> &a, 
+                     const std::pair<std::vector<int>, int> &b) {
+                      return a.first < b.first;
+                  });
+    
+        std::vector<amplitudes> tmp;
+        for (const auto& pair : numerical_labels_with_index) {
+            tmp.push_back(amps_vec[pair.second]);
+        }
+        amps_vec = tmp;
+    }
+
+    // sort labels in deltas 
+    for (delta_functions & delta : deltas) {
+        delta.sort();
+    }
+
+    // now, sort list of deltas based on labels 
     size_t dim = deltas.size();
     if ( dim > 0 ) {
 
