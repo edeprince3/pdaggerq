@@ -164,6 +164,38 @@ int index_in_operators(const std::string &idx, const std::vector<std::string> &o
     return n;
 }
 
+// does an index appear amplitudes, deltas, integrals, and operators?
+bool found_index_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx) {
+
+    // find index in deltas
+    for (const delta_functions & delta : in->deltas) {
+        if ( std::find(delta.labels.begin(), delta.labels.end(), idx) != delta.labels.end() ) return true;
+    }
+
+    // find index in integrals
+    for (const auto & int_pair : in->ints) {
+        const std::string &type = int_pair.first;
+        const std::vector<integrals> &ints = int_pair.second;
+        for (const integrals & integral : ints) {
+            if ( std::find(integral.labels.begin(), integral.labels.end(), idx) != integral.labels.end() ) return true;
+        }
+    }
+
+    // find index in amplitudes
+    for (const auto & amp_pair : in->amps) {
+        const char &type = amp_pair.first;
+        const std::vector<amplitudes> &amps = amp_pair.second;
+        for (const amplitudes & amp : amps) {
+            if ( std::find(amp.labels.begin(), amp.labels.end(), idx) != amp.labels.end() ) return true;
+        }
+    }
+
+    // find index in operators
+    if ( std::find(in->symbol.begin(), in->symbol.end(), idx) != in->symbol.end() ) return true;
+
+    return false;
+}
+
 // how many times does an index appear amplitudes, deltas, integrals, and operators?
 int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx) {
 
@@ -1342,17 +1374,15 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
     static std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
                                     "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
                                     "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
-    static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N",
-                                     "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9",
-                                     "i10", "i11", "i12", "i13", "i14", "i15", "i16", "i17", "i18", "i19"};
+    static std::vector<std::string> occ_out{"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N"};
 
     for (const std::string & in_idx : occ_in) {
 
-        if (index_in_anywhere(in, in_idx) > 0 ) {
+        if (found_index_anywhere(in, in_idx)) {
 
             for (const std::string & out_idx : occ_out) {
 
-                if (index_in_anywhere(in, out_idx) == 0 ) {
+                if (!found_index_anywhere(in, out_idx)) {
 
                     replace_index_everywhere(in, in_idx, out_idx);
                     break;
@@ -1365,17 +1395,15 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
     static std::vector<std::string> vir_in{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
                                     "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
                                     "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
-    static std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F",
-                                     "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9",
-                                     "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19"};
+    static std::vector<std::string> vir_out{"a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"};
 
     for (const std::string & in_idx : vir_in) {
 
-        if (index_in_anywhere(in, in_idx) > 0 ) {
+        if (found_index_anywhere(in, in_idx)) {
 
             for (const std::string & out_idx : vir_out) {
 
-                if (index_in_anywhere(in, out_idx) == 0 ) {
+                if (!found_index_anywhere(in, out_idx)) {
 
                     replace_index_everywhere(in, in_idx, out_idx);
                     break;
