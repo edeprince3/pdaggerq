@@ -437,11 +437,11 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
 
         // check if this string is in the map
         int n_permute = 0;
-        bool strings_same = false;
+        bool string_in_map = false;
 
-        std::string res = check_map_for_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], string_map, ordered, n_permute, strings_same);
+        std::string res = check_map_for_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], string_map, ordered, n_permute, string_in_map);
 
-        if ( !strings_same ) {
+        if ( !string_in_map ) {
 
             // new term in map
             string_map[ordered[i]->key] = i; 
@@ -1410,65 +1410,35 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
     
-    // create list of summation labels. only consider internally-created labels
-                                     
-    static std::vector<std::string> occ_labels{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
-                                    "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
-                                    "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
-    static std::vector<std::string> vir_labels{"v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
-                                    "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
-                                    "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29"};
-    static std::vector<std::string> gen_labels{"p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9",
-                                    "p10", "p11", "p12", "p13", "p14", "p15", "p16", "p17", "p18", "p19",
-                                    "p20", "p21", "p22", "p23", "p24", "p25", "p26", "p27", "p28", "p29"};
-
-    std::vector<std::string> sum_labels;
-    for (const std::string & occ_label : occ_labels) {
-        if ( index_in_anywhere(in, occ_label) == 2 ) {
-            sum_labels.push_back(occ_label);
-        }       
-    }       
-    for (const std::string & vir_label : vir_labels) {
-        if ( index_in_anywhere(in, vir_label) == 2 ) {
-            sum_labels.push_back(vir_label);
-        }
-    }
-    for (const std::string & gen_label : gen_labels) {
-        if ( index_in_anywhere(in, gen_label) == 2 ) {
-            sum_labels.push_back(gen_label);
-        }
-    }
-                                    
-//    for (size_t i = 0; i < in->deltas.size(); i++) {
     for ( delta_functions & delta : in->deltas ) {
     
         // is delta label 1 in list of summation labels?
         bool have_delta1 = false;    
-        for (const std::string & sum_label : sum_labels) {
-            if ( delta.labels[0] == sum_label ) {
-                have_delta1 = true;
-                break;
-            }
-        }   
-        // is delta label 2 in list of summation labels?
+        if ( index_in_anywhere(in, delta.labels[0]) == 2 ){
+            have_delta1 = true;
+        }
         bool have_delta2 = false;
-        for (const std::string & sum_label : sum_labels) {
-            if ( delta.labels[1] == sum_label ) {
-                have_delta2 = true;
-                break;
-            }
+        if ( index_in_anywhere(in, delta.labels[1]) == 2 ){
+            have_delta2 = true;
+        }
+
+        // if the deltas don't contain any summation labels, we should keep them
+        if (!have_delta1 && !have_delta2) {
+            tmp_delta1.push_back(delta.labels[0]);
+            tmp_delta2.push_back(delta.labels[1]);
+            continue;
         }
     
-/*
         // this logic is obviously cleaner than that below, but 
         // for some reason the code has a harder time collecting 
         // like terms this way. requires swapping up to four 
         // labels.
+/*
         if ( have_delta1 ) { 
-            replace_index_everywhere( deltas[i].labels[0], deltas[i].labels[1] );
+            replace_index_everywhere(in, delta.labels[0], delta.labels[1] );
             continue;
         }else if ( have_delta2 ) {
-            replace_index_everywhere( deltas[i].labels[1], deltas[i].labels[0] );
+            replace_index_everywhere(in, delta.labels[1], delta.labels[0] );
             continue;               
         }                           
 */
@@ -1515,7 +1485,6 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
                     (... etc...)
          * */
 
-
         do_continue = false;
         static char types[] = {'t', 'l', 'r', 'u', 'm', 's'};
         for (auto & type : types) {
@@ -1545,7 +1514,7 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         delta_functions deltas;
         deltas.labels.push_back(tmp_delta1[i]);
         deltas.labels.push_back(tmp_delta2[i]);
-        deltas.sort();
+        //deltas.sort();
         in->deltas.push_back(deltas);
     }
 }
