@@ -30,6 +30,7 @@
 #include<algorithm>
 #include<cmath>
 #include<sstream>
+#include<numeric>
 
 namespace pdaggerq {
 
@@ -457,34 +458,36 @@ std::string pq_string::get_key() {
 
     // deltas
     for (const delta_functions & delta : deltas) {
-        std::string delta_string = "delta";
-        for (auto label : delta.numerical_labels) {
-            delta_string += std::to_string(label);
-        }
-        my_string += delta_string;
+        std::vector<std::string> numerical_labels_string(delta.numerical_labels.size());
+        std::transform(delta.numerical_labels.begin(), delta.numerical_labels.end(), numerical_labels_string.begin(),
+                       [](int num) { return std::to_string(num); });
+        my_string += "delta"; 
+        my_string += std::accumulate(numerical_labels_string.begin(), numerical_labels_string.end(), std::string());
     }
 
     // integrals
     for (auto & type : integral_types) {
+        if (ints.find(type) == ints.end()) continue;
         std::vector<integrals> &ints_vec = ints[type];
         for (integrals & integral : ints_vec) {
-            std::string int_string = type;
-            for (auto label : integral.numerical_labels) {
-                int_string += std::to_string(label);
-            }
-            my_string += int_string;
+            std::vector<std::string> numerical_labels_string(integral.numerical_labels.size());
+            std::transform(integral.numerical_labels.begin(), integral.numerical_labels.end(), numerical_labels_string.begin(),
+                           [](int num) { return std::to_string(num); });
+            my_string += type;
+            my_string += std::accumulate(numerical_labels_string.begin(), numerical_labels_string.end(), std::string());
         }
     }
 
     // amplitudes
     for (auto & type : amplitude_types) {
+        if (amps.find(type) == amps.end()) continue;
         std::vector<amplitudes> &amps_vec = amps[type];
         for (amplitudes & amp : amps_vec) {
-            std::string amp_string (1, type);
-            for (auto label : amp.numerical_labels) {
-                amp_string += std::to_string(label);
-            }
-            my_string += amp_string;
+            std::vector<std::string> numerical_labels_string(amp.numerical_labels.size());
+            std::transform(amp.numerical_labels.begin(), amp.numerical_labels.end(), numerical_labels_string.begin(),
+                           [](int num) { return std::to_string(num); });
+            my_string += type;
+            my_string += std::accumulate(numerical_labels_string.begin(), numerical_labels_string.end(), std::string());
         }
     }
 
