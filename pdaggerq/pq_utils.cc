@@ -448,7 +448,6 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
 
     std::unordered_map<std::string, size_t> string_map;
 
-/*
     for (size_t i = 0; i < ordered.size(); i++) {
 
         if ( ordered[i]->skip ) continue;
@@ -505,8 +504,8 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
             }
         }
     }
-*/
 
+/*
     // old O(N^2) sort
     for (size_t i = 0; i < ordered.size(); i++) {
 
@@ -560,6 +559,7 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
             ordered[j]->skip = true;
         }
     }
+*/
 
 }
 
