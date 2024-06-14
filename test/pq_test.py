@@ -2,6 +2,7 @@
 import pdaggerq
 import subprocess
 import pytest
+import sys
 import os
 import re
 
