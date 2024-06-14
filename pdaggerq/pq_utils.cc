@@ -1270,7 +1270,7 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     if ( ordered.empty() ) return;
 
     // probably only relevant for vacuum = fermi
-    //if ( ordered[0]->vacuum != "FERMI" ) return;
+    if ( ordered[0]->vacuum != "FERMI" ) return;
 
     // look for paired permutations of non-summed labels:
     if ( find_paired_permutations ) {
