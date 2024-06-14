@@ -87,7 +87,12 @@ code_gen_tests = ("ccsd_codegen", "lambda_singles_codegen", "lambda_doubles_code
 qed_tests      = ("qed_1rdm", "qed_2rdm", "qed_ccsd", "qed_eom_ccsd")
 
 # Combine all tests
-tests = ccsd_tests + qed_tests + ci_tests + other_tests + ccsdt_tests + code_gen_tests
+tests = ccsd_tests
+tests += qed_tests
+tests += ci_tests
+tests += other_tests
+tests += ccsdt_tests
+tests += code_gen_tests
 
 @pytest.mark.parametrize("test_name", tests)
 def test_script_output(test_name):
