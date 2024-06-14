@@ -398,6 +398,8 @@ void PQGraph::replace_old_intermediate(std::map<string, Equation> &equations, co
 }
 
 void PQGraph::merge_intermediates2() {
+    return; // not functional yet
+            
     // Retrieve all intermediates
     linkage_set intermediates = collect_intermediates();
     if (intermediates.empty()) {
