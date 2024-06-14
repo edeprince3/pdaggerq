@@ -83,9 +83,10 @@ ci_tests       = ("cid_d1", "cid_d2", "cisd_hamiltonian")
 other_tests    = ("rdm_mappings", "extended_rpa")
 ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "active_space_CCSDt", "ea_eom_ccsdt", "ip_eom_ccsdt", "ccsdt_with_spin")
 code_gen_tests = ("ccsd_codegen", "lambda_singles_codegen", "lambda_doubles_codegen")
+qed_tests      = ("qed_1rdm", "qed_2rdm", "qed_ccsd", "qed_eom_ccsd")
 
 # Combine all tests
-tests = ccsd_tests + ci_tests + other_tests + ccsdt_tests + code_gen_tests
+tests = ccsd_tests + qed_tests + ci_tests + other_tests + ccsdt_tests + code_gen_tests
 
 @pytest.mark.parametrize("test_name", tests)
 def test_script_output(test_name):
@@ -93,7 +94,11 @@ def test_script_output(test_name):
 
     # Run the script
     print(f"Running test {test_name}")
-    result = subprocess.run(["python", f"{script_path}/../examples/{test_name}.py"], capture_output=True, text=True)
+    result = subprocess.run([str(sys.executable), f"{script_path}/../examples/{test_name}.py"], capture_output=True, text=True)
+    status = result.returncode
+    if status != 0:
+        print("FAILURE", result.stderr)
+        assert status == 0
 
     # Process outputs
     result_set   = process_output(result.stdout)
