@@ -285,8 +285,6 @@ void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, 
     replace_index_everywhere(in, label1, "xyz");
     replace_index_everywhere(in, label2, label1);
     replace_index_everywhere(in, "xyz", label2);
-
-    in->sort();
 }
 
 // replace one label with another (in integrals, amplitudes, and operators)
@@ -401,6 +399,7 @@ std::string check_map_for_strings_with_swapped_summed_labels(
     
             std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in);
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
+            newguy->sort();
 
             //compare_strings_with_swapped_summed_labels(labels, iter+1, newguy, in2, n_permute, string_in_map);
             std::string res = check_map_for_strings_with_swapped_summed_labels(labels, iter+1, newguy, string_map, ordered, n_permute, string_in_map);
@@ -430,6 +429,7 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
     
             std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in2);
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
+            newguy->sort();
             compare_strings_with_swapped_summed_labels(labels, iter+1, in1, newguy, n_permute, strings_same);
 
             if ( strings_same ) return;
@@ -626,6 +626,7 @@ void consolidate_permutations_non_summed(
 
                 std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
                 swap_two_labels(newguy, labels[id1], labels[id2]);
+                newguy->sort();
 
                 // is new string in map?
                 string_in_map = false;
@@ -779,7 +780,7 @@ void consolidate_permutations_non_summed(
 
                     std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
                     swap_two_labels(newguy, labels[id1], labels[id2]);
-                    //newguy->sort();
+                    newguy->sort();
 
                     strings_same = compare_strings(ordered[j], newguy, n_permute);
 
@@ -871,18 +872,21 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
                             // 1 <-> 2
                             swap_two_labels(newguy, o1, o2);
                             swap_two_labels(newguy, v1, v2);
+                            newguy->sort();
 
                         }else if ( permutation_type == 1 ) {
 
                             // 1 <-> 3
                             swap_two_labels(newguy, o1, o3);
                             swap_two_labels(newguy, v1, v3);
+                            newguy->sort();
 
                         }else if ( permutation_type == 2 ) {
 
                             // 2 <-> 3
                             swap_two_labels(newguy, o2, o3);
                             swap_two_labels(newguy, v2, v3);
+                            newguy->sort();
 
                         }else if ( permutation_type == 3 ) {
 
@@ -891,10 +895,12 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
                             // 1 <-> 2
                             swap_two_labels(newguy, o1, o2);
                             swap_two_labels(newguy, v1, v2);
+                            newguy->sort();
 
                             // 1 <-> 3
                             swap_two_labels(newguy, o1, o3);
                             swap_two_labels(newguy, v1, v3);
+                            newguy->sort();
 
                         }else if ( permutation_type == 4 ) {
 
@@ -903,10 +909,12 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
                             // 1 <-> 2
                             swap_two_labels(newguy, o1, o2);
                             swap_two_labels(newguy, v1, v2);
+                            newguy->sort();
 
                             // 2 <-> 3
                             swap_two_labels(newguy, o2, o3);
                             swap_two_labels(newguy, v2, v3);
+                            newguy->sort();
 
                         }
                         //newguy->sort();
@@ -954,7 +962,7 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
     
             std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
             swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
-            //newguy->sort();
+            newguy->sort();
 
             compare_strings_with_swapped_summed_and_nonsummed_labels(labels, 
                                                                      pairs, 
