@@ -348,8 +348,6 @@ std::string check_map_for_strings_with_swapped_summed_labels(
     const std::vector<std::vector<std::string> > &labels,
     size_t iter,
     const std::shared_ptr<pq_string> &in,
-    //std::unordered_map<std::string, std::pair<std::shared_ptr<pq_string>,size_t>> & string_map,
-    //const std::unordered_map<std::string, std::shared_ptr<pq_string>> & string_map,
     const std::unordered_map<std::string, size_t> & string_map,
     std::vector<std::shared_ptr<pq_string> > &ordered,
     int & n_permute, 

@@ -31,7 +31,6 @@
 #include <cctype>
 #include <algorithm>
 
-
 #include "pq_helper.h"
 #include "pq_utils.h"
 #include "pq_string.h"
