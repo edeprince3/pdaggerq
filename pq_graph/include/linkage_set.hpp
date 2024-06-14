@@ -32,6 +32,8 @@ using std::hash;
 
 namespace pdaggerq {
 
+    // TODO: make this work for vertices in addition to linkages (different hash functions)
+
     /**
     * hash function class for linkages
     */
@@ -48,8 +50,8 @@ namespace pdaggerq {
             string total_string;
 
 
-            // get name of linkage
-            total_string += linkage->name();
+            // get base name of linkage
+            total_string += linkage->base_name();
 
             // get string of connection map between left and right vertices
             for (const auto &[leftidx, rightidx] : linkage->connec_map()) {
@@ -57,7 +59,7 @@ namespace pdaggerq {
             }
 
             // get hashes of the lines
-            static SimilarLineHash line_hash;
+            static LinePropHash line_hash;
             size_t linehashs = 0;
             for (const auto &line : linkage->lines()) {
                 linehashs = blend_hash(linehashs, line_hash(line));
@@ -65,18 +67,19 @@ namespace pdaggerq {
             total_string += std::to_string(linehashs);
 
             // get hash of nested linkages
-            size_t nestedhashs = 0;
+            size_t lefthash = 0, righthash = 0;
             constexpr SimilarVertexPtrHash vertexPtrHash;
 
             if (linkage->left()->is_linked())
-                 nestedhashs += (*this)(as_link(linkage->left()));
-            else nestedhashs += vertexPtrHash(linkage->left());
+                 lefthash += (*this)(as_link(linkage->left()));
+            else lefthash += vertexPtrHash(linkage->left());
 
 
             if (linkage->right()->is_linked())
-                 nestedhashs += (*this)(as_link(linkage->right()));
-            else nestedhashs += vertexPtrHash(linkage->right());
+                 righthash += (*this)(as_link(linkage->right()));
+            else righthash += vertexPtrHash(linkage->right());
 
+            size_t nestedhashs = blend_hash(lefthash, righthash);
             total_string += std::to_string(nestedhashs);
 
             // get hash of the total string
@@ -168,12 +171,14 @@ namespace pdaggerq {
             return linkages_.insert(linkage);
         }
 
+        size_t count(const ConstLinkagePtr &linkage) const { return linkages_.count(linkage); }
+
         /**
          * check if a linkage is in the set
          * @param linkage linkage to check
          * @return true if linkage is in set
          */
-        bool contains(const LinkagePtr &linkage) const { return linkages_.find(linkage) != linkages_.end(); }
+        bool contains(const LinkagePtr &linkage) const { return linkages_.count(linkage) > 0; }
 
         /**
          * get the number of linkages in the set

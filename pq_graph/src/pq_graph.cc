@@ -522,7 +522,7 @@ namespace pdaggerq {
         for (auto &[eq_name, equation] : copy.equations_) { // iterate over equations in serial
 
             // skip "tmps" equation
-            if (eq_name == "tmps")
+            if (eq_name == "tmps" || eq_name == "scalars" || eq_name == "reuse")
                 continue;
 
             vector<Term> &terms = equation.terms();
@@ -530,8 +530,6 @@ namespace pdaggerq {
             if (terms.empty())
                 continue;
 
-            if (eq_name == "scalars" || eq_name == "reuse")
-                continue;
 //            if (!equation.is_temp_equation_) {
 //                has_tmps = true;
 //                continue; // skip tmps equation
@@ -983,6 +981,8 @@ namespace pdaggerq {
 
         // substitute again for good measure
         substitute(false, false);
+
+//        merge_intermediates();
 
         // recollect scaling of equations
         collect_scaling(true, true);

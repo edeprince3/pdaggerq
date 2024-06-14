@@ -120,7 +120,7 @@ namespace pdaggerq {
         }
 
         // create a map of lines to their corresponding indicies
-        unordered_map<const Line*, std::array<int_fast8_t, 2>, LineHash, LinePtrEqual>
+        unordered_map<const Line*, std::array<int_fast8_t, 2>, LineHash, LineEqual>
                 line_populations;
 
         // populate left lines
@@ -182,6 +182,9 @@ namespace pdaggerq {
         line_vector sig_lines;
         line_vector den_lines;
 
+        // sort the connections
+        std::sort(connec_map_.begin(), connec_map_.end());
+
         auto add_line = [this, &sig_lines, &den_lines](const Line &line) {
             if (!line.sig_ & !line.den_)
                 lines_.push_back(line);
@@ -194,7 +197,7 @@ namespace pdaggerq {
 
         // left half
         for (uint_fast8_t i = 0; i < left_size; ++i) {
-            // skip internal lines, and keep all left lines if addition
+            // skip internal lines, and keep all lines if addition
             if (!is_addition_ & !left_ext_idx[i]) continue;
             add_line(left_lines[i]);
             mem_scale_ += left_lines[i];
@@ -202,6 +205,7 @@ namespace pdaggerq {
 
         // right half
         for (uint_fast8_t i = 0; i < right_size; ++i) {
+            // skip internal lines, and keep all lines if addition
             if (!right_ext_idx[i]) continue;
             add_line(right_lines[i]);
             mem_scale_ += right_lines[i];
@@ -253,7 +257,7 @@ namespace pdaggerq {
     }
 
     LinkagePtr Linkage::link(const vector<ConstVertexPtr> &op_vec) {
-        uint_fast8_t op_vec_size = op_vec.size();
+        size_t op_vec_size = op_vec.size();
 
         // cannot link less than two vertices
         if (op_vec_size <= 1)
@@ -261,7 +265,7 @@ namespace pdaggerq {
 
 
         LinkagePtr linkage = as_link(op_vec[0] * op_vec[1]);
-        for (uint_fast8_t i = 2; i < op_vec_size; i++){
+        for (size_t i = 2; i < op_vec_size; i++){
             LinkagePtr link = as_link(linkage * op_vec[i]);
             linkage = link;
         }
@@ -270,7 +274,7 @@ namespace pdaggerq {
     }
 
     tuple<ConstLinkagePtr, vector<shape>, vector<shape>> Linkage::link_and_scale(const vector<ConstVertexPtr> &op_vec) {
-        uint_fast8_t op_vec_size = op_vec.size();
+        size_t op_vec_size = op_vec.size();
         if (op_vec_size == 0) {
             throw invalid_argument("link(): op_vec must have at least two elements");
         } else if (op_vec_size == 1) {
@@ -287,7 +291,7 @@ namespace pdaggerq {
         flop_list.push_back(linkage->flop_scale_);
         mem_list.push_back(linkage->mem_scale_);
 
-        for (uint_fast8_t i = 2; i < op_vec_size; i++) {
+        for (size_t i = 2; i < op_vec_size; i++) {
             linkage = as_link(linkage * op_vec[i]);
             flop_list.push_back(linkage->flop_scale_);
             mem_list.push_back(linkage->mem_scale_);
@@ -304,8 +308,7 @@ namespace pdaggerq {
 
     /****** operator overloads ******/
 
-    bool Linkage::operator==(const Linkage &other) const {
-
+    bool Linkage::similar_root(const Linkage &other) const{
         // check if both linkage are empty or not
         if (empty() ^ other.empty()) return false;
 
@@ -318,6 +321,7 @@ namespace pdaggerq {
         // check if left and right vertices are linked in the same way
         bool left_linked = left_->is_linked(), right_linked = right_->is_linked();
 
+        // check if both left and right vertices are linked or not
         if ( left_linked ^  other.left_->is_linked()) return false;
         if (right_linked ^ other.right_->is_linked()) return false;
 
@@ -325,118 +329,218 @@ namespace pdaggerq {
         if (flop_scale_ != other.flop_scale_) return false;
         if (mem_scale_  !=  other.mem_scale_) return false;
 
-        // check linkage maps
-        if (connec_map_.size() != other.connec_map_.size()) return false;
+        // check that the connectivity of the linkages is the same (it is sorted, so compare by element)
+        return connec_map_ == other.connec_map_;
 
-        // check that every element of this connec_map_ is in other.connec_map_, in any order
-        for (const auto &connec : connec_map_) {
-            if (std::find(other.connec_map_.begin(),
-                          other.connec_map_.end(), connec) == other.connec_map_.end())
-                return false;
-        }
+        // all checks pass
+    }
+    bool Linkage::operator==(const Linkage &other) const {
+
+        // the roots of the linkages are not equivalent
+        if (!similar_root(other))
+            return false;
 
         // recursively check if left linkages are equivalent
-        if (left_linked) {
+        if (left_->is_linked()) {
             if (*as_link(left_) != *as_link(other.left_)) return false;
         } else {
             if ( !left_->equivalent( *other.left_)) return false;
         }
 
         // check if right linkages are equivalent
-        if (right_linked) {
+        if (right_->is_linked()) {
             if (*as_link(right_) != *as_link(other.right_)) return false;
         } else {
             if ( !right_->equivalent( *other.right_)) return false;
         }
 
-        // lastly, check if the vertex representations are equivalent
+        // ensure root vertices are equivalent
         return Vertex::equivalent(other);
     }
 
-    // repeat code from == operator, but invert the logic to end recursion early if possible
     bool Linkage::operator!=(const Linkage &other) const {
-        return !(*this == other);
+
+        // repeat code from == operator, but invert the logic to end recursion early if possible
+        if (!similar_root(other))
+            return true;
+
+        // recursively check if left linkages are equivalent
+        bool left_same = false, right_same = false;
+        if (left_->is_linked())
+             left_same = *as_link(left_) == *as_link(other.left_);
+        else left_same = left_->equivalent( *other.left_);
+
+        // left is not equivalent; therefore, the linkages are not equivalent
+        if (!left_same) return true;
+
+        // check if right linkages are equivalent
+        if (right_->is_linked())
+             right_same = *as_link(right_) == *as_link(other.right_);
+        else right_same = right_->equivalent( *other.right_);
+
+        // right is not equivalent; therefore, the linkages are not equivalent
+        if (!right_same) return true;
+
+        // ensure root vertices are not equivalent
+        return !Vertex::equivalent(other);
     }
 
-    /**
-     * Tests if two linkages are equivalent up to permutation of the external lines
-     * @param other linkage to compare
-     * @return pair of bools:
-     *      1) true if equivalent up to permutation
-     *      2) true if the parity of the permutation is odd
-     */
+    bool Linkage::same_temp(const ConstVertexPtr &other) const {
+        if (!this->is_temp() || !other->is_temp())
+            return false; // neither is a temp
+
+        // whether the linkage corresponds to the same intermediate contraction as another vertex
+        bool same_id = id_ == other->id() && is_reused_ == other->is_reused();
+        if (!same_id) return false;
+
+        // check if the shapes of the lines are the same
+        bool equivalent_root = Vertex::equivalent(*other);
+        if (!equivalent_root) return false;
+
+        // replace lines of the other vertex with the lines of this vertex
+        VertexPtr other_clone = other->clone();
+        other_clone->replace_lines(LineHash::map_lines(lines_, other_clone->lines_));
+
+        return  *this == *as_link(other_clone);
+    }
+
+    void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map) {
+
+        // replace the lines of the root vertex with the new lines
+        Vertex::replace_lines(line_map);
+        name_ = base_name_;
+
+        // recursively replace the lines of the left and right vertices
+        VertexPtr  left = left_->clone();
+        VertexPtr right = right_->clone();
+
+        // determine new lines of left/right from the line map (if they do not exist, they are not replaced)
+        auto make_new_lines = [&line_map](const VertexPtr &vertex) {
+            line_vector new_lines;
+            for (const auto &line : vertex->lines()) {
+                // find the line in the map
+                auto it = line_map.find(line);
+                if (it != line_map.end())
+                    new_lines.push_back(it->second);
+                else {
+                    // check if the line is already an entry in the new_lines
+                    if (std::find(new_lines.begin(), new_lines.end(), line) == new_lines.end())
+                        new_lines.push_back(line);
+                    else {
+                        // if the line is already in the new_lines, use opposite mapping
+                        for (const auto &[key, value] : line_map) {
+                            if (value == line) {
+                                new_lines.push_back(key);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            return new_lines;
+        };
+
+        line_vector new_left_lines  = make_new_lines(left);
+        line_vector new_right_lines = make_new_lines(right);
+
+        // replace the lines of the left and right vertices
+        left->replace_lines(line_map);
+        right->replace_lines(line_map);
+
+        // set new left and right vertices
+        left_  = left;
+        right_ = right;
+
+    }
+
     pair<bool, bool> Linkage::permuted_equals(const Linkage &other) const {
 
-        throw std::runtime_error("Linkage::permuted_equals() is not operational");
+        // check if linkages are exactly the same
+        bool same_linkage = *this == other;
+        if (same_linkage) return {true, false};
+        else if (is_temp() || other.is_temp())
+            return {false, false}; // cannot permute intermediates
 
-        // check if the linkages are equivalent
-        if (*this == other) return {true, false};
+        // check if both linkage are empty or not
+        if (empty() ^ other.empty()) return {false, false};
 
-        // check if the names of the linkages are the same (indicates same vertices are being linked)
-        if (this->name() != other.name()) return {false, false};
+        // check if linkage type is the same
+        if (is_addition_ ^ other.is_addition_) return {false, false};
 
-        // ensure the same number of lines
-        if (this->rank() != other.rank())
-            return {false, false};
+        // check the depth of the linkage
+        if (depth_ != other.depth_) return {false, false};
 
-        // ensure same number of line types (the sum of the similarLineHashes should be the same for both linkages)
-        constexpr SimilarLineHash similarLineHash;
-        size_t this_line_sum = 0, other_line_sum = 0;
-        for (const Line &line : this->lines_) this_line_sum  += similarLineHash(line);
-        for (const Line &line : other.lines_) other_line_sum += similarLineHash(line);
+        // check if left and right vertices are linked in the same way
+        bool left_linked = left_->is_linked(), right_linked = right_->is_linked();
 
-        if (this_line_sum != other_line_sum)
-            return {false, false};
+        // check if both left and right vertices are linked or not
+        if ( left_linked ^  other.left_->is_linked()) return {false, false};
+        if (right_linked ^ other.right_->is_linked()) return {false, false};
 
-        // create a new linkage of this for every permutation of the external lines
-        size_t rank = this->rank();
-        size_t perm_vec[rank];
-        std::iota(perm_vec, perm_vec + this->rank(), 0);
+        // check that scales are equal
+        if (flop_scale_ != other.flop_scale_) return {false, false};
+        if (mem_scale_  !=  other.mem_scale_) return {false, false};
 
-        // initialize map of lines to their replacement lines
-        unordered_map<Line, Line, LineHash> replacement_map;
 
-        // recursively replace the lines of the vertices with the permuted lines
-        vector<ConstVertexPtr> this_vertices = this->vertices();
-        vector<ConstVertexPtr> other_vertices = other.vertices();
+        bool is_equiv = false, odd_parities = false;
 
-        // remake the other linkage from its vertices (in case the tree structure is different, but equivalent)
-        LinkagePtr other_linkage = link(other_vertices);
+        // expand the vertices
+        const vector<ConstVertexPtr> &this_verts = link_vector(true);
+        const vector<ConstVertexPtr> &other_verts = other.link_vector(true);
 
-        bool is_odd = false;
-        while (std::next_permutation(perm_vec, perm_vec + rank)) {
+        // check that link vectors are the same size
+        if (this_verts.size() != other_verts.size())
+            return {is_equiv, odd_parities};
 
-            // update parity of permutation
-            is_odd = !is_odd;
+        // permute each vertex in other_verts to match this_verts
+        vector<ConstVertexPtr> permuted_verts;
+        for (size_t i = 0; i < this_verts.size(); i++) {
 
-            // map the lines to their replacement lines
-            replacement_map.clear();
-            for (size_t i = 0; i < rank; i++) {
-                replacement_map[this->lines_[i]] = other.lines_[perm_vec[i]];
+            // check if the vertex base names are the same
+            if (this_verts[i]->base_name() != other_verts[i]->base_name())
+                return {false, false};
+
+            // if the vertex is an intermediate, do not permute and test equality (cannot permute intermediates)
+            if (this_verts[i]->is_temp()) {
+
+                // check if the linkages are the same
+                if (this_verts[i]->same_temp(other_verts[i]))
+                    return {false, false};
+
+                // replace the lines of the other vertex with the lines of this vertex
+                VertexPtr other_clone = other_verts[i]->clone();
+                other_clone->replace_lines(this_verts[i]->lines_);
+
+                // add the vertex to the permuted list
+                permuted_verts.push_back(other_clone);
+                continue;
             }
 
-            // generate permuted vertices
-            vector<ConstVertexPtr> permuted_vertices;
-            permuted_vertices.reserve(this_vertices.size());
-            for (const ConstVertexPtr &vertex : this_vertices){
-                VertexPtr permuted_vertex = vertex->clone();
-                permuted_vertex->replace_lines(replacement_map);
-                permuted_vertices.push_back(permuted_vertex);
-            }
+            // permute the vertex to match this_verts
+            bool odd_parity = false;
+            auto [permuted, success] = other_verts[i]->permute_like(*this_verts[i], odd_parity);
 
-            // create linkage from permuted vertices and
-            LinkagePtr permuted_linkage = link(permuted_vertices);
+            // if not found, return false
+            if (!success) return {false, false};
 
-            // return whether the permuted linkage is equivalent to the other linkage
-            // and the parity of the permutation
-            if (*permuted_linkage == *other_linkage)
-                return {true, is_odd};
+            // check if the permutation is odd
+            if (odd_parity)
+                odd_parities = !odd_parities;
+
+            // add the permuted vertex to the list
+            permuted_verts.push_back(permuted.shared_from_this());
 
         }
 
-        // if no permutation is equivalent, return false
-        return {false, false};
+        // create a new linkage from the permuted vertices
+        ConstLinkagePtr permuted_link = link(permuted_verts);
 
+        // check if the permuted linkage is the same as this linkage
+        is_equiv = *permuted_link == *this;
+        if (!is_equiv) odd_parities = false;
+
+        // return the result
+        return {is_equiv, odd_parities};
     }
 
 
@@ -789,21 +893,6 @@ namespace pdaggerq {
         return best_link;
     }
 
-    void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map) {
-        // replace the lines of the vertices
-        left_->clone()->replace_lines(line_map);
-        right_->clone()->replace_lines(line_map);
-
-
-        // rebuild the linkage
-        long id = id_;
-        bool is_reused = is_reused_;
-        *this = Linkage(left_, right_, is_addition_);
-        id_ = id;
-        is_reused_ = is_reused;
-
-    }
-
     VertexPtr Linkage::clone() const {
         VertexPtr left_clone = left_->clone();
         VertexPtr right_clone = right_->clone();
@@ -813,6 +902,55 @@ namespace pdaggerq {
         clone->right_ = right_clone;
 
         return clone;
+    }
+
+    ConstVertexPtr Linkage::find_link(const ConstVertexPtr &target_vertex) const {
+        if (same_temp(target_vertex)) return this->shared_from_this();
+        if (left_->is_linked()) {
+            const auto &left = as_link(left_)->find_link(target_vertex);
+            if (left) return left;
+        }
+        if (right_->is_linked()) {
+            const auto &right = as_link(right_)->find_link(target_vertex);
+            if (right) return right;
+        }
+        return nullptr;
+    }
+
+    void Linkage::replace_link(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) {
+        if (same_temp(target_vertex)) {
+            *this = *as_link(new_vertex->clone());
+            return;
+        }
+        VertexPtr left = left_->clone(), right = right_->clone();
+        if (left->is_linked())
+            as_link(left)->replace_link(target_vertex, new_vertex);
+        if (right->is_linked())
+            as_link(right)->replace_link(target_vertex, new_vertex);
+
+        left_ = left;
+        right_ = right;
+    }
+
+    bool Linkage::has_temp(const ConstVertexPtr &temp) const {
+        if (!temp) return false;
+        if (same_temp(temp)) return true;
+        if (left_->is_linked() && as_link(left_)->has_temp(temp)) return true;
+        if (right_->is_linked() && as_link(right_)->has_temp(temp)) return true;
+        return false;
+    }
+
+    ConstVertexPtr Linkage::expand_to_temp(const ConstLinkagePtr &temp) const {
+        if (same_temp(temp)) // if the temp is the same, return the linkage expanded
+            return temp->left_ * temp->right_;
+        auto left = left_->clone(), right = right_->clone();
+        if (left_->is_linked())
+            left = as_link(left)->expand_to_temp(temp)->clone();
+        if (right_->is_linked())
+            right = as_link(right)->expand_to_temp(temp)->clone();
+        VertexPtr result = left * right;
+        as_link(result)->copy_misc(*this);
+        return result;
     }
 
     extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right){

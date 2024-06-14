@@ -78,7 +78,10 @@ namespace pdaggerq {
         // indicates the vertex is not linked to another vertex
         virtual bool is_linked() const { return false; }
         virtual long id() const { return -1; }
+        virtual long &id() { static long null = -1; return null; }
         virtual bool is_temp() const { return false; }
+        virtual bool same_temp(const ConstVertexPtr &other) const { return false; }
+        virtual bool has_temp(const ConstVertexPtr &other) const { return false; }
         virtual bool is_reused() const { return false; }
         virtual size_t depth() const { return empty() ? 0 : 1; }
         virtual size_t partial_depth() const { return empty() ? 0 : 1; }
@@ -168,7 +171,7 @@ namespace pdaggerq {
          * @param lines vector of lines
          * @param update_name boolean indicating whether the name of the vertex should be updated (default true)
          */
-        void update_lines(const line_vector &lines, bool update_name = true);
+        virtual void update_lines(const line_vector &lines, bool update_name = true);
 
 
         /**
@@ -182,7 +185,11 @@ namespace pdaggerq {
                 if (it != line_map.end())
                     line = it->second;
             }
-            update_lines(lines_, true);
+            Vertex::update_lines(lines_, true);
+        }
+        virtual void replace_lines(const line_vector &new_lines) {
+            // wrapper to map these lines to the new lines
+            replace_lines(LineHash::map_lines(lines_, new_lines));
         }
 
         /**
@@ -244,29 +251,21 @@ namespace pdaggerq {
          * @param swap_sign boolean indicating whether a sign change is needed
          * @return permuted vertex
          */
-        Vertex permute_like(const Vertex &other, bool &swap_sign) const;
+        pair<Vertex, bool> permute_like(const Vertex &other, bool &swap_sign) const;
 
         /**
-         * utilize symmetry of eri vertex to reduce the number of unique indices
+         * bring vertex to a canonical form and determine if a sign change is needed
          * @return boolean if sign change is needed
          */
         bool permute_eri();
 
-        /**
-         * Determines if two rhs are equal up to a permutation of the indices
-         * @param left first vertex
-         * @param right second vertex
-         * @param swap_signs boolean reference indicating whether a sign change is needed
-         * @return boolean indicating whether the rhs are equal up to a permutation
-         */
-        friend bool is_isomorphic(const Vertex &left, const Vertex &right, bool &swap_signs);
 
         /**
-         * Determines if other vertex is equal up to a permutation of the indices
-         * @param other vertex to compare to
-         * @return boolean indicating whether the rhs are equal up to a permutation
+         * count number of permutations to bring this vertex to the same structure as the other vertex
+         * @param other
+         * @return number of permutations (-1 if not possible)
          */
-        bool isomorphic(const Vertex &other) const;
+        long count_perms(const Vertex &other) const;
 
 
         /****** Vertex overloads ******/
@@ -444,6 +443,9 @@ namespace pdaggerq {
          * @return same lines with generic indices
          */
         static line_vector general_lines(const line_vector& lines);
+        static line_vector general_lines(const line_vector& lines,
+                                         unordered_map<const Line*, size_t, LineHash, LineEqual> &line_map,
+                                         size_t &next_index);
 
         /**
          * returns a new vertex with generic indices
@@ -469,7 +471,7 @@ namespace pdaggerq {
         size_t operator()(const ConstVertexPtr &v) const {
 
             // hashing functions
-            constexpr SimilarLineHash sim_line_hasher;
+            constexpr LinePropHash sim_line_hasher;
             constexpr std::hash<string> string_hasher;
 
             // the golden ratio of hashing; prevents collisions

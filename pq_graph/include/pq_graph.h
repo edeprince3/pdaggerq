@@ -171,6 +171,29 @@ namespace pdaggerq {
         size_t merge_terms();
 
         /**
+         * fuse intermediate terms with the same rhs
+         */
+        void merge_intermediates();
+        linkage_set collect_intermediates();
+
+        std::unordered_map<ConstLinkagePtr, pair<vector<Term*>, vector<Term*>>, LinkageHash, LinkageEqual> get_intermediate_terms(const linkage_set &intermediates);
+        static bool can_merge_terms(const vector<Term*> &this_terms, const vector<Term*> &other_terms, const ConstLinkagePtr& this_intermediate, const ConstLinkagePtr& other_intermediate, const linkage_set& tested_linkages);
+        static std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> find_mergeable_intermediates(const std::unordered_map<ConstLinkagePtr, pair<vector<Term*>,vector<Term*>>, LinkageHash, LinkageEqual> &intermediate_terms, linkage_set &tested_linkages);
+        static vector<ConstVertexPtr> remove_intermediate(const vector<ConstVertexPtr>& rhs, const ConstLinkagePtr &intermediate);
+        static void sort_operands(vector<ConstVertexPtr> &operands);
+        static bool is_same_connectivity(const vector<ConstVertexPtr> &this_rhs, const vector<ConstVertexPtr> &other_rhs,
+                             const ConstVertexPtr &this_lhs, const ConstVertexPtr &other_lhs,
+                             const ConstLinkagePtr &intermediate, const ConstLinkagePtr &test_intermediate);
+        void update_saved_linkages(const ConstLinkagePtr &this_intermediate, const vector<ConstLinkagePtr> &other_intermediates);
+        void add_new_terms(std::unordered_map<ConstLinkagePtr, vector<Term>, LinkageHash, LinkageEqual> &new_inter_terms_map, const std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map);
+        void remove_terms(const set<Term*> &terms_to_remove);
+        void process_and_merge_intermediates(const std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map, std::unordered_map<ConstLinkagePtr, pair<vector<Term *>, vector<Term *>>, LinkageHash, LinkageEqual> &intermediate_terms);
+        void replace_old_intermediate(std::map<string, Equation> &equations, const std::unordered_map<ConstLinkagePtr, ConstLinkagePtr> &old_to_new_links);
+        void merge_intermediates2();
+
+
+
+        /**
          * Fully optimize equations by reordering, substituting, merging, and reusing intermediates.
          * @note this is a shortcut for calling reorder, substitute, merge_terms, and reuse on the python side
          */
@@ -251,17 +274,33 @@ namespace pdaggerq {
          */
         static void print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) ;
 
-        perm_list common_permutations(const vector<Term *>& terms);
+        /**
+         * get all terms that contain a given intermediate
+         * @param intermediate intermediate to find
+         * @return 1) vector of terms that contain the intermediate, 2) declaration terms for the intermediate
+         */
+        pair<vector<Term *>, vector<Term *>> get_matching_terms(const ConstLinkagePtr &intermediate);
 
-        vector<Term *> get_matching_terms(const ConstLinkagePtr &contraction);
-
+        /**
+         * remove redundant temps that only appear once
+         */
         void remove_unused_tmps();
 
+        /**
+         * deep copy of the pq_graph
+         * @return deep copy of the pq_graph
+         */
         PQGraph clone() const;
 
+        /**
+         * generate all scalar contractions
+         */
         void make_scalars();
 
-        void fusion();
+
+        unordered_map<ConstLinkagePtr, ConstLinkagePtr> &make_new_intermediates(
+                const unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map,
+                unordered_map<ConstLinkagePtr, ConstLinkagePtr> &old_to_new_links) const;
     }; // PQGraph
 
 } // pdaggerq

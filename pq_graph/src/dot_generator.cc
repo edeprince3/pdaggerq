@@ -26,7 +26,7 @@ string format_label(const Term &term) {
         label << "P(" << perm.first << "," << perm.second << ") ";
 
     // Get vertices from the term's linkage
-    vector<ConstVertexPtr> vertices = term.term_linkage(true)->vertices(true);
+    vector<ConstVertexPtr> vertices = term.term_linkage()->vertices(true);
 
     // Add each vertex and its lines to the label
     for (const auto &vertex : vertices) {
@@ -106,7 +106,7 @@ ostream &Equation::write_dot(ostream &os, size_t &term_count, const string &colo
         os << padding << "    label=\"" << format_label(term) << "\";\n";  // Set label for the subgraph
 
         // Write the linkage of the term to the DOT file
-        term.term_linkage(true)->write_dot(os, term_id, dummy_count, color);
+        term.term_linkage()->write_dot(os, term_id, dummy_count, color);
         os << padding << "}\n";
     }
     return os;

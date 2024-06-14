@@ -104,7 +104,10 @@ namespace pdaggerq {
 
 
         bool is_temp() const override { return id_ != -1 || is_reused_; } // whether the linkage corresponds to an intermediate contraction
+        bool same_temp(const ConstVertexPtr &other) const override;
+
         bool is_linked() const override { return true; } // indicates the vertex is linked to another vertex
+        long &id() override { return id_; } // get the id of the linkage
         long id() const override { return id_; } // get the id of the linkage
         bool is_reused() const override { return is_reused_; } // whether the linkage is reused
 
@@ -151,6 +154,13 @@ namespace pdaggerq {
          * @note this function will recursively replace the lines of the vertices
          */
         void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override;
+        void replace_lines(const line_vector &new_lines) override {
+            // wrapper to map these lines to the new lines
+            replace_lines(LineHash::map_lines(lines_, new_lines));
+        }
+        void replace_lines(const Linkage &ref_link) {
+            replace_lines(ref_link.lines());
+        }
 
         /**
          * This function will rebalance the linkage by sorting the left and right vertices
@@ -220,6 +230,7 @@ namespace pdaggerq {
          * @return true if equal, false otherwise
          */
         bool operator==(const Linkage &other) const;
+        bool similar_root(const Linkage &other) const; // compare the root of the linkage
 
         /**
          * Overload of Vertex::equivalent operator to compare two linkages (same as ==)
@@ -232,6 +243,21 @@ namespace pdaggerq {
 
             auto otherPtr = dynamic_cast<const Linkage*>(&other);
             return *this == *otherPtr;
+        }
+
+        /**
+         * Reccursively update the lines of the linkage
+         * @param lines new lines
+         * @param update_name whether to update the name of the linkage
+         */
+        void update_lines(const line_vector &lines, bool update_name) override {
+
+            // map lines to the new lines
+            unordered_map<Line, Line, LineHash> line_map = LineHash::map_lines(lines_, lines);
+            this->replace_lines(line_map);
+
+            if (update_name)
+                this->update_name();
         }
 
         /**
@@ -374,6 +400,33 @@ namespace pdaggerq {
         * @return linkage string
         */
         string tot_str(bool expand = false, bool make_dot = true) const;
+
+        /**
+         * goes down the tree and replaces the id of any intermediate vertices to a new value
+         * @param target_vertex the vertex to replace
+         * @param new_vertex the new vertex to replace with
+         */
+        void replace_link(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex);
+
+        /**
+         * goes down the tree and finds the target vertex
+         * @param target_vertex the vertex to find
+         * @return the vertex if found, nullptr otherwise
+         */
+        ConstVertexPtr find_link(const ConstVertexPtr &target_vertex) const;
+
+        /**
+         * goes down the tree and returns true if any intermediate vertices have the target ids
+         * @param target_ids the id to find
+         */
+        bool has_temp(const ConstVertexPtr &temp ) const override;
+
+        /**
+         * goes down the tree and returns a linkage where the temp is fully expanded
+         * @param temp the temp to expand
+         * @return expanded linkage
+         */
+        ConstVertexPtr expand_to_temp(const ConstLinkagePtr &temp) const;
 
         /**
          * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)

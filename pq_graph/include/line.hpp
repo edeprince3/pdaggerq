@@ -29,6 +29,7 @@
 #include <array>
 #include <algorithm>
 #include <cstring>
+#include <bitset>
 
 using std::runtime_error;
 using std::hash;
@@ -70,7 +71,7 @@ namespace pdaggerq {
          * @param name name of the line
          * @param blk whether the line has blocking
          */
-        inline explicit Line(const std::string &name, char blk = '\0') : label_(name) {
+        explicit Line(const std::string &name, char blk = '\0') : label_(name) {
 
             // check input
             if (name.empty()) throw runtime_error("Line label cannot be empty");
@@ -133,7 +134,7 @@ namespace pdaggerq {
 
         /// *** Comparisons *** ///
 
-        bool operator==(const Line& other) const {
+        inline bool operator==(const Line& other) const {
             return (label_ == other.label_) &
                        (o_ == other.o_)     &
                        (a_ == other.a_)     &
@@ -141,18 +142,18 @@ namespace pdaggerq {
                      (den_ == other.den_);
         }
 
-        inline bool equivalent(const Line& other) const {
+        constexpr bool equivalent(const Line& other) const {
             return   (o_ == other.o_)   &
                      (a_ == other.a_)   &
                    (sig_ == other.sig_) &
                    (den_ == other.den_);
         }
 
-        bool operator!=(const Line& other) const {
+        inline bool operator!=(const Line& other) const {
             return !(*this == other);
         }
 
-        inline bool operator<(const Line& other) const {
+        constexpr bool operator<(const Line& other) const {
             // sort by sig, den, o, a, then label
             if (sig_ ^ other.sig_) return sig_;
             if (den_ ^ other.den_) return den_;
@@ -161,31 +162,31 @@ namespace pdaggerq {
             return label_ < other.label_;
         }
 
-        inline bool in_order(const Line& other) const {
+        constexpr bool same_kind(const Line& other) const {
             // sort by sig, den, o, a, but not label
             if (sig_ ^ other.sig_) return sig_;
             if (den_ ^ other.den_) return den_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
-            if (sig_ & other.sig_) return label_ < other.label_; // L should be first
+            if (sig_ & other.sig_) return label_ <= other.label_; // L should be first
             return true;
         }
 
-        bool operator>(const Line& other) const {
+        constexpr bool operator>(const Line& other) const {
             return other < *this;
         }
 
-        bool operator<=(const Line& other) const {
+        constexpr bool operator<=(const Line& other) const {
             return *this < other || *this == other;
         }
 
-        bool operator>=(const Line& other) const {
+        constexpr bool operator>=(const Line& other) const {
             return *this > other || *this == other;
         }
 
         /// *** Getters/Setters *** ///
 
-        inline bool has_blk() const { return blk_type_ != '\0'; }
+        constexpr bool has_blk() const { return blk_type_ != '\0'; }
 
         inline string block() const {
             switch (blk_type_) {
@@ -195,7 +196,7 @@ namespace pdaggerq {
             }
         }
 
-        inline char type() const {
+        constexpr char type() const {
             if (sig_) return 'L';
             if (den_) return 'Q';
             return o_ ? 'o' : 'v';
@@ -206,7 +207,7 @@ namespace pdaggerq {
         }
 
         inline uint_fast8_t size() const {
-            return label_.empty();
+            return label_.size();
         }
 
     };
@@ -215,14 +216,14 @@ namespace pdaggerq {
 
     // struct for comparing lines while ignoring the label
     struct line_compare {
-        bool operator()(const Line &left, const Line &right) const {
-            return left.in_order(right);
+        constexpr bool operator()(const Line &left, const Line &right) const {
+            return left.same_kind(right);
 //            return left < right;
         }
 
-        bool operator()(const Line *left, const Line *right) const {
+        constexpr bool operator()(const Line *left, const Line *right) const {
             if (!left || !right) return !right;
-            else return left->in_order(*right);
+            else return left->same_kind(*right);
 //            else return left->operator<(*right);
         }
     };
@@ -232,24 +233,19 @@ namespace pdaggerq {
 
     // define hash function for Line
     struct LineHash {
-        uint_fast16_t operator()(const Line &line) const {
-
-            constexpr uint_fast16_t shift = 1;
-
-            // only use first character (8 bits)
-            uint_fast16_t hash = line.label_[0] << shift;
+        inline uint_fast16_t operator()(const Line &line) const {
 
             // we can store each boolean as a bit in an integral type (4 bits)
-            hash |= line.o_;
-            hash = (hash << shift) | line.a_;
-            hash = (hash << shift) | line.sig_;
-            hash = (hash << shift) | line.den_;
+            uint16_t hash = line.o_;
+            hash |=   line.a_ << 1;
+            hash |= line.sig_ << 2;
+            hash |= line.den_ << 3;
 
-            // return the hash (12 bits)
-            return hash;
+            // store the first character of the label and return (12 bits total)
+            return hash << 8 | line.label_[0];
         }
 
-        size_t operator()(const Line *line) const {
+        constexpr size_t operator()(const Line *line) const {
             constexpr LineHash line_hash;
 
             // check if the pointer is null
@@ -259,10 +255,65 @@ namespace pdaggerq {
             return line_hash(*line);
         }
 
+        /**
+         * Map lines from two vectors to a single map
+         * @param old_lines source lines
+         * @param new_lines destination lines
+         * @return
+         */
+        static inline std::unordered_map<Line, Line, LineHash> map_lines(line_vector old_lines, line_vector new_lines) {
+
+            std::unordered_map<Line, Line, LineHash> line_map;
+            line_map.reserve(old_lines.size() + new_lines.size());
+
+            // map every equivalent line to the reference line
+            size_t old_n = old_lines.size(), new_n = new_lines.size();
+            bool new_mapped[new_lines.size()], old_mapped[old_n];
+            std::memset(new_mapped, 0, new_lines.size() * sizeof(bool));
+            std::memset(old_mapped, 0, old_n * sizeof(bool));
+
+            // map all old_lines to themselves
+            for (size_t j = 0; j < new_lines.size(); j++) {
+                line_map[old_lines[j]] = old_lines[j];
+            }
+
+            // start remapping old_lines
+            for (size_t i = 0; i < new_n; i++) {
+                bool found = false;
+                for (size_t j = 0; j < old_n; j++) {
+                    if (!old_mapped[j] && old_lines[j].equivalent(new_lines[i])) {
+                        line_map[old_lines[j]] = new_lines[i];
+                        old_mapped[j] = true;
+                        found = true;
+                        break;
+                    }
+                }
+                new_mapped[i] = found;
+            }
+
+            // map all remaining new_lines to themselves
+            for (size_t i = 0; i < old_n; i++) {
+                if (!new_mapped[i]) {
+                    // check if the line is already mapped (should not happen)
+                    if (line_map.find(new_lines[i]) == line_map.end()) {
+                        line_map[new_lines[i]] = new_lines[i];
+                    }
+                }
+            }
+
+            return line_map;
+        }
+
     }; // struct LineHash
 
-    struct LinePtrEqual {
-        bool operator()(const Line *lhs, const Line *rhs) const {
+    struct LineEqual {
+        inline bool operator()(const Line &lhs, const Line &rhs) const {
+
+            // check equality of the lines
+            return lhs == rhs;
+        }
+
+        inline bool operator()(const Line *lhs, const Line *rhs) const {
 
             // check if either pointer is null
             if (!lhs || !rhs) return rhs == lhs;
@@ -270,30 +321,49 @@ namespace pdaggerq {
             // check equality of the pointers
             return *lhs == *rhs;
         }
-    }; // struct LinePtrEqual
+    }; // struct LineEqual
 
-    struct SimilarLineHash {
-        uint_fast8_t operator()(const Line &line) const {
+    struct LinePropHash {
+        constexpr uint_fast8_t operator()(const Line &line) const {
+
+            // we can store each boolean as a bit in an integral type (4 bits)
+            uint16_t hash = line.o_;
+            hash |=   line.a_ << 1;
+            hash |= line.sig_ << 2;
+            hash |= line.den_ << 3;
+
+            // return the hash (4 bits)
+            return hash;
+        }
+
+        constexpr uint_fast8_t operator()(const Line *line) const {
+
+            if (!line) return -1; // ignore null pointers (return -1)
 
             constexpr uint_fast8_t shift = 1;
 
             //  We do not care about the label for this hash function.
-            uint_fast8_t hash = line.o_ << shift;
+            uint_fast8_t hash = line->o_ << shift;
 
             // store each boolean as a bit in an integral type
-            hash |= line.a_;
-            hash = (hash << shift) | line.sig_;
+            hash |= line->a_;
+            hash = (hash << shift) | line->sig_;
 
             // return the hash (4 bits)
-            return (hash << shift) | line.den_;
+            return (hash << shift) | line->den_;
         }
     }; // struct LineHash
 
-    struct SimilarLineEqual {
-        bool operator()(const Line &lhs, const Line &rhs) const {
+    struct LinePropEqual {
+        constexpr bool operator()(const Line &lhs, const Line &rhs) const {
             return lhs.equivalent(rhs);
         }
-    }; // struct LinePtrEqual
+
+        constexpr bool operator()(const Line *lhs, const Line *rhs) const {
+            if (!lhs || !rhs) return rhs == lhs;
+            return lhs->equivalent(*rhs);
+        }
+    }; // struct LineEqual
 
 } // namespace pdaggerq
 

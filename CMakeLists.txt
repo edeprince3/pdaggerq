@@ -79,6 +79,7 @@ pybind11_add_module(_pdaggerq
 
         pq_graph/src/pq_graph.cc
         pq_graph/src/consolidate.cc
+        pq_graph/src/fusion.cc
         pq_graph/src/dot_generator.cc
         pq_graph/src/equation.cc
         pq_graph/src/term.cc

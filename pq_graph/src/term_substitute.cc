@@ -170,10 +170,10 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
         return a->name_ < b->name_;
     });
 
-    // check if all linkages are found in the term
+    // check if all vertex names are found in the term
     bool all_found = std::includes(term_list.begin(), term_list.end(), link_list.begin(), link_list.end(),
                                   [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-                                      return a->name_ < b->name_;
+                                      return a->base_name_ < b->base_name_;
                                   });
 
     // return true if all linkages are found in the term
@@ -182,6 +182,8 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
 }
 
 bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
+
+    //TODO: use std::count_perms to check if any vertex in linkage is a permutation of any vertex in rhs_
 
     // no substitution possible for constant terms
     if (rhs_.empty())
@@ -234,10 +236,10 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
         LinkagePtr this_linkage = Linkage::link(subset_vec);
 
         // skip if linkage is not equivalent to input linkage, up to permutation
+        bool odd_parity = false;
 //        auto [is_equiv, odd_parity] = this_linkage->permuted_equals(*linkage);
 //        if (!is_equiv) return;
 
-        bool odd_parity = false;
         if (*linkage != *this_linkage)
             return;
 
@@ -297,7 +299,10 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
         rhs_ = best_vertices;
         request_update(); // set flags for optimization
         reorder();
-        if (best_is_odd) coefficient_ *= -1;
+        if (best_is_odd) {
+            coefficient_ *= -1;
+            cout << "Odd parity detected in substitution" << endl;
+        }
     }
 
     // return a boolean indicating if a substitution was made

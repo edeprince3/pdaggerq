@@ -363,13 +363,13 @@ namespace pdaggerq {
         for (uint_fast8_t i = 0; i < left_size; i++) left_perm[i] = i;
         for (uint_fast8_t i = 0; i < right_size; i++) right_perm[i] = i + left_size;
 
-        constexpr size_t factorial_map[20]{
+        static size_t factorial_map[20]{
                 1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800, 39916800, 479001600, 6227020800, 87178291200,
                 1307674368000, 20922789888000, 355687428096000, 6402373705728000, 121645100408832000
         }; // factorial map
 
 
-        auto factorial = [&factorial_map](size_t n) { // factorial function
+        static auto factorial = [](size_t n) { // factorial function
             if (n < 20) return factorial_map[n]; // if n is less than 20, return from map
 
             // else, calculate factorial
@@ -421,21 +421,23 @@ namespace pdaggerq {
 
     }
 
-    Vertex Vertex::permute_like(const Vertex &other, bool &swap_sign) const {
+    pair<Vertex, bool> Vertex::permute_like(const Vertex &other, bool &swap_sign) const {
 
         // reset swap sign
         swap_sign = false;
 
-        if (rank_ == 0) return {}; // if rank is 0, return empty vertex (no lines to permute)
-
-        // ensure that blocking and occupation of original vertex are not different
-        if (!equivalent(other)) return {};
-        if (lines_ != other.lines_) return {}; // ensure that lines are the same
+        // the shapes are incompatible
+        if (shape_ != other.shape_)
+            return {*this, false};
 
         /// check permutations of this vertex to find one that matches other, or return empty vertex
         bool same_vertex; // flag to check if same structure
         bool has_next = true; // flag to check if there is a next permutation
-        Vertex this_permuted;
+        Vertex this_permuted = other; // permuted vertex
+
+        // replace lines in this vertex with similar lines in other vertex
+        this_permuted.replace_lines(other.lines_); // replace lines in this vertex with similar lines in other vertex
+
         size_t perm_idx = 0;
         while (has_next) {
             // reset swap sign
@@ -453,36 +455,14 @@ namespace pdaggerq {
             has_next = !this_permuted.empty();
         }
 
+        // if no permutation is found, return this vertex
         if (!same_vertex) {
             swap_sign = false;
-            return {};
+            return {*this, false};
         }
 
-        return this_permuted;
-    }
-
-    bool is_isomorphic(const Vertex &left, const Vertex &right, bool &swap_signs){
-
-        // if rhs are equal, return true
-        if (left == right) return true;
-
-        // check if base names are equal
-        if (left.base_name_ != right.base_name_) return false;
-
-        // check if permutations of left are equal to right
-        bool test_swap_signs = false;
-        Vertex permuted_similar = left.permute_like(right, test_swap_signs);
-
-        if (!permuted_similar.equivalent(right)) return false;
-
-        if (test_swap_signs) swap_signs = !swap_signs;
-        return true; // if permutation was applied, rhs are isomorphic
-
-    }
-
-    bool Vertex::isomorphic(const Vertex &other) const {
-        bool swap_signs = false;
-        return is_isomorphic(*this, other, swap_signs);
+        // successful permutation
+        return {this_permuted, true};
     }
 
     bool Vertex::permute_eri() {
@@ -492,7 +472,7 @@ namespace pdaggerq {
             return false;
 
         // valid ovstrings for eri vertex
-        unordered_set<string> valid_ovstrings = {"oooo", "vvvv", "oovv", "vvoo", "vovo", "vooo", "oovo", "vovv", "vvvo"};
+        static unordered_set<string> valid_ovstrings = {"oooo", "vvvv", "oovv", "vvoo", "vovo", "vooo", "oovo", "vovv", "vvvo"};
         string orig_blk = blk_string(); // save original blocking
 
         string ovstring;
@@ -540,7 +520,7 @@ namespace pdaggerq {
 
     /****** operator overlaods ******/
 
-    inline bool Vertex::operator==(const Vertex &other) const {
+    bool Vertex::operator==(const Vertex &other) const {
 
         // check if rank, n_occ, n_vir, n_alph, n_beta are equal
         if (rank_ != other.rank_) return false;
@@ -577,7 +557,7 @@ namespace pdaggerq {
         }
 
         // check if the vertex names are equal
-        return name_ == other.name_;
+        return base_name_ == other.base_name_;
     }
 
     string Vertex::line_str(bool sort) const{
@@ -682,15 +662,48 @@ namespace pdaggerq {
         update_lines(general_lines(lines_));
     }
 
-    line_vector Vertex::general_lines(const line_vector& lines) {
-        line_vector generic_lines = lines;
-        uint_fast8_t c_occ = 0, c_vir = 0;
-        for (Line &line : generic_lines) {
-            if (line.o_) line.label_ = "o" + std::to_string(c_occ++);
-            else line.label_ = "v" + std::to_string(c_vir++);
+    line_vector Vertex::general_lines(const line_vector& lines,
+                                      unordered_map<const Line*, size_t, LineHash, LineEqual> &line_map,
+                                      size_t &next_index) {
+
+        // reserve space for generic lines
+        line_vector generic_lines; generic_lines.reserve(lines.size());
+
+        // 8 bit representation of the line properties
+        constexpr LinePropHash line_hasher{};
+
+        for (const Line &line : lines) {
+            // add line to map and get reference to current count
+            auto [it, inserted] = line_map.insert({&line, next_index});
+            auto &[line_ptr, index] = *it;
+            if (inserted) {
+                // if line is not in map, increment next_index
+                index = next_index++;
+            }
+
+            // make generic line
+            char numeric_label = static_cast<char>(line_hasher(line));
+            char count_label = static_cast<char>(index);
+            char big_label = static_cast<char>(index / 255); // label is bigger than max char value
+
+            // add generic line to generic_lines
+            Line generic_line = line;
+            generic_line.label_ = {numeric_label, count_label, big_label};
+
+            generic_lines.push_back(generic_line);
         }
 
         return generic_lines;
+    }
+
+    line_vector Vertex::general_lines(const line_vector& lines) {
+        // create map of line pointers to generic labels
+        unordered_map<const Line*, size_t, LineHash, LineEqual> line_map;
+
+        // next index for generic labels
+        size_t next_index = '0';
+
+        return general_lines(lines, line_map, next_index);
     }
 
     Vertex Vertex::generic() const {

@@ -294,11 +294,6 @@ namespace pdaggerq {
          */
         size_t merge_terms();
 
-        /**
-         * This finds terms that have the same permutation container and merges them
-         */
-        void merge_permutations();
-
         // data structure that maps terms to their count_, comments, and net coefficient using a hash table
         typedef unordered_map<Term, pair<size_t, pair<string, double>>, TermHash, TermEqual> merge_map_type;
 

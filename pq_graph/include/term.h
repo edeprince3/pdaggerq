@@ -68,8 +68,6 @@ namespace pdaggerq {
             perm_list term_perms_; // list of permutation indices
             size_t perm_type_ = 0; // default is no permutation
 
-            mutable LinkagePtr term_linkage_; // linkage of the term
-
     public:
 
             bool is_optimal_ = false; // flag for if term has optimal linkages (default is false)
@@ -483,18 +481,12 @@ namespace pdaggerq {
 
             /**
              * get the term linkage
-             * @param recompute whether to recompute the linkage
              */
-            ConstLinkagePtr term_linkage(bool recompute = true) const {
-                if (!recompute && term_linkage_) return term_linkage_;
-
+            ConstLinkagePtr term_linkage() const {
                 if (rhs_.size() > 1)
-                    term_linkage_ = Linkage::link(rhs_);
-                else if (!rhs_.empty()) term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
-                else term_linkage_ = as_link(make_shared<Vertex>() * make_shared<Vertex>());
-
-                // return a clone of the term linkage
-                return as_link(term_linkage_->clone());
+                    return Linkage::link(rhs_);
+                else if (!rhs_.empty()) return as_link(make_shared<Vertex>() * rhs_[0]);
+                else return as_link(make_shared<Vertex>() * make_shared<Vertex>());
             }
 
             /**

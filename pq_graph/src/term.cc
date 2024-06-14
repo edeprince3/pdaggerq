@@ -269,21 +269,21 @@ namespace pdaggerq {
         // check if number of rhs is <= 1
         if (arrangement.size() == 1) {
             add_scaling(arrangement[0]->dim());
-            return {flop_map, mem_map, term_linkage_};
+            return {flop_map, mem_map, as_link(term_linkage()->clone())};
         } else if (arrangement.empty()) {
-            return {flop_map, mem_map, term_linkage_};
+            return {flop_map, mem_map, as_link(term_linkage()->clone())};
         }
 
         /// add scaling from rhs
 
         // get the total linkage of the term with its flop and memory scalings
-        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(arrangement);
+        auto [linkage, flop_scales, mem_scales] = Linkage::link_and_scale(arrangement);
 
         // populate flop and memory scaling maps; get bottleneck scaling
         flop_map = scaling_map(flop_scales);
         mem_map = scaling_map(mem_scales);
 
-        return {flop_map, mem_map, term_linkage_};
+        return {flop_map, mem_map, as_link(term_linkage()->clone())};
 
     }
 
@@ -778,13 +778,13 @@ namespace pdaggerq {
         if (only_flop) comment += "\n";
 
         // add comment with flop and memory scaling
-        if (term_linkage_->depth() <= 1 || rhs_.empty()) {
+        if (term_linkage()->depth() <= 1 || rhs_.empty()) {
             comment += " // flops: " + lhs_->dim().str();
             comment += " | mem: " + lhs_->dim().str();
             return comment; // if there is only one vertex, return comment (no scaling to add)
         }
 
-        auto [term_linkage, flop_scales, mem_scales] = Linkage::link_and_scale(term_linkage_->link_vector());
+        auto [linkage_result, flop_scales, mem_scales] = Linkage::link_and_scale(term_linkage()->link_vector());
         if (flop_scales.empty() && mem_scales.empty()) { // no scaling to add as an additional comment
             return comment;
         }
@@ -878,8 +878,8 @@ namespace pdaggerq {
         if (term1.size() > 1 && !similar_vertices) {
 
             // check that the linkages are equivalent
-            auto term1_link = term1.lhs_ + term1.term_linkage_;
-            auto term2_link = term2.lhs_ + term2.term_linkage_;
+            auto term1_link = term1.lhs_ + term1.term_linkage();
+            auto term2_link = term2.lhs_ + term2.term_linkage();
 
             if (*term1_link != *term2_link) return false;
             return true;
@@ -911,7 +911,7 @@ namespace pdaggerq {
 
         // now we check if the terms are equivalent up to a permutation
         if (ref_term.size() > 1)
-             return ref_term.term_linkage_->permuted_equals(*compare_term.term_linkage_);
+             return ref_term.term_linkage()->permuted_equals(*compare_term.term_linkage());
         else return {false, false};
     }
 
@@ -1118,7 +1118,7 @@ namespace pdaggerq {
         new_term.rhs_.clear();
         for (const auto & vertex : rhs_)
             new_term.rhs_.push_back(vertex->clone());
-        new_term.term_linkage_ = as_link(term_linkage_->clone());
+        new_term.term_linkage() = as_link(term_linkage()->clone());
 
         return new_term;
     }
@@ -1132,9 +1132,9 @@ namespace pdaggerq {
         flop_map_ = flop_map;
         mem_map_  = mem_map;
         if (rhs_.size() > 1)
-            term_linkage_ = linkage;
-        else if (!rhs_.empty()) term_linkage_ = as_link(make_shared<Vertex>() * rhs_[0]);
-        else term_linkage_ = as_link(make_shared<Vertex>() * make_shared<Vertex>());
+            term_linkage() = linkage;
+        else if (!rhs_.empty()) term_linkage() = as_link(make_shared<Vertex>() * rhs_[0]);
+        else term_linkage() = as_link(make_shared<Vertex>() * make_shared<Vertex>());
 
         // indicate that term no longer needs updating
         needs_update_ = false;
@@ -1144,10 +1144,10 @@ namespace pdaggerq {
 
         // TODO: use map instead of set to group similar conditions together
 
-        ConstLinkagePtr term_linkage = term_linkage_; // get linkage representation of term
+        ConstLinkagePtr linkage = term_linkage(); // get linkage representation of term
         set<string> conditions{}; // set to store conditions
 
-        if (!term_linkage) {
+        if (!linkage) {
             // return current conditions if no linkage
             if (rhs_.empty())
                 return conditions;
@@ -1155,17 +1155,17 @@ namespace pdaggerq {
             // if rhs is not empty, create a new term and get its linkage
             Term new_term = *this;
             new_term.compute_scaling(true); // force recomputation of scaling
-            term_linkage = new_term.term_linkage_; // get linkage
+            linkage = new_term.term_linkage(); // get linkage
         }
 
-        if (!term_linkage)
+        if (!linkage)
             return conditions; // return current conditions if no linkage
 
         // map that stores conditions to their related operators
         const map<string, vector<string>> &mapped_conditions = mapped_conditions_;
 
         // create a set of operator basenames
-        vector<ConstVertexPtr> vertices = term_linkage->vertices();
+        vector<ConstVertexPtr> vertices = linkage->vertices();
         for (const auto & vertex : vertices) {
             // loop over named conditions
             for (const auto & [condition, restrict_ops] : mapped_conditions) {
