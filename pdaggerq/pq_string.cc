@@ -220,11 +220,15 @@ void pq_string::print() {
         }
     }
 
+    if ( factor < 0.0 ) {
+        factor = fabs(factor);
+        sign *= -1;
+    }
     printf("    ");
     printf("//     ");
     printf("%c", sign > 0 ? '+' : '-');
     printf(" ");
-    printf("%20.14lf", fabs(factor));
+    printf("%20.14lf", factor);
     printf(" ");
 
     if ( !permutations.empty() ) {
@@ -516,14 +520,17 @@ std::vector<std::string> pq_string::get_string() {
         }
     }
 
+    if ( factor < 0.0 ) {
+        factor = fabs(factor);
+        sign *= -1;
+    }
     std::string tmp;
     if ( sign > 0 ) {
         tmp = "+";
     }else {
         tmp = "-";
     }
-    //my_string.push_back(tmp + std::to_string(fabs(factor)));
-    my_string.push_back(tmp + to_string_with_precision(fabs(factor), 14));
+    my_string.push_back(tmp + to_string_with_precision(factor, 14));
 
     if ( !permutations.empty() ) {
         // should have an even number of symbols...how many pairs?
