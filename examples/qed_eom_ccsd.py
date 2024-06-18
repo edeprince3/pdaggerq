@@ -131,6 +131,7 @@ def get_spin_labels(ops):
 
     # make spin list using index
     labels = set()
+    found = False
     for op in ops:       
         for subop in op:
             if "(" not in subop:
@@ -140,6 +141,12 @@ def get_spin_labels(ops):
             subop_labels = subop[subop.find("(")+1:subop.find(")")].split(",")
             for label in subop_labels:
                 labels.add(label)
+                found = True
+
+    if not found:
+        return {"": {}}
+
+
 
     # sort labels
     labels = sorted(labels)

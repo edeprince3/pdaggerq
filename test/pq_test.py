@@ -87,9 +87,8 @@ code_gen_tests = ("ccsd_codegen", "lambda_singles_codegen", "lambda_doubles_code
 qed_tests      = ("qed_1rdm", "qed_2rdm", "qed_ccsd", "qed_eom_ccsd")
 
 # Combine all tests
-tests = ()
+tests = ccsd_tests
 tests += qed_tests
-tests += ccsd_tests
 tests += ci_tests
 tests += other_tests
 tests += ccsdt_tests
