@@ -351,11 +351,11 @@ void pq_string::print() {
 std::string pq_string::get_key() {
 
     if (is_spin_blocked || is_range_blocked) {
-        printf("\n");
-        printf("    >>> WARNING <<<\n");
-        printf("\n");
-        printf("    pq_string::get_key() is not meant to work with spin or range blocking\n");
-        printf("\n");
+        //printf("\n");
+        //printf("    >>> WARNING <<<\n");
+        //printf("\n");
+        //printf("    pq_string::get_key() is not meant to work with spin or range blocking\n");
+        //printf("\n");
     }
 
     std::string my_string = "";
@@ -954,6 +954,7 @@ void pq_string::reset_label_ranges(const std::unordered_map<std::string, std::ve
 
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+
     // set ranges for occupied non-summed labels
     for (const std::string & occ_label : occ_labels) {
 

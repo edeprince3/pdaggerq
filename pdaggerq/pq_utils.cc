@@ -1363,6 +1363,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
         in->ints["eri"].push_back(ints);
     }
     in->ints["occ_repulsion"].clear();
+    in->ints.erase("occ_repulsion");
 
 }
 
@@ -1712,6 +1713,28 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
 
     for (auto & mystring: mystrings ) {
 
+        // check if this string can be fully contracted ...
+        int nc = 0;
+        int na = 0;
+        for (size_t i = 0; i < mystring->symbol.size(); i++) {
+            if ( mystring->is_dagger_fermi[i] ) nc++;
+            else na++;
+        }
+        if ( nc != na ) {
+            continue;
+        }
+
+        // bosons, too
+        nc = 0;
+        na = 0;
+        for (size_t i = 0; i < mystring->is_boson_dagger.size(); i++) {
+            if ( mystring->is_boson_dagger[i] ) nc++;
+            else na++;
+        }
+        if ( nc != na ) {
+            continue;
+        }
+
         // rearrange strings
 	//
         if ( print_level > 0 ) {
@@ -1719,17 +1742,6 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
             printf("    ");
             printf("// starting string:\n");
             mystring->print();
-        }
-
-        // check if this string can be fully contracted ...
-        int nc = 0;
-        int na = 0;
-        for (size_t i = 0; i < mystring->symbol.size(); i++) {
-            if ( mystring->is_dagger_fermi[i] ) na++;
-            else nc++;
-        }
-        if ( nc != na ) {
-            continue;
         }
 
         std::vector< std::shared_ptr<pq_string> > tmp;
