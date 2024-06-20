@@ -617,47 +617,65 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 }else if (op.substr(0, 1) == "t" ){
 
                     int n = std::stoi(op.substr(1));
-
-                    std::vector<std::string> op_left;
-                    std::vector<std::string> op_right;
-                    std::vector<std::string> label_left;
-                    std::vector<std::string> label_right;
-                    for (int id = 0; id < n; id++) {
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "o" + std::to_string(occ_label_count++);
-
-                        op_left.push_back(idx1+"*");
-                        op_right.push_back(idx2);
-
-                        label_left.push_back(idx1);
-                        label_right.push_back(idx2);
-                    }
-                    // a*b*...
-                    for (int id = 0; id < n; id++) {
-                        tmp_string.push_back(op_left[id]);
-                    }
-                    // op*j*...
-                    for (int id = 0; id < n; id++) {
-                        tmp_string.push_back(op_right[id]);
-                    }
                     std::vector<std::string> labels;
-                    // tn(ab...
-                    for (int id = 0; id < n; id++) {
-                        labels.push_back(label_left[id]);
-                    }
-                    // tn(ab......ji)
-                    for (int id = n-1; id >= 0; id--) {
-                        labels.push_back(label_right[id]);
-                    }
-                    newguy->set_amplitudes('t', n, n, labels);
 
-                    // factor = 1/(n!)^2
-                    double my_factor = 1.0;
-                    for (int id = 0; id < n; id++) {
-                        my_factor *= (id+1);
+                    if ( n == 0 ){
+
+                        // nothin to do
+
+                    }else {
+
+                        std::vector<std::string> op_left;
+                        std::vector<std::string> op_right;
+                        std::vector<std::string> label_left;
+                        std::vector<std::string> label_right;
+                        for (int id = 0; id < n; id++) {
+
+                            std::string idx1 = "v" + std::to_string(vir_label_count++);
+                            std::string idx2 = "o" + std::to_string(occ_label_count++);
+
+                            op_left.push_back(idx1+"*");
+                            op_right.push_back(idx2);
+
+                            label_left.push_back(idx1);
+                            label_right.push_back(idx2);
+                        }
+                        // a*b*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_left[id]);
+                        }
+                        // op*j*...
+                        for (int id = 0; id < n; id++) {
+                            tmp_string.push_back(op_right[id]);
+                        }
+
+                        // tn(ab...
+                        for (int id = 0; id < n; id++) {
+                            labels.push_back(label_left[id]);
+                        }
+                        // tn(ab......ji)
+                        for (int id = n-1; id >= 0; id--) {
+                            labels.push_back(label_right[id]);
+                        }
+
+                        // factor = 1/(n!)^2
+                        double my_factor = 1.0;
+                        for (int id = 0; id < n; id++) {
+                            my_factor *= (id+1);
+                        }
+                        factor *= 1.0 / my_factor / my_factor;
                     }
-                    factor *= 1.0 / my_factor / my_factor;
+
+                    int n_ph = 0;
+                    if (op.size() > 2 ) {
+                        if ( op.substr(2,1) == ",") {
+                            n_ph = std::stoi(op.substr(3));
+                            for (int ph = 0; ph < n_ph; ph++) {
+                                newguy->is_boson_dagger.push_back(true);
+                            }
+                        }
+                    }
+                    newguy->set_amplitudes('t', n, n, n_ph, labels);
 
                 }else if (op.substr(0, 1) == "w" ){ // w0 B*B
 
@@ -683,77 +701,20 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                         newguy->is_boson_dagger.push_back(false);
 
-                }else if (op.substr(0, 1) == "u" ){ // t-amplitudes + boson creator
-
-                    int n = std::stoi(op.substr(1));
-
-                    if ( n == 0 ){
-
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('u', n, n, labels);
-
-                        newguy->is_boson_dagger.push_back(true);
-
-                    }else {
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n; id++) {
-                            
-                            std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
-                            
-                            op_left.push_back(idx1+"*");
-                            op_right.push_back(idx2);
-                            
-                            label_left.push_back(idx1);
-                            label_right.push_back(idx2);
-                        }
-                        // a*b*...
-                        for (int id = 0; id < n; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // op*j*...
-                        for (int id = 0; id < n; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-                        std::vector<std::string> labels;
-                        // tn(ab... 
-                        for (int id = 0; id < n; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ab......ji)
-                        for (int id = n-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-                        newguy->set_amplitudes('u', n, n, labels);
-                        
-                        // factor = 1/(n!)^2
-                        double my_factor = 1.0;
-                        for (int id = 0; id < n; id++) {
-                            my_factor *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor / my_factor;
-
-                        newguy->is_boson_dagger.push_back(true);
-                    }
-
                 }else if (op.substr(0, 1) == "r" ){
 
 
                     int n = std::stoi(op.substr(1));
+                    int n_annihilate = n;
+                    int n_create     = n;
+                    std::vector<std::string> labels;
 
                     if ( n == 0 ){
 
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('r', n, n, labels);
+                        // nothing to do
 
                     }else {
 
-                        int n_annihilate = n;
-                        int n_create     = n;
                         if ( right_operators_type == "IP" ) n_create--;
                         if ( right_operators_type == "DIP" ) n_create -= 2;
                         if ( right_operators_type == "EA" ) n_annihilate--;
@@ -781,7 +742,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = 0; id < n_annihilate; id++) {
                             tmp_string.push_back(op_right[id]);
                         }
-                        std::vector<std::string> labels;
+
                         // tn(ab...
                         for (int id = 0; id < n_create; id++) {
                             labels.push_back(label_left[id]);
@@ -790,7 +751,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        newguy->set_amplitudes('r', n_create, n_annihilate, labels);
 
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -802,90 +762,32 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                             my_factor_annihilate *= (id+1);
                         }
                         factor *= 1.0 / my_factor_create / my_factor_annihilate;
-
                     }
 
-                }else if (op.substr(0, 1) == "s" ){ // r amplitudes + boson creator
-
-                    int n = std::stoi(op.substr(1));
-
-                    if ( n == 0 ){
-
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('s', n, n, labels);
-
-                        newguy->is_boson_dagger.push_back(true);
-
-                    }else {
-                       
-                        int n_annihilate = n;
-                        int n_create     = n;
-                        if ( right_operators_type == "IP" ) n_create--;
-                        if ( right_operators_type == "DIP" ) n_create -= 2;
-                        if ( right_operators_type == "EA" ) n_annihilate--;
-                        if ( right_operators_type == "DEA" ) n_annihilate -= 2;
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right; 
-                        for (int id = 0; id < n_create; id++) {
-                            std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            op_left.push_back(idx1+"*");
-                            label_left.push_back(idx1);
+                    int n_ph = 0;
+                    if (op.size() > 2 ) {
+                        if ( op.substr(2,1) == ",") {
+                            n_ph = std::stoi(op.substr(3));
+                            for (int ph = 0; ph < n_ph; ph++) {
+                                newguy->is_boson_dagger.push_back(true);
+                            }
                         }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
-                            op_right.push_back(idx2);
-                            label_right.push_back(idx2);
-                        }
-                        // a*b*...
-                        for (int id = 0; id < n_create; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // ij...
-                        for (int id = 0; id < n_annihilate; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-                        std::vector<std::string> labels;
-                        // tn(ab... 
-                        for (int id = 0; id < n_create; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ab......ji)
-                        for (int id = n_annihilate-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        } 
-                        newguy->set_amplitudes('s', n_create, n_annihilate, labels);
-                        
-                        // factor = 1/(n!)^2
-                        double my_factor_create = 1.0;
-                        double my_factor_annihilate = 1.0;
-                        for (int id = 0; id < n_create; id++) {
-                            my_factor_create *= (id+1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            my_factor_annihilate *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
-                    
-                        newguy->is_boson_dagger.push_back(true);
-
                     }
+                    newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels);
 
                 }else if (op.substr(0, 1) == "l" ){
 
                     int n = std::stoi(op.substr(1));
+                    int n_annihilate = n;
+                    int n_create     = n;
+                    std::vector<std::string> labels;
 
                     if ( n == 0 ){
 
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('l', n, n, labels);
+                        // nothin to do
 
                     }else {
                         
-                        int n_annihilate = n;
-                        int n_create     = n;
                         if ( left_operators_type == "IP" ) n_annihilate--;
                         if ( left_operators_type == "DIP" ) n_annihilate -= 2;
                         if ( left_operators_type == "EA" ) n_create--;
@@ -913,7 +815,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = 0; id < n_annihilate; id++) {
                             tmp_string.push_back(op_right[id]);
                         }
-                        std::vector<std::string> labels;
+
                         // tn(ij... 
                         for (int id = 0; id < n_create; id++) {
                             labels.push_back(label_left[id]);
@@ -922,7 +824,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         for (int id = n_annihilate-1; id >= 0; id--) {
                             labels.push_back(label_right[id]);
                         }
-                        newguy->set_amplitudes('l', n_create, n_annihilate, labels);
                         
                         // factor = 1/(n!)^2
                         double my_factor_create = 1.0;
@@ -937,73 +838,16 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     
                     }
 
-                }else if (op.substr(0, 1) == "m" ){ // l amplitudes plus boson annihilator
-
-                    int n = std::stoi(op.substr(1));
-
-                    if ( n == 0 ){
-
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('m', n, n, labels);
-
-                        newguy->is_boson_dagger.push_back(false);
-
-                    }else {
-
-                        int n_annihilate = n;
-                        int n_create     = n;
-                        if ( left_operators_type == "IP" ) n_annihilate--;
-                        if ( left_operators_type == "DIP" ) n_annihilate -= 2;
-                        if ( left_operators_type == "EA" ) n_create--;
-                        if ( left_operators_type == "DEA" ) n_create -= 2;
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n_create; id++) {
-                            std::string idx1 = "o" + std::to_string(occ_label_count++);
-                            op_left.push_back(idx1+"*");
-                            label_left.push_back(idx1);
+                    int n_ph = 0;
+                    if (op.size() > 2 ) {
+                        if ( op.substr(2,1) == ",") {
+                            n_ph = std::stoi(op.substr(3));
+                            for (int ph = 0; ph < n_ph; ph++) {
+                                newguy->is_boson_dagger.push_back(true);
+                            }
                         }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            std::string idx2 = "v" + std::to_string(vir_label_count++);
-                            op_right.push_back(idx2);
-                            label_right.push_back(idx2);
-                        }
-                        // op*j*...
-                        for (int id = 0; id < n_create; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // ab...
-                        for (int id = 0; id < n_annihilate; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-                        std::vector<std::string> labels;
-                        // tn(ij... 
-                        for (int id = 0; id < n_create; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ij......ba)
-                        for (int id = n_annihilate-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-                        newguy->set_amplitudes('m', n_create, n_annihilate, labels);
-
-                        // factor = 1/(n!)^2
-                        double my_factor_create = 1.0;
-                        double my_factor_annihilate = 1.0;
-                        for (int id = 0; id < n_create; id++) {
-                            my_factor_create *= (id+1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            my_factor_annihilate *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
-
-                        newguy->is_boson_dagger.push_back(false);
-
                     }
+                    newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels);
 
                 }else if (op.substr(0, 1) == "e" ){
 
@@ -1205,7 +1049,8 @@ void pq_helper::simplify() {
                 rdm_labels.push_back(pq_str->symbol[n - i - 1]);
             }
 
-            pq_str->set_amplitudes('D', n_create, n_annihilate, rdm_labels);
+            // TODO: we're assuming no photons ...
+            pq_str->set_amplitudes('D', n_create, n_annihilate, 0, rdm_labels);
             pq_str->symbol.clear();
         }
     }

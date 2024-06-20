@@ -42,6 +42,10 @@ void amplitudes::sort() {
         numerical_labels.push_back(numerical_label);
     }
 
+    // add number of photons to the numerical labels
+    char char_n_ph = '0' + n_ph;
+    numerical_labels.push_back((int)char_n_ph);
+
     permutations = 0;
 
     // sort labels and accumulate permutations
@@ -129,23 +133,21 @@ std::string amplitudes::to_string(char symbol) const {
         order = n_annihilate;
     }
 
+    val = symbol_s + std::to_string(order);
+
+    if ( n_ph > 0 ) {
+        val += "_" + std::to_string(n_ph);
+    }
+
     if ( !labels.empty() ) {
 
+        val += "(";
         size_t size  = labels.size();
-        //size_t order = labels.size() / 2;
-        //if ( 2*order != size ) {
-        //    order++;
-        //}
-        val = symbol_s + std::to_string(order) + "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
         }
         val += labels[size-1] + ")";
 
-    }
-
-    if ( order == 0 ) {
-        val = symbol_s + "0";
     }
 
     return val;
@@ -158,37 +160,38 @@ std::string amplitudes::to_string_with_label_ranges(char symbol) {
 
     std::string symbol_s(1, symbol);
 
-    std::string range = "_";
-    for (const std::string & label_range : label_ranges) {
-        if ( label_range == "act" ) {
-            range += "1";
-        }else {
-            range += "0";
-        }
-    }
-
     size_t order = n_create;
     if ( n_annihilate > n_create ) {
         order = n_annihilate;
     }
 
+    val = symbol_s + std::to_string(order);
+
+    if ( n_ph > 0 ) {
+        val += "_" + std::to_string(n_ph);
+    }
+
+    if ( !label_ranges.empty() ) {
+        std::string range = "_";
+        for (const std::string & label_range : label_ranges) {
+            if ( label_range == "act" ) {
+                range += "1";
+            }else {
+                range += "0";
+            }
+        }
+        val += range;
+    }
+
     if ( !labels.empty() ) {
 
         size_t size  = labels.size();
-        //size_t order = labels.size() / 2;
-        //if ( 2*order != size ) {
-        //    order++;
-        //}
-        val = symbol_s + std::to_string(order) + range + "(";
+        val += "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
         }
         val += labels[size-1] + ")";
 
-    }
-
-    if ( order == 0 ) {
-        val = symbol_s + "0";
     }
 
     return val;
@@ -201,33 +204,32 @@ std::string amplitudes::to_string_with_spin(char symbol) const {
 
     std::string symbol_s(1, symbol);
 
-    std::string spin = "_";
-    for (const std::string & spin_label : spin_labels) {
-        spin += spin_label;
-    }
-
     size_t order = n_create;
     if ( n_annihilate > n_create ) {
         order = n_annihilate;
     }
 
-    if ( !labels.empty() ) {
+    val = symbol_s + std::to_string(order);
 
+    if ( n_ph > 0 ) {
+        val += "_" + std::to_string(n_ph);
+    }
+
+    if ( !spin_labels.empty() ) {
+        std::string spin = "_";
+        for (const std::string & spin_label : spin_labels) {
+            spin += spin_label;
+        }
+        val += spin;
+    }
+
+    if ( !labels.empty() ) {
         size_t size  = labels.size();
-        //size_t order = labels.size() / 2;
-        //if ( 2*order != size ) {
-        //    order++;
-        //}
-        val = symbol_s + std::to_string(order) + spin + "(";
+        val += "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
         }
         val += labels[size-1] + ")";
-
-    }
-
-    if ( order == 0 ) {
-        val = symbol_s + "0";
     }
 
     return val;
