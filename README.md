@@ -174,27 +174,15 @@ other components of your strings.
 
 Orbital labels refer to spin orbitals. There is functionality to integrate out spin in final expressions, [see below](#spin).
 
-### Methods
-Strings are defined in Python using the pq_helper class, which has the following functions:
+### Operators
 
-#### add_operator_product: 
+#### Currently supported fermionic operators include
 
-set strings corresponding to a product of operators. 
-```
-add_operator_product( 0.5, ['h','t1','t2'])
- ```
-Currently supported operators include 
-
-the unit operator
-```
-'1'
-```
 a general one-body operator
 ```
 'h' 
 ```
-an general two-body operator
-
+a general two-body operator
 ```
 'g' 
 ```    
@@ -206,7 +194,7 @@ the fluctuation potental operator
 ```
 'v' 
 ```
-creation / annihilation operators. e.g., $\hat{a}^{\dagger}_i$, $\hat{a}_j$, etc.
+fermionic creation / annihilation operators. e.g., $\hat{a}^{\dagger}_i$, $\hat{a}_j$, etc.
 ```
 a*(i)
 a(j)
@@ -224,7 +212,6 @@ singles, doubles, triples, and quadruples t-amplitudes
 't4'
 ```
 reference, singles, doubles, triples, and quadruples left-hand amplitudes 
-
 ```
 'l0'
 'l1'  
@@ -241,6 +228,58 @@ reference, singles, doubles, triples, and quadruples right-hand amplitudes
 'r4'
 ```    
 Note that all factors such as the 1/4 associated with t2, l2, and r2 are handled internally.
+
+#### Currently supported bosonic operators include
+boson creation / annihilation operators. e.g., $\hat{b}^{\dagger}$, $\hat{b}$, etc.
+```
+b+
+b-
+```
+cluster operators that include both n-body electron excitations and m-body photon creation ($T_{n,m}$, with $n=0,1,2,3,4$ and $m=0,1,2$...)
+```
+'t0,1'
+'t1,1'
+etc.
+```
+left-hand operators that include both n-body electron de-excitations and m-body photon annihilation ($L_{n,m}$, with $n=0,1,2,3,4$ and $m=0,1,2$...)
+```
+'l2,2'
+etc.
+```
+right-hand operators that include both n-body electron excitations and m-body photon creation ($R_{n,m}$, with $n=0,1,2,3,4$ and $m=0,1,2$...)
+```
+'r1,2'
+etc.
+```
+a  one-body fermionic operator times a boson creation operator, $\sum_{pq} d_{pq} \hat{a}^{\dagger}_p \hat{a}_q \hat{b}^{\dagger}$
+```
+'d+' 
+```
+a one-body fermionic operator times a boson annihilation operator, $\sum_{pq} d_{pq} \hat{a}^{\dagger}_p \hat{a}_q \hat{b}$
+```
+'d-' 
+```
+a diagonal boson operator, $\omega_0 \hat{b}^{\dagger}\hat{b}$
+```
+'w0'
+```
+
+#### Other operators
+
+the unit operator
+```
+'1'
+```
+
+### Methods
+Strings are defined in Python using the pq_helper class, which has the following functions:
+
+#### add_operator_product: 
+
+set strings corresponding to a product of operators. 
+```
+add_operator_product( 0.5, ['h','t1','t2'])
+ ```
     
 #### add_commutator: 
 
@@ -343,6 +382,19 @@ spin_labels = {
 fully_contracted_strings_with_spin(spin_labels)
 ```
 
+#### fully_contracted_with_ranges: 
+    
+returns strings involving no creation / annihilation operators. Dictionary of label ranges specifies orbital spaces over which amplitues are defined for active-space methods [e.g., CCSDt/CCSDtq, J. Chem. Phys. 110, 6103–6122 (1999)]
+```
+label_ranges = {
+    't3' : ['act', 'act', 'all', 'act', 'act', 'all'],
+    't2' : ['all', 'all', 'all', 'all'],
+    't1' : ['all', 'all'],
+    'a' : ['act'],
+    'i' : ['act']
+}
+fully_contracted_strings_with_ranges(label_ranges)
+```
 
 #### clear: 
 clear the current set of strings
