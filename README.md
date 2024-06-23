@@ -230,7 +230,7 @@ reference, singles, doubles, triples, and quadruples right-hand amplitudes
 Note that all factors such as the 1/4 associated with t2, l2, and r2 are handled internally.
 
 #### Currently supported bosonic operators include
-boson creation / annihilation operators. e.g., $\hat{b}^{\dagger}$, $\hat{b}$, etc.
+boson creation / annihilation operators, $\hat{b}^{\dagger}$ and $\hat{b}$
 ```
 b+
 b-
