@@ -1542,11 +1542,8 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
 void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
 
-    if ( in->factor > 0.0 ) {
-        in->sign = 1;
-        in->factor = fabs(in->factor);
-    }else {
-        in->sign = -1;
+    if ( in->factor < 0.0 ) {
+        in->sign *= -1;
         in->factor = fabs(in->factor);
     }
 
