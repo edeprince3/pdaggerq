@@ -901,6 +901,8 @@ namespace pdaggerq {
         clone->left_ = left_clone;
         clone->right_ = right_clone;
 
+        clone->copy_misc(*this);
+
         return clone;
     }
 
