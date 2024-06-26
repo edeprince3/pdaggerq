@@ -327,10 +327,6 @@ bool Term::make_scalar(linkage_set &scalars, size_t id) {
         vector<ConstVertexPtr> subset_vec;
         subset_vec.reserve(subset.size());
         for (size_t i : subset) {
-            // ensure no scalars are in the subset (no nested scalars allowed)
-            if (rhs_[i]->is_scalar())
-                return false;
-
             // add vertex to subset
             subset_vec.push_back(rhs_[i]);
         }
