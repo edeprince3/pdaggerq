@@ -156,7 +156,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     bool makeSub; // flag to make a substitution
     bool found_any = false; // flag to check if we found any linkages
-    while ((!test_linkages.empty() || first_pass) && temp_counts_["all"] < max_temps_) {
+    while ((!test_linkages.empty() || first_pass) && temp_counts_[temp_type] < max_temps_) {
         substitute_timer.start();
 
         makeSub = false; // reset flag
@@ -207,7 +207,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             linkage->is_reused_ = format_sigma;
 
             // set id of linkage
-            size_t temp_id = temp_counts_["all"] + 1; // get number of temps
+            size_t temp_id = temp_counts_[temp_type] + 1; // get number of temps
             linkage->id() = (long) temp_id;
 
             scaling_map test_flop_map; // flop map for test equation
@@ -339,7 +339,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                                            : temp_type;
 
                 // set linkage id
-                size_t temp_id = ++temp_counts_["all"];
+                size_t temp_id = ++temp_counts_[temp_type];
                 link_to_sub->id() = (long) temp_id;
 
                 scaling_map last_flop_map = flop_map_;
@@ -372,7 +372,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 collect_scaling();
 
                 if (num_subs == 0) {
-                    temp_counts_["all"]--;
+                    temp_counts_[temp_type]--;
                     continue;
                 }
                 else {
@@ -437,7 +437,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 // break if not batching substitutions or if we have reached the batch size
                 // at batch_size_=1 this will only substitute the best link found and then completely regenerate the results.
                 // otherwise it will substitute the best batch_size_ number of linkages and then regenerate the results.
-                if (!batched_ || ++batch_count >= batch_size_ || temp_counts_["all"] > max_temps_) {
+                if (!batched_ || ++batch_count >= batch_size_ || temp_counts_[temp_type] > max_temps_) {
                     substitute_timer.stop();
                     break;
                 }
