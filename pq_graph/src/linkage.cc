@@ -897,7 +897,7 @@ namespace pdaggerq {
         VertexPtr left_clone = left_->clone();
         VertexPtr right_clone = right_->clone();
 
-        LinkagePtr clone = make_shared<Linkage>(*this);
+        LinkagePtr clone = make_shared<Linkage>(Linkage(*this));
         clone->left_ = left_clone;
         clone->right_ = right_clone;
 
