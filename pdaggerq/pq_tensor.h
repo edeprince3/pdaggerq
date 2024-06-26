@@ -310,6 +310,14 @@ class amplitudes: public tensor {
         buffer.read(reinterpret_cast<char *>(&n_annihilate), sizeof(n_annihilate));
     }
 
+
+    /**
+     *
+     * the number of photons
+     *
+     */
+    int n_ph = 0;
+
 };
 
 class integrals: public tensor {

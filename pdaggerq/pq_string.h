@@ -213,7 +213,7 @@ class pq_string {
      *
      */
     static inline
-    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's', 'D'};
+    char amplitude_types[] {'l', 'r', 't', 'D'};
 
     // specify left and right sigma operators for pq_graph
     static inline std::vector<char> left_sigma_types {'l', 'm'};
@@ -418,9 +418,10 @@ class pq_string {
      * @param type: the amplitudes_type
      * @param n_create: the number of labels corresponding to creation operators
      * @param n_annihilate: the number of labels corresponding to annihilation operators
+     * @param n_ph: the number of photons
      * @param in: the list of labels for the amplitudes
      */
-    void set_amplitudes(char type, int n_create, int n_annihilate, const std::vector<std::string> &in);
+    void set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in);
 
 };
 

@@ -1506,7 +1506,7 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
          * */
 
         do_continue = false;
-        static char types[] = {'t', 'l', 'r', 'u', 'm', 's'};
+        static char types[] = {'t', 'l', 'r'};
         for (auto & type : types) {
             std::vector<amplitudes> & amps = in->amps[type];
             
