@@ -210,13 +210,13 @@ namespace pdaggerq {
 
         string if_block;
         if (!Term::make_einsum) {
-            if_block = "\nif (";
+            if_block = "if (";
             for (const string &condition: conditions)
                 if_block += "includes_[\"" + condition + "\"] && ";
             if_block.resize(if_block.size() - 4);
             if_block += ") {";
         } else {
-            if_block = "\nif ";
+            if_block = "if ";
             for (const string &condition: conditions)
                 if_block += "includes_[\"" + condition + "\"] and ";
             if_block.resize(if_block.size() - 5);

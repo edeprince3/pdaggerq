@@ -108,7 +108,13 @@ namespace pdaggerq {
         // set base name
         string base_name{type};
         base_name += to_string(order);
-        base_name_ = base_name ;
+        base_name_ = base_name;
+        if (amp.n_ph > 0) {
+            base_name_ += "_";
+            base_name_ += to_string(amp.n_ph);
+        }
+
+
 
         //determine if vertex is blocked
         bool is_range_blocked = pq_string::is_range_blocked;
