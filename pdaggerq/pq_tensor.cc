@@ -32,7 +32,6 @@ namespace pdaggerq {
 void amplitudes::sort() {
 
     numerical_labels.clear();
-    numerical_labels.reserve(labels.size());
 
     // convert labels to numerical labels
     for (std::string & label : labels) {
@@ -72,7 +71,6 @@ void amplitudes::sort() {
             break;
         }
     }
-
 }
 
 /// copy amplitudes
@@ -339,6 +337,13 @@ void integrals::print(const std::string &symbol) const {
         printf("%s", labels[1].c_str());
         printf(")");
         printf(" ");
+    }else if ( symbol == "occ_repulsion") {
+        printf("<?");
+        printf("%s", labels[0].c_str());
+        printf("||?");
+        printf("%s", labels[1].c_str());
+        printf(">");
+        printf(" ");
     }else {
         printf("\n");
         printf("    unknown integral type: %s\n", symbol.c_str());
@@ -397,6 +402,12 @@ std::string integrals::to_string(const std::string &symbol) const {
             + ","
             + labels[1]
             + ")";
+    }else if ( symbol == "occ_repulsion") {
+        val = "<?"
+            + labels[0]
+            + "||?"
+            + labels[1]
+            + ">";
     }else {
         printf("\n");
         printf("    unknown integral type: %s\n", symbol.c_str());
@@ -545,6 +556,28 @@ void delta_functions::sort() {
         numerical_labels.push_back(numerical_label);
     }
 
+    // sort labels. don't worry about permutations
+    for (size_t step = 1; step < numerical_labels.size(); step++) {
+        
+        bool swapped = false;
+        for (size_t i = 0; i < numerical_labels.size() - step; i++) {
+    
+            // compare elements
+            if (numerical_labels[i] > numerical_labels[i + 1]) {
+    
+              // swap
+              int temp = numerical_labels[i];
+              numerical_labels[i] = numerical_labels[i + 1];
+              numerical_labels[i + 1] = temp;
+
+              swapped = true;
+
+            }
+        }
+        if ( !swapped ) {
+            break;
+        }
+    }
     permutations = 0;
 }
 

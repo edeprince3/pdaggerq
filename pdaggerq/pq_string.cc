@@ -31,6 +31,7 @@
 #include<cmath>
 #include<sstream>
 #include <fstream>
+#include<numeric>
 
 namespace pdaggerq {
 
@@ -40,26 +41,98 @@ pq_string::pq_string(const std::string &vacuum_type){
     vacuum = vacuum_type;
 }
 
-// sort amplitude, integral, and delta function labels
-void pq_string::sort_labels() {
+// sort amplitude, integral,and delta function labels and define key
+void pq_string::sort() {
+
+    // define numerical labels and permutations
 
     for (auto &ints_pair : ints) {
-        std::string type = ints_pair.first;
         std::vector<integrals> &ints_vec = ints_pair.second;
+
+        // sort labels in integrals
         for (integrals & integral : ints_vec) {
             integral.sort();
         }
+
+        // now, sort list of amplitudes based on labels
+        size_t dim = ints_vec.size();
+
+        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
+        for (size_t i = 0; i < dim; i++) {
+            numerical_labels_with_index.emplace_back(ints_vec[i].numerical_labels, i);
+        }
+
+        // sort the list of pairs lexicographically by the numerical labels
+        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
+                  [](const std::pair<std::vector<int>, int> &a,
+                     const std::pair<std::vector<int>, int> &b) {
+                      return a.first < b.first;
+                  });
+
+        std::vector<integrals> tmp;
+        for (const auto& pair : numerical_labels_with_index) {
+            tmp.push_back(ints_vec[pair.second]);
+        }
+        ints_vec = tmp;
     }
+
     for (auto &amps_pair : amps) {
-        char type = amps_pair.first;
         std::vector<amplitudes> &amps_vec = amps_pair.second;
+
+        // sort labels in amplitudes
         for (amplitudes & amp : amps_vec) {
             amp.sort();
         }
+
+        // now, sort list of amplitudes based on labels
+        size_t dim = amps_vec.size();
+        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
+        for (size_t i = 0; i < dim; i++) {
+            numerical_labels_with_index.emplace_back(amps_vec[i].numerical_labels, i);
+        }
+        // sort the list of pairs lexicographically by the numerical labels
+        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
+                  [](const std::pair<std::vector<int>, int> &a,
+                     const std::pair<std::vector<int>, int> &b) {
+                      return a.first < b.first;
+                  });
+
+        std::vector<amplitudes> tmp;
+        for (const auto& pair : numerical_labels_with_index) {
+            tmp.push_back(amps_vec[pair.second]);
+        }
+        amps_vec = tmp;
     }
+
+    // sort labels in deltas
     for (delta_functions & delta : deltas) {
         delta.sort();
     }
+
+    // now, sort list of deltas based on labels
+    size_t dim = deltas.size();
+    if ( dim > 0 ) {
+
+        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
+        for (size_t i = 0; i < dim; i++) {
+            numerical_labels_with_index.emplace_back(deltas[i].numerical_labels, i);
+        }
+
+        // sort the list of pairs lexicographically by the numerical labels
+        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
+                  [](const std::pair<std::vector<int>, int> &a,
+                     const std::pair<std::vector<int>, int> &b) {
+                      return a.first < b.first;
+                  });
+
+        std::vector<delta_functions> tmp;
+        for (const auto& pair : numerical_labels_with_index) {
+            tmp.push_back(deltas[pair.second]);
+        }
+        deltas = tmp;
+    }
+
+    key = get_key();
 }
 
 // is string in normal order? both fermion and boson parts
@@ -140,6 +213,10 @@ void pq_string::print() {
         }
     }
 
+    if ( factor < 0.0 ) {
+        factor = fabs(factor);
+        sign *= -1;
+    }
     printf("    ");
     printf("//     ");
     printf("%c", sign > 0 ? '+' : '-');
@@ -270,6 +347,159 @@ void pq_string::print() {
     printf("\n");
 }
 
+// return identifier for pq_string as std::string
+std::string pq_string::get_key() {
+
+    if (is_spin_blocked || is_range_blocked) {
+        //printf("\n");
+        //printf("    >>> WARNING <<<\n");
+        //printf("\n");
+        //printf("    pq_string::get_key() is not meant to work with spin or range blocking\n");
+        //printf("\n");
+    }
+
+    std::string my_string = "";
+
+    std::string tmp;
+
+    if ( skip ) return my_string;
+
+    if ( !permutations.empty() ) {
+        // should have an even number of symbols...how many pairs?
+        size_t n = permutations.size() / 2;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "P(";
+            tmp += permutations[count++];
+            tmp += ",";
+            tmp += permutations[count++];
+            tmp += ")";
+            my_string += tmp;
+        }
+    }
+
+    if ( !paired_permutations_2.empty() ) {
+        // should have a number of symbols divisible by 4
+        size_t n = paired_permutations_2.size() / 4;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP2(";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ",";
+            tmp += paired_permutations_2[count++];
+            tmp += ")";
+            my_string += tmp;
+        }
+    }
+
+    if ( !paired_permutations_6.empty() ) {
+        // should have a number of symbols divisible by 6
+        size_t n = paired_permutations_6.size() / 6;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP6(";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ",";
+            tmp += paired_permutations_6[count++];
+            tmp += ")";
+            my_string += tmp;
+        }
+    }
+
+    if ( !paired_permutations_3.empty() ) {
+        // should have a number of symbols divisible by 6
+        size_t n = paired_permutations_3.size() / 6;
+        size_t count = 0;
+        for (size_t i = 0; i < n; i++) {
+            tmp  = "PP3(";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ",";
+            tmp += paired_permutations_3[count++];
+            tmp += ")";
+            my_string += tmp;
+        }
+    }
+
+    // creation / annihilation operators
+    for (size_t i = 0; i < symbol.size(); i++) {
+
+        std::string tmp_symbol = symbol[i];
+        if ( is_dagger[i] ) {
+            tmp_symbol += "*";
+        }
+        my_string += tmp_symbol;
+    }
+
+    // deltas
+    for (const delta_functions & delta : deltas) {
+        std::vector<std::string> numerical_labels_string(delta.numerical_labels.size());
+        std::transform(delta.numerical_labels.begin(), delta.numerical_labels.end(), numerical_labels_string.begin(),
+                       [](int num) { return std::to_string(num); });
+        my_string += "delta";
+        my_string += std::accumulate(numerical_labels_string.begin(), numerical_labels_string.end(), std::string());
+    }
+
+    // integrals
+    for (auto & type : integral_types) {
+        if (ints.find(type) == ints.end()) continue;
+        std::vector<integrals> &ints_vec = ints[type];
+        for (integrals & integral : ints_vec) {
+            std::vector<std::string> numerical_labels_string(integral.numerical_labels.size());
+            std::transform(integral.numerical_labels.begin(), integral.numerical_labels.end(), numerical_labels_string.begin(),
+                           [](int num) { return std::to_string(num); });
+            my_string += type;
+            my_string += std::accumulate(numerical_labels_string.begin(), numerical_labels_string.end(), std::string());
+        }
+    }
+
+    // amplitudes
+    for (auto & type : amplitude_types) {
+        if (amps.find(type) == amps.end()) continue;
+        std::vector<amplitudes> &amps_vec = amps[type];
+        for (amplitudes & amp : amps_vec) {
+            std::vector<std::string> numerical_labels_string(amp.numerical_labels.size());
+            std::transform(amp.numerical_labels.begin(), amp.numerical_labels.end(), numerical_labels_string.begin(),
+                           [](int num) { return std::to_string(num); });
+            my_string += type;
+            my_string += std::accumulate(numerical_labels_string.begin(), numerical_labels_string.end(), std::string());
+        }
+    }
+
+    // bosons:
+    for (auto && is_bdag : is_boson_dagger) {
+        if ( is_bdag ) {
+            my_string += "B*";
+        }else {
+            my_string += "B";
+        }
+    }
+    if ( has_w0 ) {
+        my_string += "w0";
+    }
+
+    return my_string;
+}
+
 // return string information
 std::vector<std::string> pq_string::get_string() {
 
@@ -286,6 +516,10 @@ std::vector<std::string> pq_string::get_string() {
         }
     }
 
+    if ( factor < 0.0 ) {
+        factor = fabs(factor);
+        sign *= -1;
+    }
     std::string tmp;
     if ( sign > 0 ) {
         tmp = "+";
@@ -725,6 +959,7 @@ void pq_string::reset_label_ranges(const std::unordered_map<std::string, std::ve
 
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+
     // set ranges for occupied non-summed labels
     for (const std::string & occ_label : occ_labels) {
 

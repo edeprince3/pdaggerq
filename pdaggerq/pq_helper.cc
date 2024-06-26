@@ -1160,6 +1160,13 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             }
 
             newguy->has_w0 = has_w0;
+
+            // make sure factor > 0
+            if ( newguy->factor < 0.0 ) {
+                newguy->factor = fabs(newguy->factor);
+                newguy->sign *= -1;
+            }
+
             if (vacuum == "TRUE") {
                 add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
             } else {
