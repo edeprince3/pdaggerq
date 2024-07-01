@@ -62,6 +62,7 @@ void export_pq_helper(py::module& m) {
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
+        .def("clone", &pq_helper::clone)
         //.def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_use_rdms",
              [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
@@ -157,6 +158,48 @@ pq_helper::pq_helper(const std::string &vacuum_type)
     left_operators_type = "EE";
 
 }
+
+pq_helper::pq_helper(const pq_helper &other) {
+
+    // copy data
+    this->vacuum                    = other.vacuum;
+    this->print_level               = other.print_level;
+    this->use_rdms                  = other.use_rdms;
+    this->ignore_cumulant_rdms      = other.ignore_cumulant_rdms;
+    this->left_operators            = other.left_operators;
+    this->right_operators           = other.right_operators;
+    this->right_operators_type      = other.right_operators_type;
+    this->left_operators_type       = other.left_operators_type;
+    this->cluster_operators_commute = other.cluster_operators_commute;
+    this->find_paired_permutations  = other.find_paired_permutations;
+
+    // deep copy pointers to pq_strings
+    ordered.clear();
+    ordered.reserve(other.ordered.size());
+    for (const std::shared_ptr<pq_string> & pq_str : other.ordered) {
+        this->ordered.push_back(std::make_shared<pq_string>(*pq_str));
+    }
+
+    ordered_blocked.clear();
+    ordered_blocked.reserve(other.ordered_blocked.size());
+    for (const std::shared_ptr<pq_string> & pq_str : other.ordered_blocked) {
+        this->ordered_blocked.push_back(std::make_shared<pq_string>(*pq_str));
+    }
+
+}
+
+pq_helper &pq_helper::operator=(const pq_helper &other) {
+    // check for self-assignment
+    if (this == &other) {
+        return *this;
+    }
+
+    // construct deep copy and move to this
+    *this = std::move(pq_helper(other));
+    return *this;
+
+}
+
 
 void pq_helper::set_find_paired_permutations(bool do_find_paired_permutations) {
     find_paired_permutations = do_find_paired_permutations;

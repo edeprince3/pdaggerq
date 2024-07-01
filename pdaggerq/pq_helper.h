@@ -51,7 +51,50 @@ class pq_helper {
      * @param vacuum_type: normal order is defined with respect to the TRUE vacuum or the FERMI vacuum
      *
      */
-    explicit pq_helper(const std::string &vacuum_type);
+    explicit pq_helper(const std::string &vacuum_type = "");
+
+    /**
+     *
+     * copy constructor
+     *
+     * @param other: a pq_helper object
+     *
+     */
+    pq_helper(const pq_helper &other);
+
+    /**
+     *
+     * move constructor
+     *
+     * @param other: a pq_helper object
+     *
+     */
+    pq_helper(pq_helper &&other) = default;
+
+    /**
+     *
+     * copy assignment operator
+     *
+     * @param other: a pq_helper object
+     *
+     */
+    pq_helper &operator=(const pq_helper &other);
+
+    /**
+     *
+     * move assignment operator
+     *
+     * @param other: a pq_helper object
+     *
+     */
+    pq_helper &operator=(pq_helper &&other) = default;
+
+    /**
+     *
+     * clone the pq_helper object (calls copy constructor and moves the result)
+     *
+     */
+    pq_helper clone() const { return pq_helper(*this); }
 
     /**
      *
