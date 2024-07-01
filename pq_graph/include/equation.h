@@ -241,7 +241,7 @@ namespace pdaggerq {
         vector<string> to_strings() const;
 
         friend ostream &operator<<(ostream &os, const Equation &eq){
-            for (const string &s : eq.to_strings()) os << s << endl;
+            for (const string &s : eq.to_strings()) os << "    " << s << endl;
             return os;
         }
 

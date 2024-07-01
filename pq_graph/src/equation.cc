@@ -155,7 +155,7 @@ namespace pdaggerq {
             if (!comment.empty() && !override) {
 
                 if (is_declaration) comment = term.make_comments(true);
-                else comment.insert(0, "\n"); // add newline to the beginning of the comment
+                else comment.insert(0, "\n    "); // add newline to the beginning of the comment
 
                 // replace all '\"' with '' in comment
                 size_t pos = 0;
