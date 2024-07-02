@@ -288,7 +288,7 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
     auto close_temp = [&]() {
         node_names.push_back(padding + "    style=dashed;\n");
         node_names.push_back(padding + "    rank=min;\n");
-        node_names.push_back(padding + "    clusterrank=local;\n");
+        node_names.push_back(padding + "    clusterrank=global;\n");
         node_names.push_back(padding + "    }\n");
     };
 
@@ -323,8 +323,8 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
         // Create node signature for non-empty base names
         string node_signature;
         if (!current->base_name().empty()) {
-            bool keep_sig = append_edges(padding, vertices, current, i, int_edge_names, l_id, term_id, int_edge_style);  // Append edges for the current node
-            if (current_node.find("Id") == string::npos || keep_sig) {
+            append_edges(padding, vertices, current, i, int_edge_names, l_id, term_id, int_edge_style);  // Append edges for the current node
+            if (current_node.find("Id") == string::npos) {
                 node_signature = current_node + " [label=\"" + current->base_name() + "\", " + node_style + ", group="
                                  + to_string(group_count++) + "];\n";
             }
