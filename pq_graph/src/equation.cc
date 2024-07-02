@@ -608,7 +608,7 @@ namespace pdaggerq {
             bool b_has_temp = !b_lhs_ids.empty() || !b_rhs_ids.empty();
 
             // keep terms without temps first and if both have no temps, keep order
-            if (a_has_temp ^ b_has_temp) return !a_has_temp;
+            if (a_has_temp == b_has_temp) return !a_has_temp;
             else if (!a_has_temp)        return a_idx < b_idx;
 
             // keep in lexicographical order of ids
@@ -620,7 +620,7 @@ namespace pdaggerq {
                 return a_idx < b_idx;
 
             // if ids are the same, ensure assignment is first
-            if (a_term.is_assignment_ ^ b_term.is_assignment_)
+            if (a_term.is_assignment_ == b_term.is_assignment_)
                 return a_term.is_assignment_;
 
             // keep in order of lhs ids
