@@ -550,7 +550,7 @@ namespace pdaggerq {
     inline bool Vertex::equivalent(const Vertex &other) const {
 
         // check if rank, n_occ, n_vir, n_alph, n_beta are equal
-        if (this->is_linked() == other.is_linked())
+        if (this->is_linked() ^ other.is_linked())
             return false; // if one is linked and the other is not, return false (cannot be equivalent)
 
         if (rank_  !=  other.rank_) return false;
