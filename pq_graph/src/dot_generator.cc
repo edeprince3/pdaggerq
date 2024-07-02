@@ -47,15 +47,13 @@ string determine_direction(bool o, bool curr_is_bra) {
 }
 
 // Function to append null nodes for external lines in the graph
-void append_null_nodes(const ConstLinkagePtr &link, const vector<ConstVertexPtr> &vertices, size_t &dummy_count, size_t term_id, vector<string> &null_nodes, vector<string> &ext_edge_names, size_t &group_count, const string &ext_edge_style, const string &null_node_style) {
+void append_null_nodes(string padding, const ConstLinkagePtr &link, const vector<ConstVertexPtr> &vertices, size_t &dummy_count, size_t term_id, vector<string> &null_nodes, vector<string> &ext_edge_names, size_t &group_count, const string &ext_edge_style, const string &null_node_style) {
     for (const auto &line : link->lines_) {
         if (line.sig_) continue;  // Skip lines marked as significant
 
         // Create a unique identifier for the null node
         string null_node = "null_node" + to_string(dummy_count++) + (line.o_ ? "o" : "v") + line.label_;
         bool added_null = false;
-
-        string padding = "       ";
 
         // Iterate through each vertex to find where to add the null node
         for (size_t i = 0; i < vertices.size(); ++i) {
@@ -83,10 +81,9 @@ void append_null_nodes(const ConstLinkagePtr &link, const vector<ConstVertexPtr>
 }
 
 // Function to append edge links between vertices in the graph
-void append_edge_links(const ConstLinkagePtr &link, const ConstVertexPtr &current, const ConstVertexPtr &next, const string &current_node, const string &next_node, vector<string> &int_edge_names, const string &int_edge_style) {
+void append_edge_links(string padding, const ConstLinkagePtr &link, const ConstVertexPtr &current, const ConstVertexPtr &next, const string &current_node, const string &next_node, vector<string> &int_edge_names, const string &int_edge_style) {
     const auto &current_lines = current->lines();  // Get lines from the current vertex
     size_t current_len = current_lines.size();
-    string padding = "        ";
 
     // Iterate through internal lines in the linkage
     for (const auto &line : link->int_lines()) {
@@ -104,7 +101,7 @@ void append_edge_links(const ConstLinkagePtr &link, const ConstVertexPtr &curren
 
 
 // Function to append edges between vertices
-void append_edges(const vector<ConstVertexPtr> &vertices, const ConstVertexPtr &current, size_t i, vector<string> &int_edge_names, const string &l_id, size_t term_id, const string &int_edge_style) {
+void append_edges(string padding, const vector<ConstVertexPtr> &vertices, const ConstVertexPtr &current, size_t i, vector<string> &int_edge_names, const string &l_id, size_t term_id, const string &int_edge_style) {
     string current_node = current->base_name() + "_" + l_id;  // Current node identifier
 
     // Iterate through remaining vertices to find edges
@@ -117,13 +114,13 @@ void append_edges(const vector<ConstVertexPtr> &vertices, const ConstVertexPtr &
 
         // Get the linkage between current and next vertices and append edge links
         const auto &link = as_link(current * next);
-        append_edge_links(link, current, next, current_node, next_node, int_edge_names, int_edge_style);
+        append_edge_links(padding, link, current, next, current_node, next_node, int_edge_names, int_edge_style);
     }
 }
 
 // Function to sort vertices based on their base name
 vector<ConstVertexPtr> sorted_vertices(const ConstLinkagePtr& link) {
-    vector<ConstVertexPtr> vertices = link->vertices();  // Get vertices from linkage
+    vector<ConstVertexPtr> vertices = link->vertices(true);  // Get vertices from linkage
     sort(vertices.begin(), vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
         return a->base_name() < b->base_name();  // Sort vertices by base name
     });
@@ -131,21 +128,29 @@ vector<ConstVertexPtr> sorted_vertices(const ConstLinkagePtr& link) {
 }
 
 // Function to sort temporary vertices based on their base name
-vector<ConstVertexPtr> sorted_temp_vertices(const ConstLinkagePtr& link) {
-    vector<ConstVertexPtr> temp_verts;
+vector<pair<string,ConstVertexPtr>> sorted_temp_vertices(const ConstLinkagePtr& link) {
+    vector<pair<string,ConstVertexPtr>> temp_verts;
 
     // Collect temporary vertices from linkage
-    for (const auto &temp : link->link_vector(false)) {
+    for (const auto &temp : link->link_vector(true)) {
         if (temp->is_temp()) {
+            string temp_label;
+            if (temp->is_scalar())
+                 temp_label = "scalar";
+            else if (temp->is_reused())
+                 temp_label = "reuse";
+            else temp_label = "temp";
+            temp_label += "_" + to_string(temp->id());
+
             for (const auto &temp_vert : as_link(temp)->vertices()) {
-                temp_verts.push_back(temp_vert);
+                temp_verts.push_back({temp_label, temp_vert});
             }
         }
     }
 
     // Sort temporary vertices by base name
-    sort(temp_verts.begin(), temp_verts.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-        return a->base_name() < b->base_name();
+    sort(temp_verts.begin(), temp_verts.end(), [](const pair<string,ConstVertexPtr> &a, const pair<string,ConstVertexPtr> &b) {
+        return a.second->base_name() < b.second->base_name();
     });
     return temp_verts;
 }
@@ -157,7 +162,7 @@ void PQGraph::write_dot(string &filepath) {
     os << "digraph G {\n";
     string padding = "    ";
 
-    size_t term_count = 0;
+    size_t term_count = 0, dummy_count = 0;
 
     // Graph attributes
     os << padding << "rankdir=RL;\n";      // Set graph direction from right to left
@@ -174,12 +179,13 @@ void PQGraph::write_dot(string &filepath) {
     for (auto &it : equations_) {
         Equation &eq = it.second;
         if (eq.terms().empty()) continue;
+        if (eq.is_temp_equation_) continue; // Skip intermediate equations
 
         string graphname = "cluster_equation_" + it.first;
         os << padding << "subgraph " << graphname << " {\n";
         os << padding << "    style=rounded;\n";       // Rounded style for subgraph
         os << padding << "    clusterrank=local;\n";   // Local clustering rank (no global ordering)
-        eq.write_dot(os, term_count, "black");         // Write the equation's terms to the DOT file
+        eq.write_dot(os, term_count, dummy_count, "black");         // Write the equation's terms to the DOT file
 
         // Write the assignment vertex to the DOT file
         const auto vertex = eq.assignment_vertex();
@@ -201,9 +207,9 @@ void PQGraph::write_dot(string &filepath) {
     cout << "       fdp -Tpdf -O " << filepath << endl;
 }
 
-ostream &Equation::write_dot(ostream &os, size_t &term_count, const string &color) {
+ostream &Equation::write_dot(ostream &os, size_t &term_count, size_t &dummy_count, const string &color) {
     string padding = "            ";
-    size_t term_id = term_count, dummy_count = term_count;
+    size_t term_id = term_count;
 
     // Iterate through each term in the equation
     bool closed = false;
@@ -259,24 +265,34 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
 
     // Get sorted vertices and temporary vertices
     vector<ConstVertexPtr> vertices = sorted_vertices(as_link(shared_from_this()));
-    vector<ConstVertexPtr> temp_verts = sorted_temp_vertices(as_link(shared_from_this()));
+    vector<pair<string,ConstVertexPtr>> temp_verts = sorted_temp_vertices(as_link(shared_from_this()));
 
     auto close_temp = [&]() {
-        node_names.push_back(padding + "    label=\"\";\n");
         node_names.push_back(padding + "    style=dashed;\n");
         node_names.push_back(padding + "    rank=min;\n");
-        node_names.push_back(padding + "    clusterrank=global;\n");
+        node_names.push_back(padding + "    clusterrank=local;\n");
         node_names.push_back(padding + "    }\n");
     };
 
     // Iterate through each vertex
     for (size_t i = 0; i < vertices.size(); ++i) {
         const auto &current = vertices[i];
-        bool in_temp = find(temp_verts.begin(), temp_verts.end(), current) != temp_verts.end();
+
+        // check if the current vertex is a temporary vertex
+        bool in_temp = false;
+        string temp_label;
+        for (const auto &[name, temp] : temp_verts) {
+            if (current == temp) {
+                in_temp = true;
+                temp_label = name;
+                break;
+            }
+        }
 
         // Handle temporary vertices grouping
         if (in_temp && !began_temp) {
             node_names.push_back(padding + "    subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
+            node_names.push_back(padding + "    label=\"" + temp_label + "\";\n");
             began_temp = true;
         } else if (!in_temp && began_temp) {
             close_temp();
@@ -290,7 +306,7 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
         string node_signature;
         if (!current->base_name().empty()) {
             node_signature = current_node + " [label=\"" + current->base_name() + "\", " + node_style + ", group=" + to_string(group_count++) + "];\n";
-            append_edges(vertices, current, i, int_edge_names, l_id, term_id, int_edge_style);  // Append edges for the current node
+            append_edges(padding, vertices, current, i, int_edge_names, l_id, term_id, int_edge_style);  // Append edges for the current node
         }
         if (in_temp)
             node_signature = padding + node_signature;
@@ -305,7 +321,7 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
     }
 
     // Append null nodes for vertices
-    append_null_nodes(as_link(shared_from_this()), vertices, dummy_count, term_id, null_nodes, ext_edge_names, group_count, ext_edge_style, null_node_style);
+    append_null_nodes(padding, as_link(shared_from_this()), vertices, dummy_count, term_id, null_nodes, ext_edge_names, group_count, ext_edge_style, null_node_style);
 
     // Write all collected node and edge names to the output stream
     for (const auto &name : node_names) os << padding << name;
