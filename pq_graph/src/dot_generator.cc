@@ -81,9 +81,21 @@ void append_null_nodes(string padding, const ConstLinkagePtr &link, const vector
 }
 
 // Function to append edge links between vertices in the graph
-void append_edge_links(string padding, const ConstLinkagePtr &link, const ConstVertexPtr &current, const ConstVertexPtr &next, const string &current_node, const string &next_node, vector<string> &int_edge_names, const string &int_edge_style) {
+bool append_edge_links(string padding, const ConstLinkagePtr &link, const ConstVertexPtr &current, const ConstVertexPtr &next, string current_node, string next_node, vector<string> &int_edge_names, const string &int_edge_style) {
     const auto &current_lines = current->lines();  // Get lines from the current vertex
     size_t current_len = current_lines.size();
+
+    bool current_significant = current_node.find("Id") == string::npos;
+    bool next_significant = next_node.find("Id") == string::npos;
+
+    // only significant lines are considered. one of the vertices must be significant or neither
+    bool is_significant = current_significant == next_significant;
+
+    if (!is_significant) {
+        if (current_significant) next_node = current_node;
+        else current_node = next_node;
+    }
+
 
     // Iterate through internal lines in the linkage
     for (const auto &line : link->int_lines()) {
@@ -97,13 +109,16 @@ void append_edge_links(string padding, const ConstLinkagePtr &link, const ConstV
         // Add the edge to the list of internal edge names
         int_edge_names.push_back(padding + connnection + " [label=\"" + edge_label + "\"," + int_edge_style + ", dir=" + direction + "];\n");
     }
+
+    return is_significant;
 }
 
 
 // Function to append edges between vertices
-void append_edges(string padding, const vector<ConstVertexPtr> &vertices, const ConstVertexPtr &current, size_t i, vector<string> &int_edge_names, const string &l_id, size_t term_id, const string &int_edge_style) {
+bool append_edges(string padding, const vector<ConstVertexPtr> &vertices, const ConstVertexPtr &current, size_t i, vector<string> &int_edge_names, const string &l_id, size_t term_id, const string &int_edge_style) {
     string current_node = current->base_name() + "_" + l_id;  // Current node identifier
 
+    bool keep_sig = false;
     // Iterate through remaining vertices to find edges
     for (size_t j = i + 1; j < vertices.size(); ++j) {
         const auto &next = vertices[j];
@@ -114,8 +129,11 @@ void append_edges(string padding, const vector<ConstVertexPtr> &vertices, const 
 
         // Get the linkage between current and next vertices and append edge links
         const auto &link = as_link(current * next);
-        append_edge_links(padding, link, current, next, current_node, next_node, int_edge_names, int_edge_style);
+
+        keep_sig |= append_edge_links(padding, link, current, next, current_node, next_node, int_edge_names, int_edge_style);
     }
+
+    return keep_sig;
 }
 
 // Function to sort vertices based on their base name
@@ -305,8 +323,11 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
         // Create node signature for non-empty base names
         string node_signature;
         if (!current->base_name().empty()) {
-            node_signature = current_node + " [label=\"" + current->base_name() + "\", " + node_style + ", group=" + to_string(group_count++) + "];\n";
-            append_edges(padding, vertices, current, i, int_edge_names, l_id, term_id, int_edge_style);  // Append edges for the current node
+            bool keep_sig = append_edges(padding, vertices, current, i, int_edge_names, l_id, term_id, int_edge_style);  // Append edges for the current node
+            if (current_node.find("Id") == string::npos || keep_sig) {
+                node_signature = current_node + " [label=\"" + current->base_name() + "\", " + node_style + ", group="
+                                 + to_string(group_count++) + "];\n";
+            }
         }
         if (in_temp)
             node_signature = padding + node_signature;
