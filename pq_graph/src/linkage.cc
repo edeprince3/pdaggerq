@@ -310,10 +310,10 @@ namespace pdaggerq {
 
     bool Linkage::similar_root(const Linkage &other) const{
         // check if both linkage are empty or not
-        if (empty() ^ other.empty()) return false;
+        if (empty() != other.empty()) return false;
 
         // check if linkage type is the same
-        if (is_addition_ ^ other.is_addition_) return false;
+        if (is_addition_ != other.is_addition_) return false;
 
         // check the depth of the linkage
         if (depth_ != other.depth_) return false;
@@ -322,8 +322,8 @@ namespace pdaggerq {
         bool left_linked = left_->is_linked(), right_linked = right_->is_linked();
 
         // check if both left and right vertices are linked or not
-        if ( left_linked ^  other.left_->is_linked()) return false;
-        if (right_linked ^ other.right_->is_linked()) return false;
+        if ( left_linked !=  other.left_->is_linked()) return false;
+        if (right_linked != other.right_->is_linked()) return false;
 
         // check that scales are equal
         if (flop_scale_ != other.flop_scale_) return false;
@@ -462,10 +462,10 @@ namespace pdaggerq {
             return {false, false}; // cannot permute intermediates
 
         // check if both linkage are empty or not
-        if (empty() ^ other.empty()) return {false, false};
+        if (empty() != other.empty()) return {false, false};
 
         // check if linkage type is the same
-        if (is_addition_ ^ other.is_addition_) return {false, false};
+        if (is_addition_ != other.is_addition_) return {false, false};
 
         // check the depth of the linkage
         if (depth_ != other.depth_) return {false, false};
@@ -474,8 +474,8 @@ namespace pdaggerq {
         bool left_linked = left_->is_linked(), right_linked = right_->is_linked();
 
         // check if both left and right vertices are linked or not
-        if ( left_linked ^  other.left_->is_linked()) return {false, false};
-        if (right_linked ^ other.right_->is_linked()) return {false, false};
+        if ( left_linked !=  other.left_->is_linked()) return {false, false};
+        if (right_linked != other.right_->is_linked()) return {false, false};
 
         // check that scales are equal
         if (flop_scale_ != other.flop_scale_) return {false, false};
