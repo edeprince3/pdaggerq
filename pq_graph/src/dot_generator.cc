@@ -39,83 +39,10 @@ string format_label(const Term &term) {
     return label.str();  // Return the formatted label as a string
 }
 
-
-void PQGraph::write_dot(string &filepath) {
-    cout << "Writing DOT file to " << filepath << endl;
-    ofstream os(filepath);
-    os << "digraph G {\n";
-    string padding = "    ";
-
-    size_t term_count = 0;
-
-    // Graph attributes
-    os << padding << "rankdir=RL;\n";      // Set graph direction from right to left
-    os << padding << "mode=hier;\n";       // Set hierarchical mode for layout
-    os << padding << "compound=true;\n";   // Treat subgraphs as separate graphs
-    os << padding << "splines=spline;\n";  // Use spline edges
-    os << padding << "dim=2;\n";           // Set graph dimension to 2
-    os << padding << "normalize=true;\n";  // Normalize node coordinates
-    os << padding << "K=1.0;\n";           // Set spring constant for layout
-    os << padding << "node [fontname=\"Helvetica\"];\n";  // Set node font
-    os << padding << "edge [concentrate=false, len=1.5];\n";       // Do not concentrate edges
-
-    padding += "    ";
-    for (auto &it : equations_) {
-        Equation &eq = it.second;
-        if (eq.terms().empty()) continue;
-
-        string graphname = "cluster_equation_" + it.first;
-        os << padding << "subgraph " << graphname << " {\n";
-        os << padding << "    style=rounded;\n";       // Rounded style for subgraph
-        os << padding << "    clusterrank=local;\n";   // Local clustering rank (no global ordering)
-        eq.write_dot(os, term_count, "black");         // Write the equation's terms to the DOT file
-
-        // Write the assignment vertex to the DOT file
-        const auto vertex = eq.assignment_vertex();
-        os << padding << "label = \"" << vertex->base_name_;
-        if (!vertex->lines().empty()) os << "(" << join(vertex->lines(), ",") << ")";
-        os << "\";\n";
-
-        os << padding << "color = \"black\";\n";       // Set color of subgraph border
-        os << padding << "fontsize = 32;\n";           // Set font size for label
-        os << padding << "}\n";
-    }
-    os << "}\n";
-    os.close();
-
-    cout << "DOT file written successfully!" << endl;
-    cout << "Run the following command to generate the graph:" << endl;
-    cout << "       dot -Tpdf -O " << filepath << endl;
-    cout << "For a more compact graph, run the following command:" << endl;
-    cout << "       fdp -Tpdf -O " << filepath << endl;
-}
-
-ostream &Equation::write_dot(ostream &os, size_t &term_count, const string &color) {
-    string padding = "        ";
-    size_t term_id = 0, dummy_count = 0;
-
-    // Iterate through each term in the equation
-    for (Term &term : terms_) {
-        if (term.rhs().empty()) continue;  // Skip terms with empty right-hand side
-
-        term.compute_scaling(true);  // Compute scaling for the term
-        string graphname = "cluster_term" + to_string(term_count++);  // Generate unique name for the subgraph
-        os << padding << "subgraph " << graphname << " {\n";
-        os << padding << "    style=rounded;\n";  // Rounded style for subgraph
-        os << padding << "    clusterrank=local;\n";  // Local clustering rank
-        os << padding << "    label=\"" << format_label(term) << "\";\n";  // Set label for the subgraph
-
-        // Write the linkage of the term to the DOT file
-        term.term_linkage()->write_dot(os, term_id, dummy_count, color);
-        os << padding << "}\n";
-    }
-    return os;
-}
-
 string determine_direction(bool o, bool curr_is_bra) {
     // determine direction of edge based on whether current edge is bra or ket
     if (curr_is_bra)
-         return o ? "forward" : "back";
+        return o ? "forward" : "back";
     else return o ? "back" : "forward";
 }
 
@@ -128,6 +55,8 @@ void append_null_nodes(const ConstLinkagePtr &link, const vector<ConstVertexPtr>
         string null_node = "null_node" + to_string(dummy_count++) + (line.o_ ? "o" : "v") + line.label_;
         bool added_null = false;
 
+        string padding = "       ";
+
         // Iterate through each vertex to find where to add the null node
         for (size_t i = 0; i < vertices.size(); ++i) {
             const auto &current = vertices[i];
@@ -139,7 +68,7 @@ void append_null_nodes(const ConstLinkagePtr &link, const vector<ConstVertexPtr>
 
             // Add the null node to the graph if not already added
             if (!added_null) {
-                null_nodes.push_back(null_node + " [label=\"\", " + null_node_style + ", group=" + to_string(group_count++) + "];\n");
+                null_nodes.push_back(padding + null_node + " [label=\"\", " + null_node_style + ", group=" + to_string(group_count++) + "];\n");
                 added_null = true;
             }
 
@@ -148,7 +77,7 @@ void append_null_nodes(const ConstLinkagePtr &link, const vector<ConstVertexPtr>
             // Create the connection string for the edge
             string connnection = (curr_it < current_lines.end() - current_lines.size() / 2 ? current->base_name() + "_" + to_string(i) + to_string(term_id) : null_node) + " -> " + (curr_it < current_lines.end() - current_lines.size() / 2 ? null_node : current->base_name() + "_" + to_string(i) + to_string(term_id));
             // Add the edge to the list of external edge names
-            ext_edge_names.push_back(connnection + " [label=\"" + line.label_ + "\"," + ext_edge_style + ", dir=" + direction + "];\n");
+            ext_edge_names.push_back(padding + connnection + " [label=\"" + line.label_ + "\"," + ext_edge_style + ", dir=" + direction + "];\n");
         }
     }
 }
@@ -157,6 +86,7 @@ void append_null_nodes(const ConstLinkagePtr &link, const vector<ConstVertexPtr>
 void append_edge_links(const ConstLinkagePtr &link, const ConstVertexPtr &current, const ConstVertexPtr &next, const string &current_node, const string &next_node, vector<string> &int_edge_names, const string &int_edge_style) {
     const auto &current_lines = current->lines();  // Get lines from the current vertex
     size_t current_len = current_lines.size();
+    string padding = "        ";
 
     // Iterate through internal lines in the linkage
     for (const auto &line : link->int_lines()) {
@@ -168,7 +98,7 @@ void append_edge_links(const ConstLinkagePtr &link, const ConstVertexPtr &curren
         // Create the connection string for the edge
         string connnection = (curr_is_bra ? next_node : current_node) + " -> " + (curr_is_bra ? current_node : next_node);
         // Add the edge to the list of internal edge names
-        int_edge_names.push_back(connnection + " [label=\"" + edge_label + "\"," + int_edge_style + ", dir=" + direction + "];\n");
+        int_edge_names.push_back(padding + connnection + " [label=\"" + edge_label + "\"," + int_edge_style + ", dir=" + direction + "];\n");
     }
 }
 
@@ -221,13 +151,101 @@ vector<ConstVertexPtr> sorted_temp_vertices(const ConstLinkagePtr& link) {
 }
 
 
+void PQGraph::write_dot(string &filepath) {
+    cout << "Writing DOT file to " << filepath << endl;
+    ofstream os(filepath);
+    os << "digraph G {\n";
+    string padding = "    ";
+
+    size_t term_count = 0;
+
+    // Graph attributes
+    os << padding << "rankdir=RL;\n";      // Set graph direction from right to left
+    os << padding << "mode=hier;\n";       // Set hierarchical mode for layout
+    os << padding << "compound=true;\n";   // Treat subgraphs as separate graphs
+    os << padding << "splines=spline;\n";  // Use spline edges
+    os << padding << "dim=2;\n";           // Set graph dimension to 2
+    os << padding << "normalize=true;\n";  // Normalize node coordinates
+    os << padding << "K=1.0;\n";           // Set spring constant for layout
+    os << padding << "node [fontname=\"Helvetica\"];\n";  // Set node font
+    os << padding << "edge [concentrate=false, len=1.5];\n";       // Do not concentrate edges
+
+    padding += "    ";
+    for (auto &it : equations_) {
+        Equation &eq = it.second;
+        if (eq.terms().empty()) continue;
+
+        string graphname = "cluster_equation_" + it.first;
+        os << padding << "subgraph " << graphname << " {\n";
+        os << padding << "    style=rounded;\n";       // Rounded style for subgraph
+        os << padding << "    clusterrank=local;\n";   // Local clustering rank (no global ordering)
+        eq.write_dot(os, term_count, "black");         // Write the equation's terms to the DOT file
+
+        // Write the assignment vertex to the DOT file
+        const auto vertex = eq.assignment_vertex();
+        os << padding << "label = \"" << vertex->base_name_;
+        if (!vertex->lines().empty()) os << "(" << join(vertex->lines(), ",") << ")";
+        os << "\";\n";
+
+        os << padding << "color = \"black\";\n";       // Set color of subgraph border
+        os << padding << "fontsize = 32;\n";           // Set font size for label
+        os << padding << "}\n";
+    }
+    os << "}\n";
+    os.close();
+
+    cout << "DOT file written successfully!" << endl;
+    cout << "Run the following command to generate the graph:" << endl;
+    cout << "       dot -Tpdf -O " << filepath << endl;
+    cout << "For a more compact graph, run the following command:" << endl;
+    cout << "       fdp -Tpdf -O " << filepath << endl;
+}
+
+ostream &Equation::write_dot(ostream &os, size_t &term_count, const string &color) {
+    string padding = "            ";
+    size_t term_id = term_count, dummy_count = term_count;
+
+    // Iterate through each term in the equation
+    bool closed = false;
+    for (Term &term : terms_) {
+
+        term.compute_scaling(true);  // Compute scaling for the term
+        string graphname = "cluster_term" + to_string(term_count++);  // Generate unique name for the subgraph
+        os << padding << "subgraph " << graphname << " {\n";
+        os << padding << "    style=rounded;\n";  // Rounded style for subgraph
+        os << padding << "    clusterrank=local;\n";  // Local clustering rank
+        string label = format_label(term);  // Get the formatted label for the term
+        if (term.rhs().empty()) {
+            label = to_string(term.coefficient_);
+        }
+        os << padding << "    label=\"" << label << "\";\n";  // Set label for the subgraph
+
+        // Write the linkage of the term to the DOT file
+        if (!term.rhs().empty())
+            term.term_linkage()->write_dot(os, term_id, dummy_count, color);
+        else {
+            ConstLinkagePtr bogus_linkage_ = as_link(make_shared<const Vertex>("constant") * make_shared<const Vertex>(""));
+            bogus_linkage_->write_dot(os, term_id, dummy_count, color);
+        }
+
+        // close the subgraph
+        os << padding << "}\n";
+        closed = true;
+    }
+    if (!closed) {
+        os << padding << "label = \"\";\n";
+    }
+    return os;
+}
+
+
 ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, const string &color) const {
 
     // Increment term_id and dummy_count for unique identification
     ++term_id;
     ++dummy_count;
 
-    string padding = "                ";
+    string padding = "         ";
     vector<string> node_names, int_edge_names, ext_edge_names, null_nodes;
 
     // Define styles for nodes and edges
@@ -243,6 +261,14 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
     vector<ConstVertexPtr> vertices = sorted_vertices(as_link(shared_from_this()));
     vector<ConstVertexPtr> temp_verts = sorted_temp_vertices(as_link(shared_from_this()));
 
+    auto close_temp = [&]() {
+        node_names.push_back(padding + "    label=\"\";\n");
+        node_names.push_back(padding + "    style=dashed;\n");
+        node_names.push_back(padding + "    rank=min;\n");
+        node_names.push_back(padding + "    clusterrank=global;\n");
+        node_names.push_back(padding + "    }\n");
+    };
+
     // Iterate through each vertex
     for (size_t i = 0; i < vertices.size(); ++i) {
         const auto &current = vertices[i];
@@ -250,10 +276,10 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
 
         // Handle temporary vertices grouping
         if (in_temp && !began_temp) {
-            node_names.push_back("subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
+            node_names.push_back(padding + "    subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
             began_temp = true;
         } else if (!in_temp && began_temp) {
-            node_names.push_back("label=\"\";\nstyle=dashed;\nrank=min;\nclusterrank=global\n}\n");
+            close_temp();
             began_temp = false;
         }
 
@@ -261,15 +287,22 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
         string current_node = current->base_name() + "_" + l_id;
 
         // Create node signature for non-empty base names
+        string node_signature;
         if (!current->base_name().empty()) {
-            string node_signature = current_node + " [label=\"" + current->base_name() + "\", " + node_style + ", group=" + to_string(group_count++) + "];\n";
-            node_names.push_back(node_signature);
+            node_signature = current_node + " [label=\"" + current->base_name() + "\", " + node_style + ", group=" + to_string(group_count++) + "];\n";
             append_edges(vertices, current, i, int_edge_names, l_id, term_id, int_edge_style);  // Append edges for the current node
         }
+        if (in_temp)
+            node_signature = padding + node_signature;
+
+        if (!node_signature.empty())
+            node_names.push_back(padding + node_signature);
     }
 
     // Close temporary subgraph if it was opened
-    if (began_temp) node_names.push_back("label=\"\";\nstyle=dashed;\nrank=min;\n}\n");
+    if (began_temp) {
+        close_temp();
+    }
 
     // Append null nodes for vertices
     append_null_nodes(as_link(shared_from_this()), vertices, dummy_count, term_id, null_nodes, ext_edge_names, group_count, ext_edge_style, null_node_style);
