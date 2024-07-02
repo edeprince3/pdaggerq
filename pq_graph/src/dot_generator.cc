@@ -26,12 +26,22 @@ string format_label(const Term &term) {
         label << "P(" << perm.first << "," << perm.second << ") ";
 
     // Get vertices from the term's linkage
-    vector<ConstVertexPtr> vertices = term.term_linkage()->vertices(true);
+    vector<ConstVertexPtr> vertices = term.term_linkage()->link_vector(true);
 
     // Add each vertex and its lines to the label
     for (const auto &vertex : vertices) {
         if (vertex && !vertex->empty()) {
-            label << vertex->base_name_;
+            if (vertex->is_temp()) {
+                string generic_str;
+                if (vertex->is_scalar())
+                    generic_str = "scalars_";
+                else if (vertex->is_reused())
+                    generic_str = "reuse_tmps_";
+                else generic_str = "tmps_";
+                label << generic_str << vertex->id();
+            }
+            else label << vertex->base_name_;
+
             if (!vertex->lines().empty()) label << "(" << join(vertex->lines(), ",") << ")";
             label << " ";
         }
@@ -185,13 +195,13 @@ void PQGraph::write_dot(string &filepath) {
     // Graph attributes
     os << padding << "rankdir=RL;\n";      // Set graph direction from right to left
     os << padding << "mode=hier;\n";       // Set hierarchical mode for layout
-    os << padding << "compound=true;\n";   // Treat subgraphs as separate graphs
+    os << padding << "compound=false;\n";   // Treat subgraphs as separate graphs
     os << padding << "splines=spline;\n";  // Use spline edges
     os << padding << "dim=2;\n";           // Set graph dimension to 2
     os << padding << "normalize=true;\n";  // Normalize node coordinates
     os << padding << "K=1.0;\n";           // Set spring constant for layout
     os << padding << "node [fontname=\"Helvetica\"];\n";  // Set node font
-    os << padding << "edge [concentrate=false, len=1.5];\n";       // Do not concentrate edges
+    os << padding << "edge [concentrate=false];\n";       // Do not concentrate edges
 
     padding += "    ";
     for (auto &it : equations_) {
@@ -285,12 +295,11 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
     vector<ConstVertexPtr> vertices = sorted_vertices(as_link(shared_from_this()));
     vector<pair<string,ConstVertexPtr>> temp_verts = sorted_temp_vertices(as_link(shared_from_this()));
 
-    auto close_temp = [&]() {
-        node_names.push_back(padding + "    style=dashed;\n");
-        node_names.push_back(padding + "    rank=min;\n");
-        node_names.push_back(padding + "    clusterrank=global;\n");
-        node_names.push_back(padding + "    }\n");
-    };
+//    auto close_temp = [&]() {
+//        node_names.push_back(padding + "    style=dashed;\n");
+//        node_names.push_back(padding + "    clusterrank=local;\n");
+//        node_names.push_back(padding + "    }\n");
+//    };
 
     // Iterate through each vertex
     for (size_t i = 0; i < vertices.size(); ++i) {
@@ -308,14 +317,14 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
         }
 
         // Handle temporary vertices grouping
-        if (in_temp && !began_temp) {
-            node_names.push_back(padding + "    subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
-            node_names.push_back(padding + "    label=\"" + temp_label + "\";\n");
-            began_temp = true;
-        } else if (!in_temp && began_temp) {
-            close_temp();
-            began_temp = false;
-        }
+//        if (in_temp && !began_temp) {
+//            node_names.push_back(padding + "    subgraph cluster_tmp" + to_string(temp_count++) + "_" + to_string(term_id) + "{\n");
+//            node_names.push_back(padding + "    label=\"" + temp_label + "\";\n");
+//            began_temp = true;
+//        } else if (!in_temp && began_temp) {
+//            close_temp();
+//            began_temp = false;
+//        }
 
         string l_id = to_string(i) + to_string(term_id);
         string current_node = current->base_name() + "_" + l_id;
@@ -337,9 +346,9 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
     }
 
     // Close temporary subgraph if it was opened
-    if (began_temp) {
-        close_temp();
-    }
+//    if (began_temp) {
+//        close_temp();
+//    }
 
     // Append null nodes for vertices
     append_null_nodes(padding, as_link(shared_from_this()), vertices, dummy_count, term_id, null_nodes, ext_edge_names, group_count, ext_edge_style, null_node_style);
