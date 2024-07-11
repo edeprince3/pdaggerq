@@ -1173,6 +1173,14 @@ namespace pdaggerq {
                 if (std::find(restrict_ops.begin(), restrict_ops.end(), vertex->base_name()) != restrict_ops.end())
                     conditions.insert(condition); // if so, add named condition to set
             }
+
+            if (check_a_b_) {
+                // when checking for RHF conditions, we need to distinguish between alpha and beta operators
+                if (vertex->shape_.b_ > 0) {
+                    // if beta operators are present, add beta conditions
+                    conditions.insert("same_a_b");
+                }
+            }
         }
 
         // return set of operator basenames that have conditions

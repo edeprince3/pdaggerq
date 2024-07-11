@@ -86,6 +86,7 @@ namespace pdaggerq {
 
             typedef map<string, vector<string>> condition_map;
             static inline condition_map mapped_conditions_{}; // map of conditionals to their relevant operators
+            static inline bool check_a_b_ = false; // check if beta operators should be included when checking for RHF
             string original_pq_; // the original pq string representation
 
             /******** Constructors ********/
