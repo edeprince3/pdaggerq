@@ -46,23 +46,24 @@ namespace pdaggerq {
         uint_fast8_t n_ = 0; // number of lines
 
         //TODO: split this into two variables (oa, ob, va, vb); use a function to get their sum.
-        uint_fast8_t oa_{}, ob_{};
-        uint_fast8_t va_{}, vb_{};
-        uint_fast8_t o_{}, v_{};
-        uint_fast8_t a_{}, b_{};
+        uint_fast8_t oa_ = 0, ob_ = 0;
+        uint_fast8_t va_ = 0, vb_ = 0;
+        uint_fast8_t  o_ = 0,  v_ = 0;
+        uint_fast8_t  a_ = 0,  b_ = 0;
         
         uint_fast8_t L_ = 0; // sigma index
         uint_fast8_t Q_ = 0; // density index
 
-        shape() : oa_(0), va_(0), ob_(0), vb_(0), L_(0), Q_(0) {}
 
+        // default constructors and assignments
+        shape() = default;
+        ~shape() = default;
         shape(const shape &other) = default;
         shape(shape &&other) = default;
         shape &operator=(const shape &other) = default;
         shape &operator=(shape &&other) = default;
-        ~shape() = default;
 
-        explicit shape(const line_vector &lines) {
+        shape(const line_vector &lines) {
             for (const Line &line : lines)
                 *this += line;
         }
