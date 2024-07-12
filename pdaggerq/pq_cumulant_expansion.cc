@@ -152,7 +152,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[0]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[0]->set_amplitudes('D', 1, 1, {lab[1], lab[3]});
+            newguys[0]->set_amplitudes('D', 1, 1, 0, {lab[1], lab[3]});
 
             // term 1: - d1("03") * d2("12");
 
@@ -162,7 +162,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[1]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[1]->set_amplitudes('D', 1, 1, {lab[1], lab[2]});
+            newguys[1]->set_amplitudes('D', 1, 1, 0, {lab[1], lab[2]});
 
             // adjust sign
             newguys[1]->sign *= -1;
@@ -181,7 +181,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[0]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[0]->set_amplitudes('D', 2, 2, {lab[1], lab[2], lab[4], lab[5]});
+            newguys[0]->set_amplitudes('D', 2, 2, 0, {lab[1], lab[2], lab[4], lab[5]});
 
             // term 1: - d1("04") * d2("1235");
 
@@ -191,7 +191,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[1]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[1]->set_amplitudes('D', 2, 2, {lab[1], lab[2], lab[3], lab[5]});
+            newguys[1]->set_amplitudes('D', 2, 2, 0, {lab[1], lab[2], lab[3], lab[5]});
 
             // adjust sign
             newguys[1]->sign *= -1;
@@ -204,7 +204,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[2]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[2]->set_amplitudes('D', 2, 2, {lab[1], lab[2], lab[3], lab[4]});
+            newguys[2]->set_amplitudes('D', 2, 2, 0, {lab[1], lab[2], lab[3], lab[4]});
 
             // adjust sign
             newguys[2]->sign *= -1;
@@ -217,7 +217,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[3]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[3]->set_amplitudes('D', 2, 2, {lab[0], lab[2], lab[3], lab[5]});
+            newguys[3]->set_amplitudes('D', 2, 2, 0, {lab[0], lab[2], lab[3], lab[5]});
 
             // term 4: - d1("13") * d2("0245");
 
@@ -227,7 +227,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[4]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[4]->set_amplitudes('D', 2, 2, {lab[0], lab[2], lab[4], lab[5]});
+            newguys[4]->set_amplitudes('D', 2, 2, 0, {lab[0], lab[2], lab[4], lab[5]});
 
             // adjust sign
             newguys[4]->sign *= -1;
@@ -240,7 +240,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[5]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[5]->set_amplitudes('D', 2, 2, {lab[0], lab[2], lab[3], lab[4]});
+            newguys[5]->set_amplitudes('D', 2, 2, 0, {lab[0], lab[2], lab[3], lab[4]});
 
             // adjust sign
             newguys[5]->sign *= -1;
@@ -253,7 +253,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[6]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[6]->set_amplitudes('D', 2, 2, {lab[0], lab[1], lab[3], lab[4]});
+            newguys[6]->set_amplitudes('D', 2, 2, 0, {lab[0], lab[1], lab[3], lab[4]});
 
             // term 7: - d1("23") * d2("0154");
 
@@ -263,7 +263,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[7]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[7]->set_amplitudes('D', 2, 2, {lab[0], lab[1], lab[5], lab[4]});
+            newguys[7]->set_amplitudes('D', 2, 2, 0, {lab[0], lab[1], lab[5], lab[4]});
 
             // adjust sign
             newguys[7]->sign *= -1;
@@ -276,7 +276,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[8]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[8]->set_amplitudes('D', 2, 2, {lab[0], lab[1], lab[3], lab[5]});
+            newguys[8]->set_amplitudes('D', 2, 2, 0, {lab[0], lab[1], lab[3], lab[5]});
 
             // adjust sign
             newguys[8]->sign *= -1;
@@ -289,10 +289,10 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[9]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[9]->set_amplitudes('D', 1, 1, {lab[1], lab[4]});
+            newguys[9]->set_amplitudes('D', 1, 1, 0, {lab[1], lab[4]});
 
             // and another
-            newguys[9]->set_amplitudes('D', 1, 1, {lab[2], lab[5]});
+            newguys[9]->set_amplitudes('D', 1, 1, 0, {lab[2], lab[5]});
 
             // adjust sign
             newguys[9]->sign *= -1;
@@ -308,10 +308,10 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[10]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[10]->set_amplitudes('D', 1, 1, {lab[1], lab[5]});
+            newguys[10]->set_amplitudes('D', 1, 1, 0, {lab[1], lab[5]});
 
             // and another
-            newguys[10]->set_amplitudes('D', 1, 1, {lab[2], lab[3]});
+            newguys[10]->set_amplitudes('D', 1, 1, 0, {lab[2], lab[3]});
 
             // adjust sign
             newguys[10]->sign *= -1;
@@ -327,10 +327,10 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[11]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[11]->set_amplitudes('D', 1, 1, {lab[1], lab[3]});
+            newguys[11]->set_amplitudes('D', 1, 1, 0, {lab[1], lab[3]});
 
             // and another
-            newguys[11]->set_amplitudes('D', 1, 1, {lab[2], lab[4]});
+            newguys[11]->set_amplitudes('D', 1, 1, 0, {lab[2], lab[4]});
 
             // adjust sign
             newguys[11]->sign *= -1;
@@ -346,10 +346,10 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[12]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[12]->set_amplitudes('D', 1, 1, {lab[1], lab[5]});
+            newguys[12]->set_amplitudes('D', 1, 1, 0, {lab[1], lab[5]});
 
             // and another
-            newguys[12]->set_amplitudes('D', 1, 1, {lab[2], lab[4]});
+            newguys[12]->set_amplitudes('D', 1, 1, 0, {lab[2], lab[4]});
 
             // adjust factor
             newguys[12]->factor *= 2.0;
@@ -362,10 +362,10 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[13]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[13]->set_amplitudes('D', 1, 1, {lab[1], lab[4]});
+            newguys[13]->set_amplitudes('D', 1, 1, 0, {lab[1], lab[4]});
 
             // and another
-            newguys[13]->set_amplitudes('D', 1, 1, {lab[2], lab[3]});
+            newguys[13]->set_amplitudes('D', 1, 1, 0, {lab[2], lab[3]});
 
             // adjust factor
             newguys[13]->factor *= 2.0;
@@ -378,10 +378,10 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[14]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[14]->set_amplitudes('D', 1, 1, {lab[1], lab[3]});
+            newguys[14]->set_amplitudes('D', 1, 1, 0, {lab[1], lab[3]});
 
             // and another
-            newguys[14]->set_amplitudes('D', 1, 1, {lab[2], lab[5]});
+            newguys[14]->set_amplitudes('D', 1, 1, 0, {lab[2], lab[5]});
 
             // adjust factor
             newguys[14]->factor *= 2.0;

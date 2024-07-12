@@ -263,6 +263,14 @@ class amplitudes: public tensor {
      *
      */
     int n_annihilate = -1;
+
+    /**
+     *
+     * the number of photons
+     *
+     */
+    int n_ph = 0;
+
 };
 
 class integrals: public tensor {
