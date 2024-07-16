@@ -166,8 +166,8 @@ pq = pdaggerq.pq_helper("fermi")
 
 We follow the usual convention for labeling orbitals: i, j, k, l, m, and n represent occupied orbitals and a, b, c, d,
 e, and f represent virtual orbitals. Additionally, any label starting with i or a will be considered occupied or
-virtual, respectively (e.g., i_1 or a2). All other labels are considered general labels. Delta functions involving
-occupied / virtual combinations will be set to zero. When normal order is defined relative to the fermi vacuum, sums
+virtual, respectively (e.g., i_1 or a2). All other labels are considered general labels. 
+When normal order is defined relative to the fermi vacuum, sums
 involving general labels are split into sums involving occupied and virtual orbitals using internal labels o1, o2, o3,
 and o4 (occupied) or v1, v2, v3, and v4 (virtual). So, we recommend avoiding using these labels when specifying any
 other components of your strings.
