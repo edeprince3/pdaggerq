@@ -8,7 +8,8 @@ def main():
     c_ops = [['B+'], ['B-']]
     c_coeffs = [1.0, 1.0]
 
-    T = ['t2', 'u0', 'u1', 'u2']
+    #T = ['t2', 'u0', 'u1', 'u2']
+    T = ['t2', 't0_1', 't1_1', 't2_1']
 
     lproj = [
         # [['1']],
@@ -195,7 +196,7 @@ def block_by_spin(pq, eqname, ops, eqs):
         
         
         pq.block_by_spin(label_to_spin)
-        eqs[spin_eqname] = pq
+        eqs[spin_eqname] = pq.clone()
     
         terms = pq.fully_contracted_strings()
         for term in terms:
