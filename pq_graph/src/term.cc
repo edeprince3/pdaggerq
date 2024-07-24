@@ -1166,20 +1166,17 @@ namespace pdaggerq {
 
         // create a set of operator basenames
         vector<ConstVertexPtr> vertices = linkage->vertices();
+
+        // include lhs vertex in conditions
+        vertices.push_back(lhs_);
         for (const auto & vertex : vertices) {
+            if (!vertex) continue; // skip if vertex is null
+
             // loop over named conditions
             for (const auto & [condition, restrict_ops] : mapped_conditions) {
                 // check if vertex is in the list of operators
                 if (std::find(restrict_ops.begin(), restrict_ops.end(), vertex->base_name()) != restrict_ops.end())
                     conditions.insert(condition); // if so, add named condition to set
-            }
-
-            if (check_a_b_) {
-                // when checking for RHF conditions, we need to distinguish between alpha and beta operators
-                if (vertex->shape_.b_ > 0) {
-                    // if beta operators are present, add beta conditions
-                    conditions.insert("same_a_b");
-                }
             }
         }
 

@@ -211,9 +211,6 @@ namespace pdaggerq {
                 Term::mapped_conditions_[condition] = restrict_ops;
             }
         }
-        if (options.contains("check_a_b")) {
-            Term::check_a_b_ = options["check_a_b"].cast<bool>();
-        }
 
         if(options.contains("format_sigma"))
             format_sigma_ = options["format_sigma"].cast<bool>();
