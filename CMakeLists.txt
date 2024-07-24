@@ -25,23 +25,10 @@ project(pdaggerq LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# enable interprocedural optimization if using release build
-#if(${CMAKE_BUILD_TYPE} EQUAL "Release" OR ${CMAKE_BUILD_TYPE} EQUAL "RelWithDebInfo")
-#    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-#endif()
-
-# find python and set variables for:
-#     the interpreter, include dirs, libraries, and version
-set(Python3_FIND_STRATEGY LOCATION)
-find_package(Python3 REQUIRED COMPONENTS Development Interpreter)
-set(PYTHON_EXECUTABLE   ${Python3_EXECUTABLE})
-set(PYTHON_INCLUDE_DIRS ${Python3_INCLUDE_DIRS})
-set(PYTHON_LIBRARIES    ${Python3_LIBRARIES})
-set(PYTHON_VERSION      ${Python3_VERSION})
-
 # find pybind11 and set variables for:
 set(PYBIND11_PYTHON_VERSION 3)
 set(PYBIND11_FINDPYTHON ON)
+set(Python3_FIND_STRATEGY LOCATION)
 
 include(FetchContent)
 FetchContent_Declare(
