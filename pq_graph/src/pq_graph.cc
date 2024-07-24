@@ -729,14 +729,17 @@ namespace pdaggerq {
                 else newname = lhs_name + ".~TArrayD();";
 
                 Term newterm(tempterm);
+
+                if (!Term::make_einsum) {
+                    // add fence to free memory before continuing
+                    newterm.print_override_ = "world.gop.fence();";
+                    all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
+                }
+
                 newterm.print_override_ = newname;
 
                 // add tmp term after this term
                 all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
-                if (!Term::make_einsum) {
-                    newterm.print_override_ = "world.gop.fence();";
-                    all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
-                }
 
                 break; // only add once
             }
