@@ -1142,8 +1142,6 @@ namespace pdaggerq {
 
     set<string> Term::conditions() const {
 
-        // TODO: use map instead of set to group similar conditions together
-
         ConstLinkagePtr linkage = term_linkage(); // get linkage representation of term
         set<string> conditions{}; // set to store conditions
 
