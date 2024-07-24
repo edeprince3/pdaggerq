@@ -8,8 +8,7 @@ def main():
     c_ops = [['B+'], ['B-']]
     c_coeffs = [1.0, 1.0]
 
-    #T = ['t2', 'u0', 'u1', 'u2']
-    T = ['t2', 't0_1', 't1_1', 't2_1']
+    T = ['t2', 't0,1', 't1,1', 't2,1']
 
     lproj = [
         # [['1']],
@@ -36,7 +35,7 @@ def main():
 
         # set up pq
         pq = pdaggerq.pq_helper("fermi")
-        L = [['l1'], ['l2'], ['m0'], ['m1'], ['m2']]
+        L = [['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
 
         rproj_eqname = rproj_eqnames[i]
 
@@ -84,7 +83,7 @@ def main():
     for i, L in enumerate(lproj):
         # set up pq
         pq = pdaggerq.pq_helper("fermi")
-        R = [['r1'], ['r2'], ['s0'], ['s1'], ['s2']]
+        R = [['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
 
         # get name of eq
         lproj_eqname = lproj_eqnames[i]

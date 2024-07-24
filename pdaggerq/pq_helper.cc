@@ -31,14 +31,6 @@
 #include <cctype>
 #include <algorithm>
 
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-// include pybind11 and surpresses deprecated warnings
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#pragma GCC diagnostic pop
-
 #include "pq_helper.h"
 #include "pq_utils.h"
 #include "pq_string.h"
@@ -190,13 +182,13 @@ pq_helper::pq_helper(const pq_helper &other) {
     ordered.clear();
     ordered.reserve(other.ordered.size());
     for (const std::shared_ptr<pq_string> & pq_str : other.ordered) {
-        this->ordered.push_back(make_shared<pq_string>(*pq_str));
+        this->ordered.push_back(std::make_shared<pq_string>(*pq_str));
     }
 
     ordered_blocked.clear();
     ordered_blocked.reserve(other.ordered_blocked.size());
     for (const std::shared_ptr<pq_string> & pq_str : other.ordered_blocked) {
-        this->ordered_blocked.push_back(make_shared<pq_string>(*pq_str));
+        this->ordered_blocked.push_back(std::make_shared<pq_string>(*pq_str));
     }
 
 }
@@ -298,7 +290,7 @@ std::vector<pq_operator_terms> pq_helper::get_commutator_terms(double factor,
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1})));
     ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0})));
 
-    return ops;
+    return ops;  
 }
 
 void pq_helper::add_double_commutator(double factor,
@@ -325,7 +317,7 @@ std::vector<pq_operator_terms> pq_helper::get_double_commutator_terms(double fac
     ops.push_back(pq_operator_terms(-factor, concatinate_operators({op2, op0, op1})));
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op2, op1, op0})));
 
-    return ops;
+    return ops;  
 }
 
 void pq_helper::add_triple_commutator(double factor,
@@ -358,7 +350,7 @@ std::vector<pq_operator_terms> pq_helper::get_triple_commutator_terms(double fac
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op2, op0, op1})));
     ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op2, op1, op0})));
 
-    return ops;
+    return ops;  
 }
 
 void pq_helper::add_quadruple_commutator(double factor,
@@ -400,7 +392,7 @@ std::vector<pq_operator_terms> pq_helper::get_quadruple_commutator_terms(double 
     ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op2, op0, op1})));
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op2, op1, op0})));
 
-    return ops;
+    return ops;  
 }
 
 // add a string of operators
