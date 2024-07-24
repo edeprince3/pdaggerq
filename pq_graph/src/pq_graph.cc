@@ -733,7 +733,10 @@ namespace pdaggerq {
 
                 // add tmp term after this term
                 all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
-
+                if (!Term::make_einsum) {
+                    newterm.print_override_ = "world.gop.fence();";
+                    all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
+                }
 
                 break; // only add once
             }
