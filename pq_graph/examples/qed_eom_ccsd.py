@@ -8,7 +8,7 @@ def main():
     c_ops = [['B+'], ['B-']]
     c_coeffs = [1.0, 1.0]
 
-    T = ['t2', 't0,1', 't1,1', 't2,1']
+    T = ['t2', 'u0', 'u1', 'u2']
 
     lproj = [
         # [['1']],
@@ -35,7 +35,7 @@ def main():
 
         # set up pq
         pq = pdaggerq.pq_helper("fermi")
-        L = [['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        L = [['l1'], ['l2'], ['m0'], ['m1'], ['m2']]
 
         rproj_eqname = rproj_eqnames[i]
 
@@ -83,7 +83,7 @@ def main():
     for i, L in enumerate(lproj):
         # set up pq
         pq = pdaggerq.pq_helper("fermi")
-        R = [['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+        R = [['r1'], ['r2'], ['s0'], ['s1'], ['s2']]
 
         # get name of eq
         lproj_eqname = lproj_eqnames[i]
@@ -125,13 +125,40 @@ def main():
 
         # remove pq
         del pq
+    exit(0)
+
+    # enable pq_graph
+    graph = pdaggerq.pq_graph({
+        'verbose':  True,
+        'batched': True,
+        'allow_merge': True,
+        'use_trial_index': True,
+        'conditions': {
+            "u0": ["u0", "m0", "s0"],
+            "u1": ["u1", "m1", "s1"],
+            "u2": ["u2", "m2", "s2"]
+        },
+        'no_scalars': False,
+        'nthreads': -1,
+    })
+
+    # add equations to graph
+    for proj_eqname, eq in eqs.items():
+        graph.add(eq, proj_eqname, ['a','b','i','j'])
+
+    # optimize graph
+    graph.optimize()
+    graph.print("cpp")
+    graph.analysis()
+    graph.write_dot("qed_eom_ccsd.dot")
+
+    return graph
 
 def get_spin_labels(ops):
     spin_map = {}
 
     # make spin list using index
     labels = set()
-    found = False
     for op in ops:       
         for subop in op:
             if "(" not in subop:
@@ -141,12 +168,6 @@ def get_spin_labels(ops):
             subop_labels = subop[subop.find("(")+1:subop.find(")")].split(",")
             for label in subop_labels:
                 labels.add(label)
-                found = True
-
-    if not found:
-        return {"": {}}
-
-
 
     # sort labels
     labels = sorted(labels)
@@ -195,7 +216,7 @@ def block_by_spin(pq, eqname, ops, eqs):
         
         
         pq.block_by_spin(label_to_spin)
-        eqs[spin_eqname] = pq.clone()
+        eqs[spin_eqname] = pq
     
         terms = pq.fully_contracted_strings()
         for term in terms:

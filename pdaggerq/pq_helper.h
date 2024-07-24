@@ -114,12 +114,26 @@ class pq_helper {
 
     /**
      *
+     * get operators to apply to the left of any operator products we add
+     *
+     */
+    const std::vector<std::vector<std::string>> & get_left_operators() const { return left_operators; }
+
+    /**
+     *
      * set operators to apply to the right of any operator products we add
      *
      * @param in: strings indicating a sum (outer list) of products (inner lists) of operators that define the ket state
      *
      */
     void set_right_operators(const std::vector<std::vector<std::string>> &in);
+
+    /**
+     *
+     * get operators to apply to the right of any operator products we add
+     *
+     */
+    const std::vector<std::vector<std::string>> & get_right_operators() const { return right_operators; }
 
     /**
      *
@@ -426,10 +440,29 @@ class pq_helper {
 
     /**
      *
-     * the number of threads
+     * get const reference to list of ordered strings
+     * @param bool blocked: if true, return blocked strings
      *
      */
-    static inline int nthreads = 1;
+    const std::vector< std::shared_ptr<pq_string> > &get_ordered_strings(bool blocked) const {
+        return blocked ? ordered_blocked : ordered;
+    }
+
+    /**
+     *
+     * serializes the pq_helper object
+     * @param filename: the name of the file to which the pq_helper object is serialized
+     *
+     */
+    void serialize(const std::string & filename) const;
+
+    /**
+     *
+     * deserializes the pq_helper object
+     * @param filename: the name of the file from which the pq_helper object is deserialized
+     *
+     */
+    void deserialize(const std::string & filename);
 
 private:
 

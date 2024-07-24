@@ -8,7 +8,7 @@ def main():
     c_ops = [['B+'], ['B-']]
     c_coeffs = [1.0, 1.0]
 
-    T = ['t2', 't0,1', 't1,1', 't2,2']
+    T = ['t2', 'u0', 'u1', 'u2']
 
     proj = {
         "energy": [['1']],
@@ -80,13 +80,40 @@ def main():
             # remove pq
             del pq
 
+    exit(0)
+
+    # enable pq_graph
+    graph = pdaggerq.pq_graph({
+        'verbose':  True,
+        'batched': False,
+        'allow_merge': True,
+        'conditions': {
+            "u0": ["u0", "m0", "s0"],
+            "u1": ["u1", "m1", "s1"],
+            "u2": ["u2", "m2", "s2"]
+        },
+        'nthreads': -1,
+    })
+
+    # add equations to graph
+    for proj_eqname, eq in eqs.items():
+        graph.add(eq, proj_eqname, ['a','b','i','j'])
+
+    # optimize graph
+    graph.optimize()
+    graph.print("cpp")
+    graph.analysis()
+    graph.write_dot("qed_ccsd.dot")
+
+    return graph
+
+
 def get_spin_labels(ops):
     spin_map = {}
 
     # make spin list using index
 
     labels = set()
-    found = False
     for op in ops:       
         for subop in op:
             if "(" not in subop:
@@ -96,10 +123,6 @@ def get_spin_labels(ops):
             subop_labels = subop[subop.find("(")+1:subop.find(")")].split(",")
             for label in subop_labels:
                 labels.add(label)
-                found = True
-
-    if not found:
-        return {"": {}}
 
     # sort labels
     labels = sorted(labels)
@@ -120,7 +143,7 @@ def get_spin_labels(ops):
 
     for spin in spin_types: 
         if len(labels) != len(spin):
-            continue  # incompatible spin
+            continue # incompatible spin
 
 
         # create dictionary mapping labels to spins
@@ -148,7 +171,7 @@ def block_by_spin(pq, eqname, ops, eqs):
         
         
         pq.block_by_spin(label_to_spin)
-        eqs[spin_eqname] = pq.clone()
+        eqs[spin_eqname] = pq
     
         terms = pq.fully_contracted_strings()
         for term in terms:

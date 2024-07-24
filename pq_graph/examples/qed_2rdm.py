@@ -2,19 +2,26 @@ import pdaggerq
 
 def main():
 
-    T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
-    L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
-    R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+    T = ['t1', 't2', 'u0', 'u1', 'u2']
+    L = [['l0'], ['l1'], ['l2'], ['m0'], ['m1'], ['m2']]
+    R = [['r0'], ['r1'], ['r2'], ['s0'], ['s1'], ['s2']]
 
     rdms = [
-        ['e1(a,b)'], # vv
-        ['e1(a,i)'], # vo
-        ['e1(i,a)'], # ov
-        ['e1(i,j)'], # oo
+        ['e2(a,b,c,d)'], # vvvv
+        ['e2(a,b,c,i)'], # vvvo
+        ['e2(a,b,i,c)'], # vvov
+        ['e2(a,i,b,c)'], # vovv
+        ['e2(i,a,b,c)'], # ovvv
+        ['e2(i,a,b,j)'], # ovvo
+        ['e2(i,a,j,b)'], # ovov
+        ['e2(i,j,a,b)'], # oovv
+        ['e2(i,j,a,k)'], # oovo
+        ['e2(i,j,k,a)'], # ooov
+        ['e2(i,j,k,l)'], # oooo
     ]
 
 
-    eqnames = [ "rdm_vv", "rdm_vo", "rdm_ov", "rdm_oo" ]
+    eqnames = [ "rdm_vvvv", "rdm_vvvo", "rdm_vvov", "rdm_vovv", "rdm_ovvv", "rdm_ovvo", "rdm_ovov", "rdm_oovv", "rdm_oovo", "rdm_ooov", "rdm_oooo" ]
     eqs = {}
 
     for i, rdm in enumerate(rdms):
@@ -39,6 +46,33 @@ def main():
 
         # remove pq
         del pq
+
+    exit(0)
+    # enable pq_graph
+    graph = pdaggerq.pq_graph({
+        'verbose':  True,
+        'batched': False,
+        'allow_merge': True,
+        'use_trial_index': True,
+        'conditions': {
+            "u0": ["u0", "m0", "s0"],
+            "u1": ["u1", "m1", "s1"],
+            "u2": ["u2", "m2", "s2"]
+        },
+        'nthreads': -1,
+    })
+
+    # add equations to graph
+    for proj_eqname, eq in eqs.items():
+        graph.add(eq, proj_eqname, ['a','b','c','d','i','j','k','l'])
+
+    # optimize graph
+    graph.optimize()
+    graph.print("cpp")
+    graph.analysis()
+    graph.write_dot("qed_2rdm.dot")
+
+    return graph
 
 def get_spin_labels(ops):
     spin_map = {}
@@ -97,7 +131,7 @@ def block_by_spin(pq, eqname, ops, eqs):
         
         
         pq.block_by_spin(label_to_spin)
-        eqs[spin_eqname] = pq.clone()
+        eqs[spin_eqname] = pq
     
         terms = pq.fully_contracted_strings()
         for term in terms:
