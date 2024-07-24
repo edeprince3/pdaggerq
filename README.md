@@ -336,12 +336,21 @@ set a sum (outer list) of products (inner lists) of operators that define the br
 ```
 set_left_operators([['1'],['l1'],['l2']])
 ```
+
+#### set_left_operators_type:
+
+set the type of operator defined by 'l1', 'l2', etc., for different flavors of EOM-CC methods. Valid options are 'EE' (excitation energy), 'IP' (ionization potential), 'DIP' (double ionization potential, 'EA' (electron attachment), and 'DEA' (double electron attachment). 
+
 #### set_right_operators:
     
 set a sum (outer list) of products (inner lists) of operators that define the ket state
 ```
 set_right_operators([['r0'],['r1'],['r2']])
-```    
+```
+
+#### set_right_operators_type:
+
+set the type of operator defined by 'r1', 'r2', etc., for different flavors of EOM-CC methods. Valid options are 'EE' (excitation energy), 'IP' (ionization potential), 'DIP' (double ionization potential, 'EA' (electron attachment), and 'DEA' (double electron attachment). 
 
 #### simplify: 
     
@@ -397,7 +406,7 @@ fully_contracted_strings_with_ranges(label_ranges)
 ```
 
 #### clear: 
-clear the current set of strings
+clear the current set of strings. Note that this function will not reset operator types specified using set_right_operators_type and set_left_operators_type.
 
 ```
 clear()
