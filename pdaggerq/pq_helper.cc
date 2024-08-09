@@ -30,6 +30,8 @@
 #include <string>
 #include <cctype>
 #include <algorithm>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "pq_helper.h"
 #include "pq_utils.h"
@@ -38,9 +40,6 @@
 #include "pq_add_spin_labels.h"
 #include "pq_cumulant_expansion.h"
 #include "../pq_graph/include/pq_graph.h"
-
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
