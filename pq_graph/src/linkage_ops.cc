@@ -208,6 +208,9 @@ namespace pdaggerq {
         bool made_fusion = false;
         if (test_fusion){
 
+            // fuse the left and right vertices recursively
+            as_link(left)->fuse(); as_link(right)->fuse();
+
             // check if any vertex in the left is in the right
             vector<ConstVertexPtr> left_vec = as_link(left)->link_vector();
             vector<ConstVertexPtr> right_vec = as_link(right)->link_vector();
@@ -221,9 +224,7 @@ namespace pdaggerq {
 
             vector<ConstVertexPtr> common;
             for (const auto &left_op : left_vec) {
-                if (left_op->is_constant()) continue;
                 for (const auto &right_op : right_vec) {
-                    if (right_op->is_constant()) continue;
                     if (*left_op == *right_op) {
                         common.push_back(left_op);
                     }
@@ -261,12 +262,12 @@ namespace pdaggerq {
                     new_left_link = as_link(new_left_link)->best_permutation();
                     new_right_link = as_link(new_right_link)->best_permutation();
 
-                    right = link(common);
-                    if (right->is_linked()) {
-                        right = as_link(right)->best_permutation()->shallow();
+                    left = link(common);
+                    if (left->is_linked()) {
+                        left = as_link(left)->best_permutation()->shallow();
                     }
-                    left = new_left_link + new_right_link;
-                    left = as_link(left)->best_permutation()->shallow();
+                    right = new_left_link + new_right_link;
+                    right = as_link(right)->best_permutation()->shallow();
                     made_fusion = true;
                 }
             }
