@@ -414,7 +414,7 @@ namespace pdaggerq {
         if (print_type_ == "c++") {
 
             if (is_addition()) {
-                return "(" + left_->str() + " + " + right_->str() + ")";
+                return left_->str() + " + " + right_->str();
             }
 
             vector<ConstVertexPtr> scalars;
@@ -431,8 +431,12 @@ namespace pdaggerq {
             if (scalars.empty() && tensors.empty()) return "1.0";
 
             // first add scalars
-            for (const auto &scalar: scalars)
-                output += scalar->str() + " * ";
+            for (const auto &scalar: scalars) {
+                string scalar_str = scalar->str();
+                if (scalar->is_addition() && !scalar->is_temp())
+                    scalar_str = "(" + scalar_str + ")";
+                output += scalar_str + " * ";
+            }
 
             if (tensors.empty()) {
                 output.pop_back(); output.pop_back(); output.pop_back();
@@ -446,9 +450,12 @@ namespace pdaggerq {
 
             // add tensors
             for (size_t i = 0; i < tensors.size(); i++) {
-                output += tensors[i]->str();
+                string tensor_string = tensors[i]->str();
+                if (tensors[i]->is_addition() && !tensors[i]->is_temp())
+                    tensor_string = "(" + tensor_string + ")";
+                output += tensor_string;
                 if (format_dot && i == tensors.size() - 2)
-                    output += ",";
+                    output += ", ";
                 else if (i < tensors.size() - 1)
                     output += " * ";
             }
@@ -464,7 +471,7 @@ namespace pdaggerq {
                 for (const auto &line: right_->lines())
                     right_labels += line.label_[0];
 
-                output = "(" + left_->str() + " + ";
+                output = left_->str() + " + ";
 
                 if (left_labels != right_labels) {
                     // we need to permute the right to match the left
@@ -474,7 +481,6 @@ namespace pdaggerq {
                 output += right_->str();
                 if (left_labels != right_labels)
                     output += ")";
-                output += ")";
                 return output;
             }
 
@@ -494,8 +500,12 @@ namespace pdaggerq {
                 }
             }
 
-            for (const auto &scalar: scalars)
-                output += scalar->str() + " * ";
+            for (const auto &scalar: scalars) {
+                string scalar_str = scalar->str();
+                if (scalar->is_addition() && !scalar->is_temp())
+                    scalar_str = "(" + scalar_str + ")";
+                output += scalar_str + " * ";
+            }
             if (!tensors.empty()) {
                 output += "np.einsum('";
                 for (const auto &index: indices)
@@ -506,8 +516,12 @@ namespace pdaggerq {
                     output += line.label_[0];
                 output += "',";
 
-                for (const auto &tensor: tensors)
-                    output += tensor->str() + ",";
+                for (const auto &tensor: tensors) {
+                    string tensor_str = tensor->str();
+                    if (tensor->is_addition() && !tensor->is_temp())
+                        tensor_str = "(" + tensor_str + ")";
+                    output += tensor_str + ",";
+                }
 
                 if (tensors.size() > 2)
                     output += "optimize='optimal'";
