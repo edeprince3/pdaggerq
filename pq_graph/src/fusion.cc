@@ -427,16 +427,32 @@ struct LinkMerger {
     void print() {
         for (auto &[target_link, merge_links]: link_merge_map_) {
             cout << "Fusion Targets: " << endl;
-            cout << "    " << target_link->str() << " = " << *target_link << endl;
+            Term target_as_term(as_link(target_link));
+            string target_str = target_as_term.str();
+            // replace all newlines with newlines and spaces
+            auto pos = target_str.find('\n');
+            while (pos != string::npos) {
+                target_str.replace(pos, 1, "\n    ");
+                pos = target_str.find('\n', pos + 5);
+            }
+            cout << "    " << target_str << endl;
+
             for (auto &merge_link: merge_links) {
-                cout << "    " << merge_link->str() << " = " << *merge_link << endl;
+                Term merge_as_term(as_link(merge_link));
+                string merge_str = merge_as_term.str();
+                // replace all newlines with newlines and spaces
+                pos = merge_str.find('\n');
+                while (pos != string::npos) {
+                    merge_str.replace(pos, 1, "\n    ");
+                    pos = merge_str.find('\n', pos + 5);
+                }
             }
             cout << "Target Terms: " << endl;
             for (auto &link_info: link_tracker_.link_track_map_[target_link]) {
                 auto &term = link_info.term;
                 string term_str = term->str();
                 // replace all newlines with newlines and spaces
-                auto pos = term_str.find('\n');
+                pos = term_str.find('\n');
                 while (pos != string::npos) {
                     term_str.replace(pos, 1, "\n    ");
                     pos = term_str.find('\n', pos + 5);
@@ -448,7 +464,7 @@ struct LinkMerger {
                     auto &term = link_info.term;
                     string term_str = term->str();
                     // replace all newlines with newlines and spaces
-                    auto pos = term_str.find('\n');
+                    pos = term_str.find('\n');
                     while (pos != string::npos) {
                         term_str.replace(pos, 1, "\n    ");
                         pos = term_str.find('\n', pos + 5);
@@ -465,7 +481,11 @@ struct LinkMerger {
         vector<pair<string, Term>> new_declarations;
 
         // merge the linkages
-        for (auto &[target_link, merge_links]: link_merge_map_) {
+        for (auto &[target, merge_links]: link_merge_map_) {
+
+            // get target linkage
+            ConstLinkagePtr target_link = target;
+
             // update max id
             link_tracker_.max_ids_[target_link->type()]++;
 
@@ -486,6 +506,8 @@ struct LinkMerger {
             vector<Term> new_terms;
             VertexPtr merged_vertex_init;
             string link_type = target_infos[0].link->type();
+
+            #pragma omp parallel for default(none) shared(target_infos, merge_infos, new_terms, merged_vertex_init, link_type, target_link)
             for (size_t i = 0; i < target_infos.size(); i++) {
                 // build merged vertex
                 VertexPtr merged_vertex = target_infos[i].link->shallow();
@@ -533,12 +555,14 @@ struct LinkMerger {
                 new_term.request_update();
                 new_term.reorder();
                 new_term.term_linkage()->forget(); // forget the link history for memory efficiency
-                new_terms.push_back(new_term);
 
                 // add merged vertex to saved linkages
                 pq_graph_.saved_linkages()[link_type].insert(as_link(merged_vertex));
-                pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_id);
-
+                #pragma omp critical
+                {
+                    pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_id);
+                    new_terms.push_back(new_term);
+                }
             }
 
             // overwrite the target terms with the new terms
@@ -735,7 +759,17 @@ size_t PQGraph::prune() {
         cout << "Removing unused temps:" << endl;
         for (size_t i = 0; i < sorted_to_remove.size(); i++) {
             ConstLinkagePtr temp = sorted_to_remove[i];
-            cout << "    " << temp->str() << " = " << *temp << endl;
+            Term temp_term(as_link(temp));
+            string temp_str = temp_term.str();
+
+            // replace all newlines with newlines and spaces
+            auto pos = temp_str.find('\n');
+            while (pos != string::npos) {
+                temp_str.replace(pos, 1, "\n    ");
+                pos = temp_str.find('\n', pos + 5);
+            }
+
+            cout << "    " << temp_str << endl;
 
             // replace nested temps to remove
             for (size_t j = i + 1; j < sorted_to_remove.size(); j++) {
@@ -806,16 +840,23 @@ size_t PQGraph::prune() {
     }
 
     if (opt_level_ >= 6) {
+        vector<Term*> all_terms; all_terms.reserve(10*equations_.size());
         for (auto &[name, eq]: equations_) {
             for (auto &term: eq.terms()) {
-                // fuse the term linkage
-                LinkagePtr term_link = as_link(term.term_linkage()->clone());
-                if (!term_link->is_temp()) continue;
-                else term_link->fuse();
-
-                term.expand_rhs(term_link);
-                term.reorder(true);
+                all_terms.push_back(&term);
             }
+        }
+
+        #pragma omp parallel for schedule(guided) default(none) shared(all_terms)
+        for (Term *term_ptr: all_terms) {
+            Term &term = *term_ptr;
+            // fuse the term linkage
+            LinkagePtr term_link = as_link(term.term_linkage()->clone());
+            if (!term_link->is_temp()) continue;
+            else term_link->fuse();
+
+            term.expand_rhs(term_link);
+            term.reorder(true);
         }
     }
 

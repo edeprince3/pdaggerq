@@ -199,6 +199,9 @@ namespace pdaggerq {
         VertexPtr left  =  left_->shallow();
         VertexPtr right = right_->shallow();
 
+        if (left->is_linked() && left->is_addition())  as_link(left)->fuse();
+        if (right->is_linked() && right->is_addition()) as_link(right)->fuse();
+
         bool test_fusion = !left->is_temp() && !right->is_temp();
         test_fusion &= !left->is_addition() && !right->is_addition();
         test_fusion &= is_addition();
@@ -206,9 +209,6 @@ namespace pdaggerq {
         // check if the left and right share the same vertex
         bool made_fusion = false;
         if (test_fusion){
-
-            // fuse the left and right vertices recursively
-            as_link(left)->fuse(); as_link(right)->fuse();
 
             // check if any vertex in the left is in the right
             vector<ConstVertexPtr> left_vec = left->link_vector();
@@ -270,12 +270,6 @@ namespace pdaggerq {
                     made_fusion = true;
                 }
             }
-        }
-
-        // if no fusion made, fuse the left and right vertices recursively
-        if (!made_fusion) {
-            if (left->is_linked())  as_link( left)->fuse();
-            if (right->is_linked()) as_link(right)->fuse();
         }
 
         // set the left and right vertices
