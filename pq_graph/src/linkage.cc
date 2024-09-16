@@ -307,12 +307,12 @@ namespace pdaggerq {
         // recursively check if left linkages are equivalent
         if (left_->is_linked()) {
             if (*left_ != *other.left_) return false;
-        } else if ( !left_->Vertex::equivalent( *other.left_)) return false;
+        } else if ( !left_->equivalent( *other.left_)) return false;
 
         // check if right linkages are equivalent
         if (right_->is_linked()) {
             if (*right_ != *other.right_) return false;
-        } else if ( !right_->Vertex::equivalent( *other.right_)) return false;
+        } else if ( !right_->equivalent( *other.right_)) return false;
 
         // ensure root vertices are equivalent
         return Vertex::equivalent(other);
@@ -527,7 +527,7 @@ namespace pdaggerq {
 
     void Linkage::copy_link(const Linkage &other) {
         // Lock the mutex for the scope of the function
-        std::lock_guard<std::mutex> lock(mtx_);
+//        std::lock_guard<std::mutex> lock(mtx_);
 
         // call base class copy constructor
         Vertex::operator=(other);
@@ -598,7 +598,7 @@ namespace pdaggerq {
 
     void Linkage::move_link(Linkage &&other) {
         // Lock the mutex for the scope of the function
-        std::lock_guard<std::mutex> lock(mtx_);
+//        std::lock_guard<std::mutex> lock(mtx_);
 
         // call base class move constructor
         this->Vertex::operator=(other);

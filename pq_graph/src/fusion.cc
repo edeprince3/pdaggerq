@@ -62,7 +62,7 @@ struct LinkTracker {
         if (term->lhs()->is_temp()) {
             auto link = as_link(term->lhs()->shallow());
             max_ids_[link->type()] = std::max(max_ids_[link->type()], link->id());
-            link->forget(); // forget the link history for memory efficiency
+            link->forget(true); // forget the link history for memory efficiency
             link_declare_map_[link].insert(term);
             return;
         }
@@ -79,7 +79,7 @@ struct LinkTracker {
                     // create a new link info
                     LinkInfo link_info;
                     link_info.link = temp_link;
-                    link_info.link->forget(); // forget the link history for memory efficiency
+                    link_info.link->forget(true); // forget the link history for memory efficiency
                     link_info.term = term;
                     
 //                    link_track_map_[temp_link].emplace_back(temp_link, term);
@@ -187,8 +187,8 @@ struct LinkTracker {
                 new_link_track_map.insert({link, link_infos});
                 new_link_declare_map.insert({link, link_declare_map_[link]});
             }
-
-            link->forget(); // forget the link history for memory efficiency
+            
+            link->forget(true); // forget the link history for memory efficiency
         }
 
         // overwrite the link maps
@@ -204,7 +204,7 @@ struct LinkMerger {
     linkage_map<vector<ConstLinkagePtr>> link_merge_map_;
 
     explicit LinkMerger(PQGraph& pq_graph) : pq_graph_(pq_graph){
-        link_merge_map_.reserve(pq_graph_.saved_linkages().size());
+        link_merge_map_.reserve(10 * pq_graph_.saved_linkages().size());
         link_tracker_.populate(pq_graph_);
         link_tracker_.prune();
     }
@@ -217,7 +217,7 @@ struct LinkMerger {
         vector<ConstLinkagePtr> all_links; all_links.reserve(link_tracker_.link_track_map_.size());
         vector<vector<LinkInfo>> all_infos; all_infos.reserve(link_tracker_.link_track_map_.size());
         for (auto &[link, link_infos]: link_tracker_.link_track_map_) {
-            link->forget(); // forget the link history for memory efficiency
+            link->forget(true); // forget the link history for memory efficiency
             if (!link_infos.empty()) {
                 all_links.push_back(link);
                 all_infos.push_back(link_infos);
@@ -233,7 +233,7 @@ struct LinkMerger {
                 auto &link2 = all_links[l];
                 auto &link2_info = all_infos[l];
 
-                // skip does not have the same number of trunc terms
+                // skip does not have the same number of trunc terms 
                 if (link1_info.size() != link2_info.size()) continue;
 
                 // shapes must be the same
@@ -252,7 +252,7 @@ struct LinkMerger {
                     auto &link1_trunc = link1_info[i].link;
                     auto &link1_term  = link1_info[i].term;
                     auto &trunc_term1 = link1_info[i].trunc_term;
-
+                    
                     auto &link2_trunc = link2_info[i].link;
                     auto &link2_term = link2_info[i].term;
                     auto &trunc_term2 = link2_info[i].trunc_term;
@@ -295,9 +295,9 @@ struct LinkMerger {
                 else {
                     #pragma omp critical
                     {
-                        link1->forget(); // forget the link history for memory efficiency
-                        link2->forget(); // forget the link history for memory efficiency
-                        link_merge_map_[link1].push_back(link2);
+                        link1->forget(true); // forget the link history for memory efficiency
+                        link2->forget(true); // forget the link history for memory efficiency
+                        link_merge_map_[link1].push_back(link2); 
                     }
                 }
             }
@@ -476,12 +476,8 @@ struct LinkMerger {
                 auto &merge_info = link_tracker_.link_track_map_[merge_link];
                 // sort merge infos by link string
                 std::sort(merge_info.begin(), merge_info.end(), [](const LinkInfo &a, const LinkInfo &b) {
-                    if (a.link->netscales() > b.link->netscales())
-                        return false;
-                    else if (a.link->netscales() == b.link->netscales())
                         return a.link->name() < b.link->name();
-                    else return true;
-                });
+                        });
                 merge_infos.push_back(merge_info);
             }
 
@@ -507,13 +503,13 @@ struct LinkMerger {
                     if (fabs(ratio - 1.0) > 1e-10)
                          merged_vertex = merged_vertex + ratio * target_vertex;
                     else merged_vertex = merged_vertex + target_vertex;
-
+                    as_link(merged_vertex)->fuse();
                     merged_pq += Term::make_einsum ? "\n    # " : "\n    // ";
                     merged_pq += string(merge_term->lhs()->name().size(), ' ');
                     merged_pq += " += " + merge_term->original_pq_;
 
                 }
-//                as_link(merged_vertex)->fuse();
+
                 bool last_add_bool = merged_vertex->is_addition();
                 as_link(merged_vertex)->copy_misc(target_infos[i].link);
                 as_link(merged_vertex)->is_addition() = last_add_bool;
@@ -583,8 +579,6 @@ struct LinkMerger {
             vector<Term> new_terms;
             for (auto &term: eq.terms()) {
                 if (term.lhs() != nullptr) {
-                    term.compute_scaling(true);
-                    term.expand_rhs();
                     new_terms.push_back(term);
                 }
             }
@@ -607,6 +601,7 @@ struct LinkMerger {
     }
 
 };
+
 
 size_t PQGraph::merge_intermediates(){
     if (opt_level_ < 6)
@@ -679,30 +674,21 @@ size_t PQGraph::prune() {
 
     size_t num_removed = 0;
     linkage_set to_remove;
+    cout << "Removing unused temps:" << endl;
     for (const auto & [temp, terms] : matching_terms) {
 
         // remove (regardless of use) if temp has only one pure vertex
         if (temp->vertices().size() > 1) {
             // count number of occurrences of the temp in the terms
-            size_t num_occurrences = 0;
-            for (auto &term: terms) {
-                if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
-                for (auto &vertex: term->rhs()) {
-                    if (vertex->is_linked()) {
-                        auto all_temps = as_link(vertex)->get_temps();
-                        for (auto &other_temp: all_temps) {
-                            if (*other_temp == *temp) num_occurrences++;
-                        }
-                    }
-                }
-            }
+            size_t num_occurrences = terms.size();
+
 
             // skip if temp is used more than once
             if (num_occurrences > 1) continue;
 
 
             if (num_occurrences == 1 ) {
-                if (temp->is_reused() || temp->is_scalar()) {
+                if (temp->is_reused() || temp->is_scalar() || temp->is_addition()) {
                     // if used only once and this is a reusable temp, remove only if the term declare a temp
                     bool declares_temp = (*terms.begin())->lhs() != nullptr && (*terms.begin())->lhs()->is_linked();
                     if (!declares_temp) continue;
@@ -711,6 +697,7 @@ size_t PQGraph::prune() {
         }
 
         num_removed++;
+        cout << "    " << temp->str() << " = " << *temp << endl;
 
         // set lhs to a null pointer to mark for removal
         set<Term*> tmp_decl_term = tmp_decl_terms[temp];
@@ -745,15 +732,14 @@ size_t PQGraph::prune() {
         });
 
         map<string, linkage_set> new_saved_linkages;
-        cout << "Removing unused temps:" << endl;
         for (size_t i = 0; i < sorted_to_remove.size(); i++) {
-            ConstLinkagePtr temp = sorted_to_remove[i];
-            cout << "    " << temp->str() << " = " << *temp << endl;
-
             // replace nested temps to remove
             for (size_t j = i + 1; j < sorted_to_remove.size(); j++) {
                 sorted_to_remove[i] = as_link(sorted_to_remove[i]->replace_id(sorted_to_remove[j], -1).first);
             }
+
+            ConstLinkagePtr temp = sorted_to_remove[i];
+
 
             // unset the temp in saved_linkages
             for (auto &[type, linkages]: saved_linkages_) {
@@ -776,42 +762,25 @@ size_t PQGraph::prune() {
                 Equation &eq = equations_[name]; // get equation
                 for (auto &term: eq.terms()) {
 
-                    bool made_replacement = false;
                     // start with lhs
                     if (term.lhs() != nullptr && term.lhs()->is_linked()) {
                         // find the temp in the lhs
-                        auto [new_lhs, replaced] = as_link(term.lhs())->replace_id(temp, -1);
-                        if (replaced) {
-                            term.lhs() = new_lhs;
-                            made_replacement = true;
-                        }
+                        ConstVertexPtr new_lhs = as_link(term.lhs())->replace_id(temp, -1).first;
+                        term.lhs() = new_lhs;
                     }
                     if (term.eq() != nullptr && term.eq()->is_linked()) {
                         // find the temp in the eq
-                        auto [new_eq, replaced] = as_link(term.eq())->replace_id(temp, -1);
-                        if (replaced) {
-                            term.eq() = new_eq;
-                            made_replacement = true;
-                        }
+                        ConstVertexPtr new_eq = as_link(term.eq())->replace_id(temp, -1).first;
+                        term.eq() = new_eq;
                     }
 
                     // now do the same for rhs
                     for (auto &op: term.rhs()) {
                         if (op != nullptr && op->is_linked()) {
                             // find the temp in the rhs
-                            auto [new_op, replaced] = as_link(op)->replace_id(temp, -1);
-                            if (replaced) {
-                                op = new_op;
-                                made_replacement = true;
-                            }
+                            ConstVertexPtr new_op = as_link(op)->replace_id(temp, -1).first;
+                            op = new_op;
                         }
-                    }
-
-                    // if made any replacement, reordering is necessary
-                    if (made_replacement) {
-                        term.request_update();
-                        term.reorder();
-                        term.term_linkage()->forget(); // forget the link history for memory efficiency
                     }
                 }
             }
@@ -843,11 +812,7 @@ size_t PQGraph::prune() {
                 if (!term_link->is_temp()) continue;
                 else term_link->fuse();
 
-                if (term_link->is_expandable()) {
-                    term.rhs() = term_link->link_vector();
-                } else {
-                    term.rhs() = {term_link};
-                }
+                term.expand_rhs(term_link);
                 term.reorder(true);
             }
         }

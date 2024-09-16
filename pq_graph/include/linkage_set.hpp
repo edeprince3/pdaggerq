@@ -71,19 +71,29 @@ namespace pdaggerq {
                 total_string += line.block();
             }
             total_string += ' ';
+
+            if (!linkage->left()->empty() && linkage->left()->is_linked())
+                total_string += string_hash(as_link(linkage->left()));
+            else {
+                total_string += linkage->left()->base_name() + ' ';
+                for (const auto &line : linkage->left()->lines()) {
+                    total_string += line.type();
+                    total_string += line.block();
+                }
+                total_string += ' ';
+            }
+
             total_string += linkage->is_addition() ? '+' : '*';
 
-            for (const auto &link : linkage->link_vector()) {
-                if (!link->empty() && link->is_linked())
-                    total_string += string_hash(as_link(link));
-                else {
-                    total_string += link->base_name() + ' ';
-                    for (const auto &line : link->lines()) {
-                        total_string += line.type();
-                        total_string += line.block();
-                    }
-                    total_string += ' ';
+            if (!linkage->right()->empty() && linkage->right()->is_linked())
+                total_string += string_hash(as_link(linkage->right()));
+            else {
+                total_string += linkage->right()->base_name() + ' ';
+                for (const auto &line : linkage->right()->lines()) {
+                    total_string += line.type();
+                    total_string += line.block();
                 }
+                total_string += ' ';
             }
 
             // return the total string

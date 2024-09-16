@@ -84,6 +84,7 @@ linkage_set Term::make_all_links() const {
         if (subgraph->is_temp()) continue; // the subgraph is already a temp, no need to test it.
 
         ConstLinkagePtr best_perm = subgraph->best_permutation(); // get best permutation of subgraph
+        subgraph->forget();
         best_perm->forget(); // clear the history of the best permutation
 
         // insert the best subperm into the set of linkages
@@ -275,7 +276,7 @@ pair<ConstLinkagePtr,bool> Term::make_scalar(linkage_set &scalars, long &id) {
         if (!scalar->is_linked()) continue; // skip if scalar is not linked
 
         // reorder scalar for the best permutation
-        ConstLinkagePtr scalar_link = as_link(scalar);
+        ConstLinkagePtr scalar_link = as_link(scalar)->best_permutation();
         new_scalar = as_link(scalar_link->shallow());
 
         // check if scalar is already in set of scalars for setting the id

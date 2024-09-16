@@ -323,7 +323,6 @@ namespace pdaggerq {
                 b_total_ids.erase(id);
                 a_lhs_ids.erase(id);
                 b_lhs_ids.erase(id);
-                b_lhs_ids.erase(id);
                 a_rhs_ids.erase(id);
                 b_rhs_ids.erase(id);
             }

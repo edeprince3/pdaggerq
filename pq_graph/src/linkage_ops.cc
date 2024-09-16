@@ -208,7 +208,7 @@ namespace pdaggerq {
         if (right_->is_linked()) as_link(right)->fuse();
 
         // if left is a constant, distribute it to the right
-        if (left->is_scalar() && right->is_linked() && !is_addition() && right->is_addition()) {
+        if (left->is_constant() && right->is_linked() && !is_addition() && right->is_addition()) {
             VertexPtr right_left = as_link(right_)->left_->shallow();
             VertexPtr right_right = as_link(right_)->right_->shallow();
             if (!right_left->empty())   left = left * right_left;
@@ -217,7 +217,7 @@ namespace pdaggerq {
         }
 
         // if right is a constant, distribute it to the left
-        if (right->is_scalar() && left->is_linked() && !is_addition() && left->is_addition()) {
+        if (right->is_constant() && left->is_linked() && !is_addition() && left->is_addition()) {
             VertexPtr left_left = as_link(left_)->left_->clone();
             VertexPtr left_right = as_link(left_)->right_->clone();
             if (!left_left->empty()) right = right * left_left;
@@ -548,7 +548,7 @@ namespace pdaggerq {
         if (is_temp()) return result;
 
         // do not store permutations if the depth is too large (sizeof Linkage is 344B -> 344B * 2^16 = 22MB)
-        bool store_permutations = !low_memory_ && depth_ <= 16;
+        bool store_permutations = !low_memory_;
 
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {
@@ -638,11 +638,6 @@ namespace pdaggerq {
                 // if flops are the same, check mems
                 scaling_check = mems.compare(best_mems);
                 make_best = scaling_check == scaling_map::this_better;
-
-                // if mems are the same, prefer lines in better order
-                if (!make_best && scaling_check == scaling_map::this_same) {
-                    make_best = perm->lines() < best_perm->lines();
-                }
 
                 // if lines are the same, use string representation of names
                 if (!make_best && scaling_check == scaling_map::this_same) {

@@ -53,7 +53,7 @@ void PQGraph::make_all_links(bool recompute) {
 
     // clear history of all linkages
     for (auto &linkage: all_links_)
-        linkage->forget(true);
+        linkage->forget();
 
 }
 
