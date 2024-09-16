@@ -476,7 +476,6 @@ namespace pdaggerq {
 
             // check if ovstring is valid
             is_valid = valid_ovstrings.find(new_eri.ovstring()) != valid_ovstrings.end();
-            is_valid &= valid_blks.find(new_eri.blk_string()) != valid_blks.end();
 
             if (is_valid) {
                 if (!any_valid) {
