@@ -25,7 +25,7 @@ project(pdaggerq LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# find pybind11 and set variables for:
+# find pybind11 and set variables for finding the correct python version
 set(PYBIND11_PYTHON_VERSION 3)
 set(PYBIND11_FINDPYTHON ON)
 set(Python3_FIND_STRATEGY LOCATION)

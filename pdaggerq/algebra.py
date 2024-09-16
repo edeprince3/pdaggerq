@@ -276,6 +276,9 @@ class TensorTerm:
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
                 einsum_tensors) + ", optimize=\'optimal\')"
+            # TODO: this still introduce a bug when optimizing expressions with r1/l1 in it
+            # Alternatively use "optimize=True" everywhere, but it will be recomputing the
+            # optimal path in every iteration, making it more expensive in the long run.
             einsum_optimal_path = eval(einsum_path_string)
             # print(einsum_optimal_path[1])
             teinsum_string += ",".join(
@@ -348,74 +351,40 @@ class Right0amps(BaseTerm):
     def __init__(self, *, indices=(), name='r0', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "r0"
-
 class Right1amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='r1', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "r1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
 
 class Right2amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='r2', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "r2{}({},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                        self.indices[2], self.indices[3])
-
 class Right3amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='r3', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "r3{}({},{},{},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                              self.indices[2], self.indices[3],
-                                              self.indices[4], self.indices[5])
 
 class Right4amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='r4', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "r4{}({},{},{},{},{},{},{},{})".format(self.spin, self.indices[0],
-                                                    self.indices[1],
-                                                    self.indices[2],
-                                                    self.indices[3],
-                                                    self.indices[4],
-                                                    self.indices[5],
-                                                    self.indices[6],
-                                                    self.indices[7])
 class Left0amps(BaseTerm):
 
     def __init__(self, *, indices=(), name='l0', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "l0"
-
-
 class Left1amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "l1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
 class Left1amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "l1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
 
 
 class Left2amps(BaseTerm):
@@ -423,105 +392,50 @@ class Left2amps(BaseTerm):
     def __init__(self, *, indices=Tuple[Index, ...], name='l2', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "l2{}({},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                        self.indices[2], self.indices[3])
-
 class Left3amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='l3', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "l3{}({},{},{},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                              self.indices[2], self.indices[3],
-                                              self.indices[4], self.indices[5])
-
 
 class Left4amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='l4', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "l4{}({},{},{},{},{},{},{},{})".format(self.spin, self.indices[0],
-                                                    self.indices[1],
-                                                    self.indices[2],
-                                                    self.indices[3],
-                                                    self.indices[4],
-                                                    self.indices[5],
-                                                    self.indices[6],
-                                                    self.indices[7]
-                                                    )
-
 class D1(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='d1'):
         super().__init__(indices=indices, name=name)
-
-    def __repr__(self):
-        return "d1({},{})".format(self.indices[0], self.indices[1])
-
 
 class T1amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='t1', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "t1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
-
 class T2amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='t2', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "t2{}({},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                        self.indices[2], self.indices[3])
 
 class T3amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='t3', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "t3{}({},{},{},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                              self.indices[2], self.indices[3],
-                                              self.indices[4], self.indices[5])
-
 class T4amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='t4', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "t4{}({},{},{},{},{},{},{},{})".format(self.spin, self.indices[0],
-                                                    self.indices[1],
-                                                    self.indices[2],
-                                                    self.indices[3],
-                                                    self.indices[4],
-                                                    self.indices[5],
-                                                    self.indices[6],
-                                                    self.indices[7])
 class OneBody(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='h', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "h{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
-
 class FockMat(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='f', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "f{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
 
 class TwoBody(BaseTerm):
 
@@ -545,29 +459,17 @@ class ContractionPermuter(TensorTermAction):
     def __init__(self, *, spin='', indices=Tuple[Index, ...], name='P'):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "P({},{})".format(self.indices[0], self.indices[1])
-
 class ContractionPairPermuter6(TensorTermAction):
 
     def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP6'):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "PP6({},{},{},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3], self.indices[4], self.indices[5])
 
 class ContractionPairPermuter2(TensorTermAction):
 
     def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP2'):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "PP2({},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3])
-
 class ContractionPairPermuter3(TensorTermAction):
 
     def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP3'):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "PP3({},{},{},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3], self.indices[4], self.indices[5])
