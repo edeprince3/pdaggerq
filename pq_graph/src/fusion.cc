@@ -734,13 +734,14 @@ size_t PQGraph::prune() {
         map<string, linkage_set> new_saved_linkages;
         cout << "Removing unused temps:" << endl;
         for (size_t i = 0; i < sorted_to_remove.size(); i++) {
+            ConstLinkagePtr temp = sorted_to_remove[i];
+            cout << "    " << temp->str() << " = " << *temp << endl;
+
             // replace nested temps to remove
             for (size_t j = i + 1; j < sorted_to_remove.size(); j++) {
                 sorted_to_remove[i] = as_link(sorted_to_remove[i]->replace_id(sorted_to_remove[j], -1).first);
             }
-
-            ConstLinkagePtr temp = sorted_to_remove[i];
-            cout << "    " << temp->str() << " = " << *temp << endl;
+            temp = sorted_to_remove[i];
 
             // unset the temp in saved_linkages
             for (auto &[type, linkages]: saved_linkages_) {
