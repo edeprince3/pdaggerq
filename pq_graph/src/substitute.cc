@@ -210,8 +210,8 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     for (const auto &graph_perm : graph_perms) {
         // substitute the linkage in the permutation (if possible)
         graph_perm->forget();
-        ConstVertexPtr found_linkage = graph_perm->find_link(linkage);
-        if (found_linkage == nullptr) continue; // skip if linkage is not found in permutation
+        auto [found_linkage, found] = graph_perm->find_link(linkage);
+        if (!found) continue; // skip if linkage is not found in permutation
         else madeSub = true;
 
         // otherwise, make the substitution

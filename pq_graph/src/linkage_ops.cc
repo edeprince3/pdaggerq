@@ -285,21 +285,23 @@ namespace pdaggerq {
         set_links();
     }
 
-    ConstVertexPtr Linkage::find_link(const ConstVertexPtr &target_vertex, bool only_temps) const {
-        if (!target_vertex) return nullptr;
-        bool found = only_temps ? same_temp(target_vertex) : *target_vertex == *this;
-        if (found) {
-            return this->shared_from_this();
+    pair<ConstVertexPtr, bool> Linkage::find_link(const ConstVertexPtr &target_vertex, long search_depth) const {
+        if (target_vertex == nullptr) return {nullptr, false};
+        bool found = *target_vertex == *this;
+        if (found) { return {this->shared_from_this(), true}; }
+
+        if (search_depth > 0 || search_depth == -1) {
+            search_depth = search_depth == -1 ? -1 : search_depth - 1;
+            if (left_->is_linked()) {
+                const auto &[left, left_found] = as_link(left_)->find_link(target_vertex, search_depth);
+                if (left != nullptr) return {left, left_found};
+            }
+            if (right_->is_linked()) {
+                const auto &[right, right_found] = as_link(right_)->find_link(target_vertex, search_depth);
+                if (right != nullptr) return {right, right_found};
+            }
         }
-        if (left_->is_linked()) {
-            const auto &left = as_link(left_)->find_link(target_vertex, only_temps);
-            if (left) return left;
-        }
-        if (right_->is_linked()) {
-            const auto &right = as_link(right_)->find_link(target_vertex, only_temps);
-            if (right) return right;
-        }
-        return nullptr;
+        return {nullptr, false};
     }
 
     vector<ConstVertexPtr> Linkage::find_scalars() const {

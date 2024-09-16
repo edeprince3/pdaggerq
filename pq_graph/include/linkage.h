@@ -484,9 +484,9 @@ namespace pdaggerq {
          * goes down the tree and finds the target vertex
          * @param target_vertex the vertex to find
          * @param only_temps whether to check only for temps
-         * @return the vertex if found, nullptr otherwise
+         * @return the vertex if found, nullptr otherwise. Also returns a bool indicating if the vertex was found
          */
-        ConstVertexPtr find_link(const ConstVertexPtr &target_vertex, bool only_temps = false) const;
+        pair<ConstVertexPtr, bool> find_link(const ConstVertexPtr &target_vertex, long search_depth = -1) const;
 
         /**
          * goes down the tree and returns true if any intermediate vertices have the target ids
