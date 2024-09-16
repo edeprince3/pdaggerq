@@ -28,10 +28,10 @@
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
-#include "line.hpp"
-#include "scaling_map.hpp"
-#include "../../pdaggerq/pq_tensor.h"
 #include <memory>
+
+#include "../../pdaggerq/pq_tensor.h"
+#include "shape.hpp"
 
 using std::ostream;
 using std::string;
@@ -74,18 +74,6 @@ namespace pdaggerq {
         shape shape_{}; // shape of the vertex
 
         // boolean identifiers
-
-        // indicates the vertex is not linked to another vertex
-        virtual bool is_linked() const { return false; }
-        virtual long id() const { return -1; }
-        virtual long &id() { static long null = -1; return null; }
-        virtual bool is_temp() const { return false; }
-        virtual bool same_temp(const ConstVertexPtr &other) const { return false; }
-        virtual bool has_temp(const ConstVertexPtr &other) const { return false; }
-        virtual bool is_reused() const { return false; }
-        virtual size_t depth() const { return empty() ? 0 : 1; }
-        virtual size_t partial_depth() const { return empty() ? 0 : 1; }
-
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)
         bool format_map_ = true; // whether the vertex is formatted as a map to access different blocks
         bool is_sigma_ = false; // whether the vertex is an excited state vertex
@@ -95,6 +83,7 @@ namespace pdaggerq {
         static inline bool allow_permute_ = true;
         static inline bool use_trial_index = false;
         static inline bool permute_eri_ = true;
+        static inline string print_type_ = "c++"; // default print type is c++
 
         /****** Constructors ******/
 
@@ -128,30 +117,23 @@ namespace pdaggerq {
          * Copy constructor
          * @param other vertex to copy
          */
-        Vertex(const Vertex &other) = default;;
+        Vertex(const Vertex &other) = default;
 
 
         /**
          * deep copy of vertex returned as a pointer
          * @return pointer to deep copy of vertex
          */
-        virtual VertexPtr clone() const{
+        virtual VertexPtr clone() const {
             return std::make_shared<Vertex>(*this);
         }
 
         /**
-         * shallow copy of vertex returned as a pointer
+         * copy of vertex returned as a pointer (linkage will have shallow copy of left and right)
          * @return pointer to shallow copy of vertex
          */
-        virtual ConstVertexPtr shallow() const{
-            return shared_from_this();
-        }
-
-        /**
-         * return
-         */
-        virtual ConstVertexPtr tree_sort() const {
-            return shared_from_this();
+        virtual VertexPtr shallow() const {
+            return std::make_shared<Vertex>(*this);
         }
 
         /**
@@ -178,19 +160,7 @@ namespace pdaggerq {
          * replaces the lines of the vertex with the lines in the argument
          * @param lines vector of lines
          */
-        virtual void replace_lines(const unordered_map<Line, Line, LineHash> &line_map){
-            for (auto &line : lines_) {
-                // find the line in the map and replace it (if it exists)
-                auto it = line_map.find(line);
-                if (it != line_map.end())
-                    line = it->second;
-            }
-            Vertex::update_lines(lines_, true);
-        }
-        virtual void replace_lines(const line_vector &new_lines) {
-            // wrapper to map these lines to the new lines
-            replace_lines(LineHash::map_lines(lines_, new_lines));
-        }
+        virtual void replace_lines(const unordered_map<Line, Line, LineHash> &line_map);
 
         /**
          * sets parameters of the vertex from the string representation of the vertex
@@ -246,26 +216,10 @@ namespace pdaggerq {
         Vertex permute(size_t perm_id, bool &swap_sign) const;
 
         /**
-         * permutes this vertex to have the same structure as the other vertex (if possible)
-         * @param other vertex to match
-         * @param swap_sign boolean indicating whether a sign change is needed
-         * @return permuted vertex
-         */
-        pair<Vertex, bool> permute_like(const Vertex &other, bool &swap_sign) const;
-
-        /**
          * bring vertex to a canonical form and determine if a sign change is needed
          * @return boolean if sign change is needed
          */
         bool permute_eri();
-
-
-        /**
-         * count number of permutations to bring this vertex to the same structure as the other vertex
-         * @param other
-         * @return number of permutations (-1 if not possible)
-         */
-        long count_perms(const Vertex &other) const;
 
 
         /****** Vertex overloads ******/
@@ -288,25 +242,27 @@ namespace pdaggerq {
          * Compare two rhs for equality
          * @return boolean indicating whether the rhs are equal
          */
-        bool operator==(const Vertex &other) const;
+        virtual bool operator==(const Vertex &other) const;
 
         /**
          * Compare two rhs for inequality
          * @return boolean indicating whether the rhs are not equal
          */
-        bool operator!=(const Vertex &other) const;
+        virtual bool operator!=(const Vertex &other) const;
 
         /**
          * Compare the n_ops of two rhs via < operator
          * @return boolean indicating whether the size of the lhs is less than the n_ops of the rhs_vertex
          */
-        bool operator<(const Vertex &other) const;
+        virtual bool operator<(const Vertex &other) const;
+        virtual bool operator<=(const Vertex &other) const;
 
         /**
          * Compare the n_ops of two rhs via > operator
          * @return boolean indicating whether the size of the lhs is greater than the n_ops of the rhs_vertex
          */
-        bool operator>(const Vertex &other) const{ return other < *this; }
+        virtual bool operator>(const Vertex &other) const{ return other < *this; }
+        virtual bool operator>=(const Vertex &other) const{ return other <= *this; }
 
         /****** Getters ******/
 
@@ -314,26 +270,13 @@ namespace pdaggerq {
          * Get the name of the vertex
          * @return string of the vertex name
          */
-        const string &name() const { return name_; }
+        virtual string name() const { return name_; }
 
         /**
          * Get the base name of the vertex
          * @return string of the vertex base name
          */
         const string &base_name() const { return base_name_; }
-
-        /**
-         * set the name of the vertex
-         * @param name string of the vertex name
-         */
-        void set_name(const string &name) { name_ = name; }
-
-        /**
-         * set the base name of the vertex
-         * @param name string of the vertex base name
-         * TODO: use this function to also update the name of the vertex
-         */
-        void set_base_name(const string &name) { base_name_ = name; }
 
         /**
          * returns the rank of the vertex
@@ -400,13 +343,18 @@ namespace pdaggerq {
         virtual bool empty() const { return name_.empty() || base_name_.empty(); }
 
         /**
-         * check if linkage is a scalar
+         * check if vertex is a scalar
          * @return true if scalar, false otherwise
-         * @note a scalar is a linkage with no lines
+         * @note a scalar is a vertex with no lines
          */
         bool is_scalar() const {
             return lines_.empty();
         }
+
+        /**
+         * check if vertex is a constant
+         */
+        bool is_constant() const;
 
         /**
          * return begin iterator of lines
@@ -433,27 +381,6 @@ namespace pdaggerq {
         const Line& operator[](uint_fast8_t i) const { return lines_[i]; }
 
         /**
-         * modifies the vertex to have generic indices
-         */
-        void genericize();
-
-        /**
-         * returns a list of lines with generic indices
-         * @param lines reference to list of lines
-         * @return same lines with generic indices
-         */
-        static line_vector general_lines(const line_vector& lines);
-        static line_vector general_lines(const line_vector& lines,
-                                         unordered_map<const Line*, size_t, LineHash, LineEqual> &line_map,
-                                         size_t &next_index);
-
-        /**
-         * returns a new vertex with generic indices
-         * @return new vertex with generic indices
-         */
-        Vertex generic() const;
-
-        /**
          * checks if the labels between two rhs are equivalent in terms of occupation and blocks
          * @param op1 first vertex
          * @param other second vertex
@@ -462,53 +389,26 @@ namespace pdaggerq {
         virtual bool equivalent(const Vertex &other) const;
 
 
+        /// virtual functions for inherited Linkage class (refer to linkage.h for more information
+
+        virtual bool is_linked() const { return false; }
+        virtual bool is_temp() const { return false; }
+        virtual bool is_addition() const { return false; } // whether the linkage is an addition
+        virtual bool is_expandable() const { return false; } // whether the linkage is expandable
+        virtual bool is_reused() const { return false; } // whether the linkage is reused
+        virtual size_t depth() const { return 0; }
+        virtual bool &is_addition() { static bool null = false; null = false; return null; } // whether the linkage is an addition
+        virtual bool &is_reused() { static bool null = false; null = false; return null; } // whether the linkage is reused
+        virtual bool is_leaf(bool expand = true) const { return true; }
+        virtual long id() const { return false; }
+        virtual long &id() { static long null = -1; null = -1; return null; }
+        virtual string type() const { return "vertex"; }
+        virtual bool has_temp(const ConstVertexPtr &other, bool enter_temp = true, long depth = -1) const { return false; }
+        virtual bool same_temp(const ConstVertexPtr &other) const { return false; }
+        virtual bool has_any_temp() const { return false; }
+        virtual vector<ConstVertexPtr> get_temps() const { return {}; }
+
     }; // end Vertex class
-
-    /**
-     * Hash function for Vertex to find equivalent vertices (agnostic to labels)
-     */
-    struct SimilarVertexPtrHash {
-        size_t operator()(const ConstVertexPtr &v) const {
-
-            // hashing functions
-            constexpr LinePropHash sim_line_hasher;
-            constexpr std::hash<string> string_hasher;
-
-            // the golden ratio of hashing; prevents collisions
-            constexpr size_t magic_golden_ratio = 0x9e3779b9;
-
-            size_t name_hash = string_hasher(v->base_name());
-
-            // write the vertex as a string with numeric labels
-            size_t line_hash = 0;
-            uint_fast8_t rank = v->size();
-            const vector<Line> &lines = v->lines();
-            for (uint_fast8_t i = 0; i < rank; ++i) {
-                // get hash of line
-                size_t line_hash_i = sim_line_hasher(lines[i]);
-
-                // blend them together
-                line_hash ^= (line_hash_i) + magic_golden_ratio + (line_hash << 6) + (line_hash >> 2);
-            }
-
-            // blend name and line hashes together and return
-            return (name_hash ^ line_hash) + magic_golden_ratio;
-        }
-    };
-
-    /**
-     * Equality function for Vertex to find equivalent vertices (agnostic to labels)
-     */
-    struct SimilarVertexPtrEqual {
-        bool operator()(const ConstVertexPtr &lhs, const ConstVertexPtr &rhs) const {
-            // check if either pointer is null
-            if (!lhs || !rhs) return false;
-
-            // check equivalency of the Vertices
-            return lhs->equivalent(*rhs);
-        }
-    };
-
 
 } // pdaggerq
 

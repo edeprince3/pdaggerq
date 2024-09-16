@@ -27,6 +27,8 @@
 #include <utility>
 #include <stdexcept>
 #include <array>
+#include <vector>
+#include <unordered_map>
 #include <algorithm>
 #include <cstring>
 #include <bitset>
@@ -105,8 +107,7 @@ namespace pdaggerq {
             // determine block type (spin or range)
             switch (blk) {
                 case '\0': // no block
-                    blk_type_ = '\0';
-                    a_ = false; break;
+                    blk_type_ = '\0'; break;
                 case 'a': // spin block
                     blk_type_ = 's';
                     a_ = true; break;
@@ -188,11 +189,11 @@ namespace pdaggerq {
 
         constexpr bool has_blk() const { return blk_type_ != '\0'; }
 
-        inline string block() const {
+        inline char block() const {
             switch (blk_type_) {
-                case 's': return a_ ? "a" : "b";
-                case 'r': return a_ ? "1" : "0";
-                default: return "";
+                case 's': return a_ ? 'a' : 'b';
+                case 'r': return a_ ? '1' : '0';
+                default: return '\0';
             }
         }
 
@@ -231,13 +232,16 @@ namespace pdaggerq {
     // define a vector of lines
     typedef std::vector<Line, std::allocator<Line>> line_vector;
 
-    // define hash function for Line
+} // namespace pdaggerq
+
+// declare hash functions for Line class
+namespace pdaggerq {
     struct LineHash {
         inline uint_fast16_t operator()(const Line &line) const {
 
             // we can store each boolean as a bit in an integral type (4 bits)
             uint16_t hash = line.o_;
-            hash |=   line.a_ << 1;
+            hash |= line.a_ << 1;
             hash |= line.sig_ << 2;
             hash |= line.den_ << 3;
 
@@ -256,12 +260,13 @@ namespace pdaggerq {
         }
 
         /**
-         * Map lines from two vectors to a single map
-         * @param old_lines source lines
-         * @param new_lines destination lines
-         * @return
+         * maps one set of lines to another
+         * @param old_lines the old lines
+         * @param new_lines the new lines
+         * @return a map of the old lines to the new lines
          */
-        static inline std::unordered_map<Line, Line, LineHash> map_lines(line_vector old_lines, line_vector new_lines) {
+        static std::unordered_map<Line, Line, LineHash> map_lines(const line_vector &old_lines,
+                                                                  const line_vector &new_lines) {
 
             std::unordered_map<Line, Line, LineHash> line_map;
             line_map.reserve(old_lines.size() + new_lines.size());
@@ -269,8 +274,8 @@ namespace pdaggerq {
             // map every equivalent line to the reference line
             size_t old_n = old_lines.size(), new_n = new_lines.size();
             bool new_mapped[new_lines.size()], old_mapped[old_n];
-            std::memset(new_mapped, 0, new_lines.size() * sizeof(bool));
-            std::memset(old_mapped, 0, old_n * sizeof(bool));
+            memset(new_mapped, 0, new_lines.size() * sizeof(bool));
+            memset(old_mapped, 0, old_n * sizeof(bool));
 
             // map all old_lines to themselves
             for (size_t j = 0; j < new_lines.size(); j++) {
@@ -303,9 +308,7 @@ namespace pdaggerq {
 
             return line_map;
         }
-
-    }; // struct LineHash
-
+    };
     struct LineEqual {
         inline bool operator()(const Line &lhs, const Line &rhs) const {
 
@@ -321,14 +324,13 @@ namespace pdaggerq {
             // check equality of the pointers
             return *lhs == *rhs;
         }
-    }; // struct LineEqual
-
+    };
     struct LinePropHash {
         constexpr uint_fast8_t operator()(const Line &line) const {
 
             // we can store each boolean as a bit in an integral type (4 bits)
             uint16_t hash = line.o_;
-            hash |=   line.a_ << 1;
+            hash |= line.a_ << 1;
             hash |= line.sig_ << 2;
             hash |= line.den_ << 3;
 
@@ -352,8 +354,7 @@ namespace pdaggerq {
             // return the hash (4 bits)
             return (hash << shift) | line->den_;
         }
-    }; // struct LineHash
-
+    };
     struct LinePropEqual {
         constexpr bool operator()(const Line &lhs, const Line &rhs) const {
             return lhs.equivalent(rhs);
@@ -363,8 +364,7 @@ namespace pdaggerq {
             if (!lhs || !rhs) return rhs == lhs;
             return lhs->equivalent(*rhs);
         }
-    }; // struct LineEqual
-
+    };
 } // namespace pdaggerq
 
 #endif //PDAGGERQ_LINE_HPP

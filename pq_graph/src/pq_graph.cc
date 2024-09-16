@@ -21,12 +21,9 @@
 //  limitations under the License.
 //
 
-#include "../include/pq_graph.h"
-#include "iostream"
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
-#include "../../pdaggerq/pq_string.h"
-#include "../../pdaggerq/pq_helper.h"
+#include "../include/pq_graph.h"
 
 // include omp only if defined
 #ifdef _OPENMP
@@ -35,7 +32,6 @@
     #define omp_get_max_threads() 1
 #endif
 #include <memory>
-#include <sstream>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -59,7 +55,9 @@ namespace pdaggerq {
                 }, py::arg("print_type") = "")
                 .def("str", &pdaggerq::PQGraph::str)
                 .def("assemble", &pdaggerq::PQGraph::assemble)
-                .def("reorder", &pdaggerq::PQGraph::reorder)
+                .def("reorder", [](PQGraph& self, bool regenerate) {
+                    return self.reorder(regenerate);
+                }, py::arg("regenerate") = true)
                 .def("optimize", &pdaggerq::PQGraph::optimize)
                 .def("analysis", &pdaggerq::PQGraph::analysis)
                 .def("clear", &pdaggerq::PQGraph::clear)
@@ -69,6 +67,24 @@ namespace pdaggerq {
 
     void PQGraph::set_options(const pybind11::dict& options) {
         cout << endl << "####################" << " PQ GRAPH " << "####################" << endl << endl;
+
+        if (options.contains("print_level")) {
+            print_level_ = options["print_level"].cast<int>();
+            if (print_level_ > 2) {
+                print_level_ = 2;
+            } else if (print_level_ < 0) {
+                print_level_ = 0;
+            }
+        }
+
+        if (options.contains("opt_level")){
+            opt_level_ = options["opt_level"].cast<int>();
+            if (opt_level_ > 6) {
+                opt_level_ = 6;
+            } else if (opt_level_ < 0) {
+                opt_level_ = 0;
+            }
+        }
 
         if(options.contains("max_temps")) {
             max_temps_ = (size_t) options["max_temps"].cast<long>();
@@ -82,10 +98,6 @@ namespace pdaggerq {
                 }
         }
 
-        if (options.contains("prune_tmps")){
-            prune_tmps_ = options["prune_tmps"].cast<bool>();
-        }
-
         if (options.contains("permute_eri"))
             Vertex::permute_eri_ = options["permute_eri"].cast<bool>();
 
@@ -97,8 +109,6 @@ namespace pdaggerq {
             cout << "'no_scalars' is set to true. Scalars will not be included in the final equations." << endl;
         }
 
-        if (options.contains("verbose"))
-            verbose_ = options["verbose"].cast<bool>();
 
         if (options.contains("max_shape_map")) {
             std::map<string, long> max_shape_map;
@@ -116,26 +126,33 @@ namespace pdaggerq {
             }
             
             // set max occupied lines
-            if (max_shape_map.find("o") != max_shape_map.end()) {
-                auto max_o = static_cast<size_t>(max_shape_map.at("o"));
-                Term::max_shape_.oa_ = max_o;
-            }
+            size_t max_o = static_cast<size_t>(-1l)/2l;
+            size_t max_v = static_cast<size_t>(-1l)/2l;
+            if (max_shape_map.find("o") != max_shape_map.end())
+                max_o = static_cast<size_t>(max_shape_map.at("o"));
             
             // set max virtual lines
             if (max_shape_map.find("v") != max_shape_map.end()) {
-                auto max_v = static_cast<size_t>(max_shape_map.at("v"));
-                Term::max_shape_.va_ = max_v;
+                max_v = static_cast<size_t>(max_shape_map.at("v"));
             }
-            
-            // do not allow for both max_o and max_v to be 0
-            if (Term::max_shape_.oa_ == 0 && Term::max_shape_.va_ == 0) {
-                throw invalid_argument("max_shape_map must cannot have both 'o' and 'v' set to 0");
-            }
-            
+
+            Term::max_shape_.n_  = max_o + max_v;
+            Term::max_shape_.o_  = max_o;
+            Term::max_shape_.oa_ = max_o;
+            Term::max_shape_.v_  = max_v;
+            Term::max_shape_.va_ = max_v;
+
         } else {
             auto n_max = static_cast<size_t>(-1l);
+            Term::max_shape_.n_  = n_max;
+            Term::max_shape_.o_  = n_max;
             Term::max_shape_.oa_ = n_max;
+            Term::max_shape_.v_  = n_max;
             Term::max_shape_.va_ = n_max;
+        }
+
+        if (options.contains("low_memory")) {
+            Linkage::low_memory_ = options["low_memory"].cast<bool>();
         }
 
         if (options.contains("batched")) batched_ = options["batched"].cast<bool>();
@@ -149,11 +166,6 @@ namespace pdaggerq {
             }
 
         }
-
-        if (options.contains("allow_merge"))
-            allow_merge_ = options["allow_merge"].cast<bool>();
-        if (options.contains("allow_nesting"))
-            Term::allow_nesting_ = options["allow_nesting"].cast<bool>();
 
         if (options.contains("occ_labels"))
             Line::occ_labels_ = options["occ_labels"].cast<std::array<char, 32>>();
@@ -210,15 +222,6 @@ namespace pdaggerq {
             for (const auto &[condition, restrict_ops] : conditions) {
                 Term::mapped_conditions_[condition] = restrict_ops;
             }
-        }
-
-        if(options.contains("format_sigma"))
-            format_sigma_ = options["format_sigma"].cast<bool>();
-
-        if (options.contains("use_trial_index"))
-            Vertex::use_trial_index = options["use_trial_index"].cast<bool>();
-
-        if (options.contains("conditions")){
             cout << "Defined conditions: ";
             for (const auto &[condition, restrict_ops] : Term::mapped_conditions_) {
                 cout << condition << " -> [";
@@ -232,47 +235,56 @@ namespace pdaggerq {
             cout << endl;
         }
 
+        if (options.contains("use_trial_index"))
+            Vertex::use_trial_index = options["use_trial_index"].cast<bool>();
+
         cout << "Options:" << endl;
         cout << "--------" << endl;
-        cout << "    verbose: " << (verbose_ ? "true" : "false")
-             << "  // whether to print out verbose analysis (default: true)" << endl;
-
-        cout << "    max_temps: " << (long) max_temps_
-             << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
-
-        cout << "    prune_tmps: " << (prune_tmps_ ? "true" : "false")
-                << "  // whether to prune intermediates that are not used in the final equations (default: false)" << endl;
-
-        cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")
-                << "  // whether to skip the scalar terms in the final equations (default: false)" << endl;
-
-        cout << "    max_depth: " << (long) Term::max_depth_
-             << "  // maximum depth for chain of contractions (default: -1 for no limit)" << endl;
-
-        cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
-                "for no limit of occupied and virtual lines.): " << endl;
-
-        cout << "    allow_nesting: " << (Term::allow_nesting_ ? "true" : "false")
-             << "  // whether to allow nested intermediates (default: true)" << endl;
+        cout << "    print_level: " << print_level_
+             << "  // verbosity level:" << endl;
+        cout << "                    // 0: no printing of optimization steps (default)" << endl;
+        cout << "                    // 1: print optimization steps without fusion or merging" << endl;
+        cout << "                    // 2: print optimization steps with fusion and merging" << endl;
 
         cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
-                << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
+             << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
 
-        cout << "    format_sigma: " << (format_sigma_ ? "true" : "false")
-             << "  // whether to format equations for sigma-vector build by extracting intermediates without trial vectors (default: false)" << endl;
+        cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")
+             << "  // whether to skip the scalar terms in the final equations (default: false)" << endl;
 
         cout << "    use_trial_index: " << (Vertex::use_trial_index ? "true" : "false")
              << "  // whether to store trial vectors as an additional index/dimension for "
              << "tensors in a sigma-vector build (default: false)" << endl;
 
+        cout << "    opt_level: " << opt_level_
+             << "  // optimization level:" << endl;
+        cout << "                  // 0: no optimization" << endl;
+        cout << "                  // 1: single-term optimization only (reordering)" << endl;
+        cout << "                  // 2: reordering and subexpression elimination (substitution)" << endl;
+        cout << "                  // 3: reordering, substitution, and separation of reusable intermediates (for sigma vectors)" << endl;
+        cout << "                  // 4: reordering, substitution, and separation; unused intermediates are removed (pruning)" << endl;
+        cout << "                  // 5: reordering, substitution, separation, pruning, and merging of equivalent terms" << endl;
+        cout << "                  // 6: reordering, substitution, separation, pruning, merging, and fusion of intermediates (default)" << endl;
+
         cout << "    batched: " << (batched_ ? "true" : "false")
-             << "  // whether to substitute intermediates in batches for faster generation. (default: true)" << endl;
+             << "  // candidate substitutions are applied in batches rather than one at a time. (default: true)" << endl;
+        cout << "                   // Generally faster, but may not yield optimal results compared to single substitutions." << endl;
 
         cout << "    batch_size: " << (long) batch_size_
-                << "  // size of the batch for batched substitution (default: 10; -1 for no limit; 1 is equivalent to no batching)" << endl;
+             << "  // size of the batch for batched substitution (default: 10; -1 for no limit)" << endl;
 
-        cout << "    allow_merge: " << (allow_merge_ ? "true" : "false")
-             << "  // whether to merge similar terms during optimization (default: true)" << endl;
+        cout << "    max_temps: " << (long) max_temps_
+             << "  // maximum number of intermediates to find (default: -1 for no limit)" << endl;
+
+        cout << "    max_depth: " << (long) Term::max_depth_
+             << "  // maximum depth for chain of contractions (default: -1 for no limit)" << endl;
+
+        cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
+                                                               "for no limit.): " << endl;
+
+        cout << "    low_memory: " << (Linkage::low_memory_ ? "true" : "false")
+             << "  // whether to recompute or save all possible permutations of each term in memory (default: false)" << endl
+             << "                       // if true, permutations are recomputed on the fly. Recommended if memory runs out." << endl;
 
         cout << "    nthreads: " << nthreads_
              << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
@@ -460,324 +472,6 @@ namespace pdaggerq {
         total_timer.stop(); // stop timer
     }
 
-    void PQGraph::print(string print_type) {
-
-        constexpr auto to_lower = [](string str) {
-            // map uppercase to lowercase for output
-            for (auto &letter : str) {
-                static unordered_map<char, char>
-                        lowercase_map = {{'A', 'a'}, {'B', 'b'}, {'C', 'c'}, {'D', 'd'}, {'E', 'e'},
-                                         {'F', 'f'}, {'G', 'g'}, {'H', 'h'}, {'I', 'i'}, {'J', 'j'},
-                                         {'K', 'k'}, {'L', 'l'}, {'M', 'm'}, {'N', 'n'}, {'O', 'o'},
-                                         {'P', 'p'}, {'Q', 'q'}, {'R', 'r'}, {'S', 's'}, {'T', 't'},
-                                         {'U', 'u'}, {'V', 'v'}, {'W', 'w'}, {'X', 'x'}, {'Y', 'y'},
-                                         {'Z', 'z'}};
-
-                if (lowercase_map.find(letter) != lowercase_map.end())
-                    letter = lowercase_map[letter];
-            }
-
-            // return lowercase string
-            return str;
-        };
-
-        print_type = to_lower(print_type);
-
-        if (print_type == "python" || print_type == "einsum") {
-            Term::make_einsum = true;
-            cout << "Formatting equations for python" << endl;
-        } else if (print_type == "c++" || print_type == "cpp") {
-            Term::make_einsum = false;
-            cout << "Formatting equations for c++" << endl;
-        } else {
-            cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
-            cout << "         Setting output to c++" << endl; // TODO: make default for python
-        }
-        cout << endl;
-
-        // print output to stdout
-        cout << this->str() << endl;
-    }
-
-    string PQGraph::str() {
-
-        // recompute scaling
-        if (!is_assembled_)
-            assemble();
-
-        stringstream sout; // string stream to hold output
-
-        // add banner for PQ GRAPH results
-        sout << "####################" << " PQ GRAPH Output " << "####################" << endl << endl;
-
-        PQGraph copy = this->clone(); // make a clone of pq_graph
-
-        // remove intermediates that only occur once for printing
-        copy.remove_unused_tmps();
-
-        // get all terms from all equations except the scalars, and reuse_tmps
-        vector<Term> all_terms;
-
-//        bool has_tmps = false;
-        for (auto &[eq_name, equation] : copy.equations_) { // iterate over equations in serial
-
-            // skip "tmps" equation
-            if (eq_name == "tmps" || eq_name == "scalars" || eq_name == "reuse")
-                continue;
-
-            vector<Term> &terms = equation.terms();
-
-            if (terms.empty())
-                continue;
-
-//            if (!equation.is_temp_equation_) {
-//                has_tmps = true;
-//                continue; // skip tmps equation
-//            }
-
-            equation.rearrange(); // sort tmps in equation
-
-            // find first term without a tmp on the rhs, make it an assigment, and bring it to the front
-            for (size_t i = 0; i < terms.size(); ++i) {
-                bool has_tmp = false;
-                for (const auto &op : terms[i].rhs()) {
-                    if (op->is_temp()) {
-                        if (!op->is_scalar() && !as_link(op)->is_reused_) {
-                            has_tmp = true;
-                            break;
-                        }
-                    }
-                }
-                if (!has_tmp) {
-                    std::swap(terms[i], terms[0]);
-                    break;
-                }
-            }
-
-            // make first term an assignment
-            terms[0].is_assignment_ = true;
-
-            for (auto &term : terms) {
-                all_terms.push_back(term.clone());
-            }
-        }
-
-        // make set of all unique base names (ignore linkages and scalars)
-        set<string> names;
-        for (const auto &term: all_terms) {
-            ConstVertexPtr lhs = term.lhs();
-            if (!lhs->is_linked() && !lhs->is_scalar())
-                names.insert(lhs->name());
-            for (const auto &op: term.rhs()) {
-                if (!op->is_linked() && !op->is_scalar())
-                    names.insert(op->name());
-            }
-        }
-
-        // add tmp declarations
-        names.insert("perm_tmps");
-        names.insert("tmps");
-
-        // declare a map for each base name
-        sout << " #####  Declarations  ##### " << endl << endl;
-        for (const auto &name: names) {
-            if (!Term::make_einsum)
-                 sout << "// initialize -> ";
-            else sout << "## initialize -> ";
-            sout << name << ";" << endl;
-        }
-        sout << endl;
-
-        // add scalar terms to the beginning of the equation
-
-        // create merged equation to sort tmps
-        Equation merged_eq = Equation("", all_terms);
-        merged_eq.rearrange('t'); // sort tmps in merged equation
-        all_terms = merged_eq.terms(); // get sorted terms
-
-        // print scalar declarations
-        if (!copy.equations_["scalars"].empty()) {
-            sout << " #####  Scalars  ##### " << endl << endl;
-            copy.equations_["scalars"].rearrange('s'); // sort scalars in scalars equation
-            for (auto &term: copy.equations_["scalars"])
-                term.comments() = {}; // remove comments from scalars
-
-            // print scalars
-            sout << copy.equations_["scalars"] << endl;
-            sout << " ### End of Scalars ### " << endl << endl;
-        }
-
-        // print declarations for reuse_tmps
-        if (!copy.equations_["reuse"].empty()){
-            sout << " #####  Shared  Operators  ##### " << endl << endl;
-            copy.equations_["reuse"].rearrange('r'); // sort reuse_tmps in reuse_tmps equation
-            for (auto &term: copy.equations_["reuse"])
-                term.comments() = {}; // remove comments from reuse_tmps
-
-            // print reuse_tmps
-            sout << copy.equations_["reuse"] << endl;
-            sout << " ### End of Shared Operators ### " << endl << endl;
-        }
-
-        // for each term in tmps, add the term to the merged equation
-        // where each tmp of a given id is first used
-        copy.equations_["tmps"].rearrange('t'); // sort tmps in tmps equation
-
-        auto &tempterms = copy.equations_["tmps"];
-        std::stable_sort(tempterms.begin(), tempterms.end(), [](const Term &a, const Term &b) {
-            return as_link(a.lhs())->id_ < as_link(b.lhs())->id_;
-        });
-
-        // keep track of tmp ids that have been found
-        map<size_t, bool> tmp_ids;
-
-        // add declaration for each tmp
-        bool added_declare;
-        size_t attempts = 0;
-
-        do {
-            added_declare = false;
-
-            for (long k = tempterms.size()-1; k >= 0; --k) {
-                auto &tempterm = copy.equations_["tmps"][k];
-
-                if (!tempterm.lhs()->is_linked()) continue;
-
-                ConstLinkagePtr temp = as_link(tempterm.lhs());
-                size_t temp_id = temp->id_;
-
-                // check if tmp is already declared
-                if (tmp_ids.find(temp_id) != tmp_ids.end()) continue;
-
-                bool found_anywhere = false;
-                for (auto i = 0ul; i < all_terms.size(); ++i) {
-                    const Term &term = all_terms[i];
-
-                    // check if tmp is in the rhs of the term
-                    bool found = false;
-                    for (const auto &op: term.rhs()) {
-                        bool is_tmp = op->is_linked(); // must be a tmp
-                        if (!is_tmp) continue;
-
-                        ConstLinkagePtr link = as_link(op);
-                        is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
-                        is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
-
-                        if (is_tmp && link->id_ == temp_id) {
-                            found = true;
-                            break; // true if we found first use of tmp with this id
-                        }
-                    }
-
-                    if (!found) continue; // tmp not found in rhs of term; continue
-                    tmp_ids[temp_id] = true; // update tmp_ids map
-
-                    // add tmp term before this term
-                    all_terms.insert(all_terms.begin() + i, tempterm);
-
-                    // only add once
-                    found_anywhere = true;
-                    tmp_ids[temp_id] = true;
-                    added_declare = true;
-                    break;
-                }
-            }
-        } while (added_declare && ++attempts < equations_["tmps"].size());
-
-
-        // add a term to destroy the tmp after its last use
-        tmp_ids.clear();
-        for (auto &tempterm: copy.equations_["tmps"]) {
-            if (!tempterm.lhs()->is_linked()) continue;
-
-            ConstLinkagePtr temp = as_link(tempterm.lhs());
-            size_t temp_id = temp->id_;
-
-            // insert temp id and continue if already found
-            auto inserted = tmp_ids.insert({temp_id, false}).second;
-            if (!inserted) continue;
-
-            for (auto i = (long int) all_terms.size() - 1; i >= 0; --i) {
-                const Term &term = all_terms[i];
-
-                // check if tmp is in the rhs of the term
-                bool found = false;
-                for (const auto &op: term.rhs()) {
-                    bool is_tmp = op->is_linked(); // must be a tmp
-                    if (!is_tmp) continue;
-
-                    ConstLinkagePtr link = as_link(op);
-                    is_tmp = !link->is_scalar(); // must not be a scalar (already in scalars_)
-                    is_tmp = is_tmp && !link->is_reused_; // must not be reused (already in reuse_tmps)
-
-                    if (is_tmp && link->id_ == temp_id) {
-                        found = true; break; // true if we found first use of tmp with this id
-                    }
-                }
-
-                if (!found) continue; // tmp not found in rhs of term; continue
-                tmp_ids[temp_id] = true; // update tmp_ids map
-
-                // Create new term with tmp in the lhs and assign zero to the rhs
-
-                // create vertex with only the linkage's name
-                string newname;
-                string lhs_name = temp->str(true, false);
-
-                if (Term::make_einsum)
-                     newname = "del " + lhs_name;
-                else newname = lhs_name + ".~TArrayD();";
-
-                Term newterm(tempterm);
-
-                if (!Term::make_einsum) {
-                    // add fence to free memory before continuing
-                    newterm.print_override_ = "world.gop.fence();";
-                    all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
-                }
-
-                newterm.print_override_ = newname;
-
-                // add tmp term after this term
-                all_terms.insert(all_terms.begin() + (int) i + 1, newterm);
-
-                break; // only add once
-            }
-        }
-
-        // make sure that all temps that were declared were also freed
-        bool found_all_tmp_ids = true;
-        for (const auto &[id, found] : tmp_ids) {
-            if (!found) {
-                found_all_tmp_ids = false;
-                break;
-            }
-        }
-
-        if (!found_all_tmp_ids) {
-            cout << "WARNING: could not find last use of tmps with ids: ";
-            for (const auto &[id, found] : tmp_ids) {
-                if (!found) cout << id << " ";
-            }
-            cout << endl;
-        }
-
-        sout << " ##########  Evaluate Equations  ########## " << endl << endl;
-
-        // update terms in merged equation
-        merged_eq.terms() = all_terms;
-
-        // stream merged equation as string
-        sout << merged_eq << endl;
-
-        // add closing banner
-        sout << "####################" << "######################" << "####################" << endl << endl;
-
-        // return string stream as string
-        return sout.str();
-
-    }
-
     void PQGraph::collect_scaling(bool recompute, bool include_reuse) {
 
         include_reuse = true;
@@ -787,7 +481,7 @@ namespace pdaggerq {
         mem_map_.clear(); // clear memory scaling map
 
         for (auto & [name, equation] : equations_) { // iterate over equations
-            if (name == "reuse" && !include_reuse)
+            if (name == "reused" && !include_reuse)
                 continue; // skip reuse_tmps equation (TODO: only include for analysis)
 
             // collect scaling for each equation
@@ -801,24 +495,6 @@ namespace pdaggerq {
         }
     }
 
-    vector<string> PQGraph::to_strings() {
-        string tastring = str();
-        vector<string> eq_strings;
-
-        // split string by newlines
-        string delimiter = "\n";
-        string token;
-        size_t pos = tastring.find(delimiter);
-        while (pos != string::npos) {
-            token = tastring.substr(0, pos);
-            eq_strings.push_back(token);
-            tastring.erase(0, pos + delimiter.length());
-            pos = tastring.find(delimiter);
-        }
-
-        return eq_strings;
-    }
-
     vector<string> PQGraph::get_equation_keys() {
         vector<string> eq_keys(equations_.size());
         transform(equations_.begin(), equations_.end(), eq_keys.begin(),
@@ -826,12 +502,33 @@ namespace pdaggerq {
         return std::move(eq_keys);
     }
 
-    void PQGraph::reorder() { // verbose if not already reordered
+    vector<Term *> PQGraph::every_term() {
+        vector<Term*> terms;
+        size_t num_terms = 0;
+        for(auto &eq : equations_){
+            num_terms += eq.second.size();
+        }
+
+        terms.reserve(num_terms);
+        for(auto &eq : equations_){
+            for(auto &term : eq.second.terms()){
+                terms.push_back(&term);
+            }
+        }
+        return terms;
+    }
+
+    void PQGraph::reorder(bool regenerate) { // verbose if not already reordered
 
         total_timer.start(); // start timer
         reorder_timer.start(); // start timer
 
-        static bool is_reordered = !verbose_; // flag to check if reordered
+        static bool print_reordering = print_level_ >= 1; // flag to check if first reordering is printed
+
+        print_guard guard;
+        if (!print_reordering) {
+            guard.lock();
+        }
 
         // save initial scaling if never saved
         if (flop_map_init_.empty()) {
@@ -839,29 +536,27 @@ namespace pdaggerq {
             mem_map_init_ = mem_map_;
         }
 
-        if (!is_reordered) cout << "Reordering equations..." << flush;
+        cout << "Reordering equations..." << flush;
 
-        // get list of keys in equations
-        vector<string> eq_keys = get_equation_keys();
-
-        #pragma omp parallel for schedule(guided) shared(equations_, eq_keys) default(none)
-        for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
-            equations_[eq_name].reorder(true); // reorder terms in equation
+        // get address of every term
+        vector<Term *> terms = every_term();
+        #pragma omp parallel for schedule(guided) shared(terms, regenerate) default(none)
+        for (Term *term : terms) {
+            term->reorder(regenerate); // reorder terms in equation
         }
 
-        if (!is_reordered) cout << " Done" << endl << endl;
+        cout << " Done" << endl << endl;
 
         // collect scaling
-        if (!is_reordered) cout << "Collecting scalings of each equation...";
-        collect_scaling(); // collect scaling of equations
-        if (!is_reordered) cout << " Done" << endl;
+        cout << "Collecting scalings of each equation...";
+        collect_scaling(true); // collect scaling of equations
+        cout << " Done" << endl;
 
         reorder_timer.stop();
-        if (!is_reordered)
-            cout << "Reordering time: " << reorder_timer.elapsed() << endl << endl;
+        cout << "Reordering time: " << reorder_timer.elapsed() << endl << endl;
 
         // set reorder flags to true
-        is_reordered = true;
+        print_reordering = true;
         is_reordered_ = true;
 
         // save scaling after reorder
@@ -894,7 +589,6 @@ namespace pdaggerq {
         cout << "Total Contractions: (last) " << n_flop_ops_pre << " -> (new) " << n_flop_ops << endl << endl;
         cout << "Total FLOP scaling: " << endl;
         cout << "------------------" << endl;
-        size_t last_order;
         print_new_scaling(flop_map_init_, flop_map_pre_, is_optimized_ ? flop_map_ : flop_map_pre_);
 
         cout << endl << "Total MEM scaling: " << endl;
@@ -909,23 +603,28 @@ namespace pdaggerq {
     void PQGraph::print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) {
         printf("%10s : %8s | %8s | %8s || %10s | %10s\n", "Scaling", "initial", "reorder", "optimize", "init diff", "opt diff");
 
-        scaling_map diff_map = current_map - previous_map;
-        scaling_map tot_diff_map = current_map - original_map;
+        // merge spins within the scaling maps
+        scaling_map orig_merged = original_map.merge_spins();
+        scaling_map prev_merged = previous_map.merge_spins();
+        scaling_map curr_merged = current_map.merge_spins();
+
+        scaling_map diff_map = curr_merged - prev_merged;
+        scaling_map tot_diff_map = curr_merged - orig_merged;
 
         auto last_order = static_cast<size_t>(-1);
-        for (const auto & key : original_map + previous_map + current_map) {
+        for (const auto & key : orig_merged + prev_merged + curr_merged) {
             shape cur_shape = key.first;
             size_t new_order = cur_shape.n_;
             if (new_order < last_order) {
                 printf("%10s : %8s | %8s | %8s || %10s | %10s\n" , "--------", "--------", "--------", "--------", "----------", "----------");
                 last_order = new_order;
             }
-            printf("%10s : %8zu | %8zu | %8zu || %10ld | %10ld \n", cur_shape.str().c_str(), original_map[cur_shape],
-                   previous_map[cur_shape], current_map[cur_shape], tot_diff_map[cur_shape], diff_map[cur_shape]);
+            printf("%10s : %8zu | %8zu | %8zu || %10ld | %10ld \n", cur_shape.str().c_str(), orig_merged[cur_shape],
+                   prev_merged[cur_shape], curr_merged[cur_shape], tot_diff_map[cur_shape], diff_map[cur_shape]);
         }
 
         printf("%10s : %8s | %8s | %8s || %10s | %10s\n" , "--------", "--------", "--------", "--------", "----------", "----------");
-        printf("%10s : %8zu | %8zu | %8zu || %10ld | %10ld \n", "Total", original_map.total(), previous_map.total(), current_map.total(),
+        printf("%10s : %8zu | %8zu | %8zu || %10ld | %10ld \n", "Total", orig_merged.total(), prev_merged.total(), curr_merged.total(),
                tot_diff_map.total(), diff_map.total());
 
     }
@@ -942,7 +641,16 @@ namespace pdaggerq {
 
     void PQGraph::optimize() {
 
-        expand_permutations();
+        if (is_optimized_) {
+            cout << "Equations have already been optimized." << endl;
+            return;
+        }
+
+        print_guard guard;
+        if (print_level_ < 1) {
+            guard.lock();
+        }
+
         flop_map_init_ = flop_map_;
         mem_map_init_ = mem_map_;
 
@@ -951,8 +659,7 @@ namespace pdaggerq {
             assemble();
 
         // merge similar terms
-        if (allow_merge_)
-            merge_terms();
+        merge_terms();
 
         // reorder contractions in equations
         reorder();
@@ -961,40 +668,54 @@ namespace pdaggerq {
         flop_map_pre_ = flop_map_;
         mem_map_pre_ = mem_map_;
 
-        bool format_sigma = has_sigma_vecs_ && format_sigma_;
+
+        bool format_sigma = has_sigma_vecs_ && opt_level_ >= 3;
 
         // substitute scalars first
-        if (verbose_) {
+        if (opt_level_ >= 1) {
             cout << "----- Substituting scalars -----" << endl;
-            substitute(format_sigma, true);
+            substitute(false, format_sigma, true);
         }
-        // find and substitute intermediate contractions
-        if (verbose_) {
-            if (format_sigma)
-                cout << "----- Substituting intermediates for sigma-vector build -----" << endl;
-        }
-        substitute(format_sigma, false);
 
-        cout << "----- Substituting all intermediates -----" << endl;
-        if (format_sigma) {
-            // apply substitutions again to find any new sigma vectors
-            substitute(false, false);
+        if (opt_level_ >= 2) {
+
+            // find and substitute intermediate contractions
+            if (format_sigma)
+                cout << "----- Separating Intermediates for sigma-vector build -----" << endl;
+            else cout << "----- Substituting intermediates -----" << endl;
+
+            substitute(false, format_sigma, false);
+
+            if (format_sigma) {
+                // apply substitutions again without separating intermediates
+                cout << "----- Substituting intermediates -----" << endl;
+                substitute(false, false, false);
+            }
         }
 
         // merge similar terms
-        if (allow_merge_)
+        if (opt_level_ >= 6) {
             merge_terms();
 
-        // substitute again for good measure
-        substitute(false, false);
+            // substitute again without considering cost of declaring intermediates
+            cout << "----- Substituting all intermediates -----" << endl;
+            substitute(true, false, false);
+        }
 
-//        merge_intermediates();
+        // clean up unused intermediates
+        update_timer.start();
+        prune();
+
+        // set optimized flag to true
+        is_optimized_ = true;
 
         // recollect scaling of equations
         collect_scaling(true, true);
-        analysis(); // analyze equations
+        update_timer.stop();
 
-        is_optimized_ = true; // set optimized flag to true
+        // analyze equations
+        analysis();
+
     }
 
 } // pdaggerq

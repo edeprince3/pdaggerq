@@ -27,17 +27,16 @@
 #include <string>
 #include <vector>
 #include <iostream>
+
 #include "term.h"
-#include "vertex.h"
-#include "linkage.h"
-#include "scaling_map.hpp"
-#include "linkage_set.hpp"
 
 using std::cout;
 using std::endl;
 
 namespace pdaggerq {
 
+    struct TermHash;
+    struct TermEqual;
 
     /**
      * Equation class
@@ -151,12 +150,6 @@ namespace pdaggerq {
         const ConstVertexPtr &assignment_vertex() const { return assignment_vertex_; }
 
         /**
-         * set the assignment vertex
-         * @param assignment_vertex assignment vertex
-         */
-        void set_assignment_vertex(const VertexPtr &assignment_vertex) { assignment_vertex_ = assignment_vertex; }
-
-        /**
          * Get the terms in the equation
          * @return terms in the equation
          */
@@ -176,15 +169,6 @@ namespace pdaggerq {
          */
         vector<Term>::const_iterator end() const { return terms_.end(); }
         vector<Term>::iterator end() { return terms_.end(); }
-
-        /**
-         * insert a term into the equation
-         * @param term term to insert
-         * @param index index to insert term at (default: 0)
-         * @return iterator to inserted term
-         * @note this function is not thread safe
-         */
-        vector<Term>::iterator insert_term(const Term &term, int index = 0);
 
         /**
          * Get number of terms
@@ -280,7 +264,7 @@ namespace pdaggerq {
          * @param n_temps reference to number of tmps
          * @return linkage set of scalars
          */
-        void make_scalars(linkage_set &scalars, size_t &n_temps);
+        void make_scalars(linkage_set &scalars, long &n_temps);
 
         /**
          * add a term to the equation
@@ -298,26 +282,11 @@ namespace pdaggerq {
         typedef unordered_map<Term, pair<size_t, pair<string, double>>, TermHash, TermEqual> merge_map_type;
 
         /**
-         * This tests if a term is found in the merge_terms_map when it is permuted
-         * @param merge_terms_map A map of terms to their occurrence, comments, and net coefficient
-         * @param term The term to test
-         * @param term_in_map Whether the term is found in the map
+         * Gets pointer to terms that contain a given linkage
+         * @param linkage linkage to search for
+         * @return pointer to terms that contain a given linkage
          */
-        static void merge_permuted_term(merge_map_type &merge_terms_map, Term &term, bool &term_in_map);
-
-
-        /**
-         * separate terms with permutations into separate terms
-         */
-        void expand_permutations();
-
-
-        /**
-         * Gets pointer to terms that contain a given contraction
-         * @param contraction contraction to search for
-         * @return pointer to terms that contain a given contraction
-         */
-        vector<Term *> get_temp_terms(const ConstLinkagePtr& contraction);
+        set<Term *> get_temp_terms(const ConstLinkagePtr& linkage);
 
         /**
          * Make a deep copy of the equation, making new shared pointers for vertices and linkages

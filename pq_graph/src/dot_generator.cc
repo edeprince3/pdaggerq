@@ -1,4 +1,28 @@
+//
+// pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+// Filename: dot_generator.cc
+// Copyright (C) 2020 A. Eugene DePrince III
+//
+// Author: A. Eugene DePrince III <adeprince@fsu.edu>
+// Maintainer: DePrince group
+//
+// This file is part of the pdaggerq package.
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+//
+
 #include "../include/pq_graph.h"
+
 using namespace pdaggerq;
 
 // Function to join the labels of lines with a specified delimiter
@@ -108,7 +132,7 @@ bool append_edge_links(string padding, const ConstLinkagePtr &link, const ConstV
 
 
     // Iterate through internal lines in the linkage
-    for (const auto &line : link->int_lines()) {
+    for (const auto &line : link->internal_lines()) {
         string edge_label = line.label_;  // Get label for the edge
         auto curr_it = find(current_lines.begin(), current_lines.end(), line);
         size_t curr_dist = distance(current_lines.begin(), curr_it);
@@ -166,7 +190,7 @@ vector<pair<string,ConstVertexPtr>> sorted_temp_vertices(const ConstLinkagePtr& 
             if (temp->is_scalar())
                  temp_label = "scalar";
             else if (temp->is_reused())
-                 temp_label = "reuse";
+                 temp_label = "reused";
             else temp_label = "temp";
             temp_label += "_" + to_string(temp->id());
 

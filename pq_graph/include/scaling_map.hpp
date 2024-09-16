@@ -28,9 +28,10 @@
 #include <functional>
 #include <map>
 #include <stdexcept>
-#include "line.hpp"
 #include <clocale>
 #include <sstream>
+
+#include "shape.hpp"
 
 using std::pair;
 using std::vector;
@@ -41,205 +42,6 @@ using std::hash;
 using std::size_t;
 
 namespace pdaggerq {
-
-    struct shape {
-        uint_fast8_t n_ = 0; // number of lines
-
-        //TODO: split this into two variables (oa, ob, va, vb); use a function to get their sum.
-        uint_fast8_t oa_ = 0, ob_ = 0;
-        uint_fast8_t va_ = 0, vb_ = 0;
-        uint_fast8_t  o_ = 0,  v_ = 0;
-        uint_fast8_t  a_ = 0,  b_ = 0;
-        
-        uint_fast8_t L_ = 0; // sigma index
-        uint_fast8_t Q_ = 0; // density index
-
-
-        // default constructors and assignments
-        shape() = default;
-        ~shape() = default;
-        shape(const shape &other) = default;
-        shape(shape &&other) = default;
-        shape &operator=(const shape &other) = default;
-        shape &operator=(shape &&other) = default;
-
-        shape(const line_vector &lines) {
-            for (const Line &line : lines)
-                *this += line;
-        }
-
-        void operator+=(const shape & other) {
-            n_  += other.n_;
-            L_  += other.L_;
-            Q_  += other.Q_;
-
-            oa_ += other.oa_; ob_ += other.ob_;
-            va_ += other.va_; vb_ += other.vb_;
-            o_  = oa_ + ob_; v_  = va_ + vb_;
-            a_  = oa_ + va_; b_  = ob_ + vb_;
-        }
-
-        void operator-=(const shape & other) {
-            oa_  = (oa_  < other.oa_)  ? 0 : oa_  - other.oa_;
-            ob_  = (ob_  < other.ob_)  ? 0 : ob_  - other.ob_;
-            va_  = (va_  < other.va_)  ? 0 : va_  - other.va_;
-            vb_  = (vb_  < other.vb_)  ? 0 : vb_  - other.vb_;
-
-            L_ = (L_ < other.L_) ? 0 : L_ - other.L_;
-            Q_ = (Q_ < other.Q_) ? 0 : Q_ - other.Q_;
-
-            o_ = oa_ + ob_; v_ = va_ + vb_;
-            a_ = oa_ + va_; b_ = ob_ + vb_;
-
-            n_ = (o_ + v_) + L_ + Q_;
-        }
-
-        void operator+=(const Line &line) {
-            ++n_; // increment number of lines
-
-            if (line.sig_) { ++L_; return; } // sigma
-            if (line.den_) { ++Q_; return; } // density
-
-            if (line.o_) { // occupied
-                if (line.a_) ++oa_;
-                else ++ob_; // default for no-spin is beta
-            } else { // virtual
-                if (line.a_) ++va_;
-                else ++vb_; // default for no-spin is beta
-            }
-            o_ = oa_ + ob_; v_ = va_ + vb_;
-            a_ = oa_ + va_; b_ = ob_ + vb_;
-        }
-        void operator-=(const Line &line) {
-            if (n_ != 0) --n_; // decrement number of lines
-            else return; // do nothing if no lines
-
-            if (line.sig_ && L_ != 0) { --L_; return; } // sigma
-            if (line.den_ && Q_ != 0) { --Q_; return; } // density
-
-            if (line.o_ && o_ != 0) { // occupied
-                if (line.a_ && oa_ != 0) --oa_;
-                else if (ob_ != 0) --ob_; // default for no-spin is beta
-            } else if (v_ != 0) { // virtual
-                if (line.a_ && va_ != 0) --va_;
-                else if (vb_ != 0) --vb_; // default for no-spin is beta
-            }
-            o_ = oa_ + ob_; v_ = va_ + vb_;
-            a_ = oa_ + va_; b_ = ob_ + vb_;
-        }
-
-        bool operator==(const shape & other) const {
-            return  n_ == other.n_
-                &&  a_ == other.a_  &&  b_ == other.b_
-                &&  o_ == other.o_  &&  v_ == other.v_
-                && oa_ == other.oa_ && ob_ == other.ob_
-                && va_ == other.va_ && vb_ == other.vb_
-                &&  L_ == other.L_  &&  Q_ == other.Q_;
-        }
-        bool operator!=(const shape & other) const {
-            return !(*this == other);
-        }
-
-        string str() const {
-            string result;
-            result.reserve(n_);
-
-            result += 'o';
-            result += to_string(o_);
-
-            result += 'v';
-            result += to_string(v_);
-
-            if (L_ > 0) {
-                result += 'L';
-                result += to_string(L_);
-            }
-            if (Q_ > 0) {
-                result += 'Q';
-                result += to_string(Q_);
-            }
-            return result;
-        }
-
-        bool operator<( const shape & other) const {
-
-            /// priority: o_ + v_ + L_, v_ + L_, L_, v_, va, oa
-
-            // prioritize total scaling over individual scaling factors
-            if (n_ != other.n_)
-                return n_ < other.n_;
-
-            /// if total scaling is the same, prioritize individual scaling factors
-            if (Q_ + other.Q_ > 0) {
-                // prioritize sum of v_ and L_ and Q_ over individual L_ and v_ and Q_
-                uint_fast8_t sum = v_ + L_ + Q_;
-                uint_fast8_t other_sum = other.v_ + other.L_ + other.Q_;
-                if (sum != other_sum)
-                    return sum < other_sum;
-
-                // if sum of v_ and L_ and Q_ is the same, prioritize Q_ over L_ and v_
-                if (Q_ != other.Q_)
-                    return Q_ < other.Q_;
-            }
-
-            if (L_ + other.L_ > 0) {
-                // prioritize sum of v_ and L_ over individual L_ and v_
-                uint_fast8_t sum = v_ + L_;
-                uint_fast8_t other_sum = other.v_ + other.L_;
-                if (sum != other_sum)
-                    return sum < other_sum;
-
-                // if sum of v_ and L_ is the same, prioritize L_ over v_
-                if (L_ != other.L_)
-                    return L_ < other.L_;
-            }
-
-            // prioritize v_ over o_
-            if (v_ != other.v_) return v_ < other.v_;
-
-            // prioritize o over spin
-            if (o_ != other.o_) return o_ < other.o_;
-
-            // equal or greater scaling, return false
-            return false; 
-        }
-        bool operator>( const shape & other) const {
-            return other < *this;
-        }
-        bool operator<=(const shape & other) const {
-            if (*this == other) return true;
-            return *this < other;
-        }
-        bool operator>=(const shape & other) const {
-            if (*this == other) return true;
-            return other < *this;
-        }
-
-        shape operator+(const shape & other) const {
-            shape result = *this;
-            result += other;
-            return result;
-        }
-
-        shape operator-(const shape &other) const {
-            shape result = *this;
-            result -= other;
-            return result;
-        }
-
-        shape operator+(const Line &line) const {
-            shape result = *this;
-            result += line;
-            return result;
-        }
-
-        shape operator-(const Line &line) const {
-            shape result = *this;
-            result -= line;
-            return result;
-        }
-
-    };
 
     struct scale_metric {
 
@@ -380,7 +182,7 @@ namespace pdaggerq {
 
         /// initialize values for making comparison
         constexpr static int this_better = 1;
-        constexpr static int is_same = 0;
+        constexpr static int this_same = 0;
         constexpr static int this_worse = -1;
 
         /**
@@ -404,11 +206,6 @@ namespace pdaggerq {
             // initialize other_map iterators
             auto other_begin = other_map.begin();
             auto other_end = other_map.end();
-
-            // initialize metrics
-            size_t this_metric;
-            size_t other_metric;
-
             // iterate over scaling maps
             for (auto this_it = this_begin, other_it = other_begin; // initialize iterators
                  this_it != this_end && other_it != other_end; // check if iterators are valid
@@ -425,7 +222,7 @@ namespace pdaggerq {
                 else if (at_this_end && !at_other_end)
                     return this_worse; // this is more expensive (this has additional scalings)
                 else if (at_this_end) // at_other_end must also be true
-                    return is_same; // this is the same (both have same number of scalings)
+                    return this_same; // this is the same (both have same number of scalings)
                 // else continue to next scaling
 
                 const shape &this_size = this_it->first;
@@ -444,7 +241,7 @@ namespace pdaggerq {
                 // if this_occurrence == other_occurrence then continue to next scaling
             }
 
-            return is_same;
+            return this_same;
         }
 
         /**
@@ -482,7 +279,7 @@ namespace pdaggerq {
          * @return true if this is scaling map is the same cost as other
          */
         bool operator==(const scaling_map &other) const {
-            return compare_scaling(*this, other) == is_same;
+            return compare_scaling(*this, other) == this_same;
         }
 
         /**
@@ -491,7 +288,7 @@ namespace pdaggerq {
          * @return true if this is scaling map is not the same cost as other
          */
         bool operator!=(const scaling_map &other) const {
-            return compare_scaling(*this, other) != is_same;
+            return compare_scaling(*this, other) != this_same;
         }
 
         /**
@@ -500,7 +297,7 @@ namespace pdaggerq {
          * @return true if this is scaling map is cheaper or the same cost as other
          */
         bool operator<=(const scaling_map &other) const {
-            return compare_scaling(*this, other) >= is_same;
+            return compare_scaling(*this, other) >= this_same;
         }
 
         /**
@@ -509,7 +306,7 @@ namespace pdaggerq {
          * @return true if this is scaling map is more expensive or the same cost as other
          */
         bool operator>=(const scaling_map &other) const {
-            return compare_scaling(*this, other) <= is_same;
+            return compare_scaling(*this, other) <= this_same;
         }
 
         /**
@@ -558,14 +355,43 @@ namespace pdaggerq {
         }
 
         /**
+         * set any negative values to zero
+         */
+        void all_positive() {
+            for (auto & [scale, count] : map_) {
+                if (count < 0) count = 0;
+            }
+        }
+
+        /**
+         * merge scalings with different spins into a new scaling map
+         * @return new scaling map with merged spins
+         */
+        scaling_map merge_spins() const {
+            // create copies that ignore alpha/beta differences
+            scaling_map no_spin_map;
+            for (const auto & key : map_) {
+                shape new_shape = key.first;
+                new_shape.va_ = new_shape.v_; new_shape.oa_ = new_shape.o_;
+                new_shape.vb_ = 0; new_shape.ob_ = 0;
+
+                new_shape.a_ = new_shape.n_;
+                new_shape.b_ = 0;
+                no_spin_map[new_shape] += key.second;
+            }
+            return no_spin_map;
+        }
+
+        /**
          * overload for printing keys and elements
          * @param os output stream
          */
         friend std::ostream& operator<<(std::ostream& os, const scaling_map& map) {
+            scaling_map no_spin_map = map.merge_spins();
             os << "{ ";
             bool printed = false;
             std::stringstream output;
-            for (const auto &[scale, count]: map.map_) {
+            for (const auto &[scale, count]: no_spin_map.map_) {
                 if (count == 0) continue;
                 output << scale.str() << ": " << count << ", ";
                 printed = true;

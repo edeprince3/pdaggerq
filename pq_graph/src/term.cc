@@ -25,8 +25,8 @@
 #include <map>
 #include <cmath>
 #include <iostream>
-#include <cstring>
 #include <memory>
+
 #include "../include/term.h"
 
 using std::next_permutation;
@@ -91,9 +91,9 @@ namespace pdaggerq {
             rhs_.emplace_back(make_shared<Vertex>(tmp));
         }
         // add boson operators
-        for (size_t i = 0; i < pq_str->is_boson_dagger.size(); i++) {
+        for (auto && is_boson_creator : pq_str->is_boson_dagger) {
             string tmp = "B";
-            if (pq_str->is_boson_dagger[i])
+            if (is_boson_creator)
                 tmp += "*";
             rhs_.emplace_back(make_shared<Vertex>(tmp));
         }
@@ -102,7 +102,7 @@ namespace pdaggerq {
 
         // add lhs vertex
         lhs_ = make_shared<Vertex>(name);
-        eq_ = lhs_->shallow();
+        eq_ = lhs_->clone();
 
         // create rhs vertices
         for (const auto & delta : pq_str->deltas) // add delta functions
@@ -145,6 +145,9 @@ namespace pdaggerq {
         // assume no permutations in term
         perm_type_ = 0;
 
+        // shallow copy of lhs
+        eq_ = lhs_->clone();
+
         /// construct rhs
         rhs_.reserve(vertex_strings.size() - 1); // reserve space for rhs
         for (int i = 1; i < vertex_strings.size(); i++) { // iterate over rhs
@@ -173,6 +176,7 @@ namespace pdaggerq {
     Term::Term(const ConstVertexPtr &lhs_vertex, const vector<ConstVertexPtr> &vertices, double coefficient) {
 
         lhs_ = lhs_vertex; // set lhs vertex
+        eq_ = lhs_->clone(); // shallow copy of lhs for equation
         rhs_ = vertices; // set rhs
         coefficient_ = coefficient; // set coefficient
 
@@ -202,8 +206,12 @@ namespace pdaggerq {
 
         // initialize lhs vertex
         lhs_ = linkage;
+        eq_ = lhs_->clone(); // shallow copy of lhs for equation
 
-        rhs_ = linkage->link_vector();
+        LinkagePtr link = as_link(linkage->clone());
+        link->id() = -1; // set id to -1 to allow it to be expanded
+
+        expand_rhs(link); // expand rhs into vector
 
         // set permutation indices as empty
         term_perms_ = {};
@@ -214,14 +222,10 @@ namespace pdaggerq {
 
         // compute flop and memory scaling of the term
         request_update();
-        compute_scaling();
+        reorder();
 
-        // set vertex strings
-
-        string link_string = linkage->tot_str(true); // get linkage string with full expressions
-        comments_.push_back(to_string(coefficient_)); // add linkage string to vertex strings
-        comments_.emplace_back(link_string); // add linkage string to vertex strings
-
+        // unset comments
+        comments_.emplace_back("");
     }
 
     Term::Term(const string &print_override) {
@@ -233,580 +237,86 @@ namespace pdaggerq {
 
     }
 
-    tuple<scaling_map, scaling_map, LinkagePtr> Term::compute_scaling(const vector<ConstVertexPtr>& arrangement, bool recompute) {
-
-        // reset flop and memory scaling maps
-        scaling_map flop_map; // clear flop scaling map
-        scaling_map mem_map; // clear memory scaling map
-
-        // helper function to add scaling with consideration of permutations
-        auto add_scaling = [this, &flop_map, &mem_map](shape new_shape) {
-            // add scaling from permutation
-            if (perm_type_ == 0) {
-                flop_map[new_shape]++;
-                mem_map[new_shape]++;
-            } else if (perm_type_ == 1) {
-                long long int num_perms = (1 << term_perms_.size()); // number of permutations
-                flop_map[new_shape] += num_perms;
-                mem_map[new_shape] += num_perms;
-            } else if (perm_type_ == 2) {
-                flop_map[new_shape] += 2;
-                mem_map[new_shape] += 2;
-            } else if (perm_type_ == 3) {
-                flop_map[new_shape] += 3;
-                mem_map[new_shape] += 3;
-            } else if (perm_type_ == 6) {
-                flop_map[new_shape] += 6;
-                mem_map[new_shape] += 6;
-            } else throw std::runtime_error("Invalid permutation type: " + std::to_string(perm_type_));
-        };
-
-        /// add scaling from lhs
-
-        shape lhs_shape = lhs_->shape_;
-        add_scaling(lhs_shape);
-
-        // check if number of rhs is <= 1
-        if (arrangement.size() == 1) {
-            add_scaling(arrangement[0]->dim());
-            return {flop_map, mem_map, as_link(term_linkage()->clone())};
-        } else if (arrangement.empty()) {
-            return {flop_map, mem_map, as_link(term_linkage()->clone())};
-        }
+    tuple<scaling_map, scaling_map, LinkagePtr> Term::compute_scaling(const ConstVertexPtr &lhs, const vector<ConstVertexPtr> &arrangement) {
 
         /// add scaling from rhs
 
         // get the total linkage of the term with its flop and memory scalings
-        auto [linkage, flop_scales, mem_scales] = Linkage::link_and_scale(arrangement);
+        LinkagePtr linkage = Linkage::link(arrangement);
+        auto [flop_map, mem_map] = linkage->netscales();
 
-        // populate flop and memory scaling maps; get bottleneck scaling
-        flop_map = scaling_map(flop_scales);
-        mem_map = scaling_map(mem_scales);
+        /// add scaling from lhs
+        flop_map[lhs->shape_]++;
+        mem_map[lhs->shape_]++;
 
-        return {flop_map, mem_map, as_link(term_linkage()->clone())};
+        return {flop_map, mem_map, linkage};
 
     }
 
-    size_t Term::count_idx_perm(const line_vector& ref_lines, const vector<ConstVertexPtr>& arrangement) {
-        line_vector lines; lines.reserve(2*ref_lines.size());
+    void Term::expand_rhs(const ConstVertexPtr &term_link) {
 
-        for (const auto & vertex : arrangement)
-            for (const auto & line : vertex->lines())
-                if (std::find(ref_lines.begin(), ref_lines.end(), line) != ref_lines.end())
-                    lines.push_back(line);
-        lines.erase(std::unique(lines.begin(), lines.end()), lines.end());
+        // expand linkage into vector of vertices
+        if (term_link->is_expandable()) {
+            rhs_ = as_link(term_link)->link_vector();
+        } else if (term_link->is_linked() && !term_link->is_temp() && !term_link->is_addition()) {
+            rhs_ = {as_link(term_link)->left(), as_link(term_link)->right()};
+        } else {
+            rhs_ = {term_link};
+        }
 
-        size_t perms = 0;
-        do {
-            if (lines == ref_lines) break;
-            perms++;
-        } while (std::next_permutation(lines.begin(), lines.end()));
+        // find constants in rhs and merge them into the coefficient. skip empty vertices
+        double merged_factor = coefficient_;
 
-        return perms;
+        vector<ConstVertexPtr> new_rhs; new_rhs.reserve(rhs_.size());
+        bool found_constant = false;
+        for (ConstVertexPtr & op : rhs_) {
+            if (op->empty()) continue; // skip empty vertices
+
+            // determine if name is convertible to a double
+            if (op->is_constant()) {
+                merged_factor *= stod(op->name());
+                found_constant = true;
+            } else {
+                new_rhs.push_back(op);
+            }
+        }
+
+        // update coefficient
+        if (found_constant)
+            coefficient_ = merged_factor;
+
+        // update rhs
+        rhs_ = new_rhs;
+
+        request_update();
+        compute_scaling(true);
     }
 
     void Term::reorder(bool recompute) { // reorder rhs in term
 
         if (recompute) {
-            is_optimal_ = false;
-            needs_update_ = true;
+            request_update(); // request update if recompute is true
         }
 
         if (is_optimal_ && !needs_update_) return; // if term is already optimal return
 
         // recompute initial scaling
-        compute_scaling();
+        compute_scaling(recompute);
 
-        if (rhs_.size() < 2) return; // not enough vertices to reorder
+        if (is_optimal_) return; // if term is already optimal, return
 
-        if (is_optimal_) return; // if term is optimal return
+        /// Reorder by taking every permutation of the term and finding the best one.
+        /// We use the linkage to determine the best permutation
 
-        /// Reorder by taking every permutation of vertex ordering and compute the scaling of the linkages.
-        /// Keep permutation that minimizes the floating point cost of each linkage.
+        // generate every permutation and return the best one
+        ConstLinkagePtr best_linkage = term_linkage()->best_permutation();
 
-        // get number of rhs
-        size_t n_vertices = rhs_.size();
+        // replace the rhs with the best linkage (if it is a temp or addition, we should not expand into a vector)
+        expand_rhs(best_linkage);
 
-        if (n_vertices < 2) { return; } // not enough vertices to reorder
-
-        size_t initial_permutation[n_vertices]; // array to store initial permutation
-        size_t current_permutation[n_vertices]; // initialize index for current permutation (initially 0, 1, 2, ...)
-        size_t best_permutation[n_vertices];    // initialize index for best permutation (initially 0, 1, 2, ...)
-        for (size_t i = 0; i < n_vertices; i++) {
-            initial_permutation[i] = i;
-            current_permutation[i] = i;
-            best_permutation[i] = i;
-        }
-
-        // store best scaling as current scaling (scaling is performed in compute_scaling and called in constructor)
-        scaling_map best_flop_map = flop_map_; // initialize the best flop scaling map
-        scaling_map best_mem_map = mem_map_; // initialize the best memory scaling map
-        vector<ConstVertexPtr> best_arrangement = rhs_; // initialize best arrangement
-        line_vector left_lines = lhs_->lines(); // get lines of lhs
-        bool found_better = false;
-
-        // iterate over all permutations of the rhs
-        while (next_permutation(current_permutation, current_permutation + n_vertices)) { // get next permutation
-
-            // create new arrangement
-            std::vector<ConstVertexPtr> new_arrangement;
-            new_arrangement.reserve(n_vertices); // reserve space for new arrangement
-            for (size_t i = 0; i < n_vertices; i++) {
-                new_arrangement.push_back(rhs_[current_permutation[i]]);
-            }
-
-            // compute scaling for current permutation (populates flop and memory scaling maps)
-            auto [flop_map, mem_map, linkage] = compute_scaling(new_arrangement);
-
-            int scaling_check = flop_map.compare(best_flop_map); // check if current permutation is better than best permutation
-
-            bool is_better = scaling_check == scaling_map::this_better; // check if current permutation is better than best permutation
-            if (scaling_check == scaling_map::is_same) { // if scaling is equal, check memory scaling
-                // check if current permutation is better than the best permutation in terms of memory scaling
-                is_better = mem_map.compare(best_mem_map) == scaling_map::this_better; // check if current permutation is better than best permutation
-
-                // if still equal, prefer linkage with the closest indices to the lhs (requires less index permutations)
-                if (!is_better) {
-                    size_t current_perm_count = count_idx_perm(left_lines, new_arrangement);
-                    size_t best_perm_count = count_idx_perm(left_lines, best_arrangement);
-
-                    // check if current permutation is better than the best permutation
-                    is_better = current_perm_count < best_perm_count;
-                }
-            }
-
-            if (is_better) { // if current permutation is better than the best permutation
-                best_flop_map = flop_map; // set best scaling to current permutation
-                best_mem_map = mem_map; // set best scaling to current permutation
-                for (size_t i = 0; i < n_vertices; i++) { // copy current permutation to best permutation
-                    best_permutation[i] = current_permutation[i];
-                }
-                best_arrangement = new_arrangement; // set best arrangement to current permutation
-                found_better = true;
-            } // else, current permutation is worse than the best permutation and does not need to be saved
-        }
-
-        if (!found_better)
-            return;
-
-        // reorder rhs
-        vector<ConstVertexPtr> reordered_vertices; // initialize vector to store reordered rhs
-        reordered_vertices.reserve(n_vertices); // reserve space for reordered rhs
-        for (size_t i = 0; i < n_vertices; i++) { // iterate over rhs
-            reordered_vertices.push_back(rhs_[best_permutation[i]]); // add vertex to reordered rhs
-        }
-        rhs_ = reordered_vertices; // set reordered rhs
-
-        // re-populate flop and memory scaling maps/bottlenecks and linkages
+        // recompute scaling
         compute_scaling(true);
-        is_optimal_ = true; // indicate that the term is optimal
-    }
-
-    string Term::str() const {
-
-        if (!print_override_.empty())
-            // return print override if it exists for custom printing
-            return print_override_;
-
-        string output;
-
-        bool no_permutations = term_perms_.empty() || perm_type_ == 0;
-        if ( no_permutations ) { // if no permutations
-            if (make_einsum)
-                return einsum_str();
-
-            // get lhs vertex string
-            output = lhs_->str();
-
-            // get sign of coefficient
-            bool is_negative = coefficient_ < 0;
-            if (is_assignment_) output += "  = ";
-            else if (is_negative) output += " -= ";
-            else output += " += ";
-
-            // get absolute value of coefficient
-            double abs_coeff = fabs(coefficient_);
-
-            // if the coefficient is not 1, add it to the string
-            bool added_coeff = false;
-            bool needs_coeff = fabs(abs_coeff - 1) >= 1e-8 || rhs_.empty();
-
-            // assignments of terms with negative coefficients need it to be added
-            needs_coeff = (is_assignment_ && is_negative) || needs_coeff;
-
-            if (needs_coeff) {
-                // add coefficient to string
-                added_coeff = true;
-                if (is_assignment_ && is_negative)
-                     output += "-";
-
-                int precision = minimum_precision(abs_coeff);
-                output += to_string_with_precision(abs_coeff, precision);
-
-                // add multiplication sign if there are rhs vertices
-                if (!rhs_.empty())
-                    output += " * ";
-            }
-
-            // check if lhs vertex rank is zero
-            bool lhs_zero_rank = lhs_->rank() == 0;
-
-            // seperate scalars and tensors in rhs vertices
-            vector<ConstVertexPtr> scalars;
-            vector<ConstVertexPtr> tensors;
-            for (const ConstVertexPtr &vertex : rhs_) {
-                if (vertex->rank() == 0)
-                     scalars.push_back(vertex);
-                else tensors.push_back(vertex);
-            }
-
-            bool format_dot = false;
-            format_dot = lhs_zero_rank && tensors.size() > 1;
-
-            if (format_dot){
-                // if lhs vertex rank is zero but has more than one vertex, format for dot product
-                if (!added_coeff && scalars.empty()) {
-                    int precision = minimum_precision(abs_coeff);
-                    output += to_string_with_precision(abs_coeff, precision);
-                    output += " * ";
-                }
-
-                // first add scalars
-                for (size_t i = 0; i < scalars.size(); i++) {
-                    output += scalars[i]->str();
-                    if (i != scalars.size() - 1 || !tensors.empty()) output += " * ";
-                }
-
-                // now add tensors with dot product
-                output += "dot(";
-                for (size_t i = 0; i < tensors.size(); i++) {
-                    output += tensors[i]->str();
-
-                    if (i < tensors.size() - 2) output += " * ";
-                    else if (i == tensors.size() - 2) output += ", ";
-                    else output += ");";
-                }
-
-            } else {
-                // add rhs
-                for (size_t i = 0; i < rhs_.size(); i++) {
-                    output += rhs_[i]->str();
-                    if (i != rhs_.size() - 1) output += " * ";
-                    else output += ";";
-                }
-            }
-        } else { // if there are permutations
-
-            // make intermediate vertex for the permutation
-            VertexPtr perm_vertex;
-
-            bool make_perm_tmp = rhs_.size() == 1;
-            if (make_perm_tmp) perm_vertex = rhs_[0]->clone(); // no need to create intermediate vertex if there is only one
-            else { // else, create the intermediate vertex and its assignment term
-                perm_vertex = lhs_->clone();
-                string perm_name = "perm_tmps";
-                perm_vertex->format_map_ = true; // format permutation vertex to print as map
-                perm_vertex->sort(); // sort permutation vertex
-                perm_vertex->update_name("perm_tmps"); // set name of permutation vertex
-
-                // initialize initial permutation term
-                Term perm_term = *this; // copy term
-                perm_term.lhs_ = perm_vertex; // set lhs to permutation vertex
-                perm_term.reset_perm();
-                perm_term.is_assignment_ = true; // set term as assignment
-                perm_term.coefficient_ = fabs(coefficient_); // set coefficient to absolute value of coefficient
-
-                // add string to output
-                output += perm_term.str();
-                output += "\n";
-
-            } // if only one vertex, use that vertex directly
-
-            // initialize term to permute
-            Term perm_term = *this; // copy term
-            perm_term.rhs_ = {perm_vertex};
-
-            // remove comments from term
-            perm_term.comments_.clear();
-
-            // if more than one vertex, set coefficient to 1 or -1
-            if (!make_perm_tmp)
-                perm_term.coefficient_ = coefficient_ > 0 ? 1 : -1;
-
-            // get permuted terms
-            vector<Term> perm_terms = perm_term.expand_perms();
-
-            // add permuted terms to output
-            for (auto & permuted_term : perm_terms) {
-                output += permuted_term.str();
-                output += '\n';
-            }
-            output.pop_back(); // remove last newline character
-        }
-
-        if (make_einsum)
-            return output;
-
-        // ensure the last character is a semicolon (might not be there if no rhs vertices)
-        if (output.back() != ';')
-            output += ';';
-
-        return output;
-    }
-
-    string Term::einsum_str() const {
-        string output;
-
-        // get left hand side vertex name
-        if (lhs_->is_linked())
-             output = as_link(lhs_)->str(true, false);
-        else output = lhs_->name();
-
-        // get sign of coefficient
-        bool is_negative = coefficient_ < 0;
-        if (is_assignment_) output += " = ";
-        else if (is_negative) output += " -= ";
-        else output += " += ";
-
-        // get absolute value of coefficient
-        double abs_coeff = fabs(coefficient_);
-
-        // if the coefficient is not 1, add it to the string
-        bool added_coeff = false;
-        bool needs_coeff = fabs(abs_coeff - 1) >= 1e-8 || rhs_.empty();
-
-        // assignments of terms with negative coefficients need it to be added
-        needs_coeff = (is_assignment_ && is_negative) || needs_coeff;
-
-        // this is weird einsum craziness:
-        // if there is only one operator on the right-hand side, and you DO NOT multiply by a scalar,
-        // einsum will make a shallow copy of the operator and not a deep copy. This will then overwrite your
-        // original operator (if it is a tensor). To avoid this, we always multiply by a scalar in this scenario.
-        if (rhs_.size() == 1) {
-            if (is_assignment_ && !rhs_[0]->is_scalar())
-                needs_coeff = true;
-        }
-
-
-        if (needs_coeff) {
-            // add coefficient to string
-            added_coeff = true;
-            if (is_assignment_ && is_negative)
-                output += "-";
-
-            int precision = minimum_precision(abs_coeff);
-            output += to_string_with_precision(abs_coeff, precision);
-
-            // add multiplication sign if there are rhs vertices
-            if (!rhs_.empty())
-                output += " * ";
-        }
-
-        // separate scalars and tensors in rhs vertices
-        vector<ConstVertexPtr> scalars;
-        vector<ConstVertexPtr> tensors;
-
-        for (const ConstVertexPtr &vertex : rhs_) {
-            if (vertex->rank() == 0) scalars.push_back(vertex);
-            else tensors.push_back(vertex);
-        }
-
-        bool has_tensors = !tensors.empty();
-
-        // add scalars first
-        for (size_t i = 0; i < scalars.size(); i++) {
-            if (scalars[i]->is_linked())
-                 output += as_link(scalars[i])->str(true, false);
-            else output += scalars[i]->name();
-
-            if (i != scalars.size() - 1 || has_tensors) output += " * ";
-        }
-        if (!has_tensors) return output;
-
-        // make vector of line strings for each tensor
-        vector<string> rhs_strings;
-        for (const ConstVertexPtr &vertex : tensors) {
-            line_vector vertex_lines = vertex->lines();
-            string line_string;
-            for (auto & vertex_line : vertex_lines)
-                // einsum can only handle single character labels
-                line_string += vertex_line.label_.front();
-
-            rhs_strings.push_back(line_string);
-        }
-
-        // get string of lines
-        line_vector link_lines;
-        string link_string;
-        if (!tensors.empty()) {
-            // get string of lines from lhs vertex
-            for (auto & line : lhs_->lines())
-                link_string += line.label_.front();
-        }
-
-        // make einsum string
-        string einsum_string = "einsum('";
-        for (const auto & rhs_string : rhs_strings){
-            einsum_string += rhs_string;
-            if (rhs_string != rhs_strings.back()) einsum_string += ",";
-        }
-
-        einsum_string += "->" + link_string + "', ";
-
-        // add tensor names to einsum string
-        for (auto & tensor : tensors) {
-            if (tensor->is_linked())
-                 einsum_string += as_link(tensor)->str(true, false);
-            else einsum_string += tensor->name();
-
-            einsum_string += ", ";
-        }
-
-        if (tensors.size() > 2) {
-            einsum_string += "optimize=['einsum_path',";
-            for (size_t i = 0; i < tensors.size()-1; i++) {
-                einsum_string += "(0,1),";
-            }
-            einsum_string.pop_back();
-            einsum_string += "]";
-        } else if (!tensors.empty()){
-            einsum_string.pop_back();
-            einsum_string.pop_back();
-        }
-
-        einsum_string += ')';
-        output += einsum_string;
-        return output;
-    }
-
-    string Term::make_comments(bool only_flop, bool only_comment) const {
-        if (comments_.empty())
-            return "";
-
-        string comment;
-        for (const auto &vertex: rhs_) {
-            if (vertex->is_linked())
-                comment += as_link(vertex)->tot_str(true);
-            else
-                comment += vertex->str();
-            if (vertex != rhs_.back())
-                comment += " * ";
-        }
-
-        // add permutations to comment if there are any
-        if (!term_perms_.empty()) {
-            string perm_str;
-            int count = 0;
-            switch (perm_type_) {
-                case 0:
-                    break;
-                case 1:
-                    for (const auto &perm: term_perms_)
-                        perm_str += "P(" + perm.first + "," + perm.second + ") ";
-                    break;
-                case 2:
-                    count = 0;
-                    for (const auto &perm: term_perms_) {
-                        if (count++ % 2 == 0)
-                            perm_str += "PP2(" + perm.first + "," + perm.second;
-                        else
-                            perm_str += ";" + perm.first + "," + perm.second + ") ";
-                    }
-                    break;
-                case 3:
-                    count = 0;
-                    for (const auto &perm: term_perms_) {
-                        if (count % 3 == 0)
-                            perm_str += "PP3(" + perm.first + "," + perm.second;
-                        else
-                            perm_str += ";" + perm.first + "," + perm.second;
-                        if (count++ % 3 == 2)
-                            perm_str += ") ";
-                    }
-                    break;
-                case 6:
-                    count = 0;
-                    for (const auto &perm: term_perms_) {
-                        if (count % 3 == 0)
-                            perm_str += "PP6(" + perm.first + "," + perm.second;
-                        else
-                            perm_str += ";" + perm.first + "," + perm.second;
-                        if (count++ % 3 == 2)
-                            perm_str += ") ";
-                    }
-                    break;
-            }
-
-            comment = perm_str + comment;
-        }
-
-        // get coefficient
-        double coeff = coefficient_;
-        bool is_negative = coeff < 0;
-
-        string assign_str = is_assignment_ ? " = " : " += ";
-
-        int precision = minimum_precision(coefficient_);
-        string coeff_str = to_string_with_precision(fabs(coefficient_), precision);
-        if (is_negative) coeff_str.insert(coeff_str.begin(), '-');
-        coeff_str += ' ';
-
-        if (original_pq_.empty()) {
-            // add lhs to comment
-            comment = "// " + lhs_->str() + assign_str + coeff_str + comment;
-        } else {
-            comment = "// " + lhs_->name() + assign_str + original_pq_;
-        }
-
-        if (only_flop) // clear comment if only flop is requested
-            comment.clear();
-
-        // remove all quotes from comment
-        comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
-
-        // format comment for python if needed
-        if (make_einsum){
-            // turn '//' into '#'
-            size_t pos = comment.find("//");
-            while (pos != std::string::npos) {
-                comment.replace(pos, 2, "#");
-                pos = comment.find("//", pos + 2);
-            }
-        }
-
-        if (only_comment) return comment;
-        if (only_flop) comment += "\n";
-
-        // add comment with flop and memory scaling
-        if (term_linkage()->depth() <= 1 || rhs_.empty()) {
-            comment += " // flops: " + lhs_->dim().str();
-            comment += " | mem: " + lhs_->dim().str();
-            return comment; // if there is only one vertex, return comment (no scaling to add)
-        }
-
-        auto [linkage_result, flop_scales, mem_scales] = Linkage::link_and_scale(term_linkage()->link_vector());
-        if (flop_scales.empty() && mem_scales.empty()) { // no scaling to add as an additional comment
-            return comment;
-        }
-
-        comment += " // flops: " + lhs_->dim().str() + assign_str;
-        for (const auto & flop : flop_scales)
-            comment += flop.str() + " ";
-
-        // remove last space
-        if (!flop_scales.empty())
-            comment.pop_back();
-
-
-        comment += " | mem: " + lhs_->dim().str() + assign_str;
-        for (const auto & mem : mem_scales)
-            comment += mem.str() + " ";
-
-        // remove last space
-        if (!mem_scales.empty())
-            comment.pop_back();
-
-        return comment;
+        is_optimal_ = true;
     }
 
     bool Term::apply_self_links() {
@@ -857,195 +367,10 @@ namespace pdaggerq {
         return has_any_self_link;
     }
 
-    bool Term::equivalent(const Term &term1, const Term &term2) {
-
-        // make sure both terms have exactly the same lhs
-        if (term1.lhs_->Vertex::operator!=(*term2.lhs_)) return false;
-
-        // check if terms have the same number of rhs vertices
-        if (term1.size() != term2.size()) return false;
-
-        // do the terms have the same kind of permutation?
-        bool same_permutation = term1.perm_type() == term2.perm_type(); // same permutation type?
-        if (same_permutation) {
-            if (term1.term_perms() != term2.term_perms())
-               return false; // same permutation pairs?
-        } else return false;
-
-        // do the terms have similar rhs?
-        bool similar_vertices = term1 == term2; // check if terms have similar rhs
-
-        if (term1.size() > 1 && !similar_vertices) {
-
-            // check that the linkages are equivalent
-            auto term1_link = term1.lhs_ + term1.term_linkage();
-            auto term2_link = term2.lhs_ + term2.term_linkage();
-
-            if (*term1_link != *term2_link) return false;
-            return true;
-
-            // if so, ensure that the lines are exactly the same
-//            return term1_link->lines() == term2_link->lines();
-        }
-
-        return similar_vertices;
-    }
-
-    pair<bool, bool> Term::same_permutation(const Term &ref_term, const Term &compare_term) {
-
-        // check if terms have the same number of rhs vertices
-        if (ref_term.size() != compare_term.size())
-            return {false, false};
-
-        // do the terms have the same kind of permutation?
-        bool same_permutation = ref_term.perm_type() == compare_term.perm_type(); // same permutation type?
-        if (same_permutation) {
-            if (ref_term.term_perms() != compare_term.term_perms())
-               return {false, false}; // same permutation pairs?
-        } else return {false, false};
-
-        // do the terms have similar rhs?
-        bool similar_vertices = equivalent(ref_term, compare_term); // check if terms have similar rhs
-        if (similar_vertices)
-            return {true, false};
-
-        // now we check if the terms are equivalent up to a permutation
-        if (ref_term.size() > 1)
-             return ref_term.term_linkage()->permuted_equals(*compare_term.term_linkage());
-        else return {false, false};
-    }
-
-    Term Term::genericize() const {
-        // map unqiue lines to generic lines (i.e. a, b, c, ...)
-        static std::string vir_lines[] {"a", "b", "c", "d", "e", "f", "g", "h", "v",
-                                        "A", "B", "C", "D", "E", "F", "G", "H", "V"};
-        static std::string occ_lines[] {"i", "j", "k", "l", "m", "n", "o",
-                                        "I", "J", "K", "L", "M", "N", "O"};
-        static std::string sig_lines[] {"X", "Y", "Z"};
-        static std::string den_lines[] {"Q", "U"};
-
-        size_t c_occ = 0;
-        size_t c_vir = 0;
-        size_t c_den = 0;
-        size_t c_sig = 0;
-
-        thread_local unordered_map<Line, Line, LineHash> line_map(256);
-        line_map.clear();
-
-        auto assign_generic_label = [ &c_occ, &c_vir, &c_den, &c_sig](const Line &line, const string &label) {
-            // line does not exist in map, add it
-            if (line.sig_) {
-                if (c_sig >= 3) throw std::runtime_error("Too many sigma lines in genericize");
-                line_map[line].label_ = sig_lines[c_sig++];
-            } else if (line.den_) {
-                if (c_den >= 2) throw std::runtime_error("Too many density lines in genericize");
-                line_map[line].label_ = den_lines[c_den++];
-            } else {
-                if (line.o_) {
-                    if (c_occ >= 14) throw std::runtime_error("Too many occupied lines in genericize");
-                    line_map[line].label_ = occ_lines[c_occ++];
-                } else {
-                    if (c_vir >= 18) throw std::runtime_error("Too many virtual lines in genericize");
-                    line_map[line].label_ = vir_lines[c_vir++];
-                }
-            }
-        };
-
-        auto add_lines = [&assign_generic_label](const ConstVertexPtr &vertex){
-
-            // check if vertex is a linkage
-            if (vertex->is_linked()) {
-                // expand all operators in linkage
-                for (const auto & op : as_link(vertex)->vertices()) {
-                    for (const auto & line : op->lines()) {
-                        size_t count = line_map.count(line);
-                        if (count == 0) {
-                            // line does not exist in map, add it
-                            line_map[line] = line;
-                            assign_generic_label(line, line.label_);
-                        }
-                    }
-                }
-            } else {
-                for (const auto &line: vertex->lines()) {
-                    size_t count = line_map.count(line);
-                    if (count == 0) {
-                        // line does not exist in map, add it
-                        line_map[line] = line;
-                        assign_generic_label(line, line.label_);
-                    }
-                }
-            }
-        };
-
-        /// map lines in term to generic lines
-
-        // add lhs lines
-        add_lines(lhs_);
-
-        // add eq lines
-        if (eq_ != nullptr)
-            add_lines(eq_);
-
-        // add rhs lines
-        for (const auto & vertex : rhs_) {
-            add_lines(vertex);
-        }
-
-
-        /// make a copy of the term but replace all lines with generic lines from map
-
-        std::vector<ConstVertexPtr> new_rhs;
-        new_rhs.reserve(rhs_.size());
-        for (const auto & vertex : rhs_) {
-            VertexPtr new_vertex = vertex->clone();
-            new_vertex->replace_lines(line_map);
-            new_rhs.push_back(new_vertex);
-        }
-
-        // make eq vertex generic
-        VertexPtr new_eq = (eq_ != nullptr) ? eq_->clone() : lhs_->clone();
-        new_eq->replace_lines(line_map);
-
-        // make lhs generic
-        VertexPtr new_lhs = lhs_->clone();
-        new_lhs->replace_lines(line_map);
-
-        // make permutation generic
-        perm_list new_perms;
-        for (const auto & perm : term_perms_) {
-            auto pos1 = std::find_if(line_map.begin(), line_map.end(), [&](const auto & pair) {
-                return pair.first.label_ == perm.first;
-            });
-            auto pos2 = std::find_if(line_map.begin(), line_map.end(), [&](const auto & pair) {
-                return pair.first.label_ == perm.second;
-            });
-
-            new_perms.emplace_back(pos1->first.label_, pos2->first.label_);
-        }
-
-        // make a copy of the term with the generic rhs
-        Term new_term = *this;
-        new_term.eq_ = lhs_;
-        new_term.lhs_ = new_lhs;
-        new_term.rhs_ = new_rhs;
-        new_term.term_perms_ = new_perms;
-        new_term.compute_scaling(true);
-        new_term.reset_comments();
-        return new_term;
-    }
-
     void Term::request_update() {
         is_optimal_ = false; // set term to not optimal (for now)
         needs_update_ = true; // set term to be updated
         generated_linkages_ = false; // set term to not have generated linkages
-    }
-
-    void Term::reset_comments() {
-        // set comments
-        comments_.push_back(to_string(coefficient_)); // add coefficient to vertex strings
-        for (const auto &op : rhs_)
-            comments_.push_back(op->str());
     }
 
     vector<Term> Term::density_fitting() {
@@ -1110,7 +435,7 @@ namespace pdaggerq {
     }
 
     Term Term::clone() const {
-        Term new_term = *this;
+        Term new_term(*this);
 
         // make deep copies of all vertices
         new_term.lhs_ = lhs_ ? lhs_->clone() : nullptr;
@@ -1127,59 +452,78 @@ namespace pdaggerq {
         if (!needs_update_ && !recompute)
             return; // if term does not need updating, return
 
-        auto [flop_map, mem_map, linkage] = compute_scaling(rhs_, recompute); // compute scaling of current rhs
+        // update coefficient if needed
+        auto [flop_map, mem_map, linkage] = compute_scaling(lhs_, rhs_); // compute scaling of current rhs
+
+        // needs to request update if the term_linkage is not the same as the computed linkage
+        if (*term_linkage() != *linkage)
+            request_update();
 
         flop_map_ = flop_map;
         mem_map_  = mem_map;
-        if (rhs_.size() > 1)
-            term_linkage() = linkage;
-        else if (!rhs_.empty()) term_linkage() = as_link(make_shared<Vertex>() * rhs_[0]);
-        else term_linkage() = as_link(make_shared<Vertex>() * make_shared<Vertex>());
+        term_linkage() = linkage;
 
         // indicate that term no longer needs updating
         needs_update_ = false;
     }
 
-    set<string> Term::conditions() const {
+    tuple<set<long>, set<long>, set<long>> Term::term_ids(char type) const {
+        typedef std::set<long> idset;
 
-        ConstLinkagePtr linkage = term_linkage(); // get linkage representation of term
-        set<string> conditions{}; // set to store conditions
+        // recursive function to get nested temp ids from a vertex
+        std::function<idset(const ConstVertexPtr&)> test_vertex;
+        test_vertex = [&test_vertex, type](const ConstVertexPtr &op) {
 
-        if (!linkage) {
-            // return current conditions if no linkage
-            if (rhs_.empty())
-                return conditions;
+            idset ids;
+            if (op->is_linked()) {
+                ConstLinkagePtr link = as_link(op);
+                long link_id = link->id();
 
-            // if rhs is not empty, create a new term and get its linkage
-            Term new_term = *this;
-            new_term.compute_scaling(true); // force recomputation of scaling
-            linkage = new_term.term_linkage(); // get linkage
-        }
+                bool insert_id;
+                insert_id  = type == 't' && !link->is_scalar() && !link->is_reused(); // only non-scalar temps
+                insert_id |= type == 'r' &&  link->is_reused(); // only reuse tmps
+                insert_id |= type == 's' &&  link->is_scalar(); // only scalars
 
-        if (!linkage)
-            return conditions; // return current conditions if no linkage
+                if (insert_id)
+                    ids.insert(link_id);
 
-        // map that stores conditions to their related operators
-        const map<string, vector<string>> &mapped_conditions = mapped_conditions_;
-
-        // create a set of operator basenames
-        vector<ConstVertexPtr> vertices = linkage->vertices();
-
-        // include lhs vertex in conditions
-        vertices.push_back(lhs_);
-        for (const auto & vertex : vertices) {
-            if (!vertex) continue; // skip if vertex is null
-
-            // loop over named conditions
-            for (const auto & [condition, restrict_ops] : mapped_conditions) {
-                // check if vertex is in the list of operators
-                if (std::find(restrict_ops.begin(), restrict_ops.end(), vertex->base_name()) != restrict_ops.end())
-                    conditions.insert(condition); // if so, add named condition to set
+                // recurse into nested temps
+                for (const auto &nested_op: link->link_vector()) {
+                    idset sub_ids = test_vertex(nested_op);
+                    ids.insert(sub_ids.begin(), sub_ids.end());
+                }
             }
-        }
+            ids.erase(-1); // remove unlinked vertices
+            return ids;
+        };
 
-        // return set of operator basenames that have conditions
-        return conditions;
+        // get min id of temps from lhs
+        auto get_lhs_id = [&test_vertex](const Term &term) {
+            return test_vertex(term.lhs());
+        };
+
+        // get min id of temps from rhs
+        auto get_rhs_id = [&test_vertex](const Term &term) {
+
+            idset ids;
+            for (const auto &op: term.rhs()) {
+                idset sub_ids = test_vertex(op);
+                ids.insert(sub_ids.begin(), sub_ids.end());
+            }
+            return ids;
+        };
+
+        // get all ids from lhs and rhs
+        idset lhs_ids = get_lhs_id(*this);
+        idset rhs_ids = get_rhs_id(*this);
+
+
+        // get total ids
+        idset total_ids = lhs_ids;
+        total_ids.insert(rhs_ids.begin(), rhs_ids.end());
+
+        // return all ids
+        return {lhs_ids, rhs_ids, total_ids};
     }
 
 } // pdaggerq

@@ -33,40 +33,38 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include "equation.h"
-#include "term.h"
-#include "vertex.h"
-#include "linkage.h"
-#include "scaling_map.hpp"
-#include "linkage_set.hpp"
-#include "timer.h"
-#include "../../pdaggerq/pq_string.h"
+#include <fcntl.h>
+
 #include "../../pdaggerq/pq_helper.h"
+#include "equation.h"
+#include "timer.h"
 
 using std::ofstream;
 
 namespace pdaggerq {
 
+    class PQGraph; // forward declaration
     class PQGraph {
         map<string, Equation> equations_; // equations to be optimized
-        map<string, linkage_set> saved_linkages_ = { // all intermediate linkages
-                                                    {"scalars", linkage_set(256)},
-                                                    {"tmps", linkage_set(256)},
-                                                    {"reuse", linkage_set(256)}
-                                                 };
 
+        // TODO: merge temp tracking variables into a class with methods for adding, removing, and updating temps
+        map<string, linkage_set> saved_linkages_ = {
+                                                      // all stored intermediate linkages with their types
+                                                      {"vertex", linkage_set(256)},
+                                                      {"link", linkage_set(256)},
+                                                      {"scalar", linkage_set(256)},
+                                                      {"temp", linkage_set(256)},
+                                                      {"reused", linkage_set(256)}
+                                                   };
         // counts of tmps and scalars
-        map<string, size_t> temp_counts_ = {{"scalars", 0}, {"tmps", 0}, {"reuse", 0}};
+        map<string, long> temp_counts_ = {{"vertex", 0}, {"link", 0}, {"scalar", 0}, {"temp", 0}, {"reused", 0}};
+
+
         linkage_set all_links_; // all possible linkages in the equations
 
         bool is_assembled_ = false; // whether equations have been assembled for printing
         bool is_reordered_ = false; // whether the equations have been reordered
         bool is_optimized_ = false; // whether the equations have been optimized
-        bool is_reused_ = false; // whether the equations have been reused
-        bool prune_tmps_ = false; // whether to prune unused temps after substitution
-        bool has_perms_merged_ = false; // whether the equations have merged permutations
-        bool reuse_permutations_ = true; // whether to reuse permutations during the reusing step
-        bool use_as_array_ = true; // whether to use the array version of the tmps
 
         Timer total_timer; // timer for the total time of the builder
         Timer build_timer; // timer for construction of the equations
@@ -77,30 +75,60 @@ namespace pdaggerq {
 
         /// scaling of the equations
         scaling_map flop_map_; // map of flop scaling with linkage occurrence in all equations
-
         scaling_map mem_map_; // map of memory scaling with linkage occurrence in all equations
+
+        // TODO: replace with pointers to copies of the PQGraph
+        shared_ptr<PQGraph> original_; // original pq_graph before optimization
+        shared_ptr<PQGraph> reordered_; // pq_graph after reordering
+        shared_ptr<PQGraph> optimized_; // pq_graph after optimization (should be this pq_graph)
+
         scaling_map flop_map_init_; // map of flop scaling before reordering
-
         scaling_map mem_map_init_; // map of memory scaling before reordering
-        scaling_map flop_map_pre_; // map of flop scaling before reordering or before subexpression elimination
 
+        scaling_map flop_map_pre_; // map of flop scaling before reordering or before subexpression elimination
         scaling_map mem_map_pre_; // map of memory scaling before reordering or before subexpression elimination
 
         /// options for the builder
-        size_t max_temps_ = -1l; // maximum number of temporary rhs (-1 for no limit by overflow)
-        bool batched_ = true; // whether to use batched substitution
-        size_t batch_size_ = 10; // size of the batch
-        int nthreads_ = 1; // number of threads to use
-        bool verbose_ = true; // whether to print verbose output
-        bool allow_merge_ = true; // whether to merge terms
-        bool use_density_fitting_ = false; // whether to use density fitting
 
-        /// options for building sigma vectors
-        //bool format_eom_ = false; // whether to format equations for the sigma build
+        /**
+         * print level for the builder
+         *     0: no printing of optimization steps (default)
+         *     1: print optimization steps without fusion or merging
+         *     2: print optimization steps with fusion and merging
+         */
+        size_t print_level_ = 0;
+
+        /**
+         * optimization level for the builder
+         *    0: no optimization
+         *    1: reordering only
+         *    2: reordering and substitution
+         *    3: reordering, substitution, and separation of reusable intermediates (for sigma vectors)
+         *    4: reordering, substitution, and separation; unused intermediates are removed (pruning)
+         *    5: reordering, substitution, separation, and merging of equivalent terms with pruning
+         *    6: reordering, substitution, separation, merging, and fusion of intermediates with pruning (default)
+         */
+        size_t opt_level_ = 6;
+
+        /// number of threads to use
+        int nthreads_ = 1;
+
+        /**
+         * whether to use batched substitution
+         *   true (default): candidate substitutions are applied in batches rather than one at a time.
+         *                   Generally faster, but may not yield optimal results compared to single substitution.
+         */
+        bool batched_ = true;
+        size_t batch_size_ = 10; // number of substitutions to apply in each batch
+
+        /// maximum number of temporary rhs (-1 for no limit by overflow)
+        size_t max_temps_ = static_cast<size_t>(-1l);
+
+        /// whether to use density fitted integrals
+        bool use_density_fitting_ = false;
+
+        /// whether the equations have any sigma vectors
         bool has_sigma_vecs_ = false;
-        bool format_sigma_   = false; // whether to format equations for the sigma build
-        bool use_trial_index = false; // whether to store the sigma vectors in the builder
-
 
     public:
 
@@ -115,6 +143,31 @@ namespace pdaggerq {
 
             set_options(options);
         }
+
+        /**
+         * Get equations
+         */
+        map<string, Equation> &equations() { return equations_; }
+
+        /**
+         * Get saved linkages
+         */
+        map<string, linkage_set> &saved_linkages() { return saved_linkages_; }
+
+        /**
+         * get temp counts
+         */
+        map<string, long> &temp_counts() { return temp_counts_; }
+
+        /**
+         * Get all linkages
+         */
+        linkage_set &all_links() { return all_links_; }
+
+        /**
+         * Get pointers to all terms from all equations
+         */
+        vector<Term*> every_term();
 
         /**
          * Set options for PQ GRAPH
@@ -162,7 +215,7 @@ namespace pdaggerq {
         /**
          * Reorder terms in each equation
          */
-        void reorder();
+        void reorder(bool regenerate = false);
 
         /**
          * merge terms in each equation
@@ -173,25 +226,7 @@ namespace pdaggerq {
         /**
          * fuse intermediate terms with the same rhs
          */
-        void merge_intermediates();
-        linkage_set collect_intermediates();
-
-        std::unordered_map<ConstLinkagePtr, pair<vector<Term*>, vector<Term*>>, LinkageHash, LinkageEqual> get_intermediate_terms(const linkage_set &intermediates);
-        static bool can_merge_terms(const vector<Term*> &this_terms, const vector<Term*> &other_terms, const ConstLinkagePtr& this_intermediate, const ConstLinkagePtr& other_intermediate, const linkage_set& tested_linkages);
-        static std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> find_mergeable_intermediates(const std::unordered_map<ConstLinkagePtr, pair<vector<Term*>,vector<Term*>>, LinkageHash, LinkageEqual> &intermediate_terms, linkage_set &tested_linkages);
-        static vector<ConstVertexPtr> remove_intermediate(const vector<ConstVertexPtr>& rhs, const ConstLinkagePtr &intermediate);
-        static void sort_operands(vector<ConstVertexPtr> &operands);
-        static bool is_same_connectivity(const vector<ConstVertexPtr> &this_rhs, const vector<ConstVertexPtr> &other_rhs,
-                             const ConstVertexPtr &this_lhs, const ConstVertexPtr &other_lhs,
-                             const ConstLinkagePtr &intermediate, const ConstLinkagePtr &test_intermediate);
-        void update_saved_linkages(const ConstLinkagePtr &this_intermediate, const vector<ConstLinkagePtr> &other_intermediates);
-        void add_new_terms(std::unordered_map<ConstLinkagePtr, vector<Term>, LinkageHash, LinkageEqual> &new_inter_terms_map, const std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map);
-        void remove_terms(const set<Term*> &terms_to_remove);
-        void process_and_merge_intermediates(const std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map, std::unordered_map<ConstLinkagePtr, pair<vector<Term *>, vector<Term *>>, LinkageHash, LinkageEqual> &intermediate_terms);
-        void replace_old_intermediate(std::map<string, Equation> &equations, const std::unordered_map<ConstLinkagePtr, ConstLinkagePtr> &old_to_new_links);
-        void merge_intermediates2();
-
-
+        size_t merge_intermediates();
 
         /**
          * Fully optimize equations by reordering, substituting, merging, and reusing intermediates.
@@ -213,18 +248,8 @@ namespace pdaggerq {
         /**
          * Substitute common linkages in each equation
          */
-        void substitute(bool format_sigma, bool only_scalars);
+        void substitute(bool ignore_declarations, bool format_sigma, bool only_scalars);
 
-        /**
-         * make set of linkages to test for subexpression elimination
-         * @return set of linkages to test
-         */
-        linkage_set make_test_set();
-
-        /**
-         * separate terms with permutations in each equation into separate terms
-         */
-        void expand_permutations();
 
         /**
          * collect all possible linkages from all equations (remove none)
@@ -264,7 +289,7 @@ namespace pdaggerq {
          * @param terms terms to find common coefficient of
          * @return common coefficient
          */
-        static double common_coefficient(vector<Term*> &terms);
+        static double common_coefficient(set<Term*> &terms);
 
         /**
          * print the scaling of the current equations and difference from previous scalings
@@ -279,12 +304,12 @@ namespace pdaggerq {
          * @param intermediate intermediate to find
          * @return 1) vector of terms that contain the intermediate, 2) declaration terms for the intermediate
          */
-        pair<vector<Term *>, vector<Term *>> get_matching_terms(const ConstLinkagePtr &intermediate);
+        pair<set<Term *>, set<Term*>> get_matching_terms(const ConstLinkagePtr &intermediate);
 
         /**
          * remove redundant temps that only appear once
          */
-        void remove_unused_tmps();
+        size_t prune();
 
         /**
          * deep copy of the pq_graph
@@ -297,11 +322,49 @@ namespace pdaggerq {
          */
         void make_scalars();
 
-
-        unordered_map<ConstLinkagePtr, ConstLinkagePtr> &make_new_intermediates(
-                const unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map,
-                unordered_map<ConstLinkagePtr, ConstLinkagePtr> &old_to_new_links) const;
     }; // PQGraph
+
+    /**
+     * struct to disable cout stream for printing within a scope
+     */
+    struct print_guard {
+
+        bool prior_locked;
+        int bak_out, null_out;
+
+        // Constructor to lock cout
+        print_guard() {
+            prior_locked = std::cout.fail();
+            if (!prior_locked) {
+                fflush(stdout);
+                bak_out = dup(fileno(stdout));
+            }
+        }
+
+        // Restore cout
+        void restore() const {
+            std::cout.clear();
+            fflush(stdout);
+            dup2(bak_out, fileno(stdout));
+            close(bak_out);
+        }
+
+        // Redirect cout to null stream
+        void lock() {
+            if (!prior_locked) {
+                std::cout.setstate(std::ios::failbit);
+                null_out = open("/dev/null",  O_WRONLY);
+                dup2(null_out, fileno(stdout));
+                close(null_out);
+            }
+        }
+
+        // Destructor to restore the original buffer
+        ~print_guard() {
+            if (!prior_locked)
+                restore();
+        }
+    };
 
 } // pdaggerq
 

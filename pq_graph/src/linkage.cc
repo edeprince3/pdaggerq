@@ -26,46 +26,29 @@
 #include <memory>
 #include <utility>
 #include <cstring>
-#include <numeric>
+#include <stack>
 #include "../include/linkage.h"
+#include "../../pdaggerq/pq_string.h"
 
 namespace pdaggerq {
 
     /********** Constructors **********/
 
-    inline Linkage::Linkage(const ConstVertexPtr &left, const ConstVertexPtr &right, bool is_addition) : Vertex() {
+    inline Linkage::Linkage(ConstVertexPtr left, ConstVertexPtr right, bool is_addition) :
+                            left_(std::move(left)), right_(std::move(right)), Vertex() {
 
-        // set inputs
-        left_ = left;
-        right_ = right;
+        // replace null pointers with empty vertices
+        if ( left_ == nullptr)  left_ = std::make_shared<const Vertex>();
+        if (right_ == nullptr) right_ = std::make_shared<const Vertex>();
 
-        is_addition_ = is_addition;
+        addition_ = is_addition;
 
-        if (!left->is_linked() && !right->is_linked() && !is_addition_) {
-            // a binary multiplication of pure vertices is associative (left and right are interchangeable)
-            // sort left and right vertices by name to prevent duplicates
-            if (left->name() > right->name())
-                std::swap(left_, right_);
+        // if one is empty and the other is linked, set this linkage to the linked vertex
+        if (left_->empty() && right_->is_linked() && !right_->empty()) {
+            *this = *as_link(right_->shallow()); return;
+        } else if (right_->empty() && left_->is_linked() && !left_->empty()) {
+            *this = *as_link(left_->shallow()); return;
         }
-
-        // count_ the left and right vertices
-        depth_ = 0;
-
-        // determine the depth of the linkage
-        if (left_->is_linked()){
-            // add the number of vertices in left
-            depth_ += as_link(left_)->depth_;
-        } else depth_++;
-        if (right_->is_linked()){
-            // add the number of vertices in right
-            depth_ += as_link(right_)->depth_;
-        } else depth_++;
-
-        // create hash for the name (should be unique and faster for comparisons)
-        base_name_ = left_->name_;
-        base_name_ += '\t';
-        base_name_ += right_->name_;
-        name_ = base_name_;
 
         // build internal and external lines with their index mapping
         set_links();
@@ -73,10 +56,14 @@ namespace pdaggerq {
 
     inline void Linkage::set_links() {
 
+        lines_.clear();
+        flop_scale_ = {};
+        mem_scale_ = {};
+        connec_map_.clear();
+
         // grab data from left and right vertices
         uint_fast8_t left_size = left_->size();
         uint_fast8_t right_size = right_->size();
-        uint_fast8_t total_size = left_size + right_size;
 
         const auto &left_lines = left_->lines();
         const auto &right_lines = right_->lines();
@@ -89,8 +76,10 @@ namespace pdaggerq {
         }
         if (left_size == 0) {
             // if left is a scalar, just use right_lines as linkage
-            mem_scale_ = right_->shape_;
-            flop_scale_ = right_->shape_;
+            if (!left_->empty()) {
+                mem_scale_ = right_->shape_;
+                flop_scale_ = right_->shape_;
+            }
 
             // update vertex members
             lines_ = right_lines;
@@ -105,8 +94,10 @@ namespace pdaggerq {
         }
         if (right_size == 0) {
             // if right is a scalar, just use left_lines as linkage
-            mem_scale_ = left_->shape_;
-            flop_scale_ = left_->shape_;
+            if (!right_->empty()) {
+                mem_scale_ = left_->shape_;
+                flop_scale_ = left_->shape_;
+            }
             lines_  = left_lines;
 
             // add left lines to connec_map_
@@ -178,16 +169,16 @@ namespace pdaggerq {
 
         // make external lines
         lines_.reserve(mem_scale_.n_);
-        bool left_first = left_size <= right_size;
         line_vector sig_lines;
         line_vector den_lines;
 
         // sort the connections
         std::sort(connec_map_.begin(), connec_map_.end());
 
-        auto add_line = [this, &sig_lines, &den_lines](const Line &line) {
+        line_vector &lines = lines_;
+        auto add_line = [&lines, &sig_lines, &den_lines](const Line &line) {
             if (!line.sig_ & !line.den_)
-                lines_.push_back(line);
+                lines.push_back(line);
             else if (line.sig_)
                 sig_lines.push_back(line);
             else
@@ -198,7 +189,7 @@ namespace pdaggerq {
         // left half
         for (uint_fast8_t i = 0; i < left_size; ++i) {
             // skip internal lines, and keep all lines if addition
-            if (!is_addition_ & !left_ext_idx[i]) continue;
+            if (!addition_ & !left_ext_idx[i]) continue;
             add_line(left_lines[i]);
             mem_scale_ += left_lines[i];
         }
@@ -219,12 +210,29 @@ namespace pdaggerq {
         if (!den_lines.empty())
             lines_.insert(lines_.begin(), den_lines.begin(), den_lines.end());
 
+        std::sort(lines_.begin(), lines_.end(), line_compare());
+
         // update vertex members
         set_properties();
     }
 
     void Linkage::set_properties() {
-        // set properties
+        // determine the depth of the linkage
+        depth_ = 1;
+        size_t left_depth = left_->depth(), right_depth = right_->depth();
+        depth_ += std::max(left_depth, right_depth);
+
+        // create the name of the linkage
+        base_name_.reserve(left_->name_.size() + right_->name_.size() + 1);
+        base_name_ = left_->name_;
+        if (addition_)
+            base_name_ += '+';
+        else base_name_ += '*';
+        base_name_ += right_->name_;
+
+        name_ = base_name_;
+
+        // set descriptors
         rank_  = lines_.size();
         shape_ = shape(lines_);
         has_blk_ = left_->has_blk_ || right_->has_blk_;
@@ -232,8 +240,7 @@ namespace pdaggerq {
         is_den_ = left_->is_den_ || right_->is_den_ || shape_.Q_ > 0;
     }
 
-
-    vector<Line> Linkage::int_lines() const {
+    vector<Line> Linkage::internal_lines() const {
         vector<Line> int_lines;
         size_t left_size = left_->size();
         size_t right_size = right_->size();
@@ -256,54 +263,12 @@ namespace pdaggerq {
         return int_lines;
     }
 
-    LinkagePtr Linkage::link(const vector<ConstVertexPtr> &op_vec) {
-        size_t op_vec_size = op_vec.size();
-
-        // cannot link less than two vertices
-        if (op_vec_size <= 1)
-            throw invalid_argument("Linkage::link(): op_vec must have at least two elements");
-
-
-        LinkagePtr linkage = as_link(op_vec[0] * op_vec[1]);
-        for (size_t i = 2; i < op_vec_size; i++){
-            LinkagePtr link = as_link(linkage * op_vec[i]);
-            linkage = link;
-        }
-
-        return linkage;
-    }
-
-    tuple<ConstLinkagePtr, vector<shape>, vector<shape>> Linkage::link_and_scale(const vector<ConstVertexPtr> &op_vec) {
-        size_t op_vec_size = op_vec.size();
-        if (op_vec_size == 0) {
-            throw invalid_argument("link(): op_vec must have at least two elements");
-        } else if (op_vec_size == 1) {
-            ConstLinkagePtr linkage = as_link(make_shared<Vertex>() * op_vec[0]);
-            return {linkage, {linkage->flop_scale_}, {linkage->mem_scale_}};
-        }
-
-
-        vector<shape> flop_list, mem_list;
-        flop_list.reserve(op_vec_size - 1);
-        mem_list.reserve(op_vec_size - 1);
-
-        LinkagePtr linkage = as_link(op_vec[0] * op_vec[1]);
-        flop_list.push_back(linkage->flop_scale_);
-        mem_list.push_back(linkage->mem_scale_);
-
-        for (size_t i = 2; i < op_vec_size; i++) {
-            linkage = as_link(linkage * op_vec[i]);
-            flop_list.push_back(linkage->flop_scale_);
-            mem_list.push_back(linkage->mem_scale_);
-        }
-
-        return {linkage, flop_list, mem_list};
-    }
-
     Linkage::Linkage() {
-        id_ = -1;
-        flop_scale_ = shape();
-        mem_scale_ = shape();
+        addition_ = false;
+
+        // initialize left and right vertices with empty vertices
+        left_ = std::make_shared<const Vertex>();
+        right_ = std::make_shared<const Vertex>();
     }
 
     /****** operator overloads ******/
@@ -313,17 +278,16 @@ namespace pdaggerq {
         if (empty() != other.empty()) return false;
 
         // check if linkage type is the same
-        if (is_addition_ != other.is_addition_) return false;
+        if (addition_ != other.addition_) return false;
 
         // check the depth of the linkage
         if (depth_ != other.depth_) return false;
 
-        // check if left and right vertices are linked in the same way
-        bool left_linked = left_->is_linked(), right_linked = right_->is_linked();
+        // note, we do NOT check the id of the linkage
 
-        // check if both left and right vertices are linked or not
-        if ( left_linked !=  other.left_->is_linked()) return false;
-        if (right_linked != other.right_->is_linked()) return false;
+        // check if left and right vertices are linked in the same way
+        if ( left_->is_linked() !=  other.left_->is_linked()) return false;
+        if (right_->is_linked() != other.right_->is_linked()) return false;
 
         // check that scales are equal
         if (flop_scale_ != other.flop_scale_) return false;
@@ -342,17 +306,13 @@ namespace pdaggerq {
 
         // recursively check if left linkages are equivalent
         if (left_->is_linked()) {
-            if (*as_link(left_) != *as_link(other.left_)) return false;
-        } else {
-            if ( !left_->equivalent( *other.left_)) return false;
-        }
+            if (*left_ != *other.left_) return false;
+        } else if ( !left_->Vertex::equivalent( *other.left_)) return false;
 
         // check if right linkages are equivalent
         if (right_->is_linked()) {
-            if (*as_link(right_) != *as_link(other.right_)) return false;
-        } else {
-            if ( !right_->equivalent( *other.right_)) return false;
-        }
+            if (*right_ != *other.right_) return false;
+        } else if ( !right_->Vertex::equivalent( *other.right_)) return false;
 
         // ensure root vertices are equivalent
         return Vertex::equivalent(other);
@@ -365,7 +325,7 @@ namespace pdaggerq {
             return true;
 
         // recursively check if left linkages are equivalent
-        bool left_same = false, right_same = false;
+        bool left_same, right_same;
         if (left_->is_linked())
              left_same = *as_link(left_) == *as_link(other.left_);
         else left_same = left_->equivalent( *other.left_);
@@ -390,177 +350,28 @@ namespace pdaggerq {
             return false; // neither is a temp
 
         // whether the linkage corresponds to the same intermediate contraction as another vertex
-        bool same_id = id_ == other->id() && is_reused_ == other->is_reused();
+        bool same_id = id_ == other->id() && reused_ == other->is_reused();
         if (!same_id) return false;
 
-        // check if the shapes of the lines are the same
-        bool equivalent_root = Vertex::equivalent(*other);
-        if (!equivalent_root) return false;
-
-        // replace lines of the other vertex with the lines of this vertex
-        VertexPtr other_clone = other->clone();
-        other_clone->replace_lines(LineHash::map_lines(lines_, other_clone->lines_));
-
-        return  *this == *as_link(other_clone);
+        return  *this == *as_link(other);
     }
 
-    void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map) {
+    string Linkage::str(bool format_temp, bool include_lines) const {
 
-        // replace the lines of the root vertex with the new lines
-        Vertex::replace_lines(line_map);
-        name_ = base_name_;
-
-        // recursively replace the lines of the left and right vertices
-        VertexPtr  left = left_->clone();
-        VertexPtr right = right_->clone();
-
-        // determine new lines of left/right from the line map (if they do not exist, they are not replaced)
-        auto make_new_lines = [&line_map](const VertexPtr &vertex) {
-            line_vector new_lines;
-            for (const auto &line : vertex->lines()) {
-                // find the line in the map
-                auto it = line_map.find(line);
-                if (it != line_map.end())
-                    new_lines.push_back(it->second);
-                else {
-                    // check if the line is already an entry in the new_lines
-                    if (std::find(new_lines.begin(), new_lines.end(), line) == new_lines.end())
-                        new_lines.push_back(line);
-                    else {
-                        // if the line is already in the new_lines, use opposite mapping
-                        for (const auto &[key, value] : line_map) {
-                            if (value == line) {
-                                new_lines.push_back(key);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            return new_lines;
-        };
-
-        line_vector new_left_lines  = make_new_lines(left);
-        line_vector new_right_lines = make_new_lines(right);
-
-        // replace the lines of the left and right vertices
-        left->replace_lines(line_map);
-        right->replace_lines(line_map);
-
-        // set new left and right vertices
-        left_  = left;
-        right_ = right;
-
-    }
-
-    pair<bool, bool> Linkage::permuted_equals(const Linkage &other) const {
-
-        // check if linkages are exactly the same
-        bool same_linkage = *this == other;
-        if (same_linkage) return {true, false};
-        else if (is_temp() || other.is_temp())
-            return {false, false}; // cannot permute intermediates
-
-        // check if both linkage are empty or not
-        if (empty() != other.empty()) return {false, false};
-
-        // check if linkage type is the same
-        if (is_addition_ != other.is_addition_) return {false, false};
-
-        // check the depth of the linkage
-        if (depth_ != other.depth_) return {false, false};
-
-        // check if left and right vertices are linked in the same way
-        bool left_linked = left_->is_linked(), right_linked = right_->is_linked();
-
-        // check if both left and right vertices are linked or not
-        if ( left_linked !=  other.left_->is_linked()) return {false, false};
-        if (right_linked != other.right_->is_linked()) return {false, false};
-
-        // check that scales are equal
-        if (flop_scale_ != other.flop_scale_) return {false, false};
-        if (mem_scale_  !=  other.mem_scale_) return {false, false};
-
-
-        bool is_equiv = false, odd_parities = false;
-
-        // expand the vertices
-        const vector<ConstVertexPtr> &this_verts = link_vector(true);
-        const vector<ConstVertexPtr> &other_verts = other.link_vector(true);
-
-        // check that link vectors are the same size
-        if (this_verts.size() != other_verts.size())
-            return {is_equiv, odd_parities};
-
-        // permute each vertex in other_verts to match this_verts
-        vector<ConstVertexPtr> permuted_verts;
-        for (size_t i = 0; i < this_verts.size(); i++) {
-
-            // check if the vertex base names are the same
-            if (this_verts[i]->base_name() != other_verts[i]->base_name())
-                return {false, false};
-
-            // if the vertex is an intermediate, do not permute and test equality (cannot permute intermediates)
-            if (this_verts[i]->is_temp()) {
-
-                // check if the linkages are the same
-                if (this_verts[i]->same_temp(other_verts[i]))
-                    return {false, false};
-
-                // replace the lines of the other vertex with the lines of this vertex
-                VertexPtr other_clone = other_verts[i]->clone();
-                other_clone->replace_lines(this_verts[i]->lines_);
-
-                // add the vertex to the permuted list
-                permuted_verts.push_back(other_clone);
-                continue;
-            }
-
-            // permute the vertex to match this_verts
-            bool odd_parity = false;
-            auto [permuted, success] = other_verts[i]->permute_like(*this_verts[i], odd_parity);
-
-            // if not found, return false
-            if (!success) return {false, false};
-
-            // check if the permutation is odd
-            if (odd_parity)
-                odd_parities = !odd_parities;
-
-            // add the permuted vertex to the list
-            permuted_verts.push_back(permuted.shared_from_this());
-
-        }
-
-        // create a new linkage from the permuted vertices
-        ConstLinkagePtr permuted_link = link(permuted_verts);
-
-        // check if the permuted linkage is the same as this linkage
-        is_equiv = *permuted_link == *this;
-        if (!is_equiv) odd_parities = false;
-
-        // return the result
-        return {is_equiv, odd_parities};
-    }
-
-
-    string Linkage::str(bool make_generic, bool include_lines) const {
-
-        if (!is_temp()) {
-            // this is not an intermediate vertex (generic linkage).
+        if (!is_temp() || !format_temp) {
+            // this is not an intermediate vertex (generic linkage) or we are not formatting intermediates
             // return the str of the left and right vertices
             return tot_str(false, true);
         }
 
-        if (!make_generic) return Vertex::str();
-
         // prepare output string as a map of tmps, scalars, or reuse_tmps to a generic name
         string generic_str;
         if (is_scalar())
-             generic_str = "scalars_[\"";
-        else if (is_reused_)
-             generic_str = "reuse_tmps_[\"";
-        else generic_str = "tmps_[\"";
+             generic_str = "scalars_";
+        else if (reused_)
+             generic_str = "reused_";
+        else generic_str = "tmps_";
+        generic_str += "[\"";
 
         // use id_ to create a generic name
         string dimstring = this->dimstring();
@@ -572,7 +383,7 @@ namespace pdaggerq {
 
         generic_str += "\"]";
 
-        if (include_lines) // if lines are included, add them to the generic name (default)
+        if (include_lines && print_type_ == "c++") // if lines are included, add them to the generic name (default)
             generic_str += line_str(); // sorts print order
 
         // create a generic vertex that has the same lines as this linkage.
@@ -581,170 +392,200 @@ namespace pdaggerq {
         return generic_str;
     }
 
-    string Linkage::tot_str(bool expand, bool make_dot) const {
+    string Linkage::tot_str(bool fully_expand, bool make_dot) const {
 
-        if (empty()) return "";
+        if (empty()) return {};
 
-        // do not expand linkages that are not intermediates
-        if (!is_temp()) expand = false;
+        // do not fully_expand linkages that are not intermediates
+        if (is_temp() && !fully_expand) {
+            // return the string representation of the intermediate contraction
+            return str(true, true);
+        }
+
+        if (left_->empty())  return right_->str();
+        if (right_->empty()) return left_->str();
 
         // prepare output string
         string output, left_string, right_string;
 
-        // build left string representation recursively
-        if (left_->is_linked() && expand) left_string = as_link(left_)->tot_str(expand, make_dot);
-        else left_string = left_->str();
+        // get link vector
+        vector<ConstVertexPtr> link_vector = this->link_vector();
 
-        // build right string representation recursively
-        if (right_->is_linked() && expand) right_string = as_link(right_)->tot_str(expand, make_dot);
-        else right_string = right_->str();
+        if (print_type_ == "c++") {
 
+            if (is_addition()) {
+                return "(" + left_->str() + " + " + right_->str() + ")";
+            }
 
-        if (!is_addition_) output = left_string + " * " + right_string;
-        else { output = "(" + left_string + " + " + right_string + ")"; }
+            vector<ConstVertexPtr> scalars;
+            vector<ConstVertexPtr> tensors;
+            for (const auto &op: link_vector) {
+                if (op->empty()) continue;
+                if (op->is_scalar())
+                    scalars.push_back(op);
+                else {
+                    tensors.push_back(op);
+                }
+            }
 
+            if (scalars.empty() && tensors.empty()) return "1.0";
 
-        // if rank == 0, all lines are internal; requires dot() function call
-        if (rank() == 0 && !is_addition_ && make_dot) {
-            // add 'dot(' after '='
-            output = "dot(" + output;
+            // first add scalars
+            for (const auto &scalar: scalars)
+                output += scalar->str() + " * ";
 
-            // find the last star in output
-            size_t last_star = output.rfind(" * ");
+            if (tensors.empty()) {
+                output.pop_back(); output.pop_back(); output.pop_back();
+                return output;
+            }
 
-            // find last ' * '; replace with ', '
-            output.replace(last_star, 3, ", ");
+            bool format_dot = is_scalar() && tensors.size() > 1;
 
-            // add closing parenthesis
-            output += ")";
+            // this is a scalar, so we need to format as a dot product
+            if (format_dot) output += "1.00 * dot(";
+
+            // add tensors
+            for (size_t i = 0; i < tensors.size(); i++) {
+                output += tensors[i]->str();
+                if (format_dot && i == tensors.size() - 2)
+                    output += ",";
+                else if (i < tensors.size() - 1)
+                    output += " * ";
+            }
+            if (format_dot) output += ")";
+
         }
+        else if (print_type_ == "python") {
+            if (is_addition()) {
+                // we need to permute the right to match the left
+                string left_labels, right_labels;
+                for (const auto &line: left_->lines())
+                    left_labels += line.label_[0];
+                for (const auto &line: right_->lines())
+                    right_labels += line.label_[0];
+
+                output = "(" + left_->str() + " + ";
+
+                if (left_labels != right_labels) {
+                    // we need to permute the right to match the left
+                    output += "np.einsum('";
+                    output += right_labels + "->" + left_labels + "',";
+                }
+                output += right_->str();
+                if (left_labels != right_labels)
+                    output += ")";
+                output += ")";
+                return output;
+            }
+
+            vector<string> indices;
+            vector<ConstVertexPtr> scalars;
+            vector<ConstVertexPtr> tensors;
+            for (const auto &op: link_vector) {
+                if (op->empty()) continue;
+                if (op->is_scalar())
+                    scalars.push_back(op);
+                else {
+                    tensors.push_back(op);
+                    string label;
+                    for (const auto &line: op->lines())
+                        label += line.label_[0];
+                    indices.push_back(label);
+                }
+            }
+
+            for (const auto &scalar: scalars)
+                output += scalar->str() + " * ";
+            if (!tensors.empty()) {
+                output += "np.einsum('";
+                for (const auto &index: indices)
+                    output += index + ",";
+                output.pop_back();
+                output += "->";
+                for (const auto &line: lines_)
+                    output += line.label_[0];
+                output += "',";
+
+                for (const auto &tensor: tensors)
+                    output += tensor->str() + ",";
+
+                if (tensors.size() > 2)
+                    output += "optimize='optimal'";
+                else output.pop_back();
+
+                output += ")";
+
+            } else {
+                output.pop_back(); output.pop_back(); output.pop_back();
+            }
+        }
+
+
 
         return output;
     }
 
-    inline void Linkage::link_vector(vector<ConstVertexPtr> &result, size_t &i, bool regenerate, bool full_expand) const {
-
-        if (empty()) return;
-
-        std::function<void(const ConstVertexPtr&, vector<ConstVertexPtr>&, size_t&)> expand_vertex;
-
-        expand_vertex = [regenerate, full_expand, &expand_vertex]
-                (const ConstVertexPtr& vertex, vector<ConstVertexPtr> &result, size_t &i) {
-
-            if (vertex->base_name_.empty()) return;
-
-            if (vertex->is_linked()) {
-                const ConstLinkagePtr link = as_link(vertex);
-
-                // check if left linkage is a tmp
-                if (!full_expand && link->is_temp()) {
-                    // if this is a tmp and we are not expanding, add it to the result and return
-                    result[i++] = link;
-                } else {
-
-                    // compute the left vertices recursively and save them
-                    for (const ConstVertexPtr &link_vertex: link->link_vector(regenerate, full_expand))
-                        expand_vertex(link_vertex, result, i);
-                }
-
-            } else result[i++] = vertex;
-        };
-
-        // get the left vertices
-        expand_vertex(left_, result, i);
-
-        // get the right vertices
-        expand_vertex(right_, result, i);
-    }
-
-    const vector<ConstVertexPtr> &Linkage::link_vector(bool regenerate, bool full_expand) const {
-
-        // Lock the mutex for the scope of the function
-        std::lock_guard<std::mutex> lock(mtx_);
-
-        // if full_expand is false, we only need to expand the vertices that are
-        // not tmps
-        if (!full_expand) {
-            // the vertices are not known
-            if (link_vector_.empty() || regenerate) {
-                // compute the vertices recursively and store the vertices in
-                // all_vert_ for next query
-
-                size_t i = 0;
-                auto result = std::vector<ConstVertexPtr>(depth_);
-                link_vector(result, i, regenerate, full_expand);
-                if (i != depth_)
-                  result.resize(i);
-
-                // remove any empty vertices
-                result.erase(std::remove_if(result.begin(), result.end(), [](const ConstVertexPtr &vertex) {
-                    return vertex->empty(); }), result.end()
-                );
-
-                link_vector_ = result;
-                return link_vector_;
-            } else {
-                return link_vector_;
-            }
-        }
-
-        // the vertices are not known
-        if (all_vert_.empty() || regenerate) {
-
-            size_t i = 0;
-            auto result = std::vector<ConstVertexPtr>(depth_);
-            link_vector(result, i, regenerate, full_expand);
-            if (i != depth_)
-                result.resize(i);
-
-            // remove any empty vertices
-            result.erase(std::remove_if(result.begin(), result.end(), [](const ConstVertexPtr &vertex) {
-                return vertex->empty(); }), result.end()
-            );
-
-            all_vert_ = result;
-            return all_vert_;
-        } else {
-            return all_vert_;
-        }
-    }
-
-    const vector<ConstVertexPtr> &Linkage::vertices(bool regenerate) const {
-        return link_vector(regenerate, true);
-    }
-
     void Linkage::copy_link(const Linkage &other) {
         // Lock the mutex for the scope of the function
-//        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::mutex> lock(mtx_);
 
         // call base class copy constructor
         Vertex::operator=(other);
 
-        // fill linkage data (shallow copy, but should not be modified either way)
+        // fill linkage data (shallow copy, but vertex cannot be modified)
         left_  = other.left_;
         right_ = other.right_;
-
-        id_ = other.id_;
         depth_ = other.depth_;
 
+        // copy vectors that keep track of the graph structure
+        all_vert_     = other.all_vert_;
+        link_vector_  = other.link_vector_;
+        permutations_ = other.permutations_;
+
+        // copy root linkage connectivity and scales
         connec_map_ = other.connec_map_;
-
         flop_scale_ = other.flop_scale_;
-        mem_scale_ = other.mem_scale_;
+        mem_scale_  = other.mem_scale_;
 
-        is_addition_ = other.is_addition_;
-        is_reused_ = other.is_reused_;
+        // copy misc properties
+        copy_misc(other);
+    }
 
-        all_vert_ = other.all_vert_;
-        link_vector_ = other.link_vector_;
+    void Linkage::forget(bool forget_all) const {
+        // clears all vectors that track the graph structure of the linkage (allows for rebuilding)
+        all_vert_.clear();
+        link_vector_.clear();
+        permutations_.clear();
+
+        if (forget_all) {
+            // clear subgraphs
+            if (left_->is_linked())
+                as_link(left_)->forget(true);
+            if (right_->is_linked())
+                as_link(right_)->forget(true);
+        }
+    }
+
+    VertexPtr Linkage::clone() const {
+        LinkagePtr clone(new Linkage(*this));
+
+        // recursively clone left and right vertices
+        clone->left_ = left_->clone();
+        clone->right_ = right_->clone();
+
+        // vertex pointers within vectors are not cloned
+        // Must clear to rebuild when needed
+        clone->forget(false);
+
+        return clone;
+    }
+
+    VertexPtr Linkage::shallow() const {
+        return make_shared<Linkage>(*this);
     }
 
     Linkage::Linkage(const Linkage &other) {
         copy_link(other);
-    }
-
-    ConstVertexPtr Linkage::shallow() const {
-        return shared_from_this();
     }
 
     Linkage &Linkage::operator=(const Linkage &other) {
@@ -763,22 +604,22 @@ namespace pdaggerq {
         this->Vertex::operator=(other);
 
         // move linkage data
-        left_ = std::move(other.left_);
+        left_  = std::move(other.left_);
         right_ = std::move(other.right_);
-
-        id_ = other.id_;
         depth_ = other.depth_;
 
+        // move vectors that keep track of the graph structure
+        all_vert_     = std::move(other.all_vert_);
+        link_vector_  = std::move(other.link_vector_);
+        permutations_ = std::move(other.permutations_);
+
+        // move root linkage connectivity and scales
         connec_map_ = std::move(other.connec_map_);
-
         flop_scale_ = other.flop_scale_;
-        mem_scale_ = other.mem_scale_;
+        mem_scale_  = other.mem_scale_;
 
-        is_addition_ = other.is_addition_;
-        is_reused_ = other.is_reused_;
-
-        all_vert_ = std::move(other.all_vert_);
-        link_vector_ = std::move(other.link_vector_);
+        // copy misc properties
+        copy_misc(other);
     }
 
     Linkage::Linkage(Linkage &&other) noexcept {
@@ -795,187 +636,53 @@ namespace pdaggerq {
         return *this;
     }
 
-    ConstVertexPtr Linkage::tree_sort() const {
-        return tree_sort(shared_from_this());
-    }
+    void Linkage::update_lines(const line_vector &lines, bool update_name) {
 
-    ConstVertexPtr Linkage::tree_sort(const ConstVertexPtr & root) {
+        // map lines to the new lines
+        unordered_map<Line, Line, LineHash> line_map = LineHash::map_lines(lines_, lines);
+        this->replace_lines(line_map);
 
-        return root; // ignore tree sorting until fixed
-
-        // this is a vertex; nothing to do
-        if (!root->is_linked()) return root;
-        // else it is a linkage of vertices
-
-        // do not modify intermediates (they cannot change once made)
-        if (root->is_temp()) return root;
-        // else we can modify the connectivity of the vertices
-
-        ConstLinkagePtr root_link = as_link(root);
-
-        // check if left or right vertices are linkages
-        bool left_linked = root_link->left()->is_linked();
-        bool right_linked = root_link->right()->is_linked();
-
-        // nothing should be done if both left and right are vertices
-        if (!left_linked && !right_linked) return root;
-
-        // clone the left/right vertices
-        ConstVertexPtr left  = root_link->left()->tree_sort();
-        ConstVertexPtr right = root_link->right()->tree_sort();
-
-        // swap the right operator of the left vertex with the left operator of the right vertex
-        ConstVertexPtr LL, LR, RL, RR;
-
-        if (left_linked) {
-            LL = as_link(left)->left()->tree_sort();
-            LR = as_link(left)->right()->tree_sort();
-        }
-        if (right_linked) {
-            RL = as_link(right)->left()->tree_sort();
-            RR = as_link(right)->right()->tree_sort();
-        }
-
-        // try all pairwise combinations of LL, LR with RL, RR
-        vector<ConstVertexPtr> permutation;
-        if (left_linked && right_linked) {
-            permutation = {LL, LR, RL, RR};
-        } else if (left_linked) {
-            permutation = {LL, LR, right};
-        } else { // right must be linked at this point
-            permutation = {left, RL, RR};
-        }
-        size_t n = permutation.size();
-
-        // create the best linkage as initial linkage
-        ConstLinkagePtr best_link = as_link(root->shallow());
-        string best_name = best_link->str();
-        string best_flop_str;
-        scaling_map best_flop_map, best_mem_map;
-
-        do {
-
-
-            // create the new linkage
-            auto [new_link, new_flop_vec, new_mem_vec] = Linkage::link_and_scale(permutation);
-
-            // build scaling maps
-            scaling_map new_flop_map(new_flop_vec);
-            scaling_map new_mem_map(new_mem_vec);
-
-            string new_name = new_link->str();
-            string new_flop_str = new_flop_map.str();
-
-            if (best_flop_map.empty()) {
-                best_flop_map = new_flop_map;
-                best_mem_map  = new_mem_map;
-                best_link = new_link;
-                best_name = new_name;
-                best_flop_str = new_flop_str;
-                continue;
-            }
-
-            // check if the new linkage is better than the current best and update if so
-            bool update = new_flop_map < best_flop_map;
-            if (!update) // if flop maps are equal, check memory maps
-                update = best_flop_map == new_flop_map && best_mem_map < new_mem_map;
-
-            if (update) {
-                best_link = new_link;
-                best_flop_map = new_flop_map;
-                best_mem_map  = new_mem_map;
-                best_name = new_name;
-                best_flop_str = new_flop_str;
-            }
-        } while (std::next_permutation(permutation.begin(), permutation.end()));
-
-        // return the best linkage
-        return best_link;
-    }
-
-    VertexPtr Linkage::clone() const {
-        VertexPtr left_clone = left_->clone();
-        VertexPtr right_clone = right_->clone();
-
-        LinkagePtr clone = make_shared<Linkage>(Linkage(*this));
-        clone->left_ = left_clone;
-        clone->right_ = right_clone;
-
-        clone->copy_misc(*this);
-
-        return clone;
-    }
-
-    ConstVertexPtr Linkage::find_link(const ConstVertexPtr &target_vertex) const {
-        if (same_temp(target_vertex)) return this->shared_from_this();
-        if (left_->is_linked()) {
-            const auto &left = as_link(left_)->find_link(target_vertex);
-            if (left) return left;
-        }
-        if (right_->is_linked()) {
-            const auto &right = as_link(right_)->find_link(target_vertex);
-            if (right) return right;
-        }
-        return nullptr;
-    }
-
-    void Linkage::replace_link(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) {
-        if (same_temp(target_vertex)) {
-            *this = *as_link(new_vertex->clone());
-            return;
-        }
-        VertexPtr left = left_->clone(), right = right_->clone();
-        if (left->is_linked())
-            as_link(left)->replace_link(target_vertex, new_vertex);
-        if (right->is_linked())
-            as_link(right)->replace_link(target_vertex, new_vertex);
-
-        left_ = left;
-        right_ = right;
-    }
-
-    bool Linkage::has_temp(const ConstVertexPtr &temp) const {
-        if (!temp) return false;
-        if (same_temp(temp)) return true;
-        if (left_->is_linked() && as_link(left_)->has_temp(temp)) return true;
-        if (right_->is_linked() && as_link(right_)->has_temp(temp)) return true;
-        return false;
-    }
-
-    ConstVertexPtr Linkage::expand_to_temp(const ConstLinkagePtr &temp) const {
-        if (same_temp(temp)) // if the temp is the same, return the linkage expanded
-            return temp->left_ * temp->right_;
-        auto left = left_->clone(), right = right_->clone();
-        if (left_->is_linked())
-            left = as_link(left)->expand_to_temp(temp)->clone();
-        if (right_->is_linked())
-            right = as_link(right)->expand_to_temp(temp)->clone();
-        VertexPtr result = left * right;
-        as_link(result)->copy_misc(*this);
-        return result;
+        if (update_name)
+            this->update_name();
     }
 
     extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right){
         if (left && !right)
             return left->clone();
-        if (!left && right)
+        else if (!left && right)
             return right->clone();
-        if (!left && !right)
+        else if (!left && !right)
             return make_shared<Vertex>();
-
-        LinkagePtr &&linkage = make_shared<Linkage>(left, right, false);
-        return linkage;
+        return make_shared<Linkage>(left, right, false);
     }
     extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right){
         if (left && !right)
             return left->clone();
-        if (!left && right)
+        else if (!left && right)
             return right->clone();
-        if (!left && !right)
+        else if (!left && !right)
             return make_shared<Vertex>();
+        return make_shared<Linkage>(left, right, false);
+    }
+    extern VertexPtr operator*(double factor, const ConstVertexPtr &right){
+        int min_precision = minimum_precision(factor);
+        string factor_str = to_string_with_precision(factor, min_precision);
+        VertexPtr left = make_shared<Vertex>(factor_str);
 
-        LinkagePtr &&linkage = make_shared<Linkage>(left, right, false);
-        return linkage;
+        if (!right)
+            return left;
+
+        return make_shared<Linkage>(left, right, false);
+    }
+    extern VertexPtr operator*(const ConstVertexPtr &left, double factor){
+        int min_precision = minimum_precision(factor);
+        string factor_str = to_string_with_precision(factor, min_precision);
+        VertexPtr right = make_shared<Vertex>(factor_str);
+
+        if (!left)
+            return right;
+
+        return make_shared<Linkage>(left, right, false);
     }
 
     extern VertexPtr operator+(const ConstVertexPtr &left, const ConstVertexPtr &right){
@@ -986,8 +693,37 @@ namespace pdaggerq {
         if (!left && !right)
             return make_shared<Vertex>();
 
-        LinkagePtr &&linkage = make_shared<Linkage>(left, right, true);
-        return linkage;
+        return make_shared<Linkage>(left, right, true);
+    }
+    extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
+        if (left && !right)
+            return left->clone();
+        if (!left && right)
+            return right->clone();
+        if (!left && !right)
+            return make_shared<Vertex>();
+
+        return make_shared<Linkage>(left, right, true);
+    }
+    extern VertexPtr operator+(double factor, const ConstVertexPtr &right){
+        int min_precision = minimum_precision(factor);
+        string factor_str = to_string_with_precision(factor, min_precision);
+        VertexPtr left = make_shared<Vertex>(factor_str);
+
+        if (!right)
+            return left;
+
+        return make_shared<Linkage>(left, right, true);
+    }
+    extern VertexPtr operator+(const ConstVertexPtr &left, double factor){
+        int min_precision = minimum_precision(factor);
+        string factor_str = to_string_with_precision(factor, min_precision);
+        VertexPtr right = make_shared<Vertex>(factor_str);
+
+        if (!left)
+            return right;
+
+        return make_shared<Linkage>(left, right, true);
     }
 
 } // pdaggerq

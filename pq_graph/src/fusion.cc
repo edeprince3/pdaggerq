@@ -22,8 +22,9 @@
 //
 
 #include <memory>
+#include <iostream>
+
 #include "../include/pq_graph.h"
-#include "iostream"
 
 // include omp only if defined
 #ifdef _OPENMP
@@ -38,404 +39,919 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 
 using namespace pdaggerq;
 
-// Function definitions
-linkage_set PQGraph::collect_intermediates() {
-    linkage_set intermediates;
-    for (const auto &[name, eq] : equations_) {
-        for (const auto &term : eq.terms()) {
-            for (const auto &op : term.rhs()) {
-                if (op->is_temp()) {
-                    intermediates.insert(as_link(op));
+struct LinkInfo {
+    ConstLinkagePtr link;
+    Term* term;
+    Term trunc_term;
+};
+
+struct LinkTracker {
+    linkage_map<vector<LinkInfo>> link_track_map_{}; // map of linkages to terms and trunc terms
+    linkage_map<set<Term*>> link_declare_map_{}; // map of linkages to their declarations
+    map<string, long> max_ids_;
+
+    LinkTracker(){
+        // reserve bins for the link maps
+        link_track_map_.reserve(1024);
+        link_declare_map_.reserve(1024);
+    }
+
+    void insert(Term* term) {
+
+        // if lhs is a declaration, store that separately
+        if (term->lhs()->is_temp()) {
+            auto link = as_link(term->lhs()->shallow());
+            max_ids_[link->type()] = std::max(max_ids_[link->type()], link->id());
+            link->forget(); // forget the link history for memory efficiency
+            link_declare_map_[link].insert(term);
+            return;
+        }
+
+        // extract all linkages within the term TODO: do this for all arbitrary linkages (not just temps)
+        ConstVertexPtr dummy = 0.0 * std::make_shared<Vertex>("dummy");
+        for (auto &vertex: term->rhs()) {
+            if (vertex->has_any_temp()) {
+                auto all_temps = as_link(vertex)->get_temps();
+                for (auto &temp: all_temps) {
+                    ConstLinkagePtr temp_link = as_link(temp);
+                    max_ids_[temp_link->type()] = max(max_ids_[temp_link->type()], temp_link->id());
+                    
+                    // create a new link info
+                    LinkInfo link_info;
+                    link_info.link = temp_link;
+                    link_info.link->forget(); // forget the link history for memory efficiency
+                    link_info.term = term;
+                    
+//                    link_track_map_[temp_link].emplace_back(temp_link, term);
+
+                    Term trunc_term = *term;
+                    trunc_term.term_linkage() = nullptr;
+                    vector<ConstVertexPtr> trunc_rhs;
+                    for (auto &other_vertex: trunc_term.rhs()) {
+                        ConstVertexPtr new_vertex = other_vertex;
+                        if (other_vertex->is_linked()) {
+                            new_vertex = as_link(other_vertex)->replace(temp_link, dummy, true).first;
+                        }
+                        trunc_rhs.push_back(new_vertex);
+                    }
+
+                    // sort the trunc term by name and update
+                    std::sort(trunc_rhs.begin(), trunc_rhs.end(),
+                              [](const ConstVertexPtr &a, const ConstVertexPtr &b) { return a->name() < b->name(); });
+                    trunc_term.rhs() = trunc_rhs;
+                    trunc_term.compute_scaling(true);
+                    
+                    link_info.trunc_term = trunc_term;
+
+                    // insert the trunc term into the trunc map
+                    link_track_map_[link_info.link].push_back(link_info);
                 }
             }
         }
     }
 
-    return intermediates;
-}
-
-std::unordered_map<ConstLinkagePtr, pair<vector<Term*>, vector<Term*>>, LinkageHash, LinkageEqual>
-        PQGraph::get_intermediate_terms(const linkage_set &intermediates) {
-    std::unordered_map<ConstLinkagePtr, pair<vector<Term*>, vector<Term*>>, LinkageHash, LinkageEqual> intermediate_terms;
-    for (const auto &link : intermediates) {
-        auto terms = get_matching_terms(link);
-        intermediate_terms[link] = terms;
-    }
-    return intermediate_terms;
-}
-
-bool PQGraph::can_merge_terms(const vector<Term*> &this_terms, const vector<Term*> &other_terms, const ConstLinkagePtr& this_intermediate, const ConstLinkagePtr& other_intermediate, const linkage_set& tested_linkages) {
-
-    // cannot merge if not the same size and shape;
-    bool same_size = this_terms.size() == other_terms.size();
-    bool same_shape = this_intermediate->shape_ == other_intermediate->shape_;
-    if (!same_shape || !same_size) return false;
-
-
-    // cannot merge if linkage has already been tested or if the intermediates are the same
-    bool same_temp = this_intermediate->same_temp(other_intermediate);
-    bool already_tested = tested_linkages.contains(as_link(other_intermediate->clone()));
-    if ( same_temp || already_tested )
-        return false;
-
-    string this_inter_str  = this_intermediate->str()  + this_intermediate->tot_str();
-    string other_inter_str = other_intermediate->str() + other_intermediate->tot_str();
-
-    long this_id = this_intermediate->id();
-    same_temp = this_intermediate->same_temp(other_intermediate);
-
-
-    for (const auto this_term : this_terms) {
-        if (this_term->lhs()->same_temp(this_intermediate))
-            continue;
-
-        bool found = false;
-        for (const auto other_term : other_terms) {
-            if (other_term->lhs()->same_temp(other_intermediate))
-                continue; // ignore declaration terms
-
-            if (other_term->lhs()->same_temp(this_intermediate))
-                return false; // cannot merge intermediate with itself
-
-            // if different perm type or perms, then they cannot be merged
-            if (this_term->perm_type() != other_term->perm_type() ||
-             this_term->term_perms() != other_term->term_perms()) continue;
-
-            auto this_rhs = remove_intermediate(this_term->rhs(), this_intermediate);
-            auto other_rhs = remove_intermediate(other_term->rhs(), other_intermediate);
-
-            if (this_rhs.size() != other_rhs.size())
-                return false;
-
-            sort_operands(this_rhs);
-            sort_operands(other_rhs);
-
-            if (any_of(this_rhs.begin(), this_rhs.end(), [&](auto rhs_op) { return rhs_op->is_temp() && tested_linkages.contains(as_link(rhs_op->clone())); }) ||
-                any_of(other_rhs.begin(), other_rhs.end(), [&](auto rhs_op) { return rhs_op->is_temp() && tested_linkages.contains(as_link(rhs_op->clone())); })) {
-                continue;
-            }
-
-            if (!is_same_connectivity(this_rhs, other_rhs, this_term->lhs(), other_term->lhs(), this_intermediate, other_intermediate)) {
-                found = true;
-                break;
+    void populate(PQGraph& pq_graph) {
+        clear();
+        for (auto & [name, eq] : pq_graph.equations()) {
+            for (auto &term : eq.terms()) {
+                insert(&term);
             }
         }
-        if (!found) return false;
-    }
-    return true;
-}
 
-std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> PQGraph::find_mergeable_intermediates(const std::unordered_map<ConstLinkagePtr, pair<vector<Term*>, vector<Term*>>, LinkageHash, LinkageEqual> &intermediate_terms, linkage_set &tested_linkages) {
-    std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> merge_map;
-    set<Term*> terms_to_merge;
+        auto redundant_idxs = [](const vector<LinkInfo> &vec) {
+            set<size_t, std::greater<>> idxs;
+            set<Term*> terms;
+            for (size_t i = 0; i < vec.size(); i++) {
+                Term *term = vec[i].term;
+                if (terms.find(term) != terms.end()) {
+                    idxs.insert(i);
+                }
+                terms.insert(term);
+            }
+            return idxs;
+        };
 
-    for (const auto &[this_intermediate, this_terms_pair] : intermediate_terms) {
-        auto &[this_terms,this_decl_terms] = this_terms_pair;
-        if (tested_linkages.contains(as_link(this_intermediate->clone())) || terms_to_merge.count(this_terms.front()) > 0)
-            continue;
-        tested_linkages.insert(this_intermediate);
-
-        vector<ConstLinkagePtr> to_merge;
-        for (const auto &[other_intermediate, other_terms_pair] : intermediate_terms) {
-            auto &[other_terms,other_decl_terms] = other_terms_pair;
-
-            // check if any of the terms have already been merged
-            bool already_merged = any_of(other_terms.begin(), other_terms.end(), [&](auto term) {
-                return terms_to_merge.count(term) > 0;;
-            });
-
-            // not all terms can be merged
-            if (already_merged || !can_merge_terms(this_terms, other_terms, this_intermediate, other_intermediate, tested_linkages))
-                continue;
-
-            to_merge.push_back(other_intermediate);
-            tested_linkages.insert(other_intermediate);
+        // get redundant indices
+        for (auto &[link, link_infos]: link_track_map_) {
+            auto idxs = redundant_idxs(link_infos);
+            
+            vector<LinkInfo> new_link_infos;
+            for (size_t i = 0; i < link_infos.size(); i++) {
+                if (idxs.find(i) == idxs.end()) {
+                    new_link_infos.push_back(link_infos[i]);
+                }
+            }
+            link_infos = new_link_infos;
         }
 
-        if (!to_merge.empty()) {
-            merge_map[this_intermediate] = to_merge;
-            terms_to_merge.insert(this_terms.begin(), this_terms.end());
+        // now we sort the trunc and track terms by string representation
+        for (auto &[link, link_infos]: link_track_map_) {
+
+            vector<pair<string, size_t>> argsorted_infos;
+            for (size_t i = 0; i < link_infos.size(); i++) {
+                argsorted_infos.emplace_back(link_infos[i].trunc_term.str(), i);
+            }
+            std::sort(argsorted_infos.begin(), argsorted_infos.end());
+
+            // reorder the info vectors by the sorted indices
+            vector<LinkInfo> new_link_infos;
+            for (auto & [_, i] : argsorted_infos) {
+                new_link_infos.push_back(link_infos[i]);
+            }
+
+            link_infos = new_link_infos;
         }
     }
 
-    return merge_map;
-}
+    void clear() {
+        link_track_map_.clear();
+        link_declare_map_.clear();
+    }
 
-vector<ConstVertexPtr> PQGraph::remove_intermediate(const vector<ConstVertexPtr>& rhs, const ConstLinkagePtr &intermediate) {
-    vector<ConstVertexPtr> new_rhs;
-    new_rhs.reserve(rhs.size());
-    for (const auto &rhs_op : rhs) {
-        if (as_link(rhs_op)->same_temp(intermediate)) continue;
+    void prune() {
 
-        if (rhs_op->has_temp(intermediate)) {
-            auto expanded = as_link(rhs_op)->expand_to_temp(intermediate);
-            auto expanded_verts = as_link(expanded)->link_vector(true);
-            for (const auto &expanded_vert : expanded_verts) {
-                if (!intermediate->same_temp(expanded_vert)) {
-                    new_rhs.push_back(expanded_vert);
+        linkage_map<vector<LinkInfo>> new_link_track_map;
+        linkage_map<set<Term*>> new_link_declare_map;
+
+        for (auto &[link, link_infos]: link_track_map_) {
+
+            bool remove_link = false;
+
+            // remove all linkages that have no declaration
+            remove_link |= link_declare_map_[link].empty();
+
+            // remove all linkages that have no track terms
+            remove_link |= link_infos.empty();
+
+            if (!remove_link) {
+                new_link_track_map.insert({link, link_infos});
+                new_link_declare_map.insert({link, link_declare_map_[link]});
+            }
+
+            link->forget(); // forget the link history for memory efficiency
+        }
+
+        // overwrite the link maps
+        link_track_map_ = new_link_track_map;
+        link_declare_map_ = new_link_declare_map;
+    }
+
+};
+
+struct LinkMerger {
+    LinkTracker link_tracker_;
+    PQGraph& pq_graph_;
+    linkage_map<vector<ConstLinkagePtr>> link_merge_map_;
+
+    explicit LinkMerger(PQGraph& pq_graph) : pq_graph_(pq_graph){
+        link_merge_map_.reserve(pq_graph_.saved_linkages().size());
+        link_tracker_.populate(pq_graph_);
+        link_tracker_.prune();
+    }
+
+    void populate() {
+        // find all linkages that can be merged (same connectivity with all trunc terms)
+        ConstVertexPtr dummy = 0.0 * std::make_shared<Vertex>("dummy");
+
+        // extract trunc map to separate vectors to parallelize
+        vector<ConstLinkagePtr> all_links; all_links.reserve(link_tracker_.link_track_map_.size());
+        vector<vector<LinkInfo>> all_infos; all_infos.reserve(link_tracker_.link_track_map_.size());
+        for (auto &[link, link_infos]: link_tracker_.link_track_map_) {
+            link->forget(); // forget the link history for memory efficiency
+            if (!link_infos.empty()) {
+                all_links.push_back(link);
+                all_infos.push_back(link_infos);
+            }
+        }
+
+        #pragma omp parallel for schedule(guided) default(none) shared(all_links, all_infos, link_merge_map_, dummy)
+        for (size_t k = 0; k < all_links.size(); k++) {
+            auto &link1 = all_links[k];
+            auto &link1_info = all_infos[k];
+
+            for (size_t l = k + 1; l < all_links.size(); l++) {
+                auto &link2 = all_links[l];
+                auto &link2_info = all_infos[l];
+
+                // skip does not have the same number of trunc terms
+                if (link1_info.size() != link2_info.size()) continue;
+
+                // shapes must be the same
+                if (link1->dim() != link2->dim()) continue;
+
+                // if the first linkage is reused, then the second linkage must be the same (cannot reuse a non-reused)
+                if (link1->is_reused() && !link2->is_reused()) continue;
+                // check if the trunc terms have the same connectivity
+                bool same_connectivity = true;
+
+                double link_ratio = 0.0;
+                set<string> ref_conditions;
+                for (size_t i = 0; i < link1_info.size(); i++) {
+
+                    // extract link info
+                    auto &link1_trunc = link1_info[i].link;
+                    auto &link1_term  = link1_info[i].term;
+                    auto &trunc_term1 = link1_info[i].trunc_term;
+
+                    auto &link2_trunc = link2_info[i].link;
+                    auto &link2_term = link2_info[i].term;
+                    auto &trunc_term2 = link2_info[i].trunc_term;
+
+                    // determine if permutation is the same
+                    if (link1_term->perm_type()  != link2_term->perm_type())  { same_connectivity = false; break; }
+                    if (link1_term->term_perms() != link2_term->term_perms()) { same_connectivity = false; break; }
+
+                    // determine if coefficient ratio is the same (should be)
+                    double cur_ratio = link2_term->coefficient_ / link1_term->coefficient_;
+                    if (link_ratio == 0.0) link_ratio = cur_ratio;
+                    if (fabs(cur_ratio - link_ratio) > 1e-10) { same_connectivity = false; break; }
+
+                    // replace the replacement vertex with the trunc vertex
+                    ConstVertexPtr term1_link = trunc_term1.term_linkage()->replace(dummy, link1_trunc).first;
+                    ConstVertexPtr term2_link = trunc_term2.term_linkage()->replace(dummy, link1_trunc).first;
+
+                    term1_link = link1_term->lhs() + term1_link;
+                    term2_link = link2_term->lhs() + term2_link;
+
+                    if (*term1_link != *term2_link) { same_connectivity = false; break; }
+
+                    // now check the other trunc term
+                    term1_link = trunc_term1.term_linkage()->replace(dummy, link2_trunc).first;
+                    term2_link = trunc_term2.term_linkage()->replace(dummy, link2_trunc).first;
+
+                    term1_link = link1_term->lhs() + term1_link;
+                    term2_link = link2_term->lhs() + term2_link;
+
+                    if (*term1_link != *term2_link) { same_connectivity = false; break; }
+
+                    // check that the conditions of the full terms are the same
+                    auto term1_conditions = link1_term->conditions();
+                    auto term2_conditions = link2_term->conditions();
+                    if (term1_conditions != term2_conditions) { same_connectivity = false; break; }
+
+                }
+
+                if (!same_connectivity) continue;
+                else {
+                    #pragma omp critical
+                    {
+                        link1->forget(); // forget the link history for memory efficiency
+                        link2->forget(); // forget the link history for memory efficiency
+                        link_merge_map_[link1].push_back(link2);
+                    }
                 }
             }
         }
-        new_rhs.push_back(rhs_op);
-    }
-    return new_rhs;
-}
-
-void PQGraph::sort_operands(vector<ConstVertexPtr> &operands) {
-    sort(operands.begin(), operands.end(), [](const auto &a, const auto &b) { return a->name() < b->name(); });
-}
-
-bool PQGraph::is_same_connectivity(const vector<ConstVertexPtr> &this_rhs, const vector<ConstVertexPtr> &other_rhs,
-                                   const ConstVertexPtr &this_lhs, const ConstVertexPtr &other_lhs,
-                                   const ConstLinkagePtr &intermediate, const ConstLinkagePtr &test_intermediate) {
-
-    // replace lines in intermediate with old lines
-    VertexPtr similar_intermediate = intermediate->clone();
-    as_link(similar_intermediate)->replace_lines(test_intermediate->lines_);
-
-    ConstVertexPtr this_link, other_link;
-    if (this_rhs.size() == 1) {
-        this_link = this_rhs.front();
-        other_link = other_rhs.front();
-    } else if (this_rhs.empty()) {
-        this_link  = this_lhs + similar_intermediate;
-        other_link = other_lhs + similar_intermediate;
-        return *as_link(this_link) == *as_link(other_link);
-    } else {
-        this_link = Linkage::link(this_rhs);
-        other_link = Linkage::link(other_rhs);
     }
 
-    this_link  = this_lhs + similar_intermediate * this_link;
-    other_link = other_lhs + similar_intermediate * other_link;
-
-    return *as_link(this_link) == *as_link(other_link);
-}
-
-void PQGraph::update_saved_linkages(const ConstLinkagePtr &this_intermediate, const vector<ConstLinkagePtr> &other_intermediates) {
-    for (auto &[type, linkages] : saved_linkages_) {
-        for (const auto &other_intermediate : other_intermediates) {
-            linkages.erase(as_link(other_intermediate->clone()));
+    set<Term *> extract_terms(const ConstLinkagePtr& target_link) {// add the track terms to the visited terms
+        set<Term*> visited_terms;
+        for (auto &info: link_tracker_.link_track_map_[target_link]) {
+            if (info.term) visited_terms.insert(info.term);
         }
+        for (auto &term: link_tracker_.link_declare_map_[target_link]) {
+            if (term) visited_terms.insert(term);
+        }
+
+        return visited_terms;
     }
-}
 
-void replace_rhs_operands(Term &term, const ConstLinkagePtr& this_intermediate, const std::unordered_map<ConstLinkagePtr, ConstLinkagePtr> &old_to_new_links) {
-    auto new_link = as_link(old_to_new_links.at(this_intermediate)->clone());
-    auto line_map = LineHash::map_lines(term.lhs()->lines_, new_link->lines_);
+    void prune() {
+        // remove merge linkages that have shared terms
+        set<Term*> unique_terms;
 
-    term.lhs() = new_link;
-    term.eq() = new_link;
-    vector<ConstVertexPtr> new_rhs;
-    for (auto &op : term.rhs()) {
-        auto new_op = op->clone();
-        new_op->replace_lines(line_map);
-        new_rhs.push_back(new_op);
-    }
-    term.rhs() = new_rhs;
-    term.request_update();
-}
+        // prune each linkage in the merge map
+        linkage_map<vector<ConstLinkagePtr>> new_link_merge_map;
+        new_link_merge_map.reserve(link_merge_map_.size());
 
-void PQGraph::add_new_terms(std::unordered_map<ConstLinkagePtr, vector<Term>, LinkageHash, LinkageEqual> &new_inter_terms_map,
-                            const std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map) {
+        vector<ConstLinkagePtr> sorted_links;
+        sorted_links.reserve(link_merge_map_.size());
+        for (auto &[link, _]: link_merge_map_)
+            if (link) sorted_links.push_back(link);
+        std::sort(sorted_links.begin(), sorted_links.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) { return a->id() > b->id(); });
 
-    // build new intermediates
-    std::unordered_map<ConstLinkagePtr, ConstLinkagePtr> old_to_new_links;
-    old_to_new_links = make_new_intermediates(merge_map, old_to_new_links);
+        for (auto &target_link: sorted_links) {
 
-    for (auto &[this_intermediate, new_inter_terms] : new_inter_terms_map) {
-        const auto &new_intermediate = old_to_new_links[this_intermediate];
-        string type;
-        for (auto &[link_type, linkages] : saved_linkages_) {
-            if (linkages.contains(as_link(this_intermediate->clone()))) {
-                linkages.erase(as_link(this_intermediate->clone()));
-                linkages.insert(as_link(new_intermediate->clone()));
-                type = link_type;
-                break;
+            auto &merge_links =  link_merge_map_[target_link];
+            if (merge_links.empty()) continue;
+
+            auto target_terms = extract_terms(target_link);
+            unique_terms.insert(target_terms.begin(), target_terms.end());
+
+            vector<ConstLinkagePtr> new_merge_links;
+            for (auto &merge_link: merge_links) {
+                auto merge_terms = extract_terms(merge_link);
+
+                // check if any of the terms are unique
+                bool unique = true;
+                for (auto &term: merge_terms) {
+                    unique = unique_terms.find(term) == unique_terms.end();
+                    if (!unique) break;
+                }
+
+                // if unique, add to new merge links
+                if (unique) {
+                    new_merge_links.push_back(merge_link);
+                    unique_terms.insert(merge_terms.begin(), merge_terms.end());
+                }
+            }
+
+            // overwrite the merge links
+            new_link_merge_map[target_link] = new_merge_links;
+        }
+
+        // overwrite the link merge map
+        link_merge_map_ = new_link_merge_map;
+
+        // rebuild sorted links
+        sorted_links.clear();
+        sorted_links.reserve(link_merge_map_.size());
+        for (auto &[link, _]: link_merge_map_)
+            if (link) sorted_links.push_back(link);
+        std::sort(sorted_links.begin(), sorted_links.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) { return a->id() > b->id(); });
+
+        // now prune between the merge links
+        unique_terms.clear();
+        new_link_merge_map.clear();
+        unordered_set<ConstLinkagePtr, LinkageHash, LinkageEqual> visited_links;
+        for (auto &ref_link: sorted_links) {
+            auto &ref_merge_links = link_merge_map_[ref_link];
+            auto ref_terms = extract_terms(ref_link);
+            for (auto &ref_merge_link: ref_merge_links) {
+                auto merge_terms = extract_terms(ref_merge_link);
+                ref_terms.insert(merge_terms.begin(), merge_terms.end());
+            }
+
+            unique_terms.insert(ref_terms.begin(), ref_terms.end());
+            visited_links.insert(ref_link);
+
+            // skip if no merge links
+            if (ref_merge_links.empty()) continue;
+
+            // add to new link merge map
+            new_link_merge_map[ref_link] = ref_merge_links;
+
+            for (auto &comp_link : sorted_links) {
+                auto &comp_merge_links = link_merge_map_[comp_link];
+
+                // skip if link has been visited
+                if (visited_links.find(comp_link) != visited_links.end()) continue;
+
+                if (comp_merge_links.empty()) continue;
+
+                auto comp_terms = extract_terms(comp_link);
+                for (auto &comp_merge_link: comp_merge_links) {
+                    auto merge_terms = extract_terms(comp_merge_link);
+                    comp_terms.insert(merge_terms.begin(), merge_terms.end());
+                }
+
+                // check if any of the terms are unique
+                bool unique = false;
+                for (auto &term: comp_terms) {
+                    unique = unique_terms.find(term) == unique_terms.end();
+                    if (!unique) break;
+                }
+
+                // if unique, add to new link merge map
+                if (unique) {
+                    new_link_merge_map[comp_link] = comp_merge_links;
+                    unique_terms.insert(comp_terms.begin(), comp_terms.end());
+                }
             }
         }
 
-        for (Term &term : new_inter_terms) {
+        // overwrite the link merge map
+        link_merge_map_ = new_link_merge_map;
+    }
 
-            term.is_assignment_ = term.lhs()->same_temp(this_intermediate);
+    void print() {
+        for (auto &[target_link, merge_links]: link_merge_map_) {
+            cout << "Fusion Targets: " << endl;
+            cout << "    " << target_link->str() << " = " << *target_link << endl;
+            for (auto &merge_link: merge_links) {
+                cout << "    " << merge_link->str() << " = " << *merge_link << endl;
+            }
+            cout << "Target Terms: " << endl;
+            for (auto &link_info: link_tracker_.link_track_map_[target_link]) {
+                auto &term = link_info.term;
+                string term_str = term->str();
+                // replace all newlines with newlines and spaces
+                auto pos = term_str.find('\n');
+                while (pos != string::npos) {
+                    term_str.replace(pos, 1, "\n    ");
+                    pos = term_str.find('\n', pos + 5);
+                }
+                cout << "    " << term_str << endl;
+            }
+            for (auto &merge_link: merge_links) {
+                for (auto &link_info: link_tracker_.link_track_map_[merge_link]) {
+                    auto &term = link_info.term;
+                    string term_str = term->str();
+                    // replace all newlines with newlines and spaces
+                    auto pos = term_str.find('\n');
+                    while (pos != string::npos) {
+                        term_str.replace(pos, 1, "\n    ");
+                        pos = term_str.find('\n', pos + 5);
+                    }
+                    cout << "    " << term_str << endl;
+                }
+            }
+            cout << endl;
+        }
+    }
 
-            term.lhs() = as_link(new_intermediate->clone());
-            term.eq() = as_link(new_intermediate->clone());
-//            replace_rhs_operands(term, this_intermediate, old_to_new_links);
-            if (term.is_assignment_) {
-                LinkagePtr rhs_link = as_link(new_intermediate->clone());
-                rhs_link->id() = -1;
-                term.rhs() = {rhs_link};
+    void merge() {
+        // initialize new declarations
+        vector<pair<string, Term>> new_declarations;
+
+        // merge the linkages
+        for (auto &[target_link, merge_links]: link_merge_map_) {
+            // update max id
+            link_tracker_.max_ids_[target_link->type()]++;
+
+            // get the info for the target and merge trunc terms
+            const vector<LinkInfo> &target_infos = link_tracker_.link_track_map_[target_link];
+            vector<vector<LinkInfo>> merge_infos;
+            for (auto &merge_link: merge_links) {
+                auto &merge_info = link_tracker_.link_track_map_[merge_link];
+                // sort merge infos by link string
+                std::sort(merge_info.begin(), merge_info.end(), [](const LinkInfo &a, const LinkInfo &b) {
+                    if (a.link->netscales() > b.link->netscales())
+                        return false;
+                    else if (a.link->netscales() == b.link->netscales())
+                        return a.link->name() < b.link->name();
+                    else return true;
+                });
+                merge_infos.push_back(merge_info);
+            }
+
+            // merge the trunc terms
+            vector<Term> new_terms;
+            VertexPtr merged_vertex_init;
+            string link_type = target_infos[0].link->type();
+            for (size_t i = 0; i < target_infos.size(); i++) {
+                // build merged vertex
+                VertexPtr merged_vertex = target_infos[i].link->shallow();
+                long max_id = link_tracker_.max_ids_[target_link->type()]; //merged_vertex->id();
+
+                Term *target_term = target_infos[i].term;
+                string merged_pq = target_term->original_pq_;
+                for (auto &merge_info: merge_infos) {
+                    LinkagePtr target_vertex = as_link(merge_info[i].link->shallow());
+                    Term *merge_term = merge_info[i].term;
+
+                    max_id = std::max(max_id, target_vertex->id());
+
+                    // get ratio of coefficients
+                    double ratio = merge_term->coefficient_ / target_term->coefficient_;
+                    if (fabs(ratio - 1.0) > 1e-10)
+                         merged_vertex = merged_vertex + ratio * target_vertex;
+                    else merged_vertex = merged_vertex + target_vertex;
+
+                    merged_pq += Term::make_einsum ? "\n    # " : "\n    // ";
+                    merged_pq += string(merge_term->lhs()->name().size(), ' ');
+                    merged_pq += " += " + merge_term->original_pq_;
+
+                }
+//                as_link(merged_vertex)->fuse();
+                bool last_add_bool = merged_vertex->is_addition();
+                as_link(merged_vertex)->copy_misc(target_infos[i].link);
+                as_link(merged_vertex)->is_addition() = last_add_bool;
+                as_link(merged_vertex)->id() = max_id;
+
+                if (i == 0) merged_vertex_init = merged_vertex;
+
+                // build the new term
+                Term new_term = target_infos[i].trunc_term;
+                new_term.original_pq_ = merged_pq;
+
+                // find replacement vertex
+                for (auto& vertex : new_term.rhs()) {
+                    if (vertex->is_linked()) {
+                        ConstVertexPtr new_vertex = as_link(vertex)->replace(0.0 * std::make_shared<Vertex>("dummy"), merged_vertex).first;
+                        vertex = new_vertex;
+                    }
+                }
+                new_term.request_update();
+                new_term.reorder();
+                new_term.term_linkage()->forget(); // forget the link history for memory efficiency
+                new_terms.push_back(new_term);
+
+                // add merged vertex to saved linkages
+                pq_graph_.saved_linkages()[link_type].insert(as_link(merged_vertex));
+                pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_id);
+
+            }
+
+            // overwrite the target terms with the new terms
+            size_t idx = 0;
+            for (auto &link_info: link_tracker_.link_track_map_[target_link]) {
+                *link_info.term = new_terms[idx++];
+            }
+
+            set<Term*> declare_term = link_tracker_.link_declare_map_[target_link];
+            if (!declare_term.empty()) {
+                // build new declaration
+                Term new_def = (*declare_term.begin())->clone();
+                LinkagePtr merged_vertex_copy = as_link(merged_vertex_init->shallow());
+                merged_vertex_copy->id() = -1;
+                new_def.eq()  = merged_vertex_init;
+                new_def.lhs() = merged_vertex_init;
+
+                new_def.expand_rhs(merged_vertex_copy);
+                new_def.request_update();
+                new_def.reorder();
+                new_def.term_linkage()->forget(); // forget the link history for memory efficiency
+
+                // add to new declarations
+                new_declarations.emplace_back(link_type, new_def);
             } else {
-                continue;
+                // add to new declarations
+                new_declarations.emplace_back(link_type, Term(as_link(merged_vertex_init)));
             }
 
-            term.request_update();
-
-            // add new term to equations
-            equations_[type].terms().insert(equations_[type].terms().end(), term);
+            // set merged terms to null lhs
+            for (auto &merge_link: merge_links) {
+                for (auto &link_info: link_tracker_.link_track_map_[merge_link]) {
+                    if (link_info.term) link_info.term->lhs() = nullptr;
+                }
+            }
         }
 
+        // remove null terms and merge constants
+        for (auto & [name, eq] : pq_graph_.equations()) {
+            vector<Term> new_terms;
+            for (auto &term: eq.terms()) {
+                if (term.lhs() != nullptr) {
+                    term.compute_scaling(true);
+                    term.expand_rhs();
+                    new_terms.push_back(term);
+                }
+            }
+            eq.terms() = new_terms;
+        }
 
-
-        // replace old intermediates with new intermediates
-        replace_old_intermediate(equations_, old_to_new_links);
-
-        // rearrange all equations
-        for (auto &[name, eq] : equations_) {
-            eq.rearrange();
+        // add new declarations
+        for (auto &[link_type, new_declaration]: new_declarations) {
+            auto &link_equation = pq_graph_.equations()[link_type];
+            link_equation.terms().insert(link_equation.begin(), new_declaration);
+            link_equation.rearrange('s');
+            link_equation.rearrange('r');
+            link_equation.rearrange('t');
         }
     }
+
+    void clear() {
+        link_tracker_.clear();
+        link_merge_map_.clear();
+    }
+
+};
+
+size_t PQGraph::merge_intermediates(){
+    if (opt_level_ < 6)
+        return 0;
+
+    print_guard guard;
+    if (print_level_ < 2) {
+        guard.lock();
+    }
+
+    // count terms in pq_graph
+    size_t num_terms = 0;
+    for (auto & [name, eq] : equations()) {
+        num_terms += eq.terms().size();
+    }
+
+    LinkMerger link_merger(*this);
+    link_merger.populate();
+    link_merger.prune();
+    link_merger.print();
+    link_merger.merge();
+    link_merger.clear();
+
+    size_t fused_terms = 0;
+    for (auto & [name, eq] : equations()) {
+        fused_terms += eq.terms().size();
+    }
+    fused_terms = num_terms - fused_terms;
+    collect_scaling();
+
+    size_t num_fused_total = fused_terms;
+    while (fused_terms > 0) {
+        fused_terms = merge_intermediates(); // recursively merge intermediates until no more terms are fused
+        num_fused_total += merge_intermediates();
+    }
+
+    return num_fused_total;
 }
 
-unordered_map<ConstLinkagePtr, ConstLinkagePtr> &PQGraph::make_new_intermediates(
-        const unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map,
-        unordered_map<ConstLinkagePtr, ConstLinkagePtr> &old_to_new_links) const {
-    for (const auto &[this_intermediate, other_intermediates] : merge_map) {
-        VertexPtr new_intermediate = this_intermediate->clone();
-        as_link(new_intermediate)->id() = -1; // do not treat as a temporary intermediate for now
+size_t PQGraph::prune() {
 
-        for (const auto &other_intermediate : other_intermediates) {
-            LinkagePtr formatted_other = as_link(other_intermediate->clone());
-            formatted_other->replace_lines(*as_link(this_intermediate));
-            formatted_other->id() = -1; // do not treat as a temporary intermediate
+    if (opt_level_< 5)
+        return 0; // do not remove unused temps if pruning is disabled
 
-            new_intermediate = new_intermediate + as_link(formatted_other->clone());
+    print_guard guard;
+    if (print_level_ < 2) {
+        guard.lock();
+    }
+
+    // remove unused contractions (only used in one term and its assignment)
+
+    // get all matching terms for each temp in saved_linkages
+    linkage_map<set<Term*>> matching_terms;
+    linkage_map<set<Term*>> tmp_decl_terms;
+    matching_terms.reserve(10*saved_linkages_.size());
+    tmp_decl_terms.reserve(10*saved_linkages_.size());
+    for (const auto & [type, linkages] : saved_linkages_) {
+        for (const auto &linkage : linkages) {
+
+            if (linkage->id() == -1) continue; // skip if id is -1
+            auto [tmp_terms, tmp_decls] = get_matching_terms(linkage);
+            if (tmp_terms.empty() && tmp_decls.empty()) continue; // occurs nowhere in the equations; skip
+
+            matching_terms[linkage] = tmp_terms;
+            tmp_decl_terms[linkage] = tmp_decls;
+        }
+    }
+
+    // remove temps that are used in only one term or are not used at all
+
+    size_t num_removed = 0;
+    linkage_set to_remove;
+    for (const auto & [temp, terms] : matching_terms) {
+
+        // remove (regardless of use) if temp has only one pure vertex
+        if (temp->vertices().size() > 1) {
+            // count number of occurrences of the temp in the terms
+            size_t num_occurrences = 0;
+            for (auto &term: terms) {
+                if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
+                for (auto &vertex: term->rhs()) {
+                    if (vertex->is_linked()) {
+                        auto all_temps = as_link(vertex)->get_temps();
+                        for (auto &other_temp: all_temps) {
+                            if (*other_temp == *temp) num_occurrences++;
+                        }
+                    }
+                }
+            }
+
+            // skip if temp is used more than once
+            if (num_occurrences > 1) continue;
+
+
+            if (num_occurrences == 1 ) {
+                if (temp->is_reused() || temp->is_scalar()) {
+                    // if used only once and this is a reusable temp, remove only if the term declare a temp
+                    bool declares_temp = (*terms.begin())->lhs() != nullptr && (*terms.begin())->lhs()->is_linked();
+                    if (!declares_temp) continue;
+                }
+            }
         }
 
-        // copy intermediate properties to new intermediate
-        as_link(new_intermediate)->copy_misc(as_link(this_intermediate));
-        as_link(new_intermediate)->is_addition_ = true;
+        num_removed++;
 
-        // add new intermediate to the list of intermediates
-        old_to_new_links[this_intermediate] = as_link(new_intermediate);
+        // set lhs to a null pointer to mark for removal
+        set<Term*> tmp_decl_term = tmp_decl_terms[temp];
+        if (!tmp_decl_term.empty()) {
+            for (auto &term: tmp_decl_term) {
+                term->lhs() = nullptr;
+            }
+        }
+
+        // add to the list of temps to remove
+        to_remove.insert(temp);
     }
-    return old_to_new_links;
-}
 
-void PQGraph::remove_terms(const set<Term*> &terms_to_remove) {
-    for (auto &[name, eq] : equations_) {
+    if (num_removed > 0) {
+
+        // remove all terms with lhs set to nullptr if any are found
+        for (auto &[name, eq]: equations_) {
+            vector<Term> new_terms;
+            for (auto &term: eq.terms()) {
+                if (term.lhs() != nullptr)
+                    new_terms.push_back(term.clone());
+            }
+            eq.terms() = new_terms;
+        }
+
+        // sort to_remove by decreasing id
+        vector<ConstLinkagePtr> sorted_to_remove;
+        sorted_to_remove.reserve(to_remove.size());
+        sorted_to_remove.insert(sorted_to_remove.begin(), to_remove.begin(), to_remove.end());
+        std::sort(sorted_to_remove.begin(), sorted_to_remove.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
+            return a->id() > b->id();
+        });
+
+        map<string, linkage_set> new_saved_linkages;
+        cout << "Removing unused temps:" << endl;
+        for (size_t i = 0; i < sorted_to_remove.size(); i++) {
+            ConstLinkagePtr temp = sorted_to_remove[i];
+            cout << "    " << temp->str() << " = " << *temp << endl;
+
+            // replace nested temps to remove
+            for (size_t j = i + 1; j < sorted_to_remove.size(); j++) {
+                sorted_to_remove[i] = as_link(sorted_to_remove[i]->replace_id(sorted_to_remove[j], -1).first);
+            }
+
+            // unset the temp in saved_linkages
+            for (auto &[type, linkages]: saved_linkages_) {
+                for (const auto &link: linkages) {
+                    if (*link == *temp) continue; // skip if temp is the same
+                    if (link->id() == -1) continue; // skip if id is -1
+
+                    ConstVertexPtr new_link = as_link(link)->replace_id(temp, -1).first;
+                    if (new_link->id() != -1)
+                        new_saved_linkages[type].insert(as_link(new_link));
+                }
+            }
+
+            // unset the temp in all equations
+            // get list of keys in equations
+            vector<string> eq_keys = get_equation_keys();
+
+            #pragma omp parallel for schedule(guided) shared(equations_, eq_keys, temp) default(none)
+            for (const auto& name : eq_keys) {
+                Equation &eq = equations_[name]; // get equation
+                for (auto &term: eq.terms()) {
+
+                    bool made_replacement = false;
+                    // start with lhs
+                    if (term.lhs() != nullptr && term.lhs()->is_linked()) {
+                        // find the temp in the lhs
+                        auto [new_lhs, replaced] = as_link(term.lhs())->replace_id(temp, -1);
+                        if (replaced) {
+                            term.lhs() = new_lhs;
+                            made_replacement = true;
+                        }
+                    }
+                    if (term.eq() != nullptr && term.eq()->is_linked()) {
+                        // find the temp in the eq
+                        auto [new_eq, replaced] = as_link(term.eq())->replace_id(temp, -1);
+                        if (replaced) {
+                            term.eq() = new_eq;
+                            made_replacement = true;
+                        }
+                    }
+
+                    // now do the same for rhs
+                    for (auto &op: term.rhs()) {
+                        if (op != nullptr && op->is_linked()) {
+                            // find the temp in the rhs
+                            auto [new_op, replaced] = as_link(op)->replace_id(temp, -1);
+                            if (replaced) {
+                                op = new_op;
+                                made_replacement = true;
+                            }
+                        }
+                    }
+
+                    // if made any replacement, reordering is necessary
+                    if (made_replacement) {
+                        term.request_update();
+                        term.reorder();
+                        term.term_linkage()->forget(); // forget the link history for memory efficiency
+                    }
+                }
+            }
+        }
+
+        // overwrite saved_linkages
+        saved_linkages_ = new_saved_linkages;
+        cout << endl; // print newline after all removals
+    }
+
+    // remove all terms with lhs set to nullptr if any are found
+    for (auto &[name, eq]: equations_) {
         vector<Term> new_terms;
-        for (auto &term : eq.terms()) {
-            if (!(terms_to_remove.count(&term) > 0)) {
+        for (auto &term: eq.terms()) {
+            if (term.lhs() != nullptr) {
+                term.reorder(true);
                 new_terms.push_back(term);
             }
         }
         eq.terms() = new_terms;
     }
-}
 
-void PQGraph::process_and_merge_intermediates(const std::unordered_map<ConstLinkagePtr, vector<ConstLinkagePtr>, LinkageHash, LinkageEqual> &merge_map,
-                                              std::unordered_map<ConstLinkagePtr, pair<vector<Term *>, vector<Term *>>, LinkageHash, LinkageEqual> &intermediate_terms) {
-    set<Term*> terms_to_remove;
-    std::unordered_map<ConstLinkagePtr, vector<Term>, LinkageHash, LinkageEqual> new_inter_terms_map;
+    if (opt_level_ >= 6) {
+        cout << "Fusing operators in terms" << endl;
+        for (auto &[name, eq]: equations_) {
+            for (auto &term: eq.terms()) {
+                // fuse the term linkage
+                LinkagePtr term_link = as_link(term.term_linkage()->clone());
+                if (!term_link->is_temp()) continue;
+                else term_link->fuse();
 
-    for (const auto &[this_intermediate, other_intermediates] : merge_map) {
-        VertexPtr new_intermediate = this_intermediate->clone();
-        as_link(new_intermediate)->id() = -1;
-
-        for (const auto &other_intermediate : other_intermediates) {
-            auto &[other_terms,other_decl_terms] = intermediate_terms.at(other_intermediate);
-
-            // add declaration terms for formatting with new intermediate
-            for (auto &term : other_decl_terms) {
-                new_inter_terms_map[this_intermediate].emplace_back(*term);
-                terms_to_remove.insert(term);
-            }
-
-            // remove terms to be merged
-            for (auto &term : other_terms) {
-                terms_to_remove.insert(term);
-            }
-
-            // remove declaration term for this intermediate
-            auto &[this_terms,this_decl_terms] = intermediate_terms.at(this_intermediate);
-            for (auto &term : this_decl_terms) {
-                new_inter_terms_map[this_intermediate].emplace_back(*term);
-                terms_to_remove.insert(term);
-            }
-
-        }
-
-        update_saved_linkages(this_intermediate, other_intermediates);
-    }
-
-    remove_terms(terms_to_remove);
-    add_new_terms(new_inter_terms_map, merge_map);
-}
-
-void PQGraph::replace_old_intermediate(std::map<string, Equation> &equations, const std::unordered_map<ConstLinkagePtr, ConstLinkagePtr> &old_to_new_links) {
-    for (auto &[name, eq] : equations) {
-        for (auto &term : eq.terms()) {
-            for (const auto &[old_link, new_link] : old_to_new_links) {
-                for (auto &op : term.rhs()) {
-                    if (op->is_linked() && as_link(op)->find_link(old_link)) {
-                        LinkagePtr new_op = as_link(op->clone());
-                        LinkagePtr new_link_clone = as_link(new_link->clone());
-                        new_link_clone->replace_lines(*new_op);
-
-                        new_op->replace_link(old_link, new_link);
-                        op = new_op;
-                    }
+                if (term_link->is_expandable()) {
+                    term.rhs() = term_link->link_vector();
+                } else {
+                    term.rhs() = {term_link};
                 }
-                if (term.lhs()->is_linked() && as_link(term.lhs())->find_link(old_link)) {
-                    LinkagePtr new_lhs = as_link(term.lhs()->clone());
-                    LinkagePtr new_link_clone = as_link(new_link->clone());
-                    new_link_clone->replace_lines(*new_lhs);
-                    new_lhs->replace_link(new_link_clone, new_link);
-                    term.lhs() = new_lhs;
-                }
-                if (term.eq() && term.eq()->is_linked() && as_link(term.eq())->find_link(old_link)) {
-                    LinkagePtr new_eq = as_link(term.eq()->clone());
-                    LinkagePtr new_link_clone = as_link(new_link->clone());
-                    new_link_clone->replace_lines(*new_eq);
-                    new_eq->replace_link(new_link_clone, new_link);
-                    term.eq() = new_eq;
-                }
+                term.reorder(true);
             }
         }
     }
+
+    size_t num_removed_total = num_removed;
+    while (num_removed > 0) {
+        num_removed = prune(); // recursively prune until no more temps are removed
+        num_removed_total += prune();
+    }
+
+    return num_removed_total;
 }
 
-void PQGraph::merge_intermediates2() {
-    return; // not functional yet
-            
-    // Retrieve all intermediates
-    linkage_set intermediates = collect_intermediates();
-    if (intermediates.empty()) {
-        cout << "Intermediates not found." << endl;
-        return;
-    }
+pair<set<Term *>, set<Term*>> PQGraph::get_matching_terms(const ConstLinkagePtr &intermediate) {
+    // grab all terms with this tmp
 
-    // Get all terms associated with each intermediate
-    auto intermediate_terms = get_intermediate_terms(intermediates);
-    if (intermediate_terms.empty()) {
-        cout << "Intermediates have no terms." << endl;
-        return;
-    }
+    // initialize vector of term pointers
+    set<Term*> tmp_terms;
 
-    // Find intermediates with the same connectivity
-    linkage_set tested_linkages;
-    auto merge_map = find_mergeable_intermediates(intermediate_terms, tested_linkages);
-    if (merge_map.empty()) {
-        cout << "Intermediates cannot be merged." << endl;
-        return;
-    }
+    vector<string> eq_keys = get_equation_keys();
+#pragma omp parallel for schedule(guided) default(none) shared(equations_, eq_keys, tmp_terms, intermediate)
+    for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
+        // get equation
+        Equation &equation = equations_[eq_name]; // get equation
 
-    // print intermediates to merge
-    cout << "Intermediates to merge:" << endl;
-    for (const auto &[this_intermediate, other_intermediates] : merge_map) {
-        cout << "  " << this_intermediate->str() << " -> \n";
-        for (const auto &other_intermediate : other_intermediates) {
-            cout << "\t" << other_intermediate->str() << " = " << other_intermediate->tot_str() << endl;
-            LinkagePtr formatted_other = as_link(other_intermediate->clone());
-            formatted_other->replace_lines(*this_intermediate);
-            cout << "\t" << formatted_other->str() << " = " << formatted_other->tot_str() << endl;
+        // get all terms with this tmp
+        set<Term*> tmp_terms_local = equation.get_temp_terms(intermediate);
+#pragma omp critical
+        {
+            // add terms to tmp_terms
+            tmp_terms.insert(tmp_terms_local.begin(), tmp_terms_local.end());
         }
-        cout << endl;
-    }
-    cout << flush;
 
-    // Process and merge intermediates
-    process_and_merge_intermediates(merge_map, intermediate_terms);
+    }
+
+    set<Term*> tmp_decl_terms;
+    set<Term*> pruned_tmp_terms;
+    for (auto &term : tmp_terms) {
+        if (term->lhs()->same_temp(intermediate) && term->is_assignment_)
+            tmp_decl_terms.insert(term);
+        else pruned_tmp_terms.insert(term);
+    }
+
+    return {pruned_tmp_terms, tmp_decl_terms};
+}
+
+size_t PQGraph::merge_terms() {
+
+    if (opt_level_< 5)
+        return 0; // do not merge terms if not allowed
+
+    print_guard guard;
+    if (print_level_ < 2) {
+        guard.lock();
+    }
+
+    // iterate over equations and merge terms
+    size_t num_merged = 0;
+    vector<string> eq_keys = get_equation_keys();
+#pragma omp parallel for reduction(+:num_merged) default(none) shared(equations_, eq_keys)
+    for (const auto &key: eq_keys) {
+        Equation &eq = equations_[key];
+        if (eq.is_temp_equation_) continue; // skip tmps equation
+
+        num_merged += eq.merge_terms(); // merge terms with same rhs up to a permutation
+    }
+    collect_scaling(); // collect new scalings
+
+    if (num_merged > 0) cout << "Merged " << num_merged << " terms" << endl;
+
+    return num_merged;
+}
+
+double PQGraph::common_coefficient(set<Term*> &terms) {
+
+    return 1.0; // do not modify coefficients for now
+
+/*    // make a count of the coefficients
+    map<string, size_t> coeff_counts;
+    for (Term* term_ptr: terms) {
+        Term& term = *term_ptr;
+
+        if ((fabs(term.coefficient_) - 1e-10) < 1e-10)
+            continue; // skip terms with coefficient of 0
+        size_t precision = minimum_precision(fabs(term.coefficient_));
+        string coeff_str = to_string_with_precision(precision);
+        coeff_counts[coeff_str]++;
+    }
+
+    // find the most common coefficient
+    string most_common_coeff = "1.00"; // default to 1
+    size_t most_common_coeff_count = 1;
+    for (const auto &[coeff, count]: coeff_counts) {
+        if (count > most_common_coeff_count) {
+            most_common_coeff = coeff;
+            most_common_coeff_count = count;
+        }
+    }
+
+    // get common coefficient
+    double common_coefficient = stod(most_common_coeff);
+    if (common_coefficient <= 1e-8)
+        return 1.0; // do not modify coefficients if any are close to 0
+
+    return common_coefficient;*/
 }
