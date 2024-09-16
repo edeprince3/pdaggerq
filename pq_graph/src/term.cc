@@ -257,7 +257,7 @@ namespace pdaggerq {
 
         // expand linkage into vector of vertices
         if (term_link->is_expandable()) {
-            rhs_ = as_link(term_link)->link_vector();
+            rhs_ = term_link->link_vector();
         } else if (term_link->is_linked() && !term_link->is_temp() && !term_link->is_addition()) {
             rhs_ = {as_link(term_link)->left(), as_link(term_link)->right()};
         } else {

@@ -124,7 +124,7 @@ namespace pdaggerq {
             if (!left_->is_expandable() && !fully_expand) {
                 result.push_back(left_); // if not fully expanding, add if an intermediate
             } else {
-                const vector<ConstVertexPtr> &left_vec = as_link(left_)->link_vector(regenerate, fully_expand);
+                const vector<ConstVertexPtr> &left_vec = left_->link_vector(regenerate, fully_expand);
                 result.insert(result.end(), left_vec.begin(), left_vec.end());
             }
         } else if (!left_->empty()){
@@ -136,7 +136,7 @@ namespace pdaggerq {
             if (!right_->is_expandable() && !fully_expand) {
                 result.push_back(right_); // if not fully expanding, add if an intermediate
             } else {
-                const vector<ConstVertexPtr> &right_vec = as_link(right_)->link_vector(regenerate, fully_expand);
+                const vector<ConstVertexPtr> &right_vec = right_->link_vector(regenerate, fully_expand);
                 result.insert(result.end(), right_vec.begin(), right_vec.end());
             }
         } else if (!right_->empty()){
@@ -201,7 +201,6 @@ namespace pdaggerq {
 
         bool test_fusion = !left->is_temp() && !right->is_temp();
         test_fusion &= !left->is_addition() && !right->is_addition();
-        test_fusion &= !left->is_constant() && !right->is_constant();
         test_fusion &= is_addition();
 
         // check if the left and right share the same vertex
@@ -212,8 +211,8 @@ namespace pdaggerq {
             as_link(left)->fuse(); as_link(right)->fuse();
 
             // check if any vertex in the left is in the right
-            vector<ConstVertexPtr> left_vec = as_link(left)->link_vector();
-            vector<ConstVertexPtr> right_vec = as_link(right)->link_vector();
+            vector<ConstVertexPtr> left_vec = left->link_vector();
+            vector<ConstVertexPtr> right_vec = right->link_vector();
 
             std::sort(left_vec.begin(), left_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
                 return a->name() < b->name();

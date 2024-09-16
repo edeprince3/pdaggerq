@@ -353,7 +353,7 @@ namespace pdaggerq {
          * @return vector of vertices
          * @note this function is recursive
          */
-        vector<ConstVertexPtr> link_vector(bool regenerate = false, bool fully_expand = false) const;
+        vector<ConstVertexPtr> link_vector(bool regenerate = false, bool fully_expand = false) const override;
 
         /**
          * return a vector of vertices in order

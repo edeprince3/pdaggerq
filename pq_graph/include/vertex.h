@@ -395,6 +395,7 @@ namespace pdaggerq {
         virtual bool is_temp() const { return false; }
         virtual bool is_addition() const { return false; } // whether the linkage is an addition
         virtual bool is_expandable() const { return false; } // whether the linkage is expandable
+        virtual vector<ConstVertexPtr> link_vector(bool regenerate = false, bool fully_expand = false) const { return {shared_from_this()}; }
         virtual bool is_reused() const { return false; } // whether the linkage is reused
         virtual size_t depth() const { return 0; }
         virtual bool &is_addition() { static bool null = false; null = false; return null; } // whether the linkage is an addition
