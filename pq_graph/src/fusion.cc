@@ -474,9 +474,10 @@ struct LinkMerger {
             vector<vector<LinkInfo>> merge_infos;
             for (auto &merge_link: merge_links) {
                 auto &merge_info = link_tracker_.link_track_map_[merge_link];
-                // sort merge infos by link string
+                // sort merge infos by hash string of the link
                 std::sort(merge_info.begin(), merge_info.end(), [](const LinkInfo &a, const LinkInfo &b) {
-                        return a.link->name() < b.link->name();
+                        constexpr LinkageHash link_hash;
+                        return link_hash.string_hash(a.link) < link_hash.string_hash(b.link);
                         });
                 merge_infos.push_back(merge_info);
             }
@@ -489,14 +490,15 @@ struct LinkMerger {
                 // build merged vertex
                 VertexPtr merged_vertex = target_infos[i].link->shallow();
                 long max_id = link_tracker_.max_ids_[target_link->type()]; //merged_vertex->id();
+                merged_vertex->id() = -1;
 
                 Term *target_term = target_infos[i].term;
                 string merged_pq = target_term->original_pq_;
                 for (auto &merge_info: merge_infos) {
                     LinkagePtr target_vertex = as_link(merge_info[i].link->shallow());
                     Term *merge_term = merge_info[i].term;
-
                     max_id = std::max(max_id, target_vertex->id());
+                    target_vertex->id() = -1;
 
                     // get ratio of coefficients
                     double ratio = merge_term->coefficient_ / target_term->coefficient_;
@@ -504,12 +506,12 @@ struct LinkMerger {
                          merged_vertex = merged_vertex + ratio * target_vertex;
                     else merged_vertex = merged_vertex + target_vertex;
                     as_link(merged_vertex)->fuse();
+
+                    // add the pq string to track evaluation
                     merged_pq += Term::make_einsum ? "\n    # " : "\n    // ";
                     merged_pq += string(merge_term->lhs()->name().size(), ' ');
                     merged_pq += " += " + merge_term->original_pq_;
-
                 }
-
                 bool last_add_bool = merged_vertex->is_addition();
                 as_link(merged_vertex)->copy_misc(target_infos[i].link);
                 as_link(merged_vertex)->is_addition() = last_add_bool;
@@ -674,7 +676,6 @@ size_t PQGraph::prune() {
 
     size_t num_removed = 0;
     linkage_set to_remove;
-    cout << "Removing unused temps:" << endl;
     for (const auto & [temp, terms] : matching_terms) {
 
         // remove (regardless of use) if temp has only one pure vertex
@@ -697,7 +698,6 @@ size_t PQGraph::prune() {
         }
 
         num_removed++;
-        cout << "    " << temp->str() << " = " << *temp << endl;
 
         // set lhs to a null pointer to mark for removal
         set<Term*> tmp_decl_term = tmp_decl_terms[temp];
@@ -732,6 +732,7 @@ size_t PQGraph::prune() {
         });
 
         map<string, linkage_set> new_saved_linkages;
+        cout << "Removing unused temps:" << endl;
         for (size_t i = 0; i < sorted_to_remove.size(); i++) {
             // replace nested temps to remove
             for (size_t j = i + 1; j < sorted_to_remove.size(); j++) {
@@ -739,7 +740,7 @@ size_t PQGraph::prune() {
             }
 
             ConstLinkagePtr temp = sorted_to_remove[i];
-
+            cout << "    " << temp->str() << " = " << *temp << endl;
 
             // unset the temp in saved_linkages
             for (auto &[type, linkages]: saved_linkages_) {
@@ -804,7 +805,6 @@ size_t PQGraph::prune() {
     }
 
     if (opt_level_ >= 6) {
-        cout << "Fusing operators in terms" << endl;
         for (auto &[name, eq]: equations_) {
             for (auto &term: eq.terms()) {
                 // fuse the term linkage

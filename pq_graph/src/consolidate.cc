@@ -466,6 +466,8 @@ void PQGraph::substitute(bool ignore_declarations, bool format_sigma, bool only_
                 cout << "Fused " << num_fused << " terms." << endl;
             }
 
+            prune();
+
             Term::max_depth_ = ++current_depth; // increase max depth
 
             {
@@ -594,6 +596,7 @@ PQGraph PQGraph::clone() const {
 
 void PQGraph::make_scalars() {
 
+    cout << "Finding scalars..." << flush;
     // find scalars in all equations and substitute them
     linkage_set scalars = saved_linkages_["scalar"];
     for (auto &[name, eq]: equations_) {
@@ -601,6 +604,7 @@ void PQGraph::make_scalars() {
         if (name == "scalar") continue;
         eq.make_scalars(scalars, temp_counts_["scalar"]);
     }
+    cout << " Done" << endl;
 
     // create new equation for scalars if it does not exist
     if (equations_.find("scalar") == equations_.end()) {
@@ -653,6 +657,9 @@ void PQGraph::make_scalars() {
         // add term to scalars equation
         add_tmp(scalar, equations_["scalar"]);
         saved_linkages_["scalar"].insert(scalar);
+
+        // print scalar
+        cout << scalar->str() << " = " << *scalar << endl;
     }
 
     // remove comments from scalars

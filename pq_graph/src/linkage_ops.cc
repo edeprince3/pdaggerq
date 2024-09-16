@@ -194,41 +194,14 @@ namespace pdaggerq {
         if (is_temp() || empty()) return;
         if (left_->empty() && right_->is_linked()) { *this = *as_link(right_); return; }
         if (right_->empty() && left_->is_linked()) { *this = *as_link(left_); return; }
-        if (left_->empty()) { *this = *as_link(1.0 * right_); return; }
-        if (right_->empty()) { *this = *as_link(1.0 * left_); return; }
+        if (left_->empty() || right_->empty()) return;
 
         VertexPtr left  =  left_->shallow();
         VertexPtr right = right_->shallow();
 
-        // merge constants
-        merge_constants();
-
-        // recursively fuse the left and right vertices
-        if (left_->is_linked())  as_link( left)->fuse();
-        if (right_->is_linked()) as_link(right)->fuse();
-
-        // if left is a constant, distribute it to the right
-        if (left->is_constant() && right->is_linked() && !is_addition() && right->is_addition()) {
-            VertexPtr right_left = as_link(right_)->left_->shallow();
-            VertexPtr right_right = as_link(right_)->right_->shallow();
-            if (!right_left->empty())   left = left * right_left;
-            if (!right_right->empty()) right = left * right_right;
-            addition_ = true;
-        }
-
-        // if right is a constant, distribute it to the left
-        if (right->is_constant() && left->is_linked() && !is_addition() && left->is_addition()) {
-            VertexPtr left_left = as_link(left_)->left_->clone();
-            VertexPtr left_right = as_link(left_)->right_->clone();
-            if (!left_left->empty()) right = right * left_left;
-            if (!left_right->empty()) left = right * left_right;
-            addition_ = true;
-        }
-
         bool test_fusion = !left->is_temp() && !right->is_temp();
         test_fusion &= !left->is_addition() && !right->is_addition();
         test_fusion &= !left->is_constant() && !right->is_constant();
-        test_fusion &= !left->empty() && !right->empty();
         test_fusion &= is_addition();
 
         // check if the left and right share the same vertex
@@ -290,32 +263,26 @@ namespace pdaggerq {
 
                     right = link(common);
                     if (right->is_linked()) {
-                        as_link(right)->fuse();
                         right = as_link(right)->best_permutation()->shallow();
                     }
                     left = new_left_link + new_right_link;
-                    as_link(left)->fuse();
                     left = as_link(left)->best_permutation()->shallow();
                     made_fusion = true;
                 }
             }
         }
 
-        // recursively fuse the left and right vertices
-        if ( left_->is_linked()) as_link( left)->fuse();
-        if (right_->is_linked()) as_link(right)->fuse();
+        // if no fusion made, fuse the left and right vertices recursively
+        if (!made_fusion) {
+            if (left->is_linked())  as_link( left)->fuse();
+            if (right->is_linked()) as_link(right)->fuse();
+        }
 
         // set the left and right vertices
         left_ = left; right_ = right;
         addition_ = addition_ && !made_fusion; // if fusion was made, this is not an addition
         forget(); // forget the linkage memory
-
-        ConstVertexPtr best_perm = best_permutation();
-        if (*best_perm != *this) {
-            *this = *best_permutation();
-        } else {
-            set_links();
-        }
+        set_links();
     }
 
     ConstVertexPtr Linkage::find_link(const ConstVertexPtr &target_vertex, bool only_temps) const {
