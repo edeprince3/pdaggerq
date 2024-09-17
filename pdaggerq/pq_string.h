@@ -215,10 +215,6 @@ class pq_string {
     static inline
     char amplitude_types[] {'l', 'r', 't', 'D'};
 
-    // specify left and right sigma operators for pq_graph
-    static inline std::vector<char> left_sigma_types {'l', 'm'};
-    static inline std::vector<char> right_sigma_types {'r', 's'};
-
     /**
      *
      * map amplitude_types onto lists of amplitudes
@@ -322,7 +318,7 @@ class pq_string {
      * print string information to stdout
      *
      */
-    void print();
+    void print() const;
 
     /**
      *

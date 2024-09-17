@@ -200,7 +200,7 @@ bool pq_string::is_boson_normal_order() {
 }
 
 // print string information
-void pq_string::print() {
+void pq_string::print() const {
 
     if ( skip ) return;
 
@@ -213,17 +213,16 @@ void pq_string::print() {
         }
     }
 
-    if ( factor < 0.0 ) {
-        factor = fabs(factor);
-        sign *= -1;
-    }
+    double fac = fabs(factor);
+    int sgn = factor < 0.0 ? -sign : sign;
+
     printf("    ");
     printf("//     ");
-    printf("%c", sign > 0 ? '+' : '-');
+    printf("%c", sgn > 0 ? '+' : '-');
     printf(" ");
 
-    int precision = minimum_precision(factor);
-    std::string factor_str = to_string_with_precision(fabs(factor), precision);
+    int precision = minimum_precision(fac);
+    std::string factor_str = to_string_with_precision(fabs(fac), precision);
     printf("%s", factor_str.c_str());
     printf(" ");
 
@@ -314,19 +313,15 @@ void pq_string::print() {
     }
 
     // print integrals
-    for (auto &ints_pair : ints) {
-        std::string type = ints_pair.first;
-        std::vector<integrals> &ints_vec = ints_pair.second;
-        for (integrals & integral : ints_vec) {
+    for (const auto &[type, ints_vec] : ints) {
+        for (const integrals & integral : ints_vec) {
             integral.print(type);
         }
     }
 
     // print amplitudes
-    for (auto &amps_pair : amps) {
-        char type = amps_pair.first;
-        std::vector<amplitudes> &amps_vec = amps_pair.second;
-        for (amplitudes & amp : amps_vec) {
+    for (const auto &[type, amps_vec] : amps) {
+        for (const amplitudes & amp : amps_vec) {
             amp.print(type);
         }
     }
