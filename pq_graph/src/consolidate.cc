@@ -63,6 +63,28 @@ Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double
     return equation.terms().back();
 }
 
+void PQGraph::forget() {
+    // forget linkage history of all linkages
+    for (auto &linkage: all_links_)
+        linkage->forget(true);
+
+    // forget all linkages in equations
+    for (auto & [name, eq] : equations_) {
+        for (auto &term: eq.terms()) {
+            if (term.lhs()->is_linked()) as_link(term.lhs())->forget(true);
+            for (auto &op: term.rhs())
+                if (op->is_linked()) as_link(op)->forget(true);
+        }
+    }
+
+    // forget all saved linkages
+    for (auto & [type, linkages] : saved_linkages_) {
+        for (auto &linkage: linkages)
+            linkage->forget(true);
+    }
+
+}
+
 void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     // begin timings
@@ -485,6 +507,9 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
             // regenerate all valid linkages with the new depth
             make_all_links(true);
+
+            // clear linkage histories
+            forget();
 
             // update test linkages
             test_linkages = all_links_ - ignore_linkages;

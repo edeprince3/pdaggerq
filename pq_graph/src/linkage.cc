@@ -573,9 +573,9 @@ namespace pdaggerq {
 
         if (forget_all) {
             // clear subgraphs
-            if (left_->is_linked())
+            if (left_ && left_->is_linked() && !left_->empty())
                 as_link(left_)->forget(true);
-            if (right_->is_linked())
+            if (right_ && right_->is_linked() && !right_->empty())
                 as_link(right_)->forget(true);
         }
     }

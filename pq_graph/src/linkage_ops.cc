@@ -143,8 +143,8 @@ namespace pdaggerq {
             result.push_back(right_);
         }
 
-        // copy the result vector to the link_vector if the size is less than 10
-        if (!low_memory_) {
+        // copy the result vector to the link_vector if the size is less than 16
+        if (!low_memory_ && depth_ <= 16) {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             if (fully_expand)
@@ -516,7 +516,7 @@ namespace pdaggerq {
         if (is_temp()) return result;
 
         // do not store permutations if the depth is too large (sizeof Linkage is 344B -> 344B * 2^16 = 22MB)
-        bool store_permutations = !low_memory_;
+        bool store_permutations = !low_memory_ && depth_ <= 16;
 
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {

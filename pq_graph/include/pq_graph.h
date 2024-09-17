@@ -260,6 +260,11 @@ namespace pdaggerq {
         void make_all_links(bool recompute);
 
         /**
+         * Forget the linkage history within all linkages to free memory from lazy evaluation
+         */
+        void forget();
+
+        /**
          * Print all terms in each equation
          */
         void print(string print_type = "");
