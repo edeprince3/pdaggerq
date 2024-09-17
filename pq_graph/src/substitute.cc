@@ -25,9 +25,7 @@
 #include <map>
 #include <iostream>
 #include <memory>
-
-#include "../include/term.h"
-#include "../include/equation.h"
+#include "../include/pq_graph.h"
 
 using std::next_permutation;
 using std::string;
@@ -38,6 +36,7 @@ using std::make_shared;
 using std::shared_ptr;
 using std::to_string;
 using std::cout;
+using std::flush;
 using std::endl;
 using std::max;
 
@@ -156,16 +155,14 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     if (rhs_.empty()) return false;
 
     if (lhs_->is_temp()){
-        const auto &lhs_link = as_link(lhs_);
 
         // do not allow substitution to intermediates with smaller ids unless they are different types
-        if(lhs_link->id_ <= linkage->id_) {
-            if (lhs_link->is_reused() == linkage->is_reused() &&
-                lhs_link->is_scalar() == linkage->is_scalar()) return false;
+        if(lhs_->id() <= linkage->id()) {
+            if (lhs_->type() == linkage->type()) return false;
         }
 
-        // do not allow substitution of scalar intermediates with non-scalar linkages
-        if (lhs_link->is_scalar() && (!linkage->is_scalar() || !linkage->is_reused())) return false;
+        // do not allow substitution of reused intermediates with non-reused intermediates
+        if (lhs_->type() != "temp" && linkage->type() == "temp") return false;
     }
 
     // get total vector of linkage vertices (without expanding nested linkages)
@@ -210,20 +207,21 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
     for (const auto &graph_perm : graph_perms) {
         // substitute the linkage in the permutation (if possible)
         graph_perm->forget();
-        auto [found_linkage, found] = graph_perm->find_link(linkage);
-        if (!found) continue; // skip if linkage is not found in permutation
+        auto matching_linkages = graph_perm->find_links(linkage);
+        if (matching_linkages.empty()) continue; // skip if linkage is not found in permutation
         else madeSub = true;
 
-        // otherwise, make the substitution
-        VertexPtr new_link = found_linkage->shallow();
-        as_link(new_link)->copy_misc(linkage);
-        auto [new_term_linkage, replaced] = graph_perm->replace(found_linkage, new_link);
+        // otherwise, make the substitution for each matching linkage
+        ConstLinkagePtr new_term_linkage = graph_perm;
+        for (const auto &found_linkage : matching_linkages) {
+            VertexPtr new_link = found_linkage->shallow();
+            as_link(new_link)->copy_misc(linkage);
+            new_term_linkage = as_link(new_term_linkage->replace(found_linkage, new_link).first);
+        }
 
         // create the best permutation of the substitution and break
-        if (replaced) {
-            best_linkage = as_link(new_term_linkage)->best_permutation();
-            break;
-        }
+        best_linkage = as_link(new_term_linkage)->best_permutation();
+        break;
     }
 
     // if a substitution was made, replace the linkage in the term
@@ -236,6 +234,83 @@ bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
 
     return madeSub;
 
+}
+
+void PQGraph::make_scalars() {
+
+    cout << "Finding scalars..." << flush;
+    // find scalars in all equations and substitute them
+    linkage_set scalars = saved_linkages_["scalar"];
+    for (auto &[name, eq]: equations_) {
+        // do not make scalars in scalar equation
+        if (name == "scalar") continue;
+        eq.make_scalars(scalars, temp_counts_["scalar"]);
+    }
+    cout << " Done" << endl;
+
+    // create new equation for scalars if it does not exist
+    if (equations_.find("scalar") == equations_.end()) {
+        equations_.emplace("scalar", Equation(make_shared<Vertex>("scalar"), {}));
+        equations_["scalar"].is_temp_equation_ = true;
+    }
+
+    if (Equation::no_scalars_) {
+
+        cout << "Removing scalars from equations..." << endl;
+
+        // remove scalar equation
+        equations_.erase("scalar");
+
+        // remove scalars from all equations
+        vector<string> to_remove;
+        for (auto &[name, eq]: equations_) {
+            vector<Term> new_terms;
+            for (auto &term: eq.terms()) {
+                bool has_scalar = false;
+                for (auto &op: term.rhs()) {
+                    if (op->is_linked() && op->is_scalar()) {
+                        has_scalar = true;
+                        break;
+                    }
+                }
+
+                if (!has_scalar)
+                    new_terms.push_back(term);
+            }
+            // if no terms left, remove equation
+            if (new_terms.empty())
+                to_remove.push_back(name);
+            else
+                eq.terms() = new_terms;
+        }
+
+        // remove equations
+        for (const auto &name: to_remove) {
+            cout << "Removing equation: " << name << " (no terms left after removing scalars)" << endl;
+            equations_.erase(name);
+        }
+
+        // remove scalars from saved linkages
+        scalars.clear();
+    }
+
+    // add new scalars to all linkages and equations
+    for (const auto &scalar: scalars) {
+        // add term to scalars equation
+        add_tmp(scalar, equations_["scalar"]);
+        saved_linkages_["scalar"].insert(scalar);
+
+        // print scalar
+        cout << scalar->str() << " = " << *scalar << endl;
+    }
+
+    // remove comments from scalars
+    for (Term &term: equations_["scalar"].terms())
+        term.comments() = {}; // comments should be self-explanatory
+
+    // collect scaling
+    collect_scaling(true);
+    is_assembled_ = true;
 }
 
 void Equation::make_scalars(linkage_set &scalars, long &n_temps) {
@@ -280,7 +355,7 @@ pair<ConstLinkagePtr,bool> Term::make_scalar(linkage_set &scalars, long &id) {
         new_scalar = as_link(scalar_link->shallow());
 
         // check if scalar is already in set of scalars for setting the id
-        long new_id = id;
+        long &new_id = id;
         auto scalar_pos = scalars.find(new_scalar);
         if (scalar_pos != scalars.end())
              new_id = scalar_pos->get()->id(); // if scalar is already in set of scalars, change the id

@@ -312,6 +312,11 @@ namespace pdaggerq {
         size_t prune();
 
         /**
+         * reindex the intermediates in the equations
+         */
+        void reindex();
+
+        /**
          * deep copy of the pq_graph
          * @return deep copy of the pq_graph
          */

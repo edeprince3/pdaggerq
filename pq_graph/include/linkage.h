@@ -481,12 +481,12 @@ namespace pdaggerq {
         pair<ConstVertexPtr, bool> replace_id(const ConstVertexPtr &target_vertex, long new_id, bool only_temps = true) const;
 
         /**
-         * goes down the tree and finds the target vertex
+         * goes down the tree and finds all occurences of the target vertex
          * @param target_vertex the vertex to find
          * @param only_temps whether to check only for temps
-         * @return the vertex if found, nullptr otherwise. Also returns a bool indicating if the vertex was found
+         * @return vector of all vertices that match the target
          */
-        pair<ConstVertexPtr, bool> find_link(const ConstVertexPtr &target_vertex, long search_depth = -1) const;
+        vector<ConstVertexPtr> find_links(const ConstVertexPtr &target_vertex, long search_depth = -1) const;
 
         /**
          * goes down the tree and returns true if any intermediate vertices have the target ids

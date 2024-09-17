@@ -594,79 +594,85 @@ PQGraph PQGraph::clone() const {
     return copy;
 }
 
-void PQGraph::make_scalars() {
+void PQGraph::reindex() {
 
-    cout << "Finding scalars..." << flush;
-    // find scalars in all equations and substitute them
-    linkage_set scalars = saved_linkages_["scalar"];
-    for (auto &[name, eq]: equations_) {
-        // do not make scalars in scalar equation
-        if (name == "scalar") continue;
-        eq.make_scalars(scalars, temp_counts_["scalar"]);
+    // find all occurences of intermediates
+    map<string, linkage_set> found_linkages;
+    for (auto & [name, eq] : equations_) {
+        for (auto & term : eq.terms()) {
+
+            // get all temps in term
+            auto temps = term.lhs()->get_temps();
+            for (auto & op : term.rhs()) {
+                auto op_temps = op->get_temps();
+                temps.insert(temps.end(), op_temps.begin(), op_temps.end());
+            }
+
+            // add temps to found linkages
+            for (auto & temp : temps) {
+                found_linkages[temp->type()].insert(temp);
+            }
+        }
     }
-    cout << " Done" << endl;
 
-    // create new equation for scalars if it does not exist
-    if (equations_.find("scalar") == equations_.end()) {
-        equations_.emplace("scalar", Equation(make_shared<Vertex>("scalar"), {}));
-        equations_["scalar"].is_temp_equation_ = true;
-    }
+    // reset temp_counts and saved linkages
+    temp_counts_.clear();
+    saved_linkages_.clear();
 
-    if (Equation::no_scalars_) {
+    // reindex intermediates
+    for (auto & [type, link_set] : found_linkages) {
+        linkage_map<ConstLinkagePtr> replacements;
+        vector<ConstLinkagePtr> linkages(link_set.begin(), link_set.end());
 
-        cout << "Removing scalars from equations..." << endl;
+        // sort linkages by id
+        std::sort(linkages.begin(), linkages.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
+            return a->id() < b->id();
+        });
 
-        // remove scalar equation
-        equations_.erase("scalar");
+        for (const auto& linkage : linkages) {
+            if (!linkage->is_temp()) continue; // skip non-intermediates
+            long new_id = ++temp_counts_[type];
+            if (new_id == linkage->id()) continue; // skip if id is the same (no need to reindex)
 
-        // remove scalars from all equations
-        vector<string> to_remove;
-        for (auto &[name, eq]: equations_) {
-            vector<Term> new_terms;
-            for (auto &term: eq.terms()) {
-                bool has_scalar = false;
-                for (auto &op: term.rhs()) {
-                    if (op->is_linked() && op->is_scalar()) {
-                        has_scalar = true;
-                        break;
+            LinkagePtr new_link = as_link(linkage->clone());
+            new_link->id() = new_id;
+
+            cout << "Reindexing " << linkage->str() << " to " << new_link->str() << endl;
+
+            replacements[linkage] = new_link;
+        }
+
+        for (auto & [original, replacement] : replacements) {
+            // save new linkages
+            saved_linkages_[type].insert(replacement);
+        }
+
+        // now replace index in all equations
+        for (auto & [name, eq] : equations_) {
+            for (auto & term : eq.terms()) {
+                if (term.lhs()->is_linked()){
+                    for (auto & [original, replacement] : replacements) {
+                        auto lhs_matches = as_link(term.lhs())->find_links(original);
+                        for (auto & lhs_match : lhs_matches) {
+                            term.lhs() = as_link(term.lhs())->replace_id(lhs_match, replacement->id()).first;
+                        }
                     }
                 }
-
-                if (!has_scalar)
-                    new_terms.push_back(term);
+                for (auto & op : term.rhs()) {
+                    if (op->is_linked()) {
+                        for (auto & [original, replacement] : replacements) {
+                            auto op_matches = as_link(op)->find_links(original);
+                            for (auto & op_match : op_matches) {
+                                op = as_link(op)->replace_id(op_match, replacement->id()).first;
+                            }
+                        }
+                    }
+                }
             }
-            // if no terms left, remove equation
-            if (new_terms.empty())
-                to_remove.push_back(name);
-            else
-                eq.terms() = new_terms;
+
+            // rearrange terms by new ids
+            eq.rearrange();
         }
-
-        // remove equations
-        for (const auto &name: to_remove) {
-            cout << "Removing equation: " << name << " (no terms left after removing scalars)" << endl;
-            equations_.erase(name);
-        }
-
-        // remove scalars from saved linkages
-        scalars.clear();
     }
-
-    // add new scalars to all linkages and equations
-    for (const auto &scalar: scalars) {
-        // add term to scalars equation
-        add_tmp(scalar, equations_["scalar"]);
-        saved_linkages_["scalar"].insert(scalar);
-
-        // print scalar
-        cout << scalar->str() << " = " << *scalar << endl;
-    }
-
-    // remove comments from scalars
-    for (Term &term: equations_["scalar"].terms())
-        term.comments() = {}; // comments should be self-explanatory
-
-    // collect scaling
-    collect_scaling(true);
-    is_assembled_ = true;
+    cout << endl;
 }

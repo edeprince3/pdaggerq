@@ -279,23 +279,28 @@ namespace pdaggerq {
         set_links();
     }
 
-    pair<ConstVertexPtr, bool> Linkage::find_link(const ConstVertexPtr &target_vertex, long search_depth) const {
-        if (target_vertex == nullptr) return {nullptr, false};
+    vector<ConstVertexPtr>  Linkage::find_links(const ConstVertexPtr &target_vertex, long search_depth) const {
+
+        if (target_vertex == nullptr) return {}; // if the target vertex is null, return an empty vector
+        if (this->depth() < target_vertex->depth()) return {}; // if the target vertex is deeper, it cannot be found
+
         bool found = *target_vertex == *this;
-        if (found) { return {this->shared_from_this(), true}; }
+        if (found) return {shared_from_this()}; // if this is the target vertex, return it
+
+        vector<ConstVertexPtr> links;
 
         if (search_depth > 0 || search_depth == -1) {
             search_depth = search_depth == -1 ? -1 : search_depth - 1;
             if (left_->is_linked()) {
-                const auto &[left, left_found] = as_link(left_)->find_link(target_vertex, search_depth);
-                if (left != nullptr) return {left, left_found};
+                const auto &left_links = as_link(left_)->find_links(target_vertex, search_depth);
+                links.insert(links.end(), left_links.begin(), left_links.end());
             }
             if (right_->is_linked()) {
-                const auto &[right, right_found] = as_link(right_)->find_link(target_vertex, search_depth);
-                if (right != nullptr) return {right, right_found};
+                const auto &right_links = as_link(right_)->find_links(target_vertex, search_depth);
+                links.insert(links.end(), right_links.begin(), right_links.end());
             }
         }
-        return {nullptr, false};
+        return links;
     }
 
     vector<ConstVertexPtr> Linkage::find_scalars() const {
@@ -639,9 +644,9 @@ namespace pdaggerq {
 
         // now add the subgraphs of the left and right vertices
         for (const auto &perm : top_perms) {
-            if (perm->depth() <= max_depth && !perm->is_addition()) {
+            if (perm->empty()) continue; // skip empty vertices
+            if (perm->depth() <= max_depth)
                 unique_subgraphs.insert(perm);
-            }
 
             if (perm->left_->is_linked() && !perm->left_->empty()) {
                 auto left_perms = as_link(perm->left_)->subgraphs(max_depth);

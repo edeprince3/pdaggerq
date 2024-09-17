@@ -181,9 +181,9 @@ namespace pdaggerq {
          * insert a linkage into the set
          * @param linkage linkage to insert
          */
-        auto insert(const ConstLinkagePtr &linkage) {
+        auto insert(const ConstVertexPtr &linkage) {
             std::lock_guard<std::mutex> lock(mtx_);
-            return linkages_.insert(linkage);
+            return linkages_.insert(as_link(linkage));
         }
 
         /**

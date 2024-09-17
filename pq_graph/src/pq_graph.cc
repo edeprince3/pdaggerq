@@ -706,6 +706,9 @@ namespace pdaggerq {
         update_timer.start();
         prune();
 
+        // reindex the intermediates
+        reindex();
+
         // set optimized flag to true
         is_optimized_ = true;
 

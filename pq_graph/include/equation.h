@@ -303,7 +303,7 @@ namespace pdaggerq {
          *      4) the rhs of the terms
          * @return sorted equation
          */
-        void rearrange(char type = 't');
+        void rearrange(char type = 'a');
 
         /**
          * Sorts tmps by the maximum id of the rhs in the linkage and the tmp itself

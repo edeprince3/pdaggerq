@@ -380,6 +380,8 @@ namespace pdaggerq {
     }
 
     void Equation::rearrange(char type) {
+
+
         // sort by conditionals, then by permutation type, then by number of operators, then by cost.
         // This is a stable sort, so the order of terms with the same cost will be preserved.
         std::stable_sort(terms_.begin(), terms_.end(), [](const Term &a, const Term &b) {
@@ -401,7 +403,11 @@ namespace pdaggerq {
         });
 
         // lastly, sort the terms by the maximum id of the tmps type in the term, then by the index of the term
-        sort_tmp_type(*this, type);
+        if (type == 'a') { // rearrange by all temps in order
+            sort_tmp_type(*this, 's');
+            sort_tmp_type(*this, 'r');
+            sort_tmp_type(*this, 't');
+        } else sort_tmp_type(*this, type); // else rearrange by the type of temp
     }
 
 } // pdaggerq
