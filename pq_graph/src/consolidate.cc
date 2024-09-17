@@ -201,7 +201,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             string eq_type; // get equation type
             if (is_scalar){
                 eq_type = "scalar";
-            } else if (!is_sigma && has_sigma_vecs_) {
+            } else if (!is_sigma && has_sigma_vecs_ && opt_level_ >= 3) {
                 eq_type = "reused";
                 linkage->reused_ = true;
             } else {
