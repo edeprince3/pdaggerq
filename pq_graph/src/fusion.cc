@@ -511,8 +511,10 @@ struct LinkMerger {
             for (size_t i = 0; i < target_infos.size(); i++) {
                 // build merged vertex
                 VertexPtr merged_vertex = target_infos[i].link->shallow();
-                long max_id = link_tracker_.max_ids_[target_link->type()]; //merged_vertex->id();
-                merged_vertex->id() = -1;
+                long max_id = link_tracker_.max_ids_[target_link->type()];
+                if (merged_vertex->type() == "temp")
+                    // only unset the id if the vertex is a temp
+                    merged_vertex->id() = -1;
 
                 Term *target_term = target_infos[i].term;
                 string merged_pq = target_term->original_pq_;
@@ -520,7 +522,10 @@ struct LinkMerger {
                     LinkagePtr target_vertex = as_link(merge_info[i].link->shallow());
                     Term *merge_term = merge_info[i].term;
                     max_id = std::max(max_id, target_vertex->id());
-                    target_vertex->id() = -1;
+
+                    if (target_vertex->type() == "temp")
+                        // only unset the id if the vertex is a temp
+                        target_vertex->id() = -1;
 
                     // get ratio of coefficients
                     double ratio = merge_term->coefficient_ / target_term->coefficient_;

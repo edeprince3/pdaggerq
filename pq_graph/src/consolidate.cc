@@ -196,7 +196,18 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             // copy linkage
             LinkagePtr linkage = as_link(test_linkages[i]->shallow());
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
-            string eq_type = is_scalar ? "scalar" : temp_type; // get equation type
+            bool is_sigma = linkage->is_sigma_;
+
+            string eq_type; // get equation type
+            if (is_scalar){
+                eq_type = "scalar";
+            } else if (!is_sigma && has_sigma_vecs_) {
+                eq_type = "reused";
+                linkage->reused_ = true;
+            } else {
+                eq_type = "temp";
+            }
+
             if (is_scalar) {
                 // if no scalars are allowed, skip this linkage
                 if (Equation::no_scalars_) {
@@ -206,14 +217,13 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 }
             }
 
-            if ((format_sigma && linkage->is_sigma_) || (only_scalars && !is_scalar)) {
+            if ((format_sigma && is_sigma) || (only_scalars && !is_scalar)) {
                 // when formatting for sigma vectors,
                 // we only keep linkages without a sigma vector and are not scalars
                 linkage->forget(); // clear linkage history
                 ignore_linkages.insert(linkage);
                 continue;
             }
-            linkage->reused_ = format_sigma;
 
             // set id of linkage
             long temp_id = temp_counts_[eq_type] + 1; // get number of temps
@@ -289,6 +299,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             }
 
             bool is_scalar = test_linkage->is_scalar(); // check if linkage is a scalar
+            bool is_reused = test_linkage->reused_; // check if linkage is reused
 
             // test if this is the best flop map seen
             int comparison = test_flop_map.compare(flop_map_);
@@ -297,7 +308,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
             // if we haven't made a substitution yet and this is either a
             // scalar or a sigma vector, keep it
-            if (format_sigma || (is_scalar && !Equation::no_scalars_)) keep = true;
+            if (is_reused || (is_scalar && !Equation::no_scalars_)) keep = true;
 
             // if the scaling is the same and it is allowed, set keep to true
             if (!keep && is_equiv && allow_equality) keep = true;
@@ -336,12 +347,8 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
                 link_to_sub = found_linkage;
 
-                // check if link is a scalar
-                bool is_scalar = link_to_sub->is_scalar();
-
                 // get number of temps for this type
-                string eq_type = is_scalar ? "scalar"
-                                           : temp_type;
+                string eq_type = link_to_sub->type();
 
                 // set linkage id
                 long temp_id = ++temp_counts_[eq_type];

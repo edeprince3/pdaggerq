@@ -101,7 +101,7 @@ namespace pdaggerq {
     Vertex::Vertex(const amplitudes &amp, char type) {
 
         // get order of amplitude
-        size_t order = (amp.n_annihilate <= amp.n_create) ? amp.n_create : amp.n_annihilate;
+        size_t order = std::max(amp.n_create, amp.n_annihilate);
 
         // set base name
         string base_name{type};
@@ -111,8 +111,6 @@ namespace pdaggerq {
             base_name_ += "_";
             base_name_ += to_string(amp.n_ph);
         }
-
-
 
         //determine if vertex is blocked
         bool is_range_blocked = pq_string::is_range_blocked;
@@ -132,14 +130,10 @@ namespace pdaggerq {
         vector<string> labels = amp.labels;
 
         // if this is a sigma vertex, add a sigma line
-        for (char sig_type : pq_string::left_sigma_types) {
-            if (type == sig_type)
-                labels.emplace(labels.begin(), "L");
-        }
-        for (char sig_type : pq_string::right_sigma_types) {
-            if (type == sig_type)
-                labels.emplace(labels.begin(), "R");
-        }
+        if (type == 'l')
+            labels.emplace(labels.begin(), "L");
+        else if (type == 'r')
+            labels.emplace(labels.begin(), "R");
 
         // only represent amplitudes as maps if they have a block
         format_map_ = !blk_string.empty();
