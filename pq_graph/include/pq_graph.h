@@ -247,8 +247,10 @@ namespace pdaggerq {
 
         /**
          * Substitute common linkages in each equation
+         * @param format_sigma whether to only substitute intermediates without sigma vectors
+         * @param only_scalars whether to only substitute scalar intermediates
          */
-        void substitute(bool ignore_declarations, bool format_sigma, bool only_scalars);
+        void substitute(bool format_sigma, bool only_scalars);
 
 
         /**

@@ -63,7 +63,7 @@ Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double
     return equation.terms().back();
 }
 
-void PQGraph::substitute(bool ignore_declarations, bool format_sigma, bool only_scalars) {
+void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     // begin timings
     total_timer.start();
@@ -190,7 +190,7 @@ void PQGraph::substitute(bool ignore_declarations, bool format_sigma, bool only_
          */
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
             ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
-            format_sigma, print_ratio, print_progress, only_scalars, ignore_declarations)
+            format_sigma, print_ratio, print_progress, only_scalars)
         for (int i = 0; i < n_linkages; ++i) {
 
             // copy linkage
@@ -237,7 +237,6 @@ void PQGraph::substitute(bool ignore_declarations, bool format_sigma, bool only_
 
             // include declaration for scaling?
             bool keep_declaration = !is_scalar && !format_sigma;
-            keep_declaration &= !ignore_declarations;
 
             // test if we made a valid substitution
             if (numSubs > 0) {

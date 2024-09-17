@@ -674,7 +674,7 @@ namespace pdaggerq {
         // substitute scalars first
         if (opt_level_ >= 1) {
             cout << "----- Substituting scalars -----" << endl;
-            substitute(false, format_sigma, true);
+            substitute(false, true);
         }
 
         if (opt_level_ >= 2) {
@@ -684,27 +684,19 @@ namespace pdaggerq {
                 cout << "----- Separating Intermediates for sigma-vector build -----" << endl;
             else cout << "----- Substituting intermediates -----" << endl;
 
-            substitute(false, format_sigma, false);
+            substitute(format_sigma, false);
 
             if (format_sigma) {
                 // apply substitutions again without separating intermediates
-                cout << "----- Substituting intermediates -----" << endl;
-                substitute(false, false, false);
+                cout << "----- Substituting all intermediates -----" << endl;
+                substitute(false, false);
             }
-        }
-
-        // merge similar terms
-        if (opt_level_ >= 6) {
-            merge_terms();
-
-            // substitute again without considering cost of declaring intermediates
-            cout << "----- Substituting all intermediates -----" << endl;
-            substitute(true, false, false);
         }
 
         // clean up unused intermediates
         update_timer.start();
         prune();
+        merge_terms();
 
         // reindex the intermediates
         reindex();
