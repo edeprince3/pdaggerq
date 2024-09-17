@@ -195,7 +195,7 @@ def block_by_spin(pq, eqname, ops, eqs):
         
         
         pq.block_by_spin(label_to_spin)
-        eqs[spin_eqname] = pq
+        eqs[spin_eqname] = pq.clone()
     
         terms = pq.fully_contracted_strings()
         for term in terms:
