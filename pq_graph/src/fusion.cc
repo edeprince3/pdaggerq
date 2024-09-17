@@ -705,12 +705,19 @@ size_t PQGraph::prune() {
         // remove (regardless of use) if temp has only one pure vertex
         if (temp->vertices().size() > 1) {
             // count number of occurrences of the temp in the terms
-            size_t num_occurrences = terms.size();
-
+            size_t num_occurrences = 0;
+            for (auto &term: terms) {
+                if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
+                for (auto &vertex: term->rhs()) {
+                    if (vertex->is_linked()) {
+                        auto all_temps = as_link(vertex)->find_links(temp);
+                        num_occurrences += all_temps.size();
+                    }
+                }
+            }
 
             // skip if temp is used more than once
             if (num_occurrences > 1) continue;
-
 
             if (num_occurrences == 1 ) {
                 if (temp->is_reused() || temp->is_scalar() || temp->is_addition()) {
