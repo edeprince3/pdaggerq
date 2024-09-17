@@ -260,7 +260,7 @@ class pq_string {
      * print string information to stdout
      *
      */
-    void print();
+    void print() const;
 
     /**
      *
