@@ -891,7 +891,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         if ( op.substr(2,1) == ",") {
                             n_ph = std::stoi(op.substr(3));
                             for (int ph = 0; ph < n_ph; ph++) {
-                                newguy->is_boson_dagger.push_back(true);
+                                newguy->is_boson_dagger.push_back(false);
                             }
                         }
                     }
