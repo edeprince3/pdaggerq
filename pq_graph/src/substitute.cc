@@ -98,6 +98,9 @@ size_t Equation::substitute(const ConstLinkagePtr &linkage, bool allow_equality)
     /// iterate over terms and substitute
     size_t num_terms = terms_.size();
     size_t num_subs = 0; // number of substitutions
+
+    #pragma omp parallel for schedule(guided) shared(terms_, linkage) firstprivate(num_terms, allow_equality) \
+                             reduction(+:num_subs) default(none)
     for (int i = 0; i < num_terms; i++) {
         Term &term = terms_[i]; // get term
 
@@ -106,7 +109,7 @@ size_t Equation::substitute(const ConstLinkagePtr &linkage, bool allow_equality)
 
         /// substitute linkage in term
         bool madeSub;
-        madeSub = term.substitute(linkage, allow_equality);
+        madeSub = term.substitute(linkage);
 
         /// increment number of substitutions if substitution was successful
         if (madeSub) {
@@ -130,14 +133,14 @@ size_t Equation::test_substitute(const LinkagePtr &linkage, scaling_map &test_fl
 
         // get term copy
         Term term = terms_[i];
-        term.term_linkage() = as_link(term.term_linkage()->clone()); // deep copy of term linkage
+        term.term_linkage() = as_link(term.term_linkage()->shallow()); // deep copy of term linkage
 
         // It's faster to subtract the old scaling and add the new scaling than
         // to recompute the scaling map from scratch
         test_flop_map -= term.flop_map(); // subtract flop scaling map for term
 
         // substitute linkage in term copy
-        bool madeSub = term.substitute(linkage, allow_equality);
+        bool madeSub = term.substitute(linkage);
         term.term_linkage()->forget(); // clear the linkage history for lazy evaluation
         test_flop_map += term.flop_map(); // add new flop scaling map for term
 
@@ -167,7 +170,7 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
 
     // get total vector of linkage vertices (without expanding nested linkages)
     vector<ConstVertexPtr> link_list = linkage->link_vector();
-    vector<ConstVertexPtr> term_list = rhs_;
+    vector<ConstVertexPtr> term_list = term_linkage()->link_vector();
 
     // sort lists by name
     sort(link_list.begin(), link_list.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
@@ -180,7 +183,7 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     // check if all vertex names are found in the term
     bool all_found = std::includes(term_list.begin(), term_list.end(), link_list.begin(), link_list.end(),
                                   [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-                                      return a->base_name_ < b->base_name_;
+                                      return a->name_ < b->name_;
                                   });
 
     // return true if all linkages are found in the term
@@ -188,7 +191,7 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
 
 }
 
-bool Term::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
+bool Term::substitute(const ConstLinkagePtr &linkage) {
 
     if (rhs_.empty())
         return false;

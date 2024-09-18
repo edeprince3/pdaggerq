@@ -383,8 +383,6 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 vector<string> eq_keys = get_equation_keys();
                 size_t num_subs = 0; // number of substitutions made
 
-#pragma omp parallel for schedule(guided) default(none) firstprivate(allow_equality, link_to_sub) \
-                shared(equations_, eq_keys) reduction(+:num_subs)
                 for (const auto &eq_name: eq_keys) { // iterate over equations in parallel
                     // get equation
                     Equation &equation = equations_[eq_name]; // get equation
@@ -481,8 +479,27 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         bool recompute = test_linkages.empty();
         bool last_empty = recompute;
 
-        // gradually increase max depth if we have not found any linkages (start from lowest depth; only if batching)
-        while (test_linkages.empty() && recompute) {
+        if (recompute) {
+
+            // resubstitute all saved linkages
+//            for (const auto &[type, linkages]: saved_linkages_) {
+//                vector<ConstLinkagePtr> links(linkages.begin(), linkages.end());
+//
+//                // sort links by id
+//                std::sort(links.begin(), links.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
+//                    return a->id() < b->id();
+//                });
+//                for (const auto &linkage: links) {
+//                    for (auto &[name, eq]: equations_) { // iterate over equations in parallel
+//                        size_t this_subs = eq.substitute(linkage);
+//                        bool madeSub = this_subs > 0;
+//                        if (madeSub) eq.rearrange(); // sort tmps in equation
+//                    }
+//                }
+//            }
+
+            // clear linkage histories
+            forget();
 
             // merge terms if allowed
             num_merged = merge_terms();
@@ -496,41 +513,49 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
             prune();
 
-            Term::max_depth_ = ++current_depth; // increase max depth
+            // gradually increase max depth if we have not found any linkages (start from lowest depth; only if batching)
+            while (test_linkages.empty()) {
 
-            {
-                cout << "Regenerating test set with depth " << flush;
+                Term::max_depth_ = ++current_depth; // increase max depth
+
+                {
+                    cout << "Regenerating test set with depth " << flush;
+                    if (current_depth >= org_max_depth)
+                        cout << "(max) ... " << flush;
+                    else cout << "(" << current_depth << ") ... " << flush;
+                }
+
+                // regenerate all valid linkages with the new depth
+                make_all_links(true);
+
+                // update test linkages
+                test_linkages = all_links_ - ignore_linkages;
+
+                // clear linkages within ignore set and test set
+                for (auto &linkage: ignore_linkages)
+                    linkage->forget();
+                for (auto &linkage: test_linkages)
+                    linkage->forget();
+
+                cout << " Done (" << "found " << test_linkages.size() << ")" << endl;
+
                 if (current_depth >= org_max_depth)
-                     cout << "(max) ... " << flush;
-                else cout << "(" << current_depth << ") ... " << flush;
+                    break; // break if we have reached the maximum depth
+
+                if (last_empty && test_linkages.empty()) {
+                    current_depth = org_max_depth - 1; // none found twice, so test up to max depth
+
+                    if (!batched_) break; // break if not batching
+                }
+                last_empty = test_linkages.empty();
             }
-
-            // regenerate all valid linkages with the new depth
-            make_all_links(true);
-
-            // clear linkage histories
-            forget();
-
-            // update test linkages
-            test_linkages = all_links_ - ignore_linkages;
-
-            // clear linkages within ignore set and test set
-            for (auto &linkage: ignore_linkages)
-                linkage->forget();
-            for (auto &linkage: test_linkages)
-                linkage->forget();
-
-            cout << " Done (" << "found " << test_linkages.size() << ")" << endl;
-
-            if (current_depth >= org_max_depth)
-                break; // break if we have reached the maximum depth
-
-            if (last_empty && test_linkages.empty()) {
-                current_depth = org_max_depth - 1; // none found twice, so test up to max depth
-
-                if (!batched_) break; // break if not batching
+            if (test_linkages.size() <= 5) {
+                // if all candidates are additions, we can stop
+                bool all_additions = std::all_of(test_linkages.begin(), test_linkages.end(), [](const ConstLinkagePtr &link) {
+                    return link->is_addition();
+                });
+                if (all_additions) break;
             }
-            last_empty = test_linkages.empty();
         }
 
         update_timer.stop();

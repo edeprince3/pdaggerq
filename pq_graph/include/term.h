@@ -451,7 +451,7 @@ namespace pdaggerq {
          * @param allow_equality allow equality of scaling
          * @return boolean indicating if substitution was successful
          */
-        bool substitute(const ConstLinkagePtr &linkage, bool allow_equality = false);
+        bool substitute(const ConstLinkagePtr &linkage);
 
         /**
          * collect all possible linkages from all equations
