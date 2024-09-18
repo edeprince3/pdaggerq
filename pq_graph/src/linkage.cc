@@ -365,8 +365,8 @@ namespace pdaggerq {
             return false; // neither is a temp
 
         // whether the linkage corresponds to the same intermediate contraction as another vertex
-        bool same_id = id_ == other->id() && reused_ == other->is_reused();
-        if (!same_id) return false;
+        bool same_type = id_ == other->id() && type() == other->type();
+        if (!same_type) return false;
 
         return  *this == *as_link(other);
     }
