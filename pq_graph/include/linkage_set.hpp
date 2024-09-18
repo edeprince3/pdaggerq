@@ -39,66 +39,12 @@ namespace pdaggerq {
     * hash function class for linkages
     */
     struct LinkageHash {
-    private:
-
     public:
         LinkageHash() = default;
 
         size_t operator()(const ConstLinkagePtr &linkage) const {
             constexpr hash<string> str_hash;
-            size_t totalhash = str_hash(string_hash(linkage));
-            return totalhash;
-        }
-
-        string string_hash(const ConstLinkagePtr &linkage) const {
-
-            // get base name of linkage
-            string total_string = linkage->base_name() + ' ';
-            total_string.reserve(512); // reserve ample space for string
-
-            // get string of connection map between left and right vertices
-            for (const auto &[leftidx, rightidx] : linkage->connec_map()) {
-                total_string += leftidx + '0'; // convert to int
-                total_string += '>';
-                total_string += rightidx + '0'; // convert to int
-                total_string += ' ';
-            }
-            total_string += ' ';
-
-            // get hashes of the lines
-            for (const auto &line : linkage->lines()) {
-                total_string += line.type();
-                total_string += line.block();
-            }
-            total_string += ' ';
-
-            if (!linkage->left()->empty() && linkage->left()->is_linked())
-                total_string += string_hash(as_link(linkage->left()));
-            else {
-                total_string += linkage->left()->base_name() + ' ';
-                for (const auto &line : linkage->left()->lines()) {
-                    total_string += line.type();
-                    total_string += line.block();
-                }
-                total_string += ' ';
-            }
-
-            total_string += linkage->is_addition() ? '+' : '*';
-
-            if (!linkage->right()->empty() && linkage->right()->is_linked())
-                total_string += string_hash(as_link(linkage->right()));
-            else {
-                total_string += linkage->right()->base_name() + ' ';
-                for (const auto &line : linkage->right()->lines()) {
-                    total_string += line.type();
-                    total_string += line.block();
-                }
-                total_string += ' ';
-            }
-
-            // return the total string
-            return total_string;
-
+            return str_hash(linkage->base_name());
         }
     }; // struct linkage_hash
 

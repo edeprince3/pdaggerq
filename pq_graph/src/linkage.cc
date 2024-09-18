@@ -28,6 +28,7 @@
 #include <cstring>
 #include <stack>
 #include "../include/linkage.h"
+#include "../include/linkage_set.hpp"
 #include "../../pdaggerq/pq_string.h"
 
 namespace pdaggerq {
@@ -226,10 +227,24 @@ namespace pdaggerq {
         base_name_.reserve(left_->name_.size() + right_->name_.size() + 1);
         base_name_ = left_->name_;
         if (addition_)
-            base_name_ += '+';
+             base_name_ += '+';
         else base_name_ += '*';
-        base_name_ += right_->name_;
 
+        // add connection map to base name
+        for (const auto &[leftidx, rightidx] : connec_map_) {
+            base_name_ += (char)leftidx + '0'; // convert to int
+            base_name_ += '>';
+            base_name_ += (char)rightidx + '0'; // convert to int
+            base_name_ += ' ';
+        }
+
+        // add hashes of the lines
+        for (const auto &line : lines_) {
+            base_name_ += line.type();
+            base_name_ += line.block();
+        }
+
+        // base name is complete
         name_ = base_name_;
 
         // set descriptors
