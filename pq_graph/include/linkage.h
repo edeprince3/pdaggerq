@@ -483,7 +483,7 @@ namespace pdaggerq {
         /**
          * goes down the tree and finds all occurences of the target vertex
          * @param target_vertex the vertex to find
-         * @param only_temps whether to check only for temps
+         * @param search_depth maximum depth to search for links
          * @return vector of all vertices that match the target
          */
         vector<ConstVertexPtr> find_links(const ConstVertexPtr &target_vertex, long search_depth = -1) const;
