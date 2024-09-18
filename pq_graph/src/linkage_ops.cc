@@ -336,6 +336,9 @@ namespace pdaggerq {
         bool replaced = only_temps ? same_temp(target_vertex) : *target_vertex == *this;
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
+        if (depth_ < target_vertex->depth())
+            return {shared_from_this(), false}; // if the target vertex is deeper, it cannot be replaced
+
         ConstVertexPtr new_left = left_, new_right = right_;
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex, only_temps);
