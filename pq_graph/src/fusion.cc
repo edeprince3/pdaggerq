@@ -90,7 +90,7 @@ struct LinkTracker {
                     for (auto &other_vertex: trunc_term.rhs()) {
                         ConstVertexPtr new_vertex = other_vertex;
                         if (other_vertex->is_linked()) {
-                            new_vertex = as_link(other_vertex)->replace(temp_link, dummy, true).first;
+                            new_vertex = as_link(other_vertex)->replace(temp_link, dummy).first;
                         }
                         trunc_rhs.push_back(new_vertex);
                     }
@@ -815,18 +815,20 @@ size_t PQGraph::prune() {
             bool made_replacement = false;
 
             // remove temps from the lhs
-            if (term.lhs() != nullptr && term.lhs()->is_linked()) {
+            if (term.lhs() != nullptr && term.lhs()->is_temp()) {
                 auto [new_lhs, replaced] = remove_unused(term.lhs());
-                if (replaced) {
+
+                // replace only if found and the temp is not removed
+                if (replaced && new_lhs->is_temp()) {
                     term.lhs() = new_lhs;
                     made_replacement = true;
                 }
             }
 
             // remove temps from the eq
-            if (term.eq() != nullptr && term.eq()->is_linked()) {
+            if (term.eq() != nullptr && term.eq()->is_temp()) {
                 auto [new_eq, replaced] = remove_unused(term.eq());
-                if (replaced) {
+                if (replaced && new_eq->is_temp()) {
                     term.eq() = new_eq;
                     made_replacement = true;
                 }

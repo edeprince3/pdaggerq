@@ -328,12 +328,12 @@ namespace pdaggerq {
         return scalars;
     }
 
-    pair<ConstVertexPtr, bool> Linkage::replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex, bool only_temps) const {
+    pair<ConstVertexPtr, bool> Linkage::replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) const {
 
         if (!target_vertex || !new_vertex) return {shared_from_this(), false};
 
 
-        bool replaced = only_temps ? same_temp(target_vertex) : *target_vertex == *this;
+        bool replaced = *target_vertex == *this;
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
         if (depth_ < target_vertex->depth())
@@ -341,14 +341,14 @@ namespace pdaggerq {
 
         ConstVertexPtr new_left = left_, new_right = right_;
         if (left_->is_linked()) {
-            const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex, only_temps);
+            const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex);
             if (left_found) {
                 new_left = replaced_left;
                 replaced = true;
             }
         }
         if (right_->is_linked()) {
-            const auto &[replaced_right, right_found] = as_link(right_)->replace(target_vertex, new_vertex, only_temps);
+            const auto &[replaced_right, right_found] = as_link(right_)->replace(target_vertex, new_vertex);
             if (right_found) {
                 new_right = replaced_right;
                 replaced = true;
@@ -364,10 +364,10 @@ namespace pdaggerq {
         return {new_link, true};
     }
 
-    pair<ConstVertexPtr, bool> Linkage::replace_id(const ConstVertexPtr &target_vertex, long new_id, bool only_temps) const {
+    pair<ConstVertexPtr, bool> Linkage::replace_id(const ConstVertexPtr &target_vertex, long new_id) const {
         if (!target_vertex) return {shared_from_this(), false};
 
-        bool replaced = only_temps ? same_temp(target_vertex) : *target_vertex == *this;
+        bool replaced = same_temp(target_vertex);
         if (replaced) {
             VertexPtr replacement = shallow();
             as_link(replacement)->id_ = new_id;
@@ -377,14 +377,14 @@ namespace pdaggerq {
         replaced = false;
         ConstVertexPtr new_left = left_, new_right = right_;
         if (left_->is_linked()) {
-            const auto &[replaced_left, left_found] = as_link(left_)->replace_id(target_vertex, new_id, only_temps);
+            const auto &[replaced_left, left_found] = as_link(left_)->replace_id(target_vertex, new_id);
             if (left_found) {
                 new_left = replaced_left;
                 replaced = true;
             }
         }
         if (right_->is_linked()) {
-            const auto &[replaced_right, right_found] = as_link(right_)->replace_id(target_vertex, new_id, only_temps);
+            const auto &[replaced_right, right_found] = as_link(right_)->replace_id(target_vertex, new_id);
             if (right_found) {
                 new_right = replaced_right;
                 replaced = true;

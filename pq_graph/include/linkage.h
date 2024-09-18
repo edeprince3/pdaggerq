@@ -466,19 +466,17 @@ namespace pdaggerq {
          * goes down the tree and replaces the id of any intermediate vertices to a new value
          * @param target_vertex the vertex to replace
          * @param new_vertex the new vertex to replace with
-         * @param only_temps whether to check only for temps
          * @return the copy of linkage with the replaced vertex and a bool indicating if the vertex was replaced
          */
-        pair<ConstVertexPtr, bool> replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex, bool only_temps = false) const;
+        pair<ConstVertexPtr, bool> replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) const;
 
         /**
          * goes down the tree and replaces the id of any intermediate vertices that matched the target to a new value
          * @param target_vertex the vertex to replace
          * @param new_id the new id to replace with
-         * @param only_temps whether to check only for temps
          * @return true if the id was replaced, false otherwise
          */
-        pair<ConstVertexPtr, bool> replace_id(const ConstVertexPtr &target_vertex, long new_id, bool only_temps = true) const;
+        pair<ConstVertexPtr, bool> replace_id(const ConstVertexPtr &target_vertex, long new_id) const;
 
         /**
          * goes down the tree and finds all occurences of the target vertex
