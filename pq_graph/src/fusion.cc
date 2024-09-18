@@ -496,8 +496,7 @@ struct LinkMerger {
                 auto &merge_info = link_tracker_.link_track_map_[merge_link];
                 // sort merge infos by hash string of the link
                 std::sort(merge_info.begin(), merge_info.end(), [](const LinkInfo &a, const LinkInfo &b) {
-                        constexpr LinkageHash link_hash;
-                        return link_hash.string_hash(a.link) < link_hash.string_hash(b.link);
+                        return a.link->base_name_ < b.link->base_name_;
                         });
                 merge_infos.push_back(merge_info);
             }
@@ -747,98 +746,6 @@ size_t PQGraph::prune() {
         to_remove.insert(temp);
     }
 
-    if (num_removed > 0) {
-
-        // remove all terms with lhs set to nullptr if any are found
-        for (auto &[name, eq]: equations_) {
-            vector<Term> new_terms;
-            for (auto &term: eq.terms()) {
-                if (term.lhs() != nullptr)
-                    new_terms.push_back(term.clone());
-            }
-            eq.terms() = new_terms;
-        }
-
-        // sort to_remove by decreasing id
-        vector<ConstLinkagePtr> sorted_to_remove;
-        sorted_to_remove.reserve(to_remove.size());
-        sorted_to_remove.insert(sorted_to_remove.begin(), to_remove.begin(), to_remove.end());
-        std::sort(sorted_to_remove.begin(), sorted_to_remove.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
-            return a->id() > b->id();
-        });
-
-        map<string, linkage_set> new_saved_linkages;
-        cout << "Removing unused temps:" << endl;
-        for (size_t i = 0; i < sorted_to_remove.size(); i++) {
-            ConstLinkagePtr temp = sorted_to_remove[i];
-            Term temp_term(as_link(temp));
-            string temp_str = temp_term.str();
-
-            // replace all newlines with newlines and spaces
-            auto pos = temp_str.find('\n');
-            while (pos != string::npos) {
-                temp_str.replace(pos, 1, "\n    ");
-                pos = temp_str.find('\n', pos + 5);
-            }
-
-            cout << "    " << temp_str << endl;
-
-            // replace nested temps to remove
-            for (size_t j = i + 1; j < sorted_to_remove.size(); j++) {
-                sorted_to_remove[i] = as_link(sorted_to_remove[i]->replace_id(sorted_to_remove[j], -1).first);
-            }
-            temp = sorted_to_remove[i];
-
-            // unset the temp in saved_linkages
-            for (auto &[type, linkages]: saved_linkages_) {
-                for (const auto &link: linkages) {
-                    if (*link == *temp) continue; // skip if temp is the same
-                    if (link->id() == -1) continue; // skip if id is -1
-
-                    ConstVertexPtr new_link = as_link(link)->replace_id(temp, -1).first;
-                    if (new_link->id() != -1)
-                        new_saved_linkages[type].insert(as_link(new_link));
-                }
-            }
-
-            // unset the temp in all equations
-            // get list of keys in equations
-            vector<string> eq_keys = get_equation_keys();
-
-            #pragma omp parallel for schedule(guided) shared(equations_, eq_keys, temp) default(none)
-            for (const auto& name : eq_keys) {
-                Equation &eq = equations_[name]; // get equation
-                for (auto &term: eq.terms()) {
-
-                    // start with lhs
-                    if (term.lhs() != nullptr && term.lhs()->is_linked()) {
-                        // find the temp in the lhs
-                        ConstVertexPtr new_lhs = as_link(term.lhs())->replace_id(temp, -1).first;
-                        term.lhs() = new_lhs;
-                    }
-                    if (term.eq() != nullptr && term.eq()->is_linked()) {
-                        // find the temp in the eq
-                        ConstVertexPtr new_eq = as_link(term.eq())->replace_id(temp, -1).first;
-                        term.eq() = new_eq;
-                    }
-
-                    // now do the same for rhs
-                    for (auto &op: term.rhs()) {
-                        if (op != nullptr && op->is_linked()) {
-                            // find the temp in the rhs
-                            ConstVertexPtr new_op = as_link(op)->replace_id(temp, -1).first;
-                            op = new_op;
-                        }
-                    }
-                }
-            }
-        }
-
-        // overwrite saved_linkages
-        saved_linkages_ = new_saved_linkages;
-        cout << endl; // print newline after all removals
-    }
-
     // remove all terms with lhs set to nullptr if any are found
     for (auto &[name, eq]: equations_) {
         vector<Term> new_terms;
@@ -851,19 +758,108 @@ size_t PQGraph::prune() {
         eq.terms() = new_terms;
     }
 
-    if (opt_level_ >= 6) {
-        vector<Term*> all_terms; all_terms.reserve(10*equations_.size());
-        for (auto &[name, eq]: equations_) {
-            for (auto &term: eq.terms()) {
-                all_terms.push_back(&term);
+    // get all terms in the equations
+    vector<Term*> all_terms; all_terms.reserve(10*equations_.size());
+    for (auto &[name, eq]: equations_) {
+        for (auto &term: eq.terms()) {
+            all_terms.push_back(&term);
+        }
+    }
+
+    if (num_removed > 0) {
+
+        // sort to_remove by decreasing id
+        vector<ConstLinkagePtr> sorted_to_remove;
+        sorted_to_remove.reserve(to_remove.size());
+        sorted_to_remove.insert(sorted_to_remove.begin(), to_remove.begin(), to_remove.end());
+        std::sort(sorted_to_remove.begin(), sorted_to_remove.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
+            return a->id() > b->id();
+        });
+
+        auto remove_unused = [&sorted_to_remove](ConstVertexPtr vertex){
+            bool made_replacement = false;
+            if (vertex->is_linked()) {
+                for (auto &temp: sorted_to_remove) {
+                    auto [new_vertex, replaced] = as_link(vertex)->replace_id(temp, -1);
+                    if (replaced) {
+                        vertex = new_vertex;
+                        made_replacement = true;
+                    }
+                }
+            }
+            return make_pair(vertex, made_replacement);
+        };
+
+        cout << "Removing unused temps:" << endl;
+        for (auto & temp : sorted_to_remove) {
+            cout << "    " << temp->str() << endl;
+        }
+
+        // unset the temp in saved_linkages
+        map<string, linkage_set> new_saved_linkages;
+        for (auto &[type, linkages]: saved_linkages_) {
+            for (const auto &link: linkages) {
+                if (link->id() == -1) continue; // skip if id is -1
+
+                auto [new_link, replaced] = remove_unused(link);
+                if (new_link->id() != -1)
+                    new_saved_linkages[type].insert(as_link(new_link));
             }
         }
+        saved_linkages_ = new_saved_linkages;
+
+        // unset the temp in all the terms
+        #pragma omp parallel for schedule(guided) shared(all_terms, remove_unused, sorted_to_remove) default(none)
+        for (auto &term_ptr: all_terms) {
+            Term &term = *term_ptr;
+            bool made_replacement = false;
+
+            // remove temps from the lhs
+            if (term.lhs() != nullptr && term.lhs()->is_linked()) {
+                auto [new_lhs, replaced] = remove_unused(term.lhs());
+                if (replaced) {
+                    term.lhs() = new_lhs;
+                    made_replacement = true;
+                }
+            }
+
+            // remove temps from the eq
+            if (term.eq() != nullptr && term.eq()->is_linked()) {
+                auto [new_eq, replaced] = remove_unused(term.eq());
+                if (replaced) {
+                    term.eq() = new_eq;
+                    made_replacement = true;
+                }
+            }
+
+            // // remove temps from the rhs
+            for (auto &op: term.rhs()) {
+                if (op != nullptr && op->is_linked()) {
+                    auto [new_op, replaced] = remove_unused(op);
+                    if (replaced) {
+                        op = new_op;
+                        made_replacement = true;
+                    }
+                }
+            }
+
+            if (made_replacement) {
+                term.request_update();
+                term.reorder();
+            }
+        }
+
+        // overwrite saved_linkages
+        cout << endl; // print newline after all removals
+    }
+
+    if (opt_level_ >= 6) {
 
         #pragma omp parallel for schedule(guided) default(none) shared(all_terms)
         for (Term *term_ptr: all_terms) {
             Term &term = *term_ptr;
             // fuse the term linkage
-            LinkagePtr term_link = as_link(term.term_linkage()->clone());
+            LinkagePtr term_link = as_link(term.term_linkage()->shallow());
             if (!term_link->is_temp()) continue;
             else term_link->fuse();
 
