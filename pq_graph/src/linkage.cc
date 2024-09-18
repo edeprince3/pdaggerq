@@ -677,18 +677,18 @@ namespace pdaggerq {
 
     extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right){
         if (left && !right)
-            return left->clone();
+            return left->shallow();
         else if (!left && right)
-            return right->clone();
+            return right->shallow();
         else if (!left && !right)
             return make_shared<Vertex>();
         return make_shared<Linkage>(left, right, false);
     }
     extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right){
         if (left && !right)
-            return left->clone();
+            return left->shallow();
         else if (!left && right)
-            return right->clone();
+            return right->shallow();
         else if (!left && !right)
             return make_shared<Vertex>();
         return make_shared<Linkage>(left, right, false);
@@ -716,9 +716,9 @@ namespace pdaggerq {
 
     extern VertexPtr operator+(const ConstVertexPtr &left, const ConstVertexPtr &right){
         if (left && !right)
-            return left->clone();
+            return left->shallow();
         if (!left && right)
-            return right->clone();
+            return right->shallow();
         if (!left && !right)
             return make_shared<Vertex>();
 
@@ -726,9 +726,9 @@ namespace pdaggerq {
     }
     extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
         if (left && !right)
-            return left->clone();
+            return left->shallow();
         if (!left && right)
-            return right->clone();
+            return right->shallow();
         if (!left && !right)
             return make_shared<Vertex>();
 
