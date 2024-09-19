@@ -176,7 +176,6 @@ namespace pdaggerq {
             Linkage::low_memory_ = options["low_memory"].cast<bool>();
         }
 
-        if (options.contains("batched")) batched_ = options["batched"].cast<bool>();
         if (options.contains("batch_size")) {
             batch_size_ = static_cast<size_t>(options["batch_size"].cast<long>());
             if (batch_size_ < 1ul) {
@@ -186,6 +185,11 @@ namespace pdaggerq {
                 cout << "WARNING: batch_size of 1 is equivalent to no batching." << endl;
             }
 
+        }
+
+        if (options.contains("batched")) {
+            batched_ = options["batched"].cast<bool>();
+            if (batched_) batch_size_ = 1ul;
         }
 
         if (options.contains("occ_labels"))
@@ -654,9 +658,6 @@ namespace pdaggerq {
         total_timer.start();
         // find scalars in each equation
         make_scalars();
-
-        // reindex the scalars
-        reindex();
 
         // set assembled flag to true
         is_assembled_ = true;

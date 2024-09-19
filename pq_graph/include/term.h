@@ -478,9 +478,9 @@ namespace pdaggerq {
          * find best scalar linkage for a given term
          * @param scalars set of scalars to add to
          * @param id id of the ter
-         * @return pair of the best scalar linkage and a boolean indicating if a scalar was made
+         * @return a boolean indicating if a scalar was made
          */
-        pair<ConstLinkagePtr,bool> make_scalar(linkage_set &scalars, long &id);
+        bool make_scalars(linkage_set &scalars, long &id);
 
          /**
           * find vertices with self-contractions and format with delta functions

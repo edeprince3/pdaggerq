@@ -297,8 +297,15 @@ void PQGraph::make_scalars() {
         scalars.clear();
     }
 
+
+    vector<ConstLinkagePtr> scalars_vec(scalars.begin(), scalars.end());
+    // sort by the id of the scalars
+    sort(scalars_vec.begin(), scalars_vec.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
+        return a->id() < b->id();
+    });
+
     // add new scalars to all linkages and equations
-    for (const auto &scalar: scalars) {
+    for (const auto &scalar: scalars_vec) {
         // add term to scalars equation
         add_tmp(scalar, equations_["scalar"]);
         saved_linkages_["scalar"].insert(scalar);
@@ -311,6 +318,8 @@ void PQGraph::make_scalars() {
     for (Term &term: equations_["scalar"].terms())
         term.comments() = {}; // comments should be self-explanatory
 
+    cout << endl;
+
     // collect scaling
     collect_scaling(true);
     is_assembled_ = true;
@@ -322,43 +331,37 @@ void Equation::make_scalars(linkage_set &scalars, long &n_temps) {
     for (auto & term : terms_) {
 
         // make scalars in term
-        bool made_any_scalar = true;
-        while (made_any_scalar) {
-
+        bool made_scalar = true;
+        while (made_scalar) {
             // make scalars in term
-            auto [new_scalar, made_scalar] = term.make_scalar(scalars, n_temps);
-            made_any_scalar = made_scalar;
+            made_scalar = term.make_scalars(scalars, n_temps);
 
-            // add term to scalar_terms if a scalar was made
-            if (made_scalar)
-                scalars.insert(new_scalar);
         } // eventually no more scalars will be made
     }
 }
 
-pair<ConstLinkagePtr,bool> Term::make_scalar(linkage_set &scalars, long &id) {
+bool Term::make_scalars(linkage_set &scalars, long &id) {
 
     if (rhs_.empty())
-        return {nullptr, false}; // do nothing if term is empty
+        return false; // do nothing if term is empty
 
     // break out of loops if a substitution was made
     bool made_scalar = false; // initialize boolean to track if substitution was made
 
     vector<ConstVertexPtr> term_scalars = term_linkage()->find_scalars();
-    if (term_scalars.empty()) return {nullptr, false}; // do nothing if no scalars are found
+    if (term_scalars.empty()) return false; // do nothing if no scalars are found
 
     ConstLinkagePtr new_linkage = as_link(term_linkage()->shallow());
-    LinkagePtr new_scalar = nullptr;
     for (const auto& scalar : term_scalars) {
         if (scalar->is_temp()) continue; // skip if scalar is already a temp
         if (!scalar->is_linked()) continue; // skip if scalar is not linked
 
         // reorder scalar for the best permutation
         ConstLinkagePtr scalar_link = as_link(scalar)->best_permutation();
-        new_scalar = as_link(scalar_link->shallow());
+        LinkagePtr new_scalar = as_link(scalar_link->shallow());
 
         // check if scalar is already in set of scalars for setting the id
-        long &new_id = id;
+        long new_id = id+1;
         auto scalar_pos = scalars.find(new_scalar);
         if (scalar_pos != scalars.end())
              new_id = scalar_pos->get()->id(); // if scalar is already in set of scalars, change the id
@@ -370,6 +373,7 @@ pair<ConstLinkagePtr,bool> Term::make_scalar(linkage_set &scalars, long &id) {
         auto [subbed_linkage, replaced] = as_link(new_linkage)->replace(scalar, new_scalar);
         if (replaced) {
             new_linkage = as_link(subbed_linkage);
+            scalars.insert(new_scalar); // insert scalar into set of scalars
             made_scalar = true;
             break;
         }
@@ -381,8 +385,8 @@ pair<ConstLinkagePtr,bool> Term::make_scalar(linkage_set &scalars, long &id) {
         expand_rhs(new_linkage);
         request_update(); // set flags for optimization
         compute_scaling(true); // recompute the flop and memory cost of the term
-        return {new_scalar, made_scalar};
+        return made_scalar;
     } else {
-        return {nullptr, made_scalar};
+        return made_scalar;
     }
 }

@@ -668,7 +668,7 @@ void PQGraph::reindex() {
             for (auto & temp : temps) {
                 string temp_type = temp->type();
                 if (temp_type != "link" && temp_type != "vertex")
-                    found_linkages[temp_type].insert(temp);
+                    found_linkages[temp_type].insert(temp->clone());
             }
         }
     }
@@ -679,7 +679,7 @@ void PQGraph::reindex() {
 
     // reindex intermediates
     for (auto & [type, link_set] : found_linkages) {
-        linkage_map<ConstLinkagePtr> replacements;
+        linkage_map<long> replacements;
         vector<ConstLinkagePtr> linkages(link_set.begin(), link_set.end());
 
         // sort linkages by id
@@ -692,40 +692,37 @@ void PQGraph::reindex() {
             long new_id = ++temp_counts_[type];
             if (new_id == linkage->id()) continue; // skip if id is the same (no need to reindex)
 
-            LinkagePtr new_link = as_link(linkage->clone());
-            new_link->id() = new_id;
+            LinkagePtr new_link = as_link(linkage->shallow());
+            new_link->id_ = new_id;
 
             cout << "Reindexing " << linkage->str() << " to " << new_link->str() << endl;
 
-            replacements[linkage] = new_link;
+            replacements[linkage] = new_id;
         }
 
-        for (auto & [original, replacement] : replacements) {
-            // save new linkages
-            saved_linkages_[type].insert(replacement);
+        auto reindex_op = [&replacements](const ConstVertexPtr &op) {
+            ConstVertexPtr new_op = op;
+            if (op->is_linked()) {
+                for (auto & [linkage, new_id] : replacements) {
+                    new_op = as_link(new_op)->replace_id(linkage, new_id).first;
+                }
+            }
+            return new_op;
+        };
+
+        for (auto & [linkage, new_id] : replacements) {
+            // save new linkage
+            ConstVertexPtr new_link = reindex_op(linkage);
+            saved_linkages_[type].insert(new_link);
         }
 
         // now replace index in all equations
         for (auto & [name, eq] : equations_) {
             for (auto & term : eq.terms()) {
-                if (term.lhs()->is_linked()){
-                    for (auto & [original, replacement] : replacements) {
-                        auto lhs_matches = as_link(term.lhs())->find_links(original);
-                        for (auto & lhs_match : lhs_matches) {
-                            term.lhs() = as_link(term.lhs())->replace_id(lhs_match, replacement->id()).first;
-                        }
-                    }
-                }
-                for (auto & op : term.rhs()) {
-                    if (op->is_linked()) {
-                        for (auto & [original, replacement] : replacements) {
-                            auto op_matches = as_link(op)->find_links(original);
-                            for (auto & op_match : op_matches) {
-                                op = as_link(op)->replace_id(op_match, replacement->id()).first;
-                            }
-                        }
-                    }
-                }
+                term.lhs() = reindex_op(term.lhs());
+                for (auto & op : term.rhs())
+                    op = reindex_op(op);
+                term.compute_scaling(true);
             }
 
             // rearrange terms by new ids
