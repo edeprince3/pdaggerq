@@ -55,14 +55,31 @@ namespace pdaggerq {
                 }, py::arg("print_type") = "")
                 .def("str", &pdaggerq::PQGraph::str)
                 .def("assemble", &pdaggerq::PQGraph::assemble)
-                .def("reorder", [](PQGraph& self, bool regenerate) {
-                    return self.reorder(regenerate);
-                }, py::arg("regenerate") = true)
-                .def("optimize", &pdaggerq::PQGraph::optimize)
                 .def("analysis", &pdaggerq::PQGraph::analysis)
                 .def("clear", &pdaggerq::PQGraph::clear)
                 .def("to_strings", &pdaggerq::PQGraph::to_strings)
-                .def("write_dot", &pdaggerq::PQGraph::write_dot);
+                .def("write_dot", &pdaggerq::PQGraph::write_dot)
+                .def("reorder", [](PQGraph& self) {
+                    bool old_opt_level = self.opt_level_; self.opt_level_ = 1;
+                    self.merge_terms();                   self.opt_level_ = old_opt_level;
+                })
+                .def("substitute", [](PQGraph& self, bool separate_sigma) {
+                    bool old_opt_level = self.opt_level_; self.opt_level_ = separate_sigma ? 3 : 2;
+                    self.merge_terms();                   self.opt_level_ = old_opt_level;
+                }, py::arg("separate_sigma") = false)
+                .def("prune", [](PQGraph& self) {
+                    bool old_opt_level = self.opt_level_; self.opt_level_ = 4;
+                    self.merge_terms();                   self.opt_level_ = old_opt_level;
+                })
+                .def("merge", [](PQGraph& self) {
+                    bool old_opt_level = self.opt_level_; self.opt_level_ = 5;
+                    self.merge_terms();                   self.opt_level_ = old_opt_level;
+                })
+                .def("fusion", [](PQGraph& self) {
+                    bool old_opt_level = self.opt_level_; self.opt_level_ = 6;
+                    self.merge_intermediates();           self.opt_level_ = old_opt_level;
+                })
+                .def("optimize", &pdaggerq::PQGraph::optimize);
     }
 
     void PQGraph::set_options(const pybind11::dict& options) {
