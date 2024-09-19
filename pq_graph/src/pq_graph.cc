@@ -655,6 +655,9 @@ namespace pdaggerq {
         // find scalars in each equation
         make_scalars();
 
+        // reindex the scalars
+        reindex();
+
         // set assembled flag to true
         is_assembled_ = true;
         total_timer.stop();
@@ -718,9 +721,6 @@ namespace pdaggerq {
         update_timer.start();
         prune();
         merge_terms();
-
-        // reindex the intermediates
-        reindex();
 
         // set optimized flag to true
         is_optimized_ = true;

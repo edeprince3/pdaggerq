@@ -120,7 +120,7 @@ namespace pdaggerq {
         bool same_temp(const ConstVertexPtr &other) const override;
         string type() const override {
             // get the type of the linkage
-            if (id_ == -1) return "link";
+            if (!is_temp()) return "link";
             if (is_scalar()) return "scalar";
             if (is_reused()) return "reused";
             return "temp";

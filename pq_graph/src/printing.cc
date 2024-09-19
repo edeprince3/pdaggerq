@@ -58,6 +58,9 @@ namespace pdaggerq {
         if (!copy.is_assembled_)
             copy.assemble();
 
+        // reindex intermediates in the copy
+        copy.reindex();
+
 //        vector<Term> equation_permute_terms = copy.expand_permutations(); // expand permutations in pq_graph
 
 

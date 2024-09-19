@@ -666,7 +666,9 @@ void PQGraph::reindex() {
 
             // add temps to found linkages
             for (auto & temp : temps) {
-                found_linkages[temp->type()].insert(temp);
+                string temp_type = temp->type();
+                if (temp_type != "link" && temp_type != "vertex")
+                    found_linkages[temp_type].insert(temp);
             }
         }
     }
