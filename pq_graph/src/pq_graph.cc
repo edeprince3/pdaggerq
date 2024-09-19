@@ -61,15 +61,19 @@ namespace pdaggerq {
                 .def("write_dot", &pdaggerq::PQGraph::write_dot)
                 .def("reorder", [](PQGraph& self) {
                     bool old_opt_level = self.opt_level_; self.opt_level_ = 1;
-                    self.merge_terms();                   self.opt_level_ = old_opt_level;
+                    self.reorder();                       self.opt_level_ = old_opt_level;
                 })
                 .def("substitute", [](PQGraph& self, bool separate_sigma) {
                     bool old_opt_level = self.opt_level_; self.opt_level_ = separate_sigma ? 3 : 2;
-                    self.merge_terms();                   self.opt_level_ = old_opt_level;
+                    self.substitute(separate_sigma, true);
+                    if (separate_sigma)
+                        self.substitute(true, false);
+                    self.substitute(false, false);
+                    self.opt_level_ = old_opt_level;
                 }, py::arg("separate_sigma") = false)
                 .def("prune", [](PQGraph& self) {
                     bool old_opt_level = self.opt_level_; self.opt_level_ = 4;
-                    self.merge_terms();                   self.opt_level_ = old_opt_level;
+                    self.prune();                   self.opt_level_ = old_opt_level;
                 })
                 .def("merge", [](PQGraph& self) {
                     bool old_opt_level = self.opt_level_; self.opt_level_ = 5;
