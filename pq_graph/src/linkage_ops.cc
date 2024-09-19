@@ -54,6 +54,7 @@ namespace pdaggerq {
 
             //link the rest of the vertices
             linkage = linkage * op;
+            as_link(linkage)->forget(); // forget the linkage memory
         }
 
         // if no linkage was made, return an empty vertex
@@ -285,7 +286,7 @@ namespace pdaggerq {
         if (this->depth() < target_vertex->depth()) return {}; // if the target vertex is deeper, it cannot be found
 
         bool found = *target_vertex == *this;
-        if (found) return {shared_from_this()}; // if this is the target vertex, return it
+        if (found) return {shallow()}; // if this is the target vertex, return it
 
         vector<ConstVertexPtr> links;
 
@@ -330,16 +331,16 @@ namespace pdaggerq {
 
     pair<ConstVertexPtr, bool> Linkage::replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) const {
 
-        if (!target_vertex || !new_vertex) return {shared_from_this(), false};
+        if (!target_vertex || !new_vertex) return {shallow(), false};
 
 
         bool replaced = *target_vertex == *this;
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
         if (depth_ < target_vertex->depth())
-            return {shared_from_this(), false}; // if the target vertex is deeper, it cannot be replaced
+            return {shallow(), false}; // if the target vertex is deeper, it cannot be replaced
 
-        ConstVertexPtr new_left = left_, new_right = right_;
+        ConstVertexPtr new_left = left_->shallow(), new_right = right_->shallow();
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex);
             if (left_found) {
@@ -356,7 +357,7 @@ namespace pdaggerq {
         }
 
         if (!replaced)
-            return {shared_from_this(), false}; // no replacements were made. return the original linkage
+            return {shallow(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
         LinkagePtr new_link = as_link(is_addition() ? new_left + new_right : new_left * new_right);
@@ -365,7 +366,7 @@ namespace pdaggerq {
     }
 
     pair<ConstVertexPtr, bool> Linkage::replace_id(const ConstVertexPtr &target_vertex, long new_id) const {
-        if (!target_vertex) return {shared_from_this(), false};
+        if (!target_vertex) return {shallow(), false};
 
         bool replaced = same_temp(target_vertex);
         if (replaced) {
@@ -375,7 +376,7 @@ namespace pdaggerq {
         }
 
         replaced = false;
-        ConstVertexPtr new_left = left_, new_right = right_;
+        ConstVertexPtr new_left = left_->shallow(), new_right = right_->shallow();
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace_id(target_vertex, new_id);
             if (left_found) {
@@ -392,7 +393,7 @@ namespace pdaggerq {
         }
 
         if (!replaced)
-            return {shared_from_this(), false}; // no replacements were made. return the original linkage
+            return {shallow(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
         LinkagePtr replacement = as_link(shallow());
@@ -454,7 +455,7 @@ namespace pdaggerq {
     std::vector<ConstVertexPtr> Linkage::get_temps() const {
         std::vector<ConstVertexPtr> temps;
         if (is_temp())
-            temps.push_back(this->shared_from_this());
+            temps.push_back(shallow());
 
         if (left_->is_linked()) {
             const auto &left_temps = as_link(left_)->get_temps();
