@@ -206,13 +206,12 @@ bool Term::substitute(const ConstLinkagePtr &linkage) {
     const vector<ConstLinkagePtr> &graph_perms = term_linkage()->permutations();
 
     // iterate over all possible orderings of vertex subsets
-    ConstLinkagePtr best_linkage = term_linkage();
+    ConstLinkagePtr best_linkage = as_link(term_linkage()->shallow());
     for (const auto &graph_perm : graph_perms) {
         // substitute the linkage in the permutation (if possible)
         graph_perm->forget();
         auto matching_linkages = graph_perm->find_links(linkage);
         if (matching_linkages.empty()) continue; // skip if linkage is not found in permutation
-        else madeSub = true;
 
         // otherwise, make the substitution for each matching linkage
         ConstLinkagePtr new_term_linkage = graph_perm;
@@ -222,8 +221,12 @@ bool Term::substitute(const ConstLinkagePtr &linkage) {
             new_term_linkage = as_link(new_term_linkage->replace(found_linkage, new_link).first);
         }
 
+        new_term_linkage = as_link(new_term_linkage)->best_permutation();
+        if (new_term_linkage->netscales().first > best_linkage->netscales().first) continue;
+
         // create the best permutation of the substitution and break
-        best_linkage = as_link(new_term_linkage)->best_permutation();
+        best_linkage = new_term_linkage;
+        madeSub = true;
         break;
     }
 
