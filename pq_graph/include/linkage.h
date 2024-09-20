@@ -163,7 +163,7 @@ namespace pdaggerq {
          * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
          * this function will populate the Vertex base class with the result of the contraction
          */
-        void set_links();
+        void build_connections();
 
         /**
         * Sets propeties of the vertex data members
@@ -178,8 +178,9 @@ namespace pdaggerq {
         
         /**
          * fuses together similar sublinkages
+         * @return true if the linkage was fused, false otherwise
          */
-        void fuse();
+        bool fuse();
 
         /**
          * Merges constants together in linkage

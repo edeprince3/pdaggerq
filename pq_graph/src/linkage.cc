@@ -46,16 +46,16 @@ namespace pdaggerq {
 
         // if one is empty and the other is linked, set this linkage to the linked vertex
         if (left_->empty() && right_->is_linked() && !right_->empty()) {
-            *this = *as_link(right_->shallow()); return;
+            *this = *as_link(right_->shared_from_this()); return;
         } else if (right_->empty() && left_->is_linked() && !left_->empty()) {
-            *this = *as_link(left_->shallow()); return;
+            *this = *as_link(left_->shared_from_this()); return;
         }
 
         // build internal and external lines with their index mapping
-        set_links();
+        build_connections();
     }
 
-    inline void Linkage::set_links() {
+    inline void Linkage::build_connections() {
 
         lines_.clear();
         flop_scale_ = {};
@@ -211,7 +211,7 @@ namespace pdaggerq {
         if (!den_lines.empty())
             lines_.insert(lines_.begin(), den_lines.begin(), den_lines.end());
 
-        std::sort(lines_.begin(), lines_.end(), line_compare());
+//        std::sort(lines_.begin(), lines_.end(), line_compare());
 
         // update vertex members
         set_properties();
@@ -686,9 +686,9 @@ namespace pdaggerq {
     }
     extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right){
         if (left && !right)
-            return left->shallow();
+            return left->shared_from_this();
         else if (!left && right)
-            return right->shallow();
+            return right->shared_from_this();
         else if (!left && !right)
             return make_shared<Vertex>();
         return make_shared<Linkage>(left, right, false);
@@ -726,9 +726,9 @@ namespace pdaggerq {
     }
     extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
         if (left && !right)
-            return left->shallow();
+            return left->shared_from_this();
         if (!left && right)
-            return right->shallow();
+            return right->shared_from_this();
         if (!left && !right)
             return make_shared<Vertex>();
 

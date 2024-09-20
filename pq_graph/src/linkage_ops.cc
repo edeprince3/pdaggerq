@@ -191,24 +191,25 @@ namespace pdaggerq {
         }
     }
 
-    void Linkage::fuse() {
-        if (is_temp() || empty()) return;
-        if (left_->empty() && right_->is_linked()) { *this = *as_link(right_); return; }
-        if (right_->empty() && left_->is_linked()) { *this = *as_link(left_); return; }
-        if (left_->empty() || right_->empty()) return;
+    bool Linkage::fuse() {
+//        return; // causes incorrect equations. might be this function or the one that calls it
+        if (is_temp() || empty()) return false;
+        if (left_->empty() && right_->is_linked()) { *this = *as_link(right_); return false; }
+        if (right_->empty() && left_->is_linked()) { *this = *as_link(left_); return false; }
+        if (left_->empty() || right_->empty()) return false;
 
         VertexPtr left  =  left_->shallow();
         VertexPtr right = right_->shallow();
 
-        if (left->is_linked() && left->is_addition())  as_link(left)->fuse();
-        if (right->is_linked() && right->is_addition()) as_link(right)->fuse();
+        bool made_subfusion = false;
+        if ( left->is_linked() &&  left->is_addition()) made_subfusion |= as_link( left)->fuse();
+        if (right->is_linked() && right->is_addition()) made_subfusion |= as_link(right)->fuse();
 
         bool test_fusion = !left->is_temp() && !right->is_temp();
         test_fusion &= !left->is_addition() && !right->is_addition();
         test_fusion &= is_addition();
 
         // check if the left and right share the same vertex
-        bool made_fusion = false;
         if (test_fusion){
 
             // check if any vertex in the left is in the right
@@ -216,68 +217,98 @@ namespace pdaggerq {
             vector<ConstVertexPtr> right_vec = right->link_vector();
 
             std::sort(left_vec.begin(), left_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-                return a->name() < b->name();
+                if (a->name() != b->name())
+                    return a->name() < b->name();
+                return a->lines() < b->lines();
             });
             std::sort(right_vec.begin(), right_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-                return a->name() < b->name();
+                if (a->name() != b->name())
+                    return a->name() < b->name();
+                return a->lines() < b->lines();
             });
 
             vector<ConstVertexPtr> common;
-            for (const auto &left_op : left_vec) {
-                for (const auto &right_op : right_vec) {
-                    if (*left_op == *right_op) {
-                        common.push_back(left_op);
-                    }
-                }
-            }
+            std::set_intersection(left_vec.begin(), left_vec.end(), right_vec.begin(), right_vec.end(),
+                                  std::back_inserter(common), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                        if (a->name() != b->name())
+                            return a->name() < b->name();
+                        return a->lines() < b->lines();
+                    });
 
             // if there are common vertices, fuse them
             if (!common.empty()) {
-                vector<ConstVertexPtr> new_left, new_right;
-                for (const auto &left_op: left_vec) {
-                    bool is_common = false;
-                    for (const auto &common_op: common) {
-                        if (*left_op == *common_op) {
-                            is_common = true; break;
-                        }
-                    }
-                    if (!is_common) new_left.push_back(left_op);
-                }
 
-                for (const auto &right_op: right_vec) {
-                    bool is_common = false;
-                    for (const auto &common_op: common) {
-                        if (*right_op == *common_op) {
-                            is_common = true; break;
-                        }
-                    }
-                    if (!is_common) new_right.push_back(right_op);
-                }
+                vector<ConstVertexPtr> new_left, new_right;
+                std::set_difference(left_vec.begin(), left_vec.end(), common.begin(), common.end(),
+                                    std::back_inserter(new_left), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                            if (a->name() != b->name())
+                                return a->name() < b->name();
+                            return a->lines() < b->lines();
+                        });
+                std::set_difference(right_vec.begin(), right_vec.end(), common.begin(), common.end(),
+                                    std::back_inserter(new_right), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                            if (a->name() != b->name())
+                                return a->name() < b->name();
+                            return a->lines() < b->lines();
+                        });
 
                 // create a new linkage with the fused vertices
-                ConstVertexPtr new_left_link = link(new_left);
+                ConstVertexPtr new_left_link  = link(new_left);
                 ConstVertexPtr new_right_link = link(new_right);
 
-                if ((new_left_link * new_right_link)->is_scalar()) {
-                    new_left_link = as_link(new_left_link)->best_permutation();
-                    new_right_link = as_link(new_right_link)->best_permutation();
+                // test if the left and right vertices can be added
+                bool apply_fusion = (new_left_link * new_right_link)->is_scalar();
 
-                    left = link(common);
-                    if (left->is_linked()) {
-                        left = as_link(left)->best_permutation()->shallow();
+                // ensure new_link has the same lines as the original link
+                ConstVertexPtr new_link, common_link;
+
+                if (apply_fusion) {
+                    // build the new link
+                    common_link = link(common)->best_permutation();
+                    new_left_link  = link(new_left)->best_permutation();
+                    new_right_link = link(new_right)->best_permutation();
+
+                    // test if the lines are the same
+                    // try multiple combinations to get the same shape
+                    //      common * (left  + right)
+                    //      common * (right + left)
+                    //      (left + right) * common
+                    //      (right + left) * common
+                    new_link = common_link * (new_left_link + new_right_link);
+                    apply_fusion = ( lines() == new_link->lines() );
+                    if (!apply_fusion) {
+                        new_link = common_link * (new_right_link + new_left_link);
+                        apply_fusion = ( lines() == new_link->lines() );
                     }
-                    right = new_left_link + new_right_link;
-                    right = as_link(right)->best_permutation()->shallow();
-                    made_fusion = true;
+                    if (!apply_fusion) {
+                        new_link = (new_left_link + new_right_link) * common_link;
+                        apply_fusion = ( lines() == new_link->lines() );
+                    }
+                    if (!apply_fusion) {
+                        new_link = (new_right_link + new_left_link) * common_link;
+                        apply_fusion = ( lines() == new_link->lines() );
+                    }
+                }
+
+                if (apply_fusion) {
+                    // if the lines are the same, apply the fusion
+                    *this = *as_link(new_link)->best_permutation();
+                    return true;
                 }
             }
         }
 
-        // set the left and right vertices
-        left_ = left; right_ = right;
-        addition_ = addition_ && !made_fusion; // if fusion was made, this is not an addition
-        forget(); // forget the linkage memory
-        set_links();
+        if (made_subfusion) {
+            // if a fusion was made for the left and/or right (but not the root), reassign the left and right vertices
+            left_ = left;
+            right_ = right;
+            // lines are guaranteed to be the same so no need to rebuild the connections. just update the properties
+            set_properties();
+            return true;
+        }
+
+        // no changes were made
+        return false;
     }
 
     vector<ConstVertexPtr>  Linkage::find_links(const ConstVertexPtr &target_vertex, long search_depth) const {
@@ -286,7 +317,7 @@ namespace pdaggerq {
         if (this->depth() < target_vertex->depth()) return {}; // if the target vertex is deeper, it cannot be found
 
         bool found = *target_vertex == *this;
-        if (found) return {shallow()}; // if this is the target vertex, return it
+        if (found) return {shared_from_this()}; // if this is the target vertex, return it
 
         vector<ConstVertexPtr> links;
 
@@ -331,16 +362,16 @@ namespace pdaggerq {
 
     pair<ConstVertexPtr, bool> Linkage::replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) const {
 
-        if (!target_vertex || !new_vertex) return {shallow(), false};
+        if (!target_vertex || !new_vertex) return {shared_from_this(), false};
 
 
         bool replaced = *target_vertex == *this;
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
         if (depth_ < target_vertex->depth())
-            return {shallow(), false}; // if the target vertex is deeper, it cannot be replaced
+            return {shared_from_this(), false}; // if the target vertex is deeper, it cannot be replaced
 
-        ConstVertexPtr new_left = left_->shallow(), new_right = right_->shallow();
+        ConstVertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex);
             if (left_found) {
@@ -357,7 +388,7 @@ namespace pdaggerq {
         }
 
         if (!replaced)
-            return {shallow(), false}; // no replacements were made. return the original linkage
+            return {shared_from_this(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
         LinkagePtr new_link = as_link(is_addition() ? new_left + new_right : new_left * new_right);
@@ -366,7 +397,7 @@ namespace pdaggerq {
     }
 
     pair<ConstVertexPtr, bool> Linkage::replace_id(const ConstVertexPtr &target_vertex, long new_id) const {
-        if (!target_vertex) return {shallow(), false};
+        if (!target_vertex) return {shared_from_this(), false};
 
         bool replaced = same_temp(target_vertex);
         if (replaced) {
@@ -376,7 +407,7 @@ namespace pdaggerq {
         }
 
         replaced = false;
-        ConstVertexPtr new_left = left_->shallow(), new_right = right_->shallow();
+        ConstVertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace_id(target_vertex, new_id);
             if (left_found) {
@@ -393,7 +424,7 @@ namespace pdaggerq {
         }
 
         if (!replaced)
-            return {shallow(), false}; // no replacements were made. return the original linkage
+            return {shared_from_this(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
         LinkagePtr replacement = as_link(shallow());
@@ -424,7 +455,7 @@ namespace pdaggerq {
         forget(true);
 
         // reset the links
-        set_links();
+        build_connections();
     }
 
     bool Linkage::has_temp(const ConstVertexPtr &temp, bool enter_temps, long search_depth) const {
@@ -455,7 +486,7 @@ namespace pdaggerq {
     std::vector<ConstVertexPtr> Linkage::get_temps() const {
         std::vector<ConstVertexPtr> temps;
         if (is_temp())
-            temps.push_back(shallow());
+            temps.push_back(shared_from_this());
 
         if (left_->is_linked()) {
             const auto &left_temps = as_link(left_)->get_temps();
@@ -525,10 +556,10 @@ namespace pdaggerq {
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {
                 // return permutations of the right vertex if the left vertex is empty
-                result = as_link(right_->shallow())->permutations();
+                result = as_link(right_->shared_from_this())->permutations();
             } else if (right_->empty() && left_->is_linked()) {
                 // return permutations of the left vertex if the right vertex is empty
-                result = as_link(left_->shallow())->permutations();
+                result = as_link(left_->shared_from_this())->permutations();
             }
 
             // return the identity permutation if one of the vertices is empty
@@ -610,6 +641,11 @@ namespace pdaggerq {
                 // if flops are the same, check mems
                 scaling_check = mems.compare(best_mems);
                 make_best = scaling_check == scaling_map::this_better;
+
+                // if the mems are the same, check the lines
+                if (!make_best && scaling_check == scaling_map::this_same) {
+                    make_best = perm->lines() < best_perm->lines();
+                }
 
                 // if lines are the same, use string representation of names
                 if (!make_best && scaling_check == scaling_map::this_same) {
