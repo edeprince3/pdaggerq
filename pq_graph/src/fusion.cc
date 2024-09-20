@@ -502,7 +502,7 @@ struct LinkMerger {
             }
 
             // merge the trunc terms
-            vector<Term> new_terms;
+            vector<Term> new_terms(target_infos.size());
             VertexPtr merged_vertex_init;
             string link_type = target_infos[0].link->type();
 
@@ -558,14 +558,13 @@ struct LinkMerger {
                 }
                 new_term.request_update();
                 new_term.reorder();
-                new_term.term_linkage()->forget(); // forget the link history for memory efficiency
+                new_terms[i] = new_term.clone();
 
                 // add merged vertex to saved linkages
                 pq_graph_.saved_linkages()[link_type].insert(as_link(merged_vertex));
                 #pragma omp critical
                 {
                     pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_id);
-                    new_terms.push_back(new_term);
                 }
             }
 
