@@ -433,8 +433,6 @@ namespace pdaggerq {
             return {scaling_map(flops), scaling_map(mems)};
          }
 
-        static inline string print_type_ = "c++"; // default to python print type
-
         /**
          * Create generic string representation of linkage
          * @param format_temp if true, make generic string representation
