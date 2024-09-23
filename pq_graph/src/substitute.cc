@@ -357,6 +357,9 @@ bool Term::make_scalars(linkage_set &scalars, long &id) {
         const auto perm_scalars = graph_perm->find_scalars();
         auto &perm_entry = term_scalars[graph_perm];
         for (const auto &scalar : perm_scalars) {
+            if (!scalar->is_scalar()) continue; // skip if scalar is not actually a scalar (should not happen)
+            if (scalar->is_temp()) continue;    // skip if scalar is already a temp
+            if (!scalar->is_linked()) continue; // skip if scalar is not linked
             perm_entry.insert(scalar);
         }
     }
@@ -365,8 +368,6 @@ bool Term::make_scalars(linkage_set &scalars, long &id) {
     ConstLinkagePtr new_linkage = as_link(term_linkage()->shallow());
     for (const auto& [perm_linkage, perm_scalars] : term_scalars) {
         for (const auto &scalar : perm_scalars) {
-            if (scalar->is_temp()) continue; // skip if scalar is already a temp
-            if (!scalar->is_linked()) continue; // skip if scalar is not linked
 
             // reorder scalar for the best permutation
             ConstLinkagePtr scalar_link = as_link(scalar)->best_permutation();
