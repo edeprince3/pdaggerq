@@ -278,7 +278,7 @@ namespace pdaggerq {
         return copy;
     }
 
-    void Equation::sort_tmp_type(Equation &equation, char type) {
+    void Equation::sort_tmp_type(Equation &equation, const string &type) {
 
         // no terms, return
         if ( equation.terms().empty() ) return;
@@ -301,59 +301,48 @@ namespace pdaggerq {
             size_t a_idx = a.second;
             size_t b_idx = b.second;
 
-            typedef std::set<long> idset;
+            typedef std::set<long, std::greater<>> idset;
 
-            auto [a_lhs_ids, a_rhs_ids, a_total_ids] = a_term.term_ids(type);
-            auto [b_lhs_ids, b_rhs_ids, b_total_ids] = b_term.term_ids(type);
+            set<long> a_lhs_ids, b_lhs_ids;
+            set<long> a_rhs_ids, b_rhs_ids;
 
+            a_rhs_ids = a_term.term_linkage()->get_ids(type);
+            b_rhs_ids = b_term.term_linkage()->get_ids(type);
+            if (a_term.lhs()->is_temp()) a_lhs_ids = as_link(a_term.lhs())->get_ids(type);
+            if (b_term.lhs()->is_temp()) b_lhs_ids = as_link(b_term.lhs())->get_ids(type);
+
+            idset a_total_ids, b_total_ids;
+            a_total_ids.insert(a_lhs_ids.begin(), a_lhs_ids.end());
+            a_total_ids.insert(a_rhs_ids.begin(), a_rhs_ids.end());
+            b_total_ids.insert(b_lhs_ids.begin(), b_lhs_ids.end());
+            b_total_ids.insert(b_rhs_ids.begin(), b_rhs_ids.end());
 
             // get number of ids
-            bool a_has_temp = !a_lhs_ids.empty() || !a_rhs_ids.empty();
-            bool b_has_temp = !b_lhs_ids.empty() || !b_rhs_ids.empty();
+            bool a_has_temp = !a_total_ids.empty();
+            bool b_has_temp = !b_total_ids.empty();
 
-            // keep terms without temps first and if both have no temps, keep order
+            // keep terms without temps first
             if (a_has_temp != b_has_temp) return !a_has_temp;
-            else if (!a_has_temp)        return a_idx < b_idx;
-
-            // remove ids shared between a and b
-            idset shared_ids;
-            std::set_intersection(a_total_ids.begin(), a_total_ids.end(),
-                                  b_total_ids.begin(), b_total_ids.end(),
-                                  std::inserter(shared_ids, shared_ids.begin()));
-            shared_ids.insert(-1); // add -1 to ignore unlinked vertices
-
-            for (const auto &id: shared_ids) {
-                a_total_ids.erase(id);
-                b_total_ids.erase(id);
-                a_lhs_ids.erase(id);
-                b_lhs_ids.erase(id);
-                a_rhs_ids.erase(id);
-                b_rhs_ids.erase(id);
-            }
-
 
             // if ids are the same, ensure assignment is first
             bool same_ids = a_total_ids == b_total_ids;
             if (same_ids && a_term.is_assignment_ != b_term.is_assignment_)
                 return a_term.is_assignment_;
-            else if (same_ids) {
-                return a_idx < b_idx; // keep order if ids are the same
-            } else if (a_term.is_assignment_ == b_term.is_assignment_ && a_term.is_assignment_) {
-                // ensure that no rhs id in b is larger than the lhs id in a
-                if (!a_rhs_ids.empty()) {
-                    auto a_max_rhs = *a_rhs_ids.rbegin();
-                    auto b_min_lhs = *b_lhs_ids.begin();
-                    if (a_max_rhs > b_min_lhs) return false;
-                }
-                if (!b_rhs_ids.empty()) {
-                    auto b_max_rhs = *b_rhs_ids.rbegin();
-                    auto a_min_lhs = *a_lhs_ids.begin();
-                    if (b_max_rhs > a_min_lhs) return true;
-                }
-            }
 
-            // keep in lexicographical order of ids
-            return a_total_ids < b_total_ids;
+            // if lhs ids are different, keep smaller lhs ids first
+            if (a_lhs_ids != b_lhs_ids)
+                return a_lhs_ids < b_lhs_ids;
+
+            // now keep larger rhs ids first
+            if (a_rhs_ids != b_rhs_ids)
+                return a_rhs_ids > b_rhs_ids;
+
+            // if total is not the same, keep in order of total ids
+            if (a_total_ids != b_total_ids)
+                return a_total_ids < b_total_ids;
+
+            // else keep in original order
+            return a_idx < b_idx;
 
         };
 
@@ -383,7 +372,7 @@ namespace pdaggerq {
         equation.terms() = sorted_terms;
     }
 
-    void Equation::rearrange(char type) {
+    void Equation::rearrange(const string &type) {
 
 
         // sort by conditionals, then by permutation type, then by number of operators, then by cost.
@@ -407,10 +396,10 @@ namespace pdaggerq {
         });
 
         // lastly, sort the terms by the maximum id of the tmps type in the term, then by the index of the term
-        if (type == 'a') { // rearrange by all temps in order
-            sort_tmp_type(*this, 's');
-            sort_tmp_type(*this, 'r');
-            sort_tmp_type(*this, 't');
+        if (type == "all") { // rearrange by all temps in order
+            sort_tmp_type(*this, "scalar");
+            sort_tmp_type(*this, "reused");
+            sort_tmp_type(*this, "temp");
         } else sort_tmp_type(*this, type); // else rearrange by the type of temp
     }
 

@@ -148,13 +148,13 @@ namespace pdaggerq {
 
         // create merged equation to sort tmps
         Equation merged_eq = Equation("", all_terms);
-        merged_eq.rearrange('t'); // sort tmps in merged equation
+        merged_eq.rearrange("temp"); // sort tmps in merged equation
         all_terms = merged_eq.terms(); // get sorted terms
 
         // print scalar declarations
         if (!copy.equations_["scalar"].empty()) {
             sout << h2 << " Scalars " << h2 << endl << endl;
-            copy.equations_["scalar"].rearrange('s'); // sort scalars in scalars equation
+            copy.equations_["scalar"].rearrange("scalar"); // sort scalars in scalars equation
             for (auto &term: copy.equations_["scalar"])
                 term.comments() = {}; // remove comments from scalars
 
@@ -166,7 +166,7 @@ namespace pdaggerq {
         // print declarations for reuse_tmps
         if (!copy.equations_["reused"].empty()){
             sout << h2 << " Shared  Operators " << h2 << endl << endl;
-            copy.equations_["reused"].rearrange('r'); // sort reuse_tmps in reuse_tmps equation
+            copy.equations_["reused"].rearrange("reused"); // sort reuse_tmps in reuse_tmps equation
             for (auto &term: copy.equations_["reused"])
                 term.comments() = {}; // remove comments from reuse_tmps
 
@@ -177,7 +177,7 @@ namespace pdaggerq {
 
         // for each term in tmps, add the term to the merged equation
         // where each tmp of a given id is first used
-        copy.equations_["temp"].rearrange('t'); // sort tmps in tmps equation
+        copy.equations_["temp"].rearrange("temp"); // sort tmps in tmps equation
 
         auto &tempterms = copy.equations_["temp"];
         std::stable_sort(tempterms.begin(), tempterms.end(), [](const Term &a, const Term &b) {

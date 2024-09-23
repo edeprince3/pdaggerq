@@ -620,9 +620,7 @@ struct LinkMerger {
         for (auto &[link_type, new_declaration]: new_declarations) {
             auto &link_equation = pq_graph_.equations()[link_type];
             link_equation.terms().insert(link_equation.begin(), new_declaration);
-            link_equation.rearrange('s');
-            link_equation.rearrange('r');
-            link_equation.rearrange('t');
+            link_equation.rearrange();
         }
     }
 

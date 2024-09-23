@@ -492,7 +492,7 @@ namespace pdaggerq {
         bool has_temp(const ConstVertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
         bool has_any_temp() const override; // whether the linkage has any intermediate vertices
         vector<ConstVertexPtr> get_temps() const override;
-        set<long> get_ids(bool enter_temps = true) const;
+        set<long> get_ids(const string &type = "temp") const;
 
         /**
          * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)

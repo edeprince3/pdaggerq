@@ -303,14 +303,14 @@ namespace pdaggerq {
          *      4) the rhs of the terms
          * @return sorted equation
          */
-        void rearrange(char type = 'a');
+        void rearrange(const string &type = "all");
 
         /**
          * Sorts tmps by the maximum id of the rhs in the linkage and the tmp itself
          * @param equation equation to sort tmps for
          * @param type type of tmps to sort (t for tmps, s for scalars, r for reuse)
          */
-        static void sort_tmp_type(Equation &equation, char type = 't');
+        static void sort_tmp_type(Equation &equation, const string &type = "temp");
 
         /**
          * get 'if' block string formatting

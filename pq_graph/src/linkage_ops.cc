@@ -501,20 +501,20 @@ namespace pdaggerq {
         return temps;
     }
 
-    set<long> Linkage::get_ids(bool enter_temps) const {
+    set<long> Linkage::get_ids(const string &type) const {
         set<long> ids;
         if (is_temp()) {
-            ids.insert(id_);
-            if (!enter_temps)
-                return ids;
+            if (this->type() == type)
+                ids.insert(id_);
+//            return ids;
         }
 
         if (left_->is_linked()) {
-            const auto &left_ids = as_link(left_)->get_ids(enter_temps);
+            const auto &left_ids = as_link(left_)->get_ids(type);
             ids.insert(left_ids.begin(), left_ids.end());
         }
         if (right_->is_linked()) {
-            const auto &right_ids = as_link(right_)->get_ids(enter_temps);
+            const auto &right_ids = as_link(right_)->get_ids(type);
             ids.insert(right_ids.begin(), right_ids.end());
         }
 
