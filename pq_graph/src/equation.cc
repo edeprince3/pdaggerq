@@ -330,8 +330,14 @@ namespace pdaggerq {
                 return a_term.is_assignment_;
 
             // if lhs ids are different, keep smaller lhs ids first
-            if (a_lhs_ids != b_lhs_ids)
+            if (a_lhs_ids != b_lhs_ids) {
+                // check cases where one lhs is empty
+                if (a_lhs_ids.empty()) return b_lhs_ids.empty();
+                if (b_lhs_ids.empty()) return !a_lhs_ids.empty();
+
+                // else keep smaller lhs ids first
                 return a_lhs_ids < b_lhs_ids;
+            }
 
             // now keep larger rhs ids first
             if (a_rhs_ids != b_rhs_ids)
