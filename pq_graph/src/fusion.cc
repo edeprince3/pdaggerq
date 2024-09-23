@@ -709,6 +709,8 @@ size_t PQGraph::prune() {
 
         // remove (regardless of use) if temp has only one pure vertex
         if (temp->vertices().size() > 1) {
+            if (temp->is_scalar()) continue; // all scalars should not be removed
+
             // count number of occurrences of the temp in the terms
             size_t num_occurrences = 0;
             for (auto &term: terms) {

@@ -351,35 +351,46 @@ bool Term::make_scalars(linkage_set &scalars, long &id) {
     // break out of loops if a substitution was made
     bool made_scalar = false; // initialize boolean to track if substitution was made
 
-    vector<ConstVertexPtr> term_scalars = term_linkage()->find_scalars();
+    const vector<ConstLinkagePtr> &graph_perms = term_linkage()->permutations();
+    linkage_map<linkage_set> term_scalars;
+    for (const auto &graph_perm : graph_perms) {
+        const auto perm_scalars = graph_perm->find_scalars();
+        auto &perm_entry = term_scalars[graph_perm];
+        for (const auto &scalar : perm_scalars) {
+            perm_entry.insert(scalar);
+        }
+    }
     if (term_scalars.empty()) return false; // do nothing if no scalars are found
 
     ConstLinkagePtr new_linkage = as_link(term_linkage()->shallow());
-    for (const auto& scalar : term_scalars) {
-        if (scalar->is_temp()) continue; // skip if scalar is already a temp
-        if (!scalar->is_linked()) continue; // skip if scalar is not linked
+    for (const auto& [perm_linkage, perm_scalars] : term_scalars) {
+        for (const auto &scalar : perm_scalars) {
+            if (scalar->is_temp()) continue; // skip if scalar is already a temp
+            if (!scalar->is_linked()) continue; // skip if scalar is not linked
 
-        // reorder scalar for the best permutation
-        ConstLinkagePtr scalar_link = as_link(scalar)->best_permutation();
-        LinkagePtr new_scalar = as_link(scalar_link->shallow());
+            // reorder scalar for the best permutation
+            ConstLinkagePtr scalar_link = as_link(scalar)->best_permutation();
+            LinkagePtr new_scalar = as_link(scalar_link->shallow());
 
-        // check if scalar is already in set of scalars for setting the id
-        long new_id = id+1;
-        auto scalar_pos = scalars.find(new_scalar);
-        if (scalar_pos != scalars.end())
-             new_id = scalar_pos->get()->id(); // if scalar is already in set of scalars, change the id
-        else ++id; // if scalar is not in set of scalars, increment the id for the next scalar
+            // check if scalar is already in set of scalars for setting the id
+            long new_id = id + 1;
+            auto scalar_pos = scalars.find(new_scalar);
+            if (scalar_pos != scalars.end())
+                new_id = scalar_pos->get()->id(); // if scalar is already in set of scalars, change the id
+            else ++id; // if scalar is not in set of scalars, increment the id for the next scalar
 
-        new_scalar->id_ = new_id;
+            new_scalar->id_ = new_id;
 
-        // replace scalar in the term linkage
-        auto [subbed_linkage, replaced] = as_link(new_linkage)->replace(scalar, new_scalar);
-        if (replaced) {
-            new_linkage = as_link(subbed_linkage);
-            scalars.insert(new_scalar); // insert scalar into set of scalars
-            made_scalar = true;
-            break;
+            // replace scalar in the term linkage
+            auto [subbed_linkage, replaced] = as_link(perm_linkage)->replace(scalar, new_scalar);
+            if (replaced) {
+                new_linkage = as_link(subbed_linkage);
+                scalars.insert(new_scalar); // insert scalar into set of scalars
+                made_scalar = true;
+                break;
+            }
         }
+        if (made_scalar) break;
     }
 
     // if a substitution was made, replace the linkage in the term
