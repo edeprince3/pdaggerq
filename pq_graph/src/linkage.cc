@@ -229,6 +229,7 @@ namespace pdaggerq {
         if (addition_)
              base_name_ += '+';
         else base_name_ += '*';
+        base_name_ += right_->name_;
 
         // add connection map to base name
         for (const auto &[leftidx, rightidx] : connec_map_) {
