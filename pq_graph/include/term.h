@@ -78,8 +78,6 @@ namespace pdaggerq {
 
         static inline size_t max_depth_ = -1; // maximum number of rhs in a linkage (no limit by default)
         static inline shape max_shape_; // maximum shape of a linkage
-        static inline bool make_einsum = false;
-
 
         typedef map<string, vector<string>> condition_map;
         static inline condition_map mapped_conditions_{}; // map of conditionals to their relevant operators

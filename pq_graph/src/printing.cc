@@ -50,8 +50,17 @@ namespace pdaggerq {
         stringstream sout; // string stream to hold output
 
         // add banner for PQ GRAPH results
-        sout << "####################" << " PQ GRAPH Output " << "####################" << endl << endl;
-
+        string h1, h2; // header 1 and header 2 padding
+        if (Vertex::print_type_ == "python") {
+            h1 = "####################";
+            h2 = "#####";
+        } else if (Vertex::print_type_ == "c++") {
+            h1 = "///////////////////";
+            h2 = "/////";
+        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+        
+        sout << h1 << " PQ GRAPH Output " << h1 << endl << endl;
+        
         PQGraph copy = this->clone(); // make a clone of pq_graph
 
         // if not assembled, assemble the copy
@@ -61,14 +70,9 @@ namespace pdaggerq {
         // reindex intermediates in the copy
         copy.reindex();
 
-//        vector<Term> equation_permute_terms = copy.expand_permutations(); // expand permutations in pq_graph
-
-
-
         // get all terms from all equations except the scalars, and reuse_tmps
         vector<Term> all_terms;
 
-//        bool has_tmps = false;
         for (auto &[eq_name, equation] : copy.equations_) { // iterate over equations in serial
 
             // skip "temp" equation
@@ -129,11 +133,13 @@ namespace pdaggerq {
         names.insert("tmps");
 
         // declare a map for each base name
-        sout << " #####  Declarations  ##### " << endl << endl;
+        sout << h2 << " Declarations " << h2 << endl << endl;
         for (const auto &name: names) {
-            if (!Term::make_einsum)
-                sout << "// initialize -> ";
-            else sout << "## initialize -> ";
+            if (Vertex::print_type_ == "c++")
+                 sout << "// initialize -> ";
+            else if (Vertex::print_type_ == "python") 
+                sout << "## initialize -> ";
+            
             sout << name << ";" << endl;
         }
         sout << endl;
@@ -147,26 +153,26 @@ namespace pdaggerq {
 
         // print scalar declarations
         if (!copy.equations_["scalar"].empty()) {
-            sout << " #####  Scalars  ##### " << endl << endl;
+            sout << h2 << " Scalars " << h2 << endl << endl;
             copy.equations_["scalar"].rearrange('s'); // sort scalars in scalars equation
             for (auto &term: copy.equations_["scalar"])
                 term.comments() = {}; // remove comments from scalars
 
             // print scalars
             sout << copy.equations_["scalar"] << endl;
-            sout << " ### End of Scalars ### " << endl << endl;
+            sout << h2 << " End of Scalars " << h2 << endl << endl;
         }
 
         // print declarations for reuse_tmps
         if (!copy.equations_["reused"].empty()){
-            sout << " #####  Shared  Operators  ##### " << endl << endl;
+            sout << h2 << " Shared  Operators " << h2 << endl << endl;
             copy.equations_["reused"].rearrange('r'); // sort reuse_tmps in reuse_tmps equation
             for (auto &term: copy.equations_["reused"])
                 term.comments() = {}; // remove comments from reuse_tmps
 
             // print reuse_tmps
             sout << copy.equations_["reused"] << endl;
-            sout << " ### End of Shared Operators ### " << endl << endl;
+            sout << h2 << " End of Shared Operators " << h2 << endl << endl;
         }
 
         // for each term in tmps, add the term to the merged equation
@@ -236,9 +242,10 @@ namespace pdaggerq {
             string newname;
             string lhs_name = temp->str(true, false);
 
-            if (Term::make_einsum)
+            if (Vertex::print_type_ == "python")
                 newname = "del " + lhs_name;
-            else newname = lhs_name + ".~TArrayD();";
+            else if (Vertex::print_type_ == "c++")
+                newname = lhs_name + ".~TArrayD();";
 
             Term newterm(tempterm);
             newterm.print_override_ = newname;
@@ -327,10 +334,7 @@ namespace pdaggerq {
             cout << endl;
         }
 
-        // add equation permute terms to all_terms
-//        all_terms.insert(all_terms.end(), equation_permute_terms.begin(), equation_permute_terms.end());
-
-        sout << " ##########  Evaluate Equations  ########## " << endl << endl;
+        sout << h1 << " Evaluate Equations " << h1 << endl << endl;
 
         // update terms in merged equation
         merged_eq.terms() = all_terms;
@@ -339,7 +343,7 @@ namespace pdaggerq {
         sout << merged_eq << endl;
 
         // add closing banner
-        sout << "####################" << "######################" << "####################" << endl << endl;
+        sout << h1 << h1 << h1 << endl << endl;
 
         // return string stream as string
         return sout.str();
@@ -370,12 +374,10 @@ namespace pdaggerq {
         print_type = to_lower(print_type);
 
         if (print_type == "python" || print_type == "einsum") {
-            Term::make_einsum = true;
-            Linkage::print_type_ = "python";
+            Vertex::print_type_ = "python";
             cout << "Formatting equations for python" << endl;
         } else if (print_type == "c++" || print_type == "cpp") {
-            Term::make_einsum = false;
-            Linkage::print_type_ = "c++";
+            Vertex::print_type_ = "c++";
             cout << "Formatting equations for c++" << endl;
         } else {
             cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
@@ -424,7 +426,7 @@ namespace pdaggerq {
 
                 if (had_condition && !closed_condition) {
                     // if the previous condition was not closed, close it
-                    if (!Term::make_einsum)
+                    if (Vertex::print_type_ == "c++")
                         output.emplace_back("}");
                     closed_condition = true; // indicate that the condition is closed
                 }
@@ -491,7 +493,7 @@ namespace pdaggerq {
             output.push_back(term_string);
         }
 
-        if (!closed_condition && !Term::make_einsum && !current_conditions.empty()) {
+        if (!closed_condition && Vertex::print_type_ == "c++" && !current_conditions.empty()) {
             // if the final condition was not closed, close it
             output.emplace_back("}");
         }
@@ -505,13 +507,13 @@ namespace pdaggerq {
         if (conditions.empty()) return "";
 
         string if_block;
-        if (!Term::make_einsum) {
+        if (Vertex::print_type_ == "c++") {
             if_block = "if (";
             for (const string &condition: conditions)
                 if_block += "includes_[\"" + condition + "\"] && ";
             if_block.resize(if_block.size() - 4);
             if_block += ") {";
-        } else {
+        } else if (Vertex::print_type_ == "python") {
             if_block = "if ";
             for (const string &condition: conditions)
                 if_block += "includes_[\"" + condition + "\"] and ";
@@ -522,8 +524,6 @@ namespace pdaggerq {
     }
 
     string Term::str() const {
-
-        Vertex::print_type_ = Term::make_einsum ? "python" : "c++";
 
         if (!print_override_.empty())
             // return print override if it exists for custom printing
@@ -618,7 +618,7 @@ namespace pdaggerq {
             return left_term.str() + '\n' + right_term.str();
         }
 
-        if (make_einsum)
+        if (Vertex::print_type_ == "python")
             return einsum_str();
 
         // get lhs vertex string
@@ -657,7 +657,7 @@ namespace pdaggerq {
         output += term_link->str();
 
         // ensure the last character is a semicolon (might not be there if no rhs vertices)
-        if (output.back() != ';' && !make_einsum)
+        if (output.back() != ';' && Vertex::print_type_ == "c++")
             output += ';';
 
         size_t pos = 0;
@@ -830,7 +830,7 @@ namespace pdaggerq {
         comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
 
         // format comment for python if needed
-        if (make_einsum){
+        if (Vertex::print_type_ == "python"){
             // turn '//' into '#'
             size_t pos = comment.find("//");
             while (pos != std::string::npos) {
@@ -862,7 +862,7 @@ namespace pdaggerq {
             comment.pop_back();
 
         // format comment for python if needed
-        if (make_einsum){
+        if (Vertex::print_type_ == "python"){
             // turn '//' into '#'
             size_t pos = comment.find("//");
             while (pos != std::string::npos) {

@@ -534,7 +534,9 @@ struct LinkMerger {
                     as_link(merged_vertex)->fuse();
 
                     // add the pq string to track evaluation
-                    merged_pq += Term::make_einsum ? "\n    # " : "\n    // ";
+                    // add original pq to unique term
+                    if (Vertex::print_type_ == "python")   merged_pq += "\n    # ";
+                    else if (Vertex::print_type_ == "c++") merged_pq += "\n    // ";
                     merged_pq += string(merge_term->lhs()->name().size(), ' ');
                     merged_pq += " += " + merge_term->original_pq_;
                 }

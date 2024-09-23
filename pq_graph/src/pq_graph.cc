@@ -87,7 +87,16 @@ namespace pdaggerq {
     }
 
     void PQGraph::set_options(const pybind11::dict& options) {
-        cout << endl << "####################" << " PQ GRAPH " << "####################" << endl << endl;
+        string h1, h2; // header 1 and header 2 padding
+        if (Vertex::print_type_ == "python") {
+            h1 = "####################";
+            h2 = "#####";
+        } else if (Vertex::print_type_ == "c++") {
+            h1 = "///////////////////";
+            h2 = "/////";
+        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+
+        cout << endl << h1 << " PQ GRAPH " << h1 << endl << endl;
 
         if (options.contains("print_level")) {
             print_level_ = options["print_level"].cast<int>();
@@ -593,7 +602,16 @@ namespace pdaggerq {
     }
 
     void PQGraph::analysis() const {
-        cout << "####################" << " PQ GRAPH Analysis " << "####################" << endl << endl;
+        string h1, h2; // header 1 and header 2 padding
+        if (Vertex::print_type_ == "python") {
+            h1 = "####################";
+            h2 = "#####";
+        } else if (Vertex::print_type_ == "c++") {
+            h1 = "///////////////////";
+            h2 = "/////";
+        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+
+        cout << h1 << " PQ GRAPH Analysis " << h1 << endl << endl;
 
         // print total time elapsed
         long double total_time = total_timer.get_runtime();
@@ -621,7 +639,7 @@ namespace pdaggerq {
 
         print_new_scaling(mem_map_init_, mem_map_pre_, is_optimized_ ? mem_map_ : mem_map_pre_);
         cout << endl << endl;
-        cout << "####################" << "######################" << "####################" << endl << endl;
+        cout << h1 << h1 << h1 << endl << endl;
 
     }
 
