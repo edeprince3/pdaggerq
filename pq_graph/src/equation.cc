@@ -292,7 +292,7 @@ namespace pdaggerq {
             indexed_terms.emplace_back(&equation.terms()[i], i);
 
         // sort the terms by the maximum id of the tmps in the term, then by the index of the term
-        bool consider_rhs = false;
+        bool consider_rhs = true;
         auto total_in_order = [type, &consider_rhs](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
             const auto &[a_term, a_idx] = a; const auto &[b_term, b_idx] = b;
 
@@ -319,9 +319,12 @@ namespace pdaggerq {
                 return a_term->is_assignment_;
             else if (same_id && !a_term->is_assignment_) return a_idx < b_idx;
 
-            if (!consider_rhs)
-                // keep in lexicographical order without considering rhs validity with respect to lhs
-                return a_tot_ids < b_tot_ids;
+            if (!consider_rhs) {
+                // keep in order of max ids
+                long a_max = *std::max_element(a_tot_ids.begin(), a_tot_ids.end());
+                long b_max = *std::max_element(b_tot_ids.begin(), b_tot_ids.end());
+                return a_max < b_max;
+            }
 
             // ensure that all ids in a_rhs are less than all ids in b_lhs
             for (long a_id : a_rhs_ids)
@@ -337,7 +340,8 @@ namespace pdaggerq {
             return a_tot_ids < b_tot_ids;
         };
 
-        stable_sort(indexed_terms.begin(), indexed_terms.end(), total_in_order);
+        consider_rhs = false;
+        sort(indexed_terms.begin(), indexed_terms.end(), total_in_order);
         consider_rhs = true;
         stable_sort(indexed_terms.begin(), indexed_terms.end(), total_in_order);
 
