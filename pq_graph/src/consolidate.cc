@@ -652,82 +652,50 @@ PQGraph PQGraph::clone() const {
 
 void PQGraph::reindex() {
 
-    // find all occurences of intermediates
-    map<string, linkage_set> found_linkages;
-    for (auto & [name, eq] : equations_) {
-        for (auto & term : eq.terms()) {
-
-            // get all temps in term
-            auto temps = term.lhs()->get_temps();
-            for (auto & op : term.rhs()) {
-                auto op_temps = op->get_temps();
-                temps.insert(temps.end(), op_temps.begin(), op_temps.end());
-            }
-
-            // add temps to found linkages
-            for (auto & temp : temps) {
-                string temp_type = temp->type();
-                if (temp_type != "link" && temp_type != "vertex")
-                    found_linkages[temp_type].insert(temp->clone());
-            }
-        }
-    }
-
-    // reset temp_counts and saved linkages
-    temp_counts_.clear();
+    // reset saved linkages and temp counts
     saved_linkages_.clear();
+    temp_counts_.clear();
 
-    // reindex intermediates
-    for (auto & [type, link_set] : found_linkages) {
-        linkage_map<long> replacements;
-        vector<ConstLinkagePtr> linkages(link_set.begin(), link_set.end());
+    // search for all intermediates and update temp counts
+    linkage_map<long> temp_map; // map to track found linkages to their current counts
 
-        // sort linkages by id
-        std::sort(linkages.begin(), linkages.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
-            return a->id() < b->id();
-        });
-
-        for (const auto& linkage : linkages) {
-            if (!linkage->is_temp()) continue; // skip non-intermediates
-            long new_id = ++temp_counts_[type];
-            if (new_id == linkage->id()) continue; // skip if id is the same (no need to reindex)
-
-            LinkagePtr new_link = as_link(linkage->shallow());
-            new_link->id_ = new_id;
-
-            cout << "Reindexing " << linkage->str() << " to " << new_link->str() << endl;
-
-            replacements[linkage] = new_id;
-        }
-
-        auto reindex_op = [&replacements](const ConstVertexPtr &op) {
-            ConstVertexPtr new_op = op;
-            if (op->is_linked()) {
-                for (auto & [linkage, new_id] : replacements) {
-                    new_op = as_link(new_op)->replace_id(linkage, new_id).first;
+    auto reindex_vertex = [this, &temp_map](ConstVertexPtr &vertex) {
+        if (vertex != nullptr && vertex->is_linked()) {
+            auto lhs_temps = as_link(vertex)->get_temps();
+            for (auto &temp : lhs_temps) {
+                // find temp in temp map
+                auto it = temp_map.find(as_link(temp));
+                long &temp_id = temp_map[as_link(temp)];
+                if (it == temp_map.end()) {
+                    temp_id = ++temp_counts_[temp->type()];
                 }
+
+                // replace temp id in lhs
+                LinkagePtr new_temp = as_link(temp->clone());
+                new_temp->id() = temp_id;
+
+                vertex = as_link(vertex)->replace(temp, new_temp).first;
             }
-            return new_op;
-        };
-
-        for (auto & [linkage, new_id] : replacements) {
-            // save new linkage
-            ConstVertexPtr new_link = reindex_op(linkage);
-            saved_linkages_[type].insert(new_link);
         }
+    };
 
-        // now replace index in all equations
-        for (auto & [name, eq] : equations_) {
-            for (auto & term : eq.terms()) {
-                term.lhs() = reindex_op(term.lhs());
-                for (auto & op : term.rhs())
-                    op = reindex_op(op);
-                term.compute_scaling(true);
-            }
-
-            // rearrange terms by new ids
-            eq.rearrange();
+    // loop over all vertices in all equations and terms
+    for (auto & [name, eq] : equations_) {
+        for (auto &term : eq.terms()) {
+            reindex_vertex(term.lhs());
+            reindex_vertex(term.eq());
+            for (auto &op : term.rhs())
+                reindex_vertex(op);
         }
+        eq.collect_scaling(true);
+        eq.rearrange();
     }
-    cout << endl;
+
+    // add all temps in temp map to saved linkages
+    for (auto & [temp, id] : temp_map) {
+        LinkagePtr new_temp = as_link(temp->clone());
+        new_temp->id() = id;
+        saved_linkages_[new_temp->type()].insert(new_temp);
+        cout << "Reindexed " << temp->str() << " to " << new_temp->str() << endl;
+    }
 }
