@@ -85,6 +85,8 @@ namespace pdaggerq {
     extern VertexPtr operator+(double factor, const ConstVertexPtr &right);
     extern VertexPtr operator+(const ConstVertexPtr &left, double factor);
 
+    typedef std::set<long, std::less<>> idset;
+
     /**
      * Class to represent contractions of a single vertex with a set of other vertices
      * The contraction itself is also a vertex and is defined by a left and right vertex
@@ -492,7 +494,8 @@ namespace pdaggerq {
         bool has_temp(const ConstVertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
         bool has_any_temp() const override; // whether the linkage has any intermediate vertices
         vector<ConstVertexPtr> get_temps() const override;
-        set<long> get_ids(const string &type = "temp") const;
+
+        idset get_ids(const string &type = "temp") const;
 
         /**
          * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)

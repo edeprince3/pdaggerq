@@ -144,8 +144,8 @@ namespace pdaggerq {
             result.push_back(right_);
         }
 
-        // copy the result vector to the link_vector if the size is less than 16
-        if (!low_memory_ && depth_ <= 16) {
+        // copy the result vector to the link_vector if the size is less than 32
+        if (!low_memory_ && depth_ <= 32) {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             if (fully_expand)
@@ -498,15 +498,20 @@ namespace pdaggerq {
             temps.insert(temps.end(), right_temps.begin(), right_temps.end());
         }
 
+        // sort temps by id
+        std::sort(temps.begin(), temps.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+            return a->id() < b->id();
+        });
+
         return temps;
     }
 
-    set<long> Linkage::get_ids(const string &type) const {
-        set<long> ids;
+    idset Linkage::get_ids(const string &type) const {
+        idset ids;
         if (is_temp()) {
             if (this->type() == type)
                 ids.insert(id_);
-//            return ids;
+            return ids;
         }
 
         if (left_->is_linked()) {
@@ -550,8 +555,8 @@ namespace pdaggerq {
         // do not generate permutations for temps (their structure is fixed)
         if (is_temp()) return result;
 
-        // do not store permutations if the depth is too large (sizeof Linkage is 344B -> 344B * 2^16 = 22MB)
-        bool store_permutations = !low_memory_ && depth_ <= 16;
+        // do not store permutations if the depth is too large
+        bool store_permutations = !low_memory_ && depth_ <= 32;
 
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {
