@@ -883,6 +883,10 @@ namespace pdaggerq {
 
     std::set<string> Term::conditions() const {
 
+        // map that stores conditions to their related operators
+        const std::map<string, std::vector<string>> &mapped_conditions = mapped_conditions_;
+        if (mapped_conditions.empty()) return {}; // return empty set if no conditions
+
         ConstLinkagePtr linkage = term_linkage(); // get linkage representation of term
         std::set<string> conditions{}; // set to store conditions
 
@@ -899,9 +903,6 @@ namespace pdaggerq {
 
         if (!linkage)
             return conditions; // return current conditions if no linkage
-
-        // map that stores conditions to their related operators
-        const std::map<string, std::vector<string>> &mapped_conditions = mapped_conditions_;
 
         // create a set of operator basenames
         std::vector<ConstVertexPtr> vertices = linkage->vertices();
