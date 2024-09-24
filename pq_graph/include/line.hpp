@@ -135,7 +135,7 @@ namespace pdaggerq {
 
         /// *** Comparisons *** ///
 
-        inline bool operator==(const Line& other) const {
+        bool operator==(const Line& other) const {
             return (label_ == other.label_) &
                        (o_ == other.o_)     &
                        (a_ == other.a_)     &
@@ -143,18 +143,18 @@ namespace pdaggerq {
                      (den_ == other.den_);
         }
 
-        constexpr bool equivalent(const Line& other) const {
+        bool equivalent(const Line& other) const {
             return   (o_ == other.o_)   &
                      (a_ == other.a_)   &
                    (sig_ == other.sig_) &
                    (den_ == other.den_);
         }
 
-        inline bool operator!=(const Line& other) const {
+        bool operator!=(const Line& other) const {
             return !(*this == other);
         }
 
-        constexpr bool operator<(const Line& other) const {
+        bool operator<(const Line& other) const {
             // sort by sig, den, o, a, then label
             if (sig_ ^ other.sig_) return sig_;
             if (den_ ^ other.den_) return den_;
@@ -163,7 +163,7 @@ namespace pdaggerq {
             return label_ < other.label_;
         }
 
-        constexpr bool same_kind(const Line& other) const {
+        bool same_kind(const Line& other) const {
             // sort by sig, den, o, a, but not label
             if (sig_ ^ other.sig_) return sig_;
             if (den_ ^ other.den_) return den_;
@@ -173,23 +173,23 @@ namespace pdaggerq {
             return true;
         }
 
-        constexpr bool operator>(const Line& other) const {
+        bool operator>(const Line& other) const {
             return other < *this;
         }
 
-        constexpr bool operator<=(const Line& other) const {
+        bool operator<=(const Line& other) const {
             return *this < other || *this == other;
         }
 
-        constexpr bool operator>=(const Line& other) const {
+        bool operator>=(const Line& other) const {
             return *this > other || *this == other;
         }
 
         /// *** Getters/Setters *** ///
 
-        constexpr bool has_blk() const { return blk_type_ != '\0'; }
+        bool has_blk() const { return blk_type_ != '\0'; }
 
-        inline char block() const {
+        char block() const {
             switch (blk_type_) {
                 case 's': return a_ ? 'a' : 'b';
                 case 'r': return a_ ? '1' : '0';
@@ -197,17 +197,17 @@ namespace pdaggerq {
             }
         }
 
-        constexpr char type() const {
+        char type() const {
             if (sig_) return 'L';
             if (den_) return 'Q';
             return o_ ? 'o' : 'v';
         }
 
-        inline bool empty() const {
+        bool empty() const {
             return label_.empty();
         }
 
-        inline uint_fast8_t size() const {
+        uint_fast8_t size() const {
             return label_.size();
         }
 
@@ -217,12 +217,12 @@ namespace pdaggerq {
 
     // struct for comparing lines while ignoring the label
     struct line_compare {
-        constexpr bool operator()(const Line &left, const Line &right) const {
+        bool operator()(const Line &left, const Line &right) const {
             return left.same_kind(right);
 //            return left < right;
         }
 
-        constexpr bool operator()(const Line *left, const Line *right) const {
+        bool operator()(const Line *left, const Line *right) const {
             if (!left || !right) return !right;
             else return left->same_kind(*right);
 //            else return left->operator<(*right);
@@ -237,7 +237,7 @@ namespace pdaggerq {
 // declare hash functions for Line class
 namespace pdaggerq {
     struct LineHash {
-        inline uint_fast16_t operator()(const Line &line) const {
+        uint_fast16_t operator()(const Line &line) const {
 
             // we can store each boolean as a bit in an integral type (4 bits)
             uint16_t hash = line.o_;
@@ -249,7 +249,7 @@ namespace pdaggerq {
             return hash << 8 | line.label_[0];
         }
 
-        constexpr size_t operator()(const Line *line) const {
+        size_t operator()(const Line *line) const {
             constexpr LineHash line_hash;
 
             // check if the pointer is null
@@ -310,13 +310,13 @@ namespace pdaggerq {
         }
     };
     struct LineEqual {
-        inline bool operator()(const Line &lhs, const Line &rhs) const {
+        bool operator()(const Line &lhs, const Line &rhs) const {
 
             // check equality of the lines
             return lhs == rhs;
         }
 
-        inline bool operator()(const Line *lhs, const Line *rhs) const {
+        bool operator()(const Line *lhs, const Line *rhs) const {
 
             // check if either pointer is null
             if (!lhs || !rhs) return rhs == lhs;
@@ -326,7 +326,7 @@ namespace pdaggerq {
         }
     };
     struct LinePropHash {
-        constexpr uint_fast8_t operator()(const Line &line) const {
+        uint_fast8_t operator()(const Line &line) const {
 
             // we can store each boolean as a bit in an integral type (4 bits)
             uint16_t hash = line.o_;
@@ -338,7 +338,7 @@ namespace pdaggerq {
             return hash;
         }
 
-        constexpr uint_fast8_t operator()(const Line *line) const {
+        uint_fast8_t operator()(const Line *line) const {
 
             if (!line) return -1; // ignore null pointers (return -1)
 
@@ -356,11 +356,11 @@ namespace pdaggerq {
         }
     };
     struct LinePropEqual {
-        constexpr bool operator()(const Line &lhs, const Line &rhs) const {
+        bool operator()(const Line &lhs, const Line &rhs) const {
             return lhs.equivalent(rhs);
         }
 
-        constexpr bool operator()(const Line *lhs, const Line *rhs) const {
+        bool operator()(const Line *lhs, const Line *rhs) const {
             if (!lhs || !rhs) return rhs == lhs;
             return lhs->equivalent(*rhs);
         }

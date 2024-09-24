@@ -35,7 +35,7 @@ namespace pdaggerq {
 
     /********** Constructors **********/
 
-    inline Linkage::Linkage(ConstVertexPtr left, ConstVertexPtr right, bool is_addition) :
+    Linkage::Linkage(ConstVertexPtr left, ConstVertexPtr right, bool is_addition) :
                             left_(std::move(left)), right_(std::move(right)), Vertex() {
 
         // replace null pointers with empty vertices
@@ -55,7 +55,7 @@ namespace pdaggerq {
         build_connections();
     }
 
-    inline void Linkage::build_connections() {
+    void Linkage::build_connections() {
 
         lines_.clear();
         flop_scale_ = {};

@@ -325,7 +325,7 @@ namespace pdaggerq {
         return dimstring;
     }
 
-    inline void Vertex::update_lines(const line_vector &lines, bool update_name){
+    void Vertex::update_lines(const line_vector &lines, bool update_name){
 
         lines_ = lines; // set lines
         rank_ = lines.size(); // set rank
@@ -368,7 +368,7 @@ namespace pdaggerq {
         shape_ = shape();
     }
 
-    inline Vertex Vertex::permute(size_t perm_id, bool &swap_sign) const {
+    Vertex Vertex::permute(size_t perm_id, bool &swap_sign) const {
 
         swap_sign = false; // initialize swap sign to false
         if (perm_id == 0) return *this; // if perm_id is 0, return self
@@ -536,7 +536,7 @@ namespace pdaggerq {
         return name_ <= other.name_;
     }
 
-    inline bool Vertex::equivalent(const Vertex &other) const {
+    bool Vertex::equivalent(const Vertex &other) const {
 
         // check if rank, n_occ, n_vir, n_alph, n_beta are equal
         if (this->is_linked() != other.is_linked())
