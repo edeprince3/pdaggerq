@@ -292,67 +292,54 @@ namespace pdaggerq {
             indexed_terms.emplace_back(&equation.terms()[i], i);
 
         // sort the terms by the maximum id of the tmps in the term, then by the index of the term
+        bool consider_rhs = false;
+        auto total_in_order = [type, &consider_rhs](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
+            const auto &[a_term, a_idx] = a; const auto &[b_term, b_idx] = b;
 
-        auto is_in_order = [type](const pair<Term*, size_t> &a, const pair<Term*, size_t> &b) {
+            idset a_lhs_ids, b_lhs_ids;
+            idset a_rhs_ids, b_rhs_ids;
 
-            const Term &a_term = *a.first;
-            const Term &b_term = *b.first;
+            a_rhs_ids = a_term->term_linkage()->get_ids(type); b_rhs_ids = b_term->term_linkage()->get_ids(type);
+            if (a_term->lhs()->is_temp()) a_lhs_ids = as_link(a_term->lhs())->get_ids(type);
+            if (b_term->lhs()->is_temp()) b_lhs_ids = as_link(b_term->lhs())->get_ids(type);
 
-            size_t a_idx = a.second;
-            size_t b_idx = b.second;
-
-            typedef std::set<long, std::greater<>> idset;
-
-            set<long> a_lhs_ids, b_lhs_ids;
-            set<long> a_rhs_ids, b_rhs_ids;
-
-            a_rhs_ids = a_term.term_linkage()->get_ids(type);
-            b_rhs_ids = b_term.term_linkage()->get_ids(type);
-            if (a_term.lhs()->is_temp()) a_lhs_ids = as_link(a_term.lhs())->get_ids(type);
-            if (b_term.lhs()->is_temp()) b_lhs_ids = as_link(b_term.lhs())->get_ids(type);
-
-            idset a_total_ids, b_total_ids;
-            a_total_ids.insert(a_lhs_ids.begin(), a_lhs_ids.end());
-            a_total_ids.insert(a_rhs_ids.begin(), a_rhs_ids.end());
-            b_total_ids.insert(b_lhs_ids.begin(), b_lhs_ids.end());
-            b_total_ids.insert(b_rhs_ids.begin(), b_rhs_ids.end());
+            idset a_tot_ids, b_tot_ids;
+            a_tot_ids.insert(a_lhs_ids.begin(), a_lhs_ids.end()); a_tot_ids.insert(a_rhs_ids.begin(), a_rhs_ids.end());
+            b_tot_ids.insert(b_lhs_ids.begin(), b_lhs_ids.end()); b_tot_ids.insert(b_rhs_ids.begin(), b_rhs_ids.end());
 
             // get number of ids
-            bool a_has_temp = !a_total_ids.empty();
-            bool b_has_temp = !b_total_ids.empty();
+            bool a_has_temp = !a_tot_ids.empty(), b_has_temp = !b_tot_ids.empty();
 
             // keep terms without temps first
             if (a_has_temp != b_has_temp) return !a_has_temp;
 
-            // if ids are the same, ensure assignment is first
-            bool same_ids = a_total_ids == b_total_ids;
-            if (same_ids && a_term.is_assignment_ != b_term.is_assignment_)
-                return a_term.is_assignment_;
+            // keep assignments first for the same total ids
+            bool same_id = a_tot_ids == b_tot_ids;
+            if ( same_id && a_term->is_assignment_ != b_term->is_assignment_)
+                return a_term->is_assignment_;
+            else if (same_id && !a_term->is_assignment_) return a_idx < b_idx;
 
-            // if lhs ids are different, keep smaller lhs ids first
-            if (a_lhs_ids != b_lhs_ids) {
-                // check cases where one lhs is empty
-                if (a_lhs_ids.empty()) return b_lhs_ids.empty();
-                if (b_lhs_ids.empty()) return !a_lhs_ids.empty();
+            if (!consider_rhs)
+                // keep in lexicographical order without considering rhs validity with respect to lhs
+                return a_tot_ids < b_tot_ids;
 
-                // else keep smaller lhs ids first
-                return a_lhs_ids < b_lhs_ids;
-            }
+            // ensure that all ids in a_rhs are less than all ids in b_lhs
+            for (long a_id : a_rhs_ids)
+                for (long b_id : b_lhs_ids)
+                    if (a_id >= b_id) return false;
 
-            // now keep larger rhs ids first
-            if (a_rhs_ids != b_rhs_ids)
-                return a_rhs_ids > b_rhs_ids;
+            // ensure that all ids in b_rhs are greater than all ids in a_lhs
+            for (long b_id : b_rhs_ids)
+                for (long a_id : a_lhs_ids)
+                    if (b_id < a_id) return false;
 
-            // if total is not the same, keep in order of total ids
-            if (a_total_ids != b_total_ids)
-                return a_total_ids < b_total_ids;
-
-            // else keep in original order
-            return a_idx < b_idx;
-
+            // keep in lexicographical order
+            return a_tot_ids < b_tot_ids;
         };
 
-        stable_sort(indexed_terms.begin(), indexed_terms.end(), is_in_order);
+        stable_sort(indexed_terms.begin(), indexed_terms.end(), total_in_order);
+        consider_rhs = true;
+        stable_sort(indexed_terms.begin(), indexed_terms.end(), total_in_order);
 
         // initialize map of lhs names
         std::set<std::string> lhs_name_map;
