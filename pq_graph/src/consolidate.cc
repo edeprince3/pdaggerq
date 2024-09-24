@@ -312,7 +312,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             // skip empty linkages
             if (test_linkage == nullptr) continue;
             if (test_linkage->empty()) continue;
-            test_linkage->forget(); // clear linkage history
+            test_linkage->forget(true); // clear linkage history
 
             if (test_flop_map > flop_map_) {
                 // remove the linkage completely if the scaling only got worse
@@ -397,7 +397,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 totalSubs += num_subs; // add number of substitutions to total
 
                 // add linkage to ignore linkages
-                link_to_sub->forget(); // clear linkage history
+                link_to_sub->forget(true); // clear linkage history
                 ignore_linkages.insert(link_to_sub);
                 test_linkages.erase(link_to_sub);
 
@@ -481,23 +481,6 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
         if (recompute) {
 
-            // resubstitute all saved linkages
-//            for (const auto &[type, linkages]: saved_linkages_) {
-//                vector<ConstLinkagePtr> links(linkages.begin(), linkages.end());
-//
-//                // sort links by id
-//                std::sort(links.begin(), links.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
-//                    return a->id() < b->id();
-//                });
-//                for (const auto &linkage: links) {
-//                    for (auto &[name, eq]: equations_) { // iterate over equations in parallel
-//                        size_t this_subs = eq.substitute(linkage);
-//                        bool madeSub = this_subs > 0;
-//                        if (madeSub) eq.rearrange(); // sort tmps in equation
-//                    }
-//                }
-//            }
-
             // clear linkage histories
             forget();
 
@@ -533,9 +516,9 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
                 // clear linkages within ignore set and test set
                 for (auto &linkage: ignore_linkages)
-                    linkage->forget();
+                    linkage->forget(true);
                 for (auto &linkage: test_linkages)
-                    linkage->forget();
+                    linkage->forget(true);
 
                 cout << " Done (" << "found " << test_linkages.size() << ")" << endl;
 
