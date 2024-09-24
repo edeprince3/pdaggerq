@@ -518,7 +518,7 @@ namespace pdaggerq {
         if (rank_ != other.rank_) return false;
         if (shape_ != other.shape_) return false;
 
-        // check if rhs have equivalent label properties
+        // check lines are the same
         if (lines_ != other.lines_) return false;
 
         // check if the vertex names are equal
@@ -545,7 +545,7 @@ namespace pdaggerq {
         if (rank_  !=  other.rank_) return false;
         if (shape_ != other.shape_) return false;
 
-        // check if rhs have equivalent label properties
+        // check if lines have equivalent properties
         for (uint_fast8_t i = 0; i < rank_; i++) {
             if ( !lines_[i].equivalent(other.lines_[i]) )
                 return false;
