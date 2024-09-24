@@ -99,6 +99,9 @@ size_t Equation::substitute(const ConstLinkagePtr &linkage, bool allow_equality)
     size_t num_terms = terms_.size();
     size_t num_subs = 0; // number of substitutions
 
+    // scaling of the linkage cannot be more than the equation
+    if (linkage->netscales().first > flop_map()) return 0;
+
     #pragma omp parallel for schedule(guided) shared(terms_, linkage) firstprivate(num_terms, allow_equality) \
                              reduction(+:num_subs) default(none)
     for (int i = 0; i < num_terms; i++) {
@@ -122,6 +125,9 @@ size_t Equation::substitute(const ConstLinkagePtr &linkage, bool allow_equality)
 }
 
 size_t Equation::test_substitute(const LinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality) {
+
+    // scaling of the linkage cannot be more than the equation
+    if (linkage->netscales().first > flop_map()) return 0;
 
     /// iterate over terms and substitute
     size_t num_terms = terms_.size();
@@ -167,6 +173,9 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
         // do not allow substitution of reused intermediates with non-reused intermediates
         if (lhs_->type() != "temp" && linkage->type() == "temp") return false;
     }
+
+    // scaling of the linkage cannot be more than the term
+    if (linkage->netscales().first > flop_map()) return false;
 
     // get total vector of linkage vertices (without expanding nested linkages)
     vector<ConstVertexPtr> link_list = linkage->link_vector();
