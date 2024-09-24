@@ -707,7 +707,6 @@ size_t PQGraph::prune() {
 
         // remove (regardless of use) if temp has only one pure vertex
         if (temp->vertices().size() > 1) {
-            if (temp->is_scalar()) continue; // all scalars should not be removed
 
             // count number of occurrences of the temp in the terms
             size_t num_occurrences = 0;
@@ -726,7 +725,7 @@ size_t PQGraph::prune() {
 
             if (num_occurrences == 1 ) {
                 if (temp->is_reused() || temp->is_scalar() || temp->is_addition()) {
-                    // if used only once and this is a reusable temp, remove only if the term declare a temp
+                    // if used only once and this is a reusable temp, remove only if the term declares a temp
                     bool declares_temp = (*terms.begin())->lhs() != nullptr && (*terms.begin())->lhs()->is_linked();
                     if (!declares_temp) continue;
                 }
