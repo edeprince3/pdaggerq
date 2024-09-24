@@ -225,32 +225,33 @@ namespace pdaggerq {
 
         // create the name of the linkage
         base_name_.reserve(left_->name_.size() + right_->name_.size() + 1);
-        base_name_ = left_->name_;
+        base_name_ = left_->base_name_;
         if (addition_)
              base_name_ += '+';
         else base_name_ += '*';
-        base_name_ += right_->name_;
+        base_name_ += right_->base_name_;
+        base_name_ += ' ';
 
         // add connection map to base name
         for (const auto &[leftidx, rightidx] : connec_map_) {
-            base_name_ += (char)leftidx + '0'; // convert to int
+            base_name_ += (char)leftidx + '1'; // convert to int
             base_name_ += '>';
-            base_name_ += (char)rightidx + '0'; // convert to int
+            base_name_ += (char)rightidx + '1'; // convert to int
             base_name_ += ' ';
         }
 
         // add hashes of the lines
+        base_name_ += ' ';
         for (const auto &line : left_->lines_) {
-            base_name_ += line.type();
-            base_name_ += line.block();
+            base_name_ += line.type() + line.block() - 'a';
         }
+        base_name_ += ' ';
         for (const auto &line : right_->lines_) {
-            base_name_ += line.type();
-            base_name_ += line.block();
+            base_name_ += line.type() + line.block() - 'a';
         }
+        base_name_ += ' ';
         for (const auto &line : lines_) {
-            base_name_ += line.type();
-            base_name_ += line.block();
+            base_name_ += line.type() + line.block() - 'a';
         }
 
         // base name is complete
