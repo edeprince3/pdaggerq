@@ -294,6 +294,22 @@ namespace pdaggerq {
         void update_lines(const line_vector &lines, bool update_name) override;
 
         /**
+         * Reccursively update the lines of the linkage
+         * @param lines new lines
+         * @param update_name whether to update the name of the linkage
+         */
+        void update_lines(const ConstVertexPtr &other){
+            // update the lines of the linkage
+            Vertex::update_lines(other->lines());
+            if (other->is_linked()) {
+                auto other_link = as_link(other);
+                VertexPtr new_left = left_->shallow(), new_right = right_->shallow();
+                new_left->update_lines(other_link->left()); new_right->update_lines(other_link->right());
+                left_ = new_left; right_ = new_right;
+            }
+        }
+
+        /**
          * Recursively update the lines of the linkage using a map
          * @param line_map map of old lines to new lines
          */

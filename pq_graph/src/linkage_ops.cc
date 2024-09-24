@@ -145,7 +145,7 @@ namespace pdaggerq {
         }
 
         // copy the result vector to the link_vector if the size is less than 32
-        if (!low_memory_ && depth_ <= 32) {
+        if (!low_memory_ && depth_ <= 16) {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             if (fully_expand)
@@ -366,7 +366,16 @@ namespace pdaggerq {
 
 
         bool replaced = *target_vertex == *this;
-        if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
+        if (replaced) {
+            // check if new_vertex is equivalent to this
+            if (*new_vertex == *this){
+                // if the new vertex is equivalent, then we just need to replace the lines to match this
+                VertexPtr formatted_vertex = new_vertex->shallow();
+                formatted_vertex->update_lines(shared_from_this());
+                return {formatted_vertex, true};
+            }
+            return {new_vertex, true};
+        } // this is the target vertex, so replace it
 
         if (depth_ < target_vertex->depth())
             return {shared_from_this(), false}; // if the target vertex is deeper, it cannot be replaced
@@ -556,7 +565,7 @@ namespace pdaggerq {
         if (is_temp()) return result;
 
         // do not store permutations if the depth is too large
-        bool store_permutations = !low_memory_ && depth_ <= 32;
+        bool store_permutations = !low_memory_ && depth_ <= 16;
 
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {

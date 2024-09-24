@@ -246,6 +246,8 @@ struct LinkMerger {
 
                 double link_ratio = 0.0;
                 set<string> ref_conditions;
+
+                ConstVertexPtr reflink1_2 = nullptr;
                 for (size_t i = 0; i < link1_info.size(); i++) {
 
                     // extract link info
@@ -257,6 +259,18 @@ struct LinkMerger {
                     auto &link2_term = link2_info[i].term;
                     auto &trunc_term2 = link2_info[i].trunc_term;
 
+                    // ensure both trunc links have the same lines
+                    line_vector lines1_sorted = link1_trunc->lines();
+                    line_vector lines2_sorted = link2_trunc->lines();
+                    std::sort(lines1_sorted.begin(), lines1_sorted.end());
+                    std::sort(lines2_sorted.begin(), lines2_sorted.end());
+                    if (lines1_sorted != lines2_sorted) { same_connectivity = false; break; }
+
+                    // ensure connectivity of the two trunc links are the same for all terms
+                    ConstVertexPtr link1_2 = link1_trunc + link2_trunc;
+                    if (reflink1_2 == nullptr) reflink1_2 = link1_2;
+                    else if (*link1_2 != *reflink1_2) { same_connectivity = false; break; }
+
                     // determine if permutation is the same
                     if (link1_term->perm_type()  != link2_term->perm_type())  { same_connectivity = false; break; }
                     if (link1_term->term_perms() != link2_term->term_perms()) { same_connectivity = false; break; }
@@ -264,7 +278,7 @@ struct LinkMerger {
                     // determine if coefficient ratio is the same (should be)
                     double cur_ratio = link2_term->coefficient_ / link1_term->coefficient_;
                     if (link_ratio == 0.0) link_ratio = cur_ratio;
-                    if (fabs(cur_ratio - link_ratio) > 1e-10) { same_connectivity = false; break; }
+                    else if (fabs(cur_ratio - link_ratio) > 1e-10) { same_connectivity = false; break; }
 
                     // replace the replacement vertex with the trunc vertex
                     ConstVertexPtr term1_link = trunc_term1.term_linkage()->replace(dummy, link1_trunc).first;

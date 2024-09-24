@@ -155,6 +155,13 @@ namespace pdaggerq {
          */
         virtual void update_lines(const line_vector &lines, bool update_name = true);
 
+        /**
+         * replaces the lines of the vertex with the lines in the argument
+         * @param other vertex to copy lines from
+         */
+        virtual void update_lines(const ConstVertexPtr &other) {
+            update_lines(other->lines());
+        }
 
         /**
          * replaces the lines of the vertex with the lines in the argument
