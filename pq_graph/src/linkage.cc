@@ -240,6 +240,14 @@ namespace pdaggerq {
         }
 
         // add hashes of the lines
+        for (const auto &line : left_->lines_) {
+            base_name_ += line.type();
+            base_name_ += line.block();
+        }
+        for (const auto &line : right_->lines_) {
+            base_name_ += line.type();
+            base_name_ += line.block();
+        }
         for (const auto &line : lines_) {
             base_name_ += line.type();
             base_name_ += line.block();
