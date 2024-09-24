@@ -608,9 +608,7 @@ namespace pdaggerq {
                 return link_vec[i];
             });
 
-            ConstLinkagePtr perm_link = link(link_perm);
-            perm_link->forget();
-            result.push_back(perm_link);
+            result.push_back(Linkage::link(link_perm));
         }
 
         // copy the result vector to the permutations_ vector only if low memory mode is off
