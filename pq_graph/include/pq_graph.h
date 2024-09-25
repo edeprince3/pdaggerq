@@ -192,7 +192,6 @@ namespace pdaggerq {
          * clears everything in the builder
          */
         void clear() {
-            PQGraph::~PQGraph(); // call destructor
             *this = PQGraph();   // reset the builder
         }
 
