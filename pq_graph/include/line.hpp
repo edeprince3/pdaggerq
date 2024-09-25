@@ -66,6 +66,7 @@ namespace pdaggerq {
         static inline array<char, 32> den_labels_ = {'Q', 'U'};      // names of density fitting lines
 
         Line() = default;
+        ~Line() = default;
 
         /**
          * Constructor

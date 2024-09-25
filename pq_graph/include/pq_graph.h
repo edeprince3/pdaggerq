@@ -134,6 +134,7 @@ namespace pdaggerq {
 
         // default constructor
         PQGraph() = default;
+        ~PQGraph() = default;
 
         explicit PQGraph(const pybind11::dict& options){
             substitute_timer.precision_ = 2;
