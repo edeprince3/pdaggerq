@@ -66,6 +66,11 @@ namespace pdaggerq {
         string name_{}; // name of the vertex
         string base_name_{}; // name of vertex without index markup
 
+        // string to format the map of lines
+        // string will build the map from dimstring every time (default)
+        // anything else will replace the usual "[" dimstring "]" with the map_string
+        string map_string_ = "default";
+
         // uint_fast8_t is sufficient for up to 255 line indices and is more efficient than size_t, which is 64 bits
         // 255 indices is more than enough for any reasonable vertex.
         // It is important to keep the Vertex class as small as possible because it is constructed many, many times.
@@ -73,9 +78,9 @@ namespace pdaggerq {
         uint_fast8_t rank_{}; // rank of the vertex
         shape shape_{}; // shape of the vertex
 
+
         // boolean identifiers
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)
-        bool format_map_ = true; // whether the vertex is formatted as a map to access different blocks
         bool is_sigma_ = false; // whether the vertex is an excited state vertex
         bool is_den_ = false; // whether the vertex is a density-fitting vertex
 

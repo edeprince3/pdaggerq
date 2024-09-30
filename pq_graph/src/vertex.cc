@@ -135,8 +135,12 @@ namespace pdaggerq {
         else if (type == 'r')
             labels.emplace(labels.begin(), "R");
 
-        // only represent amplitudes as maps if they have a block
-        format_map_ = !blk_string.empty();
+        // set the dimstring
+        if (!blk_string.empty()) {
+            map_string_ = "[\"" + blk_string + "\"]";
+        } else {
+            map_string_ = "";
+        }
 
         // set lines
         set_lines(labels, blk_string);
@@ -301,11 +305,12 @@ namespace pdaggerq {
         if (rank_ == 0) return;
 
         // format tensor block as a map if it is not an amplitude or if it has a block
-        if (format_map_) {
+        if (map_string_ == "default") {
             name_ += "[\"";
             name_ += dimstring();
             name_ += "\"]";
-        }
+        } else
+            name_ += map_string_;
 
     }
 
