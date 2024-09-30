@@ -615,14 +615,9 @@ namespace pdaggerq {
             Term left_term = *this, right_term = *this;
             ConstVertexPtr left_vertex = term_link->left();
             ConstVertexPtr right_vertex = term_link->right();
-            bool expand_left = left_vertex->is_expandable();
-            bool expand_right = right_vertex->is_expandable();
 
-            // expand left term
-            left_term.expand_rhs(left_vertex);
-
-            // expand right term
-            right_term.expand_rhs(right_vertex);
+            left_term.expand_rhs(left_vertex); // expand left term
+            right_term.expand_rhs(right_vertex); // expand right term
 
             // merge constants in right term and compute scaling. right term is not an assignment
             right_term.is_assignment_ = false;
