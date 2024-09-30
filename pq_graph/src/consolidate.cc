@@ -174,7 +174,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     // get linkages with the highest scaling (use all linkages for first iteration, regardless of batched)
     // this helps remove impossible linkages from the set without regenerating all linkages as often
-    linkage_set test_linkages = all_links_;
+    linkage_set test_linkages = all_links_ - ignore_linkages;
 
     update_timer.stop();
 
@@ -244,6 +244,12 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 // we only keep linkages without a sigma vector and are not scalars
                 linkage->forget(); // clear linkage history
                 ignore_linkages.insert(linkage);
+                continue;
+            }
+
+            // check if this linkage is in the ignore set
+            if (ignore_linkages.find(linkage) != ignore_linkages.end()) {
+                linkage->forget(); // clear linkage history
                 continue;
             }
 
