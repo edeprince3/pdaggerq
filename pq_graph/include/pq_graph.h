@@ -334,6 +334,11 @@ namespace pdaggerq {
          */
         void make_scalars();
 
+        /**
+         * remove all scalar contractions
+         */
+        void remove_scalars();
+
     }; // PQGraph
 
     /**

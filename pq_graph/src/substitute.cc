@@ -254,12 +254,17 @@ bool Term::substitute(const ConstLinkagePtr &linkage) {
 void PQGraph::make_scalars() {
 
     cout << "Finding scalars..." << flush;
-    // find scalars in all equations and substitute them
-    linkage_set scalars = saved_linkages_["scalar"];
+    if ( opt_level_ >= 2 ) {
+        // use substitution to find scalars
+        print_guard guard; guard.lock();
+        substitute(false, true);
+    }
+
+    // find scalars in all equations and substitute them without reordering terms
     for (auto &[name, eq]: equations_) {
         // do not make scalars in scalar equation
         if (name == "scalar") continue;
-        eq.make_scalars(scalars, temp_counts_["scalar"]);
+        eq.make_scalars(saved_linkages_["scalar"], temp_counts_["scalar"]);
     }
     cout << " Done" << endl;
 
@@ -269,48 +274,10 @@ void PQGraph::make_scalars() {
         equations_["scalar"].is_temp_equation_ = true;
     }
 
-    if (Equation::no_scalars_) {
+    if (Equation::no_scalars_)
+        remove_scalars();
 
-        cout << "Removing scalars from equations..." << endl;
-
-        // remove scalar equation
-        equations_.erase("scalar");
-
-        // remove scalars from all equations
-        vector<string> to_remove;
-        for (auto &[name, eq]: equations_) {
-            vector<Term> new_terms;
-            for (auto &term: eq.terms()) {
-                bool has_scalar = false;
-                for (auto &op: term.rhs()) {
-                    if (op->is_linked() && op->is_scalar()) {
-                        has_scalar = true;
-                        break;
-                    }
-                }
-
-                if (!has_scalar)
-                    new_terms.push_back(term);
-            }
-            // if no terms left, remove equation
-            if (new_terms.empty())
-                to_remove.push_back(name);
-            else
-                eq.terms() = new_terms;
-        }
-
-        // remove equations
-        for (const auto &name: to_remove) {
-            cout << "Removing equation: " << name << " (no terms left after removing scalars)" << endl;
-            equations_.erase(name);
-        }
-
-        // remove scalars from saved linkages
-        scalars.clear();
-    }
-
-
-    vector<ConstLinkagePtr> scalars_vec(scalars.begin(), scalars.end());
+    vector<ConstLinkagePtr> scalars_vec(saved_linkages_["scalar"].begin(), saved_linkages_["scalar"].end());
     // sort by the id of the scalars
     sort(scalars_vec.begin(), scalars_vec.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
         return a->id() < b->id();
@@ -318,9 +285,14 @@ void PQGraph::make_scalars() {
 
     // add new scalars to all linkages and equations
     for (const auto &scalar: scalars_vec) {
-        // add term to scalars equation
-        add_tmp(scalar, equations_["scalar"]);
-        saved_linkages_["scalar"].insert(scalar);
+        // add term to scalars equation if it is not already there
+        bool already_added = false;
+        for (const auto &term: equations_["scalar"].terms()) {
+            if (*term.lhs() == *scalar) { already_added = true; break; }
+        }
+
+        if (!already_added)
+            add_tmp(scalar, equations_["scalar"]);
 
         // print scalar
         cout << scalar->str() << " = " << *scalar << endl;
@@ -335,6 +307,40 @@ void PQGraph::make_scalars() {
     // collect scaling
     collect_scaling(true);
     is_assembled_ = true;
+}
+
+void PQGraph::remove_scalars() {
+    cout << "Removing scalars from equations..." << endl;
+
+    // remove scalar equation
+    equations_.erase("scalar");
+    saved_linkages_["scalar"].clear();
+
+    // remove scalars from all equations
+    vector<string> to_remove;
+    for (auto &[name, eq]: equations_) {
+        vector<Term> new_terms;
+        for (auto &term: eq.terms()) {
+            bool has_scalar = false;
+            for (auto &op: term.rhs()) {
+                if (op->is_linked() && op->is_scalar()) {
+                    has_scalar = true; break;
+                }
+            }
+            if (!has_scalar)
+                new_terms.push_back(term);
+        }
+        // if no terms left, remove equation
+        if (new_terms.empty())
+             to_remove.push_back(name);
+        else eq.terms() = new_terms;
+    }
+
+    // remove equations
+    for (const auto &name: to_remove) {
+        cout << "Removing equation: " << name << " (no terms left after removing scalars)" << endl;
+        equations_.erase(name);
+    }
 }
 
 void Equation::make_scalars(linkage_set &scalars, long &n_temps) {
