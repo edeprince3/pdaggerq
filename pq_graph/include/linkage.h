@@ -52,17 +52,6 @@ using std::dynamic_pointer_cast;
 
 namespace pdaggerq {
 
-    // define cast function from Vertex pointers to Linkage pointers  and vice versa
-
-    static LinkagePtr as_link(const VertexPtr &vertex)  {
-        if (vertex->is_linked()) return static_pointer_cast<Linkage>(vertex);
-        else throw invalid_argument("Cannot cast Vertex to Linkage");
-    }
-    static ConstLinkagePtr as_link(const ConstVertexPtr &vertex)  {
-        if (vertex->is_linked()) return static_pointer_cast<const Linkage>(vertex);
-        else throw invalid_argument("Cannot cast Vertex to Linkage");
-    }
-
     /**
      * Perform linkage of two vertices by overload of * operator
      * @param other vertex to contract with
@@ -84,6 +73,17 @@ namespace pdaggerq {
     extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right);
     extern VertexPtr operator+(double factor, const ConstVertexPtr &right);
     extern VertexPtr operator+(const ConstVertexPtr &left, double factor);
+
+    // define cast function from Vertex pointers to Linkage pointers  and vice versa
+
+    static LinkagePtr as_link(const VertexPtr &vertex)  {
+        if (vertex->is_linked())  return static_pointer_cast<Linkage>(vertex);
+        return as_link(1.0 * vertex); // if not a linkage, then contract the vertex with one
+    }
+    static ConstLinkagePtr as_link(const ConstVertexPtr &vertex)  {
+        if (vertex->is_linked()) return static_pointer_cast<const Linkage>(vertex);
+        return as_link(1.0 * vertex); // if not a linkage, then contract the vertex with one
+    }
 
     typedef std::set<long, std::less<>> idset;
 

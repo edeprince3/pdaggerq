@@ -36,20 +36,7 @@ namespace pdaggerq {
     /********** Constructors **********/
 
     Linkage::Linkage(ConstVertexPtr left, ConstVertexPtr right, bool is_addition) :
-                            left_(std::move(left)), right_(std::move(right)), Vertex() {
-
-        // replace null pointers with empty vertices
-        if ( left_ == nullptr)  left_ = std::make_shared<const Vertex>();
-        if (right_ == nullptr) right_ = std::make_shared<const Vertex>();
-
-        addition_ = is_addition;
-
-        // if one is empty and the other is linked, set this linkage to the linked vertex
-        if (left_->empty() && right_->is_linked() && !right_->empty()) {
-            *this = *as_link(right_->shared_from_this()); return;
-        } else if (right_->empty() && left_->is_linked() && !left_->empty()) {
-            *this = *as_link(left_->shared_from_this()); return;
-        }
+                            left_(std::move(left)), right_(std::move(right)), addition_(is_addition) {
 
         // build internal and external lines with their index mapping
         build_connections();
@@ -61,6 +48,21 @@ namespace pdaggerq {
         flop_scale_ = {};
         mem_scale_ = {};
         connec_map_.clear();
+        forget();
+
+        // replace null pointers with empty vertices
+        if ( left_ == nullptr)  left_ = std::make_shared<const Vertex>();
+        if (right_ == nullptr) right_ = std::make_shared<const Vertex>();
+
+        // if one is empty and the other is linked, set this linkage to the linked vertex
+        if ( left_->empty() && right_->is_linked()) { *this = *as_link(right_->shallow()); return; }
+        if (right_->empty() &&  left_->is_linked()) { *this = *as_link( left_->shallow()); return; }
+
+        // if both are empty, set this linkage to an empty vertex
+        if ( left_->empty() && right_->empty()) { *this = Linkage(); return; }
+
+        // if one is empty and the other is not, keep empty vertex on the left
+        if ( !left_->empty() && right_->empty()) { std::swap(left_, right_); }
 
         // grab data from left and right vertices
         uint_fast8_t left_size = left_->size();
@@ -686,21 +688,19 @@ namespace pdaggerq {
     }
 
     extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right){
-        if (left && !right)
-            return left->shallow();
-        else if (!left && right)
-            return right->shallow();
-        else if (!left && !right)
-            return make_shared<Vertex>();
+        bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
+        if ( left_valid && !right_valid) return  left->shallow();
+        if (!left_valid &&  right_valid) return right->shallow();
+        if (!left_valid && !right_valid) return make_shared<Vertex>();
+
         return make_shared<Linkage>(left, right, false);
     }
     extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right){
-        if (left && !right)
-            return left->shared_from_this();
-        else if (!left && right)
-            return right->shared_from_this();
-        else if (!left && !right)
-            return make_shared<Vertex>();
+        bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
+        if ( left_valid && !right_valid) return  left->shallow();
+        if (!left_valid &&  right_valid) return right->shallow();
+        if (!left_valid && !right_valid) return make_shared<Vertex>();
+
         return make_shared<Linkage>(left, right, false);
     }
     extern VertexPtr operator*(double factor, const ConstVertexPtr &right){
@@ -708,7 +708,7 @@ namespace pdaggerq {
         string factor_str = to_string_with_precision(factor, min_precision);
         VertexPtr left = make_shared<Vertex>(factor_str);
 
-        if (!right)
+        if (!right || right->empty())
             return left;
 
         return make_shared<Linkage>(left, right, false);
@@ -718,29 +718,25 @@ namespace pdaggerq {
         string factor_str = to_string_with_precision(factor, min_precision);
         VertexPtr right = make_shared<Vertex>(factor_str);
 
-        if (!left)
+        if (!left || left->empty())
             return right;
 
         return make_shared<Linkage>(left, right, false);
     }
 
     extern VertexPtr operator+(const ConstVertexPtr &left, const ConstVertexPtr &right){
-        if (left && !right)
-            return left->shallow();
-        if (!left && right)
-            return right->shallow();
-        if (!left && !right)
-            return make_shared<Vertex>();
+        bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
+        if ( left_valid && !right_valid) return  left->shallow();
+        if (!left_valid &&  right_valid) return right->shallow();
+        if (!left_valid && !right_valid) return make_shared<Vertex>();
 
         return make_shared<Linkage>(left, right, true);
     }
     extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
-        if (left && !right)
-            return left->shared_from_this();
-        if (!left && right)
-            return right->shared_from_this();
-        if (!left && !right)
-            return make_shared<Vertex>();
+        bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
+        if ( left_valid && !right_valid) return  left->shallow();
+        if (!left_valid &&  right_valid) return right->shallow();
+        if (!left_valid && !right_valid) return make_shared<Vertex>();
 
         return make_shared<Linkage>(left, right, true);
     }
@@ -749,7 +745,7 @@ namespace pdaggerq {
         string factor_str = to_string_with_precision(factor, min_precision);
         VertexPtr left = make_shared<Vertex>(factor_str);
 
-        if (!right)
+        if (!right || right->empty())
             return left;
 
         return make_shared<Linkage>(left, right, true);
@@ -759,7 +755,7 @@ namespace pdaggerq {
         string factor_str = to_string_with_precision(factor, min_precision);
         VertexPtr right = make_shared<Vertex>(factor_str);
 
-        if (!left)
+        if (!left || left->empty())
             return right;
 
         return make_shared<Linkage>(left, right, true);

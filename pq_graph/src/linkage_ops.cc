@@ -58,11 +58,10 @@ namespace pdaggerq {
         }
 
         // if no linkage was made, return an empty vertex
-        if (linkage->empty()) {
-            return make_shared<Linkage>();
-        } else if (!linkage->is_linked())
-            // vertex found, but not linked, so return a linkage with the vertex and one
-            return as_link(make_shared<Vertex>() * linkage);
+        if (linkage->empty()) return make_shared<Linkage>();
+
+        // vertex found, but not linked, so return a linkage with the vertex and one
+        if (!linkage->is_linked()) return as_link(1.0 * linkage);
 
         return as_link(linkage->shallow());
     }
