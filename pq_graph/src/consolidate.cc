@@ -564,6 +564,9 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         cout << "Fused " << num_fused << " terms." << endl;
     }
 
+    // prune intermediates, but also remove single use intermediates
+    prune(false);
+
     Term::max_depth_ = org_max_depth;
 
     // resort tmps

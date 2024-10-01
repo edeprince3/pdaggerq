@@ -678,7 +678,7 @@ size_t PQGraph::merge_intermediates(){
     size_t num_fused_total = fused_terms;
     while (fused_terms > 0) {
         fused_terms = merge_intermediates(); // recursively merge intermediates until no more terms are fused
-        num_fused_total += merge_intermediates();
+        num_fused_total += fused_terms;
     }
 
     return num_fused_total;
@@ -890,8 +890,8 @@ size_t PQGraph::prune(bool keep_single_use) {
 
     size_t num_removed_total = num_removed;
     while (num_removed > 0) {
-        num_removed = prune(); // recursively prune until no more temps are removed
-        num_removed_total += prune();
+        num_removed = prune(keep_single_use); // recursively prune until no more temps are removed
+        num_removed_total += num_removed;
     }
 
     return num_removed_total;
