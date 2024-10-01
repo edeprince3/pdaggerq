@@ -665,9 +665,6 @@ void PQGraph::reindex() {
                 }
 
                 // replace temp id in lhs
-                LinkagePtr new_temp = as_link(temp->clone());
-                new_temp->id() = temp_id;
-
                 vertex = as_link(vertex)->set_id(temp, temp_id).first;
             }
         }
