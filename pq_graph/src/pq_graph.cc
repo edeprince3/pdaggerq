@@ -73,7 +73,7 @@ namespace pdaggerq {
                 }, py::arg("separate_sigma") = false)
                 .def("prune", [](PQGraph& self) {
                     bool old_opt_level = self.opt_level_; self.opt_level_ = 4;
-                    self.prune();                   self.opt_level_ = old_opt_level;
+                    self.prune(false);                   self.opt_level_ = old_opt_level;
                 })
                 .def("merge", [](PQGraph& self) {
                     bool old_opt_level = self.opt_level_; self.opt_level_ = 5;
@@ -738,7 +738,7 @@ namespace pdaggerq {
 
         // clean up unused intermediates
         update_timer.start();
-        prune();
+        prune(false);
         merge_terms();
 
         // set optimized flag to true

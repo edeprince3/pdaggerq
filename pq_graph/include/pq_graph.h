@@ -315,8 +315,9 @@ namespace pdaggerq {
 
         /**
          * remove redundant temps that only appear once
+         * @param keep_single_use whether to keep temps that only appear once
          */
-        size_t prune();
+        size_t prune(bool keep_single_use = true);
 
         /**
          * reindex the intermediates in the equations

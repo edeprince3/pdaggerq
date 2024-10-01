@@ -654,7 +654,7 @@ void PQGraph::reindex() {
             // get temps and sort by id
             auto nested_temps = as_link(vertex)->get_temps();
             std::sort(nested_temps.begin(), nested_temps.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
-                return a->id() > b->id();
+                return a->id() < b->id();
             });
             for (auto &temp : nested_temps) {
                 // find temp in temp map
@@ -678,6 +678,8 @@ void PQGraph::reindex() {
             for (auto &op : term.rhs())
                 reindex_vertex(op);
         }
+        eq.collect_scaling(true);
+        eq.rearrange();
     }
 
     // add all temps in temp map to saved linkages

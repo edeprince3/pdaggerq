@@ -684,7 +684,7 @@ size_t PQGraph::merge_intermediates(){
     return num_fused_total;
 }
 
-size_t PQGraph::prune() {
+size_t PQGraph::prune(bool keep_single_use) {
 
     if (opt_level_< 5)
         return 0; // do not remove unused temps if pruning is disabled
@@ -737,12 +737,16 @@ size_t PQGraph::prune() {
             // skip if temp is used more than once
             if (num_occurrences > 1) continue;
 
-            if (num_occurrences == 1 ) {
-                if (temp->is_reused() || temp->is_scalar() || temp->is_addition()) {
-                    // if used only once and this is a reusable temp, remove only if the term declares a temp
-                    bool declares_temp = (*terms.begin())->lhs() != nullptr && (*terms.begin())->lhs()->is_linked();
-                    if (!declares_temp) continue;
-                }
+            if (num_occurrences == 1) {
+                // do not remove if the temp is used and we are keeping single use temps
+                if (keep_single_use) continue;
+
+                // if used only once, remove if the only term declares a temp and is defined
+                ConstVertexPtr only_lhs = (*terms.begin())->lhs();
+                if (only_lhs == nullptr) continue; // not defined, so skip (removed elsewhere)
+
+                bool declares_temp = only_lhs->is_temp();
+                if (!declares_temp) continue;
             }
         }
 
