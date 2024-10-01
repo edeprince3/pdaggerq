@@ -477,7 +477,7 @@ namespace pdaggerq {
          * @param new_id the new id to replace with
          * @return true if the id was replaced, false otherwise
          */
-        pair<ConstVertexPtr, bool> replace_id(const ConstVertexPtr &target_vertex, long new_id) const;
+        pair<ConstVertexPtr, bool> set_id(const ConstVertexPtr &target_vertex, long new_id) const;
 
         /**
          * goes down the tree and finds all occurences of the target vertex

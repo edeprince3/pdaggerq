@@ -396,27 +396,29 @@ namespace pdaggerq {
         return {new_link, true};
     }
 
-    pair<ConstVertexPtr, bool> Linkage::replace_id(const ConstVertexPtr &target_vertex, long new_id) const {
+    pair<ConstVertexPtr, bool> Linkage::set_id(const ConstVertexPtr &target_vertex, long new_id) const {
         if (!target_vertex) return {shared_from_this(), false};
 
-        bool replaced = same_temp(target_vertex);
+        bool replaced = target_vertex->is_temp() ? same_temp(target_vertex) : *target_vertex == *this;
         if (replaced) {
             VertexPtr replacement = shallow();
             as_link(replacement)->id_ = new_id;
             return {replacement, true}; // this is the target vertex, so replace it
         }
 
-        replaced = false;
+        if (depth_ < target_vertex->depth())
+            return {shared_from_this(), false}; // if the target vertex is deeper, it cannot be replaced
+
         ConstVertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
         if (left_->is_linked()) {
-            const auto &[replaced_left, left_found] = as_link(left_)->replace_id(target_vertex, new_id);
+            const auto &[replaced_left, left_found] = as_link(left_)->set_id(target_vertex, new_id);
             if (left_found) {
                 new_left = replaced_left;
                 replaced = true;
             }
         }
         if (right_->is_linked()) {
-            const auto &[replaced_right, right_found] = as_link(right_)->replace_id(target_vertex, new_id);
+            const auto &[replaced_right, right_found] = as_link(right_)->set_id(target_vertex, new_id);
             if (right_found) {
                 new_right = replaced_right;
                 replaced = true;

@@ -641,6 +641,7 @@ PQGraph PQGraph::clone() const {
 
 void PQGraph::reindex() {
 
+    // return;
     // reset saved linkages and temp counts
     saved_linkages_.clear();
     temp_counts_.clear();
@@ -650,8 +651,12 @@ void PQGraph::reindex() {
 
     auto reindex_vertex = [this, &temp_map](ConstVertexPtr &vertex) {
         if (vertex != nullptr && vertex->is_linked()) {
-            auto lhs_temps = as_link(vertex)->get_temps();
-            for (auto &temp : lhs_temps) {
+            // get temps and sort by id
+            auto nested_temps = as_link(vertex)->get_temps();
+            std::sort(nested_temps.begin(), nested_temps.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                return a->id() > b->id();
+            });
+            for (auto &temp : nested_temps) {
                 // find temp in temp map
                 auto it = temp_map.find(as_link(temp));
                 long &temp_id = temp_map[as_link(temp)];
@@ -663,7 +668,7 @@ void PQGraph::reindex() {
                 LinkagePtr new_temp = as_link(temp->clone());
                 new_temp->id() = temp_id;
 
-                vertex = as_link(vertex)->replace(temp, new_temp).first;
+                vertex = as_link(vertex)->set_id(temp, temp_id).first;
             }
         }
     };
@@ -676,8 +681,6 @@ void PQGraph::reindex() {
             for (auto &op : term.rhs())
                 reindex_vertex(op);
         }
-        eq.collect_scaling(true);
-        eq.rearrange();
     }
 
     // add all temps in temp map to saved linkages
@@ -687,4 +690,6 @@ void PQGraph::reindex() {
         saved_linkages_[new_temp->type()].insert(new_temp);
         cout << "Reindexed " << temp->str() << " to " << new_temp->str() << endl;
     }
+
+    collect_scaling(true,true);
 }
