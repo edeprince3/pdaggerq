@@ -467,63 +467,24 @@ namespace pdaggerq {
         needs_update_ = false;
     }
 
-    tuple<set<long>, set<long>, set<long>> Term::term_ids(char type) const {
-        typedef std::set<long> idset;
+    idset Term::term_ids(const string &type) const {
 
-        // recursive function to get nested temp ids from a vertex
-        std::function<idset(const ConstVertexPtr&)> test_vertex;
-        test_vertex = [&test_vertex, type](const ConstVertexPtr &op) {
+        idset lhs_ids, rhs_ids, total_ids;
 
-            idset ids;
-            if (op->is_linked()) {
-                ConstLinkagePtr link = as_link(op);
-                long link_id = link->id();
+        rhs_ids = term_linkage()->get_ids(type);
+        if (lhs()->is_temp()) lhs_ids = as_link(lhs())->get_ids(type);
 
-                bool insert_id;
-                insert_id  = type == 't' && !link->is_scalar() && !link->is_reused(); // only non-scalar temps
-                insert_id |= type == 'r' &&  link->is_reused(); // only reuse tmps
-                insert_id |= type == 's' &&  link->is_scalar(); // only scalars
+        total_ids = rhs_ids;
+        total_ids.insert(lhs_ids.begin(), lhs_ids.end());
 
-                if (insert_id)
-                    ids.insert(link_id);
+        return total_ids;
+    }
 
-                // recurse into nested temps
-                for (const auto &nested_op: link->link_vector()) {
-                    idset sub_ids = test_vertex(nested_op);
-                    ids.insert(sub_ids.begin(), sub_ids.end());
-                }
-            }
-            ids.erase(-1); // remove unlinked vertices
-            return ids;
-        };
+    long Term::max_id(const string &type) const {
+        idset ids = term_ids(type);
+        if (ids.empty()) return -1;
 
-        // get min id of temps from lhs
-        auto get_lhs_id = [&test_vertex](const Term &term) {
-            return test_vertex(term.lhs());
-        };
-
-        // get min id of temps from rhs
-        auto get_rhs_id = [&test_vertex](const Term &term) {
-
-            idset ids;
-            for (const auto &op: term.rhs()) {
-                idset sub_ids = test_vertex(op);
-                ids.insert(sub_ids.begin(), sub_ids.end());
-            }
-            return ids;
-        };
-
-        // get all ids from lhs and rhs
-        idset lhs_ids = get_lhs_id(*this);
-        idset rhs_ids = get_rhs_id(*this);
-
-
-        // get total ids
-        idset total_ids = lhs_ids;
-        total_ids.insert(rhs_ids.begin(), rhs_ids.end());
-
-        // return all ids
-        return {lhs_ids, rhs_ids, total_ids};
+        return *std::max_element(ids.begin(), ids.end());
     }
 
 } // pdaggerq

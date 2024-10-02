@@ -154,7 +154,15 @@ namespace pdaggerq {
         // print scalar declarations
         if (!copy.equations_["scalar"].empty()) {
             sout << h2 << " Scalars " << h2 << endl << endl;
-            copy.equations_["scalar"].rearrange("scalar"); // sort scalars in scalars equation
+
+            // sort scalars in scalars equation
+            vector<Term> scalar_terms = copy.equations_["scalar"].terms();
+            std::sort(scalar_terms.begin(), scalar_terms.end(), [](const Term &a, const Term &b) {
+                return a.max_id("scalar") < b.max_id("scalar");
+            });
+            copy.equations_["scalar"].terms() = scalar_terms;
+            copy.equations_["scalar"].collect_scaling(true);
+
             for (auto &term: copy.equations_["scalar"])
                 term.comments() = {}; // remove comments from scalars
 
@@ -166,7 +174,15 @@ namespace pdaggerq {
         // print declarations for reuse_tmps
         if (!copy.equations_["reused"].empty()){
             sout << h2 << " Shared  Operators " << h2 << endl << endl;
-            copy.equations_["reused"].rearrange("reused"); // sort reuse_tmps in reuse_tmps equation
+
+            // sort reused in reused equation
+            vector<Term> reused_terms = copy.equations_["reused"].terms();
+            std::sort(reused_terms.begin(), reused_terms.end(), [](const Term &a, const Term &b) {
+                return a.max_id("reused") < b.max_id("reused");
+            });
+            copy.equations_["reused"].terms() = reused_terms;
+            copy.equations_["reused"].collect_scaling(true);
+
             for (auto &term: copy.equations_["reused"])
                 term.comments() = {}; // remove comments from reuse_tmps
 
@@ -210,7 +226,7 @@ namespace pdaggerq {
                     const Term &term = all_terms[i];
 
                     // check if tmp id is in the rhs of the term
-                    auto [lhs_ids, rhs_ids, term_ids] = term.term_ids('t');
+                    idset term_ids = term.term_ids("temp");
                     found = term_ids.find(temp_id) != term_ids.end();
 
                     if (!found) continue; // tmp not found in rhs of term; continue

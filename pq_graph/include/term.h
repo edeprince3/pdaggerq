@@ -458,10 +458,17 @@ namespace pdaggerq {
 
         /**
          * Get the ids of all intermediate vertices within the term
-         * @param type type of intermediate ids to get
-         * @return tuple of sets of intermediate vertex ids. the lhs ids, rhs ids, and all ids
+         * @param type type of intermediate ids to get (temp, scalar, reused)
+         * @return set of intermediate ids
          */
-         tuple<set<long>, set<long>, set<long>> term_ids(char type) const;
+         idset term_ids(const string &type) const;
+
+        /**
+         * Get maximum id of all vertices in the term
+         * @param type type of intermediate ids to get (temp, scalar, reused)
+         * @return maximum id of all vertices in the term
+         */
+        long max_id(const string & type) const;
 
         /**
          * get the term linkage
