@@ -454,7 +454,7 @@ namespace pdaggerq {
             reorder_labels(assignment);
 
             // update name of assignment vertex
-            assignment->map_string_ = "";
+            assignment->format_map_ = false;
             assignment->update_name(assigment_name);
 
             // update term with assignment vertex
@@ -484,7 +484,7 @@ namespace pdaggerq {
         VertexPtr assignment_vertex = terms.back().lhs()->clone();
 
         // do not format assignment vertices as a map
-        assignment_vertex->map_string_ = "";
+        assignment_vertex->format_map_ = false;
 
         if (equation_exists) // TODO: have a check for assignment vertex consistency
              new_equation.terms().insert(new_equation.terms().end(), terms.begin(), terms.end());

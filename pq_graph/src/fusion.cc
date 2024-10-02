@@ -798,7 +798,7 @@ size_t PQGraph::prune(bool keep_single_use) {
             bool made_replacement = false;
             if (vertex->is_linked()) {
                 for (auto &temp: sorted_to_remove) {
-                    auto [new_vertex, replaced] = as_link(vertex)->set_id(temp, -1);
+                    auto [new_vertex, replaced] = as_link(vertex)->replace_id(temp, -1);
                     if (replaced) {
                         vertex = new_vertex;
                         made_replacement = true;

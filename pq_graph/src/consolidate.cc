@@ -644,7 +644,7 @@ PQGraph PQGraph::clone() const {
 
 void PQGraph::reindex() {
 
-     return;
+//     return;
     // reset saved linkages and temp counts
     saved_linkages_.clear();
     temp_counts_.clear();
@@ -668,7 +668,7 @@ void PQGraph::reindex() {
                 }
 
                 // replace temp id in lhs
-                vertex = as_link(vertex)->set_id(temp, temp_id).first;
+                vertex = as_link(vertex)->replace_id(temp, temp_id).first;
             }
         }
     };

@@ -363,27 +363,21 @@ namespace pdaggerq {
 
     pair<ConstVertexPtr, bool> Linkage::replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) const {
 
-        // shallow copy this linkage
-        LinkagePtr replacement = as_link(shallow());
+        if (!target_vertex || !new_vertex) return {shared_from_this(), false};
 
-        if (!target_vertex) return {replacement, false}; // if the target vertex is null, return the linkage
 
-        // if the target vertex is deeper than this, return the linkage
-        if (depth_ < target_vertex->depth())
-            return {replacement, false};
-
-        // change id if this is equal to the target vertex
         bool replaced = *target_vertex == *this;
-        if (replaced) replacement = as_link(new_vertex->shallow());
+        if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
+
+        if (depth_ < target_vertex->depth())
+            return {shared_from_this(), false}; // if the target vertex is deeper, it cannot be replaced
 
         ConstVertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
-        bool left_replaced = false, right_replaced = false;
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex);
             if (left_found) {
                 new_left = replaced_left;
                 replaced = true;
-                left_replaced = true;
             }
         }
         if (right_->is_linked()) {
@@ -391,80 +385,55 @@ namespace pdaggerq {
             if (right_found) {
                 new_right = replaced_right;
                 replaced = true;
-                right_replaced = true;
             }
         }
 
         if (!replaced)
-            return {replacement, false}; // no replacements were made. return the original linkage
-
-        if (!left_replaced && !right_replaced) {
-            // if no replacements to left or right, but this is the target vertex, return the new linkage
-            return {replacement, true};
-        }
+            return {shared_from_this(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
-        if ( left_replaced) replacement->left_  = new_left;
-        if (right_replaced) replacement->right_ = new_right;
-
-        // forget the linkage memory
-        replacement->forget();
-
-        // rebuild the connections
-        replacement->build_connections();
-
-        return {replacement, true};
-
+        LinkagePtr new_link = as_link(is_addition() ? new_left + new_right : new_left * new_right);
+        new_link->copy_misc(*this); // copy misc properties
+        return {new_link, true};
     }
 
-    pair<ConstVertexPtr, bool> Linkage::set_id(const ConstVertexPtr &target_vertex, long new_id) const {
+    pair<ConstVertexPtr, bool> Linkage::replace_id(const ConstVertexPtr &target_vertex, long new_id) const {
+        if (!target_vertex) return {shared_from_this(), false};
 
-        // shallow copy this linkage
-        LinkagePtr replacement = as_link(shallow());
+        bool replaced = same_temp(target_vertex);
+        if (replaced) {
+            VertexPtr replacement = shallow();
+            as_link(replacement)->id_ = new_id;
+            return {replacement, true}; // this is the target vertex, so replace it
+        }
 
-        if (!target_vertex) return {replacement, false}; // if the target vertex is null, return the linkage
-
-        // if the target vertex is deeper than this, return the linkage
-        if (depth_ < target_vertex->depth())
-            return {replacement, false};
-
-        // change id if this is equal to the target vertex
-        bool replaced = *target_vertex == *this;
-        if (replaced) replacement->id_ = new_id;
-
+        replaced = false;
         ConstVertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
-        bool left_replaced = false, right_replaced = false;
         if (left_->is_linked()) {
-            const auto &[replaced_left, left_found] = as_link(left_)->set_id(target_vertex, new_id);
+            const auto &[replaced_left, left_found] = as_link(left_)->replace_id(target_vertex, new_id);
             if (left_found) {
                 new_left = replaced_left;
                 replaced = true;
-                left_replaced = true;
             }
         }
         if (right_->is_linked()) {
-            const auto &[replaced_right, right_found] = as_link(right_)->set_id(target_vertex, new_id);
+            const auto &[replaced_right, right_found] = as_link(right_)->replace_id(target_vertex, new_id);
             if (right_found) {
                 new_right = replaced_right;
                 replaced = true;
-                right_replaced = true;
             }
         }
 
         if (!replaced)
-            return {replacement, false}; // no replacements were made. return the original linkage
-
-        if (!left_replaced && !right_replaced) {
-            // if no replacements to left or right, but this is the target vertex, return the new linkage
-            return {replacement, true};
-        }
+            return {shared_from_this(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
-        if ( left_replaced) replacement->left_  = new_left;
-        if (right_replaced) replacement->right_ = new_right;
+        LinkagePtr replacement = as_link(shallow());
+        replacement->left_  = new_left;
+        replacement->right_ = new_right;
 
-        // forget the linkage memory
-        replacement->forget();
+        replacement->forget(); // forget the linkage memory
+        replacement->set_properties();
 
         return {replacement, true};
     }

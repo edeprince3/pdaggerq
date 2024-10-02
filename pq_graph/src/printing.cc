@@ -553,25 +553,22 @@ namespace pdaggerq {
             // make intermediate vertex for the permutation
             VertexPtr perm_vertex;
 
-            bool make_perm_tmp = rhs_.size() > 1; // if there is only one vertex, no need to create intermediate vertex
+            bool make_perm_tmp = rhs_.size() == 1; // if there is only one vertex, no need to create intermediate vertex
 
             if (make_perm_tmp) {
                 // if this is a linkage, but not a temp, also make a temporary vertex (doesn't print as a single vertex)
                 if (rhs_[0]->is_linked() && !rhs_[0]->is_temp()) {
-                    make_perm_tmp = true;
+                    make_perm_tmp = false;
                 }
             }
 
-            if (!make_perm_tmp) perm_vertex = rhs_[0]->clone(); // no need to create intermediate vertex if there is only one
+            if (make_perm_tmp) perm_vertex = rhs_[0]->clone(); // no need to create intermediate vertex if there is only one
             else { // else, create the intermediate vertex and its assignment term
                 perm_vertex = lhs_->clone();
                 string perm_name;
-
-                // format permutation vertex to print as map
-                perm_vertex->map_string_ = "[\"perm_" + lhs_->base_name() + "\"]";
-
+                perm_vertex->format_map_ = true; // format permutation vertex to print as map
                 perm_vertex->sort(); // sort permutation vertex
-                perm_vertex->update_name("tmps_"); // set name of permutation vertex
+                perm_vertex->update_name("perm_tmps"); // set name of permutation vertex
 
                 // initialize initial permutation term
                 Term perm_term = *this; // copy term
@@ -605,16 +602,6 @@ namespace pdaggerq {
             for (auto &permuted_term: perm_terms) {
                 output += permuted_term.str();
                 output += '\n';
-            }
-
-            // if an intermediate vertex was created, delete it
-            if (make_perm_tmp) {
-                // delete the permutation vertex
-                if (Vertex::print_type_ == "c++")
-                    output += perm_vertex->name() + ".~TArrayD();";
-                else if (Vertex::print_type_ == "python")
-                    output += "del " + perm_vertex->name() + ";";
-                output += "\n";
             }
 
             if (!perm_terms.empty())
