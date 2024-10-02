@@ -135,8 +135,8 @@ namespace pdaggerq {
         else if (type == 'r')
             labels.emplace(labels.begin(), "R");
 
-        // only represent amplitudes as maps if they have a block
-        format_map_ = !blk_string.empty();
+        // set vertex type
+        vertex_type_ = 'a';
 
         // set lines
         set_lines(labels, blk_string);
@@ -301,9 +301,17 @@ namespace pdaggerq {
         if (rank_ == 0) return;
 
         // format tensor block as a map if it is not an amplitude or if it has a block
-        if (format_map_) {
+        if (vertex_type_ == 'v') {
             name_ += "[\"";
             name_ += dimstring();
+            name_ += "\"]";
+        } else if (vertex_type_ == 'a' && has_blk_) {
+            name_ += "[\"";
+            name_ += blk_string();
+            name_ += "\"]";
+        } else if (vertex_type_ == 'p') {
+            name_ += "[\"";
+            name_ += "perm_" + dimstring();
             name_ += "\"]";
         }
 

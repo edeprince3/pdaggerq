@@ -73,9 +73,12 @@ namespace pdaggerq {
         uint_fast8_t rank_{}; // rank of the vertex
         shape shape_{}; // shape of the vertex
 
+        // gives the type of the vertex:
+        // 'a' for amplitude, 'p' for permutation, 'v' for arbitrary vertex (default)
+        char vertex_type_ = 'v';
+
         // boolean identifiers
         bool has_blk_ = false; // whether the vertex is blocked by spin, range, etc (assumed false by default)
-        bool format_map_ = true; // whether the vertex is formatted as a map to access different blocks
         bool is_sigma_ = false; // whether the vertex is an excited state vertex
         bool is_den_ = false; // whether the vertex is a density-fitting vertex
 
