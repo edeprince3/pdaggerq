@@ -43,7 +43,7 @@ namespace pdaggerq {
 
             // skip constants with a value of 1
             if (op->is_constant()) {
-                if (std::fabs(std::stod(op->name()) - 1.0) < 1e-8) continue;
+                if (fabs(op->value() - 1.0) < 1e-8) continue;
             }
 
             // set the first vertex as the linkage
@@ -127,7 +127,7 @@ namespace pdaggerq {
                 const vector<ConstVertexPtr> &left_vec = left_->link_vector(regenerate, fully_expand);
                 result.insert(result.end(), left_vec.begin(), left_vec.end());
             }
-        } else if (!left_->empty()){
+        } else if (!left_->empty() && (fabs(left_->value() - 1.0) > 1e-8)) {
             result.push_back(left_);
         }
 
@@ -139,7 +139,7 @@ namespace pdaggerq {
                 const vector<ConstVertexPtr> &right_vec = right_->link_vector(regenerate, fully_expand);
                 result.insert(result.end(), right_vec.begin(), right_vec.end());
             }
-        } else if (!right_->empty()){
+        } else if (!right_->empty() && (fabs(right_->value() - 1.0) > 1e-8)){
             result.push_back(right_);
         }
 
@@ -343,15 +343,17 @@ namespace pdaggerq {
             return scalars; // do not add temps
 
         // if this is a scalar and the left nor right are empty, add this to the scalars
-        if (is_scalar() && !(left_->empty() || right_->empty()))
+        bool left_valid  =  !left_->empty() && (fabs( left_->value() - 1.0) > 1e-8);
+        bool right_valid = !right_->empty() && (fabs(right_->value() - 1.0) > 1e-8);
+        if (is_scalar() && left_valid && right_valid)
             scalars.push_back(this->shared_from_this());
 
-        if (left_->is_linked() && !left_->empty()) {
+        if (left_->is_linked() && left_valid) {
             const auto &left_scalars = as_link(left_)->find_scalars();
             scalars.insert(scalars.end(), left_scalars.begin(), left_scalars.end());
         }
 
-        if (right_->is_linked() && !right_->empty()) {
+        if (right_->is_linked() && right_valid) {
             const auto &right_scalars = as_link(right_)->find_scalars();
             scalars.insert(scalars.end(), right_scalars.begin(), right_scalars.end());
         }

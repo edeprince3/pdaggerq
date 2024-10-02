@@ -54,15 +54,19 @@ namespace pdaggerq {
         if ( left_ == nullptr)  left_ = std::make_shared<const Vertex>();
         if (right_ == nullptr) right_ = std::make_shared<const Vertex>();
 
-        // if one is empty and the other is linked, set this linkage to the linked vertex
-        if ( left_->empty() && right_->is_linked()) { *this = *as_link(right_->shallow()); return; }
-        if (right_->empty() &&  left_->is_linked()) { *this = *as_link( left_->shallow()); return; }
+        // determine if left and right vertices are valid
+        bool left_valid  =  !left_->empty() && (fabs( left_->value() - 1.0) > 1e-8);
+        bool right_valid = !right_->empty() && (fabs(right_->value() - 1.0) > 1e-8);
 
-        // if both are empty, set this linkage to an empty vertex
-        if ( left_->empty() && right_->empty()) { *this = Linkage(); return; }
+        // if one is invalid and the other is linked, set this linkage to the linked vertex
+        if ( !left_valid && right_->is_linked()) { *this = *as_link(right_->shallow()); return; }
+        if (!right_valid &&  left_->is_linked()) { *this = *as_link( left_->shallow()); return; }
 
-        // if one is empty and the other is not, keep empty vertex on the left
-        if ( !left_->empty() && right_->empty()) { std::swap(left_, right_); }
+        // if both are invalid, set this linkage to an empty vertex
+        if ( !left_valid && !right_valid) { *this = Linkage(); return; }
+
+        // if one is invalid and the other is not, keep empty vertex on the left
+        if ( left_valid && !right_valid) { std::swap(left_, right_); }
 
         // grab data from left and right vertices
         uint_fast8_t left_size = left_->size();

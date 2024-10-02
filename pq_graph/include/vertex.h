@@ -362,6 +362,11 @@ namespace pdaggerq {
         bool is_constant() const;
 
         /**
+         * return value of the constant vertex. if the vertex is not a constant, returns 0.0
+         */
+        double value() const;
+
+        /**
          * return begin iterator of lines
          * @return begin iterator of lines
          */

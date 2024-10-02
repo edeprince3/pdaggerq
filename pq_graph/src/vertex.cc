@@ -660,16 +660,19 @@ namespace pdaggerq {
         return delta_ops;
     }
 
-    bool Vertex::is_constant() const {
-        if (!is_scalar() || is_linked()) {
-            // if the vertex is not a scalar or is linked, it is not a constant
-            return false;
-        }
+    double Vertex::value() const {
 
-        // check if the vertex is a constant by attempting to convert the name into a double
+        // cannot be a constant if it is linked or not a scalar
+        if (is_linked() || !is_scalar()) return 0.0;
+
+        // attempt to convert the name into a double and return the value
         char* endptr;
         double val = strtod(name_.c_str(), &endptr);
-        return val != 0.0; // the value is zero if the conversion fails
+        return val;
+    }
+
+    bool Vertex::is_constant() const {
+        return value() != 0.0; // the value is zero if the conversion fails
     }
 
 
