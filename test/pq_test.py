@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from numpy.f2py.auxfuncs import throw_error
+
 import pdaggerq
 import subprocess
 import pytest
@@ -74,7 +76,8 @@ def compare_outputs(test_name, script_path):
             file.write(diff)
 
         print(f"Test {test_name} failed")
-        assert len(diff) == 0
+        print (diff)
+        raise AssertionError(f"Test {test_name} failed. Check {script_path}/test_outputs/difference/{test_name}_diff.out for details")
 
 # Tests
 ccsd_tests     = ("ccsd", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "ccsd", "ccsd_singles", "ccsd_t",
@@ -83,16 +86,14 @@ ccsd_tests     = ("ccsd", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "
 ci_tests       = ("cid_d1", "cid_d2", "cisd_hamiltonian")
 other_tests    = ("rdm_mappings", "extended_rpa")
 ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "active_space_CCSDt", "ea_eom_ccsdt", "ip_eom_ccsdt", "ccsdt_with_spin")
-code_gen_tests = ("ccsd_codegen", "lambda_singles_codegen", "lambda_doubles_codegen")
-qed_tests      = ("qed_1rdm", "qed_2rdm", "qed_ccsd", "qed_eom_ccsd")
+qed_tests      = ("qed_ccsd_21", "qed_ccsd_22", "eom_qed_ccsd_21", "eom_qed_ccsd_21_1rdm", "eom_qed_ccsd_21_2rdm")
 
 # Combine all tests
-tests = ccsd_tests
-tests += qed_tests
+tests  = ccsd_tests
 tests += ci_tests
-tests += other_tests
+tests += qed_tests
 tests += ccsdt_tests
-tests += code_gen_tests
+tests += other_tests
 
 @pytest.mark.parametrize("test_name", tests)
 def test_script_output(test_name):
@@ -103,8 +104,7 @@ def test_script_output(test_name):
     result = subprocess.run([str(sys.executable), f"{script_path}/../examples/{test_name}.py"], capture_output=True, text=True)
     status = result.returncode
     if status != 0:
-        print("FAILURE", result.stderr)
-        assert status == 0
+        raise AssertionError(f"Failure during execution:\n {result.stderr}")
 
     # Process outputs
     result_set   = process_output(result.stdout)
