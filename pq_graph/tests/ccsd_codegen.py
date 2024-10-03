@@ -1,5 +1,6 @@
 import pdaggerq
 from extract_spins import *
+import os
 
 def configure_graph():
     """
@@ -78,7 +79,22 @@ def main():
     graph.print("python")
     graph.analysis()
 
-    return graph
+    # Generate code generator from the graph output
+    graph_string = graph.str("python")
+
+    file_path = os.path.dirname(os.path.realpath(__file__))
+
+    with open(f"{file_path}/ccsd_code.ref", "r") as file:
+        codegen_lines = file.readlines()
+
+    with open(f"{file_path}/ccsd_code.py", "w") as file:
+        for line in codegen_lines:
+            if line.strip() == "# INSERTED CODE":
+                file.write(graph_string)
+            else:
+                file.write(line)
+
+    print("Code generation complete")
 
 if __name__ == "__main__":
     main()

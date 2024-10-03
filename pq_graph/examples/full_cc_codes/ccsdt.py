@@ -947,7 +947,7 @@ def integral_maps(f, eri, o, v):
 
 
 def kernel(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_iter=100,
-           stopping_eps=1.0E-8):
+           stopping_eps=1.0E-8, diis_size=None, diis_start_cycle=4):
     """
 
     :param t1: spin-orbital t1 amplitudes (nvirt x nocc)
@@ -966,6 +966,16 @@ def kernel(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_ite
     :param max_iter: Total number of CC iterations allowed
     :param stopping_eps: stopping criteria for residual l2-norm
     """
+
+    # initialize diis if diis_size is not None
+    # else normal scf iterate
+    if diis_size is not None:
+        from diis import DIIS
+        diis_update = DIIS(diis_size, start_iter=diis_start_cycle)
+        t1_dim = t1.size
+        t2_dim = t2.size
+        old_vec = np.hstack((t1.flatten(), t2.flatten(), t3.flatten()))
+
     fock_e_ai = np.reciprocal(e_ai)
     fock_e_abij = np.reciprocal(e_abij)
     fock_e_abcijk = np.reciprocal(e_abcijk)
@@ -984,10 +994,21 @@ def kernel(t1, t2, t3, fock, g, o, v, e_ai, e_abij, e_abcijk, hf_energy, max_ite
         doubles_res = residual_doubles + fock_e_abij * t2
         triples_res = residual_triples + fock_e_abcijk * t3
 
-
         new_singles = singles_res * e_ai
         new_doubles = doubles_res * e_abij
         new_triples = triples_res * e_abcijk
+
+        # diis update
+        if diis_size is not None:
+            vectorized_iterate = np.hstack(
+                (new_singles.flatten(), new_doubles.flatten(), new_triples.flatten()))
+            error_vec = old_vec - vectorized_iterate
+            new_vectorized_iterate = diis_update.compute_new_vec(vectorized_iterate,
+                                                                 error_vec)
+            new_singles = new_vectorized_iterate[:t1_dim].reshape(t1.shape)
+            new_doubles = new_vectorized_iterate[t1_dim:(t1_dim + t2_dim)].reshape(t2.shape)
+            new_triples = new_vectorized_iterate[(t1_dim + t2_dim):].reshape(t3.shape)
+            old_vec = new_vectorized_iterate
 
         current_energy = cc_energy(new_singles, new_doubles, fock, g, o, v)
         delta_e = np.abs(old_energy - current_energy)
@@ -1084,7 +1105,7 @@ def main():
     t3z = np.zeros((nsvirt, nsvirt, nsvirt, nsocc, nsocc, nsocc))
 
     t1f, t2f, t3f = kernel(t1z, t2z, t3z, fock, g, o, v, e_ai, e_abij,e_abcijk,hf_energy,
-                        stopping_eps=1e-10)
+                        stopping_eps=1e-10, diis_size=8, diis_start_cycle=4)
 
 
     en = cc_energy(t1f, t2f, fock, g, o, v) 

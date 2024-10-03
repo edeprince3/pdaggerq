@@ -1,5 +1,6 @@
 import pdaggerq
 from extract_spins import *
+import os
 
 def configure_graph():
     """
@@ -49,13 +50,14 @@ def main():
     coeffs = [1.0, 1.0]
 
     # Cluster operators
-    T = ['t1', 't2']
+    T = ['t1', 't2', 't3']
 
     # Projection operators for different equations
     proj = {
-            #"energy": [['1']],               # ground state energy
+        "energy": [['1']],               # ground state energy
         "rt1":    [['e1(i,a)']],            # singles residual
         "rt2":    [['e2(i,j,b,a)']],        # doubles residual
+        "rt3":    [['e3(i,j,k,c,b,a)']],        # triples residual
     }
 
     # Dictionary to store the derived equations
@@ -64,7 +66,7 @@ def main():
     for proj_eqname, P in proj.items():
         # Derive normal and coherent state equations
         derive_equation(proj_eqname, P, ops, coeffs, T, eqs)
-    
+
     # Enable and configure pq_graph
     graph = configure_graph()
 
@@ -75,8 +77,25 @@ def main():
 
     # Optimize and output the graph
     graph.optimize()
-    graph.print("python")
+    graph.print("cpp")
     graph.analysis()
+
+    # Generate code generator from the graph output
+    graph_string = graph.str("python")
+
+    file_path = os.path.dirname(os.path.realpath(__file__))
+
+    with open(f"{file_path}/ccsdt_code.ref", "r") as file:
+        codegen_lines = file.readlines()
+
+    with open(f"{file_path}/ccsdt_code.py", "w") as file:
+        for line in codegen_lines:
+            if line.strip() == "# INSERTED CODE":
+                file.write(graph_string)
+            else:
+                file.write(line)
+
+    print("Code generation complete")
 
     return graph
 
