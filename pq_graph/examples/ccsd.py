@@ -1,52 +1,84 @@
 import pdaggerq
+from extract_spins import *
 
-# set up pq_graph
-graph = pdaggerq.pq_graph({
-    "verbose": True,       # print out verbose analysis?    
-    "permute_eri": True,   # permute ERI integrals to a common order? (ovov -> vovo; ovvo -> -vovo)
-    "allow_merge": True,   # merge similar terms during optimization?    
-    "batched": False,      # substitute intermediates in batches?
-    "batch_size": 100,     # batch size for substitution
-    "max_temps": -1,       # maximum number of intermediates to find
-    "max_depth": 2,        # maximum depth for chain of contractions
-    "max_shape": {         # a map of maximum container size for intermediates
-        'o':-1,            
-        'v':-1,            
-    },                     
-    "allow_nesting": True, # allow nested intermediates?
-    "format_sigma": True,  # format equations for a sigma-build? (separates inteermediates w/o sigma vectors)
-    "use_trial_index"    # print an additional index for each trial sigma vector
-    "nthreads": -1,        # number of threads to use for optimization (-1 = all)
-    "conditions": {        # map of the named conditions for each operator type 
-        "t1":  ['t1'],     # terms that have any of these operators will be in an if statement
-    }
-})
+def configure_graph():
+    """
+    Configure and return the pq_graph with specific settings.
 
-T = ['t1', 't2'] # cluster amplitudes
-left_ops = { # projection equations
-    "singles_residual": [['e1(i,a)']],     # singles ( 0 = <0| i* a e(-T) H e(T) |0> )
-    #"doubles_residual": [['e2(i,j,b,a)']]  # doubles ( 0 = <0| i* j* b a e(-T) H e(T) |0> )
-}
+    Returns:
+        graph (pq_graph): Configured pq_graph object.
+    """
+    return pdaggerq.pq_graph({
+        'batched': False,
+        'print_level': 0,
+        'opt_level': 6,
+        'nthreads': -1,
+    })
 
-for eq_name, ops in left_ops.items():
-    pq = pdaggerq.pq_helper('fermi')
-    pq.set_left_operators(ops)
-    pq.add_st_operator(1.0,['f'], T)
-    pq.add_st_operator(1.0,['v'], T)
+def derive_equation(proj_eqname, P, ops, coeffs, T, eqs):
+    """
+    Derive and simplify the equation for the given projection operator.
+
+    Args:
+        proj_eqname (str): Name of the projection equation.
+        P (list): Projection operators.
+        ops (list): Operators.
+        coeffs (list): Coefficients for the operators.
+        T (list): T-operators.
+        eqs (dict): Dictionary to store the derived equations.
+    """
+    pq = pdaggerq.pq_helper("fermi")
+    print("Deriving equation:", f"{proj_eqname} = <{P}| Hbar |0>", flush=True)
+
+    pq.set_left_operators(P)
+    for j, op in enumerate(ops):
+        pq.add_st_operator(coeffs[j], op, T)
+
     pq.simplify()
+    # block_by_spin(pq, proj_eqname, P, eqs)
+    eqs[proj_eqname] = pq.clone()
+    del pq
 
-    # queue up the equation for optimization:
-    # 1) pass the pq_helper object and the name of the equation.
-    # 2) the name is used to label the left-hand side (lhs) of the equation
-    # 3) the last argument (optional) overrides the ordering of the lhs indices
-    graph.add(pq, eq_name, ['a', 'b', 'i', 'j'])
-    pq.clear()
+def main():
+    """
+    Main function to derive and simplify equations using pdaggerq library.
+    """
 
-# optimize the equations
-graph.reorder()        # reorder contractions for optimal performance (redundant if optimize is called)
-graph.optimize()       # reorders contraction and generates intermediates
-graph.print("python")  # print the optimized equations for Python.
-graph.analysis()       # prints the FLOP scaling (permutations are expanded into repeated terms for analysis)
+    # Operators and their coefficients (fock matrix and two-electron integrals)
+    ops = [['f'], ['v']]
+    coeffs = [1.0, 1.0]
 
-# create a DOT file for use with Graphviz
-graph.write_dot("ccsd.dot") 
+    # Cluster operators
+    T = ['t1', 't2']
+
+    # Projection operators for different equations
+    proj = {
+        "energy": [['1']],               # ground state energy
+        "rt1":    [['e1(i,a)']],            # singles residual
+        "rt2":    [['e2(i,j,b,a)']],        # doubles residual
+    }
+
+    # Dictionary to store the derived equations
+    eqs = {}
+
+    for proj_eqname, P in proj.items():
+        # Derive normal and coherent state equations
+        derive_equation(proj_eqname, P, ops, coeffs, T, eqs)
+    
+    # Enable and configure pq_graph
+    graph = configure_graph()
+
+    # Add equations to graph
+    for proj_eqname, eq in eqs.items():
+        print(f"Adding equation {proj_eqname} to the graph", flush=True)
+        graph.add(eq, proj_eqname)
+
+    # Optimize and output the graph
+    graph.optimize()
+    graph.print("cpp")
+    graph.analysis()
+
+    return graph
+
+if __name__ == "__main__":
+    main()
