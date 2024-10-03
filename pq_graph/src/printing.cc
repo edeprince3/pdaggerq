@@ -45,7 +45,40 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 
 namespace pdaggerq {
 
-    string PQGraph::str() {
+    string PQGraph::str(const string &print_type) const {
+
+        constexpr auto to_lower = [](string str) {
+            // map uppercase to lowercase for output
+            for (auto &letter : str) {
+                static unordered_map<char, char>
+                        lowercase_map = {{'A', 'a'}, {'B', 'b'}, {'C', 'c'}, {'D', 'd'}, {'E', 'e'},
+                                         {'F', 'f'}, {'G', 'g'}, {'H', 'h'}, {'I', 'i'}, {'J', 'j'},
+                                         {'K', 'k'}, {'L', 'l'}, {'M', 'm'}, {'N', 'n'}, {'O', 'o'},
+                                         {'P', 'p'}, {'Q', 'q'}, {'R', 'r'}, {'S', 's'}, {'T', 't'},
+                                         {'U', 'u'}, {'V', 'v'}, {'W', 'w'}, {'X', 'x'}, {'Y', 'y'},
+                                         {'Z', 'z'}};
+
+                if (lowercase_map.find(letter) != lowercase_map.end())
+                    letter = lowercase_map[letter];
+            }
+
+            // return lowercase string
+            return str;
+        };
+
+        Vertex::print_type_ = to_lower(print_type);
+
+        if (Vertex::print_type_ == "python" || Vertex::print_type_ == "einsum") {
+            Vertex::print_type_ = "python";
+            cout << "Formatting equations for python" << endl;
+        } else if (Vertex::print_type_ == "c++" || Vertex::print_type_ == "cpp") {
+            Vertex::print_type_ = "c++";
+            cout << "Formatting equations for c++" << endl;
+        } else {
+            cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
+            cout << "         Setting output to c++" << endl;
+        }
+        cout << endl;
 
         stringstream sout; // string stream to hold output
 
@@ -249,7 +282,7 @@ namespace pdaggerq {
                     found_any = true;
                 }
             }
-        } while (found_any && ++attempts < equations_["temp"].size());
+        } while (found_any && ++attempts < copy.equations_["temp"].size());
 
 
         // add a term to destroy the tmp after its last use
@@ -366,47 +399,13 @@ namespace pdaggerq {
 
     }
 
-    void PQGraph::print(string print_type) {
-
-        constexpr auto to_lower = [](string str) {
-            // map uppercase to lowercase for output
-            for (auto &letter : str) {
-                static unordered_map<char, char>
-                        lowercase_map = {{'A', 'a'}, {'B', 'b'}, {'C', 'c'}, {'D', 'd'}, {'E', 'e'},
-                                         {'F', 'f'}, {'G', 'g'}, {'H', 'h'}, {'I', 'i'}, {'J', 'j'},
-                                         {'K', 'k'}, {'L', 'l'}, {'M', 'm'}, {'N', 'n'}, {'O', 'o'},
-                                         {'P', 'p'}, {'Q', 'q'}, {'R', 'r'}, {'S', 's'}, {'T', 't'},
-                                         {'U', 'u'}, {'V', 'v'}, {'W', 'w'}, {'X', 'x'}, {'Y', 'y'},
-                                         {'Z', 'z'}};
-
-                if (lowercase_map.find(letter) != lowercase_map.end())
-                    letter = lowercase_map[letter];
-            }
-
-            // return lowercase string
-            return str;
-        };
-
-        print_type = to_lower(print_type);
-
-        if (print_type == "python" || print_type == "einsum") {
-            Vertex::print_type_ = "python";
-            cout << "Formatting equations for python" << endl;
-        } else if (print_type == "c++" || print_type == "cpp") {
-            Vertex::print_type_ = "c++";
-            cout << "Formatting equations for c++" << endl;
-        } else {
-            cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
-            cout << "         Setting output to c++" << endl; // TODO: make default for python
-        }
-        cout << endl;
-
+    void PQGraph::print(const string &print_type) const {
         // print output to stdout
-        cout << this->str() << endl;
+        cout << this->str(print_type) << endl;
     }
 
-    vector<string> PQGraph::to_strings() {
-        string tastring = str();
+    vector<string> PQGraph::to_strings(const string &print_type) const {
+        string tastring = str(print_type);
         vector<string> eq_strings;
 
         // split string by newlines

@@ -53,11 +53,16 @@ namespace pdaggerq {
                 .def("print", [](PQGraph& self, const std::string &print_type) {
                     return self.print(print_type);
                 }, py::arg("print_type") = "")
-                .def("str", &pdaggerq::PQGraph::str)
+                .def("__str__", [](PQGraph& self) { return self.str("python"); })
+                .def("str", [](PQGraph& self, const std::string &print_type) {
+                    return self.str(print_type);
+                }, py::arg("print_type") = "")
+                .def("to_strings", [](PQGraph& self, const std::string &print_type) {
+                    return self.to_strings(print_type);
+                }, py::arg("print_type") = "")
                 .def("assemble", &pdaggerq::PQGraph::assemble)
                 .def("analysis", &pdaggerq::PQGraph::analysis)
                 .def("clear", &pdaggerq::PQGraph::clear)
-                .def("to_strings", &pdaggerq::PQGraph::to_strings)
                 .def("write_dot", &pdaggerq::PQGraph::write_dot)
                 .def("reorder", [](PQGraph& self) {
                     bool old_opt_level = self.opt_level_; self.opt_level_ = 1;

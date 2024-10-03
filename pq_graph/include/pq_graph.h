@@ -203,8 +203,9 @@ namespace pdaggerq {
 
         /**
          * string representation of the equations
+         * @param print_type type of print (c++ or python)
          */
-        vector<string> to_strings();
+        vector<string> to_strings(const string &print_type) const;
 
         /**
          * keys of the equations
@@ -266,15 +267,16 @@ namespace pdaggerq {
 
         /**
          * Print all terms in each equation
+         * @param print_type type of print (c++ or python)
          */
-        void print(string print_type = "");
+        void print(const string & print_type) const;
 
         /**
          * turn pq_graph into a string
+         * @param print_type type of print (c++ or python)
          * @return string representation of the pq_graph
-         * TODO: make this a true const function
          */
-        string str();
+        string str(const string &print_type) const;
 
         /**
          * Write DOT representation of equations to file stream (to visualize linkage in graphviz)
