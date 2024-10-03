@@ -54,7 +54,7 @@ def main():
 
     # Projection operators for different equations
     proj = {
-        "energy": [['1']],               # ground state energy
+        # "energy": [['1']],               # ground state energy
         "rt1":    [['e1(i,a)']],            # singles residual
         "rt2":    [['e2(i,j,b,a)']],        # doubles residual
         "rt3":    [['e3(i,j,k,c,b,a)']],        # triples residual
