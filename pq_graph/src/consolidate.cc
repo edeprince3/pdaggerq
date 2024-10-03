@@ -676,10 +676,10 @@ void PQGraph::reindex() {
     // loop over all vertices in all equations and terms
     for (auto & [name, eq] : equations_) {
         for (auto &term : eq.terms()) {
-            reindex_vertex(term.lhs());
-            reindex_vertex(term.eq());
             for (auto &op : term.rhs())
                 reindex_vertex(op);
+            reindex_vertex(term.lhs());
+            reindex_vertex(term.eq());
         }
         eq.collect_scaling(true);
         eq.rearrange();
