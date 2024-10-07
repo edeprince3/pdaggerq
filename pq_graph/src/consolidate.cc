@@ -644,7 +644,7 @@ PQGraph PQGraph::clone() const {
 
 void PQGraph::reindex() {
 
-//     return;
+     return; // does not consistently work
     // reset saved linkages and temp counts
     saved_linkages_.clear();
     temp_counts_.clear();
