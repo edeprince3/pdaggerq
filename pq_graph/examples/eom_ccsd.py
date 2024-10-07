@@ -1,7 +1,7 @@
 import pdaggerq
 from extract_spins import *
 
-def derive_equation(eqs, proj_eqname, P, ops, coeffs, T, type, S=None):
+def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None, spin_block = False):
     """
     Derive and simplify the equation for the given projection operator.
 
@@ -15,29 +15,32 @@ def derive_equation(eqs, proj_eqname, P, ops, coeffs, T, type, S=None):
     """
     pq = pdaggerq.pq_helper("fermi")
 
-    # determine if the projections should be applied to the right or left
-    if (type == "right"):
-        print("Deriving equation:", f"{proj_eqname} = <{P}| Hbar |{S}>", flush=True)
-    elif (type == "left"):
-        print("Deriving equation:", f"{proj_eqname} = <{S}| Hbar |{P}>", flush=True)
-    else:
-        raise ValueError("Invalid type for building the sigma equations")
+    if L is None:
+        L = [['1']]
+    if R is None:
+        R = [['1']]
 
-    if type is None:
-        pq.set_left_operators(P)
-        pq.set_right_operators([["1"]])
-    elif type == "right":
-        pq.set_left_operators(P)
-        pq.set_right_operators(S)
-    elif type == "left":
-        pq.set_left_operators(S)
-        pq.set_right_operators(P)
+    # determine if the projections should be applied to the right or left
+    print("Deriving equation:", f"{proj_eqname} = <{L}| {ops} |{R}>", flush=True)
+
+    pq.set_left_operators( L)
+    pq.set_right_operators(R)
 
     for j, op in enumerate(ops):
-        pq.add_st_operator(coeffs[j], op, T)
-
+        if T is None:
+            pq.add_operator(coeffs[j], op)
+        else:
+            pq.add_st_operator(coeffs[j], op, T)
     pq.simplify()
-    block_by_spin(pq, proj_eqname, P, eqs)
+
+    if spin_block:
+        block_by_spin(pq, proj_eqname, L + R + T + ops, eqs)
+    else:
+        eqs[proj_eqname] = pq.clone()
+        # print the fully contracted strings
+        print(f"Equation {proj_eqname}:", flush=True)
+        for term in pq.fully_contracted_strings():
+            print(term, flush=True)
     del pq
 
 def configure_graph():
@@ -50,6 +53,7 @@ def configure_graph():
     return pdaggerq.pq_graph({
         'batched': False,
         'print_level': 0,
+        'use_trial_index': True,
         'opt_level': 6,
         'nthreads': -1,
     })
@@ -68,12 +72,12 @@ def main():
 
     # Exciation operators (truncated ground state)
     R = [
-            #['r0'], 
+            #['r0'],
         ['r1'], 
         ['r2'],
     ]
     L = [
-            #['l0'], 
+            #['l0'],
         ['l1'], 
         ['l2'],
     ]
@@ -93,12 +97,13 @@ def main():
     eqs = {}
 
     for proj_eqname, P in rproj.items():
-        # Derive normal and coherent state equations
-        derive_equation(eqs, proj_eqname, P,   ops,   coeffs, T, "right", S=R)
+        # right projected equations
+        derive_equation(eqs, proj_eqname, ops, coeffs, L=P, R=R, T=T, spin_block=True)
         print()
 
     for proj_eqname, P in lproj.items():
-        derive_equation(eqs, proj_eqname, P,   ops,   coeffs, T, "left", S=L)
+        # left projected equations
+        derive_equation(eqs, proj_eqname, ops, coeffs, L=L, R=P, T=T, spin_block=True)
         print()
 
     # Enable and configure pq_graph
@@ -111,7 +116,7 @@ def main():
 
     # Optimize and output the graph
     graph.optimize()
-    graph.print("cpp")
+    graph.print("c++")
     graph.analysis()
 
     return graph

@@ -1,4 +1,4 @@
-Deriving equation: energy = <[['1']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+Deriving equation: energy = <[['1']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
  -> 
 
@@ -19,13 +19,14 @@ Equation energy:
 ['+0.25', '<j,i||b,a>_abab', 't2_abab(b,a,j,i)']
 ['+0.25', '<i,j||b,a>_abab', 't2_abab(b,a,i,j)']
 ['+0.25', '<j,i||a,b>_bbbb', 't2_bbbb(a,b,j,i)']
-Deriving equation: c_energy = <[['1']]| [['B+'], ['B-']] |0>
+Deriving equation: cenergy = <[['1']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
  -> 
 
-Equation c_energy:
+Equation cenergy:
 ['+1.00', 't0_1']
-Deriving equation: rt1 = <[['e1(i,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+
+Deriving equation: rt1 = <[['e1(i,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -68,16 +69,17 @@ Equation rt1_bb:
 ['+0.50', '<j,a||b,c>_abab', 't2_abab(b,c,j,i)']
 ['+0.50', '<j,a||c,b>_abab', 't2_abab(c,b,j,i)']
 ['-0.50', '<j,a||b,c>_bbbb', 't2_bbbb(b,c,i,j)']
-Deriving equation: c_rt1 = <[['e1(i,a)']]| [['B+'], ['B-']] |0>
+Deriving equation: crt1 = <[['e1(i,a)']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
 
-Equation c_rt1_aa:
+Equation crt1_aa:
 ['+1.00', 't1_1_aa(a,i)']
-Equation c_rt1_bb:
+Equation crt1_bb:
 ['+1.00', 't1_1_bb(a,i)']
-Deriving equation: rt2 = <[['e2(i,j,b,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+
+Deriving equation: rt2 = <[['e2(i,j,b,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -206,19 +208,20 @@ Equation rt2_bbbb:
 ['+0.50', '<l,k||d,c>_abab', 't2_bbbb(c,a,i,j)', 't2_abab(d,b,l,k)']
 ['+0.50', '<k,l||d,c>_abab', 't2_bbbb(c,a,i,j)', 't2_abab(d,b,k,l)']
 ['-0.50', '<l,k||c,d>_bbbb', 't2_bbbb(c,a,i,j)', 't2_bbbb(d,b,l,k)']
-Deriving equation: c_rt2 = <[['e2(i,j,b,a)']]| [['B+'], ['B-']] |0>
+Deriving equation: crt2 = <[['e2(i,j,b,a)']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
 bbbb -> a -> b, b -> b, i -> b, j -> b
 
-Equation c_rt2_aaaa:
+Equation crt2_aaaa:
 ['+1.00', 't2_1_aaaa(a,b,i,j)']
-Equation c_rt2_abab:
+Equation crt2_abab:
 ['+1.00', 't2_1_abab(a,b,i,j)']
-Equation c_rt2_bbbb:
+Equation crt2_bbbb:
 ['+1.00', 't2_1_bbbb(a,b,i,j)']
-Deriving equation: rt0_1 = <[['B-']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+
+Deriving equation: rt0_1 = <[['B-']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
  -> 
 
@@ -240,14 +243,15 @@ Equation rt0_1:
 ['+0.25', '<j,i||b,a>_abab', 't2_1_abab(b,a,j,i)']
 ['+0.25', '<i,j||b,a>_abab', 't2_1_abab(b,a,i,j)']
 ['+0.25', '<j,i||a,b>_bbbb', 't2_1_bbbb(a,b,j,i)']
-Deriving equation: c_rt0_1 = <[['B-']]| [['B+'], ['B-']] |0>
+Deriving equation: crt0_1 = <[['B-']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
  -> 
 
-Equation c_rt0_1:
+Equation crt0_1:
 ['+1.00']
 ['+2.00', 't0_2']
-Deriving equation: rt1_1 = <[['B-', 'e1(i,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+
+Deriving equation: rt1_1 = <[['B-', 'e1(i,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -338,16 +342,17 @@ Equation rt1_1_bb:
 ['+1.00', '<j,k||b,c>_abab', 't2_abab(b,a,j,i)', 't1_1_bb(c,k)']
 ['-1.00', '<k,j||c,b>_abab', 't2_bbbb(b,a,i,j)', 't1_1_aa(c,k)']
 ['+1.00', '<k,j||b,c>_bbbb', 't2_bbbb(b,a,i,j)', 't1_1_bb(c,k)']
-Deriving equation: c_rt1_1 = <[['B-', 'e1(i,a)']]| [['B+'], ['B-']] |0>
+Deriving equation: crt1_1 = <[['B-', 'e1(i,a)']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
 
-Equation c_rt1_1_aa:
+Equation crt1_1_aa:
 ['+2.00', 't1_2_aa(a,i)']
-Equation c_rt1_1_bb:
+Equation crt1_1_bb:
 ['+2.00', 't1_2_bb(a,i)']
-Deriving equation: rt2_1 = <[['B-', 'e2(i,j,b,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+
+Deriving equation: rt2_1 = <[['B-', 'e2(i,j,b,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -623,19 +628,20 @@ Equation rt2_1_bbbb:
 ['+0.50', 'P(i,j)', '<l,k||c,d>_abab', 't2_bbbb(a,b,j,k)', 't2_1_abab(c,d,l,i)']
 ['+0.50', 'P(i,j)', '<l,k||d,c>_abab', 't2_bbbb(a,b,j,k)', 't2_1_abab(d,c,l,i)']
 ['-0.50', 'P(i,j)', '<l,k||c,d>_bbbb', 't2_bbbb(a,b,j,k)', 't2_1_bbbb(c,d,i,l)']
-Deriving equation: c_rt2_1 = <[['B-', 'e2(i,j,b,a)']]| [['B+'], ['B-']] |0>
+Deriving equation: crt2_1 = <[['B-', 'e2(i,j,b,a)']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
 bbbb -> a -> b, b -> b, i -> b, j -> b
 
-Equation c_rt2_1_aaaa:
+Equation crt2_1_aaaa:
 ['+2.00', 't2_2_aaaa(a,b,i,j)']
-Equation c_rt2_1_abab:
+Equation crt2_1_abab:
 ['+2.00', 't2_2_abab(a,b,i,j)']
-Equation c_rt2_1_bbbb:
+Equation crt2_1_bbbb:
 ['+2.00', 't2_2_bbbb(a,b,i,j)']
-Deriving equation: rt0_2 = <[['B-', 'B-']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+
+Deriving equation: rt0_2 = <[['B-', 'B-']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
  -> 
 
@@ -659,12 +665,13 @@ Equation rt0_2:
 ['+1.00', '<i,j||a,b>_abab', 't1_1_aa(a,i)', 't1_1_bb(b,j)']
 ['+1.00', '<j,i||b,a>_abab', 't1_1_bb(a,i)', 't1_1_aa(b,j)']
 ['-1.00', '<j,i||a,b>_bbbb', 't1_1_bb(a,i)', 't1_1_bb(b,j)']
-Deriving equation: c_rt0_2 = <[['B-', 'B-']]| [['B+'], ['B-']] |0>
+Deriving equation: crt0_2 = <[['B-', 'B-']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
  -> 
 
-Equation c_rt0_2:
-Deriving equation: rt1_2 = <[['B-', 'B-', 'e1(i,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+Equation crt0_2:
+
+Deriving equation: rt1_2 = <[['B-', 'B-', 'e1(i,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -785,14 +792,15 @@ Equation rt1_2_bb:
 ['+2.00', '<k,j||b,i>_bbbb', 't1_1_bb(a,k)', 't1_1_bb(b,j)']
 ['+2.00', '<j,a||b,c>_abab', 't1_1_aa(b,j)', 't1_1_bb(c,i)']
 ['+2.00', '<j,a||b,c>_bbbb', 't1_1_bb(b,j)', 't1_1_bb(c,i)']
-Deriving equation: c_rt1_2 = <[['B-', 'B-', 'e1(i,a)']]| [['B+'], ['B-']] |0>
+Deriving equation: crt1_2 = <[['B-', 'B-', 'e1(i,a)']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
 
-Equation c_rt1_2_aa:
-Equation c_rt1_2_bb:
-Deriving equation: rt2_2 = <[['B-', 'B-', 'e2(i,j,b,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |0>
+Equation crt1_2_aa:
+Equation crt1_2_bb:
+
+Deriving equation: rt2_2 = <[['B-', 'B-', 'e2(i,j,b,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -1243,12 +1251,13 @@ Equation rt2_2_bbbb:
 ['-1.00', '<l,k||c,d>_bbbb', 't2_bbbb(a,b,l,k)', 't1_1_bb(c,j)', 't1_1_bb(d,i)']
 ['+2.00', 'P(i,j)', '<l,k||c,d>_abab', 't2_bbbb(a,b,j,k)', 't1_1_aa(c,l)', 't1_1_bb(d,i)']
 ['+2.00', 'P(i,j)', '<l,k||c,d>_bbbb', 't2_bbbb(a,b,j,k)', 't1_1_bb(c,l)', 't1_1_bb(d,i)']
-Deriving equation: c_rt2_2 = <[['B-', 'B-', 'e2(i,j,b,a)']]| [['B+'], ['B-']] |0>
+Deriving equation: crt2_2 = <[['B-', 'B-', 'e2(i,j,b,a)']]| [['B+'], ['B-']] |[['1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
 bbbb -> a -> b, b -> b, i -> b, j -> b
 
-Equation c_rt2_2_aaaa:
-Equation c_rt2_2_abab:
-Equation c_rt2_2_bbbb:
+Equation crt2_2_aaaa:
+Equation crt2_2_abab:
+Equation crt2_2_bbbb:
+

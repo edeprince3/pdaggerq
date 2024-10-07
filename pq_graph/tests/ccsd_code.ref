@@ -177,7 +177,9 @@ def main():
     nsocc = 2 * nocc
     t1f, t2f = kernel(np.zeros((nsvirt, nsocc)), np.zeros((nsvirt, nsvirt, nsocc, nsocc)), fock, g, o, v, e_ai, e_abij,
                       diis_size=8, diis_start_cycle=4)
-    print(ccsd_energy(t1f, t2f, fock, g, o, v) - hf_energy)
+    e_corr = ccsd_energy(t1f, t2f, fock, g, o, v) - hf_energy
+
+    assert np.isclose(e_corr, mycc.e_corr)
 
 
 

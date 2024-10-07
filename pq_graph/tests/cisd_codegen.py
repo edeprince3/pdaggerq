@@ -1,5 +1,6 @@
 import pdaggerq
 from extract_spins import *
+import os
 
 def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None, spin_block = False):
     """
@@ -28,7 +29,7 @@ def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None,
 
     for j, op in enumerate(ops):
         if T is None:
-            pq.add_operator(coeffs[j], op)
+            pq.add_operator_product(coeffs[j], op)
         else:
             pq.add_st_operator(coeffs[j], op, T)
     pq.simplify()
@@ -53,6 +54,8 @@ def configure_graph():
     return pdaggerq.pq_graph({
         'batched': False,
         'print_level': 0,
+        'use_trial_index': False,
+        'no_scalars': True,
         'opt_level': 6,
         'nthreads': -1,
     })
@@ -66,14 +69,13 @@ def main():
     ops = [['f'], ['v']]
     coeffs = [1.0, 1.0]
 
-    # T-operators (assumes T1 transformed integrals)
-    T = ['t1', 't2', 't3']
+    # CI coefficients
+    R = [['1'], ['r1'], ['r2']]
 
     # Projection operators for different equations
     proj = {
-        "rt1":    [['e1(i,a)']],            # singles residual
-        "rt2":    [['e2(i,j,b,a)']],        # doubles residual
-        "rt3":    [['e3(i,j,k,c,b,a)']],    # triples residual
+        "singles_resid":    [['e1(i,a)']],            # singles residual
+        "doubles_resid":    [['e2(i,j,b,a)']],      # doubles residual
     }
 
     # Dictionary to store the derived equations
@@ -81,7 +83,7 @@ def main():
 
     for proj_eqname, P in proj.items():
         # residual equations
-        derive_equation(eqs, proj_eqname, ops, coeffs, L=P, T=T)
+        derive_equation(eqs, proj_eqname, ops, coeffs, L=P, R=R)
         print()
 
     # Enable and configure pq_graph
@@ -97,7 +99,22 @@ def main():
     graph.print("python")
     graph.analysis()
 
-    return graph
+    # Generate code generator from the graph output
+    graph_string = graph.str("python")
+
+    file_path = os.path.dirname(os.path.realpath(__file__))
+
+    with open(f"{file_path}/cisd_code.ref", "r") as file:
+        codegen_lines = file.readlines()
+
+    with open(f"{file_path}/cisd_code.py", "w") as file:
+        for line in codegen_lines:
+            if line.strip() == "# INSERTED CODE":
+                file.write(graph_string)
+            else:
+                file.write(line)
+
+    print("Code generation complete")
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,4 @@
-Deriving equation:  D_vv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e1(a,b)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: D_vv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e1(a,b)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aa -> a -> a, b -> a
 bb -> a -> b, b -> b
@@ -57,7 +57,8 @@ Equation D_vv_bb:
 ['+0.50', 'r0', 't2_1_abab(c,b,i,j)', 'l2_1_abab(i,j,c,a)']
 ['+0.50', 'r0', 't2_1_abab(c,b,j,i)', 'l2_1_abab(j,i,c,a)']
 ['+0.50', 'r0', 't2_1_bbbb(b,c,i,j)', 'l2_1_bbbb(i,j,a,c)']
-Deriving equation:  D_vo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e1(a,i)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_vo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e1(a,i)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -76,7 +77,8 @@ Equation D_vo_bb:
 ['+1.00', 'r0_1', 'l1_1_bb(i,a)']
 ['+1.00', 'r1_1_aa(b,j)', 'l2_1_abab(j,i,b,a)']
 ['-1.00', 'r1_1_bb(b,j)', 'l2_1_bbbb(j,i,a,b)']
-Deriving equation:  D_ov = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e1(i,a)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_ov = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e1(i,a)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -341,7 +343,8 @@ Equation D_ov_bb:
 ['-1.00', 'r0_1', 't1_bb(a,j)', 't1_bb(b,i)', 'l1_1_bb(j,b)']
 ['-1.00', 'r1_1_aa(c,k)', 't1_bb(a,j)', 't1_bb(b,i)', 'l2_1_abab(k,j,c,b)']
 ['+1.00', 'r1_1_bb(c,k)', 't1_bb(a,j)', 't1_bb(b,i)', 'l2_1_bbbb(k,j,b,c)']
-Deriving equation:  D_oo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e1(i,j)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_oo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e1(i,j)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aa -> i -> a, j -> a
 bb -> i -> b, j -> b
@@ -436,3 +439,4 @@ Equation D_oo_bb:
 ['-0.50', 'r0', 't2_1_abab(b,a,k,i)', 'l2_1_abab(k,j,b,a)']
 ['-0.50', 'r0', 't2_1_abab(a,b,k,i)', 'l2_1_abab(k,j,a,b)']
 ['-0.50', 'r0', 't2_1_bbbb(b,a,k,i)', 'l2_1_bbbb(k,j,b,a)']
+

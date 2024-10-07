@@ -1,0 +1,192 @@
+#!/usr/bin/env python
+"""
+A full working spin-orbital CISD code generated with pdaggerq
+
+If you want to run the example here you should install pyscf openfermion and openfermion-pyscf
+The actual CISD code (cisd_energy, cisd_singles_residual, cisd_doubles_residual, kernel)
+do not depend on those packages but you gotta get integrals frome somehwere.
+
+We also check the code by using pyscfs functionality for generating spin-orbital
+t-amplitudes from RCCSD.  the main() function is fairly straightforward.
+"""
+import numpy as np
+from numpy import einsum
+
+
+def kernel(r1, r2, fock, g, o, v, eps, max_iter=100, stopping_eps=1.0E-8,
+           diis_size=None, diis_start_cycle=4):
+
+    # initialize diis if diis_size is not None
+    # else normal scf iterate
+    if diis_size is not None:
+        from diis import DIIS
+        diis_update = DIIS(diis_size, start_iter=diis_start_cycle)
+        r1_dim = r1.size
+        old_vec = np.hstack((r1.flatten(), r2.flatten()))
+
+    n = np.newaxis
+    e_abij = 1 / (-eps[v, n, n, n] - eps[n, v, n, n] + eps[n, n, o, n] + eps[
+        n, n, n, o])
+    e_ai = 1 / (-eps[v, n] + eps[n, o])
+
+    fock_e_ai = np.reciprocal(e_ai)
+    fock_e_abij = np.reciprocal(e_abij)
+
+    f_map, g_map, Id_map = integral_maps(fock, g, o, v)
+
+    old_energy = cisd_energy(r1, r2, fock, g, o, v)
+
+    for idx in range(max_iter):
+
+        singles_res, doubles_res = residuals(r1, r2, f_map, g_map, Id_map)
+        singles_res += fock_e_ai * r1
+        doubles_res += fock_e_abij * r2
+
+        denom_abij = 1 / (old_energy -eps[v, n, n, n] - eps[n, v, n, n] + eps[n, n, o, n] + eps[n, n, n, o])
+        denom_ai = 1 / (old_energy -eps[v, n] + eps[n, o])
+
+        new_singles = singles_res * denom_ai
+        new_doubles = doubles_res * denom_abij
+
+        # diis update
+        if diis_size is not None:
+            vectorized_iterate = np.hstack(
+                (new_singles.flatten(), new_doubles.flatten()))
+            error_vec = old_vec - vectorized_iterate
+            new_vectorized_iterate = diis_update.compute_new_vec(vectorized_iterate,
+                                                                 error_vec)
+            new_singles = new_vectorized_iterate[:r1_dim].reshape(r1.shape)
+            new_doubles = new_vectorized_iterate[r1_dim:].reshape(r2.shape)
+            old_vec = new_vectorized_iterate
+
+        current_energy = cisd_energy(new_singles, new_doubles, fock, g, o, v)
+        delta_e = np.abs(old_energy - current_energy)
+
+        if delta_e < stopping_eps :
+            return new_singles, new_doubles
+        else:
+            r1 = new_singles
+            r2 = new_doubles
+            old_energy = current_energy
+            print("\tIteration {: 5d}\t{: 5.15f}\t{: 5.15f}".format(idx, old_energy, delta_e))
+    else:
+        print("Did not converge")
+        return new_singles, new_doubles
+
+
+def main():
+    from itertools import product
+    import pyscf
+    import openfermion as of
+    from openfermion.chem.molecular_data import spinorb_from_spatial
+    from openfermionpyscf import run_pyscf
+    from pyscf.cc.addons import spatial2spin
+    import numpy as np
+
+
+    basis = 'cc-pvdz'
+    mol = pyscf.M(
+        atom='H 0 0 0; B 0 0 {}'.format(1.6),
+        basis=basis)
+
+    mf = mol.RHF().run()
+
+    molecule = of.MolecularData(geometry=[['H', (0, 0, 0)], ['B', (0, 0, 1.6)]],
+                                basis=basis, charge=0, multiplicity=1)
+    molecule = run_pyscf(molecule, run_ccsd=True)
+    oei, tei = molecule.get_integrals()
+    norbs = int(mf.mo_coeff.shape[1])
+    occ = mf.mo_occ
+    nele = int(sum(occ))
+    nocc = nele // 2
+
+    soei, stei = spinorb_from_spatial(oei, tei)
+    astei = np.einsum('ijkl', stei) - np.einsum('ijlk', stei)
+
+    # put in physics notation. OpenFermion stores <12|2'1'>
+    gtei = astei.transpose(0, 1, 3, 2)
+
+    eps = np.kron(molecule.orbital_energies, np.ones(2))
+    n = np.newaxis
+    o = slice(None, 2 * nocc)
+    v = slice(2 * nocc, None)
+
+    fock = soei + np.einsum('piiq->pq', astei[:, o, o, :])
+    hf_energy = 0.5 * np.einsum('ii', (fock + soei)[o, o])
+    hf_energy_test = 1.0 * einsum('ii', fock[o, o]) -0.5 * einsum('ijij', gtei[o, o, o, o])
+
+    g = gtei
+    nsvirt = 2 * (norbs - nocc)
+    nsocc = 2 * nocc
+
+    r1f, r2f = kernel(np.zeros((nsvirt, nsocc)), np.zeros((nsvirt, nsvirt, nsocc, nsocc)), fock, g, o, v, eps,
+                      diis_size=8, diis_start_cycle=4)
+
+    print('    CISD correlation energy: %20.12f' % (cisd_energy(r1f, r2f, fock, g, o, v)))
+    print('    * CISD total energy:     %20.12f' % (cisd_energy(r1f, r2f, fock, g, o, v) + hf_energy))
+
+    assert np.isclose(cisd_energy(r1f, r2f, fock, g, o, v), -0.091662457066)
+    assert np.isclose(cisd_energy(r1f, r2f, fock, g, o, v) + hf_energy, -26.841030261457)
+
+def cisd_energy(r1, r2, f, g, o, v):
+
+    #    E r(a,i) = < 0 | i* a H (1 + r1 + r2) | 0> :
+    
+    #	  1.0000 f(i,i)
+    #energy =  1.000000000000000 * einsum('ii', f[o, o])
+    
+    #	  1.0000 f(i,a)*r1(a,i)
+    energy =  1.000000000000000 * einsum('ia,ai', f[o, v], r1)
+    
+    #	 -0.5000 <j,i||j,i>
+    #energy += -0.500000000000000 * einsum('jiji', g[o, o, o, o])
+    
+    #	  0.2500 <j,i||a,b>*r2(a,b,j,i)
+    energy +=  0.250000000000000 * einsum('jiab,abji', g[o, o, v, v], r2)
+    
+    return energy
+
+def residuals(r1, r2, f, eri, Id):
+
+    tmps_ = {}
+    scalars_ = {}
+
+    singles_resid = np.zeros_like(r1)
+    doubles_resid = np.zeros_like(r2)
+
+    # INSERTED CODE
+
+    return singles_resid, doubles_resid
+
+
+def integral_maps(f, eri, o, v):
+    eri_ = {}
+    eri_["oooo"] = eri[o,o,o,o]
+    eri_["oovo"] = eri[o,o,v,o]
+    eri_["oovv"] = eri[o,o,v,v]
+    eri_["vooo"] = eri[v,o,o,o]
+    eri_["vovo"] = eri[v,o,v,o]
+    eri_["vovv"] = eri[v,o,v,v]
+    eri_["vvoo"] = eri[v,v,o,o]
+    eri_["vvvo"] = eri[v,v,v,o]
+    eri_["vvvv"] = eri[v,v,v,v]
+
+    f_ = {}
+    f_["oo"] = f[o,o]
+    f_["ov"] = f[o,v]
+    f_["vo"] = f[v,o]
+    f_["vv"] = f[v,v]
+
+    Id_ = {}
+    Id_["oo"] = np.zeros_like(f_["oo"])
+    Id_["vv"] = np.zeros_like(f_["vv"])
+    np.fill_diagonal(Id_["oo"], 1.0)
+    np.fill_diagonal(Id_["vv"], 1.0)
+
+    return f_, eri_, Id_
+
+
+if __name__ == "__main__":
+    main()
+
+

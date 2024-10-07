@@ -1,5 +1,6 @@
 import pdaggerq
 from extract_spins import *
+import os
 
 def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None, spin_block = False):
     """
@@ -53,6 +54,7 @@ def configure_graph():
     return pdaggerq.pq_graph({
         'batched': False,
         'print_level': 0,
+        'use_trial_index': True,
         'opt_level': 6,
         'nthreads': -1,
     })
@@ -66,22 +68,39 @@ def main():
     ops = [['f'], ['v']]
     coeffs = [1.0, 1.0]
 
-    # T-operators (assumes T1 transformed integrals)
-    T = ['t1', 't2', 't3']
+    # T-operators
+    T = ['t1', 't2']
 
-    # Projection operators for different equations
-    proj = {
-        "rt1":    [['e1(i,a)']],            # singles residual
-        "rt2":    [['e2(i,j,b,a)']],        # doubles residual
-        "rt3":    [['e3(i,j,k,c,b,a)']],    # triples residual
+    # right and left projection operators
+    projs = {
+        "H00": [[["1"]],
+                [["1"]]],
+        "Hs0": [[["e1(i,a)"]],
+                [["1"]]],
+        "H0s": [[["1"]],
+                [["e1(e,m)"]]],
+        "Hd0": [[["e2(i,j,b,a)"]],
+                [["1"]]],
+        "H0d": [[["1"]],
+                [["e2(e,f,n,m)"]]],
+        "Hss": [[["e1(i,a)"]],
+                [["e1(e,m)"]]],
+        "Hsd": [[["e1(i,a)"]],
+                [["e2(e,f,n,m)"]]],
+        "Hds": [[["e2(i,j,b,a)"]],
+                [["e1(e,m)"]]],
+        "Hdd": [[["e2(i,j,b,a)"]],
+                [["e2(e,f,n,m)"]]],
     }
 
     # Dictionary to store the derived equations
     eqs = {}
 
-    for proj_eqname, P in proj.items():
-        # residual equations
-        derive_equation(eqs, proj_eqname, ops, coeffs, L=P, T=T)
+    for proj_eqname, P in projs.items():
+        # right projected equations
+        L = P[0]
+        R = P[1]
+        derive_equation(eqs, proj_eqname, ops, coeffs, L=L, R=R, T=T, spin_block=False)
         print()
 
     # Enable and configure pq_graph
@@ -90,14 +109,29 @@ def main():
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        graph.add(eq, proj_eqname, ['a', 'b', 'i', 'j', 'e', 'f', 'm', 'n'])
 
     # Optimize and output the graph
     graph.optimize()
     graph.print("python")
     graph.analysis()
 
-    return graph
+    # Generate code generator from the graph output
+    graph_string = graph.str("python")
+
+    file_path = os.path.dirname(os.path.realpath(__file__))
+
+    with open(f"{file_path}/eom_ccsd_code.ref", "r") as file:
+        codegen_lines = file.readlines()
+
+    with open(f"{file_path}/eom_ccsd_code.py", "w") as file:
+        for line in codegen_lines:
+            if line.strip() == "# INSERTED CODE":
+                file.write(graph_string)
+            else:
+                file.write(line)
+
+    print("Code generation complete")
 
 if __name__ == "__main__":
     main()

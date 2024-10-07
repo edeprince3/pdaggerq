@@ -1,7 +1,7 @@
 import pdaggerq
 from extract_spins import *
 
-def derive_equation(eqs, proj_eqname, P, ops, coeffs, T, use_coherent=False, type="ground", S=None):
+def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None, spin_block = False):
     """
     Derive and simplify the equation for the given projection operator.
 
@@ -15,35 +15,32 @@ def derive_equation(eqs, proj_eqname, P, ops, coeffs, T, use_coherent=False, typ
     """
     pq = pdaggerq.pq_helper("fermi")
 
-    op_str = "Hbar"
-    if use_coherent:
-        proj_eqname = "c" + proj_eqname
-        op_str = "B* + B"
+    if L is None:
+        L = [['1']]
+    if R is None:
+        R = [['1']]
 
-    if type == "ground":
-        print("Deriving equation:", f"{proj_eqname} = <{P}| {op_str} |0>", flush=True)
-    elif (type == "right"):
-        print("Deriving equation:", f"{proj_eqname} = <{P}| {op_str} |{S}>", flush=True)
-    elif (type == "left"):
-        print("Deriving equation:", f"{proj_eqname} = <{S}| {op_str} |{P}>", flush=True)
-    else:
-        raise ValueError("Invalid type for building the sigma equations")
+    # determine if the projections should be applied to the right or left
+    print("Deriving equation:", f"{proj_eqname} = <{L}| {ops} |{R}>", flush=True)
 
-    if type is None:
-        pq.set_left_operators(P)
-        pq.set_right_operators([["1"]])
-    elif type == "right":
-        pq.set_left_operators(P)
-        pq.set_right_operators(S)
-    elif type == "left":
-        pq.set_left_operators(S)
-        pq.set_right_operators(P)
+    pq.set_left_operators( L)
+    pq.set_right_operators(R)
 
     for j, op in enumerate(ops):
-        pq.add_st_operator(coeffs[j], op, T)
-
+        if T is None:
+            pq.add_operator(coeffs[j], op)
+        else:
+            pq.add_st_operator(coeffs[j], op, T)
     pq.simplify()
-    block_by_spin(pq, proj_eqname, P, eqs)
+
+    if spin_block:
+        block_by_spin(pq, proj_eqname, L + R + T + ops, eqs)
+    else:
+        eqs[proj_eqname] = pq.clone()
+        # print the fully contracted strings
+        print(f"Equation {proj_eqname}:", flush=True)
+        for term in pq.fully_contracted_strings():
+            print(term, flush=True)
     del pq
 
 def main():
@@ -62,19 +59,19 @@ def main():
     # T-operators (assumes T1 transformed integrals)
     T = ['t2', 't0,1', 't1,1', 't2,1']
     R = [
-            #['r0'], 
+        #['r0'],
         ['r1'], ['r2'],
         ['r0,1'], ['r1,1'], ['r2,1'],
     ]
     L = [
-            #['l0'], 
+        #['l0'],
         ['l1'], ['l2'],
         ['l0,1'], ['l1,1'], ['l2,1'],
     ]
 
     # Projection operators for different equations
     rproj = {
-            #"sigmar0":    [['1']],                  # ground state energy
+        #"sigmar0":    [['1']],                  # ground state energy
         "sigmar1":    [['e1(i,a)']],            # singles residual
         "sigmar2":    [['e2(i,j,b,a)']],        # doubles residual
         "sigmar0_1":  [['B-']],                 # ground state + hw
@@ -83,7 +80,7 @@ def main():
     }
 
     lproj = {
-            #"sigmal0":    [['1']],                  # ground state energy
+        #"sigmal0":    [['1']],                  # ground state energy
         "sigmal1":    [['e1(a,i)']],            # singles residual
         "sigmal2":    [['e2(a,b,j,i)']],        # doubles residual
         "sigmal0_1":  [['B+']],                 # ground state + hw
@@ -95,14 +92,15 @@ def main():
     eqs = {}
 
     for proj_eqname, P in rproj.items():
-        # Derive normal and coherent state equations
-        derive_equation(eqs, proj_eqname, P,   ops,   coeffs, T, use_coherent=False, type="right", S=R)
-        derive_equation(eqs, proj_eqname, P, c_ops, c_coeffs, T,  use_coherent=True, type="right", S=R)
+        # right projected equations
+        derive_equation(eqs, proj_eqname, ops, coeffs, L=P, R=R, T=T, spin_block=True)
+        derive_equation(eqs, "c" + proj_eqname, c_ops, c_coeffs, L=P, R=R, T=T, spin_block=True)
         print()
 
     for proj_eqname, P in lproj.items():
-        derive_equation(eqs, proj_eqname, P,   ops,   coeffs, T, use_coherent=False, type="left", S=L)
-        derive_equation(eqs, proj_eqname, P, c_ops, c_coeffs, T,  use_coherent=True, type="left", S=L)
+        # left projected equations
+        derive_equation(eqs, proj_eqname, ops, coeffs, L=L, R=P, T=T, spin_block=True)
+        derive_equation(eqs, "c" + proj_eqname, c_ops, c_coeffs, L=L, R=P, T=T, spin_block=True)
         print()
 
 if __name__ == "__main__":

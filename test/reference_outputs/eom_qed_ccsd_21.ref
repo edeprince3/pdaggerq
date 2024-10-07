@@ -1,4 +1,4 @@
-Deriving equation: sigmar1 = <[['e1(i,a)']]| Hbar |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: sigmar1 = <[['e1(i,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -115,7 +115,7 @@ Equation sigmar1_bb:
 ['-1.00', '<k,j||c,b>_abab', 'r1_aa(c,k)', 't2_bbbb(b,a,i,j)']
 ['+1.00', '<j,k||b,c>_abab', 'r1_bb(c,k)', 't2_abab(b,a,j,i)']
 ['+1.00', '<k,j||b,c>_bbbb', 'r1_bb(c,k)', 't2_bbbb(b,a,i,j)']
-Deriving equation: csigmar1 = <[['e1(i,a)']]| B* + B |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: csigmar1 = <[['e1(i,a)']]| [['B+'], ['B-']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -127,7 +127,7 @@ Equation csigmar1_bb:
 ['+1.00', 'r1_1_bb(a,i)']
 ['+1.00', 'r1_bb(a,i)', 't0_1']
 
-Deriving equation: sigmar2 = <[['e2(i,j,b,a)']]| Hbar |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: sigmar2 = <[['e2(i,j,b,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -520,7 +520,7 @@ Equation sigmar2_bbbb:
 ['+0.50', 'P(i,j)', '<l,k||c,d>_abab', 'r2_abab(c,d,l,i)', 't2_bbbb(a,b,j,k)']
 ['+0.50', 'P(i,j)', '<l,k||d,c>_abab', 'r2_abab(d,c,l,i)', 't2_bbbb(a,b,j,k)']
 ['-0.50', 'P(i,j)', '<l,k||c,d>_bbbb', 'r2_bbbb(c,d,i,l)', 't2_bbbb(a,b,j,k)']
-Deriving equation: csigmar2 = <[['e2(i,j,b,a)']]| B* + B |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: csigmar2 = <[['e2(i,j,b,a)']]| [['B+'], ['B-']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -540,7 +540,7 @@ Equation csigmar2_bbbb:
 ['+1.00', 'r2_bbbb(a,b,i,j)', 't0_1']
 ['-1.00', 'P(i,j)', 'P(a,b)', 'r1_bb(b,i)', 't1_1_bb(a,j)']
 
-Deriving equation: sigmar0_1 = <[['B-']]| Hbar |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: sigmar0_1 = <[['B-']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
  -> 
 
@@ -578,14 +578,14 @@ Equation sigmar0_1:
 ['+1.00', '<j,i||b,a>_abab', 'r1_aa(b,j)', 't1_1_bb(a,i)']
 ['+1.00', '<i,j||a,b>_abab', 'r1_bb(b,j)', 't1_1_aa(a,i)']
 ['-1.00', '<j,i||a,b>_bbbb', 'r1_bb(b,j)', 't1_1_bb(a,i)']
-Deriving equation: csigmar0_1 = <[['B-']]| B* + B |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: csigmar0_1 = <[['B-']]| [['B+'], ['B-']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
  -> 
 
 Equation csigmar0_1:
 ['+1.00', 'r0_1', 't0_1']
 
-Deriving equation: sigmar1_1 = <[['B-', 'e1(i,a)']]| Hbar |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: sigmar1_1 = <[['B-', 'e1(i,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -820,7 +820,7 @@ Equation sigmar1_1_bb:
 ['-1.00', '<k,j||c,b>_abab', 'r1_aa(c,k)', 't2_1_bbbb(b,a,i,j)']
 ['+1.00', '<j,k||b,c>_abab', 'r1_bb(c,k)', 't2_1_abab(b,a,j,i)']
 ['+1.00', '<k,j||b,c>_bbbb', 'r1_bb(c,k)', 't2_1_bbbb(b,a,i,j)']
-Deriving equation: csigmar1_1 = <[['B-', 'e1(i,a)']]| B* + B |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: csigmar1_1 = <[['B-', 'e1(i,a)']]| [['B+'], ['B-']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -834,7 +834,7 @@ Equation csigmar1_1_bb:
 ['+1.00', 'r1_1_bb(a,i)', 't0_1']
 ['+1.00', 'r0_1', 't1_1_bb(a,i)']
 
-Deriving equation: sigmar2_1 = <[['B-', 'e2(i,j,b,a)']]| Hbar |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: sigmar2_1 = <[['B-', 'e2(i,j,b,a)']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -1793,7 +1793,7 @@ Equation sigmar2_1_bbbb:
 ['+0.50', '<l,k||d,c>_abab', 'r0_1', 't2_bbbb(c,a,i,j)', 't2_abab(d,b,l,k)']
 ['+0.50', '<k,l||d,c>_abab', 'r0_1', 't2_bbbb(c,a,i,j)', 't2_abab(d,b,k,l)']
 ['-0.50', '<l,k||c,d>_bbbb', 'r0_1', 't2_bbbb(c,a,i,j)', 't2_bbbb(d,b,l,k)']
-Deriving equation: csigmar2_1 = <[['B-', 'e2(i,j,b,a)']]| B* + B |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: csigmar2_1 = <[['B-', 'e2(i,j,b,a)']]| [['B+'], ['B-']] |[['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -1816,7 +1816,7 @@ Equation csigmar2_1_bbbb:
 ['-1.00', 'P(i,j)', 'P(a,b)', 'r1_1_bb(b,i)', 't1_1_bb(a,j)']
 ['+1.00', 'r0_1', 't2_1_bbbb(a,b,i,j)']
 
-Deriving equation: sigmal1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| Hbar |[['e1(a,i)']]>
+Deriving equation: sigmal1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['e1(a,i)']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -2531,7 +2531,7 @@ Equation sigmal1_bb:
 ['+0.50', '<i,l||d,a>_bbbb', 't2_abab(b,c,k,l)', 't1_1_bb(d,j)', 'l2_1_abab(k,j,b,c)']
 ['-0.50', '<l,i||d,a>_abab', 't2_abab(b,c,l,k)', 't1_1_aa(d,j)', 'l2_1_abab(j,k,b,c)']
 ['-0.50', '<i,l||d,a>_bbbb', 't2_bbbb(c,b,k,l)', 't1_1_bb(d,j)', 'l2_1_bbbb(j,k,c,b)']
-Deriving equation: csigmal1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| B* + B |[['e1(a,i)']]>
+Deriving equation: csigmal1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['B+'], ['B-']] |[['e1(a,i)']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -2547,7 +2547,7 @@ Equation csigmal1_bb:
 ['+1.00', 't1_1_aa(b,j)', 'l2_abab(j,i,b,a)']
 ['-1.00', 't1_1_bb(b,j)', 'l2_bbbb(i,j,b,a)']
 
-Deriving equation: sigmal2 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| Hbar |[['e2(a,b,j,i)']]>
+Deriving equation: sigmal2 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['e2(a,b,j,i)']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -2953,7 +2953,7 @@ Equation sigmal2_bbbb:
 ['+0.50', 'P(i,j)', '<j,l||a,b>_bbbb', 't2_1_abab(d,c,k,l)', 'l2_1_abab(k,i,d,c)']
 ['+0.50', 'P(i,j)', '<j,l||a,b>_bbbb', 't2_1_abab(c,d,k,l)', 'l2_1_abab(k,i,c,d)']
 ['-0.50', 'P(i,j)', '<j,l||a,b>_bbbb', 't2_1_bbbb(d,c,k,l)', 'l2_1_bbbb(i,k,d,c)']
-Deriving equation: csigmal2 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| B* + B |[['e2(a,b,j,i)']]>
+Deriving equation: csigmal2 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['B+'], ['B-']] |[['e2(a,b,j,i)']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -2969,7 +2969,7 @@ Equation csigmal2_bbbb:
 ['+1.00', 'l2_1_bbbb(i,j,a,b)']
 ['+1.00', 't0_1', 'l2_bbbb(i,j,a,b)']
 
-Deriving equation: sigmal0_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| Hbar |[['B+']]>
+Deriving equation: sigmal0_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['B+']]>
 Blocking by spin:
  -> 
 
@@ -3249,7 +3249,7 @@ Equation sigmal0_1:
 ['+0.50', '<k,l||c,d>_abab', 't2_bbbb(d,a,i,l)', 't2_abab(c,b,k,j)', 'l2_1_bbbb(i,j,b,a)']
 ['+0.50', '<l,k||c,d>_bbbb', 't2_bbbb(d,a,i,l)', 't2_abab(b,c,j,k)', 'l2_1_abab(j,i,b,a)']
 ['+0.50', '<l,k||c,d>_bbbb', 't2_bbbb(d,a,i,l)', 't2_bbbb(c,b,j,k)', 'l2_1_bbbb(i,j,b,a)']
-Deriving equation: csigmal0_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| B* + B |[['B+']]>
+Deriving equation: csigmal0_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['B+'], ['B-']] |[['B+']]>
 Blocking by spin:
  -> 
 
@@ -3264,7 +3264,7 @@ Equation csigmal0_1:
 ['+0.25', 't2_1_abab(a,b,j,i)', 'l2_1_abab(j,i,a,b)']
 ['+0.25', 't2_1_bbbb(b,a,i,j)', 'l2_1_bbbb(i,j,b,a)']
 
-Deriving equation: sigmal1_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| Hbar |[['e1(a,i)', 'B+']]>
+Deriving equation: sigmal1_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['e1(a,i)', 'B+']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -3585,7 +3585,7 @@ Equation sigmal1_1_bb:
 ['-0.50', '<i,c||d,a>_bbbb', 't2_abab(b,d,j,k)', 'l2_1_abab(j,k,b,c)']
 ['-0.50', '<i,c||d,a>_bbbb', 't2_abab(b,d,k,j)', 'l2_1_abab(k,j,b,c)']
 ['-0.50', '<i,c||d,a>_bbbb', 't2_bbbb(d,b,j,k)', 'l2_1_bbbb(j,k,c,b)']
-Deriving equation: csigmal1_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| B* + B |[['e1(a,i)', 'B+']]>
+Deriving equation: csigmal1_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['B+'], ['B-']] |[['e1(a,i)', 'B+']]>
 Blocking by spin:
 aa -> a -> a, i -> a
 bb -> a -> b, i -> b
@@ -3601,7 +3601,7 @@ Equation csigmal1_1_bb:
 ['+1.00', 't1_1_aa(b,j)', 'l2_1_abab(j,i,b,a)']
 ['-1.00', 't1_1_bb(b,j)', 'l2_1_bbbb(i,j,b,a)']
 
-Deriving equation: sigmal2_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| Hbar |[['e2(a,b,j,i)', 'B+']]>
+Deriving equation: sigmal2_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['w0'], ['d+'], ['d-'], ['f'], ['v']] |[['e2(a,b,j,i)', 'B+']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -3826,7 +3826,7 @@ Equation sigmal2_1_bbbb:
 ['+0.50', 'P(i,j)', '<j,l||a,b>_bbbb', 't2_abab(d,c,k,l)', 'l2_1_abab(k,i,d,c)']
 ['+0.50', 'P(i,j)', '<j,l||a,b>_bbbb', 't2_abab(c,d,k,l)', 'l2_1_abab(k,i,c,d)']
 ['-0.50', 'P(i,j)', '<j,l||a,b>_bbbb', 't2_bbbb(d,c,k,l)', 'l2_1_bbbb(i,k,d,c)']
-Deriving equation: csigmal2_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| B* + B |[['e2(a,b,j,i)', 'B+']]>
+Deriving equation: csigmal2_1 = <[['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['B+'], ['B-']] |[['e2(a,b,j,i)', 'B+']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b

@@ -1,4 +1,4 @@
-Deriving equation:  D_vvvv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(a,b,c,d)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+Deriving equation: D_vvvv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(a,b,c,d)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, c -> a, d -> a
 abab -> a -> a, b -> b, c -> a, d -> b
@@ -49,7 +49,8 @@ Equation D_vvvv_bbbb:
 ['-1.00', 'P(c,d)', 'r0', 't1_bb(d,j)', 't1_1_bb(c,i)', 'l2_1_bbbb(i,j,a,b)']
 ['-1.00', 'r0', 't1_bb(c,i)', 't1_bb(d,j)', 'l2_bbbb(i,j,a,b)']
 ['-1.00', 'r0_1', 't1_bb(c,i)', 't1_bb(d,j)', 'l2_1_bbbb(i,j,a,b)']
-Deriving equation:  D_vvvo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(a,b,c,i)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_vvvo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(a,b,c,i)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, c -> a, i -> a
 abab -> a -> a, b -> b, c -> a, i -> b
@@ -73,7 +74,8 @@ Equation D_vvvo_bbbb:
 ['-1.00', 'r0', 't1_bb(c,j)', 'l2_bbbb(j,i,a,b)']
 ['-1.00', 'r0_1', 't1_bb(c,j)', 'l2_1_bbbb(j,i,a,b)']
 ['-1.00', 'r0', 't1_1_bb(c,j)', 'l2_1_bbbb(j,i,a,b)']
-Deriving equation:  D_vvov = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(a,b,i,c)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_vvov = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(a,b,i,c)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, c -> a, i -> a
 abab -> a -> a, b -> b, c -> a, i -> b
@@ -97,7 +99,8 @@ Equation D_vvov_bbbb:
 ['+1.00', 'r0', 't1_bb(c,j)', 'l2_bbbb(j,i,a,b)']
 ['+1.00', 'r0_1', 't1_bb(c,j)', 'l2_1_bbbb(j,i,a,b)']
 ['+1.00', 'r0', 't1_1_bb(c,j)', 'l2_1_bbbb(j,i,a,b)']
-Deriving equation:  D_vovv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(a,i,b,c)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_vovv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(a,i,b,c)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, c -> a, i -> a
 abab -> a -> a, b -> b, c -> a, i -> b
@@ -432,7 +435,8 @@ Equation D_vovv_bbbb:
 ['+1.00', 'P(b,c)', 'r0', 't1_bb(c,k)', 't1_bb(d,i)', 't1_1_bb(b,j)', 'l2_1_bbbb(j,k,a,d)']
 ['+1.00', 'r0', 't1_bb(b,j)', 't1_bb(c,k)', 't1_bb(d,i)', 'l2_bbbb(j,k,a,d)']
 ['+1.00', 'r0_1', 't1_bb(b,j)', 't1_bb(c,k)', 't1_bb(d,i)', 'l2_1_bbbb(j,k,a,d)']
-Deriving equation:  D_ovvv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,a,b,c)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_ovvv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,a,b,c)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, c -> a, i -> a
 abab -> a -> a, b -> b, c -> a, i -> b
@@ -767,7 +771,8 @@ Equation D_ovvv_bbbb:
 ['-1.00', 'P(b,c)', 'r0', 't1_bb(c,k)', 't1_bb(d,i)', 't1_1_bb(b,j)', 'l2_1_bbbb(j,k,a,d)']
 ['-1.00', 'r0', 't1_bb(b,j)', 't1_bb(c,k)', 't1_bb(d,i)', 'l2_bbbb(j,k,a,d)']
 ['-1.00', 'r0_1', 't1_bb(b,j)', 't1_bb(c,k)', 't1_bb(d,i)', 'l2_1_bbbb(j,k,a,d)']
-Deriving equation:  D_ovvo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,a,b,j)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_ovvo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,a,b,j)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -890,7 +895,8 @@ Equation D_ovvo_bbbb:
 ['-1.00', 'r0', 't1_bb(c,i)', 't1_1_bb(b,k)', 'l2_1_bbbb(k,j,a,c)']
 ['-1.00', 'r0', 't1_bb(b,k)', 't1_bb(c,i)', 'l2_bbbb(k,j,a,c)']
 ['-1.00', 'r0_1', 't1_bb(b,k)', 't1_bb(c,i)', 'l2_1_bbbb(k,j,a,c)']
-Deriving equation:  D_ovov = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,a,j,b)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_ovov = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,a,j,b)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -1013,7 +1019,8 @@ Equation D_ovov_bbbb:
 ['+1.00', 'r0', 't1_bb(c,i)', 't1_1_bb(b,k)', 'l2_1_bbbb(k,j,a,c)']
 ['+1.00', 'r0', 't1_bb(b,k)', 't1_bb(c,i)', 'l2_bbbb(k,j,a,c)']
 ['+1.00', 'r0_1', 't1_bb(b,k)', 't1_bb(c,i)', 'l2_1_bbbb(k,j,a,c)']
-Deriving equation:  D_oovv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,j,a,b)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_oovv = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,j,a,b)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, b -> a, i -> a, j -> a
 abab -> a -> a, b -> b, i -> a, j -> b
@@ -2757,7 +2764,8 @@ Equation D_oovv_bbbb:
 ['+1.00', 'P(a,b)', 'r0', 't1_bb(b,l)', 't1_bb(c,i)', 't1_bb(d,j)', 't1_1_bb(a,k)', 'l2_1_bbbb(k,l,d,c)']
 ['+1.00', 'r0', 't1_bb(a,k)', 't1_bb(b,l)', 't1_bb(c,i)', 't1_bb(d,j)', 'l2_bbbb(k,l,d,c)']
 ['+1.00', 'r0_1', 't1_bb(a,k)', 't1_bb(b,l)', 't1_bb(c,i)', 't1_bb(d,j)', 'l2_1_bbbb(k,l,d,c)']
-Deriving equation:  D_oovo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,j,a,k)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_oovo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,j,a,k)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, i -> a, j -> a, k -> a
 abab -> a -> a, i -> b, j -> a, k -> b
@@ -3479,7 +3487,8 @@ Equation D_oovo_bbbb:
 ['+1.00', 'r0', 't1_bb(b,i)', 't1_bb(c,j)', 't1_1_bb(a,l)', 'l2_1_bbbb(l,k,c,b)']
 ['+1.00', 'r0', 't1_bb(a,l)', 't1_bb(b,i)', 't1_bb(c,j)', 'l2_bbbb(l,k,c,b)']
 ['+1.00', 'r0_1', 't1_bb(a,l)', 't1_bb(b,i)', 't1_bb(c,j)', 'l2_1_bbbb(l,k,c,b)']
-Deriving equation:  D_ooov = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,j,k,a)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_ooov = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,j,k,a)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> a -> a, i -> a, j -> a, k -> a
 abab -> a -> a, i -> b, j -> a, k -> b
@@ -4201,7 +4210,8 @@ Equation D_ooov_bbbb:
 ['-1.00', 'r0', 't1_bb(b,i)', 't1_bb(c,j)', 't1_1_bb(a,l)', 'l2_1_bbbb(l,k,c,b)']
 ['-1.00', 'r0', 't1_bb(a,l)', 't1_bb(b,i)', 't1_bb(c,j)', 'l2_bbbb(l,k,c,b)']
 ['-1.00', 'r0_1', 't1_bb(a,l)', 't1_bb(b,i)', 't1_bb(c,j)', 'l2_1_bbbb(l,k,c,b)']
-Deriving equation:  D_oooo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,j,k,l)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
+
+Deriving equation: D_oooo = <[['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]| [['e2(i,j,k,l)']] |[['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]>
 Blocking by spin:
 aaaa -> i -> a, j -> a, k -> a, l -> a
 abab -> i -> a, j -> b, k -> a, l -> b
@@ -4462,3 +4472,4 @@ Equation D_oooo_bbbb:
 ['-1.00', 'P(i,j)', 'r0', 't1_bb(b,j)', 't1_1_bb(a,i)', 'l2_1_bbbb(l,k,b,a)']
 ['-1.00', 'r0', 't1_bb(a,i)', 't1_bb(b,j)', 'l2_bbbb(l,k,b,a)']
 ['-1.00', 'r0_1', 't1_bb(a,i)', 't1_bb(b,j)', 'l2_1_bbbb(l,k,b,a)']
+
