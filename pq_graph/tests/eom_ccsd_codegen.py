@@ -106,10 +106,22 @@ def main():
     # Enable and configure pq_graph
     graph = configure_graph()
 
+    label_orders = {
+        "H00": [],
+        "Hs0": ['a', 'i'],
+        "H0s": ['e', 'm'],
+        "Hd0": ['a', 'b', 'i', 'j'],
+        "H0d": ['e', 'f', 'm', 'n'],
+        "Hss": ['a', 'i', 'e', 'm'],
+        "Hsd": ['a', 'i', 'e', 'f', 'm', 'n'],
+        "Hds": ['e', 'f', 'm', 'n', 'a', 'i'],
+        "Hdd": ['a', 'b', 'i', 'j', 'e', 'f', 'm', 'n'],
+    }
+
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname, ['a', 'b', 'i', 'j', 'e', 'f', 'm', 'n'])
+        graph.add(eq, proj_eqname, label_orders[proj_eqname])
 
     # Optimize and output the graph
     graph.optimize()
