@@ -461,7 +461,7 @@ namespace pdaggerq {
         * @param fully_expand if true, fully_expand contractions recursively
         * @return linkage string
         */
-        string tot_str(bool fully_expand = false, bool make_dot = true) const;
+        string tot_str(bool fully_expand = false) const;
 
         /**
          * goes down the tree and replaces the id of any intermediate vertices to a new value

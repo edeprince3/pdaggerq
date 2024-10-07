@@ -143,7 +143,6 @@ namespace pdaggerq {
 
     }
 
-
     Vertex::Vertex(const string &vertex_string) {
         /// separate name and line from vertex_string
 
@@ -294,45 +293,6 @@ namespace pdaggerq {
 
     }
 
-    void Vertex::format_name() {
-        name_ = base_name_;
-
-        // scalars have no dimension
-        if (rank_ == 0) return;
-
-        // format tensor block as a map if it is not an amplitude or if it has a block
-        if (vertex_type_ == 'v') {
-            name_ += "[\"";
-            name_ += dimstring();
-            name_ += "\"]";
-        } else if (vertex_type_ == 'a' && has_blk_) {
-            name_ += "[\"";
-            name_ += blk_string();
-            name_ += "\"]";
-        } else if (vertex_type_ == 'p') {
-            name_ += "[\"";
-            name_ += "perm_" + dimstring();
-            name_ += "\"]";
-        }
-
-    }
-
-    string Vertex::dimstring() const {
-        string dimstring;
-        if (rank_ == 0) return dimstring;
-
-        if (has_blk_) {
-            string blk_string = this->blk_string();
-            if (!blk_string.empty()) {
-                dimstring += blk_string;
-                dimstring += "_";
-            }
-        }
-        dimstring += ovstring();
-
-        return dimstring;
-    }
-
     void Vertex::update_lines(const line_vector &lines, bool update_name){
 
         lines_ = lines; // set lines
@@ -341,31 +301,6 @@ namespace pdaggerq {
         if (update_name)
             this->update_name(); // update name
 
-    }
-
-    string Vertex::blk_string() const {
-        if (!has_blk_ || lines_.empty()) return "";
-
-        string blk_string;
-        blk_string.reserve(blk_string.size());
-        for (const Line &line : lines_) {
-            char blk = line.block();
-            if (blk != '\0')
-                blk_string += blk;
-        }
-
-        return blk_string;
-    }
-
-    string Vertex::ovstring(const line_vector &lines) {
-        if (lines.empty()) return "";
-        string ovstring; // ovstring assuming all occupied
-        ovstring.reserve(lines.size());
-        for (const Line &line : lines) {
-            ovstring.push_back(line.type());
-        }
-
-        return ovstring;
     }
 
     Vertex::Vertex() {
@@ -563,43 +498,6 @@ namespace pdaggerq {
         return base_name_ == other.base_name_;
     }
 
-    string Vertex::line_str(bool sort) const{
-        if (size() == 0) return ""; // if rank is 0, return empty string
-        if (size() == 1) {
-            // do not print sigma lines if use_trial_index is false for otherwise scalar vertices
-            if (lines_[0].sig_ && !use_trial_index)
-                return "";
-        }
-
-        // make a copy of lines that is sorted if sort is true
-        line_vector lines;
-        if (!sort) lines = lines_;
-        else {
-            lines.reserve(lines_.size());
-            for (const Line &line : lines_)
-                lines.insert(
-                        std::lower_bound(lines.begin(), lines.end(), line, line_compare()), line);
-        }
-
-        // loop over lines
-        string line_str = "(\"";
-        for (const Line &line : lines) {
-            if (!use_trial_index && line.sig_) continue;
-            line_str += line.label_;
-            line_str += ",";
-        }
-        line_str.pop_back(); // remove last comma
-        line_str += "\")";
-        return line_str;
-    }
-
-    string Vertex::str() const {
-        string name = name_;
-        if (print_type_ == "c++")
-            name += line_str();
-        return name;
-    }
-
     map<Line, uint_fast8_t> Vertex::self_links() const {
         // if rank is 0 or 1, return empty vector
         if (rank_ <= 1) return {};
@@ -677,6 +575,5 @@ namespace pdaggerq {
     bool Vertex::is_constant() const {
         return value() != 0.0; // the value is zero if the conversion fails
     }
-
 
 } // pdaggerq

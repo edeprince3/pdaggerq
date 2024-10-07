@@ -487,4 +487,184 @@ namespace pdaggerq {
         return *std::max_element(ids.begin(), ids.end());
     }
 
+    string Term::make_comments(bool only_flop, bool only_comment) const {
+        if (comments_.empty())
+            return "";
+
+        string comment;
+        for (const auto &vertex: rhs_) {
+            if (vertex->is_linked())
+                comment += as_link(vertex)->tot_str(true);
+            else
+                comment += vertex->str();
+            if (vertex != rhs_.back())
+                comment += " * ";
+        }
+
+        // add permutations to comment if there are any
+        if (!term_perms_.empty()) {
+            string perm_str;
+            int count;
+            switch (perm_type_) {
+                case 0:
+                    break;
+                case 1:
+                    for (const auto &perm: term_perms_)
+                        perm_str += "P(" + perm.first + "," + perm.second + ") ";
+                    break;
+                case 2:
+                    count = 0;
+                    for (const auto &perm: term_perms_) {
+                        if (count++ % 2 == 0)
+                            perm_str += "PP2(" + perm.first + "," + perm.second;
+                        else
+                            perm_str += ";" + perm.first + "," + perm.second + ") ";
+                    }
+                    break;
+                case 3:
+                    count = 0;
+                    for (const auto &perm: term_perms_) {
+                        if (count % 3 == 0)
+                            perm_str += "PP3(" + perm.first + "," + perm.second;
+                        else
+                            perm_str += ";" + perm.first + "," + perm.second;
+                        if (count++ % 3 == 2)
+                            perm_str += ") ";
+                    }
+                    break;
+                case 6:
+                    count = 0;
+                    for (const auto &perm: term_perms_) {
+                        if (count % 3 == 0)
+                            perm_str += "PP6(" + perm.first + "," + perm.second;
+                        else
+                            perm_str += ";" + perm.first + "," + perm.second;
+                        if (count++ % 3 == 2)
+                            perm_str += ") ";
+                    }
+                    break;
+            }
+
+            comment = perm_str + comment;
+        }
+
+        // get coefficient
+        double coeff = coefficient_;
+        bool is_negative = coeff < 0;
+
+        string assign_str = is_assignment_ ? "  = " : " += ";
+
+        int precision = minimum_precision(coefficient_);
+        string coeff_str = to_string_with_precision(fabs(coefficient_), precision);
+        if (is_negative) coeff_str.insert(coeff_str.begin(), '-');
+        coeff_str += ' ';
+
+        if (original_pq_.empty()) {
+            // add lhs to comment
+            comment = "// " + lhs_->str() + assign_str + coeff_str + comment;
+        } else {
+            comment = "// " + lhs_->name() + assign_str + original_pq_;
+        }
+
+        if (only_flop) // clear comment if only flop is requested
+            comment.clear();
+
+        // remove all quotes from comment
+        comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
+
+        // format comment for python if needed
+        if (Vertex::print_type_ == "python"){
+            // turn '//' into '#'
+            size_t pos = comment.find("//");
+            while (pos != std::string::npos) {
+                comment.replace(pos, 2, "#");
+                pos = comment.find("//", pos + 2);
+            }
+        }
+
+        const auto &[flop_scales, mem_scales] = term_linkage(true)->scales();
+        only_comment |= flop_scales.empty() && mem_scales.empty();
+        if (only_comment) return comment;
+
+        if (!comment.empty()) comment += "\n    ";
+        comment += "// flops: " + lhs_->dim().str() + assign_str;
+        for (const auto & flop : flop_scales)
+            comment += flop.str() + " ";
+
+        // remove last space
+        if (!flop_scales.empty())
+            comment.pop_back();
+
+
+        comment += "\n    //  mems: " + lhs_->dim().str() + assign_str;
+        for (const auto & mem : mem_scales)
+            comment += mem.str() + " ";
+
+        // remove last space
+        if (!mem_scales.empty())
+            comment.pop_back();
+
+        // format comment for python if needed
+        if (Vertex::print_type_ == "python"){
+            // turn '//' into '#'
+            size_t pos = comment.find("//");
+            while (pos != std::string::npos) {
+                comment.replace(pos, 2, "#");
+                pos = comment.find("//", pos + 2);
+            }
+        }
+
+        return comment;
+    }
+
+    void Term::reset_comments() {
+        // set comments
+        comments_.push_back(to_string(coefficient_)); // add coefficient to vertex strings
+        for (const auto &op : rhs_)
+            comments_.push_back(op->str());
+    }
+
+    std::set<string> Term::conditions() const {
+
+        // map that stores conditions to their related operators
+        const std::map<string, std::vector<string>> &mapped_conditions = mapped_conditions_;
+        if (mapped_conditions.empty()) return {}; // return empty set if no conditions
+
+        ConstLinkagePtr linkage = term_linkage(); // get linkage representation of term
+        std::set<string> conditions{}; // set to store conditions
+
+        if (!linkage) {
+            // return current conditions if no linkage
+            if (rhs_.empty())
+                return conditions;
+
+            // if rhs is not empty, create a new term and get its linkage
+            Term new_term = *this;
+            new_term.compute_scaling(true); // force recomputation of scaling
+            linkage = new_term.term_linkage(); // get linkage
+        }
+
+        if (!linkage)
+            return conditions; // return current conditions if no linkage
+
+        // create a set of operator basenames
+        std::vector<ConstVertexPtr> vertices = linkage->vertices();
+
+        // include lhs vertex in conditions (if it exists)
+        if (lhs_) vertices.push_back(lhs_);
+        for (const auto & vertex : vertices) {
+            if (!vertex) continue; // skip if vertex is null
+
+            // loop over named conditions
+            for (const auto & [condition, restrict_ops] : mapped_conditions) {
+                // check if vertex is in the list of operators
+                if (std::find(restrict_ops.begin(), restrict_ops.end(), vertex->base_name()) != restrict_ops.end())
+                    conditions.insert(condition); // if so, add named condition to set
+            }
+        }
+
+        // return set of operator basenames that have conditions
+        return conditions;
+    }
+
 } // pdaggerq
