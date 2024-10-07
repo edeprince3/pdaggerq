@@ -209,7 +209,7 @@ namespace pdaggerq {
                 line_vector new_lines;
                 for (const auto &line: new_op->lines())
                     if (!line.sig_) new_lines.push_back(line);
-                new_op->update_lines(new_lines);
+                new_op->update_lines(new_lines, false);
                 link_vector_no_trial.push_back(new_op);
             }
             link_vector = link_vector_no_trial;
