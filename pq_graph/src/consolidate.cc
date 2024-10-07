@@ -644,7 +644,10 @@ PQGraph PQGraph::clone() const {
 
 void PQGraph::reindex() {
 
-     return; // does not consistently work
+    print_guard guard;
+    if (print_level_ <= 1)
+        guard.lock();
+
     // reset saved linkages and temp counts
     saved_linkages_.clear();
     temp_counts_.clear();
@@ -675,6 +678,7 @@ void PQGraph::reindex() {
 
     // loop over all vertices in all equations and terms
     for (auto & [name, eq] : equations_) {
+        eq.collect_scaling(true);
         for (auto &term : eq.terms()) {
             for (auto &op : term.rhs())
                 reindex_vertex(op);
