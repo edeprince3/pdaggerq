@@ -18,7 +18,7 @@ ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "active_space_CCS
 qed_tests      = ("qed_ccsd_21", "qed_ccsd_22", "eom_qed_ccsd_21", "eom_qed_ccsd_21_1rdm", "eom_qed_ccsd_21_2rdm")
 
 # Combine all tests
-tests  = ("cisd", "ccsd", "cc3", "ccsdt", "eom_ccsd")
+tests  = ("cisd", "ccsd", "eom_ccsd", "ccsdt", "cc3")
 
 @pytest.mark.parametrize("test_name", tests)
 def test_script_output(test_name):
