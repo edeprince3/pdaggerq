@@ -513,7 +513,7 @@ namespace pdaggerq {
         return self_links;
     }
 
-    vector<ConstVertexPtr> Vertex::make_self_linkages(map<Line, uint_fast8_t> &self_links) {
+    vertex_vector Vertex::make_self_linkages(map<Line, uint_fast8_t> &self_links) {
         // replace repeated lines with arbitrary lines
         map<Line, uint_fast8_t> counts;
         for (auto & [line, freq] : self_links) {
@@ -534,7 +534,7 @@ namespace pdaggerq {
         }
 
         // create delta functions for this vertex
-        vector<ConstVertexPtr> delta_ops;
+        vertex_vector delta_ops;
         for (auto & [line, freq] : self_links) {
             // if line is not repeated, do nothing
             if (freq == 1) continue;

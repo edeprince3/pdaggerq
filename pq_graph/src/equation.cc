@@ -125,7 +125,7 @@ namespace pdaggerq {
             mem_map_  += term_mem_map; // add memory scaling map
         }
 
-        vector<ConstVertexPtr> all_term_linkages;
+        vertex_vector all_term_linkages;
         for (auto & term : terms_) {
             all_term_linkages.push_back(term.term_linkage());
         }

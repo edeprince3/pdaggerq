@@ -57,8 +57,6 @@ namespace pdaggerq {
     //templated typedef for a map with linkages as keys
     template<typename T>
     using linkage_map = std::unordered_map<ConstLinkagePtr, T, LinkageHash, LinkageEqual>;
-    typedef std::vector<ConstLinkagePtr> linkage_vector;
-    typedef std::vector<ConstVertexPtr> vertex_vector;
 
     // struct for parallel linkage set operations
     class linkage_set {

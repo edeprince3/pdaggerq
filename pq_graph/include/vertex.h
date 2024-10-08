@@ -52,6 +52,9 @@ namespace pdaggerq {
     typedef shared_ptr<const Vertex>  ConstVertexPtr;
     typedef shared_ptr<const Linkage> ConstLinkagePtr;
 
+    typedef std::vector<ConstVertexPtr> vertex_vector;
+    typedef std::vector<ConstLinkagePtr> linkage_vector;
+
     /**
      * Vertex class
      * Represents a vertex in the form of a string with the vertex name and its indices
@@ -331,7 +334,7 @@ namespace pdaggerq {
          * @param internal_lines
          * @return
          */
-        vector<ConstVertexPtr> make_self_linkages(map<Line, uint_fast8_t> &self_links);
+        vertex_vector make_self_linkages(map<Line, uint_fast8_t> &self_links);
 
         /**
          * return n_ops of vertex (number of lines)
@@ -403,7 +406,7 @@ namespace pdaggerq {
         virtual bool is_temp() const { return false; }
         virtual bool is_addition() const { return false; } // whether the linkage is an addition
         virtual bool is_expandable() const { return false; } // whether the linkage is expandable
-        virtual vector<ConstVertexPtr> link_vector(bool regenerate = false, bool fully_expand = false) const { return {shared_from_this()}; }
+        virtual vertex_vector link_vector(bool regenerate = false, bool fully_expand = false) const { return {shared_from_this()}; }
         virtual bool is_reused() const { return false; } // whether the linkage is reused
         virtual size_t depth() const { return 0; }
         virtual bool &is_addition() { static bool null = false; null = false; return null; } // whether the linkage is an addition
@@ -415,7 +418,7 @@ namespace pdaggerq {
         virtual bool has_temp(const ConstVertexPtr &other, bool enter_temp = true, long depth = -1) const { return false; }
         virtual bool same_temp(const ConstVertexPtr &other) const { return false; }
         virtual bool has_any_temp() const { return false; }
-        virtual vector<ConstVertexPtr> get_temps() const { return {}; }
+        virtual vertex_vector get_temps() const { return {}; }
 
     }; // end Vertex class
 

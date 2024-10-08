@@ -173,7 +173,7 @@ namespace pdaggerq {
 
     }
 
-    Term::Term(const ConstVertexPtr &lhs_vertex, const vector<ConstVertexPtr> &vertices, double coefficient) {
+    Term::Term(const ConstVertexPtr &lhs_vertex, const vertex_vector &vertices, double coefficient) {
 
         lhs_ = lhs_vertex; // set lhs vertex
         eq_ = lhs_->clone(); // shallow copy of lhs for equation
@@ -237,7 +237,7 @@ namespace pdaggerq {
 
     }
 
-    tuple<scaling_map, scaling_map, LinkagePtr> Term::compute_scaling(const ConstVertexPtr &lhs, const vector<ConstVertexPtr> &arrangement) {
+    tuple<scaling_map, scaling_map, LinkagePtr> Term::compute_scaling(const ConstVertexPtr &lhs, const vertex_vector &arrangement) {
 
         /// add scaling from rhs
 
@@ -267,7 +267,7 @@ namespace pdaggerq {
         // find constants in rhs and merge them into the coefficient. skip empty vertices
         double merged_factor = coefficient_;
 
-        vector<ConstVertexPtr> new_rhs; new_rhs.reserve(rhs_.size());
+        vertex_vector new_rhs; new_rhs.reserve(rhs_.size());
         bool found_constant = false;
         for (ConstVertexPtr & op : rhs_) {
             if (op->empty()) continue; // skip empty vertices
@@ -324,7 +324,7 @@ namespace pdaggerq {
         bool has_any_self_link = false;
 
         // iterate over all rhs and convert traces to dot products with delta functions
-        vector<ConstVertexPtr> new_rhs; new_rhs.reserve(rhs_.size());
+        vertex_vector new_rhs; new_rhs.reserve(rhs_.size());
         for (auto & op : rhs_) {
             // check if vertex is a trace
             // get self-contracted lines
@@ -343,7 +343,7 @@ namespace pdaggerq {
 
             has_any_self_link = true;
 
-            vector<ConstVertexPtr> deltas = copy->make_self_linkages(self_links);
+            vertex_vector deltas = copy->make_self_linkages(self_links);
 
             // skip if no self links (this should never happen at this point)
             if (deltas.empty()) {
@@ -648,7 +648,7 @@ namespace pdaggerq {
             return conditions; // return current conditions if no linkage
 
         // create a set of operator basenames
-        std::vector<ConstVertexPtr> vertices = linkage->vertices();
+        vertex_vector vertices = linkage->vertices();
 
         // include lhs vertex in conditions (if it exists)
         if (lhs_) vertices.push_back(lhs_);

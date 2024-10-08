@@ -86,7 +86,7 @@ struct LinkTracker {
 
                     Term trunc_term = *term;
                     trunc_term.term_linkage() = nullptr;
-                    vector<ConstVertexPtr> trunc_rhs;
+                    vertex_vector trunc_rhs;
                     for (auto &other_vertex: trunc_term.rhs()) {
                         ConstVertexPtr new_vertex = other_vertex;
                         if (other_vertex->is_linked()) {
@@ -201,7 +201,7 @@ struct LinkTracker {
 struct LinkMerger {
     LinkTracker link_tracker_;
     PQGraph& pq_graph_;
-    linkage_map<vector<ConstLinkagePtr>> link_merge_map_;
+    linkage_map<linkage_vector> link_merge_map_;
 
     explicit LinkMerger(PQGraph& pq_graph) : pq_graph_(pq_graph){
         link_merge_map_.reserve(10 * pq_graph_.saved_linkages().size());
@@ -214,7 +214,7 @@ struct LinkMerger {
         ConstVertexPtr dummy = 0.0 * std::make_shared<Vertex>("dummy");
 
         // extract trunc map to separate vectors to parallelize
-        vector<ConstLinkagePtr> all_links; all_links.reserve(link_tracker_.link_track_map_.size());
+        linkage_vector all_links; all_links.reserve(link_tracker_.link_track_map_.size());
         vector<vector<LinkInfo>> all_infos; all_infos.reserve(link_tracker_.link_track_map_.size());
         for (auto &[link, link_infos]: link_tracker_.link_track_map_) {
             link->forget(true); // forget the link history for memory efficiency
@@ -335,10 +335,10 @@ struct LinkMerger {
         set<Term*> unique_terms;
 
         // prune each linkage in the merge map
-        linkage_map<vector<ConstLinkagePtr>> new_link_merge_map;
+        linkage_map<linkage_vector> new_link_merge_map;
         new_link_merge_map.reserve(link_merge_map_.size());
 
-        vector<ConstLinkagePtr> sorted_links;
+        linkage_vector sorted_links;
         sorted_links.reserve(link_merge_map_.size());
         for (auto &[link, _]: link_merge_map_)
             if (link) sorted_links.push_back(link);
@@ -352,7 +352,7 @@ struct LinkMerger {
             auto target_terms = extract_terms(target_link);
             unique_terms.insert(target_terms.begin(), target_terms.end());
 
-            vector<ConstLinkagePtr> new_merge_links;
+            linkage_vector new_merge_links;
             for (auto &merge_link: merge_links) {
                 auto merge_terms = extract_terms(merge_link);
 
@@ -700,7 +700,7 @@ size_t PQGraph::prune(bool keep_single_use) {
     linkage_set all_temp_set; all_temp_set.reserve(10*(saved_linkages_["temp"].size()+1));
     for (auto & [name, eq] : equations_) {
         for (auto &term: eq.terms()) {
-            vector<ConstVertexPtr> term_temps = (term.lhs() + term.term_linkage())->get_temps();
+            vertex_vector term_temps = (term.lhs() + term.term_linkage())->get_temps();
             all_temp_set.insert(term_temps.begin(), term_temps.end());
         }
     }
@@ -792,7 +792,7 @@ size_t PQGraph::prune(bool keep_single_use) {
     if (num_removed > 0) {
 
         // sort to_remove by decreasing id
-        vector<ConstLinkagePtr> sorted_to_remove;
+        linkage_vector sorted_to_remove;
         sorted_to_remove.reserve(to_remove.size());
         sorted_to_remove.insert(sorted_to_remove.begin(), to_remove.begin(), to_remove.end());
         std::sort(sorted_to_remove.begin(), sorted_to_remove.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {

@@ -26,7 +26,7 @@
 using namespace pdaggerq;
 
 // Function to join the labels of lines with a specified delimiter
-string join(const vector<Line> &lines, const string &delimiter) {
+string join(const line_vector &lines, const string &delimiter) {
     std::stringstream result;
     // Iterate through the lines and concatenate their labels with the delimiter
     for (size_t i = 0; i < lines.size(); ++i) {
@@ -50,7 +50,7 @@ string format_label(const Term &term) {
         label << "P(" << perm.first << "," << perm.second << ") ";
 
     // Get vertices from the term's linkage
-    vector<ConstVertexPtr> vertices = term.term_linkage()->link_vector(true);
+    vertex_vector vertices = term.term_linkage()->link_vector(true);
 
     // Add each vertex and its lines to the label
     for (const auto &vertex : vertices) {
@@ -81,7 +81,7 @@ string determine_direction(bool o, bool curr_is_bra) {
 }
 
 // Function to append null nodes for external lines in the graph
-void append_null_nodes(string padding, const ConstLinkagePtr &link, const vector<ConstVertexPtr> &vertices, size_t &dummy_count, size_t term_id, vector<string> &null_nodes, vector<string> &ext_edge_names, size_t &group_count, const string &ext_edge_style, const string &null_node_style) {
+void append_null_nodes(string padding, const ConstLinkagePtr &link, const vertex_vector &vertices, size_t &dummy_count, size_t term_id, vector<string> &null_nodes, vector<string> &ext_edge_names, size_t &group_count, const string &ext_edge_style, const string &null_node_style) {
     for (const auto &line : link->lines_) {
         if (line.sig_) continue;  // Skip lines marked as significant
 
@@ -149,7 +149,7 @@ bool append_edge_links(string padding, const ConstLinkagePtr &link, const ConstV
 
 
 // Function to append edges between vertices
-bool append_edges(string padding, const vector<ConstVertexPtr> &vertices, const ConstVertexPtr &current, size_t i, vector<string> &int_edge_names, const string &l_id, size_t term_id, const string &int_edge_style) {
+bool append_edges(string padding, const vertex_vector &vertices, const ConstVertexPtr &current, size_t i, vector<string> &int_edge_names, const string &l_id, size_t term_id, const string &int_edge_style) {
     string current_node = current->base_name() + "_" + l_id;  // Current node identifier
 
     bool keep_sig = false;
@@ -171,8 +171,8 @@ bool append_edges(string padding, const vector<ConstVertexPtr> &vertices, const 
 }
 
 // Function to sort vertices based on their base name
-vector<ConstVertexPtr> sorted_vertices(const ConstLinkagePtr& link) {
-    vector<ConstVertexPtr> vertices = link->vertices(true);  // Get vertices from linkage
+vertex_vector sorted_vertices(const ConstLinkagePtr& link) {
+    vertex_vector vertices = link->vertices(true);  // Get vertices from linkage
     sort(vertices.begin(), vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
         return a->base_name() < b->base_name();  // Sort vertices by base name
     });
@@ -316,7 +316,7 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
     bool began_temp = false;
 
     // Get sorted vertices and temporary vertices
-    vector<ConstVertexPtr> vertices = sorted_vertices(as_link(shared_from_this()));
+    vertex_vector vertices = sorted_vertices(as_link(shared_from_this()));
     vector<pair<string,ConstVertexPtr>> temp_verts = sorted_temp_vertices(as_link(shared_from_this()));
 
 //    auto close_temp = [&]() {

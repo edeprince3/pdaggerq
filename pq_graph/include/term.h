@@ -50,7 +50,7 @@ namespace pdaggerq {
 
         ConstVertexPtr lhs_; // vertex on the left hand side of the term
         ConstVertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
-        vector<ConstVertexPtr> rhs_; // rhs of the term
+        vertex_vector rhs_; // rhs of the term
         mutable ConstLinkagePtr term_linkage_ = nullptr; // linkage of the term
         mutable vector<string> comments_; // string representation of the original rhs
 
@@ -117,7 +117,7 @@ namespace pdaggerq {
          * @param vertices vector of rhs
          * @param coefficient coefficient of the term
          */
-        Term(const ConstVertexPtr &lhs_vertex, const vector<ConstVertexPtr> &vertices, double coefficient);
+        Term(const ConstVertexPtr &lhs_vertex, const vertex_vector &vertices, double coefficient);
 
         /**
          * Constructor to build assignment of a linkage
@@ -214,14 +214,14 @@ namespace pdaggerq {
         * Get rhs and allow modification
         * @return vector of rhs
         */
-        vector<ConstVertexPtr> &rhs() {
+        vertex_vector &rhs() {
             return rhs_;
         }
 
         /**
          * Get const rhs
          */
-        const vector<ConstVertexPtr> &rhs() const {
+        const vertex_vector &rhs() const {
             return rhs_;
         }
 
@@ -235,8 +235,8 @@ namespace pdaggerq {
         /**
          * get all vertices in the term (lhs + rhs)
          */
-        vector<ConstVertexPtr> vertices() const {
-            vector<ConstVertexPtr> vertices = {lhs_};
+        vertex_vector vertices() const {
+            vertex_vector vertices = {lhs_};
             vertices.insert(vertices.end(), rhs_.begin(), rhs_.end());
             return vertices;
         }
@@ -263,22 +263,22 @@ namespace pdaggerq {
         /**
          * begin iterator
          */
-        vector<ConstVertexPtr>::iterator begin() { return rhs_.begin(); }
+        vertex_vector::iterator begin() { return rhs_.begin(); }
 
         /**
          * end iterator
          */
-        vector<ConstVertexPtr>::iterator end() { return rhs_.end(); }
+        vertex_vector::iterator end() { return rhs_.end(); }
 
         /**
          * begin const iterator
          */
-        vector<ConstVertexPtr>::const_iterator begin() const { return rhs_.begin(); }
+        vertex_vector::const_iterator begin() const { return rhs_.begin(); }
 
         /**
          * end const iterator
          */
-        vector<ConstVertexPtr>::const_iterator end() const { return rhs_.end(); }
+        vertex_vector::const_iterator end() const { return rhs_.end(); }
 
         /**
          * Get mutable reference to vertex strings
@@ -337,7 +337,7 @@ namespace pdaggerq {
           * @param perm permutation of the rhs
           * @return a tuple of the flop_scale, mem_scale, and term linkage
           */
-         static tuple<scaling_map, scaling_map, LinkagePtr> compute_scaling(const ConstVertexPtr &lhs, const vector<ConstVertexPtr> &arrangement);
+         static tuple<scaling_map, scaling_map, LinkagePtr> compute_scaling(const ConstVertexPtr &lhs, const vertex_vector &arrangement);
 
          /**
           * Populate flop and memory scaling maps with identity permutation

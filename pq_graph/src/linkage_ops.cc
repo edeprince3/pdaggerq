@@ -32,7 +32,7 @@
 
 namespace pdaggerq {
 
-    LinkagePtr Linkage::link(const vector<ConstVertexPtr> &op_vec) {
+    LinkagePtr Linkage::link(const vertex_vector &op_vec) {
         if (op_vec.empty()) return make_shared<Linkage>(); // return an empty linkage if the vector is empty
 
         ConstVertexPtr linkage = make_shared<Vertex>(); // initialize the linkage as an empty vertex
@@ -102,9 +102,9 @@ namespace pdaggerq {
         return {flops, mems};
     }
 
-    vector<ConstVertexPtr> Linkage::link_vector(bool regenerate, bool fully_expand) const {
+    vertex_vector Linkage::link_vector(bool regenerate, bool fully_expand) const {
 
-        vector<ConstVertexPtr> result;
+        vertex_vector result;
         {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
@@ -124,7 +124,7 @@ namespace pdaggerq {
             if (!left_->is_expandable() && !fully_expand) {
                 result.push_back(left_); // if not fully expanding, add if an intermediate
             } else {
-                const vector<ConstVertexPtr> &left_vec = left_->link_vector(regenerate, fully_expand);
+                const vertex_vector &left_vec = left_->link_vector(regenerate, fully_expand);
                 result.insert(result.end(), left_vec.begin(), left_vec.end());
             }
         } else if (!left_->empty() && (fabs(left_->value() - 1.0) > 1e-8)) {
@@ -136,7 +136,7 @@ namespace pdaggerq {
             if (!right_->is_expandable() && !fully_expand) {
                 result.push_back(right_); // if not fully expanding, add if an intermediate
             } else {
-                const vector<ConstVertexPtr> &right_vec = right_->link_vector(regenerate, fully_expand);
+                const vertex_vector &right_vec = right_->link_vector(regenerate, fully_expand);
                 result.insert(result.end(), right_vec.begin(), right_vec.end());
             }
         } else if (!right_->empty() && (fabs(right_->value() - 1.0) > 1e-8)){
@@ -156,7 +156,7 @@ namespace pdaggerq {
         return result;
     }
 
-    vector<ConstVertexPtr> Linkage::vertices(bool regenerate) const {
+    vertex_vector Linkage::vertices(bool regenerate) const {
         return link_vector(regenerate, true);
     }
 
@@ -212,8 +212,8 @@ namespace pdaggerq {
         if (test_fusion){
 
             // check if any vertex in the left is in the right
-            vector<ConstVertexPtr> left_vec = left->link_vector();
-            vector<ConstVertexPtr> right_vec = right->link_vector();
+            vertex_vector left_vec = left->link_vector();
+            vertex_vector right_vec = right->link_vector();
 
             std::sort(left_vec.begin(), left_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
                 if (a->name() != b->name())
@@ -226,7 +226,7 @@ namespace pdaggerq {
                 return a->lines() < b->lines();
             });
 
-            vector<ConstVertexPtr> common;
+            vertex_vector common;
             std::set_intersection(left_vec.begin(), left_vec.end(), right_vec.begin(), right_vec.end(),
                                   std::back_inserter(common), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
                         if (a->name() != b->name())
@@ -237,7 +237,7 @@ namespace pdaggerq {
             // if there are common vertices, fuse them
             if (!common.empty()) {
 
-                vector<ConstVertexPtr> new_left, new_right;
+                vertex_vector new_left, new_right;
                 std::set_difference(left_vec.begin(), left_vec.end(), common.begin(), common.end(),
                                     std::back_inserter(new_left), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
                             if (a->name() != b->name())
@@ -310,7 +310,7 @@ namespace pdaggerq {
         return false;
     }
 
-    vector<ConstVertexPtr>  Linkage::find_links(const ConstVertexPtr &target_vertex, long search_depth) const {
+    vertex_vector  Linkage::find_links(const ConstVertexPtr &target_vertex, long search_depth) const {
 
         if (target_vertex == nullptr) return {}; // if the target vertex is null, return an empty vector
         if (this->depth() < target_vertex->depth()) return {}; // if the target vertex is deeper, it cannot be found
@@ -318,7 +318,7 @@ namespace pdaggerq {
         bool found = *target_vertex == *this;
         if (found) return {shared_from_this()}; // if this is the target vertex, return it
 
-        vector<ConstVertexPtr> links;
+        vertex_vector links;
 
         if (search_depth > 0 || search_depth == -1) {
             search_depth = search_depth == -1 ? -1 : search_depth - 1;
@@ -334,8 +334,8 @@ namespace pdaggerq {
         return links;
     }
 
-    vector<ConstVertexPtr> Linkage::find_scalars() const {
-        vector<ConstVertexPtr> scalars;
+    vertex_vector Linkage::find_scalars() const {
+        vertex_vector scalars;
         if (left_->empty() && right_->empty())
             return scalars; // do not add empty vertices
 
@@ -484,8 +484,8 @@ namespace pdaggerq {
         return false;
     }
 
-    std::vector<ConstVertexPtr> Linkage::get_temps() const {
-        std::vector<ConstVertexPtr> temps;
+    vertex_vector Linkage::get_temps() const {
+        vertex_vector temps;
         if (is_temp())
             temps.push_back(shared_from_this());
 
@@ -527,11 +527,11 @@ namespace pdaggerq {
         return ids;
     }
 
-    vector<ConstLinkagePtr> Linkage::permutations(bool regenerate) const {
+    linkage_vector Linkage::permutations(bool regenerate) const {
 
         // initialize the result vector
 
-        vector<ConstLinkagePtr> result;
+        linkage_vector result;
 
         {
             // Lock the mutex for this scope
@@ -597,14 +597,14 @@ namespace pdaggerq {
         }
 
         // generate all permutations of the link vector
-        const vector<ConstVertexPtr> &link_vec = link_vector(regenerate);
+        const vertex_vector &link_vec = link_vector(regenerate);
         vector<size_t> idxs(link_vec.size());
         std::iota(idxs.begin(), idxs.end(), 0);
 
         // generate all permutations of the link vector
         while (std::next_permutation(idxs.begin(), idxs.end())) {
             // generate this permutation
-            vector<ConstVertexPtr> link_perm(link_vec.size());
+            vertex_vector link_perm(link_vec.size());
             std::transform(idxs.begin(), idxs.end(), link_perm.begin(), [&link_vec](size_t i) {
                 return link_vec[i];
             });
@@ -628,7 +628,7 @@ namespace pdaggerq {
         ConstLinkagePtr best_perm = as_link(shared_from_this());
 
         // generate every permutation
-        const vector<ConstLinkagePtr> &all_perms = permutations();
+        const linkage_vector &all_perms = permutations();
         if (all_perms.size() <= 1) {
             // if no permutations, return this as the best permutation
             return best_perm;
@@ -670,14 +670,14 @@ namespace pdaggerq {
         return best_perm;
     }
 
-    vector<ConstLinkagePtr> Linkage::subgraphs(size_t max_depth, bool with_permutations) const {
+    linkage_vector Linkage::subgraphs(size_t max_depth, bool with_permutations) const {
 
         if (is_temp()) { // do not generate subgraphs for temps
             return {as_link(shared_from_this())};
         }
 
         // build permutations of root vertex
-        vector<ConstLinkagePtr> top_perms;
+        linkage_vector top_perms;
         if (with_permutations)
              top_perms = permutations();
         else top_perms = {as_link(shared_from_this())};

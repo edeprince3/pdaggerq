@@ -87,7 +87,7 @@ namespace pdaggerq {
         };
         static auto apply_swaps = [](const Term& reference_term, const vector<pair<string,string>> &perm_pairs){
             Term perm_term = reference_term.clone(); // deep copy term
-            vector<ConstVertexPtr> perm_vertices;
+            vertex_vector perm_vertices;
             for (const auto &vertex: reference_term.rhs_) {
                 VertexPtr perm_vertex = vertex->clone();
                 for (const auto &perm_pair: perm_pairs) {

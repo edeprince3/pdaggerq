@@ -199,11 +199,11 @@ namespace pdaggerq {
         string output, left_string, right_string;
 
         // get link vector
-        vector<ConstVertexPtr> link_vector = this->link_vector();
+        vertex_vector link_vector = this->link_vector();
 
         // create new link vector without trial index
         if (!Vertex::use_trial_index) {
-            vector<ConstVertexPtr> link_vector_no_trial;
+            vertex_vector link_vector_no_trial;
             for (const auto &op: link_vector) {
                 VertexPtr new_op = op->clone();
                 line_vector new_lines;
@@ -221,8 +221,8 @@ namespace pdaggerq {
                 return left_->str() + " + " + right_->str();
             }
 
-            vector<ConstVertexPtr> scalars;
-            vector<ConstVertexPtr> tensors;
+            vertex_vector scalars;
+            vertex_vector tensors;
             for (const auto &op: link_vector) {
                 if (op->empty()) continue;
                 if (op->is_scalar())
@@ -291,8 +291,8 @@ namespace pdaggerq {
             }
 
             vector<string> indices;
-            vector<ConstVertexPtr> scalars;
-            vector<ConstVertexPtr> tensors;
+            vertex_vector scalars;
+            vertex_vector tensors;
             for (const auto &op: link_vector) {
                 if (op->empty()) continue;
                 if (op->is_scalar())

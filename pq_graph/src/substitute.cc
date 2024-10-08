@@ -178,8 +178,8 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     if (linkage->netscales().first > flop_map()) return false;
 
     // get total vector of linkage vertices (without expanding nested linkages)
-    vector<ConstVertexPtr> link_list = linkage->link_vector();
-    vector<ConstVertexPtr> term_list = term_linkage()->link_vector();
+    vertex_vector link_list = linkage->link_vector();
+    vertex_vector term_list = term_linkage()->link_vector();
 
     // sort lists by name
     sort(link_list.begin(), link_list.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
@@ -212,7 +212,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage) {
     bool madeSub = false; // initialize boolean to track if substitution was made
 
     // generate every permutation of the term
-    const vector<ConstLinkagePtr> &graph_perms = term_linkage()->permutations();
+    const linkage_vector &graph_perms = term_linkage()->permutations();
 
     // iterate over all possible orderings of vertex subsets
     ConstLinkagePtr best_linkage = as_link(term_linkage()->shallow());
@@ -277,7 +277,7 @@ void PQGraph::make_scalars() {
     if (Equation::no_scalars_)
         remove_scalars();
 
-    vector<ConstLinkagePtr> scalars_vec(saved_linkages_["scalar"].begin(), saved_linkages_["scalar"].end());
+    linkage_vector scalars_vec(saved_linkages_["scalar"].begin(), saved_linkages_["scalar"].end());
     // sort by the id of the scalars
     sort(scalars_vec.begin(), scalars_vec.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
         return a->id() < b->id();
@@ -366,7 +366,7 @@ bool Term::make_scalars(linkage_set &scalars, long &id) {
     // break out of loops if a substitution was made
     bool made_scalar = false; // initialize boolean to track if substitution was made
 
-    const vector<ConstLinkagePtr> &graph_perms = term_linkage()->permutations();
+    const linkage_vector &graph_perms = term_linkage()->permutations();
     linkage_map<linkage_set> term_scalars;
     for (const auto &graph_perm : graph_perms) {
         const auto perm_scalars = graph_perm->find_scalars();

@@ -103,9 +103,9 @@ namespace pdaggerq {
         shape mem_scale_{}; // memory
 
         mutable std::mutex mtx_; // mutex for thread safety
-        mutable vector<ConstVertexPtr> all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
-        mutable vector<ConstVertexPtr> link_vector_; // all non-intermediate vertices from linkages
-        mutable vector<ConstLinkagePtr> permutations_; // all permutations of the linkage
+        mutable vertex_vector all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
+        mutable vertex_vector link_vector_; // all non-intermediate vertices from linkages
+        mutable linkage_vector permutations_; // all permutations of the linkage
 
     public:
         long id_ = -1; // id of the linkage (default to -1 if not set)
@@ -356,14 +356,14 @@ namespace pdaggerq {
          * @return vector of vertices
          * @note this function is recursive
          */
-        vector<ConstVertexPtr> link_vector(bool regenerate = false, bool fully_expand = false) const override;
+        vertex_vector link_vector(bool regenerate = false, bool fully_expand = false) const override;
 
         /**
          * return a vector of vertices in order
          * @param regenerate whether to regenerate the vertices (deprecated; no-op)
          * @param full_expand whether to fully expand nested intermediates
          */
-         vector<ConstVertexPtr> vertices(bool regenerate = false) const;
+         vertex_vector vertices(bool regenerate = false) const;
 
         /**
          * Return all permutations of the linkage
@@ -373,7 +373,7 @@ namespace pdaggerq {
          * @return vector of permutations
          */
          static inline bool low_memory_ = false; // whether to store permutations in memory for lazy evaluation
-        vector<ConstLinkagePtr> permutations(bool regenerate = false) const;
+        linkage_vector permutations(bool regenerate = false) const;
 
         /**
          * Return the best permutation of the linkage that minimizes the number of contractions and memory
@@ -387,13 +387,13 @@ namespace pdaggerq {
          * @param with_permutations whether to include permutations of the subgraphs
          * @return vector of subgraphs
          */
-        vector<ConstLinkagePtr> subgraphs(size_t max_depth, bool with_permutations = false) const;
+        linkage_vector subgraphs(size_t max_depth, bool with_permutations = false) const;
 
         /**
          * find all linked scalars within the linkage
          * @return vector of all linked scalars within the linkage
          */
-        vector<ConstVertexPtr> find_scalars() const;
+        vertex_vector find_scalars() const;
 
         /**
          * Get connec_map, the map of connections between lines
@@ -405,7 +405,7 @@ namespace pdaggerq {
          * Make a series of linkages from vertices into a single linkage
          * @param op_vec list of vertices
          */
-        static LinkagePtr link(const vector<ConstVertexPtr> &op_vec);
+        static LinkagePtr link(const vertex_vector &op_vec);
 
         /**
          * copy just the members of the linkage that do not depend on the vertices
@@ -485,7 +485,7 @@ namespace pdaggerq {
          * @param search_depth maximum depth to search for links
          * @return vector of all vertices that match the target
          */
-        vector<ConstVertexPtr> find_links(const ConstVertexPtr &target_vertex, long search_depth = -1) const;
+        vertex_vector find_links(const ConstVertexPtr &target_vertex, long search_depth = -1) const;
 
         /**
          * goes down the tree and returns true if any intermediate vertices have the target ids
@@ -493,7 +493,7 @@ namespace pdaggerq {
          */
         bool has_temp(const ConstVertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
         bool has_any_temp() const override; // whether the linkage has any intermediate vertices
-        vector<ConstVertexPtr> get_temps() const override;
+        vertex_vector get_temps() const override;
 
         idset get_ids(const string &type = "any") const;
 
