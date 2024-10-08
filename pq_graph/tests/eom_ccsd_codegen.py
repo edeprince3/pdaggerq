@@ -53,7 +53,7 @@ def configure_graph():
     """
     return pdaggerq.pq_graph({
         'batched': False,
-        'print_level': 0,
+        'print_level': 3,
         'use_trial_index': True,
         'opt_level': 6,
         'nthreads': -1,
