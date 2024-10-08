@@ -250,7 +250,7 @@ namespace pdaggerq {
             bool found = false;
             for (auto &op : term) {
                 // check if this term has the temp
-                found = op->has_temp(linkage, false);
+                found = op->has_temp(linkage);
                 if (found) { temp_terms.insert(&term); break; }
             }
 

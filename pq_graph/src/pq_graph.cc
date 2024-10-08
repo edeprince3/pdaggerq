@@ -743,8 +743,8 @@ namespace pdaggerq {
 
         // clean up unused intermediates
         update_timer.start();
-        prune(false);
         merge_terms();
+        prune(false);
 
         // set optimized flag to true
         is_optimized_ = true;

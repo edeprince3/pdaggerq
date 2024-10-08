@@ -696,18 +696,25 @@ size_t PQGraph::prune(bool keep_single_use) {
 
     // remove unused contractions (only used in one term and its assignment)
 
+    // get all temps in the equations
+    linkage_set all_temp_set; all_temp_set.reserve(10*(saved_linkages_["temp"].size()+1));
+    for (auto & [name, eq] : equations_) {
+        for (auto &term: eq.terms()) {
+            vector<ConstVertexPtr> term_temps = (term.lhs() + term.term_linkage())->get_temps();
+            all_temp_set.insert(term_temps.begin(), term_temps.end());
+        }
+    }
+
     // get all matching terms for each temp in saved_linkages
     linkage_map<pair<set<Term*>,set<Term*>>> matching_terms;
-    matching_terms.reserve(10*saved_linkages_.size());
-    for (const auto & [type, linkages] : saved_linkages_) {
-        for (const auto &linkage : linkages) {
+    matching_terms.reserve(all_temp_set.size());
+    for (const auto &linkage : all_temp_set) {
 
-            if (linkage->id() == -1) continue; // skip if id is -1
-            auto [tmp_terms, tmp_decls] = get_matching_terms(linkage);
-            if (tmp_terms.empty() && tmp_decls.empty()) continue; // occurs nowhere in the equations; skip
+        if (linkage->id() == -1) continue; // skip if id is -1
+        auto [tmp_terms, tmp_decls] = get_matching_terms(linkage);
+        if (tmp_terms.empty() && tmp_decls.empty()) continue; // occurs nowhere in the equations; skip
 
-            matching_terms[linkage] = {tmp_decls, tmp_terms};
-        }
+        matching_terms[linkage] = {tmp_decls, tmp_terms};
     }
 
     // remove temps that are used in only one term or are not used at all

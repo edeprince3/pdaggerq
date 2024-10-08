@@ -58,6 +58,7 @@ namespace pdaggerq {
     template<typename T>
     using linkage_map = std::unordered_map<ConstLinkagePtr, T, LinkageHash, LinkageEqual>;
     typedef std::vector<ConstLinkagePtr> linkage_vector;
+    typedef std::vector<ConstVertexPtr> vertex_vector;
 
     // struct for parallel linkage set operations
     class linkage_set {
@@ -139,6 +140,11 @@ namespace pdaggerq {
         void insert(const typename linkage_vector::const_iterator &begin, const typename linkage_vector::const_iterator &end) {
             std::lock_guard<std::mutex> lock(mtx_);
             linkages_.insert(begin, end);
+        }
+        void insert(const typename vertex_vector::const_iterator &begin, const typename vertex_vector::const_iterator &end) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            for (auto it = begin; it != end; ++it)
+                linkages_.insert(as_link(*it));
         }
 
         size_t count(const ConstLinkagePtr &linkage) const {
