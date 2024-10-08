@@ -697,10 +697,8 @@ size_t PQGraph::prune(bool keep_single_use) {
     // remove unused contractions (only used in one term and its assignment)
 
     // get all matching terms for each temp in saved_linkages
-    linkage_map<set<Term*>> matching_terms;
-    linkage_map<set<Term*>> tmp_decl_terms;
+    linkage_map<pair<set<Term*>,set<Term*>>> matching_terms;
     matching_terms.reserve(10*saved_linkages_.size());
-    tmp_decl_terms.reserve(10*saved_linkages_.size());
     for (const auto & [type, linkages] : saved_linkages_) {
         for (const auto &linkage : linkages) {
 
@@ -708,8 +706,7 @@ size_t PQGraph::prune(bool keep_single_use) {
             auto [tmp_terms, tmp_decls] = get_matching_terms(linkage);
             if (tmp_terms.empty() && tmp_decls.empty()) continue; // occurs nowhere in the equations; skip
 
-            matching_terms[linkage] = tmp_terms;
-            tmp_decl_terms[linkage] = tmp_decls;
+            matching_terms[linkage] = {tmp_decls, tmp_terms};
         }
     }
 
@@ -717,10 +714,12 @@ size_t PQGraph::prune(bool keep_single_use) {
 
     size_t num_removed = 0;
     linkage_set to_remove;
-    for (const auto & [temp, terms] : matching_terms) {
+    for (const auto & [temp, terms_pair] : matching_terms) {
 
-        // remove (regardless of use) if temp has only one pure vertex
-        if (temp->vertices().size() > 1) {
+        auto [tmp_decl_terms, terms] = terms_pair;
+
+        // remove (regardless of use) if temp has only one pure vertex or if never declared
+        if (!tmp_decl_terms.empty() && temp->vertices().size() > 1) {
 
             // count number of occurrences of the temp in the terms
             size_t num_occurrences = 0;
@@ -753,9 +752,8 @@ size_t PQGraph::prune(bool keep_single_use) {
         num_removed++;
 
         // set lhs to a null pointer to mark for removal
-        set<Term*> tmp_decl_term = tmp_decl_terms[temp];
-        if (!tmp_decl_term.empty()) {
-            for (auto &term: tmp_decl_term) {
+        if (!tmp_decl_terms.empty()) {
+            for (auto &term: tmp_decl_terms) {
                 term->lhs() = nullptr;
             }
         }
@@ -791,7 +789,10 @@ size_t PQGraph::prune(bool keep_single_use) {
         sorted_to_remove.reserve(to_remove.size());
         sorted_to_remove.insert(sorted_to_remove.begin(), to_remove.begin(), to_remove.end());
         std::sort(sorted_to_remove.begin(), sorted_to_remove.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
-            return a->id() > b->id();
+            // if types are different, sort by type
+            if (a->type() != b->type()) return a->type() > b->type();
+            // else sort by id for the same type
+            else return a->get_ids(a->type()) > b->get_ids(b->type());
         });
 
         auto remove_unused = [&sorted_to_remove](ConstVertexPtr vertex){

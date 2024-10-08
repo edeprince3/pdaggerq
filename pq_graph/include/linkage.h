@@ -495,7 +495,7 @@ namespace pdaggerq {
         bool has_any_temp() const override; // whether the linkage has any intermediate vertices
         vector<ConstVertexPtr> get_temps() const override;
 
-        idset get_ids(const string &type = "temp") const;
+        idset get_ids(const string &type = "any") const;
 
         /**
          * Write DOT representation of linkage to file stream (to visualize linkage in graphviz)

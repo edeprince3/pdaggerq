@@ -510,7 +510,7 @@ namespace pdaggerq {
     idset Linkage::get_ids(const string &type) const {
         idset ids;
         if (is_temp()) {
-            if (this->type() == type)
+            if (this->type() == type || type == "any")
                 ids.insert(id_);
             return ids;
         }
