@@ -18,7 +18,7 @@ ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "active_space_CCS
 qed_tests      = ("qed_ccsd_21", "qed_ccsd_22", "eom_qed_ccsd_21", "eom_qed_ccsd_21_1rdm", "eom_qed_ccsd_21_2rdm")
 
 # Combine all tests
-tests  = ("cisd", "ccsd", "eom_ccsd", "ccsdt", "cc3")
+tests  = ("cisd", "ccsd", "ccsd_with_spin", "eom_ccsd", "ccsdt", "cc3", "ccsdt_with_spin")
 
 # get the path to the script
 script_path = os.path.dirname(os.path.realpath(__file__))

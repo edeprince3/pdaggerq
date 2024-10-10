@@ -1,0 +1,593 @@
+#!/usr/bin/env python
+# pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+# Copyright (C) 2020 A. Eugene DePrince III
+#
+# This file is part of the pdaggerq package.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+"""
+Driver for spin-orbital CCSD and EOM-CCSD. (EOM-)CCSD code generated with pdaggerq. Integrals come from psi4.
+"""
+
+import numpy as np
+from numpy import einsum
+
+# psi4
+import psi4
+
+def spatial_to_spin_orbital_oei(h, n, no):
+    """
+    get spin-orbital-basis one-electron integrals
+
+    :param h: one-electron orbitals
+    :param n: number of spatial orbitals
+    :param no: number of (doubly) occupied orbitals
+    :return:  spin-orbital one-electron integrals, sh
+    """
+
+    # build spin-orbital oeis
+    sh = np.zeros((2*n,2*n))
+
+    # index 1
+    for i in range(0,n):
+        ia = i
+        ib = i
+
+        # alpha occ do nothing
+        if ( ia < no ):
+            ia = i
+        # alpha vir shift up by no
+        else :
+            ia += no
+        # beta occ
+        if ( ib < no ):
+            ib += no
+        else :
+            ib += n
+
+        # index 2
+        for j in range(0,n):
+            ja = j
+            jb = j
+
+            # alpha occ
+            if ( ja < no ):
+                ja = j
+            # alpha vir
+            else :
+                ja += no
+            # beta occ
+            if ( jb < no ):
+                jb += no
+            # beta vir
+            else :
+                jb += n
+
+            # Haa
+            sh[ia,ja] = h[i,j]
+            # Hbb
+            sh[ib,jb] = h[i,j]
+
+    return sh
+
+def spatial_to_spin_orbital_tei(g, n, no):
+    """
+    get spin-orbital-basis two-electron integrals
+
+    :param g: two-electron integrals in chemists' notation
+    :param n: number of spatial orbitals
+    :param no: number of (doubly) occupied orbitals
+    :return:  spin-orbital two-electron integrals, sg
+    """
+
+    # build spin-orbital teis
+    sg = np.zeros((2*n,2*n,2*n,2*n))
+
+    # index 1
+    for i in range(0,n):
+        ia = i
+        ib = i
+
+        # alpha occ do nothing
+        if ( ia < no ):
+            ia = i
+        # alpha vir shift up by no
+        else :
+            ia += no
+        # beta occ
+        if ( ib < no ):
+            ib += no
+        else :
+            ib += n
+
+        # index 2
+        for j in range(0,n):
+            ja = j
+            jb = j
+
+            # alpha occ
+            if ( ja < no ):
+                ja = j
+            # alpha vir
+            else :
+                ja += no
+            # beta occ
+            if ( jb < no ):
+                jb += no
+            # beta vir
+            else :
+                jb += n
+
+            # index 3
+            for k in range(0,n):
+                ka = k
+                kb = k
+
+                # alpha occ
+                if ( ka < no ):
+                    ka = k
+                # alpha vir
+                else :
+                    ka += no
+                # beta occ
+                if ( kb < no ):
+                    kb += no
+                # beta vir
+                else :
+                    kb += n
+
+                # index 4
+                for l in range(0,n):
+                    la = l
+                    lb = l
+
+                    # alpha occ
+                    if ( la < no ):
+                        la = l
+                    # alpha vir
+                    else :
+                        la += no
+                    # beta occ
+                    if ( lb < no ):
+                        lb += no
+                    # beta vir
+                    else :
+                        lb += n
+
+                    # (aa|aa)
+                    sg[ia,ja,ka,la] = g[i,j,k,l]
+                    # (aa|bb)
+                    sg[ia,ja,kb,lb] = g[i,j,k,l]
+                    # (bb|aa)
+                    sg[ib,jb,ka,la] = g[i,j,k,l]
+                    # (bb|bb)
+                    sg[ib,jb,kb,lb] = g[i,j,k,l]
+
+    return sg
+
+def get_integrals_with_spin():
+    """
+
+    get one- and two-electron integrals from psi4, with spin
+
+    :return nsocc: number of occupied orbitals
+    :return nsvirt: number of virtual orbitals
+    :return fock: the fock matrix (spin-orbital basis)
+    :return gtei: antisymmetrized two-electron integrals (spin-orbital basis)
+
+    """
+
+    # compute the Hartree-Fock energy and wave function
+    scf_e, wfn = psi4.energy('SCF', return_wfn=True)
+
+    # number of doubly occupied orbitals
+    noa = wfn.nalpha()
+    nob = wfn.nbeta()
+
+    # total number of orbitals
+    nmo = wfn.nmo()
+
+    # number of virtual orbitals
+    nva = nmo - noa
+    nvb = nmo - nob
+
+    # orbital energies
+    epsilon_a     = np.asarray(wfn.epsilon_a())
+    epsilon_b     = np.asarray(wfn.epsilon_b())
+
+    # molecular orbitals (spatial):
+    Ca = wfn.Ca()
+    Cb = wfn.Cb()
+
+    # use Psi4's MintsHelper to generate integrals
+    mints = psi4.core.MintsHelper(wfn.basisset())
+
+    # build the one-electron integrals
+    H = np.asarray(mints.ao_kinetic()) + np.asarray(mints.ao_potential())
+    Ha = np.einsum('uj,vi,uv', Ca, Ca, H)
+    Hb = np.einsum('uj,vi,uv', Cb, Cb, H)
+
+    # build the two-electron integrals:
+    g_aaaa = np.asarray(mints.mo_eri(Ca, Ca, Ca, Ca))
+    g_bbbb = np.asarray(mints.mo_eri(Cb, Cb, Cb, Cb))
+    g_abab = np.asarray(mints.mo_eri(Ca, Ca, Cb, Cb))
+
+    # antisymmetrize g(ijkl) = <ij|kl> - <ij|lk> = (ik|jl) - (il|jk)
+    g_aaaa = np.einsum('ikjl->ijkl', g_aaaa) - np.einsum('iljk->ijkl', g_aaaa)
+    g_bbbb = np.einsum('ikjl->ijkl', g_bbbb) - np.einsum('iljk->ijkl', g_bbbb)
+    g_abab = np.einsum('ikjl->ijkl', g_abab)
+
+    # occupied, virtual slices
+    n = np.newaxis
+    oa = slice(None, noa)
+    ob = slice(None, nob)
+    va = slice(noa, None)
+    vb = slice(nob, None)
+
+    # build spin-orbital fock matrix
+    fa = Ha + np.einsum('piqi->pq', g_aaaa[:, oa, :, oa]) + np.einsum('piqi->pq', g_abab[:, ob, :, ob])
+    fb = Hb + np.einsum('piqi->pq', g_bbbb[:, ob, :, ob]) + np.einsum('ipiq->pq', g_abab[oa, : , oa, :])
+
+    return noa, nob, nva, nvb, fa, fb, g_aaaa, g_bbbb, g_abab
+
+def main():
+    """
+
+    run ccsdt, with spin
+
+    :param mol: a psi4 molecule
+    :return cc_energy: the total ccsdt energy
+
+    """
+
+    mol = psi4.geometry("""
+    0 1
+         O            0.000000000000     0.000000000000    -0.068516219320    
+         H            0.000000000000    -0.790689573744     0.543701060715    
+         H            0.000000000000     0.790689573744     0.543701060715    
+    no_reorient
+    nocom
+    symmetry c1
+    """)
+
+    # set options
+    psi4_options = {
+        'basis': 'sto-3g',
+        'scf_type': 'pk',
+        'e_convergence': 1e-10,
+        'd_convergence': 1e-10
+    }
+    psi4.set_options(psi4_options)
+
+    nocc_a, nocc_b, nvirt_a, nvirt_b, fa, fb, g_aaaa, g_bbbb, g_abab  = get_integrals_with_spin()
+
+    # occupied, virtual slices
+    n = np.newaxis
+    oa = slice(None, nocc_a)
+    ob = slice(None, nocc_b)
+    va = slice(nocc_a, None)
+    vb = slice(nocc_b, None)
+
+    # orbital energies
+    row, col = fa.shape
+    eps_a = np.zeros(row)
+    for i in range(0,row):
+        eps_a[i] = fa[i,i]
+
+    row, col = fb.shape
+    eps_b = np.zeros(row)
+    for i in range(0,row):
+        eps_b[i] = fb[i,i]
+
+    # energy denominators
+    e_aaaa_abij = 1 / ( - eps_a[va, n, n, n]
+                        - eps_a[n, va, n, n]
+                        + eps_a[n, n, oa, n]
+                        + eps_a[n, n, n, oa] )
+    e_bbbb_abij = 1 / ( - eps_b[vb, n, n, n]
+                        - eps_b[n, vb, n, n]
+                        + eps_b[n, n, ob, n]
+                        + eps_b[n, n, n, ob] )
+    e_abab_abij = 1 / ( - eps_a[va, n, n, n]
+                        - eps_b[n, vb, n, n]
+                        + eps_a[n, n, oa, n]
+                        + eps_b[n, n, n, ob] )
+
+    e_aa_ai = 1 / (-eps_a[va, n] + eps_a[n, oa])
+    e_bb_ai = 1 / (-eps_b[vb, n] + eps_b[n, ob])
+
+    # hartree-fock energy
+    hf_energy = ( einsum('ii', fa[oa, oa]) + einsum('ii', fb[ob, ob])
+                  - 0.5 * einsum('ijij', g_aaaa[oa, oa, oa, oa])
+                  - 0.5 * einsum('ijij', g_bbbb[ob, ob, ob, ob])
+                  - 1.0 * einsum('ijij', g_abab[oa, ob, oa, ob]) )
+
+    nuclear_repulsion_energy = mol.nuclear_repulsion_energy()
+
+    #print('hartree-fock energy: {: 20.12f}'.format(hf_energy + nuclear_repulsion_energy))
+
+    t1_aa = np.zeros((nvirt_a, nocc_a))
+    t1_bb = np.zeros((nvirt_b, nocc_b))
+
+    t2_aaaa = np.zeros((nvirt_a, nvirt_a, nocc_a, nocc_a))
+    t2_bbbb = np.zeros((nvirt_b, nvirt_b, nocc_b, nocc_b))
+    t2_abab = np.zeros((nvirt_a, nvirt_b, nocc_a, nocc_b))
+
+    t3_aaaaaa = np.zeros((nvirt_a, nvirt_a, nvirt_a, nocc_a, nocc_a, nocc_a))
+    t3_aabaab = np.zeros((nvirt_a, nvirt_a, nvirt_b, nocc_a, nocc_a, nocc_b))
+    t3_abbabb = np.zeros((nvirt_a, nvirt_b, nvirt_b, nocc_a, nocc_b, nocc_b))
+    t3_bbbbbb = np.zeros((nvirt_b, nvirt_b, nvirt_b, nocc_b, nocc_b, nocc_b))
+
+    t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, = ccsd_iterations_with_spin(t1_aa, t1_bb,
+                                                                          t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb,
+                                                                          e_aa_ai, e_bb_ai, e_aaaa_abij, e_bbbb_abij, e_abab_abij,
+                                                                          hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
+
+    cc_energy = ccsd_energy_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+    print("")
+    print("    CCSD Correlation Energy: {: 20.12f}".format(cc_energy - hf_energy))
+    print("    CCSD Total Energy:       {: 20.12f}".format(cc_energy + nuclear_repulsion_energy))
+    print("")
+
+    assert np.isclose(cc_energy + nuclear_repulsion_energy,-75.019715133639338,rtol = 1e-8, atol = 1e-8)
+
+    return cc_energy + nuclear_repulsion_energy
+
+def ccsd_iterations_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab,
+                               f_aa, f_bb, g_aaaa, g_bbbb, g_abab,
+                               oa, ob, va, vb, e_aa_ai, e_bb_ai, e_aaaa_abij, e_bbbb_abij, e_abab_abij,
+                               hf_energy, max_iter=100,
+                               e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
+
+    # initialize diis if diis_size is not None
+    # else normal scf iterate
+
+    if diis_size is not None:
+        from diis import DIIS
+        diis_update = DIIS(diis_size, start_iter=diis_start_cycle)
+        t1_aa_end = t1_aa.size
+        t1_bb_end = t1_aa_end + t1_bb.size
+        t2_aaaa_end = t1_bb_end + t2_aaaa.size
+        t2_bbbb_end = t2_aaaa_end + t2_bbbb.size
+        t2_abab_end = t2_bbbb_end + t2_abab.size
+        old_vec = np.hstack((t1_aa.flatten(), t1_bb.flatten(),
+                             t2_aaaa.flatten(), t2_bbbb.flatten(), t2_abab.flatten()))
+
+    fock_e_aa_ai = np.reciprocal(e_aa_ai)
+    fock_e_bb_ai = np.reciprocal(e_bb_ai)
+
+    fock_e_aaaa_abij = np.reciprocal(e_aaaa_abij)
+    fock_e_bbbb_abij = np.reciprocal(e_bbbb_abij)
+    fock_e_abab_abij = np.reciprocal(e_abab_abij)
+
+    old_energy = ccsd_energy_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+    print("")
+    print("    ==> CCSD amplitude equations <==")
+    print("")
+    print("     Iter               Energy                 |dE|                 |dT|")
+    for idx in range(max_iter):
+
+        (residual_t1_aa, residual_t1_bb,
+         residual_t2_aaaa, residual_t2_bbbb, residual_t2_abab) \
+            = residuals(t1_aa, t1_bb,
+                        t2_aaaa, t2_bbbb, t2_abab,
+                        f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        res_norm = ( np.linalg.norm(residual_t1_aa)
+                     + np.linalg.norm(residual_t1_bb)
+                     + np.linalg.norm(residual_t2_aaaa)
+                     + np.linalg.norm(residual_t2_bbbb)
+                     + np.linalg.norm(residual_t2_abab) )
+
+        t1_aa_res = residual_t1_aa + fock_e_aa_ai * t1_aa
+        t1_bb_res = residual_t1_bb + fock_e_bb_ai * t1_bb
+
+        t2_aaaa_res = residual_t2_aaaa + fock_e_aaaa_abij * t2_aaaa
+        t2_bbbb_res = residual_t2_bbbb + fock_e_bbbb_abij * t2_bbbb
+        t2_abab_res = residual_t2_abab + fock_e_abab_abij * t2_abab
+
+        new_t1_aa = t1_aa_res * e_aa_ai
+        new_t1_bb = t1_bb_res * e_bb_ai
+
+        new_t2_aaaa = t2_aaaa_res * e_aaaa_abij
+        new_t2_bbbb = t2_bbbb_res * e_bbbb_abij
+        new_t2_abab = t2_abab_res * e_abab_abij
+
+        # diis update
+        if diis_size is not None:
+            vectorized_iterate = np.hstack(
+                (new_t1_aa.flatten(), new_t1_bb.flatten(),
+                 new_t2_aaaa.flatten(), new_t2_bbbb.flatten(), new_t2_abab.flatten()))
+            error_vec = old_vec - vectorized_iterate
+            new_vectorized_iterate = diis_update.compute_new_vec(vectorized_iterate,
+                                                                 error_vec)
+            new_t1_aa = new_vectorized_iterate[:t1_aa_end].reshape(t1_aa.shape)
+            new_t1_bb = new_vectorized_iterate[t1_aa_end:t1_bb_end].reshape(t1_bb.shape)
+
+            new_t2_aaaa = new_vectorized_iterate[t1_bb_end:t2_aaaa_end].reshape(t2_aaaa.shape)
+            new_t2_bbbb = new_vectorized_iterate[t2_aaaa_end:t2_bbbb_end].reshape(t2_bbbb.shape)
+            new_t2_abab = new_vectorized_iterate[t2_bbbb_end:t2_abab_end].reshape(t2_abab.shape)
+
+            old_vec = new_vectorized_iterate
+
+        current_energy = ccsd_energy_with_spin(new_t1_aa, new_t1_bb, new_t2_aaaa, new_t2_bbbb, new_t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb)
+
+        delta_e = np.abs(old_energy - current_energy)
+
+        print("    {: 5d} {: 20.12f} {: 20.12f} {: 20.12f}".format(idx, current_energy - hf_energy, delta_e, res_norm))
+        if delta_e < e_convergence and res_norm < r_convergence:
+            # assign t1 and t2 variables for future use before breaking
+            t1_aa = new_t1_aa
+            t1_bb = new_t1_bb
+
+            t2_aaaa = new_t2_aaaa
+            t2_bbbb = new_t2_bbbb
+            t2_abab = new_t2_abab
+
+            break
+        else:
+            # assign t1 and t2 and old_energy for next iteration
+            t1_aa = new_t1_aa
+            t1_bb = new_t1_bb
+
+            t2_aaaa = new_t2_aaaa
+            t2_bbbb = new_t2_bbbb
+            t2_abab = new_t2_abab
+
+            old_energy = current_energy
+
+    else:
+        raise ValueError("CCSD iterations did not converge")
+
+
+    return t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab
+
+def ccsd_energy_with_spin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):
+
+    #    < 0 | e(-T) H e(T) | 0> :
+
+    o = oa
+    v = va
+
+    #	  1.0000 f_aa(i,i)
+    energy =  1.000000000000000 * einsum('ii', f_aa[o, o])
+
+    #	  1.0000 f_bb(i,i)
+    energy +=  1.000000000000000 * einsum('ii', f_bb[o, o])
+
+    #	  1.0000 f_aa(i,a)*t1_aa(a,i)
+    energy +=  1.000000000000000 * einsum('ia,ai', f_aa[o, v], t1_aa)
+
+    #	  1.0000 f_bb(i,a)*t1_bb(a,i)
+    energy +=  1.000000000000000 * einsum('ia,ai', f_bb[o, v], t1_bb)
+
+    #	 -0.5000 <j,i||j,i>_aaaa
+    energy += -0.500000000000000 * einsum('jiji', g_aaaa[o, o, o, o])
+
+    #	 -0.5000 <j,i||j,i>_abab
+    energy += -0.500000000000000 * einsum('jiji', g_abab[o, o, o, o])
+
+    #	 -0.5000 <i,j||i,j>_abab
+    energy += -0.500000000000000 * einsum('ijij', g_abab[o, o, o, o])
+
+    #	 -0.5000 <j,i||j,i>_bbbb
+    energy += -0.500000000000000 * einsum('jiji', g_bbbb[o, o, o, o])
+
+    #	  0.2500 <j,i||a,b>_aaaa*t2_aaaa(a,b,j,i)
+    energy +=  0.250000000000000 * einsum('jiab,abji', g_aaaa[o, o, v, v], t2_aaaa)
+
+    #	  0.2500 <j,i||a,b>_abab*t2_abab(a,b,j,i)
+    energy +=  0.250000000000000 * einsum('jiab,abji', g_abab[o, o, v, v], t2_abab)
+
+    #	  0.2500 <i,j||a,b>_abab*t2_abab(a,b,i,j)
+    energy +=  0.250000000000000 * einsum('ijab,abij', g_abab[o, o, v, v], t2_abab)
+
+    #	  0.2500 <j,i||b,a>_abab*t2_abab(b,a,j,i)
+    energy +=  0.250000000000000 * einsum('jiba,baji', g_abab[o, o, v, v], t2_abab)
+
+    #	  0.2500 <i,j||b,a>_abab*t2_abab(b,a,i,j)
+    energy +=  0.250000000000000 * einsum('ijba,baij', g_abab[o, o, v, v], t2_abab)
+
+    #	  0.2500 <j,i||a,b>_bbbb*t2_bbbb(a,b,j,i)
+    energy +=  0.250000000000000 * einsum('jiab,abji', g_bbbb[o, o, v, v], t2_bbbb)
+
+    #	 -0.5000 <j,i||a,b>_aaaa*t1_aa(a,i)*t1_aa(b,j)
+    energy += -0.500000000000000 * einsum('jiab,ai,bj', g_aaaa[o, o, v, v], t1_aa, t1_aa, optimize=['einsum_path', (0, 1), (0, 1)])
+
+    #	  0.5000 <i,j||a,b>_abab*t1_aa(a,i)*t1_bb(b,j)
+    energy +=  0.500000000000000 * einsum('ijab,ai,bj', g_abab[o, o, v, v], t1_aa, t1_bb, optimize=['einsum_path', (0, 1), (0, 1)])
+
+    #	  0.5000 <j,i||b,a>_abab*t1_bb(a,i)*t1_aa(b,j)
+    energy +=  0.500000000000000 * einsum('jiba,ai,bj', g_abab[o, o, v, v], t1_bb, t1_aa, optimize=['einsum_path', (0, 1), (0, 1)])
+
+    #	 -0.5000 <j,i||a,b>_bbbb*t1_bb(a,i)*t1_bb(b,j)
+    energy += -0.500000000000000 * einsum('jiab,ai,bj', g_bbbb[o, o, v, v], t1_bb, t1_bb, optimize=['einsum_path', (0, 1), (0, 1)])
+
+    return energy
+
+def residuals(t1_aa, t1_bb,
+          t2_aaaa, t2_bbbb, t2_abab,
+          f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):
+
+    eri = {}
+    eri["aaaa_oooo"] = g_aaaa[oa,oa,oa,oa]
+    eri["aaaa_oovo"] = g_aaaa[oa,oa,va,oa]
+    eri["aaaa_oovv"] = g_aaaa[oa,oa,va,va]
+    eri["aaaa_vooo"] = g_aaaa[va,oa,oa,oa]
+    eri["aaaa_vovo"] = g_aaaa[va,oa,va,oa]
+    eri["aaaa_vovv"] = g_aaaa[va,oa,va,va]
+    eri["aaaa_vvoo"] = g_aaaa[va,va,oa,oa]
+    eri["aaaa_vvvo"] = g_aaaa[va,va,va,oa]
+    eri["aaaa_vvvv"] = g_aaaa[va,va,va,va]
+
+    eri["abab_oooo"] = g_abab[oa,ob,oa,ob]
+    eri["abab_ooov"] = g_abab[oa,ob,oa,vb]
+    eri["abab_oovo"] = g_abab[oa,ob,va,ob]
+    eri["abab_oovv"] = g_abab[oa,ob,va,vb]
+    eri["abab_ovoo"] = g_abab[oa,vb,oa,ob]
+    eri["abab_ovov"] = g_abab[oa,vb,oa,vb]
+    eri["abab_ovvo"] = g_abab[oa,vb,va,ob]
+    eri["abab_ovvv"] = g_abab[oa,vb,va,vb]
+    eri["abab_vooo"] = g_abab[va,ob,oa,ob]
+    eri["abab_voov"] = g_abab[va,ob,oa,vb]
+    eri["abab_vovo"] = g_abab[va,ob,va,ob]
+    eri["abab_vovv"] = g_abab[va,ob,va,vb]
+    eri["abab_vvoo"] = g_abab[va,vb,oa,ob]
+    eri["abab_vvov"] = g_abab[va,vb,oa,vb]
+    eri["abab_vvvo"] = g_abab[va,vb,va,ob]
+    eri["abab_vvvv"] = g_abab[va,vb,va,vb]
+
+    eri["bbbb_oooo"] = g_bbbb[ob,ob,ob,ob]
+    eri["bbbb_oovo"] = g_bbbb[ob,ob,vb,ob]
+    eri["bbbb_oovv"] = g_bbbb[ob,ob,vb,vb]
+    eri["bbbb_vooo"] = g_bbbb[vb,ob,ob,ob]
+    eri["bbbb_vovo"] = g_bbbb[vb,ob,vb,ob]
+    eri["bbbb_vovv"] = g_bbbb[vb,ob,vb,vb]
+    eri["bbbb_vvoo"] = g_bbbb[vb,vb,ob,ob]
+    eri["bbbb_vvvo"] = g_bbbb[vb,vb,vb,ob]
+    eri["bbbb_vvvv"] = g_bbbb[vb,vb,vb,vb]
+
+    f = {}
+    f["aa_oo"] = f_aa[oa,oa]
+    f["aa_ov"] = f_aa[oa,va]
+    f["aa_vo"] = f_aa[va,oa]
+    f["aa_vv"] = f_aa[va,va]
+
+    f["bb_oo"] = f_bb[ob,ob]
+    f["bb_ov"] = f_bb[ob,vb]
+    f["bb_vo"] = f_bb[vb,ob]
+    f["bb_vv"] = f_bb[vb,vb]
+
+    t1 = {}
+    t1["aa"] = t1_aa
+    t1["bb"] = t1_bb
+
+    t2 = {}
+    t2["aaaa"] = t2_aaaa
+    t2["abab"] = t2_abab
+    t2["bbbb"] = t2_bbbb
+
+    tmps_ = {}
+    scalars_ = {}
+
+    # INSERTED CODE
+
+    return rt1_aa, rt1_bb, rt2_aaaa, rt2_bbbb, rt2_abab
+
+
+
+if __name__ == "__main__":
+    main()
