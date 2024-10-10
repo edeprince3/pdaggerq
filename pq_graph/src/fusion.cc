@@ -68,11 +68,14 @@ struct LinkTracker {
             return;
         }
 
-        // extract all linkages within the term TODO: do this for all arbitrary linkages (not just temps)
+        // extract all linkages within the term
         ConstVertexPtr dummy = 0.0 * std::make_shared<Vertex>("dummy");
         for (auto &vertex: term->rhs()) {
-            if (vertex->has_any_temp()) {
-                auto all_temps = as_link(vertex)->get_temps();
+
+            // vertex in term is fusable only if it is linked. if linked, it must be a temp or not an addition
+            bool fusable = vertex->is_linked() && (vertex->is_temp() || !vertex->is_addition());
+            if (fusable) {
+                auto all_temps = as_link(vertex)->get_temps(false);
                 for (auto &temp: all_temps) {
                     ConstLinkagePtr temp_link = as_link(temp);
                     max_ids_[temp_link->type()] = max(max_ids_[temp_link->type()], temp_link->id());

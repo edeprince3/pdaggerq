@@ -418,7 +418,7 @@ namespace pdaggerq {
         virtual bool has_temp(const ConstVertexPtr &other, bool enter_temp = true, long depth = -1) const { return false; }
         virtual bool same_temp(const ConstVertexPtr &other) const { return false; }
         virtual bool has_any_temp() const { return false; }
-        virtual vertex_vector get_temps() const { return {}; }
+        virtual vertex_vector get_temps(bool enter_temps = true) const { return {}; }
 
     }; // end Vertex class
 

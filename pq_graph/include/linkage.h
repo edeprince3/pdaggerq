@@ -493,7 +493,7 @@ namespace pdaggerq {
          */
         bool has_temp(const ConstVertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
         bool has_any_temp() const override; // whether the linkage has any intermediate vertices
-        vertex_vector get_temps() const override;
+        vertex_vector get_temps(bool enter_temps = true) const override;
 
         idset get_ids(const string &type = "any") const;
 

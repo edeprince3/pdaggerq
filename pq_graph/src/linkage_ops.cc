@@ -484,18 +484,20 @@ namespace pdaggerq {
         return false;
     }
 
-    vertex_vector Linkage::get_temps() const {
+    vertex_vector Linkage::get_temps(bool enter_temps) const {
         vertex_vector temps;
-        if (is_temp())
+        if (is_temp()) {
             temps.push_back(shared_from_this());
+            if (!enter_temps) return temps;
+        }
 
         if (left_->is_linked()) {
-            const auto &left_temps = as_link(left_)->get_temps();
+            const auto &left_temps = as_link(left_)->get_temps(enter_temps);
             temps.insert(temps.end(), left_temps.begin(), left_temps.end());
         }
 
         if (right_->is_linked()) {
-            const auto &right_temps = as_link(right_)->get_temps();
+            const auto &right_temps = as_link(right_)->get_temps(enter_temps);
             temps.insert(temps.end(), right_temps.begin(), right_temps.end());
         }
 
