@@ -88,6 +88,7 @@ void PQGraph::forget() {
 
 void PQGraph::sync_pointers() {
 
+    return;
     // get all vertices
     map<string, vector<ConstVertexPtr>> vertex_map;
     for (auto & [name, eq] : equations_) {
