@@ -70,9 +70,11 @@ def main():
     basis = '6-31g'
     mol = pyscf.M(
         atom='B 0 0 0; H 0 0 {}'.format(1.6),
-        basis=basis)
+        basis=basis,
 
-    mf = mol.RHF().run()
+    )
+
+    mf = mol.RHF(conv_tol=1.0e-12).run()
     mycc = mf.CCSD().run()
     print('CCSD correlation energy', mycc.e_corr)
 
