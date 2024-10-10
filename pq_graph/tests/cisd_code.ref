@@ -150,6 +150,7 @@ def residuals(r1, r2, f, eri, Id):
 
     tmps_ = {}
     scalars_ = {}
+    reused_ = {}
 
     singles_resid = np.zeros_like(r1)
     doubles_resid = np.zeros_like(r2)
