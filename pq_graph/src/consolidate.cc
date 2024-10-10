@@ -691,11 +691,26 @@ void PQGraph::reindex() {
     }
 
     // add all temps in temp map to saved linkages
+    vector<pair<long, string>> print_map;
     for (auto & [temp, id] : temp_map) {
         LinkagePtr new_temp = as_link(temp->clone());
         new_temp->id() = id;
         saved_linkages_[new_temp->type()].insert(new_temp);
-        cout << "Reindexed " << temp->str() << " to " << new_temp->str() << endl;
+        stringstream ss;
+        ss << temp->str() << " -> " << new_temp->str();
+
+        print_map.emplace_back(make_pair(id, ss.str()));
+    }
+
+    // sort print map by id
+    std::sort(print_map.begin(), print_map.end(), [](const pair<long, string> &a, const pair<long, string> &b) {
+        return a.first < b.first;
+    });
+
+    // print reindexing
+    cout << "Reindexed temps:" << endl;
+    for (auto & [id, str] : print_map) {
+        cout << "        " << str << endl;
     }
 
     collect_scaling(true,true);
