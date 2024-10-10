@@ -66,7 +66,7 @@ namespace pdaggerq {
 
         // initialize vector for the permuted terms
         // add original term (assuming rank 6 term as 'worst' case scenario)
-        Term abcijk = this->clone();
+        Term abcijk = this->shallow();
         vector<Term> perm_terms{abcijk};
         perm_terms.front().reset_perm();
 
@@ -86,7 +86,7 @@ namespace pdaggerq {
             return vertex;
         };
         static auto apply_swaps = [](const Term& reference_term, const vector<pair<string,string>> &perm_pairs){
-            Term perm_term = reference_term.clone(); // deep copy term
+            Term perm_term = reference_term.shallow(); // deep copy term
             vertex_vector perm_vertices;
             for (const auto &vertex: reference_term.rhs_) {
                 VertexPtr perm_vertex = vertex->clone();

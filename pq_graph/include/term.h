@@ -158,6 +158,12 @@ namespace pdaggerq {
         Term clone() const;
 
         /**
+         * shallow copy of term where all vertices are shallow copied
+         * @return cloned term
+         */
+        Term shallow() const;
+
+        /**
          * Move assignment operator
          * @param other term to move
          * @return reference to this term

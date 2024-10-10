@@ -448,6 +448,20 @@ namespace pdaggerq {
         return new_term;
     }
 
+    Term Term::shallow() const {
+        Term new_term(*this);
+
+        // make deep copies of all vertices
+        new_term.lhs_ = lhs_ ? lhs_->shallow() : nullptr;
+        new_term.eq_  =  eq_ ? eq_->shallow() : nullptr;
+        new_term.rhs_.clear();
+        for (const auto & vertex : rhs_)
+            new_term.rhs_.push_back(vertex->shallow());
+        new_term.term_linkage() = as_link(term_linkage()->shallow());
+
+        return new_term;
+    }
+
     void Term::compute_scaling(bool recompute) {
         if (!needs_update_ && !recompute)
             return; // if term does not need updating, return

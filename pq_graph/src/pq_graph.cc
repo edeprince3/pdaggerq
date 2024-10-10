@@ -685,6 +685,9 @@ namespace pdaggerq {
         // find scalars in each equation
         make_scalars();
 
+        // synchronize pointers
+        sync_pointers();
+
         // set assembled flag to true
         is_assembled_ = true;
         total_timer.stop();

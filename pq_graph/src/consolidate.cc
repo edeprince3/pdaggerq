@@ -86,6 +86,76 @@ void PQGraph::forget() {
 
 }
 
+void PQGraph::sync_pointers() {
+
+    // get all vertices
+    map<string, vector<ConstVertexPtr>> vertex_map;
+    for (auto & [name, eq] : equations_) {
+        for (auto &term: eq.terms()) {
+            if (term.lhs()) vertex_map[term.lhs()->str()].emplace_back(term.lhs());
+            for (auto &op: term.rhs())
+                if (op) vertex_map[op->str()].emplace_back(op);
+            if (term.term_linkage()) vertex_map[term.term_linkage()->str()].emplace_back(term.term_linkage());
+        }
+    }
+    for (auto & [type, link_set] : saved_linkages_) {
+        for (auto &linkage: link_set) {
+                if (linkage) vertex_map[linkage->str()].emplace_back(linkage);
+        }
+    }
+    for (auto &linkage: all_links_){
+        if (linkage) vertex_map[linkage->str()].emplace_back(linkage);
+    }
+
+    // map all vertices with the same string to the address of the first vertex
+    map<string, ConstVertexPtr> vertex_map2;
+    for (auto & [str, vertices] : vertex_map) {
+        if (!vertices.empty()) {
+            // sort vertices by address
+            std::sort(vertices.begin(), vertices.end());
+            ConstVertexPtr back = vertices.back();
+            if (back->is_linked()) as_link(back)->forget(true);
+            vertex_map2[str] = back;
+        }
+    }
+
+    // replace all vertices with the same string with the address of the first vertex
+    for (auto & [name, eq] : equations_) {
+        for (auto &term: eq.terms()) {
+            ConstVertexPtr new_lhs;
+            if (term.lhs()) new_lhs = vertex_map2[term.lhs()->str()];
+            if (term.lhs() && *new_lhs == *term.lhs()) term.lhs() = new_lhs;
+            for (auto &op: term.rhs()) {
+                ConstVertexPtr new_op;
+                if (op) new_op = vertex_map2[op->str()];
+                if (op && *new_op == *op) op = new_op;
+            }
+            term.compute_scaling(true);
+        }
+    }
+
+    for (auto & [type, link_set] : saved_linkages_) {
+        linkage_set new_link_set;
+        for (auto &linkage: link_set) {
+            ConstVertexPtr new_linkage;
+            if (linkage) new_linkage = vertex_map2[linkage->str()];
+            if (linkage && *new_linkage == *linkage) new_link_set.insert(new_linkage);
+            else new_link_set.insert(linkage);
+        }
+        saved_linkages_[type] = new_link_set;
+    }
+
+    linkage_set new_all_links;
+    for (auto &linkage: all_links_){
+        ConstVertexPtr new_linkage;
+        if (linkage) new_linkage = vertex_map2[linkage->str()];
+        if (linkage && *new_linkage == *linkage) new_all_links.insert(new_linkage);
+        else new_all_links.insert(linkage);
+    }
+    all_links_ = new_all_links;
+
+}
+
 void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     // begin timings
@@ -488,7 +558,8 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
         if (recompute) {
 
-            // clear linkage histories
+            // synchronize all pointers in graph
+            sync_pointers();
             forget();
 
             // merge terms if allowed

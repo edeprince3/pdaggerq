@@ -49,7 +49,6 @@ namespace pdaggerq {
         string name_; // name of the equation
         ConstVertexPtr assignment_vertex_; // assignment vertex
         vector<Term> terms_; // terms in the equation
-        ConstVertexPtr eq_linkage_; // linkage of the equation
 
         /// scaling of the equation
         scaling_map flop_map_; // map of flop scaling with linkage occurrence in equation

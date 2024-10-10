@@ -578,7 +578,7 @@ struct LinkMerger {
                 }
                 new_term.request_update();
                 new_term.reorder();
-                new_terms[i] = new_term.clone();
+                new_terms[i] = new_term.shallow();
 
                 // add merged vertex to saved linkages
                 pq_graph_.saved_linkages()[link_type].insert(as_link(merged_vertex));
@@ -597,7 +597,7 @@ struct LinkMerger {
             set<Term*> declare_term = link_tracker_.link_declare_map_[target_link];
             if (!declare_term.empty()) {
                 // build new declaration
-                Term new_def = (*declare_term.begin())->clone();
+                Term new_def = (*declare_term.begin())->shallow();
                 LinkagePtr merged_vertex_copy = as_link(merged_vertex_init->shallow());
                 merged_vertex_copy->id() = -1;
                 new_def.eq()  = merged_vertex_init;

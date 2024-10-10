@@ -134,23 +134,6 @@ namespace pdaggerq {
         // if there are no terms with linkages, return
         if (all_term_linkages.empty()) return;
 
-        // if only one term with a linkage, set eq_linkage_ to that linkage
-        if (all_term_linkages.size() == 1) {
-            eq_linkage_ = assignment_vertex_ * all_term_linkages.front();
-            return;
-        }
-
-        // if there are multiple terms with linkages, set eq_linkage_ to the sum of all linkages
-        eq_linkage_ = all_term_linkages.front();
-
-        for (size_t i = 1; i < all_term_linkages.size(); ++i) {
-            eq_linkage_ = eq_linkage_ + all_term_linkages[i];
-        }
-
-        // add assignment vertex to eq_linkage_
-        eq_linkage_ = assignment_vertex_ * eq_linkage_;
-
-
     }
 
     void Equation::reorder(bool recompute) {
@@ -267,7 +250,6 @@ namespace pdaggerq {
     Equation Equation::clone() const {
         Equation copy = *this;
         if (assignment_vertex_) copy.assignment_vertex_ = assignment_vertex_->clone(); // deep copy assignment vertex
-        if (eq_linkage_) copy.eq_linkage_ = eq_linkage_->clone(); // deep copy eq_linkage
 
         // deep copy terms
         copy.terms_.clear();
