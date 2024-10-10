@@ -8,17 +8,16 @@ import sys
 import os
 import re
 
-# Tests
-ccsd_tests     = ("ccsd", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "ccsd", "ccsd_singles", "ccsd_t",
-                  "eom_ccsd_sigma", "ea_eom_ccsd", "eom_ccsd_d1_by_hand", "eom_ccsd_d1", "eom_ccsd_hamiltonian","eom_ccsd", "ip_eom_ccsd", 
-                  "lambda_singles", "lambda_doubles", "ccsd_with_spin")
-ci_tests       = ("cid_d1", "cid_d2", "cisd_hamiltonian")
-other_tests    = ("rdm_mappings", "extended_rpa")
-ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "active_space_CCSDt", "ea_eom_ccsdt", "ip_eom_ccsdt", "ccsdt_with_spin")
-qed_tests      = ("qed_ccsd_21", "qed_ccsd_22", "eom_qed_ccsd_21", "eom_qed_ccsd_21_1rdm", "eom_qed_ccsd_21_2rdm")
-
-# Combine all tests
-tests  = ("cisd", "ccsd", "ccsd_with_spin", "eom_ccsd", "ccsdt", "cc3", "ccsdt_with_spin")
+# add numerical tests
+tests  = (
+    "cisd",
+    "ccsd",
+    "ccsd_with_spin",
+    "eom_ccsd",
+    "ccsdt",
+    "cc3",
+    "ccsdt_with_spin"
+)
 
 # get the path to the script
 script_path = os.path.dirname(os.path.realpath(__file__))
