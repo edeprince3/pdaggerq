@@ -30,6 +30,7 @@
     #include <omp.h>
 #else
     #define omp_get_max_threads() 1
+    #define omp_set_num_threads() 1
 #endif
 #include <memory>
 
@@ -226,6 +227,7 @@ namespace pdaggerq {
                 nthreads_ = (int) omp_get_max_threads();
             }
             Equation::nthreads_ = nthreads_;
+            omp_set_num_threads(nthreads_);
             
         } else {
             // use OMP_NUM_THREADS if available
@@ -238,6 +240,7 @@ namespace pdaggerq {
                     nthreads_ = (int) omp_get_max_threads();
                 }
                 Equation::nthreads_ = nthreads_;
+                omp_set_num_threads(nthreads_);
             }
         }
 
