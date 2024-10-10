@@ -75,8 +75,6 @@ def main():
     )
 
     mf = mol.RHF(conv_tol=1.0e-12).run()
-    mycc = mf.CCSD().run()
-    print('CCSD correlation energy', mycc.e_corr)
 
     molecule = of.MolecularData(geometry=[['B', (0, 0, 0)], ['H', (0, 0, 1.6)]],
                                 basis=basis, charge=0, multiplicity=1)
@@ -86,7 +84,6 @@ def main():
     occ = mf.mo_occ
     nele = int(sum(occ))
     nocc = nele // 2
-    assert np.allclose(np.transpose(mycc.t2, [1, 0, 3, 2]), mycc.t2)
 
     soei, stei = spinorb_from_spatial(oei, tei)
     astei = np.einsum('ijkl', stei) - np.einsum('ijlk', stei)
