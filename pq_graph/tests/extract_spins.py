@@ -32,13 +32,20 @@ def get_spin_labels(ops):
 
     # sort the labels and create spin types based on the number of unique labels
     labels = sorted(labels)
-    spin_types = ["aaaa", "abab", "bbbb"] if len(labels) == 4 else (
-        ["aaa", "abb", "aba", "bbb"] if len(labels) == 3 else (
-            ["aa", "bb"] if len(labels) == 2 else (
-                ["a", "b"] if len(labels) == 1 else []
+    spin_types = ["aaaaaa", "aabaab", "abbabb", "bbbbbb"] if len(labels) == 6 else (
+        ["aaaaa", "aabaa", "abbab", "bbbbb"] if len(labels) == 5 else (
+            ["aaaa", "abab", "bbbb"] if len(labels) == 4 else (
+                ["aaa", "abb", "aba", "bbb"] if len(labels) == 3 else (
+                    ["aa", "bb"] if len(labels) == 2 else (
+                        ["a", "b"] if len(labels) == 1 else []
+                    )
+                )
             )
         )
     )
+
+    if spin_types == [] and len(labels) != 0:
+        raise ValueError("Invalid number of labels for spin blocking")
 
     # create a mapping of labels to spins for each spin type
     for spin in spin_types:
