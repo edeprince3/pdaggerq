@@ -402,7 +402,8 @@ namespace pdaggerq {
         bool swap_sign = false, swap_sign_best = false; // swap sign
 
         size_t id = 0; // permutation id
-        bool is_valid; // is ovstring valid?
+        bool ov_valid; // is ovstring valid?
+        bool blk_valid; // is blocking valid?
         bool any_valid = false; // found any valid ovstring?
         size_t count = 0; // number of permutations tried
 
@@ -412,9 +413,10 @@ namespace pdaggerq {
             if (new_eri.empty()) continue; // if permutation is empty, do nothing
 
             // check if ovstring is valid
-            is_valid = valid_ovstrings.find(new_eri.ovstring()) != valid_ovstrings.end();
+            ov_valid = valid_ovstrings.find(new_eri.ovstring()) != valid_ovstrings.end();
+            blk_valid = valid_blks.find(new_eri.blk_string()) != valid_blks.end();
 
-            if (is_valid) {
+            if (ov_valid && blk_valid) {
                 if (!any_valid) {
                     best_eri = new_eri; // set best eri to first valid ovstring
                     swap_sign_best = swap_sign;
@@ -427,6 +429,10 @@ namespace pdaggerq {
                     }
                 }
                 any_valid = true; // set found valid flag
+            } else if (blk_valid && !any_valid) {
+                // if blocking is valid, but ovstring is not, save the best eri with valid blocking
+                best_eri = new_eri;
+                swap_sign_best = swap_sign;
             }
 
         // end while when valid ovstring is found or throw error when max permutations is reached
