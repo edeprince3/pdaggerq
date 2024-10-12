@@ -309,7 +309,7 @@ namespace pdaggerq {
         cout << "                  // 6: reordering, substitution, separation, pruning, merging, and fusion of intermediates (default)" << endl;
 
         cout << "    batched: " << (batched_ ? "true" : "false")
-             << "  // candidate substitutions are applied in batches rather than one at a time. (default: true)" << endl;
+             << "  // candidate substitutions are applied in batches rather than one at a time. (default: false)" << endl;
         cout << "                   // Generally faster, but may not yield optimal results compared to single substitutions." << endl;
 
         cout << "    batch_size: " << (long) batch_size_

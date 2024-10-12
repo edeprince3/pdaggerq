@@ -118,7 +118,7 @@ namespace pdaggerq {
          *   true (default): candidate substitutions are applied in batches rather than one at a time.
          *                   Generally faster, but may not yield optimal results compared to single substitution.
          */
-        bool batched_ = true;
+        bool batched_ = false;
         size_t batch_size_ = 10; // number of substitutions to apply in each batch
 
         /// maximum number of temporary rhs (-1 for no limit by overflow)
