@@ -716,12 +716,13 @@ namespace pdaggerq {
             mem_map_init_ = mem_map_;
         }
 
+        // set initial number of terms
+        if (num_terms_init_ == 0)
+            num_terms_init_ = get_num_terms();
+
         // set initial scaling and format scalars
         if (!is_assembled_)
             assemble();
-
-        if (num_terms_init_ == 0)
-            num_terms_init_ = get_num_terms();
 
         // merge similar terms
         merge_terms();
