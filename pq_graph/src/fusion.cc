@@ -104,6 +104,7 @@ struct LinkTracker {
                               [](const VertexPtr &a, const VertexPtr &b) { return a->name() < b->name(); });
                     trunc_term.rhs() = trunc_rhs;
                     trunc_term.compute_scaling(true);
+                    trunc_term.term_linkage()->forget(true); // forget the link history for memory efficiency
                     
                     link_info.trunc_term = trunc_term;
 
@@ -342,11 +343,45 @@ struct LinkMerger {
         linkage_map<linkage_vector> new_link_merge_map;
         new_link_merge_map.reserve(link_merge_map_.size());
 
+        vector<pair<LinkagePtr,linkage_vector>> sorted_link_infos;
+        sorted_link_infos.reserve(link_merge_map_.size());
+        for (const auto& merge_entry: link_merge_map_)
+            if (merge_entry.first) {
+                sorted_link_infos.insert(std::lower_bound(
+                         sorted_link_infos.begin(), sorted_link_infos.end(), merge_entry,
+                        [this](const pair<LinkagePtr,linkage_vector> &a, const pair<LinkagePtr,linkage_vector> &b) {
+                            scaling_map a_scales, b_scales;
+
+                            // get scaling of terms for a
+                            for (auto &info: link_tracker_.link_track_map_[a.first])
+                                a_scales += info.term->flop_map();
+                            for (auto &a_merger: a.second) {
+                                for (auto &info: link_tracker_.link_track_map_[a_merger])
+                                    a_scales += info.term->flop_map();
+                            }
+
+                            // get scaling of terms for b
+                            for (auto &info: link_tracker_.link_track_map_[b.first])
+                                b_scales += info.term->flop_map();
+                            for (auto &b_merger: b.second) {
+                                for (auto &info: link_tracker_.link_track_map_[b_merger])
+                                    b_scales += info.term->flop_map();
+                            }
+
+                            // keep more expensive linkages first
+                            if (a_scales != b_scales) return a_scales > b_scales;
+                            else return a.first->id() < b.first->id();
+
+                        }), merge_entry);
+            }
+
         linkage_vector sorted_links;
-        sorted_links.reserve(link_merge_map_.size());
-        for (auto &[link, _]: link_merge_map_)
-            if (link) sorted_links.push_back(link);
-        std::sort(sorted_links.begin(), sorted_links.end(), [](const LinkagePtr &a, const LinkagePtr &b) { return a->id() > b->id(); });
+        sorted_links.reserve(sorted_link_infos.size());
+        for (auto &[link, _]: sorted_link_infos) {
+            sorted_links.push_back(link);
+        }
+        sorted_link_infos.clear();
+
 
         for (auto &target_link: sorted_links) {
 
@@ -617,6 +652,7 @@ struct LinkMerger {
 
             // set merged terms to null lhs
             for (auto &merge_link: merge_links) {
+                merge_link->forget(true); // forget the link history for memory efficiency
                 for (auto &link_info: link_tracker_.link_track_map_[merge_link]) {
                     if (link_info.term) link_info.term->lhs() = nullptr;
                 }
@@ -727,16 +763,7 @@ size_t PQGraph::prune(bool keep_single_use) {
         if (!tmp_decl_terms.empty() && temp->vertices().size() > 1) {
 
             // count number of occurrences of the temp in the terms
-            size_t num_occurrences = 0;
-            for (auto &term: terms) {
-                if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
-                for (auto &vertex: term->rhs()) {
-                    if (vertex->is_linked()) {
-                        auto all_temps = as_link(vertex)->find_links(temp);
-                        num_occurrences += all_temps.size();
-                    }
-                }
-            }
+            size_t num_occurrences = terms.size();
 
             // skip if temp is used more than once
             if (num_occurrences > 1) continue;
