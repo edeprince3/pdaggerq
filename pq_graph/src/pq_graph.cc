@@ -280,6 +280,9 @@ namespace pdaggerq {
         if (options.contains("use_trial_index"))
             Vertex::use_trial_index = options["use_trial_index"].cast<bool>();
 
+        if (options.contains("separate_sigma"))
+            separate_sigma_ = options["separate_sigma"].cast<bool>();
+
         cout << "Options:" << endl;
         cout << "--------" << endl;
         cout << "    print_level: " << print_level_
@@ -297,7 +300,8 @@ namespace pdaggerq {
         cout << "    use_trial_index: " << (Vertex::use_trial_index ? "true" : "false")
              << "  // whether to store trial vectors as an additional index/dimension for "
              << "tensors in a sigma-vector build (default: false)" << endl;
-
+        cout << "    separate_sigma: " << (separate_sigma_ ? "true" : "false")
+                << "  // whether to separate reusable intermediates for sigma-vector build (default: false)" << endl;
         cout << "    opt_level: " << opt_level_
              << "  // optimization level:" << endl;
         cout << "                  // 0: no optimization" << endl;
@@ -682,6 +686,10 @@ namespace pdaggerq {
 
     void PQGraph::assemble() {
         total_timer.start();
+
+        // determine if sigma vectors should be formatted
+        separate_sigma_ &= has_sigma_vecs_ && opt_level_ >= 3;
+
         // find scalars in each equation
         make_scalars();
 
@@ -722,9 +730,6 @@ namespace pdaggerq {
         flop_map_pre_ = flop_map_;
         mem_map_pre_ = mem_map_;
 
-
-        bool format_sigma = has_sigma_vecs_ && opt_level_ >= 3;
-
         // substitute scalars first
         if (opt_level_ >= 1) {
             cout << "----- Substituting scalars -----" << endl;
@@ -734,13 +739,13 @@ namespace pdaggerq {
         if (opt_level_ >= 2) {
 
             // find and substitute intermediate contractions
-            if (format_sigma)
+            if (separate_sigma_)
                 cout << "----- Separating Intermediates for sigma-vector build -----" << endl;
             else cout << "----- Substituting intermediates -----" << endl;
 
-            substitute(format_sigma, false);
+            substitute(separate_sigma_, false);
 
-            if (format_sigma) {
+            if (separate_sigma_) {
                 // apply substitutions again without separating intermediates
                 cout << "----- Substituting all intermediates -----" << endl;
                 substitute(false, false);

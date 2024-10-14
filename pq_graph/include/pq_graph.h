@@ -66,6 +66,8 @@ namespace pdaggerq {
         bool is_reordered_ = false; // whether the equations have been reordered
         bool is_optimized_ = false; // whether the equations have been optimized
 
+        bool separate_sigma_ = false; // whether to separate intermediates with sigma vectors
+
         Timer total_timer; // timer for the total time of the builder
         Timer build_timer; // timer for construction of the equations
         Timer reorder_timer; // timer for the reorder function

@@ -189,10 +189,14 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
     cout << "Generating all possible linkages..." << flush;
 
     size_t org_max_depth = Term::max_depth_;
+    size_t current_depth;
+    if (batched_) {
+        Term::max_depth_ = 1; // set max depth to 1 for initial linkage generation
+        current_depth = 1;
+    } else {
+        current_depth = Term::max_depth_;
+    }
 
-    if (batched_)
-        Term::max_depth_ = 1; // set max depth to 2 for initial linkage generation
-    size_t current_depth = 1; // current depth of linkages
 
     make_all_links(true); // generate all possible linkages
     cout << " Done" << endl;
@@ -284,7 +288,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          */
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
             ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
-            format_sigma, print_ratio, print_progress, only_scalars)
+            format_sigma, print_ratio, print_progress, only_scalars, separate_sigma_)
         for (int i = 0; i < n_linkages; ++i) {
 
             // copy linkage
@@ -295,7 +299,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             string eq_type; // get equation type
             if (is_scalar){
                 eq_type = "scalar";
-            } else if (!is_sigma && has_sigma_vecs_ && opt_level_ >= 3) {
+            } else if (!is_sigma && separate_sigma_) {
                 eq_type = "reused";
                 linkage->reused_ = true;
             } else {
@@ -346,7 +350,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             // or that occurs at least once and can be reused / is a scalar
 
             // include declaration for scaling?
-            bool keep_declaration = !is_scalar && !format_sigma;
+            bool keep_declaration = eq_type != "scalar" && eq_type != "reused";
 
             // test if we made a valid substitution
             if (numSubs > 0) {
@@ -523,6 +527,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                     cout << "                  Net time: " << total_timer.elapsed() << endl;
                     cout << "              Reorder Time: " << reorder_timer.elapsed() << endl;
                     cout << "               Update Time: " << update_timer.elapsed() << endl;
+                    cout << "                 Sub. Time: " << substitute_timer.elapsed() << endl;
                     cout << "         Average Sub. Time: " << substitute_timer.average_time() << endl;
                     cout << "           Number of terms: " << num_terms << endl;
                     cout << "    Number of Contractions: " << flop_map_.total() << endl;
@@ -536,7 +541,6 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 // at batch_size_=1 this will only substitute the best link found and then completely regenerate the results.
                 // otherwise it will substitute the best batch_size_ number of linkages and then regenerate the results.
                 if (!batched_ || ++batch_count >= batch_size_ || temp_counts_[eq_type] > max_temps_) {
-                    substitute_timer.stop();
                     break;
                 }
             }
@@ -578,7 +582,8 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             // gradually increase max depth if we have not found any linkages (start from lowest depth; only if batching)
             while (test_linkages.empty()) {
 
-                Term::max_depth_ = ++current_depth; // increase max depth
+                if (++current_depth == 0) --current_depth; // reset depth if overflow
+                Term::max_depth_ = current_depth; // increase max depth
 
                 {
                     cout << "Regenerating test set with depth " << flush;
