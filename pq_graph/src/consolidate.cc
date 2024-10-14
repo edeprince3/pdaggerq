@@ -338,7 +338,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             for (auto &[eq_name, equation]: equations_) { // iterate over equations
 
                 // skip scalar equations
-                if (eq_name == "scalar") continue;
+                if (eq_name == "scalar" || eq_name == "reused") continue;
 
 
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
