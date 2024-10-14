@@ -384,10 +384,9 @@ namespace pdaggerq {
         /**
          * Return all subgraphs of the linkage
          * @param max_depth maximum depth of subgraphs returned
-         * @param with_permutations whether to include permutations of the subgraphs
          * @return vector of subgraphs
          */
-        linkage_vector subgraphs(size_t max_depth, bool with_permutations = false) const;
+        linkage_vector subgraphs(size_t max_depth) const;
 
         /**
          * find all linked scalars within the linkage
@@ -492,6 +491,7 @@ namespace pdaggerq {
          * @param target_ids the id to find
          */
         bool has_temp(const VertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
+        bool has_link(const VertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
         bool has_any_temp() const override; // whether the linkage has any intermediate vertices
         vertex_vector get_temps(bool enter_temps = true) const override;
 

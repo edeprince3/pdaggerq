@@ -477,6 +477,24 @@ namespace pdaggerq {
         return false;
     }
 
+    bool Linkage::has_link(const VertexPtr &temp, bool enter_temps, long search_depth) const {
+        if (temp->is_linked() && depth_ < as_link(temp)->depth_)
+            return false; // if the depth of the temp is greater than this linkage, there cannot be a match
+
+        if (*this == *temp) return true;
+        if (is_temp() && !enter_temps) return false;
+
+        // recursively check if left and right vertices have the temp up to a certain search_depth
+        if (search_depth > 0 || search_depth == -1) {
+            search_depth = search_depth == -1 ? -1 : search_depth - 1;
+            if (left_->is_linked())
+                if (as_link(left_)->has_link(temp, enter_temps, search_depth)) return true;
+            if (right_->is_linked())
+                if (as_link(right_)->has_link(temp, enter_temps, search_depth)) return true;
+        }
+        return false;
+    }
+
     bool Linkage::has_any_temp() const {
         if (is_temp()) return true;
         if (left_->is_linked() && as_link(left_)->has_any_temp()) return true;
@@ -672,22 +690,17 @@ namespace pdaggerq {
         return best_perm;
     }
 
-    linkage_vector Linkage::subgraphs(size_t max_depth, bool with_permutations) const {
+    linkage_vector Linkage::subgraphs(size_t max_depth) const {
 
         if (is_temp()) { // do not generate subgraphs for temps
             return {as_link(shared_from_this())};
         }
-
-        // build permutations of root vertex
-        linkage_vector top_perms;
-        if (with_permutations)
-             top_perms = permutations();
-        else top_perms = {as_link(shared_from_this())};
-
-        if (top_perms.empty()) {
+        if (empty()) { // return an empty vector if the linkage is empty
             return {};
         }
 
+        // build permutations of root vertex
+        linkage_vector top_perms = {as_link(shared_from_this())};
         linkage_set unique_subgraphs; unique_subgraphs.reserve(4 * (depth_+1));
 
         // now add the subgraphs of the left and right vertices

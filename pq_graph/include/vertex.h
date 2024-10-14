@@ -419,6 +419,7 @@ namespace pdaggerq {
         virtual long &id() { static long null = -1; null = -1; return null; }
         virtual string type() const { return "vertex"; }
         virtual bool has_temp(const VertexPtr &other, bool enter_temp = true, long depth = -1) const { return false; }
+        virtual bool has_link(const VertexPtr &other, bool enter_temp = true, long depth = -1) const { return *this == *other; }
         virtual bool same_temp(const VertexPtr &other) const { return false; }
         virtual bool has_any_temp() const { return false; }
         virtual vertex_vector get_temps(bool enter_temps = true) const { return {}; }
