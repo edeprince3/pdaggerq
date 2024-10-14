@@ -41,7 +41,7 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 using namespace pdaggerq;
 
 struct LinkInfo {
-    ConstLinkagePtr link;
+    LinkagePtr link;
     Term* term;
     Term trunc_term;
 };
@@ -69,7 +69,7 @@ struct LinkTracker {
         }
 
         // extract all linkages within the term
-        ConstVertexPtr dummy = 0.0 * std::make_shared<Vertex>("dummy");
+        VertexPtr dummy = 0.0 * std::make_shared<Vertex>("dummy");
         for (auto &vertex: term->rhs()) {
 
             // vertex in term is fusable only if it is linked. if linked, it must be a temp or not an addition
@@ -77,7 +77,7 @@ struct LinkTracker {
             if (fusable) {
                 auto all_temps = as_link(vertex)->get_temps(false);
                 for (auto &temp: all_temps) {
-                    ConstLinkagePtr temp_link = as_link(temp);
+                    LinkagePtr temp_link = as_link(temp);
                     max_ids_[temp_link->type()] = max(max_ids_[temp_link->type()], temp_link->id());
                     
                     // create a new link info
@@ -92,7 +92,7 @@ struct LinkTracker {
                     trunc_term.term_linkage() = nullptr;
                     vertex_vector trunc_rhs;
                     for (auto &other_vertex: trunc_term.rhs()) {
-                        ConstVertexPtr new_vertex = other_vertex;
+                        VertexPtr new_vertex = other_vertex;
                         if (other_vertex->is_linked()) {
                             new_vertex = as_link(other_vertex)->replace(temp_link, dummy).first;
                         }
@@ -101,7 +101,7 @@ struct LinkTracker {
 
                     // sort the trunc term by name and update
                     std::sort(trunc_rhs.begin(), trunc_rhs.end(),
-                              [](const ConstVertexPtr &a, const ConstVertexPtr &b) { return a->name() < b->name(); });
+                              [](const VertexPtr &a, const VertexPtr &b) { return a->name() < b->name(); });
                     trunc_term.rhs() = trunc_rhs;
                     trunc_term.compute_scaling(true);
                     
@@ -215,7 +215,7 @@ struct LinkMerger {
 
     void populate() {
         // find all linkages that can be merged (same connectivity with all trunc terms)
-        ConstVertexPtr dummy = 0.0 * std::make_shared<Vertex>("dummy");
+        VertexPtr dummy = 0.0 * std::make_shared<Vertex>("dummy");
 
         // extract trunc map to separate vectors to parallelize
         linkage_vector all_links; all_links.reserve(link_tracker_.link_track_map_.size());
@@ -251,7 +251,7 @@ struct LinkMerger {
                 double link_ratio = 0.0;
                 set<string> ref_conditions;
 
-                ConstVertexPtr reflink1_2 = nullptr;
+                VertexPtr reflink1_2 = nullptr;
                 for (size_t i = 0; i < link1_info.size(); i++) {
 
                     // extract link info
@@ -271,7 +271,7 @@ struct LinkMerger {
                     if (lines1_sorted != lines2_sorted) { same_connectivity = false; break; }
 
                     // ensure connectivity of the two trunc links are the same for all terms
-                    ConstVertexPtr link1_2 = link1_trunc + link2_trunc;
+                    VertexPtr link1_2 = link1_trunc + link2_trunc;
                     if (reflink1_2 == nullptr) reflink1_2 = link1_2;
                     else if (*link1_2 != *reflink1_2) { same_connectivity = false; break; }
 
@@ -285,8 +285,8 @@ struct LinkMerger {
                     else if (fabs(cur_ratio - link_ratio) > 1e-10) { same_connectivity = false; break; }
 
                     // replace the replacement vertex with the trunc vertex
-                    ConstVertexPtr term1_link = trunc_term1.term_linkage()->replace(dummy, link1_trunc).first;
-                    ConstVertexPtr term2_link = trunc_term2.term_linkage()->replace(dummy, link1_trunc).first;
+                    VertexPtr term1_link = trunc_term1.term_linkage()->replace(dummy, link1_trunc).first;
+                    VertexPtr term2_link = trunc_term2.term_linkage()->replace(dummy, link1_trunc).first;
 
                     term1_link = link1_term->lhs() + term1_link;
                     term2_link = link2_term->lhs() + term2_link;
@@ -322,7 +322,7 @@ struct LinkMerger {
         }
     }
 
-    set<Term *> extract_terms(const ConstLinkagePtr& target_link) {// add the track terms to the visited terms
+    set<Term *> extract_terms(const LinkagePtr& target_link) {// add the track terms to the visited terms
         set<Term*> visited_terms;
         for (auto &info: link_tracker_.link_track_map_[target_link]) {
             if (info.term) visited_terms.insert(info.term);
@@ -346,7 +346,7 @@ struct LinkMerger {
         sorted_links.reserve(link_merge_map_.size());
         for (auto &[link, _]: link_merge_map_)
             if (link) sorted_links.push_back(link);
-        std::sort(sorted_links.begin(), sorted_links.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) { return a->id() > b->id(); });
+        std::sort(sorted_links.begin(), sorted_links.end(), [](const LinkagePtr &a, const LinkagePtr &b) { return a->id() > b->id(); });
 
         for (auto &target_link: sorted_links) {
 
@@ -386,12 +386,12 @@ struct LinkMerger {
         sorted_links.reserve(link_merge_map_.size());
         for (auto &[link, _]: link_merge_map_)
             if (link) sorted_links.push_back(link);
-        std::sort(sorted_links.begin(), sorted_links.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) { return a->id() > b->id(); });
+        std::sort(sorted_links.begin(), sorted_links.end(), [](const LinkagePtr &a, const LinkagePtr &b) { return a->id() > b->id(); });
 
         // now prune between the merge links
         unique_terms.clear();
         new_link_merge_map.clear();
-        unordered_set<ConstLinkagePtr, LinkageHash, LinkageEqual> visited_links;
+        unordered_set<LinkagePtr, LinkageHash, LinkageEqual> visited_links;
         for (auto &ref_link: sorted_links) {
             auto &ref_merge_links = link_merge_map_[ref_link];
             auto ref_terms = extract_terms(ref_link);
@@ -502,7 +502,7 @@ struct LinkMerger {
         for (auto &[target, merge_links]: link_merge_map_) {
 
             // get target linkage
-            ConstLinkagePtr target_link = target;
+            LinkagePtr target_link = target;
 
             // update max id
             link_tracker_.max_ids_[target_link->type()]++;
@@ -521,13 +521,13 @@ struct LinkMerger {
 
             // merge the trunc terms
             vector<Term> new_terms(target_infos.size());
-            VertexPtr merged_vertex_init;
+            MutableVertexPtr merged_vertex_init;
             string link_type = target_infos[0].link->type();
 
             #pragma omp parallel for default(none) shared(target_infos, merge_infos, new_terms, merged_vertex_init, link_type, target_link)
             for (size_t i = 0; i < target_infos.size(); i++) {
                 // build merged vertex
-                VertexPtr merged_vertex = target_infos[i].link->shallow();
+                MutableVertexPtr merged_vertex = target_infos[i].link->shallow();
                 long max_id = link_tracker_.max_ids_[target_link->type()];
                 if (merged_vertex->type() == "temp")
                     // only unset the id if the vertex is a temp
@@ -536,7 +536,7 @@ struct LinkMerger {
                 Term *target_term = target_infos[i].term;
                 string merged_pq = target_term->original_pq_;
                 for (auto &merge_info: merge_infos) {
-                    LinkagePtr target_vertex = as_link(merge_info[i].link->shallow());
+                    MutableLinkagePtr target_vertex = as_link(merge_info[i].link->shallow());
                     Term *merge_term = merge_info[i].term;
                     max_id = std::max(max_id, target_vertex->id());
 
@@ -572,7 +572,7 @@ struct LinkMerger {
                 // find replacement vertex
                 for (auto& vertex : new_term.rhs()) {
                     if (vertex->is_linked()) {
-                        ConstVertexPtr new_vertex = as_link(vertex)->replace(0.0 * std::make_shared<Vertex>("dummy"), merged_vertex).first;
+                        VertexPtr new_vertex = as_link(vertex)->replace(0.0 * std::make_shared<Vertex>("dummy"), merged_vertex).first;
                         vertex = new_vertex;
                     }
                 }
@@ -598,7 +598,7 @@ struct LinkMerger {
             if (!declare_term.empty()) {
                 // build new declaration
                 Term new_def = (*declare_term.begin())->shallow();
-                LinkagePtr merged_vertex_copy = as_link(merged_vertex_init->shallow());
+                MutableLinkagePtr merged_vertex_copy = as_link(merged_vertex_init->shallow());
                 merged_vertex_copy->id() = -1;
                 new_def.eq()  = merged_vertex_init;
                 new_def.lhs() = merged_vertex_init;
@@ -746,7 +746,7 @@ size_t PQGraph::prune(bool keep_single_use) {
                 if (keep_single_use) continue;
 
                 // if used only once, remove if the only term declares a temp and is defined
-                ConstVertexPtr only_lhs = (*terms.begin())->lhs();
+                VertexPtr only_lhs = (*terms.begin())->lhs();
                 if (only_lhs == nullptr) continue; // not defined, so skip (removed elsewhere)
 
                 bool declares_temp = only_lhs->is_temp();
@@ -793,14 +793,14 @@ size_t PQGraph::prune(bool keep_single_use) {
         linkage_vector sorted_to_remove;
         sorted_to_remove.reserve(to_remove.size());
         sorted_to_remove.insert(sorted_to_remove.begin(), to_remove.begin(), to_remove.end());
-        std::sort(sorted_to_remove.begin(), sorted_to_remove.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
+        std::sort(sorted_to_remove.begin(), sorted_to_remove.end(), [](const LinkagePtr &a, const LinkagePtr &b) {
             // if types are different, sort by type
             if (a->type() != b->type()) return a->type() > b->type();
             // else sort by id for the same type
             else return a->get_ids(a->type()) > b->get_ids(b->type());
         });
 
-        auto remove_unused = [&sorted_to_remove](ConstVertexPtr vertex){
+        auto remove_unused = [&sorted_to_remove](VertexPtr vertex){
             bool made_replacement = false;
             if (vertex->is_linked()) {
                 for (auto &temp: sorted_to_remove) {
@@ -885,7 +885,7 @@ size_t PQGraph::prune(bool keep_single_use) {
         for (Term *term_ptr: all_terms) {
             Term &term = *term_ptr;
             // fuse the term linkage
-            LinkagePtr term_link = as_link(term.term_linkage()->shallow());
+            MutableLinkagePtr term_link = as_link(term.term_linkage()->shallow());
             if (!term_link->is_temp()) continue;
             else term_link->fuse();
 
@@ -903,7 +903,7 @@ size_t PQGraph::prune(bool keep_single_use) {
     return num_removed_total;
 }
 
-pair<set<Term *>, set<Term*>> PQGraph::get_matching_terms(const ConstLinkagePtr &intermediate) {
+pair<set<Term *>, set<Term*>> PQGraph::get_matching_terms(const LinkagePtr &intermediate) {
     // grab all terms with this tmp
 
     // initialize vector of term pointers

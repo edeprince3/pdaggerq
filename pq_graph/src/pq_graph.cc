@@ -387,7 +387,7 @@ namespace pdaggerq {
             return;
         }
 
-        auto reorder_labels = [&label_order](VertexPtr &vertex) {
+        auto reorder_labels = [&label_order](MutableVertexPtr &vertex) {
             vertex->sort();
             if (label_order.empty()) return;
 
@@ -458,7 +458,7 @@ namespace pdaggerq {
                 continue;
 
             // use the term to build the assignment vertex
-            VertexPtr assignment;
+            MutableVertexPtr assignment;
             if (!name_is_formatted || equation_name.empty())
                  assignment = make_shared<Vertex>(*term.term_linkage()->shallow());
             else assignment = term.lhs()->clone();
@@ -493,7 +493,7 @@ namespace pdaggerq {
 
         // build equation
         Equation& new_equation = equations_[assigment_name];
-        VertexPtr assignment_vertex = terms.back().lhs()->clone();
+        MutableVertexPtr assignment_vertex = terms.back().lhs()->clone();
 
         // do not format assignment vertices as a map
         assignment_vertex->vertex_type_ = '\0'; // prevents printing as a map

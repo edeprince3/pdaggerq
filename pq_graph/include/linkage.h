@@ -58,10 +58,10 @@ namespace pdaggerq {
      * @return linkage of the two vertices
      * @note this is an extern function to allow for operator overloading outside of the namespace
      */
-    extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right);
-    extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right);
-    extern VertexPtr operator*(double factor, const ConstVertexPtr &right);
-    extern VertexPtr operator*(const ConstVertexPtr &left, double factor);
+    extern MutableVertexPtr operator*(const VertexPtr &left, const VertexPtr &right);
+    extern MutableVertexPtr operator*(const MutableVertexPtr &left, const MutableVertexPtr &right);
+    extern MutableVertexPtr operator*(double factor, const VertexPtr &right);
+    extern MutableVertexPtr operator*(const VertexPtr &left, double factor);
 
     /**
      * Perform linkage of two vertices by overload of + operator
@@ -69,18 +69,18 @@ namespace pdaggerq {
      * @return linkage of linkage
      * @note this is an extern function to allow for operator overloading outside of the namespace
      */
-    extern VertexPtr operator+(const ConstVertexPtr &left, const ConstVertexPtr &right);
-    extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right);
-    extern VertexPtr operator+(double factor, const ConstVertexPtr &right);
-    extern VertexPtr operator+(const ConstVertexPtr &left, double factor);
+    extern MutableVertexPtr operator+(const VertexPtr &left, const VertexPtr &right);
+    extern MutableVertexPtr operator+(const MutableVertexPtr &left, const MutableVertexPtr &right);
+    extern MutableVertexPtr operator+(double factor, const VertexPtr &right);
+    extern MutableVertexPtr operator+(const VertexPtr &left, double factor);
 
     // define cast function from Vertex pointers to Linkage pointers  and vice versa
 
-    static LinkagePtr as_link(const VertexPtr &vertex)  {
+    static MutableLinkagePtr as_link(const MutableVertexPtr &vertex)  {
         if (vertex->is_linked())  return static_pointer_cast<Linkage>(vertex);
         return as_link(1.0 * vertex); // if not a linkage, then contract the vertex with one
     }
-    static ConstLinkagePtr as_link(const ConstVertexPtr &vertex)  {
+    static LinkagePtr as_link(const VertexPtr &vertex)  {
         if (vertex->is_linked()) return static_pointer_cast<const Linkage>(vertex);
         return as_link(1.0 * vertex); // if not a linkage, then contract the vertex with one
     }
@@ -96,7 +96,7 @@ namespace pdaggerq {
     class Linkage : public Vertex {
 
         /// vertices in the linkage
-        ConstVertexPtr left_, right_; // the left and right vertices of the linkage
+        VertexPtr left_, right_; // the left and right vertices of the linkage
 
         /// cost of linkage (flops and memory) as pair of vir and occ counts
         shape flop_scale_{}; // flops
@@ -119,7 +119,7 @@ namespace pdaggerq {
         bool &is_reused() override { return reused_; } // whether the linkage is reused
 
         bool is_temp() const override { return id_ != -1; } // || is_reused_; } // whether the linkage corresponds to an intermediate contraction
-        bool same_temp(const ConstVertexPtr &other) const override;
+        bool same_temp(const VertexPtr &other) const override;
         string type() const override {
             // get the type of the linkage
             if (!is_temp()) return "link";
@@ -144,8 +144,8 @@ namespace pdaggerq {
 
         /// vertices in the linkage
 
-        const ConstVertexPtr &left() const { return left_; }
-        const ConstVertexPtr &right() const { return right_; }
+        const VertexPtr &left() const { return left_; }
+        const VertexPtr &right() const { return right_; }
 
         /// map of connec_map between lines
         std::vector<std::array<int_fast8_t, 2>> connec_map_; // connec_map between lines
@@ -159,7 +159,7 @@ namespace pdaggerq {
          * @param left vertex to contract with
          * @param right vertex to contract with
          */
-        Linkage(ConstVertexPtr left, ConstVertexPtr right, bool is_addition);
+        Linkage(VertexPtr left, VertexPtr right, bool is_addition);
 
         /**
          * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name
@@ -204,8 +204,8 @@ namespace pdaggerq {
          * Return a deep copy of the linkage where all nested linkages are also copied
          * @return deep copy of the linkage
          */
-        VertexPtr shallow() const override;
-        VertexPtr clone() const override;
+        MutableVertexPtr shallow() const override;
+        MutableVertexPtr clone() const override;
 
         /**
          * clears vectors that are populated by lazy evaluation:
@@ -379,7 +379,7 @@ namespace pdaggerq {
          * Return the best permutation of the linkage that minimizes the number of contractions and memory
          * @return best permutation of the linkage
          */
-        ConstLinkagePtr best_permutation() const;
+        LinkagePtr best_permutation() const;
 
         /**
          * Return all subgraphs of the linkage
@@ -405,7 +405,7 @@ namespace pdaggerq {
          * Make a series of linkages from vertices into a single linkage
          * @param op_vec list of vertices
          */
-        static LinkagePtr link(const vertex_vector &op_vec);
+        static MutableLinkagePtr link(const vertex_vector &op_vec);
 
         /**
          * copy just the members of the linkage that do not depend on the vertices
@@ -416,7 +416,7 @@ namespace pdaggerq {
             reused_ = to_copy.reused_;
             addition_ = to_copy.addition_;
         }
-        void copy_misc(const ConstLinkagePtr& to_copy) { copy_misc(*to_copy); }
+        void copy_misc(const LinkagePtr& to_copy) { copy_misc(*to_copy); }
 
         /**
          * get the sequential scaling of the linkage (flops and memory), excluding intermediates
@@ -469,7 +469,7 @@ namespace pdaggerq {
          * @param new_vertex the new vertex to replace with
          * @return the copy of linkage with the replaced vertex and a bool indicating if the vertex was replaced
          */
-        pair<ConstVertexPtr, bool> replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) const;
+        pair<VertexPtr, bool> replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex) const;
 
         /**
          * goes down the tree and replaces the id of any intermediate vertices that matched the target to a new value
@@ -477,7 +477,7 @@ namespace pdaggerq {
          * @param new_id the new id to replace with
          * @return true if the id was replaced, false otherwise
          */
-        pair<ConstVertexPtr, bool> replace_id(const ConstVertexPtr &target_vertex, long new_id) const;
+        pair<VertexPtr, bool> replace_id(const VertexPtr &target_vertex, long new_id) const;
 
         /**
          * goes down the tree and finds all occurences of the target vertex
@@ -485,13 +485,13 @@ namespace pdaggerq {
          * @param search_depth maximum depth to search for links
          * @return vector of all vertices that match the target
          */
-        vertex_vector find_links(const ConstVertexPtr &target_vertex, long search_depth = -1) const;
+        vertex_vector find_links(const VertexPtr &target_vertex, long search_depth = -1) const;
 
         /**
          * goes down the tree and returns true if any intermediate vertices have the target ids
          * @param target_ids the id to find
          */
-        bool has_temp(const ConstVertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
+        bool has_temp(const VertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
         bool has_any_temp() const override; // whether the linkage has any intermediate vertices
         vertex_vector get_temps(bool enter_temps = true) const override;
 

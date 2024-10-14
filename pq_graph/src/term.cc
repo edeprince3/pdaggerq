@@ -109,7 +109,7 @@ namespace pdaggerq {
             rhs_.push_back(make_shared<Vertex>(delta));
         for (const auto & [type, integrals] : pq_str->ints) { // add integrals
             for (auto & integral : integrals) {
-                VertexPtr int_vert = make_shared<Vertex>(integral, type);
+                MutableVertexPtr int_vert = make_shared<Vertex>(integral, type);
                 if (type == "eri") { // permute eri to proper form
                     // swap sign if eri is permuted with sign change
                     if (int_vert->permute_eri())
@@ -158,7 +158,7 @@ namespace pdaggerq {
                 set_perm(op_string); // set permutation
             } else {
                 // add vertex to vector
-                VertexPtr op = make_shared<Vertex>(op_string); // create vertex
+                MutableVertexPtr op = make_shared<Vertex>(op_string); // create vertex
                 if (op->name().find("eri") != string::npos && op->name().find('\t') == string::npos) {
                     // check if vertex is an eri and not a linkage.
                     if (op->permute_eri()) swap_sign(); // swap sign if eri is permuted with sign change
@@ -173,7 +173,7 @@ namespace pdaggerq {
 
     }
 
-    Term::Term(const ConstVertexPtr &lhs_vertex, const vertex_vector &vertices, double coefficient) {
+    Term::Term(const VertexPtr &lhs_vertex, const vertex_vector &vertices, double coefficient) {
 
         lhs_ = lhs_vertex; // set lhs vertex
         eq_ = lhs_->clone(); // shallow copy of lhs for equation
@@ -184,7 +184,7 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if eri is in name
             if (op->base_name() =="eri") {
-                VertexPtr new_eri = op->clone();
+                MutableVertexPtr new_eri = op->clone();
                 if (new_eri->permute_eri()) swap_sign(); // swap sign if eri is permuted with sign change
                 op = new_eri;
             }
@@ -197,7 +197,7 @@ namespace pdaggerq {
         for (const auto &op : rhs_) comments_.push_back(op->str());
     }
 
-    Term::Term(const ConstLinkagePtr &linkage, double coeff) {
+    Term::Term(const LinkagePtr &linkage, double coeff) {
 
         is_assignment_ = true;
 
@@ -208,7 +208,7 @@ namespace pdaggerq {
         lhs_ = linkage;
         eq_ = lhs_->clone(); // shallow copy of lhs for equation
 
-        LinkagePtr link = as_link(linkage->clone());
+        MutableLinkagePtr link = as_link(linkage->clone());
         link->id() = -1; // set id to -1 to allow it to be expanded
 
         expand_rhs(link); // expand rhs into vector
@@ -237,12 +237,12 @@ namespace pdaggerq {
 
     }
 
-    tuple<scaling_map, scaling_map, LinkagePtr> Term::compute_scaling(const ConstVertexPtr &lhs, const vertex_vector &arrangement) {
+    tuple<scaling_map, scaling_map, MutableLinkagePtr> Term::compute_scaling(const VertexPtr &lhs, const vertex_vector &arrangement) {
 
         /// add scaling from rhs
 
         // get the total linkage of the term with its flop and memory scalings
-        LinkagePtr linkage = Linkage::link(arrangement);
+        MutableLinkagePtr linkage = Linkage::link(arrangement);
         auto [flop_map, mem_map] = linkage->netscales();
 
         /// add scaling from lhs
@@ -253,7 +253,7 @@ namespace pdaggerq {
 
     }
 
-    void Term::expand_rhs(const ConstVertexPtr &term_link) {
+    void Term::expand_rhs(const VertexPtr &term_link) {
 
         // expand linkage into vector of vertices
         if (term_link->is_expandable()) {
@@ -269,7 +269,7 @@ namespace pdaggerq {
 
         vertex_vector new_rhs; new_rhs.reserve(rhs_.size());
         bool found_constant = false;
-        for (ConstVertexPtr & op : rhs_) {
+        for (VertexPtr & op : rhs_) {
             if (op->empty()) continue; // skip empty vertices
 
             // determine if name is convertible to a double
@@ -309,7 +309,7 @@ namespace pdaggerq {
         /// We use the linkage to determine the best permutation
 
         // generate every permutation and return the best one
-        ConstLinkagePtr best_linkage = term_linkage()->best_permutation();
+        LinkagePtr best_linkage = term_linkage()->best_permutation();
 
         // replace the rhs with the best linkage (if it is a temp or addition, we should not expand into a vector)
         expand_rhs(best_linkage);
@@ -328,7 +328,7 @@ namespace pdaggerq {
         for (auto & op : rhs_) {
             // check if vertex is a trace
             // get self-contracted lines
-            VertexPtr copy = op->clone();
+            MutableVertexPtr copy = op->clone();
             map<Line, uint_fast8_t> self_links = copy->self_links();
 
             bool has_self_link = false;
@@ -406,10 +406,10 @@ namespace pdaggerq {
                 line_vector B4_lines{den_line, lines[1], lines[2]};
 
                 // create vertices
-                ConstVertexPtr B1 = make_shared<const Vertex>("B", B1_lines);
-                ConstVertexPtr B2 = make_shared<const Vertex>("B", B2_lines);
-                ConstVertexPtr B3 = make_shared<const Vertex>("B", B3_lines);
-                ConstVertexPtr B4 = make_shared<const Vertex>("B", B4_lines);
+                VertexPtr B1 = make_shared<const Vertex>("B", B1_lines);
+                VertexPtr B2 = make_shared<const Vertex>("B", B2_lines);
+                VertexPtr B3 = make_shared<const Vertex>("B", B3_lines);
+                VertexPtr B4 = make_shared<const Vertex>("B", B4_lines);
 
                 // create two new terms replacing the eri with the two new vertices
                 Term new_term1 = *this, new_term2 = *this;
@@ -644,7 +644,7 @@ namespace pdaggerq {
         const std::map<string, std::vector<string>> &mapped_conditions = mapped_conditions_;
         if (mapped_conditions.empty()) return {}; // return empty set if no conditions
 
-        ConstLinkagePtr linkage = term_linkage(); // get linkage representation of term
+        LinkagePtr linkage = term_linkage(); // get linkage representation of term
         std::set<string> conditions{}; // set to store conditions
 
         if (!linkage) {

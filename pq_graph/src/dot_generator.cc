@@ -81,7 +81,7 @@ string determine_direction(bool o, bool curr_is_bra) {
 }
 
 // Function to append null nodes for external lines in the graph
-void append_null_nodes(string padding, const ConstLinkagePtr &link, const vertex_vector &vertices, size_t &dummy_count, size_t term_id, vector<string> &null_nodes, vector<string> &ext_edge_names, size_t &group_count, const string &ext_edge_style, const string &null_node_style) {
+void append_null_nodes(string padding, const LinkagePtr &link, const vertex_vector &vertices, size_t &dummy_count, size_t term_id, vector<string> &null_nodes, vector<string> &ext_edge_names, size_t &group_count, const string &ext_edge_style, const string &null_node_style) {
     for (const auto &line : link->lines_) {
         if (line.sig_) continue;  // Skip lines marked as significant
 
@@ -115,7 +115,7 @@ void append_null_nodes(string padding, const ConstLinkagePtr &link, const vertex
 }
 
 // Function to append edge links between vertices in the graph
-bool append_edge_links(string padding, const ConstLinkagePtr &link, const ConstVertexPtr &current, const ConstVertexPtr &next, string current_node, string next_node, vector<string> &int_edge_names, const string &int_edge_style) {
+bool append_edge_links(string padding, const LinkagePtr &link, const VertexPtr &current, const VertexPtr &next, string current_node, string next_node, vector<string> &int_edge_names, const string &int_edge_style) {
     const auto &current_lines = current->lines();  // Get lines from the current vertex
     size_t current_len = current_lines.size();
 
@@ -149,7 +149,7 @@ bool append_edge_links(string padding, const ConstLinkagePtr &link, const ConstV
 
 
 // Function to append edges between vertices
-bool append_edges(string padding, const vertex_vector &vertices, const ConstVertexPtr &current, size_t i, vector<string> &int_edge_names, const string &l_id, size_t term_id, const string &int_edge_style) {
+bool append_edges(string padding, const vertex_vector &vertices, const VertexPtr &current, size_t i, vector<string> &int_edge_names, const string &l_id, size_t term_id, const string &int_edge_style) {
     string current_node = current->base_name() + "_" + l_id;  // Current node identifier
 
     bool keep_sig = false;
@@ -171,17 +171,17 @@ bool append_edges(string padding, const vertex_vector &vertices, const ConstVert
 }
 
 // Function to sort vertices based on their base name
-vertex_vector sorted_vertices(const ConstLinkagePtr& link) {
+vertex_vector sorted_vertices(const LinkagePtr& link) {
     vertex_vector vertices = link->vertices(true);  // Get vertices from linkage
-    sort(vertices.begin(), vertices.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+    sort(vertices.begin(), vertices.end(), [](const VertexPtr &a, const VertexPtr &b) {
         return a->base_name() < b->base_name();  // Sort vertices by base name
     });
     return vertices;
 }
 
 // Function to sort temporary vertices based on their base name
-vector<pair<string,ConstVertexPtr>> sorted_temp_vertices(const ConstLinkagePtr& link) {
-    vector<pair<string,ConstVertexPtr>> temp_verts;
+vector<pair<string,VertexPtr>> sorted_temp_vertices(const LinkagePtr& link) {
+    vector<pair<string,VertexPtr>> temp_verts;
 
     // Collect temporary vertices from linkage
     for (const auto &temp : link->link_vector(true)) {
@@ -201,7 +201,7 @@ vector<pair<string,ConstVertexPtr>> sorted_temp_vertices(const ConstLinkagePtr& 
     }
 
     // Sort temporary vertices by base name
-    sort(temp_verts.begin(), temp_verts.end(), [](const pair<string,ConstVertexPtr> &a, const pair<string,ConstVertexPtr> &b) {
+    sort(temp_verts.begin(), temp_verts.end(), [](const pair<string,VertexPtr> &a, const pair<string,VertexPtr> &b) {
         return a.second->base_name() < b.second->base_name();
     });
     return temp_verts;
@@ -282,7 +282,7 @@ ostream &Equation::write_dot(ostream &os, size_t &term_count, size_t &dummy_coun
         if (!term.rhs().empty())
             term.term_linkage()->write_dot(os, term_id, dummy_count, color);
         else {
-            ConstLinkagePtr bogus_linkage_ = as_link(make_shared<const Vertex>("constant") * make_shared<const Vertex>(""));
+            LinkagePtr bogus_linkage_ = as_link(make_shared<const Vertex>("constant") * make_shared<const Vertex>(""));
             bogus_linkage_->write_dot(os, term_id, dummy_count, color);
         }
 
@@ -317,7 +317,7 @@ ostream &Linkage::write_dot(ostream &os, size_t &term_id, size_t &dummy_count, c
 
     // Get sorted vertices and temporary vertices
     vertex_vector vertices = sorted_vertices(as_link(shared_from_this()));
-    vector<pair<string,ConstVertexPtr>> temp_verts = sorted_temp_vertices(as_link(shared_from_this()));
+    vector<pair<string,VertexPtr>> temp_verts = sorted_temp_vertices(as_link(shared_from_this()));
 
 //    auto close_temp = [&]() {
 //        node_names.push_back(padding + "    style=dashed;\n");

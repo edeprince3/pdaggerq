@@ -42,27 +42,27 @@ namespace pdaggerq {
     public:
         LinkageHash() = default;
 
-        size_t operator()(const ConstLinkagePtr &linkage) const {
+        size_t operator()(const LinkagePtr &linkage) const {
             constexpr hash<string> str_hash;
             return str_hash(linkage->base_name());
         }
     }; // struct linkage_hash
 
     struct LinkageEqual {
-        bool operator()(const ConstLinkagePtr &lhs, const ConstLinkagePtr &rhs) const {
+        bool operator()(const LinkagePtr &lhs, const LinkagePtr &rhs) const {
             return *lhs == *rhs;
         }
     }; // struct linkage_pred
 
     //templated typedef for a map with linkages as keys
     template<typename T>
-    using linkage_map = std::unordered_map<ConstLinkagePtr, T, LinkageHash, LinkageEqual>;
+    using linkage_map = std::unordered_map<LinkagePtr, T, LinkageHash, LinkageEqual>;
 
     // struct for parallel linkage set operations
     class linkage_set {
 
         mutable std::mutex mtx_; // mutex for thread safety
-        typedef std::unordered_set<ConstLinkagePtr, LinkageHash, LinkageEqual> linkage_container;
+        typedef std::unordered_set<LinkagePtr, LinkageHash, LinkageEqual> linkage_container;
         linkage_container linkages_; // set of linkages
 
     public:
@@ -126,7 +126,7 @@ namespace pdaggerq {
          * insert a linkage into the set
          * @param linkage linkage to insert
          */
-        auto insert(const ConstVertexPtr &linkage) {
+        auto insert(const VertexPtr &linkage) {
             std::lock_guard<std::mutex> lock(mtx_);
             return linkages_.insert(as_link(linkage));
         }
@@ -145,7 +145,7 @@ namespace pdaggerq {
                 linkages_.insert(as_link(*it));
         }
 
-        size_t count(const ConstLinkagePtr &linkage) const {
+        size_t count(const LinkagePtr &linkage) const {
             std::lock_guard<std::mutex> lock(mtx_);
             return linkages_.count(linkage);
         }
@@ -227,16 +227,13 @@ namespace pdaggerq {
             std::lock_guard<std::mutex> lock(mtx_);
             return linkages_.find(linkage);
         }
-        auto find(const ConstLinkagePtr &linkage) const {
-            return find(as_link(linkage->shallow()));
-        }
 
         /**
          * const overload [] operator
          * @param i index of linkage
          * @return const reference to linkage
          */
-        const ConstLinkagePtr &operator[](size_t i) const {
+        const LinkagePtr &operator[](size_t i) const {
             std::lock_guard<std::mutex> lock(mtx_);
             return *next(linkages_.begin(), (long) i);
         }
@@ -247,7 +244,7 @@ namespace pdaggerq {
          * @param linkage linkage to get reference to
          * @return reference to linkage
          */
-        const ConstLinkagePtr &operator[](const ConstLinkagePtr &linkage) const {
+        const LinkagePtr &operator[](const LinkagePtr &linkage) const {
             std::lock_guard<std::mutex> lock(mtx_);
             return *linkages_.find(linkage);
         }
@@ -304,7 +301,7 @@ namespace pdaggerq {
          * erase a linkage from the set
          * @param linkage linkage to erase
          */
-        size_t erase(const ConstLinkagePtr &linkage) {
+        size_t erase(const LinkagePtr &linkage) {
             std::lock_guard<std::mutex> lock(mtx_);
             return linkages_.erase(linkage);
         }

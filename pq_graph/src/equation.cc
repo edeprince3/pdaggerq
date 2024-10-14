@@ -82,7 +82,7 @@ namespace pdaggerq {
 
     }
 
-    Equation::Equation(const ConstVertexPtr &assignment, const vector<Term> &terms) {
+    Equation::Equation(const VertexPtr &assignment, const vector<Term> &terms) {
 
         // set name of equation
         name_ = assignment->name();
@@ -153,7 +153,7 @@ namespace pdaggerq {
     struct TermHash { // hash functor for finding similar terms
         size_t operator()(const Term& term) const {
             constexpr LinkageHash link_hasher;
-            ConstVertexPtr total_representation = term.lhs() + term.term_linkage();
+            VertexPtr total_representation = term.lhs() + term.term_linkage();
 
             return link_hasher(as_link(total_representation));
         }
@@ -166,8 +166,8 @@ namespace pdaggerq {
             if (term1.term_perms() != term2.term_perms()) return false;
 
             // compare term linkages
-            ConstLinkagePtr total_representation1 = as_link(term1.lhs() + term1.term_linkage(true));
-            ConstLinkagePtr total_representation2 = as_link(term2.lhs() + term2.term_linkage(true));
+            LinkagePtr total_representation1 = as_link(term1.lhs() + term1.term_linkage(true));
+            LinkagePtr total_representation2 = as_link(term2.lhs() + term2.term_linkage(true));
 
             return *total_representation1 == *total_representation2;
         }
@@ -227,7 +227,7 @@ namespace pdaggerq {
         return terms_size - terms_.size();
     }
 
-    set<Term *> Equation::get_temp_terms(const ConstLinkagePtr& linkage) {
+    set<Term *> Equation::get_temp_terms(const LinkagePtr& linkage) {
         // for every term, check if this linkage is within the term (do not check lhs)
         set<Term *> temp_terms;
         for (auto &term : terms_) {
@@ -336,7 +336,7 @@ namespace pdaggerq {
         sorted_terms.reserve(indexed_terms.size());
         for (const auto &indexed_term : indexed_terms) {
             // check if lhs is in the map
-            ConstVertexPtr lhs = indexed_term.first->lhs();
+            VertexPtr lhs = indexed_term.first->lhs();
             bool lhs_seen = lhs_name_map.find(lhs->name()) != lhs_name_map.end() && !lhs->is_temp();
             if (!lhs_seen) {
                 lhs_name_map.insert(lhs->name());

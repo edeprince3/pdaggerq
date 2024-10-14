@@ -47,13 +47,16 @@ namespace pdaggerq {
     class Linkage;
 
     // typedef for shared pointer to Vertex and Linkage
-    typedef shared_ptr<Vertex> VertexPtr;
-    typedef shared_ptr<Linkage> LinkagePtr;
-    typedef shared_ptr<const Vertex>  ConstVertexPtr;
-    typedef shared_ptr<const Linkage> ConstLinkagePtr;
+    typedef shared_ptr<Vertex> MutableVertexPtr;
+    typedef shared_ptr<Linkage> MutableLinkagePtr;
 
-    typedef std::vector<ConstVertexPtr> vertex_vector;
-    typedef std::vector<ConstLinkagePtr> linkage_vector;
+    // default pointer type is const to ensure that the vertex is not modified
+    typedef shared_ptr<const Vertex>  VertexPtr;
+    typedef shared_ptr<const Linkage> LinkagePtr;
+
+    // typedef for vector of Vertex and Linkage pointers
+    typedef std::vector<VertexPtr> vertex_vector;
+    typedef std::vector<LinkagePtr> linkage_vector;
 
     /**
      * Vertex class
@@ -130,7 +133,7 @@ namespace pdaggerq {
          * deep copy of vertex returned as a pointer
          * @return pointer to deep copy of vertex
          */
-        virtual VertexPtr clone() const {
+        virtual MutableVertexPtr clone() const {
             return std::make_shared<Vertex>(*this);
         }
 
@@ -138,7 +141,7 @@ namespace pdaggerq {
          * copy of vertex returned as a pointer (linkage will have shallow copy of left and right)
          * @return pointer to shallow copy of vertex
          */
-        virtual VertexPtr shallow() const {
+        virtual MutableVertexPtr shallow() const {
             return std::make_shared<Vertex>(*this);
         }
 
@@ -415,8 +418,8 @@ namespace pdaggerq {
         virtual long id() const { return false; }
         virtual long &id() { static long null = -1; null = -1; return null; }
         virtual string type() const { return "vertex"; }
-        virtual bool has_temp(const ConstVertexPtr &other, bool enter_temp = true, long depth = -1) const { return false; }
-        virtual bool same_temp(const ConstVertexPtr &other) const { return false; }
+        virtual bool has_temp(const VertexPtr &other, bool enter_temp = true, long depth = -1) const { return false; }
+        virtual bool same_temp(const VertexPtr &other) const { return false; }
         virtual bool has_any_temp() const { return false; }
         virtual vertex_vector get_temps(bool enter_temps = true) const { return {}; }
 

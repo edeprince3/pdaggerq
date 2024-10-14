@@ -47,7 +47,7 @@ namespace pdaggerq {
     class Equation {
 
         string name_; // name of the equation
-        ConstVertexPtr assignment_vertex_; // assignment vertex
+        VertexPtr assignment_vertex_; // assignment vertex
         vector<Term> terms_; // terms in the equation
 
         /// scaling of the equation
@@ -92,7 +92,7 @@ namespace pdaggerq {
          * @param vertex vertex of the equation
          * terms vector of terms
          */
-        Equation(const ConstVertexPtr &assignment, const vector<Term> &terms);
+        Equation(const VertexPtr &assignment, const vector<Term> &terms);
 
         /**
          * Copy constructor
@@ -146,7 +146,7 @@ namespace pdaggerq {
          * Get the assignment vertex
          * @return assignment vertex
          */
-        const ConstVertexPtr &assignment_vertex() const { return assignment_vertex_; }
+        const VertexPtr &assignment_vertex() const { return assignment_vertex_; }
 
         /**
          * Get the terms in the equation
@@ -242,7 +242,7 @@ namespace pdaggerq {
          * @param allow_equality allow equality of scaling
          * @return number of substitutions
          */
-        size_t substitute(const ConstLinkagePtr &linkage, bool allow_equality = false);
+        size_t substitute(const LinkagePtr &linkage, bool allow_equality = false);
 
         /**
          * test a linkage substituted into the equation
@@ -250,7 +250,7 @@ namespace pdaggerq {
          * @param test_flop_map reference to flop scaling map that collects the flop scaling of the substitution
          * @return number of substitutions
          */
-        size_t test_substitute(const LinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality = false);
+        size_t test_substitute(const MutableLinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality = false);
 
         /**
          * collect all possible linkages from all terms
@@ -285,7 +285,7 @@ namespace pdaggerq {
          * @param linkage linkage to search for
          * @return pointer to terms that contain a given linkage
          */
-        set<Term *> get_temp_terms(const ConstLinkagePtr& linkage);
+        set<Term *> get_temp_terms(const LinkagePtr& linkage);
 
         /**
          * Make a deep copy of the equation, making new shared pointers for vertices and linkages

@@ -35,7 +35,7 @@ namespace pdaggerq {
 
     /********** Constructors **********/
 
-    Linkage::Linkage(ConstVertexPtr left, ConstVertexPtr right, bool is_addition) :
+    Linkage::Linkage(VertexPtr left, VertexPtr right, bool is_addition) :
                             left_(std::move(left)), right_(std::move(right)), addition_(is_addition) {
 
         // build internal and external lines with their index mapping
@@ -376,7 +376,7 @@ namespace pdaggerq {
         return !Vertex::equivalent(other);
     }
 
-    bool Linkage::same_temp(const ConstVertexPtr &other) const {
+    bool Linkage::same_temp(const VertexPtr &other) const {
         if (!this->is_temp() || !other->is_temp())
             return false; // neither is a temp
 
@@ -428,8 +428,8 @@ namespace pdaggerq {
         }
     }
 
-    VertexPtr Linkage::clone() const {
-        LinkagePtr clone(new Linkage(*this));
+    MutableVertexPtr Linkage::clone() const {
+        MutableLinkagePtr clone(new Linkage(*this));
 
         // recursively clone left and right vertices
         clone->left_ = left_->clone();
@@ -442,7 +442,7 @@ namespace pdaggerq {
         return clone;
     }
 
-    VertexPtr Linkage::shallow() const {
+    MutableVertexPtr Linkage::shallow() const {
         return make_shared<Linkage>(*this);
     }
 
@@ -516,7 +516,7 @@ namespace pdaggerq {
             this->update_name();
     }
 
-    extern VertexPtr operator*(const ConstVertexPtr &left, const ConstVertexPtr &right){
+    extern MutableVertexPtr operator*(const VertexPtr &left, const VertexPtr &right){
         bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
         if ( left_valid && !right_valid) return  left->shallow();
         if (!left_valid &&  right_valid) return right->shallow();
@@ -524,7 +524,7 @@ namespace pdaggerq {
 
         return make_shared<Linkage>(left, right, false);
     }
-    extern VertexPtr operator*(const VertexPtr &left, const VertexPtr &right){
+    extern MutableVertexPtr operator*(const MutableVertexPtr &left, const MutableVertexPtr &right){
         bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
         if ( left_valid && !right_valid) return  left->shallow();
         if (!left_valid &&  right_valid) return right->shallow();
@@ -532,20 +532,20 @@ namespace pdaggerq {
 
         return make_shared<Linkage>(left, right, false);
     }
-    extern VertexPtr operator*(double factor, const ConstVertexPtr &right){
+    extern MutableVertexPtr operator*(double factor, const VertexPtr &right){
         int min_precision = minimum_precision(factor);
         string factor_str = to_string_with_precision(factor, min_precision);
-        VertexPtr left = make_shared<Vertex>(factor_str);
+        MutableVertexPtr left = make_shared<Vertex>(factor_str);
 
         if (!right || right->empty())
             return left;
 
         return make_shared<Linkage>(left, right, false);
     }
-    extern VertexPtr operator*(const ConstVertexPtr &left, double factor){
+    extern MutableVertexPtr operator*(const VertexPtr &left, double factor){
         int min_precision = minimum_precision(factor);
         string factor_str = to_string_with_precision(factor, min_precision);
-        VertexPtr right = make_shared<Vertex>(factor_str);
+        MutableVertexPtr right = make_shared<Vertex>(factor_str);
 
         if (!left || left->empty())
             return right;
@@ -553,7 +553,7 @@ namespace pdaggerq {
         return make_shared<Linkage>(left, right, false);
     }
 
-    extern VertexPtr operator+(const ConstVertexPtr &left, const ConstVertexPtr &right){
+    extern MutableVertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
         bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
         if ( left_valid && !right_valid) return  left->shallow();
         if (!left_valid &&  right_valid) return right->shallow();
@@ -561,7 +561,7 @@ namespace pdaggerq {
 
         return make_shared<Linkage>(left, right, true);
     }
-    extern VertexPtr operator+(const VertexPtr &left, const VertexPtr &right){
+    extern MutableVertexPtr operator+(const MutableVertexPtr &left, const MutableVertexPtr &right){
         bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
         if ( left_valid && !right_valid) return  left->shallow();
         if (!left_valid &&  right_valid) return right->shallow();
@@ -569,20 +569,20 @@ namespace pdaggerq {
 
         return make_shared<Linkage>(left, right, true);
     }
-    extern VertexPtr operator+(double factor, const ConstVertexPtr &right){
+    extern MutableVertexPtr operator+(double factor, const VertexPtr &right){
         int min_precision = minimum_precision(factor);
         string factor_str = to_string_with_precision(factor, min_precision);
-        VertexPtr left = make_shared<Vertex>(factor_str);
+        MutableVertexPtr left = make_shared<Vertex>(factor_str);
 
         if (!right || right->empty())
             return left;
 
         return make_shared<Linkage>(left, right, true);
     }
-    extern VertexPtr operator+(const ConstVertexPtr &left, double factor){
+    extern MutableVertexPtr operator+(const VertexPtr &left, double factor){
         int min_precision = minimum_precision(factor);
         string factor_str = to_string_with_precision(factor, min_precision);
-        VertexPtr right = make_shared<Vertex>(factor_str);
+        MutableVertexPtr right = make_shared<Vertex>(factor_str);
 
         if (!left || left->empty())
             return right;

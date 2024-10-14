@@ -153,7 +153,7 @@ namespace pdaggerq {
         // make set of all unique base names (ignore linkages and scalars)
         set<string> names;
         for (const auto &term: all_terms) {
-            ConstVertexPtr lhs = term.lhs();
+            VertexPtr lhs = term.lhs();
             if (!lhs->is_linked() && !lhs->is_scalar())
                 names.insert(lhs->name());
             for (const auto &op: term.rhs()) {
@@ -249,7 +249,7 @@ namespace pdaggerq {
 
                 if (!tempterm.lhs()->is_temp()) continue;
 
-                ConstLinkagePtr temp = as_link(tempterm.lhs());
+                LinkagePtr temp = as_link(tempterm.lhs());
                 long temp_id = temp->id();
 
                 // check if tmp is already declared
@@ -287,7 +287,7 @@ namespace pdaggerq {
 
 
         // add a term to destroy the tmp after its last use
-        auto make_destructor = [](const Term &tempterm, const ConstLinkagePtr &temp) -> Term {
+        auto make_destructor = [](const Term &tempterm, const LinkagePtr &temp) -> Term {
             // create vertex with only the linkage's name
             string newname;
             string lhs_name = temp->str(true, false);
@@ -307,7 +307,7 @@ namespace pdaggerq {
         for (auto &tempterm: copy.equations_["temp"]) {
             if (!tempterm.lhs()->is_temp()) continue;
 
-            ConstLinkagePtr temp = as_link(tempterm.lhs());
+            LinkagePtr temp = as_link(tempterm.lhs());
             long temp_id = temp->id();
 
             // determine if tmp was already inserted
@@ -551,7 +551,7 @@ namespace pdaggerq {
         if (has_permutations) { // if there are permutations
 
             // make intermediate vertex for the permutation
-            VertexPtr perm_vertex;
+            MutableVertexPtr perm_vertex;
 
             bool perm_as_rhs = rhs_.size() == 1; // if there is only one vertex, no need to create intermediate vertex
 
@@ -623,11 +623,11 @@ namespace pdaggerq {
         // if no permutations, continue with normal term printing
 
         // expand additions into separate terms
-        ConstLinkagePtr term_link = term_linkage();
+        LinkagePtr term_link = term_linkage();
         if (term_link->is_addition() && !term_link->is_temp()) {
             Term left_term = *this, right_term = *this;
-            ConstVertexPtr left_vertex = term_link->left();
-            ConstVertexPtr right_vertex = term_link->right();
+            VertexPtr left_vertex = term_link->left();
+            VertexPtr right_vertex = term_link->right();
 
             left_term.expand_rhs(left_vertex); // expand left term
             right_term.expand_rhs(right_vertex); // expand right term

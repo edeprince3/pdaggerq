@@ -82,7 +82,7 @@ linkage_set Term::make_all_links() const {
         if (subgraph->empty()) continue; // skip if subgraph is empty
         if (subgraph->is_temp()) continue; // the subgraph is already a temp, no need to test it.
 
-        ConstLinkagePtr best_perm = subgraph->best_permutation(); // get best permutation of subgraph
+        LinkagePtr best_perm = subgraph->best_permutation(); // get best permutation of subgraph
         subgraph->forget();
         best_perm->forget(); // clear the history of the best permutation
 
@@ -93,7 +93,7 @@ linkage_set Term::make_all_links() const {
     return linkages;
 }
 
-size_t Equation::substitute(const ConstLinkagePtr &linkage, bool allow_equality) {
+size_t Equation::substitute(const LinkagePtr &linkage, bool allow_equality) {
 
     /// iterate over terms and substitute
     size_t num_terms = terms_.size();
@@ -124,7 +124,7 @@ size_t Equation::substitute(const ConstLinkagePtr &linkage, bool allow_equality)
     return num_subs;
 }
 
-size_t Equation::test_substitute(const LinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality) {
+size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality) {
 
     // scaling of the linkage cannot be more than the equation
     if (linkage->netscales().first > flop_map()) return 0;
@@ -158,7 +158,7 @@ size_t Equation::test_substitute(const LinkagePtr &linkage, scaling_map &test_fl
     return num_subs;
 }
 
-bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
+bool Term::is_compatible(const LinkagePtr &linkage) const {
 
     // if no possible linkages, return false
     if (rhs_.empty()) return false;
@@ -182,16 +182,16 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
     vertex_vector term_list = term_linkage()->link_vector();
 
     // sort lists by name
-    sort(link_list.begin(), link_list.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+    sort(link_list.begin(), link_list.end(), [](const VertexPtr &a, const VertexPtr &b) {
         return a->name_ < b->name_;
     });
-    sort(term_list.begin(), term_list.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+    sort(term_list.begin(), term_list.end(), [](const VertexPtr &a, const VertexPtr &b) {
         return a->name_ < b->name_;
     });
 
     // check if all vertex names are found in the term
     bool all_found = std::includes(term_list.begin(), term_list.end(), link_list.begin(), link_list.end(),
-                                  [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                                  [](const VertexPtr &a, const VertexPtr &b) {
                                       return a->name_ < b->name_;
                                   });
 
@@ -200,7 +200,7 @@ bool Term::is_compatible(const ConstLinkagePtr &linkage) const {
 
 }
 
-bool Term::substitute(const ConstLinkagePtr &linkage) {
+bool Term::substitute(const LinkagePtr &linkage) {
 
     if (rhs_.empty())
         return false;
@@ -215,7 +215,7 @@ bool Term::substitute(const ConstLinkagePtr &linkage) {
     const linkage_vector &graph_perms = term_linkage()->permutations();
 
     // iterate over all possible orderings of vertex subsets
-    ConstLinkagePtr best_linkage = as_link(term_linkage()->shallow());
+    LinkagePtr best_linkage = as_link(term_linkage()->shallow());
     for (const auto &graph_perm : graph_perms) {
         // substitute the linkage in the permutation (if possible)
         graph_perm->forget();
@@ -223,9 +223,9 @@ bool Term::substitute(const ConstLinkagePtr &linkage) {
         if (matching_linkages.empty()) continue; // skip if linkage is not found in permutation
 
         // otherwise, make the substitution for each matching linkage
-        ConstLinkagePtr new_term_linkage = graph_perm;
+        LinkagePtr new_term_linkage = graph_perm;
         for (const auto &found_linkage : matching_linkages) {
-            VertexPtr new_link = found_linkage->shallow();
+            MutableVertexPtr new_link = found_linkage->shallow();
             as_link(new_link)->copy_misc(linkage);
             new_term_linkage = as_link(new_term_linkage->replace(found_linkage, new_link).first);
         }
@@ -279,7 +279,7 @@ void PQGraph::make_scalars() {
 
     linkage_vector scalars_vec(saved_linkages_["scalar"].begin(), saved_linkages_["scalar"].end());
     // sort by the id of the scalars
-    sort(scalars_vec.begin(), scalars_vec.end(), [](const ConstLinkagePtr &a, const ConstLinkagePtr &b) {
+    sort(scalars_vec.begin(), scalars_vec.end(), [](const LinkagePtr &a, const LinkagePtr &b) {
         return a->id() < b->id();
     });
 
@@ -380,13 +380,13 @@ bool Term::make_scalars(linkage_set &scalars, long &id) {
     }
     if (term_scalars.empty()) return false; // do nothing if no scalars are found
 
-    ConstLinkagePtr new_linkage = as_link(term_linkage()->shallow());
+    LinkagePtr new_linkage = as_link(term_linkage()->shallow());
     for (const auto& [perm_linkage, perm_scalars] : term_scalars) {
         for (const auto &scalar : perm_scalars) {
 
             // reorder scalar for the best permutation
-            ConstLinkagePtr scalar_link = as_link(scalar)->best_permutation();
-            LinkagePtr new_scalar = as_link(scalar_link->shallow());
+            LinkagePtr scalar_link = as_link(scalar)->best_permutation();
+            MutableLinkagePtr new_scalar = as_link(scalar_link->shallow());
 
             // check if scalar is already in set of scalars for setting the id
             long new_id = id + 1;

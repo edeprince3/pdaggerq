@@ -31,7 +31,7 @@ using std::logic_error;
 namespace pdaggerq {
 
     void Term::set_perm(const string & perm_string) { // extract permutation indices
-        VertexPtr perm_op = make_shared<Vertex>(perm_string); // create permutation vertex
+        MutableVertexPtr perm_op = make_shared<Vertex>(perm_string); // create permutation vertex
         perm_op->sort(); // sort lines in permutation vertex
 
         // check if permutation is a P, PP2, PP3, or PP6
@@ -71,9 +71,9 @@ namespace pdaggerq {
         perm_terms.front().reset_perm();
 
         // helper functions to swap lines in vertices
-        static auto swap2lines = [](const ConstVertexPtr &reference_vertex, const string &p1_line, const string &p2_line){
+        static auto swap2lines = [](const VertexPtr &reference_vertex, const string &p1_line, const string &p2_line){
             std::unordered_map<Line, Line, LineHash> line_map;
-            VertexPtr vertex = reference_vertex->clone();
+            MutableVertexPtr vertex = reference_vertex->clone();
             for (Line &line: vertex->lines()) {
                 if (line.label_ == p1_line){
                     Line new_line(line); new_line.label_ = p2_line; line_map[line] = new_line;
@@ -89,7 +89,7 @@ namespace pdaggerq {
             Term perm_term = reference_term.shallow(); // deep copy term
             vertex_vector perm_vertices;
             for (const auto &vertex: reference_term.rhs_) {
-                VertexPtr perm_vertex = vertex->clone();
+                MutableVertexPtr perm_vertex = vertex->clone();
                 for (const auto &perm_pair: perm_pairs) {
                     perm_vertex = swap2lines(perm_vertex, perm_pair.first, perm_pair.second);
                 }

@@ -206,7 +206,7 @@ namespace pdaggerq {
         if (!Vertex::use_trial_index) {
             vertex_vector link_vector_no_trial;
             for (const auto &op: link_vector) {
-                VertexPtr new_op = op->clone();
+                MutableVertexPtr new_op = op->clone();
                 line_vector new_lines;
                 for (const auto &line: new_op->lines())
                     if (!line.sig_) new_lines.push_back(line);

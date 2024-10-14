@@ -32,10 +32,10 @@
 
 namespace pdaggerq {
 
-    LinkagePtr Linkage::link(const vertex_vector &op_vec) {
+    MutableLinkagePtr Linkage::link(const vertex_vector &op_vec) {
         if (op_vec.empty()) return make_shared<Linkage>(); // return an empty linkage if the vector is empty
 
-        ConstVertexPtr linkage = make_shared<Vertex>(); // initialize the linkage as an empty vertex
+        VertexPtr linkage = make_shared<Vertex>(); // initialize the linkage as an empty vertex
         for (const auto & op : op_vec) {
 
             // skip empty vertices
@@ -166,7 +166,7 @@ namespace pdaggerq {
 
         // check if the left is linked and both subtrees are constants
         if (left_->is_linked()) {
-            LinkagePtr left = as_link(left_->shallow());
+            MutableLinkagePtr left = as_link(left_->shallow());
             if (left->left()->is_constant() && left->right()->is_constant()) {
                 if (is_addition()) {
                     double left_val = stod(left->left()->name()) + stod(left->right()->name());
@@ -180,7 +180,7 @@ namespace pdaggerq {
             }
         }
         if (right_->is_linked()) {
-            LinkagePtr right = as_link(right_->shallow());
+            MutableLinkagePtr right = as_link(right_->shallow());
             if (right->left()->is_constant() && right->right()->is_constant()) {
                 double right_val = stod(right->left()->name()) * stod(right->right()->name());
                 *this = *as_link(left_ * right_val);
@@ -197,8 +197,8 @@ namespace pdaggerq {
         if (right_->empty() && left_->is_linked()) { *this = *as_link(left_); return false; }
         if (left_->empty() || right_->empty()) return false;
 
-        VertexPtr left  =  left_->shallow();
-        VertexPtr right = right_->shallow();
+        MutableVertexPtr left  =  left_->shallow();
+        MutableVertexPtr right = right_->shallow();
 
         bool made_subfusion = false;
         if ( left->is_linked() &&  left->is_addition()) made_subfusion |= as_link( left)->fuse();
@@ -215,12 +215,12 @@ namespace pdaggerq {
             vertex_vector left_vec = left->link_vector();
             vertex_vector right_vec = right->link_vector();
 
-            std::sort(left_vec.begin(), left_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+            std::sort(left_vec.begin(), left_vec.end(), [](const VertexPtr &a, const VertexPtr &b) {
                 if (a->name() != b->name())
                     return a->name() < b->name();
                 return a->lines() < b->lines();
             });
-            std::sort(right_vec.begin(), right_vec.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+            std::sort(right_vec.begin(), right_vec.end(), [](const VertexPtr &a, const VertexPtr &b) {
                 if (a->name() != b->name())
                     return a->name() < b->name();
                 return a->lines() < b->lines();
@@ -228,7 +228,7 @@ namespace pdaggerq {
 
             vertex_vector common;
             std::set_intersection(left_vec.begin(), left_vec.end(), right_vec.begin(), right_vec.end(),
-                                  std::back_inserter(common), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                                  std::back_inserter(common), [](const VertexPtr &a, const VertexPtr &b) {
                         if (a->name() != b->name())
                             return a->name() < b->name();
                         return a->lines() < b->lines();
@@ -239,27 +239,27 @@ namespace pdaggerq {
 
                 vertex_vector new_left, new_right;
                 std::set_difference(left_vec.begin(), left_vec.end(), common.begin(), common.end(),
-                                    std::back_inserter(new_left), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                                    std::back_inserter(new_left), [](const VertexPtr &a, const VertexPtr &b) {
                             if (a->name() != b->name())
                                 return a->name() < b->name();
                             return a->lines() < b->lines();
                         });
                 std::set_difference(right_vec.begin(), right_vec.end(), common.begin(), common.end(),
-                                    std::back_inserter(new_right), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+                                    std::back_inserter(new_right), [](const VertexPtr &a, const VertexPtr &b) {
                             if (a->name() != b->name())
                                 return a->name() < b->name();
                             return a->lines() < b->lines();
                         });
 
                 // create a new linkage with the fused vertices
-                ConstVertexPtr new_left_link  = link(new_left);
-                ConstVertexPtr new_right_link = link(new_right);
+                VertexPtr new_left_link  = link(new_left);
+                VertexPtr new_right_link = link(new_right);
 
                 // test if the left and right vertices can be added
                 bool apply_fusion = (new_left_link * new_right_link)->is_scalar();
 
                 // ensure new_link has the same lines as the original link
-                ConstVertexPtr new_link, common_link;
+                VertexPtr new_link, common_link;
 
                 if (apply_fusion) {
                     // build the new link
@@ -310,7 +310,7 @@ namespace pdaggerq {
         return false;
     }
 
-    vertex_vector  Linkage::find_links(const ConstVertexPtr &target_vertex, long search_depth) const {
+    vertex_vector  Linkage::find_links(const VertexPtr &target_vertex, long search_depth) const {
 
         if (target_vertex == nullptr) return {}; // if the target vertex is null, return an empty vector
         if (this->depth() < target_vertex->depth()) return {}; // if the target vertex is deeper, it cannot be found
@@ -361,7 +361,7 @@ namespace pdaggerq {
         return scalars;
     }
 
-    pair<ConstVertexPtr, bool> Linkage::replace(const ConstVertexPtr &target_vertex, const ConstVertexPtr &new_vertex) const {
+    pair<VertexPtr, bool> Linkage::replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex) const {
 
         if (!target_vertex || !new_vertex) return {shared_from_this(), false};
 
@@ -372,7 +372,7 @@ namespace pdaggerq {
         if (depth_ < target_vertex->depth())
             return {shared_from_this(), false}; // if the target vertex is deeper, it cannot be replaced
 
-        ConstVertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
+        VertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex);
             if (left_found) {
@@ -392,23 +392,23 @@ namespace pdaggerq {
             return {shared_from_this(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
-        LinkagePtr new_link = as_link(is_addition() ? new_left + new_right : new_left * new_right);
+        MutableLinkagePtr new_link = as_link(is_addition() ? new_left + new_right : new_left * new_right);
         new_link->copy_misc(*this); // copy misc properties
         return {new_link, true};
     }
 
-    pair<ConstVertexPtr, bool> Linkage::replace_id(const ConstVertexPtr &target_vertex, long new_id) const {
+    pair<VertexPtr, bool> Linkage::replace_id(const VertexPtr &target_vertex, long new_id) const {
         if (!target_vertex) return {shared_from_this(), false};
 
         bool replaced = same_temp(target_vertex);
         if (replaced) {
-            VertexPtr replacement = shallow();
+            MutableVertexPtr replacement = shallow();
             as_link(replacement)->id_ = new_id;
             return {replacement, true}; // this is the target vertex, so replace it
         }
 
         replaced = false;
-        ConstVertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
+        VertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace_id(target_vertex, new_id);
             if (left_found) {
@@ -428,7 +428,7 @@ namespace pdaggerq {
             return {shared_from_this(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
-        LinkagePtr replacement = as_link(shallow());
+        MutableLinkagePtr replacement = as_link(shallow());
         replacement->left_  = new_left;
         replacement->right_ = new_right;
 
@@ -444,7 +444,7 @@ namespace pdaggerq {
         Vertex::replace_lines(line_map);
 
         // recursively replace the lines of the left and right vertices
-        VertexPtr new_left = left_->shallow(), new_right = right_->shallow();
+        MutableVertexPtr new_left = left_->shallow(), new_right = right_->shallow();
         new_left->replace_lines(line_map);
         new_right->replace_lines(line_map);
 
@@ -459,7 +459,7 @@ namespace pdaggerq {
         build_connections();
     }
 
-    bool Linkage::has_temp(const ConstVertexPtr &temp, bool enter_temps, long search_depth) const {
+    bool Linkage::has_temp(const VertexPtr &temp, bool enter_temps, long search_depth) const {
         if (temp->is_linked() && depth_ < as_link(temp)->depth_)
             return false; // if the depth of the temp is greater than this linkage, there cannot be a match
 
@@ -502,7 +502,7 @@ namespace pdaggerq {
         }
 
         // sort temps by id
-        std::sort(temps.begin(), temps.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+        std::sort(temps.begin(), temps.end(), [](const VertexPtr &a, const VertexPtr &b) {
             return a->id() < b->id();
         });
 
@@ -577,8 +577,8 @@ namespace pdaggerq {
         // additions are special cases, so we need to handle them separately
         if (is_addition()) {
             // only consider the best permutation of the left and right vertices
-            const ConstLinkagePtr &left_perm = as_link(left_)->best_permutation();
-            const ConstLinkagePtr &right_perm = as_link(right_)->best_permutation();
+            const LinkagePtr &left_perm = as_link(left_)->best_permutation();
+            const LinkagePtr &right_perm = as_link(right_)->best_permutation();
 
             // check if the left and right vertices are the same
             bool same_left_right = *left_perm == *right_perm;
@@ -624,10 +624,10 @@ namespace pdaggerq {
 
     }
 
-    ConstLinkagePtr Linkage::best_permutation() const {
+    LinkagePtr Linkage::best_permutation() const {
 
         // initialize the best permutation as the current linkage
-        ConstLinkagePtr best_perm = as_link(shared_from_this());
+        LinkagePtr best_perm = as_link(shared_from_this());
 
         // generate every permutation
         const linkage_vector &all_perms = permutations();

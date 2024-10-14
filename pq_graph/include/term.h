@@ -48,10 +48,10 @@ namespace pdaggerq {
 
     protected:
 
-        ConstVertexPtr lhs_; // vertex on the left hand side of the term
-        ConstVertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
+        VertexPtr lhs_; // vertex on the left hand side of the term
+        VertexPtr eq_; // vertex of the equation this term is in (usually the same as lhs_)
         vertex_vector rhs_; // rhs of the term
-        mutable ConstLinkagePtr term_linkage_ = nullptr; // linkage of the term
+        mutable LinkagePtr term_linkage_ = nullptr; // linkage of the term
         mutable vector<string> comments_; // string representation of the original rhs
 
         /// scaling of the term (stored as a pair of integers, (num virtual, num occupied))
@@ -94,7 +94,7 @@ namespace pdaggerq {
          * expand rhs of term using a linkage
          * @param term_link linkage to expand into rhs
          */
-        void expand_rhs(const ConstVertexPtr &term_link); // expand rhs of term using a linkage
+        void expand_rhs(const VertexPtr &term_link); // expand rhs of term using a linkage
         void expand_rhs(){ expand_rhs(term_linkage()); } // uses term_linkage
 
         /**
@@ -117,13 +117,13 @@ namespace pdaggerq {
          * @param vertices vector of rhs
          * @param coefficient coefficient of the term
          */
-        Term(const ConstVertexPtr &lhs_vertex, const vertex_vector &vertices, double coefficient);
+        Term(const VertexPtr &lhs_vertex, const vertex_vector &vertices, double coefficient);
 
         /**
          * Constructor to build assignment of a linkage
          * @param linkage linkage to assign
          */
-        explicit Term(const ConstLinkagePtr &linkage, double coeff = 1.0);
+        explicit Term(const LinkagePtr &linkage, double coeff = 1.0);
 
         /**
          * Constructor that takes in a single string and overrides printing
@@ -175,14 +175,14 @@ namespace pdaggerq {
          * @param index index of vertex
          * @return reference to vertex at index
          */
-        ConstVertexPtr &operator[](size_t index){ return rhs_[index]; }
+        VertexPtr &operator[](size_t index){ return rhs_[index]; }
 
         /**
          * return const reference to vertex at index
          * @param index index of vertex
          * @return const reference to vertex at index
          */
-        const ConstVertexPtr &operator[](size_t index) const{ return rhs_[index]; }
+        const VertexPtr &operator[](size_t index) const{ return rhs_[index]; }
 
 
         /**
@@ -213,8 +213,8 @@ namespace pdaggerq {
          * Get left hand side vertex
          * @return left hand side vertex
          */
-        const ConstVertexPtr &lhs() const { return lhs_; }
-        ConstVertexPtr &lhs() { return lhs_; }
+        const VertexPtr &lhs() const { return lhs_; }
+        VertexPtr &lhs() { return lhs_; }
 
         /**
         * Get rhs and allow modification
@@ -235,8 +235,8 @@ namespace pdaggerq {
          * Get reference vertex for the equation
          * @return vertex for the equation
          */
-        const ConstVertexPtr &eq() const { return eq_; }
-        ConstVertexPtr &eq() { return eq_; }
+        const VertexPtr &eq() const { return eq_; }
+        VertexPtr &eq() { return eq_; }
 
         /**
          * get all vertices in the term (lhs + rhs)
@@ -343,7 +343,7 @@ namespace pdaggerq {
           * @param perm permutation of the rhs
           * @return a tuple of the flop_scale, mem_scale, and term linkage
           */
-         static tuple<scaling_map, scaling_map, LinkagePtr> compute_scaling(const ConstVertexPtr &lhs, const vertex_vector &arrangement);
+         static tuple<scaling_map, scaling_map, MutableLinkagePtr> compute_scaling(const VertexPtr &lhs, const vertex_vector &arrangement);
 
          /**
           * Populate flop and memory scaling maps with identity permutation
@@ -455,7 +455,7 @@ namespace pdaggerq {
          * @param allow_equality allow equality of scaling
          * @return boolean indicating if substitution was successful
          */
-        bool substitute(const ConstLinkagePtr &linkage);
+        bool substitute(const LinkagePtr &linkage);
 
         /**
          * collect all possible linkages from all equations
@@ -479,7 +479,7 @@ namespace pdaggerq {
         /**
          * get the term linkage
          */
-        ConstLinkagePtr &term_linkage(bool recompute = false) const {
+        LinkagePtr &term_linkage(bool recompute = false) const {
             if (term_linkage_ == nullptr || recompute)
                 term_linkage_ = Linkage::link(rhs_);
             return term_linkage_;
@@ -502,14 +502,14 @@ namespace pdaggerq {
         /**
          * insert vertex into term
          */
-        void insert(size_t pos, const VertexPtr &op) { rhs_.insert(rhs_.begin() + (int)pos, op); }
+        void insert(size_t pos, const MutableVertexPtr &op) { rhs_.insert(rhs_.begin() + (int)pos, op); }
 
         /**
          * check if term includes rhs of the linkage
          * @param linkage linkage to check
          * @return boolean indicating if term includes rhs of the linkage
          */
-        bool is_compatible(const ConstLinkagePtr &linkage) const;
+        bool is_compatible(const LinkagePtr &linkage) const;
 
         /**
          * swaps the sign of the term

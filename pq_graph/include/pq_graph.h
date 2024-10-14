@@ -299,7 +299,7 @@ namespace pdaggerq {
          * @param precon tmp to add
          * @note recomputes scaling after adding tmps
          */
-        static Term &add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff = 1.0);
+        static Term &add_tmp(const LinkagePtr& precon, Equation &equation, double coeff = 1.0);
 
         /**
          * Find the common coefficient of a set of terms
@@ -321,7 +321,7 @@ namespace pdaggerq {
          * @param intermediate intermediate to find
          * @return 1) vector of terms that contain the intermediate, 2) declaration terms for the intermediate
          */
-        pair<set<Term *>, set<Term*>> get_matching_terms(const ConstLinkagePtr &intermediate);
+        pair<set<Term *>, set<Term*>> get_matching_terms(const LinkagePtr &intermediate);
 
         /**
          * remove redundant temps that only appear once

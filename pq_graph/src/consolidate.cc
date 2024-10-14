@@ -58,7 +58,7 @@ void PQGraph::make_all_links(bool recompute) {
 
 }
 
-Term& PQGraph::add_tmp(const ConstLinkagePtr& precon, Equation &equation, double coeff) {
+Term& PQGraph::add_tmp(const LinkagePtr& precon, Equation &equation, double coeff) {
     // make term with tmp
     equation.terms().insert(equation.end(), Term(precon, coeff));
     return equation.terms().back();
@@ -90,7 +90,7 @@ void PQGraph::sync_pointers() {
 
     return;
     // get all vertices
-    map<string, vector<ConstVertexPtr>> vertex_map;
+    map<string, vertex_vector> vertex_map;
     for (auto & [name, eq] : equations_) {
         for (auto &term: eq.terms()) {
             if (term.lhs()) vertex_map[term.lhs()->str()].emplace_back(term.lhs());
@@ -109,12 +109,12 @@ void PQGraph::sync_pointers() {
     }
 
     // map all vertices with the same string to the address of the first vertex
-    map<string, ConstVertexPtr> vertex_map2;
+    map<string, VertexPtr> vertex_map2;
     for (auto & [str, vertices] : vertex_map) {
         if (!vertices.empty()) {
             // sort vertices by address
             std::sort(vertices.begin(), vertices.end());
-            ConstVertexPtr back = vertices.back();
+            VertexPtr back = vertices.back();
             if (back->is_linked()) as_link(back)->forget(true);
             vertex_map2[str] = back;
         }
@@ -123,11 +123,11 @@ void PQGraph::sync_pointers() {
     // replace all vertices with the same string with the address of the first vertex
     for (auto & [name, eq] : equations_) {
         for (auto &term: eq.terms()) {
-            ConstVertexPtr new_lhs;
+            VertexPtr new_lhs;
             if (term.lhs()) new_lhs = vertex_map2[term.lhs()->str()];
             if (term.lhs() && *new_lhs == *term.lhs()) term.lhs() = new_lhs;
             for (auto &op: term.rhs()) {
-                ConstVertexPtr new_op;
+                VertexPtr new_op;
                 if (op) new_op = vertex_map2[op->str()];
                 if (op && *new_op == *op) op = new_op;
             }
@@ -138,7 +138,7 @@ void PQGraph::sync_pointers() {
     for (auto & [type, link_set] : saved_linkages_) {
         linkage_set new_link_set;
         for (auto &linkage: link_set) {
-            ConstVertexPtr new_linkage;
+            VertexPtr new_linkage;
             if (linkage) new_linkage = vertex_map2[linkage->str()];
             if (linkage && *new_linkage == *linkage) new_link_set.insert(new_linkage);
             else new_link_set.insert(linkage);
@@ -148,7 +148,7 @@ void PQGraph::sync_pointers() {
 
     linkage_set new_all_links;
     for (auto &linkage: all_links_){
-        ConstVertexPtr new_linkage;
+        VertexPtr new_linkage;
         if (linkage) new_linkage = vertex_map2[linkage->str()];
         if (linkage && *new_linkage == *linkage) new_all_links.insert(new_linkage);
         else new_all_links.insert(linkage);
@@ -265,10 +265,10 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         makeSub = false; // reset flag
         bool allow_equality = true; // flag to allow equality in flop map
         size_t n_linkages = test_linkages.size(); // get number of linkages
-        LinkagePtr link_to_sub; // best linkage to substitute
+        MutableLinkagePtr link_to_sub; // best linkage to substitute
 
         // populate with pairs of flop maps with linkage for each equation
-        vector<pair<scaling_map, LinkagePtr>> test_data(n_linkages);
+        vector<pair<scaling_map, MutableLinkagePtr>> test_data(n_linkages);
 
 
         // print ratio for showing progress
@@ -289,7 +289,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         for (int i = 0; i < n_linkages; ++i) {
 
             // copy linkage
-            LinkagePtr linkage = as_link(test_linkages[i]->shallow());
+            MutableLinkagePtr linkage = as_link(test_linkages[i]->shallow());
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
             bool is_sigma = linkage->is_sigma_;
 
@@ -385,7 +385,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          * Iterate over all test scalings, remove incompatible ones, and sort them
          */
 
-        std::multimap<scaling_map, LinkagePtr> sorted_test_data;
+        std::multimap<scaling_map, MutableLinkagePtr> sorted_test_data;
         for (auto &[test_flop_map, test_linkage]: test_data) {
 
             // skip empty linkages
@@ -611,7 +611,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             }
             if (test_linkages.size() <= 5) {
                 // if all candidates are additions, we can stop
-                bool all_additions = std::all_of(test_linkages.begin(), test_linkages.end(), [](const ConstLinkagePtr &link) {
+                bool all_additions = std::all_of(test_linkages.begin(), test_linkages.end(), [](const LinkagePtr &link) {
                     return link->is_addition();
                 });
                 if (all_additions) break;
@@ -699,7 +699,7 @@ PQGraph PQGraph::clone() const {
     for (const auto & [type, linkages] : saved_linkages_) {
         linkage_set new_linkages;
         for (const auto & linkage : linkages) {
-            ConstLinkagePtr link = as_link(linkage->clone());
+            LinkagePtr link = as_link(linkage->clone());
             new_linkages.insert(link) ;
         }
         copy_saved_linkages[type] = new_linkages;
@@ -722,11 +722,11 @@ void PQGraph::reindex() {
     // search for all intermediates and update temp counts
     linkage_map<long> temp_map; // map to track found linkages to their current counts
 
-    auto reindex_vertex = [this, &temp_map](ConstVertexPtr &vertex) {
+    auto reindex_vertex = [this, &temp_map](VertexPtr &vertex) {
         if (vertex != nullptr && vertex->is_linked()) {
             // get temps and sort by id
             auto nested_temps = as_link(vertex)->get_temps();
-            std::sort(nested_temps.begin(), nested_temps.end(), [](const ConstVertexPtr &a, const ConstVertexPtr &b) {
+            std::sort(nested_temps.begin(), nested_temps.end(), [](const VertexPtr &a, const VertexPtr &b) {
                 return a->id() < b->id();
             });
             for (auto &temp : nested_temps) {
@@ -759,7 +759,7 @@ void PQGraph::reindex() {
     // add all temps in temp map to saved linkages
     vector<pair<long, string>> print_map;
     for (auto & [temp, id] : temp_map) {
-        LinkagePtr new_temp = as_link(temp->clone());
+        MutableLinkagePtr new_temp = as_link(temp->clone());
         new_temp->id() = id;
         saved_linkages_[new_temp->type()].insert(new_temp);
         stringstream ss;
