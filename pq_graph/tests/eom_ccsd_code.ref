@@ -3,6 +3,11 @@
 Full diagonalization of the EOM-CCSD similarity-transformed Hamiltonian
 
 """
+
+# set allow numpy built with MKL to consume more threads for tensordot
+import os
+os.environ["MKL_NUM_THREADS"] = "{}".format(os.cpu_count() - 1)
+
 import numpy as np
 from numpy import einsum
     

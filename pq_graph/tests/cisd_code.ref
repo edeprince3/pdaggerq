@@ -9,6 +9,11 @@ do not depend on those packages but you gotta get integrals frome somehwere.
 We also check the code by using pyscfs functionality for generating spin-orbital
 t-amplitudes from RCCSD.  the main() function is fairly straightforward.
 """
+
+# set allow numpy built with MKL to consume more threads for tensordot
+import os
+os.environ["MKL_NUM_THREADS"] = "{}".format(os.cpu_count() - 1)
+
 import numpy as np
 from numpy import einsum
 

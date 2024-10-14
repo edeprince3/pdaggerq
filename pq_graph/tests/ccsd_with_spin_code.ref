@@ -20,6 +20,10 @@
 Driver for spin-orbital CCSD and EOM-CCSD. (EOM-)CCSD code generated with pdaggerq. Integrals come from psi4.
 """
 
+# set allow numpy built with MKL to consume more threads for tensordot
+import os
+os.environ["MKL_NUM_THREADS"] = "{}".format(os.cpu_count() - 1)
+
 import numpy as np
 from numpy import einsum
 
