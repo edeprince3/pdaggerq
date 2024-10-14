@@ -633,14 +633,12 @@ namespace pdaggerq {
         size_t n_flop_ops = flop_map_.total();
         size_t n_flop_ops_pre = flop_map_pre_.total();
 
-        size_t number_of_terms = 0;
-        for (const auto & eq_pair : equations_) {
-            const Equation &equation = eq_pair.second;
-            const auto &terms = equation.terms();
-            number_of_terms += terms.size();
-        }
+        size_t number_of_terms = get_num_terms();
 
-        cout << "Total Number of Terms: " << number_of_terms << endl;
+        cout << "Total Number of Terms: " << number_of_terms;
+        if (number_of_terms != num_terms_init_)
+            cout << " (initial: " << num_terms_init_ << ")";
+        cout << endl;
         cout << "Total Contractions: (last) " << n_flop_ops_pre << " -> (new) " << n_flop_ops << endl << endl;
         cout << "Total FLOP scaling: " << endl;
         cout << "------------------" << endl;
@@ -713,12 +711,17 @@ namespace pdaggerq {
             guard.lock();
         }
 
-        flop_map_init_ = flop_map_;
-        mem_map_init_ = mem_map_;
+        if (flop_map_init_.empty() || mem_map_init_.empty()) {
+            flop_map_init_ = flop_map_;
+            mem_map_init_ = mem_map_;
+        }
 
         // set initial scaling and format scalars
         if (!is_assembled_)
             assemble();
+
+        if (num_terms_init_ == 0)
+            num_terms_init_ = get_num_terms();
 
         // merge similar terms
         merge_terms();

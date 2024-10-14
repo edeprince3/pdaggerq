@@ -660,10 +660,7 @@ size_t PQGraph::merge_intermediates(){
     }
 
     // count terms in pq_graph
-    size_t num_terms = 0;
-    for (auto & [name, eq] : equations()) {
-        num_terms += eq.terms().size();
-    }
+    size_t num_terms = get_num_terms();
 
     LinkMerger link_merger(*this);
     link_merger.populate();
@@ -672,10 +669,7 @@ size_t PQGraph::merge_intermediates(){
     link_merger.merge();
     link_merger.clear();
 
-    size_t fused_terms = 0;
-    for (auto & [name, eq] : equations()) {
-        fused_terms += eq.terms().size();
-    }
+    size_t fused_terms = get_num_terms();
     fused_terms = num_terms - fused_terms;
     collect_scaling();
 

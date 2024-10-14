@@ -201,11 +201,8 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
     make_all_links(true); // generate all possible linkages
     cout << " Done" << endl;
 
-    size_t num_terms = 0;
-    for (const auto &eq_pair: equations_) {
-        const Equation &equation = eq_pair.second;
-        num_terms += equation.size();
-    }
+    size_t num_terms = get_num_terms();
+
 
     size_t num_contract = flop_map_.total();
 
@@ -507,11 +504,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                     found_any = true; // set found any flag to true
                 }
 
-                num_terms = 0;
-                for (const auto &eq_pair: equations_) {
-                    const Equation &equation = eq_pair.second;
-                    num_terms += equation.size();
-                }
+                num_terms = get_num_terms(); // get number of terms
 
                 // print flop map
                 {
@@ -669,11 +662,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
     // print total time elapsed
     cout << endl << "=================================> Substitution Summary <=================================" << endl;
 
-    num_terms = 0;
-    for (const auto& eq_pair : equations_) {
-        const Equation &equation = eq_pair.second;
-        num_terms += equation.size();
-    }
+    num_terms = get_num_terms();
     for (const auto & [type, count] : temp_counts_) {
         if (count == 0)
             continue;
@@ -791,4 +780,12 @@ void PQGraph::reindex() {
     }
 
     collect_scaling(true,true);
+}
+
+size_t PQGraph::get_num_terms() const {
+    size_t num_terms = 0;
+    for (const auto & [name, eq] : equations_) {
+        num_terms += eq.size();
+    }
+    return num_terms;
 }

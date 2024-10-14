@@ -86,6 +86,7 @@ namespace pdaggerq {
 
         scaling_map flop_map_init_; // map of flop scaling before reordering
         scaling_map mem_map_init_; // map of memory scaling before reordering
+        size_t num_terms_init_ = 0; // number of terms before optimization
 
         scaling_map flop_map_pre_; // map of flop scaling before reordering or before subexpression elimination
         scaling_map mem_map_pre_; // map of memory scaling before reordering or before subexpression elimination
@@ -349,6 +350,11 @@ namespace pdaggerq {
          */
         void remove_scalars();
 
+        /**
+         * get the number of terms in all equations
+         * @return number of terms in all equations
+         */
+        size_t get_num_terms() const;
     }; // PQGraph
 
     /**
