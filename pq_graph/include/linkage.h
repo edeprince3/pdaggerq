@@ -487,13 +487,34 @@ namespace pdaggerq {
         vertex_vector find_links(const VertexPtr &target_vertex, long search_depth = -1) const;
 
         /**
-         * goes down the tree and returns true if any intermediate vertices have the target ids
-         * @param target_ids the id to find
+         * goes down the tree and finds all occurences of the target intermediate
+         * @param temp the intermediate to find
+         * @param enter_temps whether to enter intermediate vertices
+         * @param depth maximum depth to search for links
+         * @return vector of all vertices that match the target
          */
         bool has_temp(const VertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
-        bool has_link(const VertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
+
+        /**
+         * goes down the tree and finds all occurences of the target link
+         * @param link the link to find
+         * @param enter_temps whether to enter intermediate vertices
+         * @param depth maximum depth to search for links
+         * @return vector of all vertices that match the target
+         */
+        bool has_link(const VertexPtr &link, bool enter_temps = true, long depth = -1) const override;
+
+        /**
+         * goes down the tree and returns true if any vertices are an intermediate
+         */
         bool has_any_temp() const override; // whether the linkage has any intermediate vertices
-        vertex_vector get_temps(bool enter_temps = true) const override;
+
+        /**
+         * goes down the tree and returns a vector of all intermediate vertices
+         * @param enter_temps whether to enter intermediate vertices
+         * @param enter_additions whether to enter addition vertices
+         */
+        vertex_vector get_temps(bool enter_temps = true, bool enter_additions = true) const override;
 
         idset get_ids(const string &type = "any") const;
 

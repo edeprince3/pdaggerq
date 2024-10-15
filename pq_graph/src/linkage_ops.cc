@@ -477,20 +477,20 @@ namespace pdaggerq {
         return false;
     }
 
-    bool Linkage::has_link(const VertexPtr &temp, bool enter_temps, long search_depth) const {
-        if (temp->is_linked() && depth_ < as_link(temp)->depth_)
+    bool Linkage::has_link(const VertexPtr &link, bool enter_temps, long search_depth) const {
+        if (link->is_linked() && depth_ < as_link(link)->depth_)
             return false; // if the depth of the temp is greater than this linkage, there cannot be a match
 
-        if (*this == *temp) return true;
+        if (*this == *link) return true;
         if (is_temp() && !enter_temps) return false;
 
         // recursively check if left and right vertices have the temp up to a certain search_depth
         if (search_depth > 0 || search_depth == -1) {
             search_depth = search_depth == -1 ? -1 : search_depth - 1;
             if (left_->is_linked())
-                if (as_link(left_)->has_link(temp, enter_temps, search_depth)) return true;
+                if (as_link(left_)->has_link(link, enter_temps, search_depth)) return true;
             if (right_->is_linked())
-                if (as_link(right_)->has_link(temp, enter_temps, search_depth)) return true;
+                if (as_link(right_)->has_link(link, enter_temps, search_depth)) return true;
         }
         return false;
     }
@@ -502,12 +502,16 @@ namespace pdaggerq {
         return false;
     }
 
-    vertex_vector Linkage::get_temps(bool enter_temps) const {
+    vertex_vector Linkage::get_temps(bool enter_temps, bool enter_additions) const {
         vertex_vector temps;
         if (is_temp()) {
             temps.push_back(shared_from_this());
             if (!enter_temps) return temps;
         }
+
+        // do not enter additions if enter_additions is false
+        if (is_addition() && !enter_additions)
+            return temps;
 
         if (left_->is_linked()) {
             const auto &left_temps = as_link(left_)->get_temps(enter_temps);
