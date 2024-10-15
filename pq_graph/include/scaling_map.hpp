@@ -52,7 +52,7 @@ namespace pdaggerq {
          * @return true if prior_links cost is greater than next_link cost
          */
         bool operator()(const shape &left_scale, const shape &right_scale) const {
-            return right_scale < left_scale;
+            return left_scale > right_scale;
         }
 
     }; // struct scale_metric
@@ -187,7 +187,7 @@ namespace pdaggerq {
 
         /**
          * Compare scaling maps to determine best scaling term
-         * @param left prior_links scaling map
+         * @param this_map prior_links scaling map
          * @param other_map other scaling map
          * @return 1 if this is cheaper than other
          *         0 if this is the same as other
@@ -197,49 +197,60 @@ namespace pdaggerq {
          *      The first scaling that is different determines the winner.
          *      If all scaling is the same, the maps are considered equal and false is returned.
          */
-        static inline int compare_scaling(const scaling_map& this_map, const scaling_map &other_map) {
+        static int compare_scaling(const scaling_map& this_map, const scaling_map &other_map) {
 
             // initialize this_map iterators
             auto this_begin = this_map.begin();
+            auto this_it = this_begin;
             auto this_end = this_map.end();
 
             // initialize other_map iterators
             auto other_begin = other_map.begin();
+            auto other_it = other_begin;
             auto other_end = other_map.end();
+
+            // check if either map is at the end
+            bool this_at_end = this_it == this_end;
+            bool other_at_end = other_it == other_end;
+
             // iterate over scaling maps
-            for (auto this_it = this_begin, other_it = other_begin; // initialize iterators
-                 this_it != this_end && other_it != other_end; // check if iterators are valid
-                 this_it++, other_it++) { // increment iterators
+            do {
 
                 // skip zero occurrences
-                while (this_it->second == 0 && this_it != this_end) this_it++;
-                while (other_it->second == 0 && other_it != other_end) other_it++;
+                while ( this_it !=  this_end &&  this_it->second == 0 ) this_it++;
+                while (other_it != other_end && other_it->second == 0 ) other_it++;
 
-                bool at_this_end = this_it == this_end;
-                bool at_other_end = other_it == other_end;
-                if (!at_this_end && at_other_end)
-                    return this_better; // this is cheaper (other has additional scalings)
-                else if (at_this_end && !at_other_end)
-                    return this_worse; // this is more expensive (this has additional scalings)
-                else if (at_this_end) // at_other_end must also be true
-                    return this_same; // this is the same (both have same number of scalings)
-                // else continue to next scaling
+                if ( this_at_end && !other_at_end) return this_better; // this is cheaper (other has more scalings)
+                if (!this_at_end &&  other_at_end) return this_worse; // this is more expensive (this has more scalings)
+                if (this_at_end  &&  other_at_end) return this_same; // this is the same (equal scalings)
 
-                const shape &this_size = this_it->first;
-                size_t this_occurrence = this_it->second;
+                // else compare current scaling
 
-                const shape &other_size = other_it->first;
-                size_t other_occurrence = other_it->second;
+                // get shapes and occurrences
+                const auto &[ this_shape,  this_occurrence] = *this_it;
+                const auto &[other_shape, other_occurrence] = *other_it;
 
-                if (this_size < other_size) return this_better;
-                if (this_size > other_size) return this_worse;
 
-                // if this_size == other_size
+                if (this_shape < other_shape) {
+                    // if other shape is worse, check if other_occurrence is negative
+                    if (other_occurrence < 0)
+                         return this_worse;
+                    else return this_better;
+                }
+                if (this_shape > other_shape) {
+                    // if this shape is worst, check if this_occurrence is negative
+                    if (this_occurrence < 0)
+                         return this_better;
+                    else return this_worse;
+                }
+
+                // if this_shape == other_shape, test occurrence
                 if (this_occurrence < other_occurrence) return this_better;
                 if (this_occurrence > other_occurrence) return this_worse;
 
                 // if this_occurrence == other_occurrence then continue to next scaling
-            }
+                this_it++; other_it++;
+            } while (this_it != this_end || other_it != other_end);
 
             return this_same;
         }
