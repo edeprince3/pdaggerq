@@ -346,6 +346,7 @@ void PQGraph::remove_scalars() {
 void Equation::make_scalars(linkage_set &scalars, long &n_temps) {
 
     // iterate over terms
+    #pragma omp parallel for schedule(guided) shared(terms_, scalars, n_temps) default(none)
     for (auto & term : terms_) {
 
         // make scalars in term
@@ -389,22 +390,25 @@ bool Term::make_scalars(linkage_set &scalars, long &id) {
             MutableLinkagePtr new_scalar = as_link(scalar_link->shallow());
 
             // check if scalar is already in set of scalars for setting the id
-            long new_id = id + 1;
-            auto scalar_pos = scalars.find(new_scalar);
-            if (scalar_pos != scalars.end())
-                new_id = scalar_pos->get()->id(); // if scalar is already in set of scalars, change the id
-            else ++id; // if scalar is not in set of scalars, increment the id for the next scalar
+            #pragma omp critical
+            {
+                long new_id = id + 1;
+                auto scalar_pos = scalars.find(new_scalar);
+                if (scalar_pos != scalars.end())
+                    new_id = scalar_pos->get()->id(); // if scalar is already in set of scalars, change the id
+                else ++id; // if scalar is not in set of scalars, increment the id for the next scalar
 
-            new_scalar->id_ = new_id;
+                new_scalar->id_ = new_id;
 
-            // replace scalar in the term linkage
-            auto [subbed_linkage, replaced] = as_link(perm_linkage)->replace(scalar, new_scalar);
-            if (replaced) {
-                new_linkage = as_link(subbed_linkage);
-                scalars.insert(new_scalar); // insert scalar into set of scalars
-                made_scalar = true;
-                break;
+                // replace scalar in the term linkage
+                auto [subbed_linkage, replaced] = as_link(perm_linkage)->replace(scalar, new_scalar);
+                if (replaced) {
+                    new_linkage = as_link(subbed_linkage);
+                    scalars.insert(new_scalar); // insert scalar into set of scalars
+                    made_scalar = true;
+                }
             }
+            if (made_scalar) break;
         }
         if (made_scalar) break;
     }
