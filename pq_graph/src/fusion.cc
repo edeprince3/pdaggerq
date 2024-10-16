@@ -778,15 +778,10 @@ size_t PQGraph::prune(bool keep_single_use) {
             if (num_occurrences > 1) continue;
 
             if (num_occurrences == 1) {
-                // do not remove if the temp is used and we are keeping single use temps
-                if (keep_single_use) continue;
-
                 // if used only once, remove if the only term declares a temp and is defined
                 VertexPtr only_lhs = (*terms.begin())->lhs();
-                if (only_lhs == nullptr) continue; // not defined, so skip (removed elsewhere)
-
-                bool declares_temp = only_lhs->is_temp();
-                if (!declares_temp) continue;
+                bool keep = !only_lhs->is_temp() || keep_single_use;
+                if (keep) continue;
             }
         }
 
