@@ -333,14 +333,8 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             scaling_map test_flop_map; // flop map for test equation
             size_t numSubs = 0; // number of substitutions made
             for (auto &[eq_name, equation]: equations_) { // iterate over equations
-
-                // skip scalar equations
-                if (eq_name == "scalar" || eq_name == "reused") continue;
-
-
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
-                numSubs += equation.test_substitute(linkage, test_flop_map,
-                                                    allow_equality || is_scalar || format_sigma);
+                numSubs += equation.test_substitute(linkage, test_flop_map);
             }
 
             // add to test scalings if we found a tmp that occurs in more than one term
