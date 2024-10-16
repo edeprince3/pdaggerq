@@ -744,15 +744,15 @@ void PQGraph::reindex() {
     for (auto & [name, eq] : equations_) {
         eq.collect_scaling(true);
 
-        // first reindex all lhs
-        for (auto &term : eq.terms())
-            reindex_vertex(term.lhs());
-
-        // then all rhs
+        // first reindex all rhs
         for (auto &term : eq.terms()) {
             for (auto &op : term.rhs())
                 reindex_vertex(op);
         }
+
+        // then all lhs
+        for (auto &term : eq.terms())
+            reindex_vertex(term.lhs());
 
         // then all eq
         for (auto &term : eq.terms())
