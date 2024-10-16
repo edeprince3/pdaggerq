@@ -763,6 +763,12 @@ void PQGraph::reindex() {
         eq.rearrange();
     }
 
+    // reindex again for good measure
+    static int reindex_count = 0;
+    reindex_count = ++reindex_count % 2;
+    if (reindex_count == 0)
+        reindex();
+
     // add all temps in temp map to saved linkages
     vector<pair<long, string>> print_map;
     for (auto & [temp, id] : temp_map) {
@@ -772,7 +778,7 @@ void PQGraph::reindex() {
         stringstream ss;
         ss << temp->str() << " -> " << new_temp->str();
 
-        print_map.emplace_back(make_pair(id, ss.str()));
+        print_map.emplace_back(id, ss.str());
     }
 
     // sort print map by id
