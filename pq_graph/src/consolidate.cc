@@ -333,6 +333,9 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             scaling_map test_flop_map; // flop map for test equation
             size_t numSubs = 0; // number of substitutions made
             for (auto &[eq_name, equation]: equations_) { // iterate over equations
+
+                if (eq_name == "scalar") continue; // skip scalar equation
+
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
                 numSubs += equation.test_substitute(linkage, test_flop_map);
             }
