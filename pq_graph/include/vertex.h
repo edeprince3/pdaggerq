@@ -422,7 +422,7 @@ namespace pdaggerq {
         virtual bool has_link(const VertexPtr &other, bool enter_temp = true, long depth = -1) const { return *this == *other; }
         virtual bool same_temp(const VertexPtr &other) const { return false; }
         virtual bool has_any_temp() const { return false; }
-        virtual vertex_vector get_temps(bool enter_temps = true, bool enter_additions = true) const { return {}; }
+        virtual vertex_vector get_temps(bool enter_temps = true) const { return {}; }
 
     }; // end Vertex class
 

@@ -73,9 +73,9 @@ struct LinkTracker {
         for (auto &vertex: term->rhs()) {
 
             // vertex in term is fusable only if it is linked. if linked, it must be a temp or not an addition
-            bool fusable = vertex->is_linked();
+            bool fusable = vertex->is_linked() && (vertex->is_temp() || !vertex->is_addition());
             if (fusable) {
-                auto all_temps = as_link(vertex)->get_temps(false, true);
+                auto all_temps = as_link(vertex)->get_temps(false);
                 for (auto &temp: all_temps) {
                     LinkagePtr temp_link = as_link(temp);
                     max_ids_[temp_link->type()] = max(max_ids_[temp_link->type()], temp_link->id());

@@ -502,16 +502,12 @@ namespace pdaggerq {
         return false;
     }
 
-    vertex_vector Linkage::get_temps(bool enter_temps, bool enter_additions) const {
+    vertex_vector Linkage::get_temps(bool enter_temps) const {
         vertex_vector temps;
         if (is_temp()) {
             temps.push_back(shared_from_this());
             if (!enter_temps) return temps;
         }
-
-        // do not enter additions if enter_additions is false
-        if (is_addition() && !enter_additions)
-            return temps;
 
         if (left_->is_linked()) {
             const auto &left_temps = as_link(left_)->get_temps(enter_temps);

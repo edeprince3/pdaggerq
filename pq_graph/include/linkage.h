@@ -514,7 +514,7 @@ namespace pdaggerq {
          * @param enter_temps whether to enter intermediate vertices
          * @param enter_additions whether to enter addition vertices
          */
-        vertex_vector get_temps(bool enter_temps = true, bool enter_additions = true) const override;
+        vertex_vector get_temps(bool enter_temps = true) const override;
 
         idset get_ids(const string &type = "any") const;
 
