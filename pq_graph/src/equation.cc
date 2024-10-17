@@ -302,10 +302,19 @@ namespace pdaggerq {
                 return a_term->is_assignment_;
             else if (same_id && !a_term->is_assignment_) return a_idx < b_idx;
 
-            if (!consider_rhs) {
+            // if the max rhs id is larger than the max lhs id, then do not consider rhs
+            long a_max_rhs = *std::max_element(a_rhs_ids.begin(), a_rhs_ids.end());
+            long a_max_lhs = *std::max_element(a_lhs_ids.begin(), a_lhs_ids.end());
+            long b_max_rhs = *std::max_element(b_rhs_ids.begin(), b_rhs_ids.end());
+            long b_max_lhs = *std::max_element(b_lhs_ids.begin(), b_lhs_ids.end());
+            long a_max = std::max(a_max_rhs, a_max_lhs);
+            long b_max = std::max(b_max_rhs, b_max_lhs);
+
+            bool a_rhs_greater = a_max_rhs > a_max_lhs;
+            bool b_rhs_greater = b_max_rhs > b_max_lhs;
+
+            if (!consider_rhs || a_rhs_greater || b_rhs_greater) {
                 // keep in order of max ids
-                long a_max = *std::max_element(a_tot_ids.begin(), a_tot_ids.end());
-                long b_max = *std::max_element(b_tot_ids.begin(), b_tot_ids.end());
                 return a_max < b_max;
             }
 
