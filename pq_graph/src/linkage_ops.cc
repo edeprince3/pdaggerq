@@ -32,7 +32,7 @@
 
 namespace pdaggerq {
 
-    MutableLinkagePtr Linkage::link(const vertex_vector &op_vec) {
+    LinkagePtr Linkage::link(const vertex_vector &op_vec) {
         if (op_vec.empty()) return make_shared<Linkage>(); // return an empty linkage if the vector is empty
 
         VertexPtr linkage = make_shared<Vertex>(); // initialize the linkage as an empty vertex
@@ -54,16 +54,16 @@ namespace pdaggerq {
 
             //link the rest of the vertices
             linkage = linkage * op;
-            as_link(linkage)->forget(); // forget the linkage memory
         }
 
-        // if no linkage was made, return an empty vertex
-        if (linkage->empty()) return make_shared<Linkage>();
+        // if no linkage was made, return self
+        if (linkage->empty()) return as_link(linkage);
 
         // vertex found, but not linked, so return a linkage with the vertex and one
         if (!linkage->is_linked()) return as_link(1.0 * linkage);
 
-        return as_link(linkage->shallow());
+        // return the linkage
+        return as_link(linkage);
     }
 
     pair<vector<shape>, vector<shape>> Linkage::scales(bool fully_expand) const {
@@ -144,12 +144,21 @@ namespace pdaggerq {
         }
 
         // copy the result vector to the link_vector if the size is less than 32
-        if (!low_memory_ && depth_ <= 10) {
+        bool store_vector = !low_memory_;
+        if (store_vector) {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             if (fully_expand)
                  all_vert_ = result;
             else link_vector_ = result;
+        } else if (fully_expand && !all_vert_.empty()) {
+            // if not storing the vector, clear the all_vert_ vector
+            std::lock_guard<std::mutex> lock(mtx_);
+            all_vert_.clear();
+        } else if (!fully_expand && !link_vector_.empty()) {
+            // if not storing the vector, clear the link_vector_ vector
+            std::lock_guard<std::mutex> lock(mtx_);
+            link_vector_.clear();
         }
 
         // return the result vector
@@ -263,7 +272,7 @@ namespace pdaggerq {
 
                 if (apply_fusion) {
                     // build the new link
-                    common_link = link(common)->best_permutation();
+                    common_link    = link(common)->best_permutation();
                     new_left_link  = link(new_left)->best_permutation();
                     new_right_link = link(new_right)->best_permutation();
 
@@ -570,14 +579,14 @@ namespace pdaggerq {
 
 
         // initialize the result vector with the identity permutation
-        result = {as_link(shared_from_this())};
+        result = {as_link(shallow())};
         result.reserve(2*(depth_+1)); // reserve space for the result vector
 
         // do not generate permutations for temps (their structure is fixed)
         if (is_temp()) return result;
 
         // do not store permutations if the depth is too large
-        bool store_permutations = !low_memory_ && depth_ <= 10;
+        bool store_permutations = !low_memory_;
 
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {
@@ -611,6 +620,10 @@ namespace pdaggerq {
                 // Lock the mutex for the scope
                 std::lock_guard<std::mutex> lock(mtx_);
                 permutations_ = result;
+            } else if (!permutations_.empty()) {
+                // if not storing permutations, clear the permutations_ vector
+                std::lock_guard<std::mutex> lock(mtx_);
+                permutations_.clear();
             }
 
             return result;
@@ -629,7 +642,7 @@ namespace pdaggerq {
                 return link_vec[i];
             });
 
-            result.push_back(Linkage::link(link_perm));
+            result.push_back(link(link_perm));
         }
 
         // copy the result vector to the permutations_ vector only if low memory mode is off

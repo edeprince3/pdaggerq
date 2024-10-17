@@ -404,7 +404,7 @@ namespace pdaggerq {
          * Make a series of linkages from vertices into a single linkage
          * @param op_vec list of vertices
          */
-        static MutableLinkagePtr link(const vertex_vector &op_vec);
+        static LinkagePtr link(const vertex_vector &op_vec);
 
         /**
          * copy just the members of the linkage that do not depend on the vertices

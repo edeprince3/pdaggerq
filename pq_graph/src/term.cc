@@ -242,7 +242,7 @@ namespace pdaggerq {
         /// add scaling from rhs
 
         // get the total linkage of the term with its flop and memory scalings
-        MutableLinkagePtr linkage = Linkage::link(arrangement);
+        MutableLinkagePtr linkage = as_link(Linkage::link(arrangement)->shallow());
         auto [flop_map, mem_map] = linkage->netscales();
 
         /// add scaling from lhs
