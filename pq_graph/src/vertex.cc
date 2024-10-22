@@ -404,7 +404,7 @@ namespace pdaggerq {
         size_t id = 0; // permutation id
         bool ov_valid; // is ovstring valid?
         bool blk_valid; // is blocking valid?
-        bool any_valid = false; // found any valid ovstring?
+        bool best_blk_valid = false; // is best blocking valid?
         size_t count = 0; // number of permutations tried
 
         do { // test all permutations for a valid ovstring
@@ -416,29 +416,26 @@ namespace pdaggerq {
             ov_valid = valid_ovstrings.find(new_eri.ovstring()) != valid_ovstrings.end();
             blk_valid = valid_blks.find(new_eri.blk_string()) != valid_blks.end();
 
-            if (ov_valid && blk_valid) {
-                if (!any_valid) {
+            if (ov_valid) {
+                if (best_eri.empty() || (blk_valid && !best_blk_valid)) {
                     best_eri = new_eri; // set best eri to first valid ovstring
                     swap_sign_best = swap_sign;
-                } else {
+                    best_blk_valid = blk_valid;
+                } else if (blk_valid) {
                     // only replace best eri if the lines are more sorted
                     bool better_lines = new_eri.lines_ < best_eri.lines_;
                     if (better_lines) {
                         best_eri = new_eri;
                         swap_sign_best = swap_sign;
+                        best_blk_valid = blk_valid;
                     }
                 }
-                any_valid = true; // set found valid flag
-            } else if (blk_valid && !any_valid) {
-                // if blocking is valid, but ovstring is not, save the best eri with valid blocking
-                best_eri = new_eri;
-                swap_sign_best = swap_sign;
             }
 
         // end while when valid ovstring is found or throw error when max permutations is reached
         } while (!new_eri.empty());
 
-        if (!any_valid || best_eri.empty())
+        if (best_eri.empty())
             return false; // if eris are not valid, do nothing (should ideally not happen)
 
         // reassign vertex

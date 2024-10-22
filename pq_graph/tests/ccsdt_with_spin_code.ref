@@ -608,21 +608,24 @@ def residuals(t1_aa, t1_bb,
     eri["aaaa_vvvv"] = g_aaaa[va,va,va,va]
 
     eri["abab_oooo"] = g_abab[oa,ob,oa,ob]
-    eri["abab_ooov"] = g_abab[oa,ob,oa,vb]
     eri["abab_oovo"] = g_abab[oa,ob,va,ob]
     eri["abab_oovv"] = g_abab[oa,ob,va,vb]
-    eri["abab_ovoo"] = g_abab[oa,vb,oa,ob]
-    eri["abab_ovov"] = g_abab[oa,vb,oa,vb]
-    eri["abab_ovvo"] = g_abab[oa,vb,va,ob]
-    eri["abab_ovvv"] = g_abab[oa,vb,va,vb]
     eri["abab_vooo"] = g_abab[va,ob,oa,ob]
-    eri["abab_voov"] = g_abab[va,ob,oa,vb]
     eri["abab_vovo"] = g_abab[va,ob,va,ob]
     eri["abab_vovv"] = g_abab[va,ob,va,vb]
     eri["abab_vvoo"] = g_abab[va,vb,oa,ob]
-    eri["abab_vvov"] = g_abab[va,vb,oa,vb]
     eri["abab_vvvo"] = g_abab[va,vb,va,ob]
     eri["abab_vvvv"] = g_abab[va,vb,va,vb]
+
+    eri["abba_oovo"] = -np.einsum("pqrs->pqsr", g_abab[oa,ob,oa,vb])
+    eri["abba_vovo"] = -np.einsum("pqrs->pqsr", g_abab[va,ob,oa,vb])
+    eri["abba_vvvo"] = -np.einsum("pqrs->pqsr", g_abab[va,vb,oa,vb])
+
+    eri["baab_vooo"] = -np.einsum("pqrs->qprs", g_abab[oa,vb,oa,ob])
+    eri["baab_vovo"] = -np.einsum("pqrs->qprs", g_abab[oa,vb,va,ob])
+    eri["baab_vovv"] = -np.einsum("pqrs->qprs", g_abab[oa,vb,va,vb])
+
+    eri["baba_vovo"] =  np.einsum("pqrs->qpsr",g_abab[oa,vb,oa,vb])
 
     eri["bbbb_oooo"] = g_bbbb[ob,ob,ob,ob]
     eri["bbbb_oovo"] = g_bbbb[ob,ob,vb,ob]
