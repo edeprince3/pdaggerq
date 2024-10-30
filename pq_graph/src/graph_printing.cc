@@ -154,11 +154,17 @@ namespace pdaggerq {
         set<string> names;
         for (const auto &term: all_terms) {
             VertexPtr lhs = term.lhs();
-            if (!lhs->is_linked() && !lhs->is_scalar())
+            if (!lhs->is_linked() && !lhs->is_constant())
                 names.insert(lhs->name());
             for (const auto &op: term.rhs()) {
-                if (!op->is_linked() && !op->is_scalar())
+                if (!op->is_linked() && !op->is_constant())
                     names.insert(op->name());
+                else {
+                    vertex_vector vertices = as_link(op)->vertices();
+                    for (const auto &vertex: vertices)
+                        if (!vertex->is_linked() && !vertex->is_constant())
+                            names.insert(vertex->name());
+                }
             }
         }
 
