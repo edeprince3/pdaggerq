@@ -13,6 +13,7 @@ tests  = (
     "cisd",
     "ccsd",
     "ccsd_with_spin",
+    "lambda_ccsd",
     "eom_ccsd",
     "ccsdt",
     "cc3",
