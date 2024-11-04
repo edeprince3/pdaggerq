@@ -230,12 +230,12 @@ namespace pdaggerq {
         depth_ += std::max(left_depth, right_depth);
 
         // create the name of the linkage
-        base_name_.reserve(left_->name_.size() + right_->name_.size() + 1);
-        base_name_ = left_->name_;
+        base_name_.reserve(left_->base_name_.size() + right_->base_name_.size() + 1);
+        base_name_ = left_->base_name_;
         if (addition_)
              base_name_ += '+';
         else base_name_ += '*';
-        base_name_ += right_->name_;
+        base_name_ += right_->base_name_;
         base_name_ += ' ';
 
         // add connection map to base name
