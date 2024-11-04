@@ -419,7 +419,7 @@ namespace pdaggerq {
                     auto first_line = new_lines.begin();
 
                     // if beginning line has label 'L', insert sigma line after it
-                    if (first_line->label_ == "L") {
+                    if (first_line != new_lines.end() && first_line->label_ == "L") {
                         new_lines.insert(first_line + 1, line);
                     } else {
                         // if sigma line is not found, insert it at the beginning

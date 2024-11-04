@@ -503,7 +503,7 @@ namespace pdaggerq {
         // map lines to the new lines if compatible
         bool compatible = true;
         for (size_t i = 0; i < lines_.size(); i++) {
-            if (lines_[i].equivalent(lines[i])) {
+            if (!lines_[i].equivalent(lines[i])) {
                 compatible = false; break;
             }
         }

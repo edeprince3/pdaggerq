@@ -272,41 +272,27 @@ namespace pdaggerq {
             std::unordered_map<Line, Line, LineHash> line_map;
             line_map.reserve(old_lines.size() + new_lines.size());
 
-            // map every equivalent line to the reference line
-            size_t old_n = old_lines.size(), new_n = new_lines.size();
-            bool new_mapped[new_lines.size()], old_mapped[old_n];
-            memset(new_mapped, 0, new_lines.size() * sizeof(bool));
-            memset(old_mapped, 0, old_n * sizeof(bool));
+            // we want to map the old lines to the new lines
+            // so (a,b,i,j) -> (c,d,j,i) would be a map of a->c, b->d, i->j, j->i
+            // (a,b) -> (c,d,i,j) would be a map of a->c, b->d and i->i, j->j
+            // (a,b,i,j) -> (c,d) would be a map of a->c, b->d, i->i, j->j
 
-            // map all old_lines to themselves
-            for (size_t j = 0; j < new_lines.size(); j++) {
-                line_map[old_lines[j]] = old_lines[j];
+            // first map all old lines to themselves
+            for (const Line &line : old_lines) {
+                line_map[line] = line;
             }
 
-            // start remapping old_lines
-            for (size_t i = 0; i < new_n; i++) {
-                bool found = false;
-                for (size_t j = 0; j < old_n; j++) {
-                    if (!old_mapped[j] && old_lines[j].equivalent(new_lines[i])) {
-                        line_map[old_lines[j]] = new_lines[i];
-                        old_mapped[j] = true;
-                        found = true;
-                        break;
-                    }
-                }
-                new_mapped[i] = found;
+            // then map all new lines to themselves
+            for (const Line &line : new_lines) {
+                line_map[line] = line;
             }
 
-            // map all remaining new_lines to themselves
-            for (size_t i = 0; i < old_n; i++) {
-                if (!new_mapped[i]) {
-                    // check if the line is already mapped (should not happen)
-                    if (line_map.find(new_lines[i]) == line_map.end()) {
-                        line_map[new_lines[i]] = new_lines[i];
-                    }
-                }
+            // then map the old lines to the new lines
+            for (size_t i = 0; i < old_lines.size() && i < new_lines.size(); ++i) {
+                line_map[old_lines[i]] = new_lines[i];
             }
 
+            // return the map
             return line_map;
         }
     };
