@@ -243,7 +243,6 @@ namespace pdaggerq {
             base_name_ += (char)leftidx + '1'; // convert to int
             base_name_ += '>';
             base_name_ += (char)rightidx + '1'; // convert to int
-            base_name_ += ' ';
         }
 
         // add hashes of the lines
