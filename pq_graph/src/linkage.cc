@@ -38,6 +38,32 @@ namespace pdaggerq {
     Linkage::Linkage(VertexPtr left, VertexPtr right, bool is_addition) :
                             left_(std::move(left)), right_(std::move(right)), addition_(is_addition) {
 
+        // determine if we can swap the left and right vertices (test for associativity)
+        bool swap_possible = !(left_->is_linked() && !left_->is_temp()) && !(right_->is_linked() && !right_->is_temp());
+
+        // if this is an addition, can swap
+        swap_possible = swap_possible || is_addition;
+
+        // if left or right is a scalar, can swap
+        swap_possible = swap_possible || left_->is_scalar() || right_->is_scalar();
+
+        // if swap is possible, determine if we should swap
+        if (swap_possible) {
+
+            // always keep scalars on the left
+            bool make_swap = right_->is_scalar() && !left_->is_scalar();
+
+            // keep larger id on the right
+            make_swap = make_swap || left_->id() > right_->id();
+
+            // keep in alphabetical order
+            make_swap = make_swap || left_->name() > right_->name();
+
+            // swap if necessary
+            if (make_swap) std::swap(left_, right_);
+
+        }
+
         // build internal and external lines with their index mapping
         build_connections();
     }
