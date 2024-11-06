@@ -767,12 +767,6 @@ void PQGraph::reindex() {
         eq.rearrange();
     }
 
-    // reindex again for good measure
-    static int reindex_count = 0;
-    reindex_count = ++reindex_count % 2;
-    if (reindex_count == 0)
-        reindex();
-
     // add all temps in temp map to saved linkages
     vector<pair<long, string>> print_map;
     for (auto & [temp, id] : temp_map) {
@@ -791,12 +785,20 @@ void PQGraph::reindex() {
     });
 
     // print reindexing
-    cout << "Reindexed temps:" << endl;
-    for (auto & [id, str] : print_map) {
-        cout << "        " << str << endl;
+    if (!print_map.empty()) {
+        cout << "Reindexed temps:" << endl;
+        for (auto &[id, str]: print_map) {
+            cout << "        " << str << endl;
+        }
     }
 
     collect_scaling(true,true);
+
+    // reindex again for good measure
+    static int reindex_count = 0;
+    reindex_count = ++reindex_count % 2;
+    if (reindex_count == 0)
+        reindex();
 }
 
 size_t PQGraph::get_num_terms() const {
