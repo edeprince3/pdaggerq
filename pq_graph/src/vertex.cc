@@ -236,7 +236,7 @@ namespace pdaggerq {
         update_lines(lines);
     }
 
-    void Vertex::replace_lines(const unordered_map<Line, Line, LineHash> &line_map) {
+    void Vertex::replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name) {
         for (Line &line : lines_) {
             // find the line in the map and replace it (if it exists)
             auto it = line_map.find(line);
@@ -255,7 +255,41 @@ namespace pdaggerq {
         }
 
         // update lines
-        Vertex::update_lines(lines_, true);
+        Vertex::update_lines(lines_, update_name);
+    }
+
+    VertexPtr Vertex::relabel() const {
+
+        size_t occ_idx = 0, virt_idx = 0, sig_idx = 0, den_idx = 0;
+
+        // map lines to their first appearance
+        unordered_map<Line, Line, LineHash> line_map;
+        for (const auto &line : lines_) {
+            // first check if line is already in map; skip if it is
+            if (line_map.find(line) != line_map.end())
+                continue;
+
+            // adjust index based on line type
+            string new_label;
+            switch (line.type()) {
+                case 'L': new_label = Line::sig_labels_[sig_idx++]; break;
+                case 'Q': new_label = Line::den_labels_[den_idx++]; break;
+                case 'o': new_label = Line::occ_labels_[occ_idx++]; break;
+                case 'v': new_label = Line::virt_labels_[virt_idx++]; break;
+                default: new_label  = line.label_; break;
+            }
+
+            // add line to map
+            Line new_line = line;
+            new_line.label_ = new_label;
+            line_map[line] = new_line;
+        }
+
+        // replace lines in vertex with new lines and return
+        MutableVertexPtr new_vertex = clone();
+        new_vertex->replace_lines(line_map, false);
+        return new_vertex;
+
     }
 
     void Vertex::set_lines(const vector<string> &lines, const string &blk_string) {

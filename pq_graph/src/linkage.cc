@@ -27,6 +27,7 @@
 #include <utility>
 #include <cstring>
 #include <stack>
+#include <queue>
 #include "../include/linkage.h"
 #include "../include/linkage_set.hpp"
 #include "../../pdaggerq/pq_string.h"
@@ -39,13 +40,13 @@ namespace pdaggerq {
                             left_(std::move(left)), right_(std::move(right)), addition_(is_addition) {
 
         // determine if we can swap the left and right vertices (test for associativity)
-        bool swap_possible = !(left_->is_linked() && !left_->is_temp()) && !(right_->is_linked() && !right_->is_temp());
-
-        // if this is an addition, can swap
-        swap_possible = swap_possible || is_addition;
+        bool swap_possible = !left_->is_expandable() && !right_->is_expandable();
 
         // if left or right is a scalar, can swap
-        swap_possible = swap_possible || left_->is_scalar() || right_->is_scalar();
+        if (!swap_possible) swap_possible = left_->is_scalar() || right_->is_scalar();
+
+        // additions should not be swapped
+        if (is_addition) swap_possible = false;
 
         // if swap is possible, determine if we should swap
         if (swap_possible) {
@@ -54,10 +55,14 @@ namespace pdaggerq {
             bool make_swap = right_->is_scalar() && !left_->is_scalar();
 
             // keep larger id on the right
-            make_swap = make_swap || left_->id() > right_->id();
+            if (!make_swap) make_swap = left_->id() > right_->id();
+
+            // keep larger depth on the right
+            if (!make_swap) make_swap = left_->depth() < right_->depth();
 
             // keep in alphabetical order
-            make_swap = make_swap || left_->name() > right_->name();
+            if (!make_swap) make_swap = left_->name() > right_->name();
+
 
             // swap if necessary
             if (make_swap) std::swap(left_, right_);
@@ -248,6 +253,70 @@ namespace pdaggerq {
         // update vertex members
         set_properties();
     }
+
+    VertexPtr Linkage::relabel() const {
+
+        // create a deep copy of the linkage
+        MutableLinkagePtr new_link = as_link(clone());
+
+        // get lines from vertices
+        line_vector lines; lines.reserve(2*lines_.size()+1);
+        VertexPtr cur_vert = shared_from_this();
+
+        // use queue to recursively traverse the linkage to get lines in order
+        std::queue<VertexPtr> vert_queue;
+        vert_queue.push(cur_vert);
+        while (!vert_queue.empty()) {
+
+            // get the current vertex
+            cur_vert = vert_queue.front(); vert_queue.pop();
+
+            // add lines to the list
+            lines.insert(lines.end(), cur_vert->lines().begin(), cur_vert->lines().end());
+
+            // if the vertex is linked, add the left and right vertices to the stack
+            if (cur_vert->is_linked()) {
+                vert_queue.push(as_link(cur_vert)->left_);
+                vert_queue.push(as_link(cur_vert)->right_);
+            }
+        }
+
+        // begin relabeling the lines
+
+        size_t occ_idx = 0, virt_idx = 0, sig_idx = 0, den_idx = 0;
+
+        // map lines to their first appearance
+        unordered_map<Line, Line, LineHash> line_map;
+        for (const auto &line : lines) {
+            // first check if line is already in map; skip if it is
+            if (line_map.find(line) != line_map.end())
+                continue;
+
+            // adjust index based on line type
+            string new_label;
+            switch (line.type()) {
+                case 'L': new_label = Line::sig_labels_[sig_idx++]; break;
+                case 'Q': new_label = Line::den_labels_[den_idx++]; break;
+                case 'o': new_label = Line::occ_labels_[occ_idx++]; break;
+                case 'v': new_label = Line::virt_labels_[virt_idx++]; break;
+                default: new_label  = line.label_; break;
+            }
+
+            // add line to map
+            Line new_line = line;
+            new_line.label_ = new_label;
+            line_map[line] = new_line;
+        }
+
+        // replace lines in vertices
+        new_link->replace_lines(line_map, false);
+        new_link->build_connections();
+
+        // return the new linkage
+        return new_link;
+
+    }
+
 
     void Linkage::set_properties() {
         // determine the depth of the linkage
@@ -534,7 +603,7 @@ namespace pdaggerq {
         }
         if (compatible) {
             unordered_map<Line, Line, LineHash> line_map = LineHash::map_lines(lines_, lines);
-            this->replace_lines(line_map);
+            this->replace_lines(line_map, false);
         }
 
         if (update_name)

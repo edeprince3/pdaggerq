@@ -200,7 +200,6 @@ namespace pdaggerq {
     }
 
     bool Linkage::fuse() {
-//        return; // causes incorrect equations. might be this function or the one that calls it
         if (is_temp() || empty()) return false;
         if (left_->empty() && right_->is_linked()) { *this = *as_link(right_); return false; }
         if (right_->empty() && left_->is_linked()) { *this = *as_link(left_); return false; }
@@ -447,15 +446,15 @@ namespace pdaggerq {
         return {replacement, true};
     }
 
-    void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map) {
+    void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name) {
 
         // call the base class replace_lines to replace the lines of the root vertex
-        Vertex::replace_lines(line_map);
+        Vertex::replace_lines(line_map, update_name);
 
         // recursively replace the lines of the left and right vertices
         MutableVertexPtr new_left = left_->shallow(), new_right = right_->shallow();
-        new_left->replace_lines(line_map);
-        new_right->replace_lines(line_map);
+        new_left->replace_lines(line_map, update_name);
+        new_right->replace_lines(line_map, update_name);
 
         // set the new left and right vertices
         left_ = new_left;
@@ -613,6 +612,7 @@ namespace pdaggerq {
             // if the left and right vertices are not the same, add the left and right permutations
             if (!same_left_right) {
                 result.push_back(as_link(left_perm + right_perm));
+                result.push_back(as_link(right_perm + left_perm));
             }
 
             // copy the result vector to the permutations_ vector only if low memory mode is off
@@ -650,6 +650,10 @@ namespace pdaggerq {
             // Lock the mutex for the scope
             std::lock_guard<std::mutex> lock(mtx_);
             permutations_ = result;
+        } else if (!permutations_.empty()) {
+            // if not storing permutations, clear the permutations_ vector
+            std::lock_guard<std::mutex> lock(mtx_);
+            permutations_.clear();
         }
         return result;
 

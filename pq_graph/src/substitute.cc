@@ -82,7 +82,8 @@ linkage_set Term::make_all_links() const {
         if (subgraph->empty()) continue; // skip if subgraph is empty
         if (subgraph->is_temp()) continue; // the subgraph is already a temp, no need to test it.
 
-        LinkagePtr best_perm = subgraph->best_permutation(); // get best permutation of subgraph
+        // get best permutation of subgraph and relabel with generic lines
+        LinkagePtr best_perm = as_link(subgraph->best_permutation()->relabel());
         subgraph->forget();
         best_perm->forget(); // clear the history of the best permutation
 

@@ -173,6 +173,12 @@ namespace pdaggerq {
         void set_properties();
 
         /**
+         * relabels the lines within the linkages for generic string representation
+         * @return new linkage with relabeled lines
+         */
+        VertexPtr relabel() const override;
+
+        /**
          * return vector of internal lines using the internal connection map
          * @return vector of internal lines
          */
@@ -297,7 +303,7 @@ namespace pdaggerq {
          * Recursively update the lines of the linkage using a map
          * @param line_map map of old lines to new lines
          */
-        void replace_lines(const unordered_map<Line, Line, LineHash> &line_map) override;
+        void replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name = true) override;
 
         /**
          * Less than operator

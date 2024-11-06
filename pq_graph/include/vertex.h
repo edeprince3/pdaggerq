@@ -169,7 +169,13 @@ namespace pdaggerq {
          * replaces the lines of the vertex with the lines in the argument
          * @param lines vector of lines
          */
-        virtual void replace_lines(const unordered_map<Line, Line, LineHash> &line_map);
+        virtual void replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name = true);
+
+        /**
+         * relabels the lines within the vertex for generic string representation
+         * @return new vertex with relabeled lines
+         */
+        virtual VertexPtr relabel() const;
 
         /**
          * sets parameters of the vertex from the string representation of the vertex
