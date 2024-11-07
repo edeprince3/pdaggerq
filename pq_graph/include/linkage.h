@@ -159,7 +159,7 @@ namespace pdaggerq {
          * @param left vertex to contract with
          * @param right vertex to contract with
          */
-        Linkage(VertexPtr left, VertexPtr right, bool is_addition);
+        Linkage(VertexPtr  left, VertexPtr  right, bool is_addition);
 
         /**
          * Connects the lines of the linkage, sets the flop and memory scaling, and sets the name

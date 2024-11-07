@@ -36,20 +36,23 @@ namespace pdaggerq {
 
     /********** Constructors **********/
 
-    Linkage::Linkage(VertexPtr left, VertexPtr right, bool is_addition) :
+    Linkage::Linkage(VertexPtr  left, VertexPtr  right, bool is_addition) :
                             left_(std::move(left)), right_(std::move(right)), addition_(is_addition) {
 
-        // determine if we can swap the left and right vertices (test for associativity)
-        bool swap_possible = !left_->is_expandable() && !right_->is_expandable();
+        // test for associativity
 
-        // if left or right is a scalar, can swap
-        if (!swap_possible) swap_possible = left_->is_scalar() || right_->is_scalar();
+        // addition is associative
+        bool is_associative = is_addition;
 
-        // additions should not be swapped
-        if (is_addition) swap_possible = false;
+        // scalar multiplication is associative
+        if (!is_associative) is_associative = left_->is_scalar() || right_->is_scalar();
 
-        // if swap is possible, determine if we should swap
-        if (swap_possible) {
+        // multiplication is associative with pure vertices and intermediates
+        if (!is_associative) is_associative = ( !left_->is_linked() ||  left_->is_temp()) &&
+                                              (!right_->is_linked() || right_->is_temp());
+
+        // if associative, determine if we should swap the order
+        if (is_associative) {
 
             // always keep scalars on the left
             bool make_swap = right_->is_scalar() && !left_->is_scalar();
@@ -57,7 +60,7 @@ namespace pdaggerq {
             // keep larger id on the right
             if (!make_swap) make_swap = left_->id() > right_->id();
 
-            // keep larger depth on the right
+            // keep larger depth on the left
             if (!make_swap) make_swap = left_->depth() < right_->depth();
 
             // keep in alphabetical order
@@ -67,6 +70,19 @@ namespace pdaggerq {
             // swap if necessary
             if (make_swap) std::swap(left_, right_);
 
+        }
+
+        // expand right to ensure largest depth is to the left
+        // examples: a*(b*c) -> (a*b)*c
+        //           a+(b+c) -> (a+b)+c
+        if (right_->depth() > left_->depth()) {
+            bool can_rearrange = !right_->is_temp() && right_->is_addition() == is_addition;
+            if (can_rearrange) {
+                if (!is_addition)
+                    left_ = left_ * as_link(right_)->left();
+                else left_ = left_ + as_link(right_)->left();
+                right_ = as_link(right_)->right();
+            }
         }
 
         // build internal and external lines with their index mapping
