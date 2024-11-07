@@ -188,6 +188,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     bool makeSub; // flag to make a substitution
     bool found_any = false; // flag to check if we found any linkages
+    size_t retries = 0; // number of retries
     while ((!test_linkages.empty() || first_pass) && temp_counts_[temp_type] < max_temps_) {
         substitute_timer.start();
 
@@ -540,6 +541,18 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                     return link->is_addition();
                 });
                 if (all_additions) break;
+            }
+
+            // exit excessive retries for substitution.
+            if (current_depth == org_max_depth && !makeSub) {
+                retries++;
+                if (retries > 5) {
+                    cout << "Could not find any more substitutions." << endl;
+                    break;
+                }
+            } else if (makeSub) {
+                // reset retries if we had found a substitution
+                retries = 0;
             }
         }
 
