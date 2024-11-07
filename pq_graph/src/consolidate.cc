@@ -672,19 +672,18 @@ void PQGraph::reindex() {
     for (auto & [name, eq] : equations_) {
         eq.collect_scaling(true);
 
-        // reindex all rhs
+        // reindex all rhs first
         for (auto &term : eq.terms()) {
-            // use term linkage to populate reindex map before overwriting
-            VertexPtr populate = (term.lhs() + term.term_linkage())->clone();
-            reindex_vertex(populate);
-
-            // now reindex all rhs
             for (auto &op : term.rhs())
                 reindex_vertex(op);
+        }
 
-            // reindex all lhs
+        // reindex all lhs
+        for (auto &term : eq.terms()) {
             reindex_vertex(term.lhs());
         }
+
+
 
         // reindex all eq
         for (auto &term : eq.terms())
