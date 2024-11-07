@@ -376,9 +376,9 @@ namespace pdaggerq {
         // set descriptors
         rank_  = lines_.size();
         shape_ = shape(lines_);
-        has_blk_ = left_->has_blk_ || right_->has_blk_;
-        is_sigma_ = left_->is_sigma_ || right_->is_sigma_ || shape_.L_ > 0;
-        is_den_ = left_->is_den_ || right_->is_den_ || shape_.Q_ > 0;
+        has_blk_  = left_->has_blk_  || right_->has_blk_;
+        is_sigma_ = left_->is_sigma_ || right_->is_sigma_ || left_->shape_.L_ > 0 || right_->shape_.L_ > 0;
+        is_den_   = left_->is_den_   || right_->is_den_   || left_->shape_.Q_ > 0 || right_->shape_.Q_ > 0;
     }
 
     vector<Line> Linkage::internal_lines() const {
