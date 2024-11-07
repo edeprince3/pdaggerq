@@ -269,11 +269,6 @@ namespace pdaggerq {
         void forget();
 
         /**
-         * Sync all pointers so that the same vertices have the same memory address
-         */
-        void sync_pointers();
-
-        /**
          * Print all terms in each equation
          * @param print_type type of print (c++ or python)
          */
