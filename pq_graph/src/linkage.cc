@@ -322,7 +322,7 @@ namespace pdaggerq {
         }
 
         // replace lines in vertices
-        new_link->replace_lines(line_map, false);
+        new_link->replace_lines(line_map, true);
         new_link->build_connections();
 
         // return the new linkage
@@ -338,7 +338,7 @@ namespace pdaggerq {
         depth_ += std::max(left_depth, right_depth);
 
         // create the name of the linkage
-        base_name_.reserve(left_->base_name_.size() + right_->base_name_.size() + 1);
+        base_name_.reserve(left_->name_.size() + right_->name_.size() + 1);
         base_name_ = left_->name_;
         if (addition_)
              base_name_ += '+';
@@ -616,7 +616,7 @@ namespace pdaggerq {
         }
         if (compatible) {
             unordered_map<Line, Line, LineHash> line_map = LineHash::map_lines(lines_, lines);
-            this->replace_lines(line_map, false);
+            this->replace_lines(line_map, update_name);
         }
 
         if (update_name)

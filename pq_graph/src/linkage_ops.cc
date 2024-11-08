@@ -461,7 +461,7 @@ namespace pdaggerq {
         right_ = new_right;
 
         // recursively forget the linkage memory
-        forget(true);
+        forget();
 
         // reset the links
         build_connections();
@@ -692,7 +692,7 @@ namespace pdaggerq {
 
                 // if lines are the same, use string representation of names
                 if (!make_best && scaling_check == scaling_map::this_same) {
-                    make_best = perm->base_name() < best_perm->base_name();
+                    make_best = perm->name() < best_perm->name();
                 }
             }
 

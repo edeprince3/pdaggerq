@@ -272,8 +272,6 @@ namespace pdaggerq {
             // adjust index based on line type
             string new_label;
             switch (line.type()) {
-                case 'L': new_label = Line::sig_labels_[sig_idx++]; break;
-                case 'Q': new_label = Line::den_labels_[den_idx++]; break;
                 case 'o': new_label = Line::occ_labels_[occ_idx++]; break;
                 case 'v': new_label = Line::virt_labels_[virt_idx++]; break;
                 default: new_label  = line.label_; break;
@@ -287,7 +285,7 @@ namespace pdaggerq {
 
         // replace lines in vertex with new lines and return
         MutableVertexPtr new_vertex = clone();
-        new_vertex->replace_lines(line_map, false);
+        new_vertex->replace_lines(line_map, true);
         return new_vertex;
 
     }
