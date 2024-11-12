@@ -324,7 +324,7 @@ namespace pdaggerq {
         if (this->depth() < target_vertex->depth()) return {}; // if the target vertex is deeper, it cannot be found
 
         bool found = *target_vertex == *this;
-        if (found) return {shared_from_this()}; // if this is the target vertex, return it
+        if (found) return {shallow()}; // if this is the target vertex, return it
 
         vertex_vector links;
 
@@ -354,7 +354,7 @@ namespace pdaggerq {
         bool left_valid  =  !left_->empty() && (fabs( left_->value() - 1.0) > 1e-8);
         bool right_valid = !right_->empty() && (fabs(right_->value() - 1.0) > 1e-8);
         if (is_scalar() && left_valid && right_valid)
-            scalars.push_back(this->shared_from_this());
+            scalars.push_back(this->shallow());
 
         if (left_->is_linked() && left_valid) {
             const auto &left_scalars = as_link(left_)->find_scalars();
@@ -371,16 +371,16 @@ namespace pdaggerq {
 
     pair<VertexPtr, bool> Linkage::replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex) const {
 
-        if (!target_vertex || !new_vertex) return {shared_from_this(), false};
+        if (!target_vertex || !new_vertex) return {shallow(), false};
 
 
         bool replaced = *target_vertex == *this;
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
         if (depth_ < target_vertex->depth())
-            return {shared_from_this(), false}; // if the target vertex is deeper, it cannot be replaced
+            return {shallow(), false}; // if the target vertex is deeper, it cannot be replaced
 
-        VertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
+        VertexPtr new_left = left_->shallow(), new_right = right_->shallow();
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex);
             if (left_found) {
@@ -397,7 +397,7 @@ namespace pdaggerq {
         }
 
         if (!replaced)
-            return {shared_from_this(), false}; // no replacements were made. return the original linkage
+            return {shallow(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
         MutableLinkagePtr new_link = as_link(is_addition() ? new_left + new_right : new_left * new_right);
@@ -406,7 +406,7 @@ namespace pdaggerq {
     }
 
     pair<VertexPtr, bool> Linkage::replace_id(const VertexPtr &target_vertex, long new_id) const {
-        if (!target_vertex) return {shared_from_this(), false};
+        if (!target_vertex) return {shallow(), false};
 
         bool replaced = same_temp(target_vertex);
         if (replaced) {
@@ -416,7 +416,7 @@ namespace pdaggerq {
         }
 
         replaced = false;
-        VertexPtr new_left = left_->shared_from_this(), new_right = right_->shared_from_this();
+        VertexPtr new_left = left_->shallow(), new_right = right_->shallow();
         if (left_->is_linked()) {
             const auto &[replaced_left, left_found] = as_link(left_)->replace_id(target_vertex, new_id);
             if (left_found) {
@@ -433,7 +433,7 @@ namespace pdaggerq {
         }
 
         if (!replaced)
-            return {shared_from_this(), false}; // no replacements were made. return the original linkage
+            return {shallow(), false}; // no replacements were made. return the original linkage
 
         // replacement was made, so create a new linkage with the replaced vertices
         MutableLinkagePtr replacement = as_link(shallow());
@@ -594,10 +594,10 @@ namespace pdaggerq {
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {
                 // return permutations of the right vertex if the left vertex is empty
-                result = as_link(right_->shared_from_this())->permutations();
+                result = as_link(right_->shallow())->permutations();
             } else if (right_->empty() && left_->is_linked()) {
                 // return permutations of the left vertex if the right vertex is empty
-                result = as_link(left_->shared_from_this())->permutations();
+                result = as_link(left_->shallow())->permutations();
             }
 
             // return the identity permutation if one of the vertices is empty
@@ -666,7 +666,7 @@ namespace pdaggerq {
     LinkagePtr Linkage::best_permutation() const {
 
         // initialize the best permutation as the current linkage
-        LinkagePtr best_perm = as_link(shared_from_this());
+        LinkagePtr best_perm = as_link(shallow());
 
         // generate every permutation
         const linkage_vector &all_perms = permutations();
@@ -714,14 +714,14 @@ namespace pdaggerq {
     linkage_vector Linkage::subgraphs(size_t max_depth) const {
 
         if (is_temp()) { // do not generate subgraphs for temps
-            return {as_link(shared_from_this())};
+            return {as_link(shallow())};
         }
         if (empty()) { // return an empty vector if the linkage is empty
             return {};
         }
 
         // build permutations of root vertex
-        linkage_vector top_perms = {as_link(shared_from_this())};
+        linkage_vector top_perms = {as_link(shallow())};
         linkage_set unique_subgraphs; unique_subgraphs.reserve(4 * (depth_+1));
 
         // now add the subgraphs of the left and right vertices
