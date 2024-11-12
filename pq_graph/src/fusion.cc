@@ -73,9 +73,9 @@ struct LinkTracker {
         for (auto &vertex: term->rhs()) {
 
             // vertex in term is fusable only if it is linked. if linked, it must be a temp or not an addition
-            bool fusable = vertex->is_linked() && (vertex->is_temp() || !vertex->is_addition());
+            bool fusable = vertex->has_any_temp();
             if (fusable) {
-                auto all_temps = as_link(vertex)->get_temps(false);
+                auto all_temps = as_link(vertex)->get_temps();
                 for (auto &temp: all_temps) {
                     LinkagePtr temp_link = as_link(temp);
                     max_ids_[temp_link->type()] = max(max_ids_[temp_link->type()], temp_link->id());
@@ -85,9 +85,8 @@ struct LinkTracker {
                     link_info.link = temp_link;
                     link_info.link->forget(true); // forget the link history for memory efficiency
                     link_info.term = term;
-                    
-//                    link_track_map_[temp_link].emplace_back(temp_link, term);
 
+                    // create a term without the link
                     Term trunc_term = *term;
                     trunc_term.term_linkage() = nullptr;
                     vertex_vector trunc_rhs;
@@ -259,10 +258,26 @@ struct LinkMerger {
                     auto &link1_trunc = link1_info[i].link;
                     auto &link1_term  = link1_info[i].term;
                     auto &trunc_term1 = link1_info[i].trunc_term;
-                    
+
                     auto &link2_trunc = link2_info[i].link;
                     auto &link2_term = link2_info[i].term;
                     auto &trunc_term2 = link2_info[i].trunc_term;
+
+                    // ensure link is not within an addition (cannot merge)
+                    auto term1_temps = link1_term->term_linkage()->get_temps(true, false);
+                    auto term2_temps = link2_term->term_linkage()->get_temps(true, false);
+
+                    // find link1 and link2 in the term temps
+                    bool found1 = false, found2 = false;
+                    for (auto &temp: term1_temps) {
+                        if (*temp == *link1_trunc) { found1 = true; break; }
+                    }
+                    if (!found1) { same_connectivity = false; break; }
+
+                    for (auto &temp: term2_temps) {
+                        if (*temp == *link2_trunc) { found2 = true; break; }
+                    }
+                    if (!found2) { same_connectivity = false; break; }
 
                     // ensure both trunc links have the same lines
                     line_vector lines1_sorted = link1_trunc->lines();
