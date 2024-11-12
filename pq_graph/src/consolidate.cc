@@ -714,7 +714,8 @@ void PQGraph::reindex() {
         last_usage_vec.emplace_back(link, pos);
     }
     std::sort(last_usage_vec.begin(), last_usage_vec.end(), [](const pair<LinkagePtr, size_t> &a, const pair<LinkagePtr, size_t> &b) {
-        return a.second < b.second;
+        if (a.second != b.second) return a.second < b.second;
+        return a.first->id() < b.first->id();
     });
 
     // reindex all temps
