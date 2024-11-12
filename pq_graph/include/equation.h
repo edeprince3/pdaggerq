@@ -306,10 +306,10 @@ namespace pdaggerq {
 
         /**
          * Sorts tmps by the maximum id of the rhs in the linkage and the tmp itself
-         * @param equation equation to sort tmps for
+         * @param terms vector of terms to sort
          * @param type type of tmps to sort (t for tmps, s for scalars, r for reuse)
          */
-        static void sort_tmp_type(Equation &equation, const string &type = "temp");
+        static void sort_tmp_type(vector<Term> &terms, const string &type = "temp");
 
         /**
          * get 'if' block string formatting

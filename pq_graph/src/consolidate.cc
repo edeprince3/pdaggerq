@@ -681,6 +681,48 @@ void PQGraph::reindex() {
         }
     };
 
+    // extract every term in every equation
+    vector<Term*> term_ptrs = every_term();
+    vector<Term> all_terms; all_terms.reserve(term_ptrs.size());
+    for (auto &term_ptr : term_ptrs) {
+        all_terms.emplace_back(*term_ptr);
+    }
+
+    // sort terms by type
+    Equation::sort_tmp_type(all_terms, "scalar");
+    Equation::sort_tmp_type(all_terms, "reused");
+    Equation::sort_tmp_type(all_terms, "temp");
+
+    // find last usage of each temp
+    linkage_map<size_t> last_usage;
+    size_t loc = 0;
+    for (auto &term : all_terms) {
+        auto found_temps = term.lhs()->get_temps(false);
+        for (auto &op : term.rhs()) {
+            auto rhs_temps = op->get_temps();
+            found_temps.insert(found_temps.end(), rhs_temps.begin(), rhs_temps.end());
+        }
+        for (auto &temp : found_temps) {
+            last_usage[as_link(temp)] = loc;
+        }
+        loc++;
+    }
+
+    // sort by last usage
+    vector<pair<LinkagePtr, size_t>> last_usage_vec;
+    for (auto & [link, pos] : last_usage) {
+        last_usage_vec.emplace_back(link, pos);
+    }
+    std::sort(last_usage_vec.begin(), last_usage_vec.end(), [](const pair<LinkagePtr, size_t> &a, const pair<LinkagePtr, size_t> &b) {
+        return a.second < b.second;
+    });
+
+    // reindex all temps
+    for (auto & [link, _] : last_usage_vec) {
+        VertexPtr new_temp = link->clone();
+        reindex_vertex(new_temp);
+    }
+
     // loop over all vertices in all equations and terms
     for (auto & [name, eq] : equations_) {
         eq.collect_scaling(true);
@@ -695,8 +737,6 @@ void PQGraph::reindex() {
         for (auto &term : eq.terms()) {
             reindex_vertex(term.lhs());
         }
-
-
 
         // reindex all eq
         for (auto &term : eq.terms())
@@ -732,12 +772,10 @@ void PQGraph::reindex() {
         }
     }
 
-    collect_scaling(true,true);
-
     // reindex again for good measure
     static int reindex_count = 0;
-    reindex_count = ++reindex_count % 2;
-    if (reindex_count == 0)
+    reindex_count = ++reindex_count % 3;
+    if (reindex_count != 0)
         reindex();
 }
 

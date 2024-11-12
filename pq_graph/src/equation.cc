@@ -261,18 +261,18 @@ namespace pdaggerq {
         return copy;
     }
 
-    void Equation::sort_tmp_type(Equation &equation, const string &type) {
+    void Equation::sort_tmp_type(vector<Term> &terms, const string &type) {
 
         // no terms, return
-        if ( equation.terms().empty() ) return;
+        if ( terms.empty() ) return;
 
         // to sort the tmps while keeping the order of terms without tmps, we need to
         // make a map of the equation terms and their index in the equation and sort that (so annoying)
         std::vector<pair<Term*, size_t>> indexed_terms;
-        size_t eq_size = equation.terms().size();
+        size_t eq_size = terms.size();
         indexed_terms.reserve(eq_size);
         for (size_t i = 0; i < eq_size; ++i)
-            indexed_terms.emplace_back(&equation.terms()[i], i);
+            indexed_terms.emplace_back(&terms[i], i);
 
         // sort the terms by the maximum id of the tmps in the term, then by the index of the term
         bool consider_rhs = true;
@@ -358,7 +358,7 @@ namespace pdaggerq {
             sorted_terms.push_back(*indexed_term.first);
         }
 
-        equation.terms() = sorted_terms;
+        terms = sorted_terms;
     }
 
     void Equation::rearrange(const string &type) {
@@ -386,10 +386,10 @@ namespace pdaggerq {
 
         // lastly, sort the terms by the maximum id of the tmps type in the term, then by the index of the term
         if (type == "all") { // rearrange by all temps in order
-            sort_tmp_type(*this, "scalar");
-            sort_tmp_type(*this, "reused");
-            sort_tmp_type(*this, "temp");
-        } else sort_tmp_type(*this, type); // else rearrange by the type of temp
+            sort_tmp_type(terms_, "scalar");
+            sort_tmp_type(terms_, "reused");
+            sort_tmp_type(terms_, "temp");
+        } else sort_tmp_type(terms_, type); // else rearrange by the type of temp
     }
 
 } // pdaggerq
