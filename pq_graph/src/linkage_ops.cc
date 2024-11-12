@@ -516,7 +516,8 @@ namespace pdaggerq {
         if (is_temp()) {
             temps.push_back(shallow());
             if (!enter_temps) return temps;
-        } else if (is_addition() && !enter_additions) {
+        }
+        if (is_addition() && !enter_additions) {
             return temps;
         }
 
