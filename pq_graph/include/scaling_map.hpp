@@ -171,7 +171,8 @@ namespace pdaggerq {
          */
         long int total() const {
             long int num = 0;
-            for (const auto &it: map_) num += it.second;
+            for (const auto &[scale, count]: map_)
+                num += count;
             return num;
         }
 
@@ -327,8 +328,8 @@ namespace pdaggerq {
          */
         scaling_map operator+(const scaling_map &other) const {
             scaling_map result = *this;
-            for (const auto & it : other.map_) result[it.first] += it.second; // add other map
-
+            for (const auto & [scale, count] : other.map_)
+                result[scale] += count; // add other map
             return result;
         }
 
@@ -351,7 +352,8 @@ namespace pdaggerq {
          * @return this map with the sum of the two maps
          */
         inline scaling_map& operator+=(const scaling_map &other) {
-            for (const auto & it : other.map_)  map_[it.first] += it.second; // add other map
+            for (const auto & [scale, count] : other.map_)
+                map_[scale] += count; // add other map
             return *this;
         }
 
@@ -361,7 +363,8 @@ namespace pdaggerq {
          * @return this map with the difference of the two maps
          */
         inline scaling_map& operator-=(const scaling_map &other) {
-            for (const auto & it : other.map_) map_[it.first] -= it.second; // subtract other map
+            for (const auto & [scale, count] : other.map_)
+                map_[scale] -= count; // subtract other map
             return *this;
         }
 
@@ -369,9 +372,8 @@ namespace pdaggerq {
          * set any negative values to zero
          */
         void all_positive() {
-            for (auto & [scale, count] : map_) {
+            for (auto & [scale, count] : map_)
                 if (count < 0) count = 0;
-            }
         }
 
         /**
@@ -381,14 +383,14 @@ namespace pdaggerq {
         scaling_map merge_spins() const {
             // create copies that ignore alpha/beta differences
             scaling_map no_spin_map;
-            for (const auto & key : map_) {
-                shape new_shape = key.first;
+            for (const auto & [scale, count] : map_) {
+                shape new_shape = scale;
                 new_shape.va_ = new_shape.v_; new_shape.oa_ = new_shape.o_;
                 new_shape.vb_ = 0; new_shape.ob_ = 0;
 
                 new_shape.a_ = new_shape.n_;
                 new_shape.b_ = 0;
-                no_spin_map[new_shape] += key.second;
+                no_spin_map[new_shape] += count;
             }
             return no_spin_map;
         }
