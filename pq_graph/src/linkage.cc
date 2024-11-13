@@ -244,8 +244,8 @@ namespace pdaggerq {
             // add lines to the list
             lines.insert(lines.end(), cur_vert->lines().begin(), cur_vert->lines().end());
 
-            // if the vertex is expandable, add the left and right vertices to the stack
-            if (cur_vert->is_linked() && !cur_vert->is_temp()) {
+            // if the vertex is linked, add the left and right vertices to the stack
+            if (cur_vert->is_linked()) {
                 vert_queue.push(as_link(cur_vert)->left_);
                 vert_queue.push(as_link(cur_vert)->right_);
             }
