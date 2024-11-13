@@ -654,7 +654,7 @@ namespace pdaggerq {
     }
 
     void PQGraph::print_new_scaling(const scaling_map &original_map, const scaling_map &previous_map, const scaling_map &current_map) {
-        printf("%10s : %8s | %8s | %8s || %10s | %10s\n", "Scaling", "initial", "reorder", "optimize", "init diff", "opt diff");
+        printf("%8s : %5s | %5s | %5s || %5s | %5s\n", "Scaling", "  I  ", "  R  ", "  F  ", " F-I ", " F-R ");
 
         // merge spins within the scaling maps
         scaling_map orig_merged = original_map.merge_spins();
@@ -669,15 +669,15 @@ namespace pdaggerq {
             shape cur_shape = key.first;
             size_t new_order = cur_shape.n_;
             if (new_order < last_order) {
-                printf("%10s : %8s | %8s | %8s || %10s | %10s\n" , "--------", "--------", "--------", "--------", "----------", "----------");
+                printf("%8s : %5s | %5s | %5s || %5s | %5s\n" , "--------", "-----", "-----", "-----", "-----", "----");
                 last_order = new_order;
             }
-            printf("%10s : %8zu | %8zu | %8zu || %10ld | %10ld \n", cur_shape.str().c_str(), orig_merged[cur_shape],
+            printf("%8s : %5zu | %5zu | %5zu || %5ld | %5ld \n", cur_shape.str().c_str(), orig_merged[cur_shape],
                    prev_merged[cur_shape], curr_merged[cur_shape], tot_diff_map[cur_shape], diff_map[cur_shape]);
         }
 
-        printf("%10s : %8s | %8s | %8s || %10s | %10s\n" , "--------", "--------", "--------", "--------", "----------", "----------");
-        printf("%10s : %8zu | %8zu | %8zu || %10ld | %10ld \n", "Total", orig_merged.total(), prev_merged.total(), curr_merged.total(),
+        printf("%8s : %5s | %5s | %5s || %5s | %5s\n" , "--------", "-----", "-----", "-----", "-----", "----");
+        printf("%8s : %5zu | %5zu | %5zu || %5ld | %5ld \n", "Total", orig_merged.total(), prev_merged.total(), curr_merged.total(),
                tot_diff_map.total(), diff_map.total());
 
     }
