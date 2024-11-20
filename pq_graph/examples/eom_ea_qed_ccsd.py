@@ -26,6 +26,9 @@ def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None,
     pq.set_left_operators( L)
     pq.set_right_operators(R)
 
+    pq.set_left_operators_type("EA")
+    pq.set_right_operators_type("EA")
+
     for j, op in enumerate(ops):
         if T is None:
             pq.add_operator(coeffs[j], op)
@@ -52,8 +55,9 @@ def configure_graph():
     """
     return pdaggerq.pq_graph({
         'batched': False,
-        'print_level': 0,
+        'print_level': 3,
         'use_trial_index': True,
+        'separate_sigma': True,
         'opt_level': 6,
         'nthreads': -1,
     })
@@ -73,34 +77,34 @@ def main():
 
     # T-operators (assumes T1 transformed integrals)
     T = ['t2', 't0,1', 't1,1', 't2,1']
+
+    # Exciation operators (truncated ground state)
     R = [
-        #['r0'],
-        ['r1'], ['r2'],
-        ['r0,1'], ['r1,1'], ['r2,1'],
+        ['r1'], 
+        ['r2'],
+        ['r1,1'],
+        ['r2,1'],
     ]
     L = [
-        #['l0'],
-        ['l1'], ['l2'],
-        ['l0,1'], ['l1,1'], ['l2,1'],
+        ['l1'], 
+        ['l2'],
+        ['l1,1'], 
+        ['l2,1'],
     ]
 
     # Projection operators for different equations
     rproj = {
-        #"sigmar0":    [['1']],                  # ground state energy
-        "sigmar1":    [['e1(i,a)']],            # singles residual
-        "sigmar2":    [['e2(i,j,b,a)']],        # doubles residual
-        "sigmar0_1":  [['B-']],                 # ground state + hw
-        "sigmar1_1":  [['B-', 'e1(i,a)']],      # singles residual + hw
-        "sigmar2_1":  [['B-', 'e2(i,j,b,a)']],  # doubles residual + hw
+        "sigmar1":    [['a(a)']],                       # singles residual
+        "sigmar2":    [['a*(i)','a(b)','a(a)']],        # doubles residual
+        "sigmar1_1":  [['B-', 'a(a)']],                 # singles residual + hw
+        "sigmar2_1":  [['B-', 'a*(i)','a(b)','a(a)']],  # doubles residual + hw
     }
 
     lproj = {
-        #"sigmal0":    [['1']],                  # ground state energy
-        "sigmal1":    [['e1(a,i)']],            # singles residual
-        "sigmal2":    [['e2(a,b,j,i)']],        # doubles residual
-        "sigmal0_1":  [['B+']],                 # ground state + hw
-        "sigmal1_1":  [['e1(a,i)','B+']],      # singles residual + hw
-        "sigmal2_1":  [['e2(a,b,j,i)','B+']],  # doubles residual + hw
+        "sigmal1":    [['a*(a)']],                       # singles residual
+        "sigmal2":    [['a*(a)','a*(b)','a(i)']],        # doubles residual
+        "sigmal1_1":  [['a*(a)','B+']],                  # singles residual + hw
+        "sigmal2_1":  [['a*(a)','a*(b)','a(i)','B+']],   # doubles residual + hw
     }
 
     # Dictionary to store the derived equations
@@ -124,7 +128,7 @@ def main():
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        graph.add(eq, proj_eqname, ['a', 'b', 'i', 'j'])
 
     # Optimize and output the graph
     graph.optimize()
