@@ -10,29 +10,41 @@ The expressions are stored in data structures that represent tensor contractions
 
 ## Python API usage
 
+#
+
+
+
 ```python
 import pdaggerq
 
 # set up pq_graph
 graph = pdaggerq.pq_graph({
-    "verbose": True,         # print out verbose analysis?    
-    "permute_eri": True,     # permute ERI integrals to a common order? (ovov -> vovo; ovvo -> -vovo)
-    "allow_merge": True,     # merge similar terms during optimization?    
-    "batched": False,        # substitute intermediates in batches for performance? (may yield different equations)
-    "batch_size": 100,       # batch size for substitution
-    "max_temps": -1,         # maximum number of intermediates to find
-    "max_depth": 2,          # maximum depth for chain of contractions
-    "max_shape": {           # a map of maximum container size for intermediates
-        'o':-1,            
-        'v':-1,            
-    },                     
-    "allow_nesting": True,   # allow nested intermediates?
-    "format_sigma": True,    # format equations for a sigma-build? (separates inteermediates w/o sigma vectors)
-    "use_trial_index": True, # print an additional index for each trial sigma vector
-    "nthreads": -1,          # number of threads to use for optimization (-1 = all)
-    "conditions": {          # map of the named conditions for each operator type 
-        "t1":  ['t1'],       # terms that have any of these operators will be in an if statement
-    }
+    "print_level": 2,  # verbosity level:
+                       # 0: no printing of optimization steps (default)
+                       # 1: print optimization steps without fusion or merging
+                       # 2: print optimization steps with fusion and merging
+    "permute_eri": True,  # whether to permute two-electron integrals to common order (default: true)
+    "no_scalars": False,  # whether to skip the scalar terms in the final equations (default: false)
+    "use_trial_index": True, # whether to store trial vectors as an additional index/dimension 
+                             # for tensors in a sigma-vector build (default: false)
+    "separate_sigma": True,  # whether to separate reusable intermediates for sigma-vector build (default: false)
+    "opt_level": 6,  # optimization level:
+                     # 0: no optimization
+                     # 1: single-term optimization only (reordering)
+                     # 2: reordering and subexpression elimination (substitution)
+                     # 3: reordering, substitution, and separation of reusable intermediates (for sigma vectors)
+                     # 4: reordering, substitution, and separation; unused intermediates are removed (pruning)
+                     # 5: reordering, substitution, separation, pruning, and merging of equivalent terms
+                     # 6: reordering, substitution, separation, pruning, merging, and fusion of intermediates (default)
+    "batched": False,  # candidate substitutions are applied in batches rather than one at a time. (default: false)
+    # Generally faster, but may not yield optimal results compared to single substitutions.
+    "batch_size": 10,  # size of the batch for batched substitution (default: 10; -1 for no limit)
+    "max_temps": -1,  # maximum number of intermediates to find (default: -1 for no limit)
+    "max_depth": -1,  # maximum depth for chain of contractions (default: -1 for no limit)
+    "max_shape": o255v255, # a map of maximum sizes for each line type in an intermediate (default: o255v255): 
+    "low_memory": False,  # whether to recompute or save all permutations of each term in memory (default: false)
+                          # if true, permutations are recomputed on the fly. Recommended if memory runs out.
+    "nthreads": 12,  # number of threads to use (default: OMP_NUM_THREADS | available: 12)
 })
 
 T = ['t1', 't2'] # cluster amplitudes
@@ -51,12 +63,11 @@ for eq_name, ops in left_ops.items():
     # queue up the equation for optimization:
     # 1) pass the pq_helper object and the name of the equation.
     # 2) the name is used to label the left-hand side (lhs) of the equation
-    # 3) the last argument (optional) overrides the ordering of the lhs indices
+    # 3) the last argument (optional) overrides the ordering of the external indices of the lhs
     graph.add(pq, eq_name, ['a', 'b', 'i', 'j'])
     pq.clear()
 
 # optimize the equations
-graph.reorder()        # reorder contractions for optimal performance (redundant if optimize is called)
 graph.optimize()       # reorders contraction and generates intermediates
 graph.print("python")  # print the optimized equations for Python.
 graph.analysis()       # prints the FLOP scaling (permutations are expanded into repeated terms for analysis)
