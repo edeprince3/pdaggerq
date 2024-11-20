@@ -33,9 +33,9 @@ def get_spin_labels(ops):
     # sort the labels and create spin types based on the number of unique labels
     labels = sorted(labels)
     spin_types = ["aaaa", "abab", "bbbb"] if len(labels) == 4 else (
-        ["aaa", "abb", "aba", "bbb"] if len(labels) == 3 else (
+        ["aaa", "abb"] if len(labels) == 3 else (
             ["aa", "bb"] if len(labels) == 2 else (
-                ["a", "b"] if len(labels) == 1 else []
+                ["a"] if len(labels) == 1 else []
             )
         )
     )

@@ -31,7 +31,7 @@
 #include <omp.h>
 #else
 #define omp_get_max_threads() 1
-#define omp_set_num_threads() 1
+#define omp_set_num_threads(n) 1
 #endif
 
 using std::ostream, std::string, std::vector, std::map, std::unordered_map, std::shared_ptr, std::make_shared,
