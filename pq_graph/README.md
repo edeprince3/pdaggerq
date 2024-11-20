@@ -41,7 +41,6 @@ graph = pdaggerq.pq_graph({
     "batch_size": 10,  # size of the batch for batched substitution (default: 10; -1 for no limit)
     "max_temps": -1,  # maximum number of intermediates to find (default: -1 for no limit)
     "max_depth": -1,  # maximum depth for chain of contractions (default: -1 for no limit)
-    "max_shape": o255v255, # a map of maximum sizes for each line type in an intermediate (default: o255v255): 
     "low_memory": False,  # whether to recompute or save all permutations of each term in memory (default: false)
                           # if true, permutations are recomputed on the fly. Recommended if memory runs out.
     "nthreads": 12,  # number of threads to use (default: OMP_NUM_THREADS | available: 12)
