@@ -545,7 +545,7 @@ namespace pdaggerq {
          * Get depth of linkage
          * @return depth of linkage
          */
-        size_t depth() const { return depth_; }
+        size_t depth() const override { return depth_; }
 
 
     }; // class linkage
