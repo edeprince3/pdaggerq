@@ -29,7 +29,7 @@ def main():
     }
 
     # grab list of fully-contracted strings, then print
-    terms = pq.fully_contracted_strings_with_ranges(label_ranges)
+    terms = pq.fully_contracted_strings(label_ranges = label_ranges)
     for my_term in terms:
         print(my_term)
     
@@ -47,7 +47,7 @@ def main():
     }
 
     # grab list of fully-contracted strings, then print
-    terms = pq.fully_contracted_strings_with_ranges(label_ranges)
+    terms = pq.fully_contracted_strings(label_ranges = label_ranges)
     for my_term in terms:
         print(my_term)
     
@@ -65,7 +65,7 @@ def main():
     }
 
     # grab list of fully-contracted strings, then print
-    terms = pq.fully_contracted_strings_with_ranges(label_ranges)
+    terms = pq.fully_contracted_strings(label_ranges = label_ranges)
     for my_term in terms:
         print(my_term)
     
@@ -83,7 +83,7 @@ def main():
     }
 
     # grab list of fully-contracted strings, then print
-    terms = pq.fully_contracted_strings_with_ranges(label_ranges)
+    terms = pq.fully_contracted_strings(label_ranges = label_ranges)
     for my_term in terms:
         print(my_term)
     

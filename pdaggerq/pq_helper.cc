@@ -65,7 +65,6 @@ void export_pq_helper(py::module& m) {
         .def("clone", &pq_helper::clone)
         .def("save", &pq_helper::serialize)
         .def("load", &pq_helper::deserialize)
-        //.def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_use_rdms",
             [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
                 return self.set_use_rdms(do_use_rdms, ignore_cumulant);
@@ -77,7 +76,6 @@ void export_pq_helper(py::module& m) {
             },
             py::arg("string_type") = "fully-contracted" )
         .def("strings", &pq_helper::strings)
-        //.def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
         .def("fully_contracted_strings", 
             [](pq_helper& self, 
                 const std::unordered_map<std::string, std::string> &spin_labels, 
@@ -113,12 +111,6 @@ void export_pq_helper(py::module& m) {
                 self.block_by_spin(spin_labels);
             },
             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
-        .def("fully_contracted_strings_with_ranges",
-            [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
-                self.block_by_range(label_ranges);
-                return self.fully_contracted_strings();
-            },
-            py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>() )
         .def("block_by_range",
             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
                 self.block_by_range(label_ranges);
