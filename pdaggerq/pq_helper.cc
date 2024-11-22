@@ -81,31 +81,34 @@ void export_pq_helper(py::module& m) {
                 const std::unordered_map<std::string, std::string> &spin_labels, 
                 const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
 
-                if ( spin_labels.find("DUMMY") == spin_labels.end() && label_ranges.find("DUMMY") == label_ranges.end()) {
+                bool has_spin_labels = spin_labels.find("DUMMY") == spin_labels.end();
+                bool has_label_ranges = label_ranges.find("DUMMY") == label_ranges.end();
+
+                if ( has_spin_labels && has_label_ranges ) {
                     printf("\n");
                     printf("    error: cannot simultaneously block by spin and by range\n");
                     printf("\n");
                     exit(1);
                 }
                 
-                if ( spin_labels.find("DUMMY") == spin_labels.end() ) {
+                if ( has_spin_labels ) {
                 
                     // spin blocking 
                     self.block_by_spin(spin_labels);
                     return self.fully_contracted_strings();
                 
-                }else if ( label_ranges.find("DUMMY") == label_ranges.end() ) {
+                } else if ( has_label_ranges ) {
                 
                     // range labels
                    self.block_by_range(label_ranges);
                    return self.fully_contracted_strings();
-                
-                }
-                return self.fully_contracted_strings();
+
+                   // no blocking
+                } else return self.fully_contracted_strings();
 
             },
-            py::arg("spin_labels") = std::unordered_map<std::string, std::string>{{"DUMMY","DUMMY"}},
-            py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>{{"DUMMY",{"DUMMY"}}} )
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>{{"DUMMY",""}},
+            py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>{{"DUMMY",{""}}} )
         .def("block_by_spin",
             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
                 self.block_by_spin(spin_labels);
