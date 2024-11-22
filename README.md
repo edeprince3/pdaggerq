@@ -118,6 +118,14 @@ Output:
     //     + 0.50000 <i,j||a,b> t1(a,i) t1(b,j)
 
 
+### PQ Graph
+
+The module `pq_graph` is used to optimize the order of contractions within the expressions and to eliminate common subexpressions. 
+The module can represent the many-body equations as a multidirected graph and can be output 
+in either C++ or Python syntax for evaluation. Refer to the [README.md](pq_graph/README.md) 
+in the pq_graph directory for more information.
+
+
 ## How to contribute
 We'd love to accept your contributions and patches. All submissions, including submissions by project members, require review. 
 We use GitHub pull requests for this purpose. Consult GitHub Help for more information on using pull requests. 

@@ -30,6 +30,8 @@
 #include <string>
 #include <cctype>
 #include <algorithm>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "pq_helper.h"
 #include "pq_utils.h"
@@ -37,9 +39,7 @@
 #include "pq_add_label_ranges.h"
 #include "pq_add_spin_labels.h"
 #include "pq_cumulant_expansion.h"
-
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "../pq_graph/include/pq_graph.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -63,6 +63,8 @@ void export_pq_helper(py::module& m) {
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
         .def("clone", &pq_helper::clone)
+        .def("save", &pq_helper::serialize)
+        .def("load", &pq_helper::deserialize)
         //.def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_use_rdms",
              [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
@@ -117,6 +119,9 @@ void export_pq_helper(py::module& m) {
         .def(py::init<double, std::vector<std::string>>())
         .def("factor", &pq_operator_terms::get_factor)
         .def("operators", &pq_operator_terms::get_operators);
+
+    // add pq graph class for optimizing, visualizing, and generating code from pq_helper
+    PQGraph::export_pq_graph(m);
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {

@@ -1700,7 +1700,10 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
     // at this point, we've expanded all of the general labels
     // and are ready to bring the strings to normal order
 
-    for (auto & mystring: mystrings ) {
+    std::vector< std::shared_ptr<pq_string> > new_strings[mystrings.size()];
+    #pragma omp parallel for schedule(dynamic) default(none) shared(mystrings, new_strings) firstprivate(print_level)
+    for (size_t k = 0; k < mystrings.size(); k++) {
+        const std::shared_ptr<pq_string>& mystring = mystrings[k];
 
         // check if this string can be fully contracted ...
         int nc = 0;
@@ -1716,8 +1719,8 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
         // bosons, too
         nc = 0;
         na = 0;
-        for (size_t i = 0; i < mystring->is_boson_dagger.size(); i++) {
-            if ( mystring->is_boson_dagger[i] ) nc++;
+        for (auto && bdag : mystring->is_boson_dagger) {
+            if ( bdag ) nc++;
             else na++;
         }
         if ( nc != na ) {
@@ -1752,11 +1755,15 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
             }
         }while(!done_rearranging);
 
-        //ordered.clear();
-        for (const std::shared_ptr<pq_string> & pq_str : tmp) {
+        new_strings[k] = tmp;
+        tmp.clear();
+    }
+
+    for (const auto& new_string : new_strings) {
+        if ( new_string.empty() ) continue;
+        for (const std::shared_ptr<pq_string> & pq_str : new_string) {
             ordered.push_back(pq_str);
         }
-        tmp.clear();
     }
 }
 

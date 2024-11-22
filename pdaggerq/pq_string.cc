@@ -30,17 +30,10 @@
 #include<algorithm>
 #include<cmath>
 #include<sstream>
+#include <fstream>
 #include<numeric>
 
 namespace pdaggerq {
-
-// work-around for finite precision of std::to_string
-template <typename T> std::string to_string_with_precision(const T a_value, const int n = 14) {
-    std::ostringstream out;
-    out.precision(n);
-    out << std::fixed << a_value;
-    return out.str();
-}
 
 // constructor
 pq_string::pq_string(const std::string &vacuum_type){
@@ -61,9 +54,9 @@ void pq_string::sort() {
             integral.sort();
         }
 
-        // now, sort list of amplitudes based on labels 
+        // now, sort list of amplitudes based on labels
         size_t dim = ints_vec.size();
-  
+
         std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
         for (size_t i = 0; i < dim; i++) {
             numerical_labels_with_index.emplace_back(ints_vec[i].numerical_labels, i);
@@ -75,35 +68,35 @@ void pq_string::sort() {
                      const std::pair<std::vector<int>, int> &b) {
                       return a.first < b.first;
                   });
-   
+
         std::vector<integrals> tmp;
         for (const auto& pair : numerical_labels_with_index) {
             tmp.push_back(ints_vec[pair.second]);
         }
-        ints_vec = tmp; 
+        ints_vec = tmp;
     }
 
     for (auto &amps_pair : amps) {
         std::vector<amplitudes> &amps_vec = amps_pair.second;
 
-        // sort labels in amplitudes 
+        // sort labels in amplitudes
         for (amplitudes & amp : amps_vec) {
             amp.sort();
         }
 
-        // now, sort list of amplitudes based on labels 
+        // now, sort list of amplitudes based on labels
         size_t dim = amps_vec.size();
         std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
         for (size_t i = 0; i < dim; i++) {
             numerical_labels_with_index.emplace_back(amps_vec[i].numerical_labels, i);
         }
         // sort the list of pairs lexicographically by the numerical labels
-        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(), 
-                  [](const std::pair<std::vector<int>, int> &a, 
+        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
+                  [](const std::pair<std::vector<int>, int> &a,
                      const std::pair<std::vector<int>, int> &b) {
                       return a.first < b.first;
                   });
-    
+
         std::vector<amplitudes> tmp;
         for (const auto& pair : numerical_labels_with_index) {
             tmp.push_back(amps_vec[pair.second]);
@@ -111,12 +104,12 @@ void pq_string::sort() {
         amps_vec = tmp;
     }
 
-    // sort labels in deltas 
+    // sort labels in deltas
     for (delta_functions & delta : deltas) {
         delta.sort();
     }
 
-    // now, sort list of deltas based on labels 
+    // now, sort list of deltas based on labels
     size_t dim = deltas.size();
     if ( dim > 0 ) {
 
@@ -131,7 +124,7 @@ void pq_string::sort() {
                      const std::pair<std::vector<int>, int> &b) {
                       return a.first < b.first;
                   });
-   
+
         std::vector<delta_functions> tmp;
         for (const auto& pair : numerical_labels_with_index) {
             tmp.push_back(deltas[pair.second]);
@@ -227,7 +220,10 @@ void pq_string::print() const {
     printf("//     ");
     printf("%c", sgn > 0 ? '+' : '-');
     printf(" ");
-    printf("%20.14lf", fac);
+
+    int precision = minimum_precision(fac);
+    std::string factor_str = to_string_with_precision(fabs(fac), precision);
+    printf("%s", factor_str.c_str());
     printf(" ");
 
     if ( !permutations.empty() ) {
@@ -454,7 +450,7 @@ std::string pq_string::get_key() {
         std::vector<std::string> numerical_labels_string(delta.numerical_labels.size());
         std::transform(delta.numerical_labels.begin(), delta.numerical_labels.end(), numerical_labels_string.begin(),
                        [](int num) { return std::to_string(num); });
-        my_string += "delta"; 
+        my_string += "delta";
         my_string += std::accumulate(numerical_labels_string.begin(), numerical_labels_string.end(), std::string());
     }
 
@@ -525,7 +521,9 @@ std::vector<std::string> pq_string::get_string() {
     }else {
         tmp = "-";
     }
-    my_string.push_back(tmp + to_string_with_precision(factor, 14));
+
+    int precision = minimum_precision(factor);
+    my_string.push_back(tmp + to_string_with_precision(fabs(factor), precision));
 
     if ( !permutations.empty() ) {
         // should have an even number of symbols...how many pairs?

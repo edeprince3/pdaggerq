@@ -24,11 +24,69 @@
 #define PQ_STRING_H
 
 #include "pq_tensor.h"
+#include<cmath>
+#include<sstream>
 #include <map>
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
 
 namespace pdaggerq {
+
+// work-around for finite precision of std::to_string
+template <typename T> std::string to_string_with_precision(const T a_value, const int n = 14) {
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
+}
+
+// determine minimum precision needed
+template <typename T> int minimum_precision(T factor) {
+    constexpr double epsilon = 1.0e-10;
+    double factor_abs = std::fabs((double)factor);
+
+    if (fabs(factor_abs - epsilon) < epsilon)
+        return 0;
+
+    // represent factor as a string of a fixed precision
+    std::stringstream ss;
+    ss << std::fixed << 10*factor_abs;
+    std::string str = ss.str();
+
+    int precision = 0;
+    bool decimal_point_encountered = false;
+    bool found_copy = false;
+    char last_char = ' ';
+    int  copy_count = 0;
+
+    for (char c : str) {
+        found_copy = (c == last_char);
+        last_char = c;
+        if (c == '.') {
+            decimal_point_encountered = true;
+        } else if (decimal_point_encountered && found_copy) {
+            if (++copy_count >= 4) break;
+        }
+
+        if (!found_copy)
+            copy_count = 0;
+
+
+        if (decimal_point_encountered) {
+            precision++;
+        }
+    }
+
+    if (precision >= copy_count)
+         precision -= copy_count;
+    else precision = 2;
+
+    // always have at least two digits
+    if (precision < 2)
+        precision = 2;
+
+    return precision;
+}
 
 class pq_string {
 
@@ -261,6 +319,22 @@ class pq_string {
      *
      */
     void print() const;
+
+    /**
+     *
+     * serialize string information to a buffer
+     * @param buffer: the buffer to send the string information to
+     *
+     */
+    void serialize(std::ofstream &buffer) const;
+
+    /**
+     *
+     * deserialize string information from a buffer
+     * @param buffer: the buffer to read the string information from
+     *
+     */
+    void deserialize(std::ifstream &buffer);
 
     /**
      *
