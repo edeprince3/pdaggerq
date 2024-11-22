@@ -387,9 +387,7 @@ fully_contracted_strings()
 
 <a name="spin"></a>
 
-#### fully_contracted_with_spin: 
-    
-returns strings involving no creation / annihilation operators. Terms are spin integrated to eliminate non-spin-conserving terms, given a dictionary of spins for non-summed labels.
+Terms could be spin integrated to eliminate non-spin-conserving terms by passing a dictionary of spins for non-summed labels to this function. If there are no non-summed labels, then an empty dictionary would suffice.
 
 ```
 spin_labels = {
@@ -398,12 +396,11 @@ spin_labels = {
     'm' : 'a',
     'n' : 'b'
 }
-fully_contracted_strings_with_spin(spin_labels)
+fully_contracted_strings(spin_labels = spin_labels)
 ```
 
-#### fully_contracted_with_ranges: 
-    
-returns strings involving no creation / annihilation operators. Dictionary of label ranges specifies orbital spaces over which amplitues are defined for active-space methods [e.g., CCSDt/CCSDtq, J. Chem. Phys. 110, 6103–6122 (1999)]
+Active-space methods [e.g., CCSDt/CCSDtq, J. Chem. Phys. 110, 6103–6122 (1999)] could be realized by passing a dictionary of label ranges that specifies orbital spaces over which the amplitudes are defined. 
+
 ```
 label_ranges = {
     't3' : ['act', 'act', 'all', 'act', 'act', 'all'],
@@ -412,8 +409,9 @@ label_ranges = {
     'a' : ['act'],
     'i' : ['act']
 }
-fully_contracted_strings_with_ranges(label_ranges)
+fully_contracted_strings(label_ranges = label_ranges)
 ```
+Note that spin labels and label ranges cannot currently be specified simultaneously.
 
 #### clear: 
 clear the current set of strings. Note that this function will not reset operator types specified using set_right_operators_type and set_left_operators_type.
