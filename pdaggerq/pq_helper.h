@@ -398,29 +398,10 @@ class pq_helper {
 
     /**
      *
-     * get list of fully-contracted strings, after spin tracing
-     *
-     * @param spin_labels: a map/dictionary mapping non-summed labels onto spins ("a" or "b")
-     */
-    [[deprecated("use pq_helper::block_by_spin(spin_labels) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels);
-
-    /**
-     *
      * this function is used to block strings by spin
      *
      */
     void block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels);
-
-    /**
-     *
-     * get list of fully-contracted strings, after assigning ranges to the labels
-     *
-     * @param label_ranges: a map/dictionary mapping non-summed labels onto ranges ("all", "active", or "external")
-     */
-    [[deprecated("use pq_helper::block_by_range(label_ranges) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_ranges(
-            const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
 
     /**
      *
