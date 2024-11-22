@@ -43,8 +43,10 @@ def main():
     # [r^s, [H, p^ q]] = - [[H,p^ q],r^s]
     pq.add_double_commutator(-1.0,['e2(i,j,k,l)'],['e1(p,q)'],['e1(r,s)'])
     pq.simplify()
-    pq.print(string_type = 'all')
-    rpa_tensor_terms = vacuum_normal_ordered_strings_to_tensor_terms(pq.strings())
+    terms = pq.strings()
+    for term in terms:
+        print(term)
+    rpa_tensor_terms = vacuum_normal_ordered_strings_to_tensor_terms(terms)
     pq.clear()
     print(rpa_tensor_terms)
 

@@ -70,11 +70,6 @@ void export_pq_helper(py::module& m) {
                 return self.set_use_rdms(do_use_rdms, ignore_cumulant);
             },
             py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
-        .def("print",
-            [](pq_helper& self, const std::string& string_type) {
-                return self.print(string_type);
-            },
-            py::arg("string_type") = "fully-contracted" )
         .def("strings", &pq_helper::strings)
         .def("fully_contracted_strings", 
             [](pq_helper& self, 
@@ -1126,45 +1121,6 @@ void pq_helper::simplify() {
     // try to cancel similar terms
     cleanup(ordered, find_paired_permutations);
 
-}
-
-void pq_helper::print(const std::string &string_type) const {
-
-    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
-    const auto &reference = is_blocked ? ordered_blocked : ordered;
-
-    printf("\n");
-    printf("    ");
-
-    int n = 0;
-
-    if ( string_type == "all" ) {
-
-        printf("// normal-ordered strings:\n");
-        for (const std::shared_ptr<pq_string> & pq_str : reference) {
-            pq_str->print();
-        }
-        printf("\n");
-        return;
-
-    }else if ( string_type == "one-body" ) {
-        printf("// one-body strings:\n");
-        n = 1;
-    }else if ( string_type == "two-body" ) {
-        n = 2;
-        printf("// two-body strings:\n");
-    }else if ( string_type == "fully-contracted" ) {
-        printf("// fully-contracted strings:\n");
-        n = 0;
-    }
-
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        // number of fermion + boson operators
-        int my_n = pq_str->symbol.size() / 2 + pq_str->is_boson_dagger.size();
-        if ( my_n != n ) continue;
-        pq_str->print();
-    }
-    printf("\n");
 }
 
 // get list of fully-contracted strings, after assigning ranges to the labels

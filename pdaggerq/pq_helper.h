@@ -412,15 +412,6 @@ class pq_helper {
 
     /**
      *
-     * print strings to stdout
-     *
-     * @param string_type: a string specifying which strings to print ("all", "one-body", "two-body", "fully-contracted").
-     *                     on the python side, the default value is "fully-contracted"
-     */
-    void print(const std::string &string_type) const;
-
-    /**
-     *
      * get const reference to list of ordered strings
      * @param bool blocked: if true, return blocked strings
      *

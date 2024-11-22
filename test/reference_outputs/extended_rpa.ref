@@ -1,9 +1,25 @@
-[-1.0000 d(l,p)*d(q,r)*d2(i,j,k,s),  1.0000 d(l,p)*d(k,r)*d2(i,j,q,s),  1.0000 d(k,p)*d(q,r)*d2(i,j,l,s), -1.0000 d(k,p)*d(l,r)*d2(i,j,q,s), -1.0000 d(i,q)*d(l,r)*d2(j,p,k,s),  1.0000 d(i,q)*d(k,r)*d2(j,p,l,s),  1.0000 d(j,q)*d(l,r)*d2(i,p,k,s), -1.0000 d(j,q)*d(k,r)*d2(i,p,l,s), -1.0000 d(i,s)*d(l,p)*d2(j,r,k,q),  1.0000 d(i,s)*d(k,p)*d2(j,r,l,q),  1.0000 d(j,s)*d(l,p)*d2(i,r,k,q), -1.0000 d(j,s)*d(k,p)*d2(i,r,l,q),  1.0000 d(p,s)*d(i,q)*d2(j,r,k,l), -1.0000 d(p,s)*d(j,q)*d2(i,r,k,l), -1.0000 d(i,q)*d(j,s)*d2(p,r,k,l),  1.0000 d(i,s)*d(j,q)*d2(p,r,k,l)]
+['-1.00', 'i*', 'j*', 'k', 's', 'd(l,p)', 'd(q,r)']
+['+1.00', 'i*', 'j*', 'q', 's', 'd(k,r)', 'd(l,p)']
+['+1.00', 'i*', 'j*', 'l', 's', 'd(k,p)', 'd(q,r)']
+['-1.00', 'i*', 'j*', 'q', 's', 'd(k,p)', 'd(l,r)']
+['-1.00', 'j*', 'p*', 'k', 's', 'd(i,q)', 'd(l,r)']
+['+1.00', 'j*', 'p*', 'l', 's', 'd(i,q)', 'd(k,r)']
+['+1.00', 'i*', 'p*', 'k', 's', 'd(j,q)', 'd(l,r)']
+['-1.00', 'i*', 'p*', 'l', 's', 'd(j,q)', 'd(k,r)']
+['-1.00', 'j*', 'r*', 'k', 'q', 'd(i,s)', 'd(l,p)']
+['+1.00', 'j*', 'r*', 'l', 'q', 'd(i,s)', 'd(k,p)']
+['+1.00', 'i*', 'r*', 'k', 'q', 'd(j,s)', 'd(l,p)']
+['-1.00', 'i*', 'r*', 'l', 'q', 'd(j,s)', 'd(k,p)']
+['+1.00', 'j*', 'r*', 'k', 'l', 'd(i,q)', 'd(p,s)']
+['-1.00', 'i*', 'r*', 'k', 'l', 'd(j,q)', 'd(p,s)']
+['-1.00', 'p*', 'r*', 'k', 'l', 'd(i,q)', 'd(j,s)']
+['+1.00', 'p*', 'r*', 'k', 'l', 'd(i,s)', 'd(j,q)']
+[-1.0000 d(l,p)*d(q,r)*d2(i,j,k,s),  1.0000 d(k,r)*d(l,p)*d2(i,j,q,s),  1.0000 d(k,p)*d(q,r)*d2(i,j,l,s), -1.0000 d(k,p)*d(l,r)*d2(i,j,q,s), -1.0000 d(i,q)*d(l,r)*d2(j,p,k,s),  1.0000 d(i,q)*d(k,r)*d2(j,p,l,s),  1.0000 d(j,q)*d(l,r)*d2(i,p,k,s), -1.0000 d(j,q)*d(k,r)*d2(i,p,l,s), -1.0000 d(i,s)*d(l,p)*d2(j,r,k,q),  1.0000 d(i,s)*d(k,p)*d2(j,r,l,q),  1.0000 d(j,s)*d(l,p)*d2(i,r,k,q), -1.0000 d(j,s)*d(k,p)*d2(i,r,l,q),  1.0000 d(i,q)*d(p,s)*d2(j,r,k,l), -1.0000 d(j,q)*d(p,s)*d2(i,r,k,l), -1.0000 d(i,q)*d(j,s)*d2(p,r,k,l),  1.0000 d(i,s)*d(j,q)*d2(p,r,k,l)]
 #  -1.0000 d(l,p)*d(q,r)*d2(i,j,k,s)*k2(i,j,k,l)
 erpa_val += -1.000000000000000 * einsum('lp,qr,ijks,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
 
-#   1.0000 d(l,p)*d(k,r)*d2(i,j,q,s)*k2(i,j,k,l)
-erpa_val +=  1.000000000000000 * einsum('lp,kr,ijqs,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
+#   1.0000 d(k,r)*d(l,p)*d2(i,j,q,s)*k2(i,j,k,l)
+erpa_val +=  1.000000000000000 * einsum('kr,lp,ijqs,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
 
 #   1.0000 d(k,p)*d(q,r)*d2(i,j,l,s)*k2(i,j,k,l)
 erpa_val +=  1.000000000000000 * einsum('kp,qr,ijls,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
@@ -35,34 +51,15 @@ erpa_val +=  1.000000000000000 * einsum('js,lp,irkq,ijkl->rspq', kd[o, o], kd[o,
 #  -1.0000 d(j,s)*d(k,p)*d2(i,r,l,q)*k2(i,j,k,l)
 erpa_val += -1.000000000000000 * einsum('js,kp,irlq,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
 
-#   1.0000 d(p,s)*d(i,q)*d2(j,r,k,l)*k2(i,j,k,l)
-erpa_val +=  1.000000000000000 * einsum('ps,iq,jrkl,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
+#   1.0000 d(i,q)*d(p,s)*d2(j,r,k,l)*k2(i,j,k,l)
+erpa_val +=  1.000000000000000 * einsum('iq,ps,jrkl,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
 
-#  -1.0000 d(p,s)*d(j,q)*d2(i,r,k,l)*k2(i,j,k,l)
-erpa_val += -1.000000000000000 * einsum('ps,jq,irkl,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
+#  -1.0000 d(j,q)*d(p,s)*d2(i,r,k,l)*k2(i,j,k,l)
+erpa_val += -1.000000000000000 * einsum('jq,ps,irkl,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
 
 #  -1.0000 d(i,q)*d(j,s)*d2(p,r,k,l)*k2(i,j,k,l)
 erpa_val += -1.000000000000000 * einsum('iq,js,prkl,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
 
 #   1.0000 d(i,s)*d(j,q)*d2(p,r,k,l)*k2(i,j,k,l)
 erpa_val +=  1.000000000000000 * einsum('is,jq,prkl,ijkl->rspq', kd[o, o], kd[o, o], d2[:, :, :, :], k2[:, :, :, :])
-
-
-    // normal-ordered strings:
-    //     -     1.00000000000000 i* j* k s d(l,p) d(q,r) 
-    //     +     1.00000000000000 i* j* q s d(l,p) d(k,r) 
-    //     +     1.00000000000000 i* j* l s d(k,p) d(q,r) 
-    //     -     1.00000000000000 i* j* q s d(k,p) d(l,r) 
-    //     -     1.00000000000000 j* p* k s d(i,q) d(l,r) 
-    //     +     1.00000000000000 j* p* l s d(i,q) d(k,r) 
-    //     +     1.00000000000000 i* p* k s d(j,q) d(l,r) 
-    //     -     1.00000000000000 i* p* l s d(j,q) d(k,r) 
-    //     -     1.00000000000000 j* r* k q d(i,s) d(l,p) 
-    //     +     1.00000000000000 j* r* l q d(i,s) d(k,p) 
-    //     +     1.00000000000000 i* r* k q d(j,s) d(l,p) 
-    //     -     1.00000000000000 i* r* l q d(j,s) d(k,p) 
-    //     +     1.00000000000000 j* r* k l d(p,s) d(i,q) 
-    //     -     1.00000000000000 i* r* k l d(p,s) d(j,q) 
-    //     -     1.00000000000000 p* r* k l d(i,q) d(j,s) 
-    //     +     1.00000000000000 p* r* k l d(i,s) d(j,q) 
 
