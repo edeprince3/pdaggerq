@@ -398,15 +398,6 @@ class pq_helper {
 
     /**
      *
-     * get list of fully-contracted strings, after spin tracing
-     *
-     * @param spin_labels: a map/dictionary mapping non-summed labels onto spins ("a" or "b")
-     */
-    [[deprecated("use pq_helper::block_by_spin(spin_labels) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels);
-
-    /**
-     *
      * this function is used to block strings by spin
      *
      */
@@ -414,29 +405,10 @@ class pq_helper {
 
     /**
      *
-     * get list of fully-contracted strings, after assigning ranges to the labels
-     *
-     * @param label_ranges: a map/dictionary mapping non-summed labels onto ranges ("all", "active", or "external")
-     */
-    [[deprecated("use pq_helper::block_by_range(label_ranges) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_ranges(
-            const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
-
-    /**
-     *
      * this function is used to block strings by label ranges
      *
      */
     void block_by_range(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
-
-    /**
-     *
-     * print strings to stdout
-     *
-     * @param string_type: a string specifying which strings to print ("all", "one-body", "two-body", "fully-contracted").
-     *                     on the python side, the default value is "fully-contracted"
-     */
-    void print(const std::string &string_type) const;
 
     /**
      *

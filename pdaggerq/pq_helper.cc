@@ -65,43 +65,55 @@ void export_pq_helper(py::module& m) {
         .def("clone", &pq_helper::clone)
         .def("save", &pq_helper::serialize)
         .def("load", &pq_helper::deserialize)
-        //.def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_use_rdms",
-             [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
-                 return self.set_use_rdms(do_use_rdms, ignore_cumulant);
-             },
-             py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
-        .def("print",
-             [](pq_helper& self, const std::string& string_type) {
-                 return self.print(string_type);
-             },
-             py::arg("string_type") = "fully-contracted" )
+            [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
+                return self.set_use_rdms(do_use_rdms, ignore_cumulant);
+            },
+            py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
         .def("strings", &pq_helper::strings)
-        .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
-        .def("fully_contracted_strings_with_spin",
-             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
-//                 return self.fully_contracted_strings_with_spin(spin_labels);
+        .def("fully_contracted_strings", 
+            [](pq_helper& self, 
+                const std::unordered_map<std::string, std::string> &spin_labels, 
+                const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
+
+                bool has_spin_labels = spin_labels.find("DUMMY") == spin_labels.end();
+                bool has_label_ranges = label_ranges.find("DUMMY") == label_ranges.end();
+
+                if ( has_spin_labels && has_label_ranges ) {
+                    printf("\n");
+                    printf("    error: cannot simultaneously block by spin and by range\n");
+                    printf("\n");
+                    exit(1);
+                }
+                
+                if ( has_spin_labels ) {
+                
+                    // spin blocking 
                     self.block_by_spin(spin_labels);
                     return self.fully_contracted_strings();
-             },
-             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+                
+                } else if ( has_label_ranges ) {
+                
+                    // range labels
+                   self.block_by_range(label_ranges);
+                   return self.fully_contracted_strings();
+
+                   // no blocking
+                } else return self.fully_contracted_strings();
+
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>{{"DUMMY",""}},
+            py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>{{"DUMMY",{""}}} )
         .def("block_by_spin",
-             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
-                    self.block_by_spin(spin_labels);
-             },
-                py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
-        .def("fully_contracted_strings_with_ranges",
-             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
-//                 return self.fully_contracted_strings_with_ranges(label_ranges);
-                    self.block_by_range(label_ranges);
-                    return self.fully_contracted_strings();
-             },
-             py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>() )
+            [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
+                self.block_by_spin(spin_labels);
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("block_by_range",
-             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
-                 self.block_by_range(label_ranges);
-             },
-                py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+            [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
+                self.block_by_range(label_ranges);
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("add_st_operator", &pq_helper::add_st_operator)
         .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
@@ -1111,84 +1123,6 @@ void pq_helper::simplify() {
 
 }
 
-void pq_helper::print(const std::string &string_type) const {
-
-    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
-    const auto &reference = is_blocked ? ordered_blocked : ordered;
-
-    printf("\n");
-    printf("    ");
-
-    int n = 0;
-
-    if ( string_type == "all" ) {
-
-        printf("// normal-ordered strings:\n");
-        for (const std::shared_ptr<pq_string> & pq_str : reference) {
-            pq_str->print();
-        }
-        printf("\n");
-        return;
-
-    }else if ( string_type == "one-body" ) {
-        printf("// one-body strings:\n");
-        n = 1;
-    }else if ( string_type == "two-body" ) {
-        n = 2;
-        printf("// two-body strings:\n");
-    }else if ( string_type == "fully-contracted" ) {
-        printf("// fully-contracted strings:\n");
-        n = 0;
-    }
-
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        // number of fermion + boson operators
-        int my_n = pq_str->symbol.size() / 2 + pq_str->is_boson_dagger.size();
-        if ( my_n != n ) continue;
-        pq_str->print();
-    }
-    printf("\n");
-
-}
-
-// get list of fully-contracted strings, after assigning ranges to the labels
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_ranges(
-            const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
-
-    // add ranges to labels
-    pq_string::is_range_blocked = true;
-    if ( pq_string::is_spin_blocked ) {
-        printf("\n");
-        printf("    error: cannot simultaneously block by spin and by range\n");
-    }
-
-    std::vector< std::shared_ptr<pq_string> > range_blocked;
-
-    for (auto & pq_str : ordered) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector< std::shared_ptr<pq_string> > tmp;
-        add_label_ranges(pq_str, tmp, label_ranges);
-        for (const auto & op : tmp) {
-            range_blocked.push_back(op);
-        }
-    }
-
-    std::vector<std::vector<std::string> > list;
-    for (auto & pq_str : range_blocked) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = pq_str->get_string();
-        //std::vector<std::string> my_string = range_blocked[pq_str]->get_string();
-        if ( !my_string.empty() ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
-}
-
 // get list of fully-contracted strings, after assigning ranges to the labels
 void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
     ordered_blocked.clear();
@@ -1198,6 +1132,8 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     if ( pq_string::is_spin_blocked ) {
         printf("\n");
         printf("    error: cannot simultaneously block by spin and by range\n");
+        printf("\n");
+        exit(1);
     }
 
     std::vector< std::shared_ptr<pq_string> > range_blocked;
@@ -1213,42 +1149,6 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     }
 }
 
-// get list of fully-contracted strings, after spin tracing
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
-
-    // perform spin tracing
-    pq_string::is_spin_blocked = true;
-    if ( pq_string::is_range_blocked ) {
-        printf("\n");
-        printf("    error: cannot simultaneously block by spin and by range\n");
-    }
-
-    std::vector< std::shared_ptr<pq_string> > spin_blocked;
-
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector< std::shared_ptr<pq_string> > tmp;
-        spin_blocking(pq_str, tmp, spin_labels);
-        for (const std::shared_ptr<pq_string> & op : tmp) {
-            spin_blocked.push_back(op);
-        }
-    }
-
-    std::vector<std::vector<std::string> > list;
-    for (auto & spin_str : spin_blocked) {
-        if ( !spin_str->symbol.empty() ) continue;
-        if ( !spin_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = spin_str->get_string();
-        if ( !my_string.empty() ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
-}
-
 void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
     ordered_blocked.clear();
 
@@ -1257,6 +1157,8 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
     if ( pq_string::is_range_blocked ) {
         printf("\n");
         printf("    error: cannot simultaneously block by spin and by range\n");
+        printf("\n");
+        exit(1);
     }
 
     for (std::shared_ptr<pq_string> & pq_str : ordered) {

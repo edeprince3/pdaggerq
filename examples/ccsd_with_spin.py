@@ -19,7 +19,7 @@ pq.simplify()
 
 # grab list of fully-contracted strings, then print
 #pq.set_non_summed_spin_labels([[]])
-energy_terms = pq.fully_contracted_strings_with_spin()
+energy_terms = pq.fully_contracted_strings(spin_labels = {})
 for my_term in energy_terms:
     print(my_term)
 
@@ -43,7 +43,7 @@ spin_labels = {
     'e' : 'a',
     'm' : 'a',
 }
-singles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+singles_residual_terms = pq.fully_contracted_strings(spin_labels = spin_labels)
 for my_term in singles_residual_terms:
     print(my_term)
 
@@ -56,7 +56,7 @@ spin_labels = {
     'e' : 'b',
     'm' : 'b',
 }
-singles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+singles_residual_terms = pq.fully_contracted_strings(spin_labels = spin_labels)
 for my_term in singles_residual_terms:
     print(my_term)
 
@@ -82,7 +82,7 @@ spin_labels = {
     'm' : 'a',
     'n' : 'a'
 }
-doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+doubles_residual_terms = pq.fully_contracted_strings(spin_labels = spin_labels)
 for my_term in doubles_residual_terms:
     print(my_term)
 
@@ -97,7 +97,7 @@ spin_labels = {
     'm' : 'b',
     'n' : 'b'
 }
-doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+doubles_residual_terms = pq.fully_contracted_strings(spin_labels = spin_labels)
 for my_term in doubles_residual_terms:
     print(my_term)
 
@@ -112,7 +112,7 @@ spin_labels = {
     'm' : 'a',
     'n' : 'b'
 }
-doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+doubles_residual_terms = pq.fully_contracted_strings(spin_labels = spin_labels)
 for my_term in doubles_residual_terms:
     print(my_term)
 
