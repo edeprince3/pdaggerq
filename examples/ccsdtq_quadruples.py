@@ -23,7 +23,7 @@ pq.add_st_operator(1.0,['v'],T)
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-quadruples_residual_terms = pq.fully_contracted_strings()
+quadruples_residual_terms = pq.strings()
 for my_term in quadruples_residual_terms:
     print(my_term, flush=True)
 

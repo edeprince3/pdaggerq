@@ -65,7 +65,7 @@ pq.add_quadruple_commutator( 1.0/24.0, ['v'],['t1'],['t1'],['t1'],['t1'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-residual_terms = pq.fully_contracted_strings()
+residual_terms = pq.strings()
 for my_term in residual_terms:
     print(my_term)
 
