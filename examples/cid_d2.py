@@ -18,7 +18,7 @@ pq.add_operator_product(1.0,['e2(i,j,l,k)'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -33,7 +33,7 @@ pq.add_operator_product(1.0,['e2(a,b,d,c)'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -48,7 +48,7 @@ pq.add_operator_product(1.0,['e2(i,j,b,a)'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -63,7 +63,7 @@ pq.add_operator_product(1.0,['e2(a,b,j,i)'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -78,7 +78,7 @@ pq.add_operator_product(1.0,['e2(i,a,b,j)'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -93,7 +93,7 @@ pq.add_operator_product(1.0,['e2(i,a,j,b)'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 

@@ -384,17 +384,10 @@ class pq_helper {
 
     /**
      *
-     * get a list of all strings 
+     * get a list of all strings (true vacuum) or fully-contracted strings (fermi vacuum)
      *
      */
     std::vector<std::vector<std::string> > strings() const;
-
-    /**
-     *
-     * get list of fully-contracted strings
-     *
-     */
-    std::vector<std::vector<std::string> > fully_contracted_strings() const;
 
     /**
      *

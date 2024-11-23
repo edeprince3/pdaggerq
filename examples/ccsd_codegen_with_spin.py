@@ -27,7 +27,7 @@ def main():
 
     # grab list of fully-contracted strings, then print
 
-    energy_terms = pq.fully_contracted_strings_with_spin()
+    energy_terms = pq.strings(spin_labels = {})
     energy_terms = contracted_strings_to_tensor_terms(energy_terms)
 
     for my_term in energy_terms:
@@ -63,7 +63,7 @@ def main():
         'm' : 'a',
         'e' : 'a'
     }
-    singles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+    singles_residual_terms = pq.strings(spin_labels = spin_labels)
     singles_residual_terms = contracted_strings_to_tensor_terms(
         singles_residual_terms)
     for my_term in singles_residual_terms:
@@ -89,7 +89,7 @@ def main():
         'm' : 'b',
         'e' : 'b'
     }
-    singles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+    singles_residual_terms = pq.strings(spin_labels = spin_labels)
     singles_residual_terms = contracted_strings_to_tensor_terms(
         singles_residual_terms)
     for my_term in singles_residual_terms:
@@ -128,7 +128,7 @@ def main():
         'e' : 'a',
         'f' : 'a'
     }
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+    doubles_residual_terms = pq.strings(spin_labels = spin_labels)
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -155,7 +155,7 @@ def main():
         'e' : 'b',
         'f' : 'b'
     }
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+    doubles_residual_terms = pq.strings(spin_labels = spin_labels)
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -182,7 +182,7 @@ def main():
         'e' : 'a',
         'f' : 'b'
     }
-    doubles_residual_terms = pq.fully_contracted_strings_with_spin(spin_labels)
+    doubles_residual_terms = pq.strings(spin_labels = spin_labels)
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)

@@ -18,7 +18,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    d1_terms_deprince = pq.fully_contracted_strings()
+    d1_terms_deprince = pq.strings()
     d1_terms_ncr = contracted_strings_to_tensor_terms(d1_terms_deprince)
     for my_term, deprince_term in zip(d1_terms_ncr, d1_terms_deprince):
         print("# \t", my_term)
@@ -38,7 +38,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    d1_terms_deprince = pq.fully_contracted_strings()
+    d1_terms_deprince = pq.strings()
     d1_terms_ncr = contracted_strings_to_tensor_terms(d1_terms_deprince)
     for my_term, deprince_term in zip(d1_terms_ncr, d1_terms_deprince):
         print("#\t", my_term)
@@ -57,7 +57,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    d1_terms_deprince = pq.fully_contracted_strings()
+    d1_terms_deprince = pq.strings()
     d1_terms_ncr = contracted_strings_to_tensor_terms(d1_terms_deprince)
     for my_term, deprince_term in zip(d1_terms_ncr, d1_terms_deprince):
         print("#\t", my_term)
@@ -77,7 +77,7 @@ def main():
 
     # grab list of fully-contracted strings, then print
     # note, this will be sorted e,m output so user must transpose
-    d1_terms_deprince = pq.fully_contracted_strings()
+    d1_terms_deprince = pq.strings()
     d1_terms_ncr = contracted_strings_to_tensor_terms(d1_terms_deprince)
     for my_term, deprince_term in zip(d1_terms_ncr, d1_terms_deprince):
         print("#\t", my_term)

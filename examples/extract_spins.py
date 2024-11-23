@@ -77,5 +77,5 @@ def block_by_spin(pq, eqname, ops, eqs):
 
         # print the fully contracted strings
         print(f"Equation {spin_eqname}:", flush=True)
-        for term in pq.fully_contracted_strings():
+        for term in pq.strings():
             print(term, flush=True)

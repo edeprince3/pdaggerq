@@ -13,7 +13,7 @@ def main():
     pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(i,j,l,k)'],['t1','t2'])
     pq.simplify()
-    d2_terms_deprince = pq.fully_contracted_strings()
+    d2_terms_deprince = pq.strings()
     d2_terms_ncr = contracted_strings_to_tensor_terms(d2_terms_deprince)
     for my_term, deprince_term in zip(d2_terms_ncr, d2_terms_deprince):
         print("#\t", deprince_term)
@@ -27,7 +27,7 @@ def main():
     pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(i,j,a,k)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -40,7 +40,7 @@ def main():
     pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(i,j,l,a)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -53,7 +53,7 @@ def main():
     pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(i,a,l,k)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -66,7 +66,7 @@ def main():
     pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(a,j,l,k)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -79,7 +79,7 @@ def main():
     pq.set_left_operators([['1'],['l1'],['l2']])
     pq.add_st_operator(1.0,['e2(a,b,d,c)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -91,7 +91,7 @@ def main():
     print('\n', '#    D2(a,b,c,i):', '\n')
     pq.add_st_operator(1.0,['e2(a,b,i,c)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -103,7 +103,7 @@ def main():
     print('\n', '#    D2(a,b,i,d):', '\n')
     pq.add_st_operator(1.0,['e2(a,b,d,i)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -115,7 +115,7 @@ def main():
     print('\n', '#    D2(i,b,c,d):', '\n')
     pq.add_st_operator(1.0,['e2(i,b,d,c)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -127,7 +127,7 @@ def main():
     print('\n', '#    D2(a,i,c,d):', '\n')
     pq.add_st_operator(1.0,['e2(a,i,d,c)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -139,7 +139,7 @@ def main():
     print('\n', '#    D2(i,j,a,b):', '\n')
     pq.add_st_operator(1.0,['e2(i,j,b,a)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -151,7 +151,7 @@ def main():
     print('\n', '#    D2(a,b,i,j):', '\n')
     pq.add_st_operator(1.0, ['e2(a,b,j,i)'], ['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -163,7 +163,7 @@ def main():
     print('\n', '#    D2(i,a,j,b):', '\n')
     pq.add_st_operator(1.0,['e2(i,a,b,j)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -175,7 +175,7 @@ def main():
     print('\n', '#    D2(a,i,j,b):', '\n')
     pq.add_st_operator(1.0,['e2(a,i,b,j)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -188,7 +188,7 @@ def main():
     print('\n', '#    D2(i,a,b,j):', '\n')
     pq.add_st_operator(1.0, ['e2(i,a,j,b)'], ['t1', 't2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)
@@ -201,7 +201,7 @@ def main():
     print('\n', '#    D2(a,i,b,j):', '\n')
     pq.add_st_operator(1.0,['e2(a,i,j,b)'],['t1','t2'])
     pq.simplify()
-    d2_terms = pq.fully_contracted_strings()
+    d2_terms = pq.strings()
     d2_terms = contracted_strings_to_tensor_terms(d2_terms)
     for my_term in d2_terms:
         print("#\t", my_term)

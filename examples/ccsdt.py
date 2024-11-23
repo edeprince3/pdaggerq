@@ -21,7 +21,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2','t3'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-energy_terms = pq.fully_contracted_strings()
+energy_terms = pq.strings()
 for my_term in energy_terms:
     print(my_term)
 
@@ -41,7 +41,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2','t3'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-singles_residual_terms = pq.fully_contracted_strings()
+singles_residual_terms = pq.strings()
 for my_term in singles_residual_terms:
     print(my_term)
 
@@ -68,7 +68,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2','t3'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-doubles_residual_terms = pq.fully_contracted_strings()
+doubles_residual_terms = pq.strings()
 for my_term in doubles_residual_terms:
     print(my_term)
 
@@ -95,7 +95,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2','t3'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-triples_residual_terms = pq.fully_contracted_strings()
+triples_residual_terms = pq.strings()
 for my_term in triples_residual_terms:
     print(my_term)
 

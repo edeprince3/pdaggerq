@@ -40,7 +40,7 @@ def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None,
         eqs[proj_eqname] = pq.clone()
         # print the fully contracted strings
         print(f"Equation {proj_eqname}:", flush=True)
-        for term in pq.fully_contracted_strings():
+        for term in pq.strings():
             print(term, flush=True)
     del pq
 

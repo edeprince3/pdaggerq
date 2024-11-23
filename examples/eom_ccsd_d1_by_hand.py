@@ -62,7 +62,7 @@ for L in left_hand_operators:
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -122,7 +122,7 @@ for L in left_hand_operators:
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -182,7 +182,7 @@ for L in left_hand_operators:
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -242,7 +242,7 @@ for L in left_hand_operators:
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
