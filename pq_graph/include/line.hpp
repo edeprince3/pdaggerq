@@ -98,9 +98,7 @@ namespace pdaggerq {
                         auto den_it = find(den_labels_.begin(), den_labels_.end(), line_char);
                         den_ = den_it != den_labels_.end();
 
-                        // could not find in any lines, throw error
-                        if (!den_)
-                            throw runtime_error("Invalid line " + std::string(1, line_char));
+                        // could not find in any lines. defaults to virtual
                     }
                 }
             }
