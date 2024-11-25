@@ -605,7 +605,7 @@ struct LinkMerger {
                     merged_pq += " += " + merge_term->original_pq_;
                 }
 
-                as_link(merged_vertex)->fuse();
+                as_link(merged_vertex)->factor();
                 bool last_add_bool = merged_vertex->is_addition();
                 as_link(merged_vertex)->copy_misc(target_infos[i].link);
                 as_link(merged_vertex)->is_addition() = last_add_bool;
@@ -614,7 +614,7 @@ struct LinkMerger {
                 if (i == 0) {
                     merged_vertex_init = merged_vertex->relabel()->shallow();
                     merged_vertex_init->id() = -1;
-                    as_link(merged_vertex_init)->fuse();
+                    as_link(merged_vertex_init)->factor();
                     as_link(merged_vertex_init)->copy_misc(target_infos[i].link);
                     as_link(merged_vertex_init)->is_addition() = last_add_bool;
                     as_link(merged_vertex_init)->id() = max_id;
@@ -944,10 +944,10 @@ size_t PQGraph::prune(bool keep_single_use) {
         #pragma omp parallel for schedule(guided) default(none) shared(all_terms)
         for (Term *term_ptr: all_terms) {
             Term &term = *term_ptr;
-            // fuse the term linkage
+            // factor the term linkage
             MutableLinkagePtr term_link = as_link(term.term_linkage()->shallow());
             if (!term_link->is_temp()) continue;
-            else term_link->fuse();
+            else term_link->factor();
 
             term.expand_rhs(term_link);
             term.reorder(true);
