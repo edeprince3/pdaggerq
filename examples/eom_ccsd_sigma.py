@@ -18,7 +18,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -37,7 +37,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -56,7 +56,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -75,7 +75,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -94,7 +94,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 
@@ -114,7 +114,7 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 

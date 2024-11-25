@@ -37,7 +37,7 @@ pq.simplify()
 
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
+terms = pq.strings()
 for my_term in terms:
     print(my_term)
 

@@ -70,8 +70,7 @@ void export_pq_helper(py::module& m) {
                 return self.set_use_rdms(do_use_rdms, ignore_cumulant);
             },
             py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
-        .def("strings", &pq_helper::strings)
-        .def("fully_contracted_strings", 
+        .def("strings", 
             [](pq_helper& self, 
                 const std::unordered_map<std::string, std::string> &spin_labels, 
                 const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
@@ -90,16 +89,16 @@ void export_pq_helper(py::module& m) {
                 
                     // spin blocking 
                     self.block_by_spin(spin_labels);
-                    return self.fully_contracted_strings();
+                    return self.strings();
                 
                 } else if ( has_label_ranges ) {
                 
                     // range labels
                    self.block_by_range(label_ranges);
-                   return self.fully_contracted_strings();
+                   return self.strings();
 
                    // no blocking
-                } else return self.fully_contracted_strings();
+                } else return self.strings();
 
             },
             py::arg("spin_labels") = std::unordered_map<std::string, std::string>{{"DUMMY",""}},
@@ -1123,7 +1122,7 @@ void pq_helper::simplify() {
 
 }
 
-// get list of fully-contracted strings, after assigning ranges to the labels
+// block labels by orbital spaces
 void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
     ordered_blocked.clear();
 
@@ -1149,6 +1148,7 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     }
 }
 
+// block labels by spin
 void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
     ordered_blocked.clear();
 
@@ -1170,25 +1170,6 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
             ordered_blocked.push_back(tmp_pq_str);
         }
     }
-}
-
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() const {
-
-    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
-    const auto &reference = is_blocked ? ordered_blocked : ordered;
-
-    std::vector<std::vector<std::string> > list;
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = pq_str->get_string();
-        if ( (int)my_string.size() > 0 ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
 }
 
 std::vector<std::vector<std::string> > pq_helper::strings() const {
