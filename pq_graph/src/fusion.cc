@@ -579,6 +579,8 @@ struct LinkMerger {
                 // build merged vertex
                 MutableVertexPtr merged_vertex = target_infos[i].link->shallow();
                 long max_id = link_tracker_.max_ids_[target_link->type()];
+                long merged_id = merged_vertex->id();
+                merged_vertex->id() = -1;
 
                 Term *target_term = target_infos[i].term;
                 string merged_pq = target_term->original_pq_;
@@ -586,13 +588,14 @@ struct LinkMerger {
                     MutableLinkagePtr target_vertex = as_link(merge_info[i].link->shallow());
                     Term *merge_term = merge_info[i].term;
                     max_id = std::max(max_id, target_vertex->id());
+                    long target_id = target_vertex->id();
+                    target_vertex->id() = -1;
 
                     // get ratio of coefficients
                     double ratio = merge_term->coefficient_ / target_term->coefficient_;
                     if (fabs(ratio - 1.0) > 1e-10)
                          merged_vertex = merged_vertex + ratio * target_vertex;
                     else merged_vertex = merged_vertex + target_vertex;
-                    as_link(merged_vertex)->fuse();
 
                     // add the pq string to track evaluation
                     // add original pq to unique term
@@ -601,12 +604,21 @@ struct LinkMerger {
                     merged_pq += string(merge_term->lhs()->name().size(), ' ');
                     merged_pq += " += " + merge_term->original_pq_;
                 }
+
+                as_link(merged_vertex)->fuse();
                 bool last_add_bool = merged_vertex->is_addition();
                 as_link(merged_vertex)->copy_misc(target_infos[i].link);
                 as_link(merged_vertex)->is_addition() = last_add_bool;
                 as_link(merged_vertex)->id() = max_id;
 
-                if (i == 0) merged_vertex_init = merged_vertex->relabel()->shallow();
+                if (i == 0) {
+                    merged_vertex_init = merged_vertex->relabel()->shallow();
+                    merged_vertex_init->id() = -1;
+                    as_link(merged_vertex_init)->fuse();
+                    as_link(merged_vertex_init)->copy_misc(target_infos[i].link);
+                    as_link(merged_vertex_init)->is_addition() = last_add_bool;
+                    as_link(merged_vertex_init)->id() = max_id;
+                }
 
                 // build the new term
                 Term new_term = target_infos[i].trunc_term;
@@ -677,10 +689,18 @@ struct LinkMerger {
                 }
             }
             eq.terms() = new_terms;
+            eq.collect_scaling(true);
         }
 
-        // add new declarations
         for (auto &[link_type, new_declaration]: new_declarations) {
+
+            // substitute the new merged linkages
+            LinkagePtr new_merged_link = as_link(new_declaration.lhs());
+            for (auto &[name, eq]: pq_graph_.equations()) {
+                eq.substitute(new_merged_link, true);
+            }
+
+            // add new declarations
             auto &link_equation = pq_graph_.equations()[link_type];
             link_equation.terms().insert(link_equation.begin(), new_declaration);
             link_equation.rearrange();

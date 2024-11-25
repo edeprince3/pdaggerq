@@ -200,6 +200,7 @@ namespace pdaggerq {
     }
 
     bool Linkage::fuse() {
+        return false; // TODO: this never works correctly. Needs to eventually.
         if (is_temp() || empty()) return false;
         if (left_->empty() && right_->is_linked()) { *this = *as_link(right_); return false; }
         if (right_->empty() && left_->is_linked()) { *this = *as_link(left_); return false; }
