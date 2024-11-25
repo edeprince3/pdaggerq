@@ -17,15 +17,6 @@ The expressions are stored in data structures that represent tensor contractions
 ```python
 import pdaggerq
 
-pq = pdaggerq.pq_helper("true")
-
-print("# [u* v - u* v, H]")
-pq.add_commutator( 1.0, [’a(u)*’, ’a(u)’], [’h’])
-pq.add_commutator(-1.0, [’a(v)*’, ’a(v)’], [’h’])
-pq.add_commutator( 0.5, [’a(u)*’, ’a(u)’], [’g’])
-pq.add_commutator(-0.5, [’a(v)*’, ’a(v)’], [’g’])
-pq.simplify()
-
 graph = pdaggerq.pq_graph({
 
 # verbosity level:
@@ -78,22 +69,31 @@ graph = pdaggerq.pq_graph({
 "nthreads": 12,
 })
 
-block_by_spin = False # use spin-blocking or not
-if block_by_spin:
-    # add alpha-alpha block
-    pq.block_by_spin({"u": "a", "v": "a"})
-    graph.add(pq, "grad_aa", ['u', 'v'])
+T = ['t1', 't2'] # cluster amplitudes
+left_ops = { # projection equations
+    "singles_residual": [['e1(i,a)']],     # singles ( 0 = <0| i* a e(-T) H e(T) |0> )
+    "doubles_residual": [['e2(i,j,b,a)']]  # doubles ( 0 = <0| i* j* b a e(-T) H e(T) |0> )
+}
 
-    # add beta-beta block
-    pq.block_by_spin({"u": "b", "v": "b"})
-    graph.add(pq, "grad_bb", ['u', 'v'])
-else:
-    graph.add(pq, "grad", ['u', 'v'])
+for eq_name, ops in left_ops.items():
+    pq = pdaggerq.pq_helper('fermi')
+    pq.set_left_operators(ops)
+    pq.add_st_operator(1.0,['f'], T)
+    pq.add_st_operator(1.0,['v'], T)
+    pq.simplify()
 
-graph.optimize()
-graph.print("python")
-graph.analysis()
+    # queue up the equation for optimization:
+    # 1) pass the pq_helper object and the name of the equation.
+    # 2) the name is used to label the left-hand side (lhs) of the equation
+    # 3) the last argument (optional) overrides the ordering of the external indices of the lhs
+    graph.add(pq, eq_name, ['a', 'b', 'i', 'j'])
+    pq.clear()
+
+# optimize the equations
+graph.optimize()       # reorders contraction and generates intermediates
+graph.print("python")  # print the optimized equations for Python.
+graph.analysis()       # prints the FLOP scaling (permutations are expanded into repeated terms for analysis)
 
 # create a DOT file for use with Graphviz
-graph.write_dot("grad.dot") 
+graph.write_dot("ccsd.dot") 
 ```
