@@ -417,7 +417,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     for (std::vector<std::string> & left_operator : left_operators) {
         std::vector<std::string> tmp;
         for (const std::string & op : left_operator) {
-            if (op == "v" ) {
+            if (op == "v" || op == "V") {
 
                 printf("\n");
                 printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
@@ -442,7 +442,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     for (std::vector<std::string> & right_operator : right_operators) {
         std::vector<std::string> tmp;
         for (const std::string & op : right_operator) {
-            if (op == "v" ) {
+            if (op == "v" || op == "V") {
 
                 printf("\n");
                 printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
@@ -466,7 +466,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     bool found_v = false;
     std::vector<std::string> tmp_in;
     for (const std::string & op : in) {
-        if (op == "v" ) {
+        if (op == "v" || op == "V") {
             found_v = true;
             break;
         }else {
@@ -550,8 +550,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 // blank string
                 if ( op.empty() ) continue;
 
+                // Stephen: removed so that we can distinguish lower- and uppercase indices
                 // lowercase indices
-                std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
+                // std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
 
                 // remove spaces
                 removeSpaces(op);
@@ -559,7 +560,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 // remove parentheses
                 removeParentheses(op);
 
-                if (op.substr(0, 1) == "h" ) { // one-electron operator
+                if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -573,7 +574,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // integrals
                     newguy->set_integrals("core", {idx1, idx2});
 
-                }else if (op.substr(0, 1) == "f" ) { // fock operator
+                }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -587,7 +588,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // integrals
                     newguy->set_integrals("fock", {idx1, idx2});
 
-                }else if (op.substr(0, 2) == "d+" ) { // one-electron operator (dipole + boson creator)
+                }else if (op.substr(0, 2) == "d+" || op.substr(0, 2) == "D+") { // one-electron operator (dipole + boson creator)
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -604,7 +605,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // boson operator
                     newguy->is_boson_dagger.push_back(true);
 
-                }else if (op.substr(0, 2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
+                }else if (op.substr(0, 2) == "d-" || op.substr(0, 2) == "D-") { // one-electron operator (dipole + boson annihilator)
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -621,7 +622,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // boson operator
                     newguy->is_boson_dagger.push_back(false);
 
-                }else if (op.substr(0, 1) == "g" ) { // general two-electron operator
+                }else if (op.substr(0, 1) == "g" || op.substr(0, 1) == "G") { // general two-electron operator
 
                     //factor *= 0.25;
 
@@ -637,7 +638,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3});
 
-                }else if (op.substr(0, 1) == "j" ) { // fluctuation potential
+                }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
 
                     if (op.substr(1, 1) == "1" ){
 
@@ -673,7 +674,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }
 
-                }else if (op.substr(0, 1) == "t" ){
+                }else if (op.substr(0, 1) == "t" || op.substr(0, 1) == "T"){
 
                     int n = std::stoi(op.substr(1));
                     std::vector<std::string> labels;
@@ -736,7 +737,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     }
                     newguy->set_amplitudes('t', n, n, n_ph, labels);
 
-                }else if (op.substr(0, 1) == "w" ){ // w0 B*B
+                }else if (op.substr(0, 1) == "w" || op.substr(0, 1) == "W"){ // w0 B*B
 
                     if (op.substr(1, 1) == "0" ){
 
@@ -752,15 +753,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         exit(1);
                     }
 
-                }else if (op.substr(0, 2) == "b+" ){ // B*
+                }else if (op.substr(0, 2) == "b+" || op.substr(0, 2) == "B+"){ // B*
 
                         newguy->is_boson_dagger.push_back(true);
 
-                }else if (op.substr(0, 2) == "b-" ){ // B
+                }else if (op.substr(0, 2) == "b-" || op.substr(0, 2) == "B-"){ // B
 
                         newguy->is_boson_dagger.push_back(false);
 
-                }else if (op.substr(0, 1) == "r" ){
+                }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
 
 
                     int n = std::stoi(op.substr(1));
@@ -834,7 +835,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     }
                     newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels);
 
-                }else if (op.substr(0, 1) == "l" ){
+                }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
 
                     int n = std::stoi(op.substr(1));
                     int n_annihilate = n;
@@ -908,7 +909,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     }
                     newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels);
 
-                }else if (op.substr(0, 1) == "e" ){
+                }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
 
 
                     if (op.substr(1, 1) == "1" ){
@@ -1022,7 +1023,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else if (op.substr(0, 1) == "1" ) { // unit operator ... do nothing
 
-                }else if (op.substr(0, 1) == "a" ){ // single creator / annihilator
+                }else if (op.substr(0, 1) == "a" || op.substr(0, 1) == "A"){ // single creator / annihilator
 
 
                     if (op.substr(1, 1) == "*" ){ // creator
