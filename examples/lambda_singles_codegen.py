@@ -37,7 +37,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    singles_residual_terms = pq.fully_contracted_strings()
+    singles_residual_terms = pq.strings()
     singles_residual_terms = contracted_strings_to_tensor_terms(singles_residual_terms)
     for my_term in singles_residual_terms:
         print("#\t", my_term)
