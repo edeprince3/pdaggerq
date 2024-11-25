@@ -417,7 +417,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     for (std::vector<std::string> & left_operator : left_operators) {
         std::vector<std::string> tmp;
         for (const std::string & op : left_operator) {
-            if (op == "v" ) {
+            if (op == "v" || op == "V") {
 
                 printf("\n");
                 printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
@@ -442,7 +442,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     for (std::vector<std::string> & right_operator : right_operators) {
         std::vector<std::string> tmp;
         for (const std::string & op : right_operator) {
-            if (op == "v" ) {
+            if (op == "v" || op == "V") {
 
                 printf("\n");
                 printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
@@ -466,7 +466,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     bool found_v = false;
     std::vector<std::string> tmp_in;
     for (const std::string & op : in) {
-        if (op == "v" ) {
+        if (op == "v" || op == "V") {
             found_v = true;
             break;
         }else {
@@ -638,7 +638,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3});
 
-                }else if (op.substr(0, 1) == "j" ) { // fluctuation potential
+                }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
 
                     if (op.substr(1, 1) == "1" ){
 
