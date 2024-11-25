@@ -394,7 +394,7 @@ def vacuum_normal_ordered_strings_to_tensor_terms(pdaggerq_list_of_strings):
             delta_idx = [Index(xx, 'all') for xx in delta_idx]
             delta_terms.append(Delta(indices=tuple(delta_idx)))
         rdm_strings = list(
-            filter(lambda xx: False if 'd(' in xx else True, pq_strings[1:]))
+            filter(lambda xx: True if 'a(' in xx or 'a*(' in xx else False, pq_strings))
         dagger_locations = [1 if '*' in xx else 0 for xx in rdm_strings]
         zero_location = dagger_locations.index(0)
         if not all(dagger_locations[:zero_location]):
@@ -403,6 +403,10 @@ def vacuum_normal_ordered_strings_to_tensor_terms(pdaggerq_list_of_strings):
             raise ValueError("Not in vacuum normal order")
         rdm_idx = [xx.replace('*', '') if '*' in xx else xx for xx in
                    rdm_strings]
+        rdm_idx = [xx.replace('a(', '') if 'a(' in xx else xx for xx in
+                   rdm_idx]
+        rdm_idx = [xx.replace(')', '') if ')' in xx else xx for xx in
+                   rdm_idx]
         g_idx = [Index(xx, 'all') for xx in rdm_idx]
         rdm_baseterm = BaseTerm(indices=tuple(g_idx), spin='',
                                 name="d{}".format(len(g_idx) // 2))
