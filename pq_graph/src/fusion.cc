@@ -579,8 +579,6 @@ struct LinkMerger {
                 // build merged vertex
                 MutableVertexPtr merged_vertex = target_infos[i].link->shallow();
                 long max_id = link_tracker_.max_ids_[target_link->type()];
-                long merged_id = merged_vertex->id();
-                merged_vertex->id() = -1;
 
                 Term *target_term = target_infos[i].term;
                 string merged_pq = target_term->original_pq_;
@@ -588,8 +586,6 @@ struct LinkMerger {
                     MutableLinkagePtr target_vertex = as_link(merge_info[i].link->shallow());
                     Term *merge_term = merge_info[i].term;
                     max_id = std::max(max_id, target_vertex->id());
-                    long target_id = target_vertex->id();
-                    target_vertex->id() = -1;
 
                     // get ratio of coefficients
                     double ratio = merge_term->coefficient_ / target_term->coefficient_;
@@ -613,7 +609,6 @@ struct LinkMerger {
 
                 if (i == 0) {
                     merged_vertex_init = merged_vertex->relabel()->shallow();
-                    merged_vertex_init->id() = -1;
                     as_link(merged_vertex_init)->factor();
                     as_link(merged_vertex_init)->copy_misc(target_infos[i].link);
                     as_link(merged_vertex_init)->is_addition() = last_add_bool;
@@ -806,12 +801,9 @@ size_t PQGraph::prune(bool keep_single_use) {
             // skip if temp is used more than once
             if (num_occurrences > 1) continue;
 
-            if (num_occurrences == 1) {
-                // if used only once, remove if the only term declares a temp and is defined
-                VertexPtr only_lhs = (*terms.begin())->lhs();
-                bool keep = !only_lhs->is_temp() || keep_single_use;
-                if (keep) continue;
-            }
+            // skip if temp is used only once and is a scalar or if keep_single_use is enabled
+            if (num_occurrences == 1 && (keep_single_use || temp->is_scalar())) continue;
+
         }
 
         num_removed++;
