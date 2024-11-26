@@ -65,7 +65,7 @@ template <typename T> int minimum_precision(T factor) {
         if (digit == '.') {
             decimal_point_encountered = true;
         } else if (decimal_point_encountered && is_repeated) {
-            if (++repeat_count >= 8) break; // keep at most 8 repeating digits
+            if (++repeat_count >= 12) break; // keep at most 8 repeating digits
         }
 
         if (!is_repeated) repeat_count = 0; // reset count
