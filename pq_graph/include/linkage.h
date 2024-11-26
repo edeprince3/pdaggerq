@@ -191,11 +191,6 @@ namespace pdaggerq {
         bool factor();
 
         /**
-         * Merges constants together in linkage
-         */
-         void merge_constants();
-
-        /**
          * Destructor
          */
         ~Linkage() override = default;
