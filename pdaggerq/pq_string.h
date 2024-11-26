@@ -55,33 +55,29 @@ template <typename T> int minimum_precision(T factor) {
 
     int precision = 0;
     bool decimal_point_encountered = false;
-    bool found_copy = false;
-    char last_char = ' ';
-    int  copy_count = 0;
+    bool is_repeated = false;
+    char last_digit = ' ';
+    int  repeat_count = 0;
 
-    for (char c : str) {
-        found_copy = (c == last_char);
-        last_char = c;
-        if (c == '.') {
+    for (char digit : str) {
+        is_repeated = (digit == last_digit);
+        last_digit = digit;
+        if (digit == '.') {
             decimal_point_encountered = true;
-        } else if (decimal_point_encountered && found_copy) {
-            if (++copy_count >= 4) break;
+        } else if (decimal_point_encountered && is_repeated) {
+            if (++repeat_count >= 4) break; // keep at most 4 repeating digits
         }
 
-        if (!found_copy)
-            copy_count = 0;
+        if (!is_repeated) repeat_count = 0; // reset count
+        if (decimal_point_encountered) precision++; // increment precision
 
-
-        if (decimal_point_encountered) {
-            precision++;
-        }
     }
 
-    if (precision >= copy_count)
-         precision -= copy_count;
-    else precision = 2;
+    // if the last repeating digit is zero, we can reduce the precision
+    if (precision >= repeat_count && last_digit == '0')
+        precision -= repeat_count;
 
-    // always have at least two digits
+    // we should always have at least two digits
     if (precision < 2)
         precision = 2;
 
