@@ -182,6 +182,15 @@ class pq_helper {
 
     /**
      *
+     * set whether or not the cluster operator is antihermitian for ucc
+     *
+     * @param is_unitary: true/false
+     *
+     */
+    void set_unitary_cc(bool is_unitary);
+
+    /**
+     *
      * set whether we should search for paired ov permutations that arise in ccsdt
      *
      * @param do_find_paired_permutations: true/false
@@ -428,6 +437,13 @@ class pq_helper {
      *
      */
     void deserialize(const std::string & filename);
+
+    /** 
+     * 
+     * is the cluster operator antihermitian for ucc?
+     * 
+     */
+    bool is_unitary_cc;
 
 private:
 
