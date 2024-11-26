@@ -199,7 +199,8 @@ namespace pdaggerq {
         }
     }
 
-    bool Linkage::fuse() {
+    bool Linkage::factor() {
+        return false; // TODO: this never works correctly. Needs to eventually.
         if (is_temp() || empty()) return false;
         if (left_->empty() && right_->is_linked()) { *this = *as_link(right_); return false; }
         if (right_->empty() && left_->is_linked()) { *this = *as_link(left_); return false; }
@@ -209,8 +210,8 @@ namespace pdaggerq {
         MutableVertexPtr right = right_->shallow();
 
         bool made_subfusion = false;
-        if ( left->is_linked() &&  left->is_addition()) made_subfusion |= as_link( left)->fuse();
-        if (right->is_linked() && right->is_addition()) made_subfusion |= as_link(right)->fuse();
+        if ( left->is_linked() &&  left->is_addition()) made_subfusion |= as_link(left)->factor();
+        if (right->is_linked() && right->is_addition()) made_subfusion |= as_link(right)->factor();
 
         bool test_fusion = !left->is_temp() && !right->is_temp();
         test_fusion &= !left->is_addition() && !right->is_addition();
@@ -242,7 +243,7 @@ namespace pdaggerq {
                         return a->lines() < b->lines();
                     });
 
-            // if there are common vertices, fuse them
+            // if there are common vertices, factor them
             if (!common.empty()) {
 
                 vertex_vector new_left, new_right;
