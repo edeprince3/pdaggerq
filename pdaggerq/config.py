@@ -44,72 +44,89 @@ nvirt = sorbs - nocc
 o = slice(0, nocc, 1)
 v = slice(nocc, sorbs, 1)
 
+# integral objects, spin-orbitals
 h = np.zeros((sorbs, sorbs))
+f = np.zeros((sorbs, sorbs))
+g = np.zeros((sorbs, sorbs, sorbs, sorbs))
+
+# integral objects, spin-integrated
 h_aa = np.zeros((sorbs, sorbs))
 h_bb = np.zeros((sorbs, sorbs))
-f = np.zeros((sorbs, sorbs))
 f_aa = np.zeros((sorbs, sorbs))
 f_bb = np.zeros((sorbs, sorbs))
-g = np.zeros((sorbs, sorbs, sorbs, sorbs))
 g_aaaa = np.zeros((sorbs, sorbs, sorbs, sorbs))
 g_abab = np.zeros((sorbs, sorbs, sorbs, sorbs))
 g_bbbb = np.zeros((sorbs, sorbs, sorbs, sorbs))
 
+# cluster amplitudes, spin-orbitals
 t1 = np.zeros((nvirt, nocc))
+t2 = np.zeros((nvirt, nvirt, nocc, nocc))
+t3 = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
+t4 = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
+
+# cluster amplitudes, spin-integrated
 t1_aa = np.zeros((nvirt, nocc))
 t1_bb = np.zeros((nvirt, nocc))
-t2 = np.zeros((nvirt, nvirt, nocc, nocc))
 t2_aaaa = np.zeros((nvirt, nvirt, nocc, nocc))
-t2_bbbb = np.zeros((nvirt, nvirt, nocc, nocc))
 t2_abab = np.zeros((nvirt, nvirt, nocc, nocc))
-t3 = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
+t2_bbbb = np.zeros((nvirt, nvirt, nocc, nocc))
 t3_aaaaaa = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
 t3_aabaab = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
 t3_abbabb = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
 t3_bbbbbb = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
-t4 = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 t4_aaaaaaaa = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 t4_aaabaaab = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 t4_aabbaabb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 t4_abbbabbb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 t4_bbbbbbbb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 
+# left EOM amplitudes, spin-orbitals
+# l0 is also used in spin-integrated case
 l0 = 0.0
 l1 = np.zeros((nocc, nvirt))
+l2 = np.zeros((nocc, nocc, nvirt, nvirt))
+l3 = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
+l4 = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
+
+# left EOM amplitudes, spin-integrated
 l1_aa = np.zeros((nocc, nvirt))
 l1_bb = np.zeros((nocc, nvirt))
-l2 = np.zeros((nocc, nocc, nvirt, nvirt))
 l2_aaaa = np.zeros((nocc, nocc, nvirt, nvirt))
 l2_abab = np.zeros((nocc, nocc, nvirt, nvirt))
 l2_bbbb = np.zeros((nocc, nocc, nvirt, nvirt))
-l3 = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
 l3_aaaaaa = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
 l3_aabaab = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
 l3_abbabb = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
 l3_bbbbbb = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
-l4 = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 l4_aaaaaaaa = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 l4_aaabaaab = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 l4_aabbaabb = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 l4_abbbabbb = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 l4_bbbbbbbb = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 
+# right EOM amplitudes
+# r0 is also used in spin-integrated case
 r0 = 0.0
-r1 = np.zeros((nocc, nvirt))
-r2 = np.zeros((nocc, nocc, nvirt, nvirt))
+r1 = np.zeros((nvirt, nocc))
+r2 = np.zeros((nvirt, nvirt, nocc, nocc))
+r3 = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
+r4 = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
+
+# right EOM amplitudes, spin-integrated
+r1_aa = np.zeros((nvirt, nocc))
+r1_bb = np.zeros((nvirt, nocc))
 r2_aaaa = np.zeros((nvirt, nvirt, nocc, nocc))
-r2_bbbb = np.zeros((nvirt, nvirt, nocc, nocc))
 r2_abab = np.zeros((nvirt, nvirt, nocc, nocc))
-r3 = np.zeros((nocc, nocc, nocc, nvirt, nvirt, nvirt))
+r2_bbbb = np.zeros((nvirt, nvirt, nocc, nocc))
 r3_aaaaaa = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
 r3_aabaab = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
 r3_abbabb = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
 r3_bbbbbb = np.zeros((nvirt, nvirt, nvirt, nocc, nocc, nocc))
-r4 = np.zeros((nocc, nocc, nocc, nocc, nvirt, nvirt, nvirt, nvirt))
 r4_aaaaaaaa = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 r4_aaabaaab = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 r4_aabbaabb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 r4_abbbabbb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 r4_bbbbbbbb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 
+# delta = identity matrix
 kd = np.zeros((sorbs, sorbs))
