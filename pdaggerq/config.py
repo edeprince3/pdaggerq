@@ -130,3 +130,9 @@ r4_bbbbbbbb = np.zeros((nvirt, nvirt, nvirt, nvirt, nocc, nocc, nocc, nocc))
 
 # delta = identity matrix
 kd = np.zeros((sorbs, sorbs))
+
+# RDMs
+d1 = np.zeros((sorbs, sorbs))
+d2 = np.zeros((sorbs, sorbs, sorbs, sorbs))
+d3 = np.zeros((sorbs, sorbs, sorbs, sorbs, sorbs, sorbs))
+d4 = np.zeros((sorbs, sorbs, sorbs, sorbs, sorbs, sorbs, sorbs, sorbs))

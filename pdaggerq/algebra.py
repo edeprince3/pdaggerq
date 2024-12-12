@@ -23,42 +23,7 @@ import numpy as np
 # This imports fake values of all these quantities (zero tensors) so
 # we can build the optimal tensor contraction orderings
 # NOTE: THESE ARE PROTECTED VARIABLE NAMES FOR THIS MODULE
-from pdaggerq.config import (o, v, h, f, g, t1, t2, t3, t4, l1, l2, l3, l4, r1,
-                             r2, r3, r4, kd, g_aaaa, g_bbbb, g_abab, f_aa, f_bb,
-                             t1_aa, t1_bb, t2_aaaa, t2_abab, t2_bbbb, h_aa, h_bb,
-                             t3_aaaaaa, 
-                             t3_aabaab, 
-                             t3_abbabb, 
-                             t3_bbbbbb, 
-                             r2_aaaa, 
-                             r2_abab, 
-                             r2_bbbb, 
-                             r3_aaaaaa, 
-                             r3_aabaab, 
-                             r3_abbabb, 
-                             r3_bbbbbb, 
-                             l2_aaaa, 
-                             l2_abab, 
-                             l2_bbbb, 
-                             l3_aaaaaa, 
-                             l3_aabaab, 
-                             l3_abbabb, 
-                             l3_bbbbbb,
-                             t4_aaaaaaaa,
-                             t4_aaabaaab,
-                             t4_aabbaabb,
-                             t4_abbbabbb,
-                             t4_bbbbbbbb,
-                             r4_aaaaaaaa,
-                             r4_aaabaaab,
-                             r4_aabbaabb,
-                             r4_abbbabbb,
-                             r4_bbbbbbbb,
-                             l4_aaaaaaaa,
-                             l4_aaabaaab,
-                             l4_aabbaabb,
-                             l4_abbbabbb,
-                             l4_bbbbbbbb, r0, l0)
+from pdaggerq.config import *
 
 class Index:
 
@@ -234,35 +199,46 @@ class TensorTerm:
         if virt_char is None:
             virt_char = 'v'  # v = slice(nocc, None)
 
-        for bt in self.base_terms:
-            tensor_index_ranges = []
-            string_indices = [xx.name for xx in bt.indices]
-            for idx_type in string_indices:
-                if idx_type in occupied:
-                    if bt.name in ['h', 'g', 'f', 'kd']:
-                        tensor_index_ranges.append(occ_char)
-                    else:
-                        tensor_index_ranges.append(':')
-                    if output_variables is not None:
-                        if idx_type in output_variables:
-                            tensor_out_idx.append(idx_type)
-                elif idx_type in virtual:  # virtual
-                    if bt.name in ['h', 'g', 'f', 'kd']:
-                        tensor_index_ranges.append(virt_char)
-                    else:
-                        tensor_index_ranges.append(':')
-                    if output_variables is not None:
-                        if idx_type in output_variables:
-                            tensor_out_idx.append(idx_type)
-                else:  # route to output with ->
-                    tensor_index_ranges.append(idx_type)
+        # these are integrals, RDMs, etc. that require explicit slicing in einsum
+        tensors_with_slices = ['h', 'g', 'f', 'kd', 'd1', 'd2', 'd3', 'd4']
+        # these are amplitudes, having fixed shape and do not require explicit slicing
+        tensors_amps  = ['t'+str(i) for i in range(1,5)]
+        tensors_amps += ['r'+str(i) for i in range(0,5)]
+        tensors_amps += ['l'+str(i) for i in range(0,5)]
 
-            if bt.name in ['t1', 't2', 't3', 'l2', 'l1', 'r1', 'r2', 'r0', 'l0']:
+        for bt in self.base_terms:
+            tensor_index_ranges = [] # 'o', 'v', or ':'
+            # parse indices and process them
+            string_indices = [xx.name for xx in bt.indices]
+            for idx_loc,idx_type in enumerate(string_indices):
+                if bt.name in tensors_with_slices:
+                    # Parse slice type (o or v or :)
+                    idx_str = ''
+                    if idx_type in occupied:
+                        idx_str += occ_char
+                    elif idx_type in virtual:
+                        idx_str += virt_char
+                    else:
+                        idx_str += ':'
+
+                    tensor_index_ranges.append(idx_str)
+
+                # add current index to einsum output indices
+                if output_variables is not None:
+                    if idx_type in output_variables:
+                        tensor_out_idx.append(idx_type)
+
+            if bt.name in tensors_amps:
+                # T, L, and R amplitudes have fixed shape even with spin, so just append their content
                 einsum_tensors.append(bt.name + bt.spin)
             else:
+                # append the appropriate slice for other tensors (e.g. h[o,o] or d2[:,v,:,v])
                 einsum_tensors.append(
                     bt.name + bt.spin + "[" + ", ".join(tensor_index_ranges) + "]")
+
+            # this is a list of indices for einsum inputs (e.g., 'ijef', 'efab')
             einsum_strings.append("".join(string_indices))
+
         if tensor_out_idx:
             out_tensor_ordered = list(filter(None, [
                 xx if xx in tensor_out_idx else None for xx in

@@ -52,10 +52,10 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         'l3' : Left3amps,
         'l4' : Left4amps,
         'd' : Delta,
-        'P' : ContractionPermuter,
-        'PP2' : ContractionPairPermuter2,
-        'PP3' : ContractionPairPermuter3,
-        'PP6' : ContractionPairPermuter6,
+        'p' : ContractionPermuter,
+        'pp2' : ContractionPairPermuter2,
+        'pp3' : ContractionPairPermuter3,
+        'pp6' : ContractionPairPermuter6,
     }
 
     # strip operator names, indices, and spin using regex
@@ -99,6 +99,8 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
                else Index(xx, 'virt') for xx in idx.split(',')]
 
         # check if operator is allowed
+        # make operator label lowercase from this point on
+        term_string = term_string.lower()
         if term_string in tensor_map.keys():
             return tensor_map[term_string](indices=tuple(idx), spin=spin)
         else:
