@@ -381,12 +381,6 @@ class Left1amps(BaseTerm):
     def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin=''):
         super().__init__(indices=indices, name=name, spin=spin)
 
-class Left1amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-
 class Left2amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='l2', spin=''):
@@ -404,8 +398,23 @@ class Left4amps(BaseTerm):
 
 class D1(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='d1'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, indices=Tuple[Index, ...], name='d1', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
+
+class D2(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='d2', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
+
+class D3(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='d3', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
+
+class D4(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='d4', spin=''):
+        super().__init__(indices=indices, name=name, spin=spin)
 
 class T1amps(BaseTerm):
 
