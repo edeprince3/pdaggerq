@@ -334,60 +334,16 @@ bool add_spins(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr
 // expand sums to include spin and zero terms where appropriate
 void spin_blocking(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, const std::unordered_map<std::string, std::string> &spin_map) {
 
-    // check that non-summed spin labels match those specified
-    static std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
-    static std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
-
-    std::map<std::string, bool> found_labels;
+    // check that spin labels are valid
+    for (auto item : spin_map) {
     
-    // ok, what non-summed labels do we have in the occupied space? 
-    for (const std::string & occ_label : occ_labels) {
-        int found = index_in_anywhere(in, occ_label);
-        if ( found == 1 ) {
-            found_labels[occ_label] = true;
-        }else{
-            found_labels[occ_label] = false;
-        }
-    }
-    
-    // ok, what non-summed labels do we have in the virtual space? 
-    for (const std::string & vir_label : vir_labels) {
-        int found = index_in_anywhere(in, vir_label);
-        if ( found == 1 ) {
-            found_labels[vir_label] = true;
-        }else{
-            found_labels[vir_label] = false;
-        }
-    }
+        std::string spin_label = item.second;
 
-    for (const std::string & occ_label : occ_labels) {
-        if ( found_labels[occ_label] ) {
-            // find spin label
-            auto pos = spin_map.find(occ_label);
-            std::string spin_label = pos == spin_map.end() ? "" : pos->second;
-
-            // check if spin label is valid
-            if ( spin_label != "a" && spin_label != "b" ) {
-                printf("\n");
-                printf("    error: spin label for non-summed index %s is invalid\n", occ_label.c_str());
-                printf("\n");
-                exit(1);
-            }
-        }
-    }
-    for (const std::string & vir_label : vir_labels) {
-        if ( found_labels[vir_label] ) {
-            // find spin label
-            auto pos = spin_map.find(vir_label);
-            std::string spin_label = pos == spin_map.end() ? "" : pos->second;
-
-            // check if spin label is valid
-            if ( spin_label != "a" && spin_label != "b" ) {
-                printf("\n");
-                printf("    error: spin label for non-summed index %s is invalid\n", vir_label.c_str());
-                printf("\n");
-                exit(1);
-            }
+        if ( spin_label != "a" && spin_label != "b" ) {
+            printf("\n");
+            printf("    error: spin label for non-summed index %s is invalid\n", spin_label.c_str());
+            printf("\n");
+            exit(1);
         }
     }
 
