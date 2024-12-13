@@ -29,10 +29,7 @@ def main():
     print('')
     print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
     print('')
-    print('o = oa')
-    print('v = va')
-    print('')
-    
+
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'a' : 'a',
@@ -59,9 +56,6 @@ def main():
                            f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
-    print('')
-    print('o = oa')
-    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -90,9 +84,6 @@ def main():
                            f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
-    print('')
-    print('o = oa')
-    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -137,9 +128,6 @@ def main():
     print('')
     print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
     print('')
-    print('o = oa')
-    print('v = va')
-    print('')
 
     # grab list of fully-contracted strings, then print
     spin_labels = {
@@ -169,9 +157,6 @@ def main():
                              f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
-    print('')
-    print('o = oa')
-    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -203,9 +188,6 @@ def main():
     print('')
     print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
     print('')
-    print('o = oa')
-    print('v = va')
-    print('')
 
     # grab list of fully-contracted strings, then print
     spin_labels = {
@@ -235,9 +217,6 @@ def main():
                              f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
     print('')
     print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
-    print('')
-    print('o = oa')
-    print('v = va')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -280,10 +259,7 @@ def main():
     print('')
     print('#    < 0 | i* j* k* l* d c b a e(-T) H e(T) | 0> :')
     print('')
-    print('o = oa')
-    print('v = va')
-    print('')
-    
+
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'a' : 'a',
@@ -315,10 +291,7 @@ def main():
     print('')
     print('#    < 0 | i* j* k* l* d c b a e(-T) H e(T) | 0> :')
     print('')
-    print('o = oa')
-    print('v = va')
-    print('')
-    
+
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'a' : 'a',
@@ -350,10 +323,7 @@ def main():
     print('')
     print('#    < 0 | i* j* k* l* d c b a e(-T) H e(T) | 0> :')
     print('')
-    print('o = oa')
-    print('v = va')
-    print('')
-   
+
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'a' : 'a',
@@ -385,10 +355,7 @@ def main():
     print('')
     print('#    < 0 | i* j* k* l* d c b a e(-T) H e(T) | 0> :')
     print('')
-    print('o = oa')
-    print('v = va')
-    print('')
-  
+
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'a' : 'a',
@@ -420,10 +387,7 @@ def main():
     print('')
     print('#    < 0 | i* j* k* l* d c b a e(-T) H e(T) | 0> :')
     print('')
-    print('o = oa')
-    print('v = va')
-    print('')
- 
+
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'a' : 'b',

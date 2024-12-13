@@ -221,6 +221,11 @@ class TensorTerm:
                     else:
                         idx_str += ':'
 
+                    # add spin label (a/b) to o/v slices, but not : slice
+                    # TODO: cannot have active-space and spin labels at the same time
+                    if bt.spin != '' and idx_str!= ':':
+                        idx_str += bt.spin[idx_loc+1]
+
                     tensor_index_ranges.append(idx_str)
 
                 # add current index to einsum output indices
