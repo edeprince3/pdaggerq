@@ -336,12 +336,9 @@ void spin_blocking(const std::shared_ptr<pq_string>& in, std::vector<std::shared
 
     // check that spin labels are valid
     for (auto item : spin_map) {
-    
-        std::string spin_label = item.second;
-
-        if ( spin_label != "a" && spin_label != "b" ) {
+        if ( item.second != "a" && item.second != "b" ) {
             printf("\n");
-            printf("    error: spin label for non-summed index %s is invalid\n", spin_label.c_str());
+            printf("    error: spin label for non-summed index %s is invalid\n", item.first.c_str());
             printf("\n");
             exit(1);
         }
