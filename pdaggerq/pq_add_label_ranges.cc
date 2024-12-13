@@ -33,8 +33,8 @@ namespace pdaggerq {
 void add_label_ranges(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &range_blocked, const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
 
     // check that non-summed label ranges match those specified
-    static std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    static std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+    static std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
+    static std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
     std::map<std::string, bool> found_labels;
    

@@ -805,8 +805,8 @@ void pq_string::reset_spin_labels() {
         }
     }
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
     // set spins for occupied non-summed labels
     for (const std::string & occ_label : occ_labels) {
@@ -953,8 +953,8 @@ void pq_string::reset_label_ranges(const std::unordered_map<std::string, std::ve
         }
     }
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
     // set ranges for occupied non-summed labels
     for (const std::string & occ_label : occ_labels) {
