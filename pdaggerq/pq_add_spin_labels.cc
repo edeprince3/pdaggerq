@@ -386,7 +386,6 @@ void spin_blocking(const std::shared_ptr<pq_string>& in, std::vector<std::shared
             }
         }
     }
-    
 
     // check that spin labels are valid
     for (auto item : spin_map) {
