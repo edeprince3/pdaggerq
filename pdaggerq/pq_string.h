@@ -84,7 +84,7 @@ template <typename T> int minimum_precision(T factor) {
     return precision;
 }
 
-class pq_string {
+class pq_string : public std::enable_shared_from_this<pq_string> {
 
   private:
 

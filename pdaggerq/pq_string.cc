@@ -23,6 +23,7 @@
 
 #include "pq_string.h"
 #include "pq_tensor.h"
+#include "pq_utils.h"
 
 #include<vector>
 #include<iostream>
@@ -805,7 +806,6 @@ void pq_string::reset_spin_labels() {
         }
     }
 
-
     // set spins for labels in the spin map
     for (auto item : non_summed_spin_labels ) {
         std::string label = item.first;
@@ -913,102 +913,55 @@ void pq_string::reset_label_ranges(const std::unordered_map<std::string, std::ve
         }
     }
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
+    // set ranges for non-summed labels
+    for (auto item : label_ranges) {
+        
+        for (auto range : item.second) {
 
-    // set ranges for occupied non-summed labels
-    for (const std::string & occ_label : occ_labels) {
+            std::string label = item.first;
 
-        // check that this label is in the map
-        auto range_pos = label_ranges.find(occ_label);
-        if ( range_pos == label_ranges.end() ) continue;
-
-        std::string range = range_pos->second[0];
-
-        if ( range == "act" || range == "ext" ) {
-            // amplitudes
-            for (auto &amp_pair : amps) {
-                char type = amp_pair.first;
-                for (amplitudes & amp : amp_pair.second) {
-                    for (size_t k = 0; k < amp.labels.size(); k++) {
-                        if ( amp.labels[k] == occ_label ) {
-                            amp.label_ranges[k] = range;
+            // non-summed index? not perfect logic ...
+            int found = index_in_anywhere(shared_from_this(), label);
+            if ( found == 1 ) {
+                std::string range = item.second[0];
+                if ( range == "act" || range == "ext" ) {
+                    // amplitudes
+                    for (auto &amp_pair : amps) {
+                        char type = amp_pair.first;
+                        for (amplitudes & amp : amp_pair.second) {
+                            for (size_t k = 0; k < amp.labels.size(); k++) {
+                                if ( amp.labels[k] == label ) {
+                                    amp.label_ranges[k] = range;
+                                }
+                            }
                         }
                     }
-                }
-            }
-            // integrals
-            for (auto &int_pair : ints) {
-                std::string type = int_pair.first;
-                for (integrals & integral : int_pair.second) {
-                    for (size_t k = 0; k < integral.labels.size(); k++) {
-                        if ( integral.labels[k] == occ_label ) {
-                            integral.label_ranges[k] = range;
+                    // integrals
+                    for (auto &int_pair : ints) {
+                        std::string type = int_pair.first;
+                        for (integrals & integral : int_pair.second) {
+                            for (size_t k = 0; k < integral.labels.size(); k++) {
+                                if ( integral.labels[k] == label ) {
+                                    integral.label_ranges[k] = range;
+                                }
+                            }
                         }
                     }
-                }
-            }
-            // deltas
-            for (delta_functions & delta : deltas) {
-                for (size_t j = 0; j < delta.labels.size(); j++) {
-                    if ( delta.labels[j] == occ_label ) {
-                        delta.label_ranges[j] = range;
-                    }
-                }
-            }
-        }else {
-            printf("\n");
-            printf("    error: invalid range %s\n", range.c_str());
-            printf("\n");
-            exit(1);
-        }
-    }
-
-    // set ranges for virtual non-summed labels
-    for (const std::string & vir_label : vir_labels) {
-
-        // check that this label is in the map
-        auto range_pos = label_ranges.find(vir_label);
-        if ( range_pos == label_ranges.end() ) continue;
-
-        std::string range = range_pos->second[0];
-
-        if ( range == "act" || range == "ext" ) {
-            // amplitudes
-            for (auto &amp_pair : amps) {
-                char type = amp_pair.first;
-                for (amplitudes & amp : amp_pair.second) {
-                    for (size_t k = 0; k < amp.labels.size(); k++) {
-                        if ( amp.labels[k] == vir_label ) {
-                            amp.label_ranges[k] = range;
+                    // deltas
+                    for (delta_functions & delta : deltas) {
+                        for (size_t j = 0; j < delta.labels.size(); j++) {
+                            if ( delta.labels[j] == label ) {
+                                delta.label_ranges[j] = range;
+                            }
                         }
                     }
+                }else {
+                    printf("\n");
+                    printf("    error: invalid range %s\n", range.c_str());
+                    printf("\n");
+                    exit(1);
                 }
             }
-            // integrals
-            for (auto &int_pair : ints) {
-                std::string type = int_pair.first;
-                for (integrals & integral : int_pair.second) {
-                    for (size_t k = 0; k < integral.labels.size(); k++) {
-                        if ( integral.labels[k] == vir_label ) {
-                            integral.label_ranges[k] = range;
-                        }
-                    }
-                }
-            }
-            // deltas
-            for (delta_functions & delta : deltas) {
-                for (size_t j = 0; j < delta.labels.size(); j++) {
-                    if ( delta.labels[j] == vir_label ) {
-                        delta.label_ranges[j] = range;
-                    }
-                }
-            }
-        }else {
-            printf("\n");
-            printf("    error: invalid range %s\n", range.c_str());
-            printf("\n");
-            exit(1);
         }
     }
 }
