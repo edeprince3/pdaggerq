@@ -921,7 +921,7 @@ void pq_string::reset_label_ranges(const std::unordered_map<std::string, std::ve
             std::string label = item.first;
 
             // non-summed index? not perfect logic ...
-            int found = index_in_anywhere(shared_from_this(), label);
+            int found = index_in_anywhere(label);
             if ( found == 1 ) {
                 std::string range = item.second[0];
                 if ( range == "act" || range == "ext" ) {
@@ -984,6 +984,32 @@ void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, int n_
     new_amps.n_ph = n_ph;
     new_amps.sort();
     amps[type].push_back(new_amps);
+}
+
+// how many times does an index appear amplitudes, deltas, integrals, and operators?
+int pq_string::index_in_anywhere(const std::string &idx) {
+
+    // find index in deltas
+    int n = index_in_deltas(idx, deltas);
+
+    // find index in integrals
+    for (const auto & int_pair : ints) {
+        const std::string &type = int_pair.first;
+        const std::vector<integrals> &ints = int_pair.second;
+        n += index_in_integrals(idx, ints);
+    }
+
+    // find index in amplitudes
+    for (const auto & amp_pair : amps) {
+        const char &type = amp_pair.first;
+        const std::vector<amplitudes> &amps = amp_pair.second;
+        n += index_in_amplitudes(idx, amps);
+    }
+
+    // find index in operators
+    n += index_in_operators(idx, symbol);
+
+    return n;
 }
 
 }

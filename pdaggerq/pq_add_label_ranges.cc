@@ -37,7 +37,7 @@ void add_label_ranges(const std::shared_ptr<pq_string>& in, std::vector<std::sha
         
         for (auto range : item.second) {
             // non-summed index? not perfect logic ...
-            int found = index_in_anywhere(in, item.first);
+            int found = in->index_in_anywhere(item.first);
             if ( found == 1 ) {
                 if ( range != "act" && range != "ext" ) {
                     printf("\n");
