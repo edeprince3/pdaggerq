@@ -24,7 +24,6 @@
 #include "pq_string.h"
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
-#include "pq_add_spin_labels.h"
 
 #include <algorithm>
 #include <numeric>
