@@ -805,12 +805,11 @@ void pq_string::reset_spin_labels() {
         }
     }
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
-    // set spins for occupied non-summed labels
-    for (const std::string & occ_label : occ_labels) {
-        std::string spin = non_summed_spin_labels[occ_label];
+    // set spins for labels in the spin map
+    for (auto item : non_summed_spin_labels ) {
+        std::string label = item.first;
+        std::string spin = item.second;
         if ( spin == "a" || spin == "b" ) {
             // amplitudes
             for (auto &amps_pair : amps) {
@@ -818,7 +817,7 @@ void pq_string::reset_spin_labels() {
                 std::vector<amplitudes> &amps_vec = amps_pair.second;
                 for (amplitudes & amp : amps_vec) {
                     for (size_t k = 0; k < amp.labels.size(); k++) {
-                        if ( amp.labels[k] == occ_label ) {
+                        if ( amp.labels[k] == label ) {
                             amp.spin_labels[k] = spin;
                         }
                     }
@@ -830,7 +829,7 @@ void pq_string::reset_spin_labels() {
                 std::vector<integrals> &ints_vec = ints_pair.second;
                 for (integrals & integral : ints_vec) {
                     for (size_t k = 0; k < integral.labels.size(); k++) {
-                        if ( integral.labels[k] == occ_label ) {
+                        if ( integral.labels[k] == label ) {
                             integral.spin_labels[k] = spin;
                         }
                     }
@@ -839,46 +838,7 @@ void pq_string::reset_spin_labels() {
             // deltas
             for (delta_functions & delta : deltas) {
                 for (size_t j = 0; j < delta.labels.size(); j++) {
-                    if ( delta.labels[j] == occ_label ) {
-                        delta.spin_labels[j] = spin;
-                    }
-                }
-            }
-        }
-    }
-
-    // set spins for virtual non-summed labels
-    for (const auto & vir_label : vir_labels) {
-        std::string spin = non_summed_spin_labels[vir_label];
-        if ( spin == "a" || spin == "b" ) {
-            // amplitudes
-            for (auto &amps_pair : amps) {
-                char type = amps_pair.first;
-                std::vector<amplitudes> &amps_vec = amps_pair.second;
-                for (amplitudes & amp : amps_vec) {
-                    for (size_t k = 0; k < amp.labels.size(); k++) {
-                        if ( amp.labels[k] == vir_label ) {
-                            amp.spin_labels[k] = spin;
-                        }
-                    }
-                }
-            }
-            // integrals
-            for (auto &ints_pair : ints) {
-                std::string type = ints_pair.first;
-                std::vector<integrals> &ints_vec = ints_pair.second;
-                for (integrals & integral : ints_vec) {
-                    for (size_t k = 0; k < integral.labels.size(); k++) {
-                        if ( integral.labels[k] == vir_label ) {
-                            integral.spin_labels[k] = spin;
-                        }
-                    }
-                }
-            }
-            // deltas
-            for (delta_functions & delta : deltas) {
-                for (size_t j = 0; j < delta.labels.size(); j++) {
-                    if ( delta.labels[j] == vir_label ) {
+                    if ( delta.labels[j] == label ) {
                         delta.spin_labels[j] = spin;
                     }
                 }
