@@ -56,9 +56,6 @@ int index_in_amplitudes(const std::string &idx, const std::vector<amplitudes> &a
 /// how many times does an index appear in operators (symbol)?
 int index_in_operators(const std::string &idx, const std::vector<std::string> &ops);
 
-/// how many times does an index appear amplitudes, deltas, and integrals?
-int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx);
-
 /// replace one label with another (in delta functions)
 void replace_index_in_deltas(const std::string &old_idx, const std::string &new_idx, std::vector<delta_functions> &deltas);
 

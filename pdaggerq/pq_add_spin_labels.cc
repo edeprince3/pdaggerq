@@ -334,60 +334,66 @@ bool add_spins(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr
 // expand sums to include spin and zero terms where appropriate
 void spin_blocking(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &spin_blocked, const std::unordered_map<std::string, std::string> &spin_map) {
 
-    // check that non-summed spin labels match those specified
-    static std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    static std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+    // check if spin map is missing any of the non-summed spin labels
 
-    std::map<std::string, bool> found_labels;
-    
-    // ok, what non-summed labels do we have in the occupied space? 
-    for (const std::string & occ_label : occ_labels) {
-        int found = index_in_anywhere(in, occ_label);
-        if ( found == 1 ) {
-            found_labels[occ_label] = true;
-        }else{
-            found_labels[occ_label] = false;
+    // amplitudes
+    for (auto &amps_pair : in->amps) {
+        char type = amps_pair.first;
+        std::vector<amplitudes> &amps_vec = amps_pair.second;
+        for (amplitudes & amp : amps_vec) {
+            for (size_t k = 0; k < amp.labels.size(); k++) {
+                int n = in->index_in_anywhere(amp.labels[k]);
+                if ( n != 1 ) continue;
+                int found = spin_map.count(amp.labels[k]);
+                if ( found == 0 ) {
+                    printf("\n");
+                    printf("    error: spin label for non-summed index %s has not been set\n", amp.labels[k].c_str());
+                    printf("\n");
+                    exit(1);
+                }
+            }
         }
     }
-    
-    // ok, what non-summed labels do we have in the virtual space? 
-    for (const std::string & vir_label : vir_labels) {
-        int found = index_in_anywhere(in, vir_label);
-        if ( found == 1 ) {
-            found_labels[vir_label] = true;
-        }else{
-            found_labels[vir_label] = false;
+    // integrals
+    for (auto &ints_pair : in->ints) {
+        std::string type = ints_pair.first;
+        std::vector<integrals> &ints_vec = ints_pair.second;
+        for (integrals & integral : ints_vec) {
+            for (size_t k = 0; k < integral.labels.size(); k++) {
+                int n = in->index_in_anywhere(integral.labels[k]);
+                if ( n != 1 ) continue;
+                int found = spin_map.count(integral.labels[k]);
+                if ( found == 0 ) {
+                    printf("\n");
+                    printf("    error: spin label for non-summed index %s has not been set\n", integral.labels[k].c_str());
+                    printf("\n");
+                    exit(1);
+                }
+            }
         }
     }
-
-    for (const std::string & occ_label : occ_labels) {
-        if ( found_labels[occ_label] ) {
-            // find spin label
-            auto pos = spin_map.find(occ_label);
-            std::string spin_label = pos == spin_map.end() ? "" : pos->second;
-
-            // check if spin label is valid
-            if ( spin_label != "a" && spin_label != "b" ) {
+    // deltas
+    for (delta_functions & delta : in->deltas) {
+        for (size_t j = 0; j < delta.labels.size(); j++) {
+            int n = in->index_in_anywhere(delta.labels[j]);
+            if ( n != 1 ) continue;
+            int found = spin_map.count(delta.labels[j]);
+            if ( found == 0 ) {
                 printf("\n");
-                printf("    error: spin label for non-summed index %s is invalid\n", occ_label.c_str());
+                printf("    error: spin label for non-summed index %s has not been set\n", delta.labels[j].c_str());
                 printf("\n");
                 exit(1);
             }
         }
     }
-    for (const std::string & vir_label : vir_labels) {
-        if ( found_labels[vir_label] ) {
-            // find spin label
-            auto pos = spin_map.find(vir_label);
-            std::string spin_label = pos == spin_map.end() ? "" : pos->second;
 
-            // check if spin label is valid
-            if ( spin_label != "a" && spin_label != "b" ) {
-                printf("\n");
-                printf("    error: spin label for non-summed index %s is invalid\n", vir_label.c_str());
-                printf("\n");
-                exit(1);
-            }
+    // check that spin labels are valid
+    for (auto item : spin_map) {
+        if ( item.second != "a" && item.second != "b" ) {
+            printf("\n");
+            printf("    error: spin label for non-summed index %s is invalid\n", item.first.c_str());
+            printf("\n");
+            exit(1);
         }
     }
 

@@ -201,7 +201,6 @@ pq_helper::pq_helper(const pq_helper &other) {
     for (const std::shared_ptr<pq_string> & pq_str : other.ordered_blocked) {
         this->ordered_blocked.push_back(std::make_shared<pq_string>(*pq_str));
     }
-
 }
 
 pq_helper &pq_helper::operator=(const pq_helper &other) {
