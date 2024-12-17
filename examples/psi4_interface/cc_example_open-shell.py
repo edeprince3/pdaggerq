@@ -34,28 +34,26 @@ from cc_tools import ccsdtq
 
 def main():
 
-    # CCSD / H2O / STO-3G
+    # CCSD / OH radical UHF / STO-3G
 
     # set molecule
     mol = psi4.geometry("""
-    0 1
-         O            0.000000000000     0.000000000000    -0.068516219320    
-         H            0.000000000000    -0.790689573744     0.543701060715    
-         H            0.000000000000     0.790689573744     0.543701060715    
+    0 2
+        O  0.0  0.0  0.0
+        H  0.0  0.0  0.96966
     no_reorient
     nocom
     symmetry c1
-    """)  
-    
+    """)
+
     # set options
     psi4_options = {
-        'basis': 'sto-3g',
+        'basis': '6-31g',
         'reference': 'uhf',
         'scf_type': 'pk',
         'e_convergence': 1e-10,
         'd_convergence': 1e-10
     }
-
     psi4.set_options(psi4_options)
 
     # run ccsd
@@ -65,7 +63,7 @@ def main():
     time_1 = e1-s1
 
     # check ccsd energy against psi4
-    assert np.isclose(en1, -75.019715133639338, rtol=1e-8, atol=1e-8)
+    assert np.isclose(en1, -75.461980701869820, rtol=1e-8, atol=1e-8)
 
     print('    Spin-Orbital CCSD Total Energy.............................................PASSED')
     print('')
@@ -76,7 +74,7 @@ def main():
     time_2 = e2-s2
 
     # check ccsd energy against psi4
-    assert np.isclose(en2, -75.019715133639338, rtol=1e-8, atol=1e-8)
+    assert np.isclose(en2, -75.461980701869820, rtol=1e-8, atol=1e-8)
 
     print('    Spin-Traced CCSD Total Energy..............................................PASSED')
     print('')
@@ -93,31 +91,22 @@ def main():
     en = ccsd_t(mol)
 
     # check ccsd(t) energy against psi4
-    assert np.isclose(en,-75.019790965805612, rtol = 1e-8, atol = 1e-8)
+    assert np.isclose(en,-75.462537797835523, rtol = 1e-8, atol = 1e-8)
 
     print('    CCSD(T) Total Energy..........................................................PASSED')
     print('')
 
-    # CCSDT / HF / 6-31G
+    # CCSDT / OH radical ROHF/6-31G
 
-    # set molecule
-    mol = psi4.geometry("""
-    0 1
-         H 0.0 0.0 0.0
-         F 0.0 0.0 3.023561812617029
-    units bohr
-    no_reorient
-    nocom
-    symmetry c1
-    """)  
-    
     # set options
     psi4_options = {
         'basis': '6-31g',
+        'reference': 'rohf',
         'scf_type': 'pk',
         'e_convergence': 1e-10,
         'd_convergence': 1e-10
     }
+
     psi4.set_options(psi4_options)
 
     # run spin-orbital ccsdt
@@ -126,8 +115,8 @@ def main():
     e1 = time.time()
     time_1 = e1-s1
 
-    # check ccsdt energy against nwchem
-    assert np.isclose(en1,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
+    # check ccsdt energy against gamess/ccpy
+    assert np.isclose(en1,-75.462630429073740856,rtol = 1e-8, atol = 1e-8)
 
     print('    Spin-Orbital CCSDT Total Energy.............................................PASSED')
     print('')
@@ -138,8 +127,8 @@ def main():
     e2 = time.time()
     time_2 = e2-s2
 
-    # check ccsdt energy against nwchem
-    assert np.isclose(en2,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
+    # check ccsdt energy against gamess/ccpy
+    assert np.isclose(en2, -75.462630429073740856, rtol=1e-8, atol=1e-8)
 
     print('    Spin-Traced CCSDT Total Energy..............................................PASSED')
     print('')
@@ -152,14 +141,35 @@ def main():
     print(f"Difference in time:                 {time_2 - time_1: 10.3f}")
     print("")
 
+    # CCSDTQ / Be triplet ROHF/6-31G
+
+    mol = psi4.geometry("""
+        0 3
+             Be  0.0  0.0  0.0    
+        no_reorient
+        nocom
+        symmetry c1
+        """)
+
+    # set options
+    psi4_options = {
+        'basis': '6-31g',
+        'reference': 'rohf',
+        'scf_type': 'pk',
+        'e_convergence': 1e-10,
+        'd_convergence': 1e-10
+    }
+
+    psi4.set_options(psi4_options)
+
     # run spin-blocked ccsdtq
     s1 = time.time()
     en1 = ccsdtq(mol)
     e1 = time.time()
     time_1 = e1 - s1
 
-    # check ccsdtq energy against nwchem
-    assert np.isclose(en,-100.009723511692869,rtol = 1e-8, atol = 1e-8)
+    # check ccsdtq energy against ccpy
+    assert np.isclose(en1, -14.508386418276780105, rtol=1e-8, atol=1e-8)
 
     print('    Spin-Traced CCSDTQ Total Energy..............................................PASSED')
     print('')
