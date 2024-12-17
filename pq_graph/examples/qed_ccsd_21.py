@@ -80,9 +80,9 @@ def main():
         "rt1": [['e1(i,a)']],                    # singles residual
         "rt2": [['e2(i,j,b,a)']],                # doubles residual
 
-        "rt0_1": [['B-']],                       # ground state + hw
-        "rt1_1": [['B-', 'e1(i,a)']],            # singles residual + hw
-        "rt2_1": [['B-', 'e2(i,j,b,a)']],        # doubles residual + hw
+        "rt0_1p": [['B-']],                       # ground state + hw
+        "rt1_1p": [['B-', 'e1(i,a)']],            # singles residual + hw
+        "rt2_1p": [['B-', 'e2(i,j,b,a)']],        # doubles residual + hw
     }
 
     # Dictionary to store the derived equations

@@ -110,6 +110,7 @@ namespace pdaggerq {
         if (amp.n_ph > 0) {
             base_name_ += "_";
             base_name_ += to_string(amp.n_ph);
+            base_name_ += "p";
         }
 
         //determine if vertex is blocked

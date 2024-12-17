@@ -96,15 +96,15 @@ def main():
     rproj = {
         "sigmar1":    [['a(a)']],                       # singles residual
         "sigmar2":    [['a*(i)','a(b)','a(a)']],        # doubles residual
-        "sigmar1_1":  [['B-', 'a(a)']],                 # singles residual + hw
-        "sigmar2_1":  [['B-', 'a*(i)','a(b)','a(a)']],  # doubles residual + hw
+        "sigmar1_1p":  [['B-', 'a(a)']],                 # singles residual + hw
+        "sigmar2_1p":  [['B-', 'a*(i)','a(b)','a(a)']],  # doubles residual + hw
     }
 
     lproj = {
         "sigmal1":    [['a*(a)']],                       # singles residual
         "sigmal2":    [['a*(a)','a*(b)','a(i)']],        # doubles residual
-        "sigmal1_1":  [['a*(a)','B+']],                  # singles residual + hw
-        "sigmal2_1":  [['a*(a)','a*(b)','a(i)','B+']],   # doubles residual + hw
+        "sigmal1_1p":  [['a*(a)','B+']],                  # singles residual + hw
+        "sigmal2_1p":  [['a*(a)','a*(b)','a(i)','B+']],   # doubles residual + hw
     }
 
     # Dictionary to store the derived equations
