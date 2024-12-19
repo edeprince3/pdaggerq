@@ -28,14 +28,10 @@ import psi4
 
 from cc_tools import ucc3
 from cc_tools import ucc4
-from cc_tools import ccsd
-from cc_tools import ccsd_t
-from cc_tools import ccsdt
-from cc_tools import ccsdtq
 
 def main():
 
-    # CCSD / H2O / STO-3G
+    # UCC3 and UCC4 / H2O / STO-3G
 
     # set molecule
     mol = psi4.geometry("""
@@ -57,24 +53,6 @@ def main():
     }
     psi4.set_options(psi4_options)
 
-    # run ccsd
-    import time
-    s1 = time.time()
-    en = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True)
-    e1 = time.time()
-
-    s2 = time.time()
-    en = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = False)
-    e2 = time.time()
-
-    print(e1-s1, e2-s2)
-
-    # check ccsd energy against psi4
-    assert np.isclose(en,-75.019715133639338, rtol = 1e-8, atol = 1e-8)
-
-    print('    CCSD Total Energy..........................................................PASSED')
-    print('')
-
     en = ucc3(mol)
 
     # check ucc3 energy
@@ -87,76 +65,9 @@ def main():
     en = ucc4(mol)
 
     # check ucc4 energy
-    assert np.isclose(en,-75.019715133639338, rtol = 1e-8, atol = 1e-8)
+    assert np.isclose(en,-75.019691944947, rtol = 1e-8, atol = 1e-8)
 
     print('    UCC(4) Total Energy..........................................................PASSED')
-    print('')
-
-    # check ucc4 energy
-    assert np.isclose(en,-75.01969194494, rtol = 1e-8, atol = 1e-8)
-
-    # run ccsd(t)
-    en = ccsd_t(mol)
-
-    # check ccsd energy against psi4
-    assert np.isclose(en,-75.019790965805612, rtol = 1e-8, atol = 1e-8)
-
-    print('    CCSD(T) Total Energy..........................................................PASSED')
-    print('')
-
-    # CCSDT / HF / 6-31G
-
-    # set molecule
-    mol = psi4.geometry("""
-    0 1
-         H 0.0 0.0 0.0
-         F 0.0 0.0 3.023561812617029
-    units bohr
-    no_reorient
-    nocom
-    symmetry c1
-    """)  
-    
-    # set options
-    psi4_options = {
-        'basis': '6-31g',
-        'scf_type': 'pk',
-        'e_convergence': 1e-10,
-        'd_convergence': 1e-10
-    }
-    psi4.set_options(psi4_options)
-
-    # run ccsdt spin-blocked
-    s1 = time.time()
-    en = ccsdt(mol, use_spin_orbital_basis = False)
-    e1 = time.time()
-
-    # check ccsdt energy against nwchem
-    assert np.isclose(en,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
-
-    print('    CCSDT Total Energy..........................................................PASSED')
-    print('')
-
-    ## run spin-orbital ccsdt
-    #s2 = time.time()
-    #en = ccsdt(mol)
-    #e2 = time.time()
-
-    ## check ccsdt energy against nwchem
-    #assert np.isclose(en,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
-
-    #print('    CCSDT Total Energy..........................................................PASSED')
-    #print('')
-
-    #print(e1-s1, e2-s2)
-
-    # run spin-blocked ccsdtq
-    en = ccsdtq(mol)
-
-    # check ccsdtq energy against nwchem
-    assert np.isclose(en,-100.009723511692869,rtol = 1e-8, atol = 1e-8)
-
-    print('    CCSDTQ Total Energy..........................................................PASSED')
     print('')
 
 if __name__ == "__main__":
