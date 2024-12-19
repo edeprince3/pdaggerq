@@ -181,7 +181,7 @@ a general one-body operator
 ```
 'h' 
 ```
-a general two-body operator
+a general antisymmetrized two-body operator
 ```
 'g' 
 ```    
