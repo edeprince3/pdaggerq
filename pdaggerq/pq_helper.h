@@ -234,8 +234,10 @@ class pq_helper {
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
      *
      */
-    void add_st_operator(double factor, const std::vector<std::string> &targets,
-                                        const std::vector<std::string> &ops);
+    void add_st_operator(double factor, 
+                         const std::vector<std::string> &targets,
+                         const std::vector<std::string> &ops,
+                         bool do_operators_commute);
 
     /**
      *
@@ -246,7 +248,10 @@ class pq_helper {
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
      *
      */
-    std::vector<pq_operator_terms> get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops);
+    std::vector<pq_operator_terms> get_st_operator_terms(double factor, 
+                                                         const std::vector<std::string> &targets,
+                                                         const std::vector<std::string> &ops,
+                                                         bool do_operators_commute);
 
     /**
      *

@@ -59,7 +59,6 @@ void export_pq_helper(py::module& m) {
         .def("set_right_operators_type", &pq_helper::set_right_operators_type)
         .def("get_right_operators_type", &pq_helper::get_right_operators_type)
         .def("get_left_operators_type", &pq_helper::get_left_operators_type)
-        .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
@@ -114,7 +113,14 @@ void export_pq_helper(py::module& m) {
                 self.block_by_range(label_ranges);
             },
             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
-        .def("add_st_operator", &pq_helper::add_st_operator)
+        .def("add_st_operator",
+            [](pq_helper& self, double factor, 
+                                const std::vector<std::string> &targets, 
+                                const std::vector<std::string> &ops, 
+                                bool do_operators_commute) {
+                return self.add_st_operator(factor, targets, ops, do_operators_commute);
+            },
+            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true )
         .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
         .def("add_commutator", &pq_helper::add_commutator)
@@ -161,10 +167,6 @@ pq_helper::pq_helper(const std::string &vacuum_type)
 
     print_level = 0;
 
-    // assume operators entering a similarity transformation
-    // commute. only relevant for the add_st_operator() function
-    cluster_operators_commute = true;
-
     // assume cluster operator is not antihermitian by default
     is_unitary_cc = false;
 
@@ -190,7 +192,6 @@ pq_helper::pq_helper(const pq_helper &other) {
     this->right_operators           = other.right_operators;
     this->right_operators_type      = other.right_operators_type;
     this->left_operators_type       = other.left_operators_type;
-    this->cluster_operators_commute = other.cluster_operators_commute;
     this->find_paired_permutations  = other.find_paired_permutations;
 
     // deep copy pointers to pq_strings
@@ -275,14 +276,6 @@ void pq_helper::set_right_operators_type(const std::string &type) {
 // is the cluster operator antihermitian for ucc? default false
 void pq_helper::set_unitary_cc(bool is_unitary) {
     is_unitary_cc = is_unitary;
-    if ( is_unitary_cc ) {
-        cluster_operators_commute = false;
-    }
-}
-
-// do operators entering similarity transformation commute? default true
-void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
-    cluster_operators_commute = do_cluster_operators_commute;
 }
 
 void pq_helper::add_anticommutator(double factor,
@@ -1320,16 +1313,17 @@ void pq_helper::clear() {
 }
 
 void pq_helper::add_st_operator(double factor, const std::vector<std::string> &targets,
-                                               const std::vector<std::string> &ops){
+                                               const std::vector<std::string> &ops,
+                                               bool do_operators_commute = true){
 
-    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops);
+    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute);
     for (auto op : st_ops){
         add_operator_product(op.factor, op.operators);
     }
 
 }
 
-std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops){
+std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true){
 
     int dim = (int)ops.size();
 
@@ -1341,7 +1335,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
         st.insert(std::end(st), std::begin(tmp), std::end(tmp));
     }
 
-    if ( cluster_operators_commute ) {
+    if ( do_operators_commute ) {
 
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
