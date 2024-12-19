@@ -20,9 +20,9 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-terms = pq.fully_contracted_strings()
-for my_term in terms:
-    print(my_term)
+terms = pq.strings()
+for term in terms:
+    print(term)
 pq.clear()
 
 # set right and left-hand operators
@@ -41,9 +41,8 @@ pq.add_st_operator(1.0,['v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-pq.print()
-terms = pq.fully_contracted_strings()
-for my_term in terms:
-    print(my_term)
+terms = pq.strings()
+for term in terms:
+    print(term)
 pq.clear()
 

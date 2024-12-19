@@ -204,7 +204,7 @@ bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_p
             newguys[2]->amps['D'][i].n_annihilate = 1;
 
             // and add another
-            newguys[2]->set_amplitudes('D', 2, 2, 0, {lab[1], lab[2], lab[3], lab[4]});
+            newguys[2]->set_amplitudes('D', 2, 2, 0, {lab[1], lab[2], lab[4], lab[3]});
 
             // adjust sign
             newguys[2]->sign *= -1;

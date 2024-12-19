@@ -23,7 +23,7 @@ def main():
 
     pq.simplify()
 
-    H = pq.fully_contracted_strings()
+    H = pq.strings()
     H = contracted_strings_to_tensor_terms(H)
     for my_term in H:
         print("#\t", my_term)
@@ -54,7 +54,7 @@ def main():
 
     pq.simplify()
 
-    H = pq.fully_contracted_strings()
+    H = pq.strings()
     H = contracted_strings_to_tensor_terms(H)
     for my_term in H:
         print("#\t", my_term)
@@ -85,7 +85,7 @@ def main():
 
     pq.simplify()
 
-    H = pq.fully_contracted_strings()
+    H = pq.strings()
     H = contracted_strings_to_tensor_terms(H)
     for my_term in H:
         print("#\t", my_term)
@@ -116,7 +116,7 @@ def main():
 
     pq.simplify()
 
-    H = pq.fully_contracted_strings()
+    H = pq.strings()
     H = contracted_strings_to_tensor_terms(H)
     for my_term in H:
         print("#\t", my_term)

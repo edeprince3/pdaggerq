@@ -26,6 +26,9 @@ def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None,
     pq.set_left_operators( L)
     pq.set_right_operators(R)
 
+    pq.set_left_operators_type("EA")
+    pq.set_right_operators_type("EA")
+
     for j, op in enumerate(ops):
         if T is None:
             pq.add_operator(coeffs[j], op)
@@ -39,7 +42,7 @@ def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None,
         eqs[proj_eqname] = pq.clone()
         # print the fully contracted strings
         print(f"Equation {proj_eqname}:", flush=True)
-        for term in pq.fully_contracted_strings():
+        for term in pq.strings():
             print(term, flush=True)
     del pq
 
@@ -52,9 +55,10 @@ def configure_graph():
     """
     return pdaggerq.pq_graph({
         'batched': False,
-        'print_level': 0,
-        'opt_level': 6,
+        'print_level': 3,
         'use_trial_index': True,
+        'separate_sigma': True,
+        'opt_level': 6,
         'nthreads': -1,
     })
 
@@ -63,33 +67,59 @@ def main():
     Main function to derive and simplify equations using pdaggerq library.
     """
 
-    # cluster operators
-    T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+    # Operators and their coefficients
+    ops = [['w0'], ['d+'], ['d-'], ['f'], ['v']]
+    coeffs = [1.0, -1.0, -1.0, 1.0, 1.0]
 
-    # left and right excitation operators
-    L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
-    R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+    # Coherent state operators and their coefficients
+    c_ops = [['B+'], ['B-']]
+    c_coeffs = [1.0, 1.0]
 
-    rdms = {
-        "D_vvvv": [['e2(a,b,c,d)']], # vvvv
-        "D_vvvo": [['e2(a,b,c,i)']], # vvvo
-        "D_vvov": [['e2(a,b,i,c)']], # vvov
-        "D_vovv": [['e2(a,i,b,c)']], # vovv
-        "D_ovvv": [['e2(i,a,b,c)']], # ovvv
-        "D_ovvo": [['e2(i,a,b,j)']], # ovvo
-        "D_ovov": [['e2(i,a,j,b)']], # ovov
-        "D_oovv": [['e2(i,j,a,b)']], # oovv
-        "D_oovo": [['e2(i,j,a,k)']], # oovo
-        "D_ooov": [['e2(i,j,k,a)']], # ooov
-        "D_oooo": [['e2(i,j,k,l)']], # oooo
+    # T-operators (assumes T1 transformed integrals)
+    T = ['t2', 't0,1', 't1,1', 't2,1']
+
+    # Exciation operators (truncated ground state)
+    R = [
+        ['r1'], 
+        ['r2'],
+        ['r1,1'],
+        ['r2,1'],
+    ]
+    L = [
+        ['l1'], 
+        ['l2'],
+        ['l1,1'], 
+        ['l2,1'],
+    ]
+
+    # Projection operators for different equations
+    rproj = {
+        "sigmar1":    [['a(a)']],                       # singles residual
+        "sigmar2":    [['a*(i)','a(b)','a(a)']],        # doubles residual
+        "sigmar1_1p":  [['B-', 'a(a)']],                 # singles residual + hw
+        "sigmar2_1p":  [['B-', 'a*(i)','a(b)','a(a)']],  # doubles residual + hw
+    }
+
+    lproj = {
+        "sigmal1":    [['a*(a)']],                       # singles residual
+        "sigmal2":    [['a*(a)','a*(b)','a(i)']],        # doubles residual
+        "sigmal1_1p":  [['a*(a)','B+']],                  # singles residual + hw
+        "sigmal2_1p":  [['a*(a)','a*(b)','a(i)','B+']],   # doubles residual + hw
     }
 
     # Dictionary to store the derived equations
     eqs = {}
 
-    for eqname, rdm in rdms.items():
+    for proj_eqname, P in rproj.items():
         # right projected equations
-        derive_equation(eqs, eqname, rdm, [1.0], L=L, R=R, T=T, spin_block=True)
+        derive_equation(eqs, proj_eqname, ops, coeffs, L=P, R=R, T=T, spin_block=True)
+        derive_equation(eqs, "c" + proj_eqname, c_ops, c_coeffs, L=P, R=R, T=T, spin_block=True)
+        print()
+
+    for proj_eqname, P in lproj.items():
+        # left projected equations
+        derive_equation(eqs, proj_eqname, ops, coeffs, L=L, R=P, T=T, spin_block=True)
+        derive_equation(eqs, "c" + proj_eqname, c_ops, c_coeffs, L=L, R=P, T=T, spin_block=True)
         print()
 
     # Enable and configure pq_graph
@@ -98,7 +128,7 @@ def main():
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        graph.add(eq, proj_eqname, ['a', 'b', 'i', 'j'])
 
     # Optimize and output the graph
     graph.optimize()

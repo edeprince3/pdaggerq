@@ -39,7 +39,7 @@ def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None,
         eqs[proj_eqname] = pq.clone()
         # print the fully contracted strings
         print(f"Equation {proj_eqname}:", flush=True)
-        for term in pq.fully_contracted_strings():
+        for term in pq.strings():
             print(term, flush=True)
     del pq
 
@@ -80,13 +80,13 @@ def main():
         "rt1": [['e1(i,a)']],                    # singles residual
         "rt2": [['e2(i,j,b,a)']],                # doubles residual
 
-        "rt0_1": [['B-']],                       # ground state + hw
-        "rt1_1": [['B-', 'e1(i,a)']],            # singles residual + hw
-        "rt2_1": [['B-', 'e2(i,j,b,a)']],        # doubles residual + hw
+        "rt0_1p": [['B-']],                       # ground state + hw
+        "rt1_1p": [['B-', 'e1(i,a)']],            # singles residual + hw
+        "rt2_1p": [['B-', 'e2(i,j,b,a)']],        # doubles residual + hw
 
-        "rt0_2": [['B-', 'B-']],                 # ground state + 2hw
-        "rt1_2": [['B-', 'B-', 'e1(i,a)']],      # singles residual + 2hw
-        "rt2_2": [['B-', 'B-', 'e2(i,j,b,a)']],  # doubles residual + 2hw
+        "rt0_2p": [['B-', 'B-']],                 # ground state + 2hw
+        "rt1_2p": [['B-', 'B-', 'e1(i,a)']],      # singles residual + 2hw
+        "rt2_2p": [['B-', 'B-', 'e2(i,j,b,a)']],  # doubles residual + 2hw
     }
 
     # Dictionary to store the derived equations

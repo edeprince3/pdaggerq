@@ -24,7 +24,6 @@
 #include "pq_string.h"
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
-#include "pq_add_spin_labels.h"
 
 #include <algorithm>
 #include <numeric>
@@ -194,32 +193,6 @@ bool found_index_anywhere(const std::shared_ptr<pq_string> &in, const std::strin
     if ( std::find(in->symbol.begin(), in->symbol.end(), idx) != in->symbol.end() ) return true;
 
     return false;
-}
-
-// how many times does an index appear amplitudes, deltas, integrals, and operators?
-int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx) {
-
-    // find index in deltas
-    int n = index_in_deltas(idx, in->deltas);
-
-    // find index in integrals
-    for (const auto & int_pair : in->ints) {
-        const std::string &type = int_pair.first;
-        const std::vector<integrals> &ints = int_pair.second;
-        n += index_in_integrals(idx, ints);
-    }
-
-    // find index in amplitudes
-    for (const auto & amp_pair : in->amps) {
-        const char &type = amp_pair.first;
-        const std::vector<amplitudes> &amps = amp_pair.second;
-        n += index_in_amplitudes(idx, amps);
-    }
-
-    // find index in operators
-    n += index_in_operators(idx, in->symbol);
-
-    return n;
 }
 
 /// replace one label with another (in a given set of permutations)
@@ -458,7 +431,7 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
             std::vector<std::string> tmp;
             tmp.reserve(label.size());
             for (const auto & index : label) {
-                int found = index_in_anywhere(ordered[i], index);
+                int found = ordered[i]->index_in_anywhere(index);
                 if ( found == 2 ) {
                     tmp.push_back(index);
                 }
@@ -518,7 +491,7 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
             std::vector<std::string> tmp;
             tmp.reserve(label.size());
             for (const auto & index : label) {
-                int found = index_in_anywhere(ordered[i], index);
+                int found = ordered[i]->index_in_anywhere(index);
                 if ( found == 2 ) {
                     tmp.push_back(index);
                 }
@@ -590,7 +563,7 @@ void consolidate_permutations_non_summed(
     
         // ok, what labels do we have? 
         for (const auto & label : labels) {
-            int found = index_in_anywhere(ordered[i], label);
+            int found = ordered[i]->index_in_anywhere(label);
             // this is buggy when existing permutation labels belong to 
             // the same space as the labels we're permuting ... so skip those for now.
             bool same_space = false;
@@ -715,7 +688,7 @@ void consolidate_permutations_non_summed(
     
         // ok, what labels do we have? 
         for (const auto & label : labels) {
-            int found = index_in_anywhere(ordered[i], label);
+            int found = ordered[i]->index_in_anywhere(label);
             // this is buggy when existing permutation labels belong to 
             // the same space as the labels we're permuting ... so skip those for now.
             bool same_space = false;
@@ -1015,7 +988,7 @@ void consolidate_paired_permutations_non_summed(
 
         // ok, what non-summed occupied labels do we have? 
         for (const std::string & occ_label : occ_labels) {
-            int found = index_in_anywhere(ordered[i], occ_label);
+            int found = ordered[i]->index_in_anywhere(occ_label);
             if ( found == 1 ) {
                 found_occ.push_back(occ_label);
             }
@@ -1023,7 +996,7 @@ void consolidate_paired_permutations_non_summed(
 
         // ok, what non-summed virtual labels do we have? 
         for (const std::string & vir_label : vir_labels) {
-            int found = index_in_anywhere(ordered[i], vir_label);
+            int found = ordered[i]->index_in_anywhere(vir_label);
             if ( found == 1 ) {
                 found_vir.push_back(vir_label);
             }
@@ -1031,13 +1004,13 @@ void consolidate_paired_permutations_non_summed(
 
         // ok, what summed labels (occupied and virtual) do we have? 
         for (const std::string & occ_label : occ_labels) {
-            int found = index_in_anywhere(ordered[i], occ_label);
+            int found = ordered[i]->index_in_anywhere(occ_label);
             if ( found == 2 ) {
                 found_summed_occ.push_back(occ_label);
             }
         }
         for (const std::string & vir_label : vir_labels) {
-            int found = index_in_anywhere(ordered[i], vir_label);
+            int found = ordered[i]->index_in_anywhere(vir_label);
             if ( found == 2 ) {
                 found_summed_vir.push_back(vir_label);
             }
@@ -1323,7 +1296,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
         int do_skip = -999;
         
         for (size_t i = 0; i < occ_out.size(); i++) {
-            if ( index_in_anywhere(in, occ_out[i]) == 0 ) {
+            if ( in->index_in_anywhere(occ_out[i]) == 0 ) {
                 idx = occ_out[i];
                 do_skip = i;
                 break;
@@ -1410,11 +1383,11 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
 
     for (const std::string & in_idx : gen_in) {
 
-        if (index_in_anywhere(in, in_idx) > 0 ) {
+        if (in->index_in_anywhere(in_idx) > 0 ) {
 
             for (const std::string & out_idx : gen_out) {
 
-                if (index_in_anywhere(in, out_idx) == 0 ) {
+                if (in->index_in_anywhere(out_idx) == 0 ) {
 
                     replace_index_everywhere(in, in_idx, out_idx);
                     break;
@@ -1434,11 +1407,11 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
     
         // is delta label 1 in list of summation labels?
         bool have_delta1 = false;    
-        if ( index_in_anywhere(in, delta.labels[0]) == 2 ){
+        if ( in->index_in_anywhere(delta.labels[0]) == 2 ){
             have_delta1 = true;
         }
         bool have_delta2 = false;
-        if ( index_in_anywhere(in, delta.labels[1]) == 2 ){
+        if ( in->index_in_anywhere(delta.labels[1]) == 2 ){
             have_delta2 = true;
         }
 
@@ -1506,7 +1479,7 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
          * */
 
         do_continue = false;
-        static char types[] = {'t', 'l', 'r'};
+        static char types[] = {'t', 'l', 'r', 'D'};
         for (auto & type : types) {
             std::vector<amplitudes> & amps = in->amps[type];
             

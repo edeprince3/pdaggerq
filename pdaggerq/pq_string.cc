@@ -23,6 +23,7 @@
 
 #include "pq_string.h"
 #include "pq_tensor.h"
+#include "pq_utils.h"
 
 #include<vector>
 #include<iostream>
@@ -604,10 +605,11 @@ std::vector<std::string> pq_string::get_string() {
     // creation / annihilation operators
     for (size_t i = 0; i < symbol.size(); i++) {
 
-        std::string tmp_symbol = symbol[i];
+        std::string tmp_symbol = "a";
         if ( is_dagger[i] ) {
             tmp_symbol += "*";
         }
+        tmp_symbol += "(" + symbol[i] + ")";
         my_string.push_back(tmp_symbol);
     }
 
@@ -804,12 +806,10 @@ void pq_string::reset_spin_labels() {
         }
     }
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
-
-    // set spins for occupied non-summed labels
-    for (const std::string & occ_label : occ_labels) {
-        std::string spin = non_summed_spin_labels[occ_label];
+    // set spins for labels in the spin map
+    for (auto item : non_summed_spin_labels ) {
+        std::string label = item.first;
+        std::string spin = item.second;
         if ( spin == "a" || spin == "b" ) {
             // amplitudes
             for (auto &amps_pair : amps) {
@@ -817,7 +817,7 @@ void pq_string::reset_spin_labels() {
                 std::vector<amplitudes> &amps_vec = amps_pair.second;
                 for (amplitudes & amp : amps_vec) {
                     for (size_t k = 0; k < amp.labels.size(); k++) {
-                        if ( amp.labels[k] == occ_label ) {
+                        if ( amp.labels[k] == label ) {
                             amp.spin_labels[k] = spin;
                         }
                     }
@@ -829,7 +829,7 @@ void pq_string::reset_spin_labels() {
                 std::vector<integrals> &ints_vec = ints_pair.second;
                 for (integrals & integral : ints_vec) {
                     for (size_t k = 0; k < integral.labels.size(); k++) {
-                        if ( integral.labels[k] == occ_label ) {
+                        if ( integral.labels[k] == label ) {
                             integral.spin_labels[k] = spin;
                         }
                     }
@@ -838,46 +838,7 @@ void pq_string::reset_spin_labels() {
             // deltas
             for (delta_functions & delta : deltas) {
                 for (size_t j = 0; j < delta.labels.size(); j++) {
-                    if ( delta.labels[j] == occ_label ) {
-                        delta.spin_labels[j] = spin;
-                    }
-                }
-            }
-        }
-    }
-
-    // set spins for virtual non-summed labels
-    for (const auto & vir_label : vir_labels) {
-        std::string spin = non_summed_spin_labels[vir_label];
-        if ( spin == "a" || spin == "b" ) {
-            // amplitudes
-            for (auto &amps_pair : amps) {
-                char type = amps_pair.first;
-                std::vector<amplitudes> &amps_vec = amps_pair.second;
-                for (amplitudes & amp : amps_vec) {
-                    for (size_t k = 0; k < amp.labels.size(); k++) {
-                        if ( amp.labels[k] == vir_label ) {
-                            amp.spin_labels[k] = spin;
-                        }
-                    }
-                }
-            }
-            // integrals
-            for (auto &ints_pair : ints) {
-                std::string type = ints_pair.first;
-                std::vector<integrals> &ints_vec = ints_pair.second;
-                for (integrals & integral : ints_vec) {
-                    for (size_t k = 0; k < integral.labels.size(); k++) {
-                        if ( integral.labels[k] == vir_label ) {
-                            integral.spin_labels[k] = spin;
-                        }
-                    }
-                }
-            }
-            // deltas
-            for (delta_functions & delta : deltas) {
-                for (size_t j = 0; j < delta.labels.size(); j++) {
-                    if ( delta.labels[j] == vir_label ) {
+                    if ( delta.labels[j] == label ) {
                         delta.spin_labels[j] = spin;
                     }
                 }
@@ -952,102 +913,55 @@ void pq_string::reset_label_ranges(const std::unordered_map<std::string, std::ve
         }
     }
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
+    // set ranges for non-summed labels
+    for (auto item : label_ranges) {
+        
+        for (auto range : item.second) {
 
-    // set ranges for occupied non-summed labels
-    for (const std::string & occ_label : occ_labels) {
+            std::string label = item.first;
 
-        // check that this label is in the map
-        auto range_pos = label_ranges.find(occ_label);
-        if ( range_pos == label_ranges.end() ) continue;
-
-        std::string range = range_pos->second[0];
-
-        if ( range == "act" || range == "ext" ) {
-            // amplitudes
-            for (auto &amp_pair : amps) {
-                char type = amp_pair.first;
-                for (amplitudes & amp : amp_pair.second) {
-                    for (size_t k = 0; k < amp.labels.size(); k++) {
-                        if ( amp.labels[k] == occ_label ) {
-                            amp.label_ranges[k] = range;
+            // non-summed index? not perfect logic ...
+            int found = index_in_anywhere(label);
+            if ( found == 1 ) {
+                std::string range = item.second[0];
+                if ( range == "act" || range == "ext" ) {
+                    // amplitudes
+                    for (auto &amp_pair : amps) {
+                        char type = amp_pair.first;
+                        for (amplitudes & amp : amp_pair.second) {
+                            for (size_t k = 0; k < amp.labels.size(); k++) {
+                                if ( amp.labels[k] == label ) {
+                                    amp.label_ranges[k] = range;
+                                }
+                            }
                         }
                     }
-                }
-            }
-            // integrals
-            for (auto &int_pair : ints) {
-                std::string type = int_pair.first;
-                for (integrals & integral : int_pair.second) {
-                    for (size_t k = 0; k < integral.labels.size(); k++) {
-                        if ( integral.labels[k] == occ_label ) {
-                            integral.label_ranges[k] = range;
+                    // integrals
+                    for (auto &int_pair : ints) {
+                        std::string type = int_pair.first;
+                        for (integrals & integral : int_pair.second) {
+                            for (size_t k = 0; k < integral.labels.size(); k++) {
+                                if ( integral.labels[k] == label ) {
+                                    integral.label_ranges[k] = range;
+                                }
+                            }
                         }
                     }
-                }
-            }
-            // deltas
-            for (delta_functions & delta : deltas) {
-                for (size_t j = 0; j < delta.labels.size(); j++) {
-                    if ( delta.labels[j] == occ_label ) {
-                        delta.label_ranges[j] = range;
-                    }
-                }
-            }
-        }else {
-            printf("\n");
-            printf("    error: invalid range %s\n", range.c_str());
-            printf("\n");
-            exit(1);
-        }
-    }
-
-    // set ranges for virtual non-summed labels
-    for (const std::string & vir_label : vir_labels) {
-
-        // check that this label is in the map
-        auto range_pos = label_ranges.find(vir_label);
-        if ( range_pos == label_ranges.end() ) continue;
-
-        std::string range = range_pos->second[0];
-
-        if ( range == "act" || range == "ext" ) {
-            // amplitudes
-            for (auto &amp_pair : amps) {
-                char type = amp_pair.first;
-                for (amplitudes & amp : amp_pair.second) {
-                    for (size_t k = 0; k < amp.labels.size(); k++) {
-                        if ( amp.labels[k] == vir_label ) {
-                            amp.label_ranges[k] = range;
+                    // deltas
+                    for (delta_functions & delta : deltas) {
+                        for (size_t j = 0; j < delta.labels.size(); j++) {
+                            if ( delta.labels[j] == label ) {
+                                delta.label_ranges[j] = range;
+                            }
                         }
                     }
+                }else {
+                    printf("\n");
+                    printf("    error: invalid range %s\n", range.c_str());
+                    printf("\n");
+                    exit(1);
                 }
             }
-            // integrals
-            for (auto &int_pair : ints) {
-                std::string type = int_pair.first;
-                for (integrals & integral : int_pair.second) {
-                    for (size_t k = 0; k < integral.labels.size(); k++) {
-                        if ( integral.labels[k] == vir_label ) {
-                            integral.label_ranges[k] = range;
-                        }
-                    }
-                }
-            }
-            // deltas
-            for (delta_functions & delta : deltas) {
-                for (size_t j = 0; j < delta.labels.size(); j++) {
-                    if ( delta.labels[j] == vir_label ) {
-                        delta.label_ranges[j] = range;
-                    }
-                }
-            }
-        }else {
-            printf("\n");
-            printf("    error: invalid range %s\n", range.c_str());
-            printf("\n");
-            exit(1);
         }
     }
 }
@@ -1070,6 +984,32 @@ void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, int n_
     new_amps.n_ph = n_ph;
     new_amps.sort();
     amps[type].push_back(new_amps);
+}
+
+// how many times does an index appear amplitudes, deltas, integrals, and operators?
+int pq_string::index_in_anywhere(const std::string &idx) {
+
+    // find index in deltas
+    int n = index_in_deltas(idx, deltas);
+
+    // find index in integrals
+    for (const auto & int_pair : ints) {
+        const std::string &type = int_pair.first;
+        const std::vector<integrals> &ints = int_pair.second;
+        n += index_in_integrals(idx, ints);
+    }
+
+    // find index in amplitudes
+    for (const auto & amp_pair : amps) {
+        const char &type = amp_pair.first;
+        const std::vector<amplitudes> &amps = amp_pair.second;
+        n += index_in_amplitudes(idx, amps);
+    }
+
+    // find index in operators
+    n += index_in_operators(idx, symbol);
+
+    return n;
 }
 
 }

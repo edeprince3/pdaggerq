@@ -25,6 +25,7 @@ pdaggerq-generated equations. Integrals come from psi4.
 import numpy as np
 from numpy import einsum
 import psi4
+import time
 
 from cc_tools import ccsd
 from cc_tools import ccsd_t
@@ -49,34 +50,49 @@ def main():
     # set options
     psi4_options = {
         'basis': 'sto-3g',
+        'reference': 'uhf',
         'scf_type': 'pk',
         'e_convergence': 1e-10,
         'd_convergence': 1e-10
     }
+
     psi4.set_options(psi4_options)
 
     # run ccsd
-    import time
     s1 = time.time()
-    en = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True)
+    en1 = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True)
     e1 = time.time()
-
-    s2 = time.time()
-    en = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = False)
-    e2 = time.time()
-
-    print(e1-s1, e2-s2)
+    time_1 = e1-s1
 
     # check ccsd energy against psi4
-    assert np.isclose(en,-75.019715133639338, rtol = 1e-8, atol = 1e-8)
+    assert np.isclose(en1, -75.019715133639338, rtol=1e-8, atol=1e-8)
 
-    print('    CCSD Total Energy..........................................................PASSED')
+    print('    Spin-Orbital CCSD Total Energy.............................................PASSED')
     print('')
+
+    s2 = time.time()
+    en2 = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = False)
+    e2 = time.time()
+    time_2 = e2-s2
+
+    # check ccsd energy against psi4
+    assert np.isclose(en2, -75.019715133639338, rtol=1e-8, atol=1e-8)
+
+    print('    Spin-Traced CCSD Total Energy..............................................PASSED')
+    print('')
+
+    print(f"CCSD energy in spin-orbital basis: {en1: 30.20f}")
+    print(f"CCSD energy in spin-traced basis:  {en2: 30.20f}")
+    print(f"Difference in energy:              {en2-en1: 30.20f}")
+    print(f"CCSD time in spin-orbital basis:   {time_1: 10.3f}")
+    print(f"CCSD time in spin-traced basis:    {time_2: 10.3f}")
+    print(f"Difference in time:                {time_2-time_1: 10.3f}")
+    print("")
 
     # run ccsd(t)
     en = ccsd_t(mol)
 
-    # check ccsd energy against psi4
+    # check ccsd(t) energy against psi4
     assert np.isclose(en,-75.019790965805612, rtol = 1e-8, atol = 1e-8)
 
     print('    CCSD(T) Total Energy..........................................................PASSED')
@@ -104,38 +120,53 @@ def main():
     }
     psi4.set_options(psi4_options)
 
-    # run ccsdt spin-blocked
+    # run spin-orbital ccsdt
     s1 = time.time()
-    en = ccsdt(mol, use_spin_orbital_basis = False)
+    en1 = ccsdt(mol, use_spin_orbital_basis = True)
     e1 = time.time()
+    time_1 = e1-s1
 
     # check ccsdt energy against nwchem
-    assert np.isclose(en,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
+    assert np.isclose(en1,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
 
-    print('    CCSDT Total Energy..........................................................PASSED')
+    print('    Spin-Orbital CCSDT Total Energy.............................................PASSED')
     print('')
 
-    ## run spin-orbital ccsdt
-    #s2 = time.time()
-    #en = ccsdt(mol)
-    #e2 = time.time()
+    # run ccsdt spin-blocked
+    s2 = time.time()
+    en2 = ccsdt(mol, use_spin_orbital_basis = False)
+    e2 = time.time()
+    time_2 = e2-s2
 
-    ## check ccsdt energy against nwchem
-    #assert np.isclose(en,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
+    # check ccsdt energy against nwchem
+    assert np.isclose(en2,-100.008956600850908,rtol = 1e-8, atol = 1e-8)
 
-    #print('    CCSDT Total Energy..........................................................PASSED')
-    #print('')
+    print('    Spin-Traced CCSDT Total Energy..............................................PASSED')
+    print('')
 
-    #print(e1-s1, e2-s2)
+    print(f"CCSDT energy in spin-orbital basis: {en1: 30.20f}")
+    print(f"CCSDT energy in spin-traced basis:  {en2: 30.20f}")
+    print(f"Difference in energy:               {en2 - en1: 30.20f}")
+    print(f"CCSDT time in spin-orbital basis:   {time_1: 10.3f}")
+    print(f"CCSDT time in spin-traced basis:    {time_2: 10.3f}")
+    print(f"Difference in time:                 {time_2 - time_1: 10.3f}")
+    print("")
 
     # run spin-blocked ccsdtq
-    en = ccsdtq(mol)
+    s1 = time.time()
+    en1 = ccsdtq(mol)
+    e1 = time.time()
+    time_1 = e1 - s1
 
     # check ccsdtq energy against nwchem
     assert np.isclose(en,-100.009723511692869,rtol = 1e-8, atol = 1e-8)
 
-    print('    CCSDTQ Total Energy..........................................................PASSED')
+    print('    Spin-Traced CCSDTQ Total Energy..............................................PASSED')
     print('')
+
+    print(f"CCSDTQ energy in spin-traced basis: {en1: 30.20f}")
+    print(f"CCSDTQ time in spin-traced basis:   {time_1: 10.3f}")
+    print("")
 
 if __name__ == "__main__":
     main()

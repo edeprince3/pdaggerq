@@ -574,7 +574,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
     }
 
     // prune intermediates, but also remove single use intermediates
-    prune(false);
+    prune();
 
     Term::max_depth_ = org_max_depth;
 

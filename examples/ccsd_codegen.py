@@ -23,7 +23,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    energy_terms = pq.fully_contracted_strings()
+    energy_terms = pq.strings()
     energy_terms = contracted_strings_to_tensor_terms(energy_terms)
 
     for my_term in energy_terms:
@@ -53,7 +53,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    singles_residual_terms = pq.fully_contracted_strings()
+    singles_residual_terms = pq.strings()
     singles_residual_terms = contracted_strings_to_tensor_terms(
         singles_residual_terms)
     for my_term in singles_residual_terms:
@@ -84,7 +84,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    doubles_residual_terms = pq.fully_contracted_strings()
+    doubles_residual_terms = pq.strings()
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)

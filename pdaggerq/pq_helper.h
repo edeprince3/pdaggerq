@@ -182,6 +182,15 @@ class pq_helper {
 
     /**
      *
+     * set whether or not the cluster operator is antihermitian for ucc
+     *
+     * @param is_unitary: true/false
+     *
+     */
+    void set_unitary_cc(bool is_unitary);
+
+    /**
+     *
      * set whether we should search for paired ov permutations that arise in ccsdt
      *
      * @param do_find_paired_permutations: true/false
@@ -225,8 +234,10 @@ class pq_helper {
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
      *
      */
-    void add_st_operator(double factor, const std::vector<std::string> &targets,
-                                        const std::vector<std::string> &ops);
+    void add_st_operator(double factor, 
+                         const std::vector<std::string> &targets,
+                         const std::vector<std::string> &ops,
+                         bool do_operators_commute);
 
     /**
      *
@@ -237,7 +248,10 @@ class pq_helper {
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
      *
      */
-    std::vector<pq_operator_terms> get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops);
+    std::vector<pq_operator_terms> get_st_operator_terms(double factor, 
+                                                         const std::vector<std::string> &targets,
+                                                         const std::vector<std::string> &ops,
+                                                         bool do_operators_commute);
 
     /**
      *
@@ -384,26 +398,10 @@ class pq_helper {
 
     /**
      *
-     * get a list of all strings 
+     * get a list of all strings (true vacuum) or fully-contracted strings (fermi vacuum)
      *
      */
     std::vector<std::vector<std::string> > strings() const;
-
-    /**
-     *
-     * get list of fully-contracted strings
-     *
-     */
-    std::vector<std::vector<std::string> > fully_contracted_strings() const;
-
-    /**
-     *
-     * get list of fully-contracted strings, after spin tracing
-     *
-     * @param spin_labels: a map/dictionary mapping non-summed labels onto spins ("a" or "b")
-     */
-    [[deprecated("use pq_helper::block_by_spin(spin_labels) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels);
 
     /**
      *
@@ -414,29 +412,10 @@ class pq_helper {
 
     /**
      *
-     * get list of fully-contracted strings, after assigning ranges to the labels
-     *
-     * @param label_ranges: a map/dictionary mapping non-summed labels onto ranges ("all", "active", or "external")
-     */
-    [[deprecated("use pq_helper::block_by_range(label_ranges) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_ranges(
-            const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
-
-    /**
-     *
      * this function is used to block strings by label ranges
      *
      */
     void block_by_range(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
-
-    /**
-     *
-     * print strings to stdout
-     *
-     * @param string_type: a string specifying which strings to print ("all", "one-body", "two-body", "fully-contracted").
-     *                     on the python side, the default value is "fully-contracted"
-     */
-    void print(const std::string &string_type) const;
 
     /**
      *
@@ -463,6 +442,13 @@ class pq_helper {
      *
      */
     void deserialize(const std::string & filename);
+
+    /** 
+     * 
+     * is the cluster operator antihermitian for ucc?
+     * 
+     */
+    bool is_unitary_cc;
 
 private:
 

@@ -39,7 +39,7 @@ def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None,
         eqs[proj_eqname] = pq.clone()
         # print the fully contracted strings
         print(f"Equation {proj_eqname}:", flush=True)
-        for term in pq.fully_contracted_strings():
+        for term in pq.strings():
             print(term, flush=True)
     del pq
 
@@ -64,11 +64,11 @@ def main():
     """
 
     # cluster operators
-    T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+    T = ['t1', 't2']
 
     # left and right excitation operators
-    L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
-    R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+    L = [['l0'], ['l1'], ['l2']]
+    R = [['r0'], ['r1'], ['r2']]
 
     rdms = {
         "D_vv": [['e1(a,b)']], # vv
@@ -89,9 +89,16 @@ def main():
     graph = configure_graph()
 
     # Add equations to graph
-    for proj_eqname, eq in eqs.items():
-        print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+    graph.add(eqs["D_vv_aa"], "D_vv_aa", ['a', 'b'])
+    graph.add(eqs["D_vo_aa"], "D_vo_aa", ['a', 'i'])
+    graph.add(eqs["D_ov_aa"], "D_ov_aa", ['i', 'a'])
+    graph.add(eqs["D_oo_aa"], "D_oo_aa", ['i', 'j'])
+    
+    graph.add(eqs["D_vv_bb"], "D_vv_bb", ['a', 'b'])
+    graph.add(eqs["D_vo_bb"], "D_vo_bb", ['a', 'i'])
+    graph.add(eqs["D_ov_bb"], "D_ov_bb", ['i', 'a'])
+    graph.add(eqs["D_oo_bb"], "D_oo_bb", ['i', 'j'])
+
 
     # Optimize and output the graph
     graph.optimize()

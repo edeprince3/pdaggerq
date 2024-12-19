@@ -188,12 +188,7 @@ namespace pdaggerq {
          * fuses together similar sublinkages
          * @return true if the linkage was fused, false otherwise
          */
-        bool fuse();
-
-        /**
-         * Merges constants together in linkage
-         */
-         void merge_constants();
+        bool factor();
 
         /**
          * Destructor

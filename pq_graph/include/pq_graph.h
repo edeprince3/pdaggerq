@@ -228,7 +228,7 @@ namespace pdaggerq {
         size_t merge_terms();
 
         /**
-         * fuse intermediate terms with the same rhs
+         * factor intermediate terms with the same rhs
          */
         size_t merge_intermediates();
 

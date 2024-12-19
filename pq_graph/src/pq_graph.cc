@@ -142,7 +142,8 @@ namespace pdaggerq {
 
         if (options.contains("no_scalars")) {
             Equation::no_scalars_ = options["no_scalars"].cast<bool>();
-            cout << "'no_scalars' is set to true. Scalars will not be included in the final equations." << endl;
+            if (Equation::no_scalars_)
+                cout << "'no_scalars' is set to true. Scalars will not be included in the final equations." << endl;
         }
 
 
@@ -755,8 +756,8 @@ namespace pdaggerq {
 
         // clean up unused intermediates
         update_timer.start();
-        merge_terms();
         prune(false);
+        merge_terms();
 
         // set optimized flag to true
         is_optimized_ = true;

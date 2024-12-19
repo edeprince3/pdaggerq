@@ -52,57 +52,75 @@ void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
+        .def("set_unitary_cc", &pq_helper::set_unitary_cc)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
         .def("set_right_operators_type", &pq_helper::set_right_operators_type)
         .def("get_right_operators_type", &pq_helper::get_right_operators_type)
         .def("get_left_operators_type", &pq_helper::get_left_operators_type)
-        .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
         .def("clone", &pq_helper::clone)
         .def("save", &pq_helper::serialize)
         .def("load", &pq_helper::deserialize)
-        //.def("set_use_rdms", &pq_helper::set_use_rdms)
         .def("set_use_rdms",
-             [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
-                 return self.set_use_rdms(do_use_rdms, ignore_cumulant);
-             },
-             py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
-        .def("print",
-             [](pq_helper& self, const std::string& string_type) {
-                 return self.print(string_type);
-             },
-             py::arg("string_type") = "fully-contracted" )
-        .def("strings", &pq_helper::strings)
-        .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
-        .def("fully_contracted_strings_with_spin",
-             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
-//                 return self.fully_contracted_strings_with_spin(spin_labels);
+            [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
+                return self.set_use_rdms(do_use_rdms, ignore_cumulant);
+            },
+            py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
+        .def("strings", 
+            [](pq_helper& self, 
+                const std::unordered_map<std::string, std::string> &spin_labels, 
+                const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
+
+                bool has_spin_labels = spin_labels.find("DUMMY") == spin_labels.end();
+                bool has_label_ranges = label_ranges.find("DUMMY") == label_ranges.end();
+
+                if ( has_spin_labels && has_label_ranges ) {
+                    printf("\n");
+                    printf("    error: cannot simultaneously block by spin and by range\n");
+                    printf("\n");
+                    exit(1);
+                }
+                
+                if ( has_spin_labels ) {
+                
+                    // spin blocking 
                     self.block_by_spin(spin_labels);
-                    return self.fully_contracted_strings();
-             },
-             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+                    return self.strings();
+                
+                } else if ( has_label_ranges ) {
+                
+                    // range labels
+                   self.block_by_range(label_ranges);
+                   return self.strings();
+
+                   // no blocking
+                } else return self.strings();
+
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>{{"DUMMY",""}},
+            py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>{{"DUMMY",{""}}} )
         .def("block_by_spin",
-             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
-                    self.block_by_spin(spin_labels);
-             },
-                py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
-        .def("fully_contracted_strings_with_ranges",
-             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
-//                 return self.fully_contracted_strings_with_ranges(label_ranges);
-                    self.block_by_range(label_ranges);
-                    return self.fully_contracted_strings();
-             },
-             py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>() )
+            [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
+                self.block_by_spin(spin_labels);
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("block_by_range",
-             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
-                 self.block_by_range(label_ranges);
-             },
-                py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
-        .def("add_st_operator", &pq_helper::add_st_operator)
+            [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
+                self.block_by_range(label_ranges);
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+        .def("add_st_operator",
+            [](pq_helper& self, double factor, 
+                                const std::vector<std::string> &targets, 
+                                const std::vector<std::string> &ops, 
+                                bool do_operators_commute) {
+                return self.add_st_operator(factor, targets, ops, do_operators_commute);
+            },
+            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true )
         .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
         .def("add_commutator", &pq_helper::add_commutator)
@@ -149,9 +167,8 @@ pq_helper::pq_helper(const std::string &vacuum_type)
 
     print_level = 0;
 
-    // assume operators entering a similarity transformation
-    // commute. only relevant for the add_st_operator() function
-    cluster_operators_commute = true;
+    // assume cluster operator is not antihermitian by default
+    is_unitary_cc = false;
 
     // by default, do not look for paired permutations (until parsers catch up)
     find_paired_permutations = false;
@@ -175,7 +192,6 @@ pq_helper::pq_helper(const pq_helper &other) {
     this->right_operators           = other.right_operators;
     this->right_operators_type      = other.right_operators_type;
     this->left_operators_type       = other.left_operators_type;
-    this->cluster_operators_commute = other.cluster_operators_commute;
     this->find_paired_permutations  = other.find_paired_permutations;
 
     // deep copy pointers to pq_strings
@@ -190,7 +206,6 @@ pq_helper::pq_helper(const pq_helper &other) {
     for (const std::shared_ptr<pq_string> & pq_str : other.ordered_blocked) {
         this->ordered_blocked.push_back(std::make_shared<pq_string>(*pq_str));
     }
-
 }
 
 pq_helper &pq_helper::operator=(const pq_helper &other) {
@@ -257,9 +272,9 @@ void pq_helper::set_right_operators_type(const std::string &type) {
     }
 }
 
-// do operators entering similarity transformation commute? default true
-void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
-    cluster_operators_commute = do_cluster_operators_commute;
+// is the cluster operator antihermitian for ucc? default false
+void pq_helper::set_unitary_cc(bool is_unitary) {
+    is_unitary_cc = is_unitary;
 }
 
 void pq_helper::add_anticommutator(double factor,
@@ -406,7 +421,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     for (std::vector<std::string> & left_operator : left_operators) {
         std::vector<std::string> tmp;
         for (const std::string & op : left_operator) {
-            if (op == "v" ) {
+            if (op == "v" || op == "V") {
 
                 printf("\n");
                 printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
@@ -431,7 +446,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     for (std::vector<std::string> & right_operator : right_operators) {
         std::vector<std::string> tmp;
         for (const std::string & op : right_operator) {
-            if (op == "v" ) {
+            if (op == "v" || op == "V") {
 
                 printf("\n");
                 printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
@@ -455,7 +470,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     bool found_v = false;
     std::vector<std::string> tmp_in;
     for (const std::string & op : in) {
-        if (op == "v" ) {
+        if (op == "v" || op == "V") {
             found_v = true;
             break;
         }else {
@@ -487,6 +502,67 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         }
         add_operator_product(factor, in);
         
+        return;
+    }
+
+    // now check for t and add de-excitation operators if doing unitary cc
+    // first, if unitary cc, t can't show up in right or left operator lists (yet)
+    if ( is_unitary_cc ) {
+        for (size_t i = 0; i < left_operators.size(); i++) {
+            for (size_t j = 0; j < left_operators[i].size(); j++) {
+                if ( left_operators[i][j].substr(0,1) == "t" || left_operators[i][j].substr(0,1) == "T" ){
+
+                    printf("\n");
+                    printf("    error: unitary cluster operators cannot appear in the bra state\n");
+                    printf("\n");
+                    exit(1);
+
+                }
+            }
+        }
+        for (size_t i = 0; i < right_operators.size(); i++) {
+            for (size_t j = 0; j < right_operators[i].size(); j++) {
+                if ( right_operators[i][j].substr(0,1) == "t" || right_operators[i][j].substr(0,1) == "T" ){
+
+                    printf("\n");
+                    printf("    error: unitary cluster operators cannot appear in the ket state\n");
+                    printf("\n");
+                    exit(1);
+
+                }
+            }
+        }
+    }
+
+    // now either rename cluster operators or split them into two, depending on whether we're unitary or not
+    count = 0;
+    bool found_t = false;
+    for (size_t i = 0; i < in.size(); i++) {
+        if ( in[i].substr(0,1) == "t" || in[i].substr(0,1) == "T" ) {
+            if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" ) {
+                found_t = true;
+                break;
+            }else {
+                count++;
+            }
+        }else {
+            count++;
+        }
+    }
+
+    if ( found_t ) {
+
+        // term 1 (excitation)
+
+        in[count].insert(1, "e", 1);
+        add_operator_product(factor, in);
+
+        // term 2 (de-excitation)
+        if ( is_unitary_cc ) {
+
+            in[count][1] = 'd';
+            add_operator_product(-factor, in);
+        }
         return;
     }
 
@@ -539,8 +615,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 // blank string
                 if ( op.empty() ) continue;
 
+                // Stephen: removed so that we can distinguish lower- and uppercase indices
                 // lowercase indices
-                std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
+                // std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
 
                 // remove spaces
                 removeSpaces(op);
@@ -548,7 +625,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 // remove parentheses
                 removeParentheses(op);
 
-                if (op.substr(0, 1) == "h" ) { // one-electron operator
+                if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -562,7 +639,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // integrals
                     newguy->set_integrals("core", {idx1, idx2});
 
-                }else if (op.substr(0, 1) == "f" ) { // fock operator
+                }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -576,7 +653,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // integrals
                     newguy->set_integrals("fock", {idx1, idx2});
 
-                }else if (op.substr(0, 2) == "d+" ) { // one-electron operator (dipole + boson creator)
+                }else if (op.substr(0, 2) == "d+" || op.substr(0, 2) == "D+") { // one-electron operator (dipole + boson creator)
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -593,7 +670,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // boson operator
                     newguy->is_boson_dagger.push_back(true);
 
-                }else if (op.substr(0, 2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
+                }else if (op.substr(0, 2) == "d-" || op.substr(0, 2) == "D-") { // one-electron operator (dipole + boson annihilator)
 
                     std::string idx1 = "p" + std::to_string(gen_label_count++);
                     std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -610,7 +687,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     // boson operator
                     newguy->is_boson_dagger.push_back(false);
 
-                }else if (op.substr(0, 1) == "g" ) { // general two-electron operator
+                }else if (op.substr(0, 1) == "g" || op.substr(0, 1) == "G") { // general two-electron operator
 
                     //factor *= 0.25;
 
@@ -626,7 +703,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3});
 
-                }else if (op.substr(0, 1) == "j" ) { // fluctuation potential
+                }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
 
                     if (op.substr(1, 1) == "1" ){
 
@@ -662,14 +739,14 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     }
 
-                }else if (op.substr(0, 1) == "t" ){
+                }else if (op.substr(0, 1) == "t"){
 
-                    int n = std::stoi(op.substr(1));
+                    int n = std::stoi(op.substr(2));
                     std::vector<std::string> labels;
 
                     if ( n == 0 ){
 
-                        // nothin to do
+                        // nothing to do
 
                     }else {
 
@@ -677,17 +754,45 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         std::vector<std::string> op_right;
                         std::vector<std::string> label_left;
                         std::vector<std::string> label_right;
-                        for (int id = 0; id < n; id++) {
+ 
+                        // excitation:
+                        if ( op.substr(0,2) == "te" ) {
 
-                            std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
+                            for (int id = 0; id < n; id++) {
 
-                            op_left.push_back(idx1+"*");
-                            op_right.push_back(idx2);
+                                std::string idx1 = "v" + std::to_string(vir_label_count++);
+                                std::string idx2 = "o" + std::to_string(occ_label_count++);
 
-                            label_left.push_back(idx1);
-                            label_right.push_back(idx2);
+                                op_left.push_back(idx1+"*");
+                                op_right.push_back(idx2);
+
+                                label_left.push_back(idx1);
+                                label_right.push_back(idx2);
+                            }
+                        }else if ( op.substr(0,2) == "td" ) {
+
+                            // de-excitation:
+                            for (int id = 0; id < n; id++) {
+
+                                std::string idx1 = "v" + std::to_string(vir_label_count++);
+                                std::string idx2 = "o" + std::to_string(occ_label_count++);
+
+                                op_left.push_back(idx2+"*");
+                                op_right.push_back(idx1);
+
+                                // do not transpose de-excitation amplitude labels
+                                label_left.push_back(idx1);
+                                label_right.push_back(idx2);
+                                //label_left.push_back(idx2);
+                                //label_right.push_back(idx1);
+                            }
+                        }else {
+                            printf("\n");
+                            printf("    invalid operator type: %s\n", op.c_str());
+                            printf("\n");
+                            exit(1);
                         }
+
                         // a*b*...
                         for (int id = 0; id < n; id++) {
                             tmp_string.push_back(op_left[id]);
@@ -715,17 +820,25 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     }
 
                     int n_ph = 0;
-                    if (op.size() > 2 ) {
-                        if ( op.substr(2,1) == ",") {
-                            n_ph = std::stoi(op.substr(3));
-                            for (int ph = 0; ph < n_ph; ph++) {
-                                newguy->is_boson_dagger.push_back(true);
+                    if (op.size() > 3 ) {
+                        if ( op.substr(3,1) == ",") {
+                            n_ph = std::stoi(op.substr(4));
+                            if ( op.substr(0,2) == "te" ) {
+                                // excitation
+                                for (int ph = 0; ph < n_ph; ph++) {
+                                    newguy->is_boson_dagger.push_back(true);
+                                }
+                            }else if ( op.substr(0,2) == "td" ) {
+                                // de-excitation
+                                for (int ph = 0; ph < n_ph; ph++) {
+                                    newguy->is_boson_dagger.push_back(false);
+                                }
                             }
                         }
                     }
                     newguy->set_amplitudes('t', n, n, n_ph, labels);
 
-                }else if (op.substr(0, 1) == "w" ){ // w0 B*B
+                }else if (op.substr(0, 1) == "w" || op.substr(0, 1) == "W"){ // w0 B*B
 
                     if (op.substr(1, 1) == "0" ){
 
@@ -741,15 +854,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         exit(1);
                     }
 
-                }else if (op.substr(0, 2) == "b+" ){ // B*
+                }else if (op.substr(0, 2) == "b+" || op.substr(0, 2) == "B+"){ // B*
 
                         newguy->is_boson_dagger.push_back(true);
 
-                }else if (op.substr(0, 2) == "b-" ){ // B
+                }else if (op.substr(0, 2) == "b-" || op.substr(0, 2) == "B-"){ // B
 
                         newguy->is_boson_dagger.push_back(false);
 
-                }else if (op.substr(0, 1) == "r" ){
+                }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
 
 
                     int n = std::stoi(op.substr(1));
@@ -823,7 +936,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     }
                     newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels);
 
-                }else if (op.substr(0, 1) == "l" ){
+                }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
 
                     int n = std::stoi(op.substr(1));
                     int n_annihilate = n;
@@ -832,7 +945,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if ( n == 0 ){
 
-                        // nothin to do
+                        // nothing to do
 
                     }else {
                         
@@ -897,7 +1010,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     }
                     newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels);
 
-                }else if (op.substr(0, 1) == "e" ){
+                }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
 
 
                     if (op.substr(1, 1) == "1" ){
@@ -1011,7 +1124,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else if (op.substr(0, 1) == "1" ) { // unit operator ... do nothing
 
-                }else if (op.substr(0, 1) == "a" ){ // single creator / annihilator
+                }else if (op.substr(0, 1) == "a" || op.substr(0, 1) == "A"){ // single creator / annihilator
 
 
                     if (op.substr(1, 1) == "*" ){ // creator
@@ -1071,6 +1184,19 @@ void pq_helper::simplify() {
         // replace any funny labels that were added with conventional ones
         use_conventional_labels(pq_str);
 
+
+        // TODO: if UCC de-excitation amplitudes were transposed, transpose them back
+//        if ( is_unitary_cc ) {
+//            // relabel amplitudes t(i, a) -> t(a, i)
+//            for (size_t j = 0; j < ordered[i]->amps['t'].size(); j++) {
+//                // check if first label is occupied or not. if so, reverse order and flip sign
+//                if ( ordered[i]->amps['t'][j].labels.size() == 0 ) continue;
+//                if ( is_occ(ordered[i]->amps['t'][j].labels[0]) ) {
+//                    std::reverse(ordered[i]->amps['t'][j].labels.begin(), ordered[i]->amps['t'][j].labels.end());
+//                }
+//            }
+//        }
+
         // replace creation / annihilation operators with rdms
         if ( use_rdms ) {
 
@@ -1111,85 +1237,7 @@ void pq_helper::simplify() {
 
 }
 
-void pq_helper::print(const std::string &string_type) const {
-
-    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
-    const auto &reference = is_blocked ? ordered_blocked : ordered;
-
-    printf("\n");
-    printf("    ");
-
-    int n = 0;
-
-    if ( string_type == "all" ) {
-
-        printf("// normal-ordered strings:\n");
-        for (const std::shared_ptr<pq_string> & pq_str : reference) {
-            pq_str->print();
-        }
-        printf("\n");
-        return;
-
-    }else if ( string_type == "one-body" ) {
-        printf("// one-body strings:\n");
-        n = 1;
-    }else if ( string_type == "two-body" ) {
-        n = 2;
-        printf("// two-body strings:\n");
-    }else if ( string_type == "fully-contracted" ) {
-        printf("// fully-contracted strings:\n");
-        n = 0;
-    }
-
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        // number of fermion + boson operators
-        int my_n = pq_str->symbol.size() / 2 + pq_str->is_boson_dagger.size();
-        if ( my_n != n ) continue;
-        pq_str->print();
-    }
-    printf("\n");
-
-}
-
-// get list of fully-contracted strings, after assigning ranges to the labels
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_ranges(
-            const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
-
-    // add ranges to labels
-    pq_string::is_range_blocked = true;
-    if ( pq_string::is_spin_blocked ) {
-        printf("\n");
-        printf("    error: cannot simultaneously block by spin and by range\n");
-    }
-
-    std::vector< std::shared_ptr<pq_string> > range_blocked;
-
-    for (auto & pq_str : ordered) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector< std::shared_ptr<pq_string> > tmp;
-        add_label_ranges(pq_str, tmp, label_ranges);
-        for (const auto & op : tmp) {
-            range_blocked.push_back(op);
-        }
-    }
-
-    std::vector<std::vector<std::string> > list;
-    for (auto & pq_str : range_blocked) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = pq_str->get_string();
-        //std::vector<std::string> my_string = range_blocked[pq_str]->get_string();
-        if ( !my_string.empty() ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
-}
-
-// get list of fully-contracted strings, after assigning ranges to the labels
+// block labels by orbital spaces
 void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
     ordered_blocked.clear();
 
@@ -1198,6 +1246,8 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     if ( pq_string::is_spin_blocked ) {
         printf("\n");
         printf("    error: cannot simultaneously block by spin and by range\n");
+        printf("\n");
+        exit(1);
     }
 
     std::vector< std::shared_ptr<pq_string> > range_blocked;
@@ -1213,42 +1263,7 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     }
 }
 
-// get list of fully-contracted strings, after spin tracing
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
-
-    // perform spin tracing
-    pq_string::is_spin_blocked = true;
-    if ( pq_string::is_range_blocked ) {
-        printf("\n");
-        printf("    error: cannot simultaneously block by spin and by range\n");
-    }
-
-    std::vector< std::shared_ptr<pq_string> > spin_blocked;
-
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector< std::shared_ptr<pq_string> > tmp;
-        spin_blocking(pq_str, tmp, spin_labels);
-        for (const std::shared_ptr<pq_string> & op : tmp) {
-            spin_blocked.push_back(op);
-        }
-    }
-
-    std::vector<std::vector<std::string> > list;
-    for (auto & spin_str : spin_blocked) {
-        if ( !spin_str->symbol.empty() ) continue;
-        if ( !spin_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = spin_str->get_string();
-        if ( !my_string.empty() ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
-}
-
+// block labels by spin
 void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
     ordered_blocked.clear();
 
@@ -1257,6 +1272,8 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
     if ( pq_string::is_range_blocked ) {
         printf("\n");
         printf("    error: cannot simultaneously block by spin and by range\n");
+        printf("\n");
+        exit(1);
     }
 
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
@@ -1268,25 +1285,6 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
             ordered_blocked.push_back(tmp_pq_str);
         }
     }
-}
-
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() const {
-
-    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
-    const auto &reference = is_blocked ? ordered_blocked : ordered;
-
-    std::vector<std::vector<std::string> > list;
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = pq_str->get_string();
-        if ( (int)my_string.size() > 0 ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
 }
 
 std::vector<std::vector<std::string> > pq_helper::strings() const {
@@ -1314,16 +1312,17 @@ void pq_helper::clear() {
 }
 
 void pq_helper::add_st_operator(double factor, const std::vector<std::string> &targets,
-                                               const std::vector<std::string> &ops){
+                                               const std::vector<std::string> &ops,
+                                               bool do_operators_commute = true){
 
-    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops);
+    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute);
     for (auto op : st_ops){
         add_operator_product(op.factor, op.operators);
     }
 
 }
 
-std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops){
+std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true){
 
     int dim = (int)ops.size();
 
@@ -1335,7 +1334,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
         st.insert(std::end(st), std::begin(tmp), std::end(tmp));
     }
 
-    if ( cluster_operators_commute ) {
+    if ( do_operators_commute ) {
 
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
