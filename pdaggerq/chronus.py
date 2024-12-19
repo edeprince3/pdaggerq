@@ -1,8 +1,30 @@
 import re
 import sys
 
+replacement_mapping = {
+    'v0': 'r',
+    'v1': 'l',
+    'o1': 'h',
+    'o0': 'c',
+}
 
-# eri["oovv_0011"](anything) => conj(eri["oovv_0011"])
+# anything["0011_Loovv"](anything) => anything(anything).block(TAManager.toBlockRange("ccll"))
+def replace_block_strings_active(input_string):
+
+    pattern = re.compile(r'([^ ]+)\["([01]{1,4}_L?([ov]{1,4}))"\](\([^)]+\))')
+
+    def replace_match(match):
+        to_be_copied_1, key2, key1, to_be_copied_2 = match.groups()
+
+        replaced_value = ''.join(replacement_mapping.get(ch + bit, ch) for ch, bit in zip(key1, key2))
+        return f'{to_be_copied_1}_{key1}{to_be_copied_2}.block(b.{replaced_value})'
+
+    result = pattern.sub(replace_match, input_string)
+
+    return result
+
+
+# eri["oovv"](ijab) => conj(eri["vvoo"](abij))
 def replace_conj_strings_option1(input_string):
 
     pattern = re.compile(r'eri\["(oovv|oovo|vovv)"\]\("([a-o]),([a-o]),([a-o]),([a-o])"\)')
@@ -14,15 +36,41 @@ def replace_conj_strings_option1(input_string):
     result = pattern.sub(replace_match, input_string)
     return result
 
+# eri["oovv_0011"](ijab) => conj(eri["vvoo_1100"](abij))
+def replace_conj_strings_option1_active(input_string):
+
+    pattern = re.compile(r'eri\["([01]{4})_(oovv|oovo|vovv)"\]\("([a-o]),([a-o]),([a-o]),([a-o])"\)')
+
+    def replace_match(match):
+        ae, vo, idx0, idx1, idx2, idx3 = match.groups()
+        return f'conj(eri["{ae[2]}{ae[3]}{ae[0]}{ae[1]}_{vo[2]}{vo[3]}{vo[0]}{vo[1]}"]("{idx2},{idx3},{idx0},{idx1}"))'
+    
+    result = pattern.sub(replace_match, input_string)
+    return result
+
 # tmps_["123_Loovv"].~TArrayD => TAmanager.free("oovv", std::move(tmps_["123_Loovv"]))
 def replace_free_strings(input_string):
 
-    pattern = re.compile(r'((perm)?tmps_?\["[0-9perm]+_([ovL]+)"\]).~TArrayD\(\);')
+    pattern = re.compile(r'(tmps_?\["[0-9perm]+_([ovL]+)"\]).~TArrayD\(\);')
 
     def replace_match(match):
-        name, junk, vo = match.groups()
+        name, vo = match.groups()
         vo = re.sub(r'L','',vo) # remove the L
         replaced_value = vo # ''.join(replacement_mapping.get(ch + bit, ch) for ch, bit in zip(vo, ae))
+        return f'TAmanager.free("{replaced_value}", std::move({name}));'
+    
+    result = pattern.sub(replace_match, input_string)
+    return result
+
+# tmps_["Loovv_0011_123"].~TArrayD => TAmanager.free("ccll", std::move(tmps_["Loovv_0011_123"]))
+def replace_free_strings_active(input_string):
+
+    pattern = re.compile(r'(tmps_\["[0-9]+_([01]+)_([ovL]+)"\]).~TArrayD\(\);')
+
+    def replace_match(match):
+        name, ae, vo = match.groups()
+        vo = re.sub(r'L','',vo) # remove the L
+        replaced_value = ''.join(replacement_mapping.get(ch + bit, ch) for ch, bit in zip(vo, ae))
         return f'TAmanager.free("{replaced_value}", std::move({name}));'
     
     result = pattern.sub(replace_match, input_string)
@@ -33,7 +81,6 @@ def replace_free_strings(input_string):
 # (reused_)tmps_.emplace(std::make_pair("123_Loovv"), TAmamager.malloc<MatsT>("oovv"); original line
 def add_malloc_strings(input_string):
     tmp_pattern = re.compile(r'((\s*reused_|\s*tmps_)\["([0-9]+)_([ovL]+)"\]\(".*"\) *= [^;]+;)')
-    perm_pattern = re.compile(r'((\s*reused_|\s*tmps_)\["(perm)_([ovL]+)"\]\(".*"\) *= [^;]+;)')
 
     def replace_tmp_match(match):
         line, tmps, index, vo = match.groups()
@@ -41,13 +88,22 @@ def add_malloc_strings(input_string):
         replaced_value = vo #''.join(replacement_mapping.get(ch + bit, ch) for ch, bit in zip(vo, ae))
         return f'{tmps}.emplace(std::make_pair("{index}_{replaced_value}", TAmanager.malloc<MatsT>("{replaced_value}")));{line}'
     
-    def replace_perm_match(match):
-        line, tmps, index, vo = match.groups()
-        replaced_value = re.sub(r'L','',vo) # remove the L
-        return f'{tmps}["{index}_{vo}"] = TAmanager.malloc<MatsT>("{replaced_value}");{line}'
+    result = tmp_pattern.sub(replace_tmp_match, input_string)
+    return result
+
+# (reuse)tmps_["Loovv_0011_123"] = anything 
+# => 
+# (reuse)tmps_.emplace(std::make_pair("Loovv_0011_123"), TAmamager.malloc<MatsT>("ccll"); original line
+def add_malloc_strings_active(input_string):
+    tmp_pattern = re.compile(r'((\s*reused_|\s*tmps_)\["([0-9]+)_([01]+)_([ovL]+)"\]\(".*"\) *= [^;]+;)')
+
+    def replace_tmp_match(match):
+        line, tmps, index, ae, vo = match.groups()
+        vo = re.sub(r'L','',vo) # remove the L
+        replaced_value = ''.join(replacement_mapping.get(ch + bit, ch) for ch, bit in zip(vo, ae))
+        return f'{tmps}.emplace(std::make_pair("{index}_{replaced_value}", TAmanager.malloc<MatsT>("{replaced_value}")));{line}'
     
-    result_tmp = tmp_pattern.sub(replace_tmp_match, input_string)
-    result = perm_pattern.sub(replace_perm_match, result_tmp)
+    result = tmp_pattern.sub(replace_tmp_match, input_string)
     return result
 
 # anything dot anything => anything dot anything; TA::get_default_world().gop.fence()
@@ -68,6 +124,19 @@ def replace_tmp_spaces(input_string):
     result = pattern.sub(replace_match, input_string)
     return result
 
+# (reused_)tmps_["Loovv_0011_123"] => (reused_)tmps_["ccll_123"]
+def replace_tmp_spaces_active(input_string):
+    pattern = re.compile(r'(reused_|tmps_)\["([0-9]+)_([01]+)_([ovL]+)"\]')
+
+    def replace_match(match):
+        tmps, index, ae, vo = match.groups()
+        vo = re.sub(r'L','',vo) # remove the L
+        replaced_value = ''.join(replacement_mapping.get(ch + bit, ch) for ch, bit in zip(vo, ae))
+        return f'{tmps}["{index}_{replaced_value}"]'
+    
+    result = pattern.sub(replace_match, input_string)
+    return result
+
 # append destructor
 def add_destructor(input_string, class_name):
     text  = '  \n\n'
@@ -75,6 +144,21 @@ def add_destructor(input_string, class_name):
     text += '  '+class_name+'<MatsT,IntsT>::~'+class_name+'() {\n\n'
     text += '    TAManager &TAmanager = TAManager::get();\n\n'
     pattern = re.compile(r'reused_\.emplace\(std::make_pair\(("[0-9]+_[chlrvo]+"), TAmanager.malloc<MatsT>\(("[chlrvo]+")\)\)\);')
+    for line in input_string.split('\n'):
+        match = pattern.search(line)
+        if match:
+            name, size = match.groups()
+            text += f'    TAmanager.free({size},std::move(reused_[{name}]), true); \n'
+    text += '  }\n\n'
+    return input_string + text
+
+# append destructor
+def add_destructor_active(input_string, class_name):
+    text  = '  \n\n'
+    text += '  template <typename MatsT, typename IntsT>\n'
+    text += '  '+class_name+'<MatsT,IntsT>::~'+class_name+'() {\n\n'
+    text += '    TAManager &TAmanager = TAManager::get();\n\n'
+    pattern = re.compile(r'reused_\.emplace\(std::make_pair\(("[0-9]+_[chlr]+"), TAmanager.malloc<MatsT>\(("[chlr]+")\)\)\);')
     for line in input_string.split('\n'):
         match = pattern.search(line)
         if match:
@@ -93,12 +177,13 @@ def remove_scalar_lines(input_string):
     return output
 
 # make sure the first equation in each LHS object uses =, not +=
-# this assumes sigmaR variable name looks like sigmaR2_.. sigmaR3_.... sigmaR4_......
+# this assumes sigmaR variable name looks like sigmaR2 sigmaR3 sigmaR4
 def first_LHS_direct_equal(input_string):
-    LHSs = re.findall(r'sigmaR2_..',input_string)
-    LHSs += re.findall(r'sigmaR3_....',input_string)
-    LHSs += re.findall(r'sigmaR4_......',input_string)
-    LHSs += re.findall(r'tmps_\[".*?_.*?"\]',input_string)
+    LHSs  = re.findall(r'^(?!.*//).*sigmaR1[^ \(]+',input_string, re.M) # not commented out, sigmaR1 until eg.("a,i") 
+    LHSs += re.findall(r'^(?!.*//).*sigmaR2[^ \(]+',input_string, re.M)
+    LHSs += re.findall(r'^(?!.*//).*sigmaR3[^ \(]+',input_string, re.M)
+    LHSs += re.findall(r'^(?!.*//).*sigmaR4[^ \(]+',input_string, re.M)
+    LHSs += re.findall(r'tmps_\["[^\]]*?_[^\]]*?"\]',input_string) # each tmp should start from an equal sign
     LHSs = list(set(LHSs))
     lines = input_string.split('\n')
     for LHS in LHSs:
@@ -230,10 +315,7 @@ def add_constructor(output_content, class_name):
 
     return text + output_content
 
-def to_chronus_string(graph, class_name="REPLACEME", is_active=False):
-
-    # Read the content of the input file
-    input_content = graph.str("c++")
+def to_chronus_string(input_content, class_name="REPLACEME", is_active=False):
 
     # code
     output_content = re.sub(r'}',r'  }', input_content)
@@ -254,12 +336,24 @@ def to_chronus_string(graph, class_name="REPLACEME", is_active=False):
     if match:
         output_content = re.sub(r'/+ Evaluate Equations /+\s*\n','  void '+class_name+'<MatsT,IntsT>::buildSigma(const EOMCCSDVector<MatsT> &V, EOMCCSDVector<MatsT> &HV, EOMCCEigenVecType vecType) const {\n\n    TAManager &TAmanager = TAManager::get();\n\n', output_content)
 
-    output_content = replace_conj_strings_option1(output_content) # must happen before the block replacement
-    output_content = replace_free_strings(output_content)
+    if is_active:
+        output_content = re.sub(r't1\["(..)"\]',r't1["\1_vo"]' ,output_content) # must happen before block replacement
+        output_content = re.sub(r't2\["(....)"\]',r't2["\1_vvoo"]' ,output_content) # must happen before block replacement
+        output_content = replace_conj_strings_option1_active(output_content) # must happen before the block replacement
+        output_content = replace_block_strings_active(output_content)
+        output_content = re.sub(r't1_vo',r't1' ,output_content) # must happen before block replacement
+        output_content = re.sub(r't2_vvoo',r't2' ,output_content) # must happen before block replacement
+        output_content = replace_free_strings_active(output_content)
+        output_content = first_LHS_direct_equal(output_content) #must happen after remove_scalar_lines, before add_tenser_definition and add_malloc
+        output_content = add_malloc_strings_active(output_content)
+        output_content = replace_tmp_spaces_active(output_content) # must happen after replace free and add_malloc
+    else:
+        output_content = replace_conj_strings_option1(output_content) # must happen before the block replacement
+        output_content = replace_free_strings(output_content)
+        output_content = first_LHS_direct_equal(output_content) #must happen after remove_scalar_lines, before add_tenser_definition and add_malloc
+        output_content = add_malloc_strings(output_content)
+        output_content = replace_tmp_spaces(output_content) # must happen after replace free and add_malloc
     output_content = remove_scalar_lines(output_content)
-    output_content = first_LHS_direct_equal(output_content) #must happen after remove_scalar_lines, before add_tenser_definition and add_malloc
-    output_content = add_malloc_strings(output_content)
-    output_content = replace_tmp_spaces(output_content) # must happen after replace free and add_malloc
     output_content = add_fence_lines(output_content)
     output_content = re.sub(r'f\["oo"\]','this->fockMatrix_ta["oo"]', output_content)
     output_content = re.sub(r'f\["ov"\]','this->fockMatrix_ta["ov"]', output_content)
@@ -280,6 +374,13 @@ def to_chronus_string(graph, class_name="REPLACEME", is_active=False):
     output_content = re.sub(r'eri\["vovv"\]','this->antiSymMoints["vovv"]', output_content)
     output_content = re.sub(r'eri\["vvvo"\]','this->antiSymMoints["vvvo"]', output_content)
     output_content = re.sub(r'eri\["vvvv"\]','this->antiSymMoints["vvvv"]', output_content)
+    output_content = re.sub(r'eri_oooo','this->antiSymMoints["oooo"]', output_content)
+    output_content = re.sub(r'eri_vooo','this->antiSymMoints["vooo"]', output_content)
+    output_content = re.sub(r'eri_vvoo','this->antiSymMoints["vvoo"]', output_content)
+    output_content = re.sub(r'eri_vovo','this->antiSymMoints["vovo"]', output_content)
+    output_content = re.sub(r'eri_vovv','this->antiSymMoints["vovv"]', output_content)
+    output_content = re.sub(r'eri_vvvo','this->antiSymMoints["vvvo"]', output_content)
+    output_content = re.sub(r'eri_vvvv','this->antiSymMoints["vvvv"]', output_content)
     output_content = re.sub(r'Id','this->Id', output_content)
 
     # re-organize reusetmps mallocs into a new function
