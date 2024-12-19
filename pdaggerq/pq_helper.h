@@ -182,6 +182,15 @@ class pq_helper {
 
     /**
      *
+     * set whether or not the cluster operator is antihermitian for ucc
+     *
+     * @param is_unitary: true/false
+     *
+     */
+    void set_unitary_cc(bool is_unitary);
+
+    /**
+     *
      * set whether we should search for paired ov permutations that arise in ccsdt
      *
      * @param do_find_paired_permutations: true/false
@@ -225,8 +234,10 @@ class pq_helper {
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
      *
      */
-    void add_st_operator(double factor, const std::vector<std::string> &targets,
-                                        const std::vector<std::string> &ops);
+    void add_st_operator(double factor, 
+                         const std::vector<std::string> &targets,
+                         const std::vector<std::string> &ops,
+                         bool do_operators_commute);
 
     /**
      *
@@ -237,7 +248,10 @@ class pq_helper {
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
      *
      */
-    std::vector<pq_operator_terms> get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops);
+    std::vector<pq_operator_terms> get_st_operator_terms(double factor, 
+                                                         const std::vector<std::string> &targets,
+                                                         const std::vector<std::string> &ops,
+                                                         bool do_operators_commute);
 
     /**
      *
@@ -428,6 +442,13 @@ class pq_helper {
      *
      */
     void deserialize(const std::string & filename);
+
+    /** 
+     * 
+     * is the cluster operator antihermitian for ucc?
+     * 
+     */
+    bool is_unitary_cc;
 
 private:
 
