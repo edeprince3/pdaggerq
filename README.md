@@ -13,21 +13,14 @@ Installing pdaggerq requires cmake is installed on your system. To install, firs
 git clone git@github.com:edeprince3/pdaggerq.git
 ```
 
-Then, you can install like you would a normal python package.  From the package top level directory, run either
+Then, you can install like you would a normal python package.  From the package top level directory, run 
 
 ```
-python setup.py install
+python -m pip install .
 ```
-or 
-```
-pip install .
-```
-which should compile pdaggerq.  These commands will produce `build` and`dist` folders which contain
-the compiled c++ shared library. If you are a developer and make changes to the c++ code the package can 
-be rebuilt by running 
-```
-python setup.py clean; python setup.py install
-```
+
+which should compile pdaggerq.  This command will produce a `build` folder that contains
+the compiled c++ shared library. 
 
 ## Quickstart
 
