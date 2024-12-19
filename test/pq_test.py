@@ -82,7 +82,7 @@ def compare_outputs(test_name, script_path):
 # Tests
 ccsd_tests     = ("ccsd", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "ccsd", "ccsd_singles", "ccsd_t",
                   "eom_ccsd_sigma", "ea_eom_ccsd", "eom_ccsd_d1_by_hand", "eom_ccsd_d1", "eom_ccsd_hamiltonian","eom_ccsd", "ip_eom_ccsd", 
-                  "lambda_singles", "lambda_doubles", "ccsd_with_spin", "ucc3_codegen", "ucc4_codegen")
+                  "lambda_singles", "lambda_doubles", "ccsd_with_spin", "ucc3", "ucc4")
 ci_tests       = ("cid_d1", "cid_d2", "cisd_hamiltonian")
 other_tests    = ("rdm_mappings", "extended_rpa")
 ccsdt_tests    = ("ccsd_t", "cc3", "ccsdt", "ccsdt_with_spin", "active_space_CCSDt", "ea_eom_ccsdt", "ip_eom_ccsdt", "ccsdt_with_spin")
