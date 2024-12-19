@@ -138,7 +138,7 @@ std::string amplitudes::to_string(char symbol) const {
     val = symbol_s + std::to_string(order);
 
     if ( n_ph > 0 ) {
-        val += "_" + std::to_string(n_ph);
+        val += "_" + std::to_string(n_ph) + "p";
     }
 
     if ( !labels.empty() ) {
@@ -170,7 +170,7 @@ std::string amplitudes::to_string_with_label_ranges(char symbol) {
     val = symbol_s + std::to_string(order);
 
     if ( n_ph > 0 ) {
-        val += "_" + std::to_string(n_ph);
+        val += "_" + std::to_string(n_ph) + "p";
     }
 
     if ( !label_ranges.empty() ) {
@@ -214,7 +214,7 @@ std::string amplitudes::to_string_with_spin(char symbol) const {
     val = symbol_s + std::to_string(order);
 
     if ( n_ph > 0 ) {
-        val += "_" + std::to_string(n_ph);
+        val += "_" + std::to_string(n_ph) + "p";
     }
 
     if ( !spin_labels.empty() ) {

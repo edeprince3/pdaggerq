@@ -49,154 +49,94 @@ from ccsdt import perturbative_triples_correction
 # ccsdyq iterations
 from ccsdtq import ccsdtq_iterations_with_spin
 
-def spatial_to_spin_orbital_oei(h, n, no):
+def spatial_to_spin_orbital_oei(ha, hb, n, noa, nob):
     """
-    get spin-orbital-basis one-electron integrals
 
-    :param h: one-electron orbitals
+    :param ha: one-electron orbitals, alpha part
+    :param hb: one-electron orbitals, beta part
     :param n: number of spatial orbitals
-    :param no: number of (doubly) occupied orbitals
+    :param noa: number of alpha occupied orbitals
+    :param nob: number of beta occupied orbitals
     :return:  spin-orbital one-electron integrals, sh
     """
 
     # build spin-orbital oeis
     sh = np.zeros((2*n,2*n))
 
-    # index 1
-    for i in range(0,n):
-        ia = i
-        ib = i
-    
-        # alpha occ do nothing
-        if ( ia < no ):
-            ia = i
-        # alpha vir shift up by no
-        else :
-            ia += no
-        # beta occ
-        if ( ib < no ):
-            ib += no
-        else :
-            ib += n
-    
-        # index 2
-        for j in range(0,n):
-            ja = j
-            jb = j
-    
-            # alpha occ
-            if ( ja < no ):
-                ja = j
-            # alpha vir
-            else :
-                ja += no
-            # beta occ
-            if ( jb < no ):
-                jb += no
-            # beta vir
-            else :
-                jb += n
+    # shape of each axis in spin-orbital basis: |oa|ob|va|vb|
+    soa = slice(None, noa)
+    sob = slice(noa, noa+nob)
+    sva = slice(noa+nob, n+nob)
+    svb = slice(n+nob, None)
+    # shape of spatial orbital axis: |oa|va| and |ob|vb|
+    oa = slice(None, noa)
+    va = slice(noa, None)
+    ob = slice(None, nob)
+    vb = slice(nob, None)
 
-            # Haa
-            sh[ia,ja] = h[i,j]
-            # Hbb
-            sh[ib,jb] = h[i,j]
-    
+    # alpha blocks
+    sh[soa, soa] = ha[oa, oa]
+    sh[sva, sva] = ha[va, va]
+    sh[sva, soa] = ha[va, oa]
+    sh[soa, sva] = ha[oa, va]
+
+    # beta blocks
+    sh[sob, sob] = hb[ob, ob]
+    sh[svb, svb] = hb[vb, vb]
+    sh[svb, sob] = hb[vb, ob]
+    sh[sob, svb] = hb[ob, vb]
+
     return sh
 
-def spatial_to_spin_orbital_tei(g, n, no):
+def spatial_to_spin_orbital_tei(gaa, gab, gbb, n, noa, nob):
     """
-    get spin-orbital-basis two-electron integrals
 
-    :param g: two-electron integrals in chemists' notation
+    :param gaa: antisymmetrized two-electron integrals in physicist' notation, alpha-alpha portion
+    :param gab: two-electron integrals in physicist' notation, alpha-beta portion
+    :param gbb: antisymmetrized two-electron integrals in physicist' notation, beta-beta portion
     :param n: number of spatial orbitals
-    :param no: number of (doubly) occupied orbitals
+    :param noa: number of alpha occupied orbitals
+    :param nob: number of beta occupied orbitals
     :return:  spin-orbital two-electron integrals, sg
     """
 
     # build spin-orbital teis
     sg = np.zeros((2*n,2*n,2*n,2*n))
 
-    # index 1
-    for i in range(0,n):
-        ia = i
-        ib = i
-    
-        # alpha occ do nothing
-        if ( ia < no ):
-            ia = i
-        # alpha vir shift up by no
-        else :
-            ia += no
-        # beta occ
-        if ( ib < no ):
-            ib += no
-        else :
-            ib += n
-    
-        # index 2
-        for j in range(0,n):
-            ja = j
-            jb = j
-    
-            # alpha occ
-            if ( ja < no ):
-                ja = j
-            # alpha vir
-            else :
-                ja += no
-            # beta occ
-            if ( jb < no ):
-                jb += no
-            # beta vir
-            else :
-                jb += n
+    # shape of each axis in spin-orbital basis: |oa|ob|va|vb|
+    soa = slice(None, noa)
+    sob = slice(noa, noa+nob)
+    sva = slice(noa+nob, n+nob)
+    svb = slice(n+nob, None)
+    # shape of spatial orbital axis: |oa|va| and |ob|vb|
+    oa  = slice(None,noa)
+    va  = slice(noa,None)
+    ob  = slice(None,nob)
+    vb  = slice(nob,None)
 
-            # index 3
-            for k in range(0,n):
-                ka = k
-                kb = k
-    
-                # alpha occ
-                if ( ka < no ):
-                    ka = k
-                # alpha vir
-                else :
-                    ka += no
-                # beta occ
-                if ( kb < no ):
-                    kb += no
-                # beta vir
-                else :
-                    kb += n
-    
-                # index 4
-                for l in range(0,n):
-                    la = l
-                    lb = l
-    
-                    # alpha occ
-                    if ( la < no ):
-                        la = l
-                    # alpha vir
-                    else :
-                        la += no
-                    # beta occ
-                    if ( lb < no ):
-                        lb += no
-                    # beta vir
-                    else :
-                        lb += n
-                     
-                    # (aa|aa)
-                    sg[ia,ja,ka,la] = g[i,j,k,l]
-                    # (aa|bb)
-                    sg[ia,ja,kb,lb] = g[i,j,k,l]
-                    # (bb|aa)
-                    sg[ib,jb,ka,la] = g[i,j,k,l]
-                    # (bb|bb)
-                    sg[ib,jb,kb,lb] = g[i,j,k,l]
-    
+    # populate TEI
+    def to_bin(x):
+        return '{:04b}'.format(x)
+
+    soa = (soa, sva)
+    moa = (oa, va)
+    sob = (sob, svb)
+    mob = (ob, vb)
+
+    # go from 0000 to 1111, 0 = occ slice, 1 = vir slice
+    # equivalent to looping from oooo to vvvv slice
+    for i in range(16):
+        p,q,r,s = [int(x) for x in to_bin(i)]
+        # <p,q||r,s> <- aaaa block
+        sg[soa[p], soa[q], soa[r], soa[s]] = gaa[moa[p], moa[q], moa[r], moa[s]]
+        # <p,q||r,s> <- abab block, antisymmetrize on the fly (needed for spin-orbital code)
+        sg[soa[p], sob[q], soa[r], sob[s]] =  gab[moa[p], mob[q], moa[r], mob[s]]
+        sg[soa[p], sob[q], sob[r], soa[s]] = -gab[moa[p], mob[q], moa[s], mob[r]].transpose(0,1,3,2)
+        sg[sob[p], soa[q], soa[r], sob[s]] = -gab[moa[q], mob[p], moa[r], mob[s]].transpose(1,0,2,3)
+        sg[sob[p], soa[q], sob[r], soa[s]] =  gab[moa[q], mob[p], moa[s], mob[r]].transpose(1,0,3,2)
+        # <p,q||r,s> <- bbbb block
+        sg[sob[p], sob[q], sob[r], sob[s]] = gbb[mob[p], mob[q], mob[r], mob[s]]
+
     return sg
 
 def get_integrals_with_spin():
@@ -225,10 +165,6 @@ def get_integrals_with_spin():
     nva = nmo - noa
     nvb = nmo - nob
 
-    # orbital energies
-    epsilon_a     = np.asarray(wfn.epsilon_a())
-    epsilon_b     = np.asarray(wfn.epsilon_b())
-    
     # molecular orbitals (spatial):
     Ca = wfn.Ca()
     Cb = wfn.Cb()
@@ -251,78 +187,35 @@ def get_integrals_with_spin():
     g_bbbb = np.einsum('ikjl->ijkl', g_bbbb) - np.einsum('iljk->ijkl', g_bbbb)
     g_abab = np.einsum('ikjl->ijkl', g_abab)
 
-    # occupied, virtual slices
-    n = np.newaxis
+    # occupied slices
     oa = slice(None, noa)
     ob = slice(None, nob)
-    va = slice(noa, None)
-    vb = slice(nob, None)
 
     # build spin-orbital fock matrix
     fa = Ha + np.einsum('piqi->pq', g_aaaa[:, oa, :, oa]) + np.einsum('piqi->pq', g_abab[:, ob, :, ob])
     fb = Hb + np.einsum('piqi->pq', g_bbbb[:, ob, :, ob]) + np.einsum('ipiq->pq', g_abab[oa, : , oa, :])
 
-    return noa, nob, nva, nvb, fa, fb, g_aaaa, g_bbbb, g_abab 
+    return noa, nob, nva, nvb, fa, fb, g_aaaa, g_bbbb, g_abab
 
 def get_integrals():
     """
 
     get one- and two-electron integrals from psi4
 
-    :return nsocc: number of occupied orbitals
-    :return nsvirt: number of virtual orbitals
+    :return nsocc: number of occupied spin-orbitals
+    :return nsvirt: number of virtual spin-orbitals
     :return fock: the fock matrix (spin-orbital basis)
     :return gtei: antisymmetrized two-electron integrals (spin-orbital basis)
 
     """
 
-    # compute the Hartree-Fock energy and wave function
-    scf_e, wfn = psi4.energy('SCF', return_wfn=True)
+    noa, nob, nva, nvb, fa, fb, g_aaaa, g_bbbb, g_abab = get_integrals_with_spin()
 
-    # number of doubly occupied orbitals
-    no   = wfn.nalpha()
-    
-    # total number of orbitals
-    nmo     = wfn.nmo()
-    
-    # number of virtual orbitals
-    nv   = nmo - no
-    
-    # orbital energies
-    epsilon     = np.asarray(wfn.epsilon_a())
-    
-    # molecular orbitals (spatial):
-    C = wfn.Ca()
+    nsocc  = noa + nob
+    nsvirt = nva + nvb
 
-    # use Psi4's MintsHelper to generate integrals
-    mints = psi4.core.MintsHelper(wfn.basisset())
-
-    # build the one-electron integrals
-    H = np.asarray(mints.ao_kinetic()) + np.asarray(mints.ao_potential())
-    H = np.einsum('uj,vi,uv', C, C, H)
-
-    # unpack one-electron integrals in spin-orbital basis
-    sH   = spatial_to_spin_orbital_oei(H,nmo,no)
-    
-    # build the two-electron integrals:
-    tei = np.asarray(mints.mo_eri(C, C, C, C))
-
-    # unpack two-electron integrals in spin-orbital basis
-    stei = spatial_to_spin_orbital_tei(tei,nmo,no)
-
-    # antisymmetrize g(ijkl) = <ij|kl> - <ij|lk> = (ik|jl) - (il|jk)
-    gtei = np.einsum('ikjl->ijkl', stei) - np.einsum('iljk->ijkl', stei)
-
-    # occupied, virtual slices
-    n = np.newaxis
-    o = slice(None, 2 * no)
-    v = slice(2 * no, None)
-
-    # build spin-orbital fock matrix
-    fock = sH + np.einsum('piqi->pq', gtei[:, o, :, o])
-
-    nsvirt = 2 * nv
-    nsocc = 2 * no
+    fock = spatial_to_spin_orbital_oei(fa, fb, (nsocc+nsvirt)//2, noa, nob)
+    gtei = spatial_to_spin_orbital_tei(g_aaaa, g_abab, g_bbbb, (nsocc+nsvirt)//2, noa, nob)
 
     return nsocc, nsvirt, fock, gtei
 

@@ -14,333 +14,97 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+import re
 from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, T3amps, T4amps,
-                              Index, TensorTerm, D1, Delta, Left0amps, Left1amps,
+                              Index, TensorTerm, D1, D2, D3, D4,
+                              Delta, Left0amps, Left1amps,
                               Left2amps, Left3amps, Left4amps, Right0amps,
                               Right1amps, Right2amps, Right3amps, Right4amps,
                               FockMat, BaseTerm, ContractionPermuter,
-                              FockMat, BaseTerm, ContractionPermuter, 
                               ContractionPairPermuter3, ContractionPairPermuter6,
                               ContractionPairPermuter2, TensorTermAction, )
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
 
 
 def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
+
+    # new operators should be added here
+    tensor_map = {
+        'g' : TwoBody,
+        'h' : OneBody,
+        'f' : FockMat,
+        'd1' : D1,
+        'd2' : D2,
+        'd3' : D3,
+        'd4' : D4,
+        't1' : T1amps,
+        't2' : T2amps,
+        't3' : T3amps,
+        't4' : T4amps,
+        'r0' : Right0amps,
+        'r1' : Right1amps,
+        'r2' : Right2amps,
+        'r3' : Right3amps,
+        'r4' : Right4amps,
+        'l0' : Left0amps,
+        'l1' : Left1amps,
+        'l2' : Left2amps,
+        'l3' : Left3amps,
+        'l4' : Left4amps,
+        'd' : Delta,
+        'p' : ContractionPermuter,
+        'pp2' : ContractionPairPermuter2,
+        'pp3' : ContractionPairPermuter3,
+        'pp6' : ContractionPairPermuter6,
+    }
+
+    # strip operator names, indices, and spin using regex
+
+    # spin_pattern for operator ranks 1-4 looks like '[...]_[ab]...[ab]([...])'
+    spin_pattern = re.compile('_[ab]{2,8}')
+
+    # indices pattern looks like '[...]([a-zA-Z],...,[a-zA-Z])'
+    # with ChatGPT's help:
+    # (?<=\() : Positive lookbehind to match ( but not include it in the result.
+    # [^)]+   : Match one or more characters that are not a closing parenthesis ).
+    # (?=\))  : Positive lookahead to match ) but not include it in the result.
+    idx_pattern  = re.compile('(?<=\()[^)]+(?=\))')
+
     if "||" in term_string:
-        index_string = term_string.replace('<', '').replace('>', '').replace(
-            '||', ',')
+        # special case for ERI, which is printed as <x,x||x,x>_[spin]
+        # strip '<' and '>', replace '||' by ',' to obtain 'x,x,x,x_[spin]'
+        index_string = term_string.replace('<', '').replace('>', '').replace('||', ',')
+        # parse spin labels
         tmp = index_string.split('_')
-        spin = ''
-        if len(tmp) > 1 :
-            spin = '_' + tmp[1]
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx in tmp[0].split(',')]
-        return TwoBody(indices=tuple(g_idx), spin=spin)
-    if "g(" in term_string:
-        index_string = term_string.replace('g(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return TwoBody(indices=tuple(g_idx))
-    elif 'h(' in term_string:
-        index_string = term_string.replace('h(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return OneBody(indices=tuple(g_idx))
-    elif 'f(' in term_string:
-        index_string = term_string.replace('f(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return FockMat(spin='', indices=tuple(g_idx))
-    elif 'f_aa(' in term_string:
-        index_string = term_string.replace('f_aa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return FockMat(indices=tuple(g_idx), spin='_aa')
-    elif 'f_bb(' in term_string:
-        index_string = term_string.replace('f_bb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return FockMat(indices=tuple(g_idx), spin='_bb')
-    elif 't4(' in term_string:
-        index_string = term_string.replace('t4(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T4amps(indices=tuple(g_idx))
-    elif 't4_aaaaaaaa(' in term_string:
-        index_string = term_string.replace('t4_aaaaaaaa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T4amps(indices=tuple(g_idx), spin='_aaaaaaaa')
-    elif 't4_aaabaaab(' in term_string:
-        index_string = term_string.replace('t4_aaabaaab(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T4amps(indices=tuple(g_idx), spin='_aaabaaab')
-    elif 't4_aabbaabb(' in term_string:
-        index_string = term_string.replace('t4_aabbaabb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T4amps(indices=tuple(g_idx), spin='_aabbaabb')
-    elif 't4_abbbabbb(' in term_string:
-        index_string = term_string.replace('t4_abbbabbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T4amps(indices=tuple(g_idx), spin='_abbbabbb')
-    elif 't4_bbbbbbbb(' in term_string:
-        index_string = term_string.replace('t4_bbbbbbbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T4amps(indices=tuple(g_idx), spin='_bbbbbbbb')
-    elif 't3(' in term_string:
-        index_string = term_string.replace('t3(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T3amps(indices=tuple(g_idx))
-    elif 't3_aaaaaa(' in term_string:
-        index_string = term_string.replace('t3_aaaaaa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T3amps(indices=tuple(g_idx), spin='_aaaaaa')
-    elif 't3_aabaab(' in term_string:
-        index_string = term_string.replace('t3_aabaab(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T3amps(indices=tuple(g_idx), spin='_aabaab')
-    elif 't3_abbabb(' in term_string:
-        index_string = term_string.replace('t3_abbabb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T3amps(indices=tuple(g_idx), spin='_abbabb')
-    elif 't3_bbbbbb(' in term_string:
-        index_string = term_string.replace('t3_bbbbbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T3amps(indices=tuple(g_idx), spin='_bbbbbb')
-    elif 't2(' in term_string:
-        index_string = term_string.replace('t2(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T2amps(indices=tuple(g_idx))
-    elif 't2_aaaa(' in term_string:
-        index_string = term_string.replace('t2_aaaa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T2amps(indices=tuple(g_idx), spin='_aaaa')
-    elif 't2_abab(' in term_string:
-        index_string = term_string.replace('t2_abab(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T2amps(indices=tuple(g_idx), spin='_abab')
-    elif 't2_bbbb(' in term_string:
-        index_string = term_string.replace('t2_bbbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T2amps(indices=tuple(g_idx), spin='_bbbb')
-    elif 't1(' in term_string:
-        index_string = term_string.replace('t1(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T1amps(indices=tuple(g_idx))
-    elif 't1_aa(' in term_string:
-        index_string = term_string.replace('t1_aa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T1amps(indices=tuple(g_idx), spin='_aa')
-    elif 't1_bb(' in term_string:
-        index_string = term_string.replace('t1_bb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return T1amps(indices=tuple(g_idx), spin='_bb')
-    elif 'd(' in term_string:
-        index_string = term_string.replace('d(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Delta(indices=tuple(g_idx))
-    elif 'l0' in term_string:
-        return Left0amps()
-    elif 'r0' in term_string:
-        return Right0amps()
-    elif 'l1(' in term_string:
-        index_string = term_string.replace('l1(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left1amps(indices=tuple(g_idx))
-    elif 'l1_aa(' in term_string:
-        index_string = term_string.replace('l1_aa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left1amps(indices=tuple(g_idx), spin='_aa')
-    elif 'l1_bb(' in term_string:
-        index_string = term_string.replace('l1_bb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left1amps(indices=tuple(g_idx), spin='_bb')
-    elif 'l2(' in term_string:
-        index_string = term_string.replace('l2(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left2amps(indices=tuple(g_idx))
-    elif 'l2_aaaa(' in term_string:
-        index_string = term_string.replace('l2_aaaa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left2amps(indices=tuple(g_idx), spin='_aaaa')
-    elif 'l2_abab(' in term_string:
-        index_string = term_string.replace('l2_abab(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left2amps(indices=tuple(g_idx), spin='_abab')
-    elif 'l2_bbbb(' in term_string:
-        index_string = term_string.replace('l2_bbbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left2amps(indices=tuple(g_idx), spin='_bbbb')
-    elif 'l3' in term_string:
-        index_string = term_string.replace('l3(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left3amps(indices=tuple(g_idx))
-    elif 'l4(' in term_string:
-        index_string = term_string.replace('l4(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left4amps(indices=tuple(g_idx))
-    elif 'l4_aaaaaaaa(' in term_string:
-        index_string = term_string.replace('l4_aaaaaaaa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left4amps(indices=tuple(g_idx), spin='_aaaaaaaa')
-    elif 'l4_aaabaaab(' in term_string:
-        index_string = term_string.replace('l4_aaabaaab(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left4amps(indices=tuple(g_idx), spin='_aaabaaab')
-    elif 'l4_aabbaabb(' in term_string:
-        index_string = term_string.replace('l4_aabbaabb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left4amps(indices=tuple(g_idx), spin='_aabbaabb')
-    elif 'l4_abbbabbb(' in term_string:
-        index_string = term_string.replace('l4_abbbabbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left4amps(indices=tuple(g_idx), spin='_abbbabbb')
-    elif 'l4_bbbbbbbb(' in term_string:
-        index_string = term_string.replace('l4_bbbbbbbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Left4amps(indices=tuple(g_idx), spin='_bbbbbbbb')
-    elif 'r1(' in term_string:
-        index_string = term_string.replace('r1(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right1amps(indices=tuple(g_idx))
-    elif 'r1_aa(' in term_string:
-        index_string = term_string.replace('r1_aa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right1amps(indices=tuple(g_idx), spin='_aa')
-    elif 'r1_bb(' in term_string:
-        index_string = term_string.replace('r1_bb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right1amps(indices=tuple(g_idx), spin='_bb')
-    elif 'r2(' in term_string:
-        index_string = term_string.replace('r2(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right2amps(indices=tuple(g_idx))
-    elif 'r2_aaaa(' in term_string:
-        index_string = term_string.replace('r2_aaaa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right2amps(indices=tuple(g_idx), spin='_aaaa')
-    elif 'r2_abab(' in term_string:
-        index_string = term_string.replace('r2_abab(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right2amps(indices=tuple(g_idx), spin='_abab')
-    elif 'r2_bbbb(' in term_string:
-        index_string = term_string.replace('r2_bbbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right2amps(indices=tuple(g_idx), spin='_bbbb')
-    elif 'r3(' in term_string:
-        index_string = term_string.replace('r3(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right3amps(indices=tuple(g_idx))
-    elif 'r3_aaaaaa(' in term_string:
-        index_string = term_string.replace('r3_aaaaaa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right3amps(indices=tuple(g_idx), spin='_aaaaaa')
-    elif 'r3_aabaab(' in term_string:
-        index_string = term_string.replace('r3_aabaab(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right3amps(indices=tuple(g_idx), spin='_aabaab')
-    elif 'r3_abbabb(' in term_string:
-        index_string = term_string.replace('r3_abbabb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right3amps(indices=tuple(g_idx), spin='_abbabb')
-    elif 'r3_bbbbbb(' in term_string:
-        index_string = term_string.replace('r3_bbbbbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right3amps(indices=tuple(g_idx), spin='_bbbbbb')
-    elif 'r4(' in term_string:
-        index_string = term_string.replace('r4(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right4amps(indices=tuple(g_idx))
-    elif 't4_aaaaaaaa(' in term_string:
-        index_string = term_string.replace('t4_aaaaaaaa(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right4amps(indices=tuple(g_idx), spin='_aaaaaaaa')
-    elif 't4_aaabaaab(' in term_string:
-        index_string = term_string.replace('t4_aaabaaab(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right4amps(indices=tuple(g_idx), spin='_aaabaaab')
-    elif 'r4_aabbaabb(' in term_string:
-        index_string = term_string.replace('r4_aabbaabb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right4amps(indices=tuple(g_idx), spin='_aabbaabb')
-    elif 'r4_abbbabbb(' in term_string:
-        index_string = term_string.replace('r4_abbbabbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right4amps(indices=tuple(g_idx), spin='_abbbabbb')
-    elif 'r4_bbbbbbbb(' in term_string:
-        index_string = term_string.replace('r4_bbbbbbbb(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return Right4amps(indices=tuple(g_idx), spin='_bbbbbbbb')
-    elif 'P(' in term_string:
-        index_string = term_string.replace('P(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return ContractionPermuter(indices=tuple(g_idx))
-    elif 'PP2(' in term_string:
-        index_string = term_string.replace('PP2(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return ContractionPairPermuter2(indices=tuple(g_idx))
-    elif 'PP3(' in term_string:
-        index_string = term_string.replace('PP3(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return ContractionPairPermuter3(indices=tuple(g_idx))
-    elif 'PP6(' in term_string:
-        index_string = term_string.replace('PP6(', '').replace(')', '')
-        g_idx = [Index(xx, 'occ') if xx in occ_idx else Index(xx, 'virt') for xx
-                 in index_string.split(',')]
-        return ContractionPairPermuter6(indices=tuple(g_idx))
+        spin = '_' + tmp[1] if len(tmp) > 1 else ''
+        idx = [Index(xx, 'occ') if xx in occ_idx
+               else Index(xx, 'virt') for xx in tmp[0].split(',')]
+        return TwoBody(indices=tuple(idx), spin=spin)
     else:
-        raise TypeError("{} not recognized".format(term_string))
+        # all other operators will be of the form 'op_spin([idx])'
+        # first, extract and strip the spin
+        term_spin = spin_pattern.findall(term_string)
+        if len(term_spin)==0:
+            spin = ''
+        else:
+            spin = term_spin[0]
+            # remove '_spin' to obtain 'op([idx])'
+            term_string = term_string.replace(spin,'')
+
+        # next, extract indices
+        idx = idx_pattern.findall(term_string)[0]
+        # remove '([idx])' to obtain 'op'
+        term_string = term_string.replace(f'({idx})','')
+        idx = [Index(xx, 'occ') if xx in occ_idx
+               else Index(xx, 'virt') for xx in idx.split(',')]
+
+        # check if operator is allowed
+        # make operator label lowercase from this point on
+        term_string = term_string.lower()
+        if term_string in tensor_map.keys():
+            return tensor_map[term_string](indices=tuple(idx), spin=spin)
+        else:
+            raise TypeError(f"Operator {term_string} not recognized")
 
 
 def contracted_strings_to_tensor_terms(pdaggerq_list_of_strings):

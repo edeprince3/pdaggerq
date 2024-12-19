@@ -32,55 +32,80 @@ namespace pdaggerq {
 /// expand sums to account for different orbital ranges and zero terms where appropriate
 void add_label_ranges(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &range_blocked, const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
 
-    // check that non-summed label ranges match those specified
-    static std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "o" };
-    static std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "g" };
-
-    std::map<std::string, bool> found_labels;
-   
-    // ok, what non-summed labels do we have in the occupied space? 
-    for (const std::string & occ_label : occ_labels) {
-        int found = index_in_anywhere(in, occ_label);
-        if ( found == 1 ) {
-            found_labels[occ_label] = true;
-        }else{
-            found_labels[occ_label] = false;
-        }
-    }
-   
-    // ok, what non-summed labels do we have in the virtual space? 
-    for (const std::string & vir_label : vir_labels) {
-        int found = index_in_anywhere(in, vir_label);
-        if ( found == 1 ) {
-            found_labels[vir_label] = true;
-        }else{
-            found_labels[vir_label] = false;
-        }
-    }
-
-    for (const std::string & occ_label : occ_labels) {
-        if ( found_labels[occ_label] ) {
-            // find label range
-            auto pos = label_ranges.find(occ_label);
-            std::vector<std::string> label_range = pos == label_ranges.end() ? std::vector<std::string>() : pos->second;
-            
-
-            if ( label_range[0] != "act" && label_range[0] != "ext" ) {
-                printf("\n");
-                printf("    error: label range for non-summed index %s is invalid\n", occ_label.c_str());
-                printf("\n");
-                exit(1);
+    // check that label ranges are valid
+    for (auto item : label_ranges) {
+        
+        for (auto range : item.second) {
+            // non-summed index? not perfect logic ...
+            int found = in->index_in_anywhere(item.first);
+            if ( found == 1 ) {
+                if ( range != "act" && range != "ext" ) {
+                    printf("\n");
+                    printf("    error: label range for non-summed label %s is invalid\n", item.first.c_str());
+                    printf("\n");
+                    exit(1);
+                }
+            }else {
+                if ( range != "act" && range != "ext" && range != "all" ) {
+                    printf("\n");
+                    printf("    error: label range for %s is invalid\n", item.first.c_str());
+                    printf("\n");
+                    exit(1);
+                }
             }
         }
     }
-    for (const std::string & vir_label : vir_labels) {
-        if ( found_labels[vir_label] ) {
-            auto pos = label_ranges.find(vir_label);
-            std::vector<std::string> label_range = pos == label_ranges.end() ? std::vector<std::string>() : pos->second;
 
-            if ( label_range[0] != "act" && label_range[0] != "ext" ) {
+    // check if label range map is missing any of the non-summed spin 
+    // labels. note that the logic here might not be perfect since the 
+    // keys in the label_ranges map can be non-summed labels or 
+    // amplitude types (e.g., t1, t2, ...)
+
+    // amplitudes
+    for (auto &amps_pair : in->amps) {
+        char type = amps_pair.first;
+        std::vector<amplitudes> &amps_vec = amps_pair.second;
+        for (amplitudes & amp : amps_vec) {
+            for (size_t k = 0; k < amp.labels.size(); k++) {
+                int n = in->index_in_anywhere(amp.labels[k]);
+                if ( n != 1 ) continue;
+                int found = label_ranges.count(amp.labels[k]);
+                if ( found == 0 ) {
+                    printf("\n");
+                    printf("    error: label range for non-summed index %s has not been set\n", amp.labels[k].c_str());
+                    printf("\n");
+                    exit(1);
+                }
+            }
+        }
+    }
+    // integrals
+    for (auto &ints_pair : in->ints) {
+        std::string type = ints_pair.first;
+        std::vector<integrals> &ints_vec = ints_pair.second;
+        for (integrals & integral : ints_vec) {
+            for (size_t k = 0; k < integral.labels.size(); k++) {
+                int n = in->index_in_anywhere(integral.labels[k]);
+                if ( n != 1 ) continue;
+                int found = label_ranges.count(integral.labels[k]);
+                if ( found == 0 ) {
+                    printf("\n");
+                    printf("    error: label range for non-summed index %s has not been set\n", integral.labels[k].c_str());
+                    printf("\n");
+                    exit(1);
+                }
+            }
+        }
+    }
+    // deltas
+    for (delta_functions & delta : in->deltas) {
+        for (size_t j = 0; j < delta.labels.size(); j++) {
+            int n = in->index_in_anywhere(delta.labels[j]);
+            if ( n != 1 ) continue;
+            int found = label_ranges.count(delta.labels[j]);
+            if ( found == 0 ) {
                 printf("\n");
-                printf("    error: label ranges for non-summed index %s is invalid\n", vir_label.c_str());
+                printf("    error: label range for non-summed index %s has not been set\n", delta.labels[j].c_str());
                 printf("\n");
                 exit(1);
             }
