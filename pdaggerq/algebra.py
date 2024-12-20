@@ -81,11 +81,13 @@ class BaseTerm:
         self.varname = name+boson+spin+active
 
     def __repr__(self):
-        return ("{}".format(self.name) +
-                "{}".format(self.boson) +
-                "{}".format(self.spin) +
-                "{}".format(self.active) +
-                "(" + ",".join(repr(xx) for xx in self.indices) + ")")
+        tmp = ("{}".format(self.name) +
+               "{}".format(self.boson) +
+               "{}".format(self.spin) +
+               "{}".format(self.active))
+        if len(self.indices) > 0:
+            tmp += "(" + ",".join(repr(xx) for xx in self.indices) + ")"
+        return tmp
 
     def __str__(self):
         return self.__repr__()
@@ -191,13 +193,14 @@ class TensorTermAction:
 
 class TensorTerm:
     """
-    collection  of BaseTerms that can be translated to a einsnum contraction
+    collection  of BaseTerms that can be translated to a einsum contraction
     """
 
     def __init__(self, base_terms: Tuple[BaseTerm, ...], coefficient=1.0,
                  permutation_ops=None):
         self.base_terms = base_terms
         self.coefficient = coefficient
+        self.coefficient_minprec = self._minimum_precision(coefficient)
         if permutation_ops is not None:
             if len(permutation_ops) == 0:
                 self.actions = None
@@ -208,10 +211,10 @@ class TensorTerm:
 
     def __repr__(self):
         if self.actions is None:
-            return "{: 5.4f} ".format(self.coefficient) + "*".join(
+            return f"{self.coefficient_minprec} " + "*".join(
                 xx.__repr__() for xx in self.base_terms)
         else:
-            return "{: 5.4f} ".format(self.coefficient) + "*".join(
+            return f"{self.coefficient_minprec} " + "*".join(
                 xx.__repr__() for xx in self.actions) + "*".join(
                 xx.__repr__() for xx in self.base_terms)
 
@@ -225,6 +228,71 @@ class TensorTerm:
 
     def __rmul__(self, other):
         return self.__mul__(other)
+
+    def _minimum_precision(self, coeff):
+        """
+        Python translation of the pq_string.minimum_precision() method.
+        Takes a coefficient and print the digits smartly (e.g. '0.2500000' -> '0.25', '0.33333333' -> keep)
+
+        :param coeff: string that represent a float with many digits
+
+        :return coeff_min: string that represent a float with minimum precision
+        """
+        # check if factor is actually numerically 0:
+        epsilon = 1.0e-10
+        fabs = abs(coeff)
+        if abs(fabs-epsilon) <= epsilon:
+            return '0.0'
+
+        # unprocess (possibly) processed coefficient float
+        from fractions import Fraction
+        x = Fraction(coeff).limit_denominator(100)
+        coeff = x.numerator/x.denominator
+
+        # initialize variables
+        precision = 0
+        decimal_point_encountered = False
+        is_repeated = False
+        last_digit = ''
+        repeat_count = 0
+
+        for digit in f"{coeff: .30f}":
+            # check if digit is repeated
+            if digit == last_digit:
+                is_repeated = True
+
+            last_digit = digit
+
+            # are we at a decimal point?
+            if digit == '.':
+               decimal_point_encountered = True
+
+            elif decimal_point_encountered and is_repeated:
+                # keep at most 12 repeating digits
+                repeat_count += 1
+                if repeat_count >= 12:
+                    break
+
+            # reset count
+            if not is_repeated:
+                repeat_count = 0
+
+            # increment precision
+            if decimal_point_encountered:
+                precision += 1
+
+        # if the last repeating digit is zero, we can reduce the precision
+        if precision >= repeat_count and last_digit == '0':
+            precision -= repeat_count
+
+        # we should always have at least two digits
+        if precision < 2:
+            precision = 2
+
+        # print coeff with computed precision using nested {}, what could be more pythonic??
+        coeff_minprec = f"{coeff: .{precision}f}"
+
+        return coeff_minprec
 
     def einsum_string(self, update_val,
                       output_variables=None,
@@ -296,13 +364,13 @@ class TensorTerm:
                 output_variables]))
             einsum_out_strings += "->{}".format("".join(out_tensor_ordered))
 
-        teinsum_string = "= {: 5.15f} * einsum(\'".format(self.coefficient)
+        teinsum_string = f"= {self.coefficient_minprec} * einsum(\'"
 
         if len(einsum_strings) > 2 and optimize:
             # construct arrays on the fly
             for bt in self.base_terms:
                 bt.createArray()
-            einsum_path_string = "np.einsum_path(\'".format(self.coefficient)
+            einsum_path_string = "np.einsum_path(\'"
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
                 einsum_tensors) + ", optimize=\'optimal\')"
