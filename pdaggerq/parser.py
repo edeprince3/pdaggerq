@@ -20,7 +20,7 @@ from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, T3amps, T4amps,
                               Delta, Left0amps, Left1amps,
                               Left2amps, Left3amps, Left4amps, Right0amps,
                               Right1amps, Right2amps, Right3amps, Right4amps,
-                              FockMat, BaseTerm, ContractionPermuter,
+                              FockMat, Dipole, BaseTerm, ContractionPermuter,
                               ContractionPairPermuter3, ContractionPairPermuter6,
                               ContractionPairPermuter2, TensorTermAction, )
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
@@ -30,9 +30,12 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
 
     # new operators should be added here
     tensor_map = {
-        'g' : TwoBody,
         'h' : OneBody,
+        'g' : TwoBody,
         'f' : FockMat,
+        'd' : Delta,
+        'd+' : Dipole,
+        'd-' : Dipole,
         'd1' : D1,
         'd2' : D2,
         'd3' : D3,
@@ -51,17 +54,25 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         'l2' : Left2amps,
         'l3' : Left3amps,
         'l4' : Left4amps,
-        'd' : Delta,
+    }
+    # tensor action has different constructor, so put new ones here
+    tensor_action_map = {
         'p' : ContractionPermuter,
         'pp2' : ContractionPairPermuter2,
         'pp3' : ContractionPairPermuter3,
-        'pp6' : ContractionPairPermuter6,
+        'pp6' : ContractionPairPermuter6
     }
 
-    # strip operator names, indices, and spin using regex
+    # strip operator names, indices, # of boson, active-space label, and spin using regex
 
-    # spin_pattern for operator ranks 1-4 looks like '[...]_[ab]...[ab]([...])'
-    spin_pattern = re.compile('_[ab]{2,8}')
+    # boson_pattern looks like '[...]_(n)p' where n is an integer
+    boson_pattern = re.compile('_\d+p')
+
+    # active_pattern looks like '[...]_[01]...[01]' without a p
+    active_pattern = re.compile('_[01]+(?!p)')
+
+    # spin_pattern for operator ranks looks like '[...]_[ab]...[ab]([...])'
+    spin_pattern = re.compile('_[ab]+')
 
     # indices pattern looks like '[...]([a-zA-Z],...,[a-zA-Z])'
     # with ChatGPT's help:
@@ -70,27 +81,45 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
     # (?=\))  : Positive lookahead to match ) but not include it in the result.
     idx_pattern  = re.compile('(?<=\()[^)]+(?=\))')
 
+    # all operators will be of the form 'op_boson_spin_active([idx])' except ERIs
+    # first, extract and strip the active space labels
+    term_active = active_pattern.findall(term_string)
+    if len(term_active) == 0:
+        active = ''
+    else:
+        active = term_active[0]
+        # remove '_active' to obtain 'op_boson_spin([idx])'
+        term_string = term_string.replace(active, '')
+
+    # next, extract and strip the spin
+    term_spin = spin_pattern.findall(term_string)
+    if len(term_spin)==0:
+        spin = ''
+    else:
+        spin = term_spin[0]
+        # remove '_spin' to obtain 'op_boson([idx])'
+        term_string = term_string.replace(spin,'')
+
+    # next, extract and strip the boson number
+    term_boson = boson_pattern.findall(term_string)
+    if len(term_boson) == 0:
+        boson = ''
+    else:
+        boson = term_boson[0]
+        # remove '_boson' to obtain 'op([idx])'
+        term_string = term_string.replace(boson, '')
+
+
     if "||" in term_string:
-        # special case for ERI, which is printed as <x,x||x,x>_[spin]
-        # strip '<' and '>', replace '||' by ',' to obtain 'x,x,x,x_[spin]'
+        # special case for ERI, which is printed as <x,x||x,x>
+        # strip '<' and '>', replace '||' by ',' to obtain 'x,x,x,x'
         index_string = term_string.replace('<', '').replace('>', '').replace('||', ',')
-        # parse spin labels
         tmp = index_string.split('_')
-        spin = '_' + tmp[1] if len(tmp) > 1 else ''
         idx = [Index(xx, 'occ') if xx in occ_idx
                else Index(xx, 'virt') for xx in tmp[0].split(',')]
-        return TwoBody(indices=tuple(idx), spin=spin)
-    else:
-        # all other operators will be of the form 'op_spin([idx])'
-        # first, extract and strip the spin
-        term_spin = spin_pattern.findall(term_string)
-        if len(term_spin)==0:
-            spin = ''
-        else:
-            spin = term_spin[0]
-            # remove '_spin' to obtain 'op([idx])'
-            term_string = term_string.replace(spin,'')
+        return TwoBody(indices=tuple(idx), spin=spin, active=active, boson=boson)
 
+    else:
         # next, extract indices
         idx = idx_pattern.findall(term_string)[0]
         # remove '([idx])' to obtain 'op'
@@ -102,7 +131,9 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         # make operator label lowercase from this point on
         term_string = term_string.lower()
         if term_string in tensor_map.keys():
-            return tensor_map[term_string](indices=tuple(idx), spin=spin)
+            return tensor_map[term_string](indices=tuple(idx), spin=spin, active=active, boson=boson)
+        elif term_string in tensor_action_map.keys():
+            return tensor_action_map[term_string](indices=tuple(idx), spin=spin)
         else:
             raise TypeError(f"Operator {term_string} not recognized")
 
@@ -172,7 +203,7 @@ def vacuum_normal_ordered_strings_to_tensor_terms(pdaggerq_list_of_strings):
         rdm_idx = [xx.replace(')', '') if ')' in xx else xx for xx in
                    rdm_idx]
         g_idx = [Index(xx, 'all') for xx in rdm_idx]
-        rdm_baseterm = BaseTerm(indices=tuple(g_idx), spin='',
+        rdm_baseterm = BaseTerm(indices=tuple(g_idx), spin='', active='', boson='',
                                 name="d{}".format(len(g_idx) // 2))
         tensor_terms.append(
             TensorTerm(base_terms=tuple(delta_terms + [rdm_baseterm]),

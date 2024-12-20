@@ -25,6 +25,9 @@ import numpy as np
 # NOTE: THESE ARE PROTECTED VARIABLE NAMES FOR THIS MODULE
 from pdaggerq.config import *
 
+# these are integrals, RDMs, etc. that require explicit slicing in einsum
+tensors_with_slices = ['h', 'g', 'f', 'kd', 'd1', 'd2', 'd3', 'd4']
+
 class Index:
 
     def __init__(self, name: str, support: str):
@@ -61,19 +64,28 @@ class BaseTerm:
 
     :param indices: Tuple[Index, ...], tuple of indices for the tensor
     :param str name: name of the tensor
-    :param str spin: spin sector associated with tensor. if spin orbital than leave as
+    :param str boson: boson (in cavity qed, photon) number in the format of `_np` where `n`
+                      is an integer. If purely fermionic/electronic then leave as an empty
+                      string ``. Always start string with an underscore unless empty.
+    :param str spin: spin sector associated with tensor. If spin orbital then leave as
                      an empty string ``.  the alpha-alpha block is `_aa`, beta-beta block
                      is `_bb`. etc.  Always start string with an underscore unless empty.
     """
 
-    def __init__(self, *, indices: Tuple[Index, ...], name: str, spin: str):
-        self.spin = spin
+    def __init__(self, *, indices: Tuple[Index, ...], name: str, boson: str, spin: str, active: str):
         self.name = name
+        self.boson = boson
+        self.spin = spin
+        self.active = active
         self.indices = indices
+        self.varname = name+boson+spin+active
 
     def __repr__(self):
-        return "{}".format(self.name) + "{}".format(self.spin) + "(" + ",".join(
-            repr(xx) for xx in self.indices) + ")"
+        return ("{}".format(self.name) +
+                "{}".format(self.boson) +
+                "{}".format(self.spin) +
+                "{}".format(self.active) +
+                "(" + ",".join(repr(xx) for xx in self.indices) + ")")
 
     def __str__(self):
         return self.__repr__()
@@ -105,6 +117,38 @@ class BaseTerm:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def createArray(self):
+        # slicing of non-amplitude tensors is done at einsum_string(), not here
+        idx_all = True if self.name in tensors_with_slices else False
+        arrayDims = []
+        for xx,index in enumerate(self.indices):
+            # TODO: add case where active *AND* spin can be toggled on together
+            if (self.active != '') and (self.spin == ''):
+                if idx_all:
+                    arrayDims.append(active_dims["all"][self.active[xx+1]])
+                else:
+                    arrayDims.append(active_dims[index.support][self.active[xx+1]])
+            elif (self.spin != '') and (self.active == ''):
+                if idx_all:
+                    arrayDims.append(spin_traced_dims["all"][self.spin[xx+1]])
+                else:
+                    arrayDims.append(spin_traced_dims[index.support][self.spin[xx+1]])
+            else:
+                if idx_all:
+                    arrayDims.append(spin_orbital_dims["all"])
+                else:
+                    arrayDims.append(spin_orbital_dims[index.support])
+
+        globals()[self.varname] = np.zeros(tuple(arrayDims))
+        return
+
+    def cleanArray(self):
+        if self.varname in globals():
+            del globals()[self.varname]
+        else:
+            pass
+        return
 
 
 class TensorTermAction:
@@ -199,8 +243,7 @@ class TensorTerm:
         if virt_char is None:
             virt_char = 'v'  # v = slice(nocc, None)
 
-        # these are integrals, RDMs, etc. that require explicit slicing in einsum
-        tensors_with_slices = ['h', 'g', 'f', 'kd', 'd1', 'd2', 'd3', 'd4']
+
         # these are amplitudes, having fixed shape and do not require explicit slicing
         tensors_amps  = ['t'+str(i) for i in range(1,5)]
         tensors_amps += ['r'+str(i) for i in range(0,5)]
@@ -222,9 +265,12 @@ class TensorTerm:
                         idx_str += ':'
 
                     # add spin label (a/b) to o/v slices, but not : slice
-                    # TODO: cannot have active-space and spin labels at the same time
                     if bt.spin != '' and idx_str!= ':':
                         idx_str += bt.spin[idx_loc+1]
+
+                    # add active-space label (0/1) to o/v slices, but not : slice
+                    if bt.active != '' and idx_str!= ':':
+                        idx_str += bt.active[idx_loc+1]
 
                     tensor_index_ranges.append(idx_str)
 
@@ -235,11 +281,11 @@ class TensorTerm:
 
             if bt.name in tensors_amps:
                 # T, L, and R amplitudes have fixed shape even with spin, so just append their content
-                einsum_tensors.append(bt.name + bt.spin)
+                einsum_tensors.append(bt.name + bt.boson + bt.spin + bt.active)
             else:
                 # append the appropriate slice for other tensors (e.g. h[o,o] or d2[:,v,:,v])
                 einsum_tensors.append(
-                    bt.name + bt.spin + "[" + ", ".join(tensor_index_ranges) + "]")
+                    bt.name + bt.boson + bt.spin + bt.active + "[" + ", ".join(tensor_index_ranges) + "]")
 
             # this is a list of indices for einsum inputs (e.g., 'ijef', 'efab')
             einsum_strings.append("".join(string_indices))
@@ -253,6 +299,9 @@ class TensorTerm:
         teinsum_string = "= {: 5.15f} * einsum(\'".format(self.coefficient)
 
         if len(einsum_strings) > 2 and optimize:
+            # construct arrays on the fly
+            for bt in self.base_terms:
+                bt.createArray()
             einsum_path_string = "np.einsum_path(\'".format(self.coefficient)
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
@@ -266,6 +315,9 @@ class TensorTerm:
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
                 einsum_tensors) + ", optimize={})".format(
                 einsum_optimal_path[0])
+            # clean up arrays
+            for bt in self.base_terms:
+                bt.cleanArray()
         else:
             teinsum_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
@@ -329,108 +381,109 @@ class TensorTerm:
 
 class Right0amps(BaseTerm):
 
-    def __init__(self, *, indices=(), name='r0', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=(), name='r0', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Right1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='r1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='r1', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Right2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='r2', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='r2', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Right3amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='r3', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='r3', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Right4amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='r4', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='r4', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Left0amps(BaseTerm):
 
-    def __init__(self, *, indices=(), name='l0', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=(), name='l0', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Left1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Left2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='l2', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='l2', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Left3amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='l3', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='l3', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class Left4amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='l4', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='l4', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class D1(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='d1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='d1', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class D2(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='d2', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='d2', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class D3(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='d3', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='d3', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class D4(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='d4', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='d4', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class T1amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='t1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='t1', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class T2amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='t2', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='t2', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class T3amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='t3', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='t3', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class T4amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='t4', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='t4', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class OneBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='h', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='h', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class FockMat(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='f', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='f', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
+
 
 class TwoBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='g', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='g', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
     def __repr__(self):
         return "<{},{}||{},{}>{}".format(self.indices[0], self.indices[1],
@@ -438,11 +491,16 @@ class TwoBody(BaseTerm):
 
 class Delta(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='kd', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='kd', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
     def __repr__(self):
         return "d({},{})".format(self.indices[0], self.indices[1])
+
+class Dipole(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='dipole', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class ContractionPermuter(TensorTermAction):
 

@@ -42,12 +42,22 @@ sorbs = 12   # fake system
 nocc = 6
 nvirt = sorbs - nocc
 
+# active-space, spin-orbital dimensions
+nocc_act = 2 # act < ext like in real case
+nvirt_act = 2 # act < ext like in real case
+n_act = nocc_act + nvirt_act
+nocc_ext = nocc - nocc_act
+nvirt_ext = nvirt - nvirt_act
+n_ext = nocc_ext + nvirt_ext
+
 # spin-integrated integers
 orbs = sorbs//2 # spin-integrated uses MO index instead of spinorb index
 nocca = 4 # use different a and b so that bug can be caught
 noccb = nocc-nocca
 nvirta = orbs - nocca
 nvirtb = orbs - noccb
+
+# TODO: implement active-space + spin-traced dimensions and slices
 
 # spin-orbital slices
 o = slice(0, nocc, 1)
@@ -59,6 +69,50 @@ ob = slice(0, noccb, 1)
 va = slice(nocca, orbs, 1)
 vb = slice(noccb, orbs, 1)
 
+# active-space slices
+o0 = slice(0, nocc_ext, 1)
+o1 = slice(0, nocc_act, 1)
+v0 = slice(nocc_ext, n_ext, 1)
+v1 = slice(nocc_act, n_act, 1)
+
+# dictionary containing dimensions
+spin_orbital_dims = {
+    "occ": nocc,
+    "virt": nvirt,
+    "all": sorbs
+}
+
+active_dims = {
+    "occ": {
+        '0': nocc_ext,
+        '1': nocc_act,
+    },
+    "virt": {
+        '0': nvirt_ext,
+        '1': nvirt_act,
+    },
+    "all": {
+        '0': n_ext,
+        '1': n_act,
+    }
+}
+
+spin_traced_dims = {
+    "occ": {
+        'a': nocca,
+        'b': noccb,
+    },
+    "virt": {
+        'a': nvirta,
+        'b': nvirtb,
+    },
+    "all": {
+        'a': orbs,
+        'b': orbs,
+    }
+}
+
+'''
 # integral objects, spin-orbitals
 h = np.zeros((sorbs, sorbs))
 f = np.zeros((sorbs, sorbs))
@@ -169,3 +223,4 @@ d4_aaabaaab = np.zeros((orbs, orbs, orbs, orbs, orbs, orbs, orbs, orbs))
 d4_aabbaabb = np.zeros((orbs, orbs, orbs, orbs, orbs, orbs, orbs, orbs))
 d4_abbbabbb = np.zeros((orbs, orbs, orbs, orbs, orbs, orbs, orbs, orbs))
 d4_bbbbbbbb = np.zeros((orbs, orbs, orbs, orbs, orbs, orbs, orbs, orbs))
+'''
