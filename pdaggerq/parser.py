@@ -121,11 +121,15 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
 
     else:
         # next, extract indices
-        idx = idx_pattern.findall(term_string)[0]
-        # remove '([idx])' to obtain 'op'
-        term_string = term_string.replace(f'({idx})','')
-        idx = [Index(xx, 'occ') if xx in occ_idx
-               else Index(xx, 'virt') for xx in idx.split(',')]
+        idx = idx_pattern.findall(term_string)
+        if len(idx) == 0:
+            idx = []
+        else:
+            idx = idx[0]
+            # remove '([idx])' to obtain 'op'
+            term_string = term_string.replace(f'({idx})','')
+            idx = [Index(xx, 'occ') if xx in occ_idx
+                   else Index(xx, 'virt') for xx in idx.split(',')]
 
         # check if operator is allowed
         # make operator label lowercase from this point on
