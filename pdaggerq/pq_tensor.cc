@@ -84,6 +84,7 @@ amplitudes& amplitudes::operator=(const amplitudes& rhs) {
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
     label_ranges = rhs.label_ranges;
+    op_portions = rhs.op_portions;
 
     n_create = rhs.n_create;
     n_annihilate = rhs.n_annihilate;
@@ -282,6 +283,7 @@ integrals& integrals::operator=(const integrals& rhs) {
     labels = rhs.labels;
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
+    op_portions = rhs.op_portions;
 
     return *this;
 }
@@ -589,6 +591,7 @@ delta_functions& delta_functions::operator=(const delta_functions& rhs) {
     labels = rhs.labels;
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
+    op_portions = rhs.op_portions;
 
     return *this;
 }
