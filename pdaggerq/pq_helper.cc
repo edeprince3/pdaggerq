@@ -122,6 +122,7 @@ void export_pq_helper(py::module& m) {
             },
             py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true )
         .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
+        .def("add_bernoulli_operator", &pq_helper::add_bernoulli_operator)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
@@ -1311,27 +1312,27 @@ void pq_helper::clear() {
     pq_string::is_range_blocked = false;
 }
 
-void pq_helper::add_st_operator(double factor, const std::vector<std::string> &targets,
-                                               const std::vector<std::string> &ops,
-                                               bool do_operators_commute = true){
+void pq_helper::add_st_operator(double factor, 
+                                const std::vector<std::string> &targets,
+                                const std::vector<std::string> &ops,
+                                bool do_operators_commute = true){
 
-    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute);
-    for (auto op : st_ops){
-        add_operator_product(op.factor, op.operators);
+    std::vector<pq_operator_terms> st_terms = get_st_operator_terms(factor, targets, ops, do_operators_commute);
+    for (auto term : st_terms){
+        add_operator_product(term.factor, term.operators);
     }
-
 }
 
 std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true){
 
     int dim = (int)ops.size();
 
-    std::vector<pq_operator_terms> st;
-    st.push_back(pq_operator_terms(factor, targets));
+    std::vector<pq_operator_terms> st_terms;
+    st_terms.push_back(pq_operator_terms(factor, targets));
 
     for (int i = 0; i < dim; i++) {
         std::vector<pq_operator_terms> tmp = get_commutator_terms(factor, targets, {ops[i]});
-        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+        st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
     }
 
     if ( do_operators_commute ) {
@@ -1339,12 +1340,12 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(factor, targets, {ops[i]}, {ops[j]});
-                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
             }
         }
         for (int i = 0; i < dim; i++) {
             std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]});
-            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+            st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
 
         // ijk
@@ -1352,7 +1353,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             for (int j = i + 1; j < dim; j++) {
                 for (int k = j + 1; k < dim; k++) {
                     std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
-                    st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
                 }
             }
         }
@@ -1363,15 +1364,15 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                 std::vector<pq_operator_terms> tmp1 = get_triple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
                 std::vector<pq_operator_terms> tmp2 = get_triple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]});
 
-                st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
-                st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
+                st_terms.insert(std::end(st_terms), std::begin(tmp1), std::end(tmp1));
+                st_terms.insert(std::end(st_terms), std::begin(tmp2), std::end(tmp2));
             }
         }
 
          // iii
         for (int i = 0; i < dim; i++) {
             std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
-            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+            st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
 
         // ijkl
@@ -1380,7 +1381,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                 for (int k = j + 1; k < dim; k++) {
                     for (int l = k + 1; l < dim; l++) {
                         std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
-                        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                        st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
                     }
                 }
             }
@@ -1394,9 +1395,9 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                     std::vector<pq_operator_terms> tmp2 = get_quadruple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]});
                     std::vector<pq_operator_terms> tmp3 = get_quadruple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]});
 
-                    st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
-                    st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
-                    st.insert(std::end(st), std::begin(tmp3), std::end(tmp3));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp1), std::end(tmp1));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp2), std::end(tmp2));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp3), std::end(tmp3));
                 }
             }
         }
@@ -1405,7 +1406,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
-                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
             }
         }
 
@@ -1415,15 +1416,15 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                 std::vector<pq_operator_terms> tmp1 = get_quadruple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
                 std::vector<pq_operator_terms> tmp2 = get_quadruple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]});
 
-                st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
-                st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
+                st_terms.insert(std::end(st_terms), std::begin(tmp1), std::end(tmp1));
+                st_terms.insert(std::end(st_terms), std::begin(tmp2), std::end(tmp2));
             }
         }
 
         // iiii
         for (int i = 0; i < dim; i++) {
             std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
-            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+            st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
 
     }else {
@@ -1431,7 +1432,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]});
-                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
             }
         }
 
@@ -1439,7 +1440,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
                     std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
-                    st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
                 }
             }
         }
@@ -1449,15 +1450,382 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                 for (int k = 0; k < dim; k++) {
                     for (int l = 0; l < dim; l++) {
                         std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
-                        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                        st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
                     }
                 }
             }
         }
     }
 
-    return st;
+    return st_terms;
 }
+
+void pq_helper::add_bernoulli_operator(double factor,
+                                       const std::vector<std::string> &targets,
+                                       const std::vector<std::string> &ops,
+                                       const int max_order) {
+
+    printf("\n");
+    printf("    whoops... add_bernoulli_operator is still a work in progress\n");
+    printf("\n");
+    exit(1);
+
+    std::vector<pq_operator_terms> bernoulli_terms = get_bernoulli_operator_terms(factor, targets, ops, max_order);
+    for (auto term : bernoulli_terms){
+        add_operator_product(term.factor, term.operators);
+    }
+}
+
+std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, const int max_order) {
+
+    if ( max_order > 3 ) {
+        printf("\n");
+        printf("    error: Bernoulli terms beyond 3rd-order are not yet implemented.\n");
+        printf("\n");
+        exit(1);
+    }
+
+    int dim = (int)ops.size();
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    // zeroth-order terms: v
+    bernoulli_terms.push_back(pq_operator_terms(factor, targets));
+
+    if ( max_order == 0 ) {
+        return bernoulli_terms;
+    }
+
+    // first-order terms: 1/2 [v, sigma] + 1/2 [v_R, sigma]
+
+    std::vector<pq_operator_terms> tmp = get_bernoulli_operator_terms_1(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    if ( max_order == 1 ) {
+        return bernoulli_terms;
+    }
+
+    // second-order terms: 1/12 [[V_N, sigma], sigma] + 1/4 [[V, sigma]_R, sigma] + 1/4 [[V_R, sigma]_R, sigma]
+    tmp.clear();
+    tmp = get_bernoulli_operator_terms_2(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    if ( max_order == 2 ) {
+        return bernoulli_terms;
+    }
+
+    // third-order terms: 
+    tmp.clear();
+    tmp = get_bernoulli_operator_terms_3(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    if ( max_order == 3 ) {
+        return bernoulli_terms;
+    }
+
+    // fourth-order terms: 
+    tmp.clear();
+    tmp = get_bernoulli_operator_terms_4(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    return bernoulli_terms;
+}
+
+// first-order bernoulli terms: 1/2 [v, sigma] + 1/2 [v_R, sigma]
+std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_1(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    // mutable copies of targets and ops
+    std::vector<std::string> b_targets;
+    std::vector<std::string> b_ops;
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{AA}");
+    }
+
+    for (auto op: ops){
+        b_ops.push_back(op + "{AA}");
+    }
+
+    int dim = (int)ops.size();
+
+    for (int i = 0; i < dim; i++) {
+        std::vector<pq_operator_terms> tmp = get_commutator_terms(0.5 * factor, b_targets, {b_ops[i]});
+        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+    }
+
+    b_targets.clear();
+    for (auto target: targets){
+        b_targets.push_back(target + "{RA}");
+    }
+
+    b_ops.clear();
+    for (auto op: ops){
+        b_ops.push_back(op + "{AA}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        std::vector<pq_operator_terms> tmp = get_commutator_terms(0.5 * factor, b_targets, {b_ops[i]});
+        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+    }
+
+    return bernoulli_terms;
+}
+
+// second-order bernoulli terms: 1/12 [[V_N, sigma], sigma] + 1/4 [[V, sigma]_R, sigma] + 1/4 [[V_R, sigma]_R, sigma]
+std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_2(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    // mutable copies of targets and ops
+    std::vector<std::string> b_targets;
+    std::vector<std::string> b_ops1;
+    std::vector<std::string> b_ops2;
+
+    // 1/12 [[V_N, sigma], sigma]
+    for (auto target: targets){
+        b_targets.push_back(target + "{NAA}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{AAA}");
+        b_ops2.push_back(op + "{AAA}");
+    }
+
+    int dim = (int)ops.size();
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            std::vector<pq_operator_terms> tmp = get_double_commutator_terms(1.0 / 12.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]});
+            bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        }
+    }
+
+    // 1/4 [[V, sigma]_R, sigma]
+    b_targets.clear();
+    for (auto target: targets){
+        b_targets.push_back(target + "{ARA}");
+    }
+
+    b_ops1.clear();
+    b_ops2.clear();
+    for (auto op: ops){
+        b_ops1.push_back(op + "{ARA}");
+        b_ops2.push_back(op + "{AAA}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            std::vector<pq_operator_terms> tmp = get_double_commutator_terms(1.0 / 4.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]});
+            bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        }
+    }
+
+    // 1/4 [[V_R, sigma]_R, sigma]
+    b_targets.clear();
+    for (auto target: targets){
+        b_targets.push_back(target + "{RRA}");
+    }
+
+    b_ops1.clear();
+    b_ops2.clear();
+    for (auto op: ops){
+        b_ops1.push_back(op + "{ARA}");
+        b_ops2.push_back(op + "{AAA}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            std::vector<pq_operator_terms> tmp = get_double_commutator_terms(1.0 / 4.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]});
+            bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        }
+    }
+
+    return bernoulli_terms;
+}
+
+// third-order bernoulli terms
+std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_3(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    // mutable copies of targets and ops
+    std::vector<std::string> b_targets;
+    std::vector<std::string> b_ops1;
+    std::vector<std::string> b_ops2;
+    std::vector<std::string> b_ops3;
+
+    // 1/24 [[[V_N, sigma], sigma]_R, sigma]
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{NARA}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{AARA}");
+        b_ops2.push_back(op + "{AARA}");
+        b_ops3.push_back(op + "{AAAA}");
+    }
+
+    int dim = (int)ops.size();
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 24.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
+                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+            }
+        }
+    }
+
+    // 1/8 [[[V_R, sigma]_R, sigma]_R, sigma]
+
+    b_targets.clear();
+    for (auto target: targets){
+        b_targets.push_back(target + "{RRRA}");
+    }
+
+    b_ops1.clear();
+    b_ops2.clear();
+    b_ops3.clear();
+    for (auto op: ops){
+        b_ops1.push_back(op + "{ARRA}");
+        b_ops2.push_back(op + "{AARA}");
+        b_ops3.push_back(op + "{AAAA}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 8.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
+                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+            }
+        }
+    }
+
+    // 1/8 [[[V, sigma]_R, sigma]_R, sigma]
+
+    b_targets.clear();
+    for (auto target: targets){
+        b_targets.push_back(target + "{ARRA}");
+    }
+
+    b_ops1.clear();
+    b_ops2.clear();
+    b_ops3.clear();
+    for (auto op: ops){
+        b_ops1.push_back(op + "{ARRA}");
+        b_ops2.push_back(op + "{AARA}");
+        b_ops3.push_back(op + "{AAAA}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 8.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
+                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+            }
+        }
+    }
+
+    // -1/24 [[[V, sigma]_R, sigma], sigma]
+
+    b_targets.clear();
+    for (auto target: targets){
+        b_targets.push_back(target + "{ARAA}");
+    }
+
+    b_ops1.clear();
+    b_ops2.clear();
+    b_ops3.clear();
+    for (auto op: ops){
+        b_ops1.push_back(op + "{ARAA}");
+        b_ops2.push_back(op + "{AAAA}");
+        b_ops3.push_back(op + "{AAAA}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(-1.0 / 24.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
+                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+            }
+        }
+    }
+
+    // -1/24 [[[V_R, sigma]_R, sigma], sigma]
+
+    b_targets.clear();
+    for (auto target: targets){
+        b_targets.push_back(target + "{RRAA}");
+    }
+
+    b_ops1.clear();
+    b_ops2.clear();
+    b_ops3.clear();
+    for (auto op: ops){
+        b_ops1.push_back(op + "{ARAA}");
+        b_ops2.push_back(op + "{AAAA}");
+        b_ops3.push_back(op + "{AAAA}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(-1.0 / 24.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
+                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+            }
+        }
+    }
+
+    return bernoulli_terms;
+}
+
+// fourth-order bernoulli terms
+std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_4(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+
+    printf("\n");
+    printf("    error: 4th-order Bernoulli terms are not yet implemented.\n");
+    printf("\n");
+    exit(1);
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    // mutable copies of targets and ops
+    std::vector<std::string> b_targets;
+    std::vector<std::string> b_ops1;
+    std::vector<std::string> b_ops2;
+    std::vector<std::string> b_ops3;
+    std::vector<std::string> b_ops4;
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{AAAAA}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{AAAAA}");
+        b_ops2.push_back(op + "{AAAAA}");
+        b_ops3.push_back(op + "{AAAAA}");
+        b_ops4.push_back(op + "{AAAAA}");
+    }
+
+    int dim = (int)ops.size();
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]});
+                    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+                }
+            }
+        }
+    }
+
+    return bernoulli_terms;
+}
+
 
 } // End namespaces
 

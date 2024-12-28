@@ -232,6 +232,7 @@ class pq_helper {
      *
      * @param targets: a list of strings defining the operator product to be transformed (here, f)
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     * @param do_operators_commute: do the operators that define the similarity transformation commute?
      *
      */
     void add_st_operator(double factor, 
@@ -246,12 +247,90 @@ class pq_helper {
      *
      * @param targets: a list of strings defining the operator product to be transformed (here, f)
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     * @param do_operators_commute: do the operators that define the similarity transformation commute?
      *
      */
     std::vector<pq_operator_terms> get_st_operator_terms(double factor, 
                                                          const std::vector<std::string> &targets,
                                                          const std::vector<std::string> &ops,
                                                          bool do_operators_commute);
+
+    /**
+     *
+     * add the Bernoulli-number representation of the similarity-transformed operator expanded
+     * to a order max_order
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     * @param max_order: the maximum order of the Bernoulli-number representation of the similarity-transformed operator
+     *
+     */
+    void add_bernoulli_operator(double factor, 
+                                const std::vector<std::string> &targets,
+                                const std::vector<std::string> &ops,
+                                const int max_order);
+
+    /**
+     *
+     * generate list of terms resulting from the Bernoulli-number representation of the similarity-transformed operator expanded
+     * to a order max_order
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     * @param max_order: the maximum order of the Bernoulli-number representation of the similarity-transformed operator
+     *
+     */
+    std::vector<pq_operator_terms> get_bernoulli_operator_terms(double factor, 
+                                                                const std::vector<std::string> &targets,
+                                                                const std::vector<std::string> &ops,
+                                                                const int max_order);
+    /**
+     *
+     * generate list of first-order terms from the Bernoulli-number representation of the similarity-transformed operator
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     *
+     */
+    std::vector<pq_operator_terms> get_bernoulli_operator_terms_1(double factor, 
+                                                                  const std::vector<std::string> &targets,
+                                                                  const std::vector<std::string> &ops);
+
+    /**
+     *
+     * generate list of second-order terms from the Bernoulli-number representation of the similarity-transformed operator
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     *
+     */
+    std::vector<pq_operator_terms> get_bernoulli_operator_terms_2(double factor, 
+                                                                  const std::vector<std::string> &targets,
+                                                                  const std::vector<std::string> &ops);
+
+    /**
+     *
+     * generate list of third-order terms from the Bernoulli-number representation of the similarity-transformed operator
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     *
+     */
+    std::vector<pq_operator_terms> get_bernoulli_operator_terms_3(double factor, 
+                                                                  const std::vector<std::string> &targets,
+                                                                  const std::vector<std::string> &ops);
+
+    /**
+     *
+     * generate list of fourth-order terms from the Bernoulli-number representation of the similarity-transformed operator
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     *
+     */
+    std::vector<pq_operator_terms> get_bernoulli_operator_terms_4(double factor, 
+                                                                  const std::vector<std::string> &targets,
+                                                                  const std::vector<std::string> &ops);
 
     /**
      *
