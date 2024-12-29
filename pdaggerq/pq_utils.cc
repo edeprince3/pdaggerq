@@ -33,7 +33,8 @@ namespace pdaggerq {
 // eliminate terms based on operator portions (for bernoulli)
 void eliminate_operator_portions(std::shared_ptr<pq_string> &in){
 
-    // ensure the list of portions is of the same size for all amplitudes and integrals
+    // first, ensure the list of portions is of the same size for all amplitudes and integrals
+
     std::unordered_map<size_t, size_t> len_map;
 
     // portions in integrals
@@ -49,6 +50,9 @@ void eliminate_operator_portions(std::shared_ptr<pq_string> &in){
     // portions in amplitudes
     for (const auto & amp_pair : in->amps) {
         const char &type = amp_pair.first;
+        if ( type != 't' ) { 
+            continue;
+        }
         const std::vector<amplitudes> &amps = amp_pair.second;
         for (const amplitudes & amp : amps) {
             size_t len = amp.op_portions.size();
@@ -1321,7 +1325,7 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 
-    // TODO: somewhere in these functions the operator portions disappear. not sure this matters for future use cases
+    // TODO: the operator portions are not considered in the comparisons below. not sure this matters for future use cases
 
     consolidate_permutations_plus_swaps(ordered, {});
 
