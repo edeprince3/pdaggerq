@@ -422,15 +422,13 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     for (std::vector<std::string> & left_operator : left_operators) {
         std::vector<std::string> tmp;
         for (const std::string & op : left_operator) {
-            if (op == "v" || op == "V") {
+            if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
 
                 printf("\n");
                 printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
                 printf("\n");
                 exit(1);
 
-                tmp.emplace_back("j1");
-                tmp.emplace_back("j2");
             }else {
                 tmp.push_back(op);
             }
@@ -447,15 +445,13 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     for (std::vector<std::string> & right_operator : right_operators) {
         std::vector<std::string> tmp;
         for (const std::string & op : right_operator) {
-            if (op == "v" || op == "V") {
+            if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
 
                 printf("\n");
                 printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
                 printf("\n");
                 exit(1);
 
-                tmp.emplace_back("j1");
-                tmp.emplace_back("j2");
             }else {
                 tmp.push_back(op);
             }
@@ -471,7 +467,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     bool found_v = false;
     std::vector<std::string> tmp_in;
     for (const std::string & op : in) {
-        if (op == "v" || op == "V") {
+        if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
             found_v = true;
             break;
         }else {
@@ -481,8 +477,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     }
     if ( found_v ) {
 
+        // get bernoulli operator portions
+        std::string op_portions = get_operator_portions_as_string(in[count]);
+
         // term 1
-        tmp_in.emplace_back("j1");
+        std::string v_type = "j1";
+        if ( op_portions.length() > 0 ) { 
+            v_type += "{" + op_portions + "}";
+        }
+        tmp_in.emplace_back(v_type);
         for (int i = count+1; i < (int)in.size(); i++) {
             tmp_in.push_back(in[i]);
         }
@@ -497,7 +500,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         for (int i = 0; i < count; i++) {
             in.push_back(tmp_in[i]);
         }
-        in.emplace_back("j2");
+        v_type[1] = '2';
+        in.emplace_back(v_type);
         for (int i = count + 1; i < (int)tmp_in.size(); i++) {
             in.push_back(tmp_in[i]);
         }
@@ -511,7 +515,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     if ( is_unitary_cc ) {
         for (size_t i = 0; i < left_operators.size(); i++) {
             for (size_t j = 0; j < left_operators[i].size(); j++) {
-                if ( left_operators[i][j].substr(0,1) == "t" || left_operators[i][j].substr(0,1) == "T" ){
+                if ( left_operators[i][j].substr(0,1) == "t" || left_operators[i][j].substr(0,1) == "T" ||
+                     left_operators[i][j].substr(0,2) == "t{" || left_operators[i][j].substr(0,2) == "T{" ){
 
                     printf("\n");
                     printf("    error: unitary cluster operators cannot appear in the bra state\n");
@@ -523,7 +528,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         }
         for (size_t i = 0; i < right_operators.size(); i++) {
             for (size_t j = 0; j < right_operators[i].size(); j++) {
-                if ( right_operators[i][j].substr(0,1) == "t" || right_operators[i][j].substr(0,1) == "T" ){
+                if ( right_operators[i][j].substr(0,1) == "t" || right_operators[i][j].substr(0,1) == "T" ||
+                     right_operators[i][j].substr(0,2) == "t{" || right_operators[i][j].substr(0,2) == "T{" ){
 
                     printf("\n");
                     printf("    error: unitary cluster operators cannot appear in the ket state\n");
@@ -611,8 +617,12 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 tmp.push_back(op);
             }
 
-            for (std::string & op : tmp) {
+            for (std::string & op_including_portions : tmp) {
 
+                // bernoulli expansion requires operator portion specification. split into base name and portion
+                std::string op = get_operator_base_name(op_including_portions);
+                std::vector<std::string> op_portions = get_operator_portions_as_vector(op_including_portions);
+                
                 // blank string
                 if ( op.empty() ) continue;
 
@@ -638,7 +648,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    newguy->set_integrals("core", {idx1, idx2});
+                    newguy->set_integrals("core", {idx1, idx2}, op_portions);
 
                 }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
 
@@ -652,7 +662,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    newguy->set_integrals("fock", {idx1, idx2});
+                    newguy->set_integrals("fock", {idx1, idx2}, op_portions);
 
                 }else if (op.substr(0, 2) == "d+" || op.substr(0, 2) == "D+") { // one-electron operator (dipole + boson creator)
 
@@ -666,7 +676,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    newguy->set_integrals("d+", {idx1, idx2});
+                    newguy->set_integrals("d+", {idx1, idx2}, op_portions);
 
                     // boson operator
                     newguy->is_boson_dagger.push_back(true);
@@ -683,7 +693,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx2);
 
                     // integrals
-                    newguy->set_integrals("d-", {idx1, idx2});
+                    newguy->set_integrals("d-", {idx1, idx2}, op_portions);
 
                     // boson operator
                     newguy->is_boson_dagger.push_back(false);
@@ -702,7 +712,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                     tmp_string.push_back(idx3);
                     tmp_string.push_back(idx4);
 
-                    newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3});
+                    newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3}, op_portions);
 
                 }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
 
@@ -720,7 +730,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(idx2);
 
                         // integrals
-                        newguy->set_integrals("occ_repulsion", {idx1, idx2});
+                        newguy->set_integrals("occ_repulsion", {idx1, idx2}, op_portions);
 
                     }else if (op.substr(1, 1) == "2" ){
 
@@ -736,7 +746,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                         tmp_string.push_back(idx3);
                         tmp_string.push_back(idx4);
 
-                        newguy->set_integrals("eri", {idx1, idx2, idx4, idx3});
+                        newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
 
                     }
 
@@ -837,7 +847,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                             }
                         }
                     }
-                    newguy->set_amplitudes('t', n, n, n_ph, labels);
+                    newguy->set_amplitudes('t', n, n, n_ph, labels, op_portions);
 
                 }else if (op.substr(0, 1) == "w" || op.substr(0, 1) == "W"){ // w0 B*B
 
@@ -935,7 +945,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                             }
                         }
                     }
-                    newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels);
+                    newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels, op_portions);
 
                 }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
 
@@ -1009,7 +1019,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                             }
                         }
                     }
-                    newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels);
+                    newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels, op_portions);
 
                 }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
 
@@ -1224,7 +1234,8 @@ void pq_helper::simplify() {
                 rdm_labels.push_back(pq_str->symbol[n - i - 1]);
             }
 
-            // TODO: we're assuming no photons ...
+            // TODO: we're assuming no photons ... 
+            // TODO: would there ever be a use case where we'd want to specify operator portions here?
             pq_str->set_amplitudes('D', n_create, n_annihilate, 0, rdm_labels);
             pq_str->symbol.clear();
         }
@@ -1541,11 +1552,11 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_1(double 
     std::vector<std::string> b_ops;
 
     for (auto target: targets){
-        b_targets.push_back(target + "{AA}");
+        b_targets.push_back(target + "{A,A}");
     }
 
     for (auto op: ops){
-        b_ops.push_back(op + "{AA}");
+        b_ops.push_back(op + "{A,A}");
     }
 
     int dim = (int)ops.size();
@@ -1557,12 +1568,12 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_1(double 
 
     b_targets.clear();
     for (auto target: targets){
-        b_targets.push_back(target + "{RA}");
+        b_targets.push_back(target + "{R,A}");
     }
 
     b_ops.clear();
     for (auto op: ops){
-        b_ops.push_back(op + "{AA}");
+        b_ops.push_back(op + "{A,A}");
     }
 
     for (int i = 0; i < dim; i++) {
@@ -1585,12 +1596,12 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_2(double 
 
     // 1/12 [[V_N, sigma], sigma]
     for (auto target: targets){
-        b_targets.push_back(target + "{NAA}");
+        b_targets.push_back(target + "{N,A,A}");
     }
 
     for (auto op: ops){
-        b_ops1.push_back(op + "{AAA}");
-        b_ops2.push_back(op + "{AAA}");
+        b_ops1.push_back(op + "{A,A,A}");
+        b_ops2.push_back(op + "{A,A,A}");
     }
 
     int dim = (int)ops.size();
@@ -1605,14 +1616,14 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_2(double 
     // 1/4 [[V, sigma]_R, sigma]
     b_targets.clear();
     for (auto target: targets){
-        b_targets.push_back(target + "{ARA}");
+        b_targets.push_back(target + "{A,R,A}");
     }
 
     b_ops1.clear();
     b_ops2.clear();
     for (auto op: ops){
-        b_ops1.push_back(op + "{ARA}");
-        b_ops2.push_back(op + "{AAA}");
+        b_ops1.push_back(op + "{A,R,A}");
+        b_ops2.push_back(op + "{A,A,A}");
     }
 
     for (int i = 0; i < dim; i++) {
@@ -1625,14 +1636,14 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_2(double 
     // 1/4 [[V_R, sigma]_R, sigma]
     b_targets.clear();
     for (auto target: targets){
-        b_targets.push_back(target + "{RRA}");
+        b_targets.push_back(target + "{R,R,A}");
     }
 
     b_ops1.clear();
     b_ops2.clear();
     for (auto op: ops){
-        b_ops1.push_back(op + "{ARA}");
-        b_ops2.push_back(op + "{AAA}");
+        b_ops1.push_back(op + "{A,R,A}");
+        b_ops2.push_back(op + "{A,A,A}");
     }
 
     for (int i = 0; i < dim; i++) {
@@ -1659,13 +1670,13 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_3(double 
     // 1/24 [[[V_N, sigma], sigma]_R, sigma]
 
     for (auto target: targets){
-        b_targets.push_back(target + "{NARA}");
+        b_targets.push_back(target + "{N,A,R,A}");
     }
 
     for (auto op: ops){
-        b_ops1.push_back(op + "{AARA}");
-        b_ops2.push_back(op + "{AARA}");
-        b_ops3.push_back(op + "{AAAA}");
+        b_ops1.push_back(op + "{A,A,R,A}");
+        b_ops2.push_back(op + "{A,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A}");
     }
 
     int dim = (int)ops.size();
@@ -1683,16 +1694,16 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_3(double 
 
     b_targets.clear();
     for (auto target: targets){
-        b_targets.push_back(target + "{RRRA}");
+        b_targets.push_back(target + "{R,R,R,A}");
     }
 
     b_ops1.clear();
     b_ops2.clear();
     b_ops3.clear();
     for (auto op: ops){
-        b_ops1.push_back(op + "{ARRA}");
-        b_ops2.push_back(op + "{AARA}");
-        b_ops3.push_back(op + "{AAAA}");
+        b_ops1.push_back(op + "{A,R,R,A}");
+        b_ops2.push_back(op + "{A,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A}");
     }
 
     for (int i = 0; i < dim; i++) {
@@ -1708,16 +1719,16 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_3(double 
 
     b_targets.clear();
     for (auto target: targets){
-        b_targets.push_back(target + "{ARRA}");
+        b_targets.push_back(target + "{A,R,R,A}");
     }
 
     b_ops1.clear();
     b_ops2.clear();
     b_ops3.clear();
     for (auto op: ops){
-        b_ops1.push_back(op + "{ARRA}");
-        b_ops2.push_back(op + "{AARA}");
-        b_ops3.push_back(op + "{AAAA}");
+        b_ops1.push_back(op + "{A,R,R,A}");
+        b_ops2.push_back(op + "{A,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A}");
     }
 
     for (int i = 0; i < dim; i++) {
@@ -1733,16 +1744,16 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_3(double 
 
     b_targets.clear();
     for (auto target: targets){
-        b_targets.push_back(target + "{ARAA}");
+        b_targets.push_back(target + "{A,R,A,A}");
     }
 
     b_ops1.clear();
     b_ops2.clear();
     b_ops3.clear();
     for (auto op: ops){
-        b_ops1.push_back(op + "{ARAA}");
-        b_ops2.push_back(op + "{AAAA}");
-        b_ops3.push_back(op + "{AAAA}");
+        b_ops1.push_back(op + "{A,R,A,A}");
+        b_ops2.push_back(op + "{A,A,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A}");
     }
 
     for (int i = 0; i < dim; i++) {
@@ -1758,16 +1769,16 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_3(double 
 
     b_targets.clear();
     for (auto target: targets){
-        b_targets.push_back(target + "{RRAA}");
+        b_targets.push_back(target + "{R,R,A,A}");
     }
 
     b_ops1.clear();
     b_ops2.clear();
     b_ops3.clear();
     for (auto op: ops){
-        b_ops1.push_back(op + "{ARAA}");
-        b_ops2.push_back(op + "{AAAA}");
-        b_ops3.push_back(op + "{AAAA}");
+        b_ops1.push_back(op + "{A,R,A,A}");
+        b_ops2.push_back(op + "{A,A,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A}");
     }
 
     for (int i = 0; i < dim; i++) {
@@ -1800,14 +1811,14 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_4(double 
     std::vector<std::string> b_ops4;
 
     for (auto target: targets){
-        b_targets.push_back(target + "{AAAAA}");
+        b_targets.push_back(target + "{A,A,A,A,A}");
     }
 
     for (auto op: ops){
-        b_ops1.push_back(op + "{AAAAA}");
-        b_ops2.push_back(op + "{AAAAA}");
-        b_ops3.push_back(op + "{AAAAA}");
-        b_ops4.push_back(op + "{AAAAA}");
+        b_ops1.push_back(op + "{A,A,A,A,A}");
+        b_ops2.push_back(op + "{A,A,A,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A}");
     }
 
     int dim = (int)ops.size();

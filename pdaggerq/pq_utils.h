@@ -154,6 +154,34 @@ void removeSpaces(std::string &x);
 /// expand general labels, p -> o,v
 bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<std::shared_ptr<pq_string> > & list, int occ_label_count, int vir_label_count);
 
+/**
+ *
+ * strip operator portions off of an operator and return them as a string (for bernoulli expansion)
+ *
+ * @param op: an operator, e.g., "t2", "v", "V{R}", etc.
+ * @return ret: a string specifying the operator portions
+ */
+std::string get_operator_portions_as_string(const std::string& op);
+
+/**
+ *
+ * strip operator portions off of an operator and return them as a vector (for bernoulli expansion)
+ *
+ * @param op: an operator, e.g., "t2", "v", "V{R}", etc.
+ * @return ret: a vector of strings specifying the operator portions
+ */
+std::vector<std::string> get_operator_portions_as_vector(const std::string& op);
+
+/**
+ *
+ * strip operator portions off of an operator and return the base operator name (for bernoulli expansion)
+ *
+ * @param op: an operator, e.g., "t2", "v", "V{R}", etc.
+ * @return ret: a string specifying the operator base name
+ *
+ */
+std::string get_operator_base_name(std::string op);
+
 }
 
 #endif 

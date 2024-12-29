@@ -30,6 +30,72 @@
 
 namespace pdaggerq {
 
+// bernoulli expansion involves operator portions. strip these off 
+// and return them as a string
+std::string get_operator_portions_as_string(const std::string& op) {
+    std::string ret;
+    size_t start = op.find('{');
+    size_t end = op.find('}');
+    if ( start != std::string::npos && end == std::string::npos ) { 
+        printf("\n");
+        printf("    something is wrong with the bernoulli operator portions definition.\n");
+        printf("\n");
+        exit(1);
+    }else if ( start == std::string::npos && end != std::string::npos ) { 
+        printf("\n");
+        printf("    something is wrong with the bernoulli operator portions definition.\n");
+        printf("\n");
+        exit(1);
+    }else if ( start != std::string::npos && end != std::string::npos ) { 
+        ret = op.substr(start + 1, end - start - 1);
+    }
+    return ret;
+}
+
+// bernoulli expansion involves operator portions. strip these off 
+// and return them as a vector
+std::vector<std::string> get_operator_portions_as_vector(const std::string& op) {
+    std::string s = get_operator_portions_as_string(op);
+    std::vector<std::string> tokens;
+    if ( s == "" ) {
+        return tokens;
+    }
+    size_t pos = 0;
+    std::string token;
+    while ((pos = s.find(",")) != std::string::npos) {
+        token = s.substr(0, pos);
+        tokens.push_back(token);
+        s.erase(0, pos + 1);
+    }
+    tokens.push_back(s);
+
+    return tokens;
+}
+
+// bernoulli expansion involves operator portions. strip these off 
+// and return the base operator name
+std::string get_operator_base_name(std::string op) {
+    std::string ret;
+    size_t start = op.find('{');
+    size_t end = op.find('}');
+    if ( start != std::string::npos && end == std::string::npos ) { 
+        printf("\n");
+        printf("    something is wrong with the bernoulli operator portions definition.\n");
+        printf("\n");
+        exit(1);
+    }else if ( start == std::string::npos && end != std::string::npos ) { 
+        printf("\n");
+        printf("    something is wrong with the bernoulli operator portions definition.\n");
+        printf("\n");
+        exit(1);
+    }else if ( start != std::string::npos && end != std::string::npos ) { 
+        ret = op.substr(0, start);
+    }else {
+        ret = op;
+    }
+    return ret;
+}
+
 // concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops) {
 
