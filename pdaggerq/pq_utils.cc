@@ -30,6 +30,45 @@
 
 namespace pdaggerq {
 
+// eliminate terms based on operator portions (for bernoulli)
+void eliminate_operator_portions(std::shared_ptr<pq_string> &in){
+
+    // ensure the list of portions is of the same size for all amplitudes and integrals
+    std::unordered_map<size_t, size_t> len_map;
+
+    // portions in integrals
+    for (const auto & int_pair : in->ints) {
+        const std::string &type = int_pair.first;
+        const std::vector<integrals> &ints = int_pair.second;
+        for (const integrals & integral : ints) {
+            size_t len = integral.op_portions.size();
+            len_map[len] = 0;
+        }
+    }
+
+    // portions in amplitudes
+    for (const auto & amp_pair : in->amps) {
+        const char &type = amp_pair.first;
+        const std::vector<amplitudes> &amps = amp_pair.second;
+        for (const amplitudes & amp : amps) {
+            size_t len = amp.op_portions.size();
+            len_map[len] = 0;
+        }
+    }
+
+    if ( len_map.size() > 1 ) {
+        printf("\n");
+        printf("    error: string components have inconsistent operator portions.\n");
+        printf("\n");
+        exit(1);
+    }
+
+    //std::vector<std::string> strings = in->get_string();
+    //for (auto string: strings){
+    //    printf("%s\n", string.c_str());
+    //}
+}
+
 // bernoulli expansion involves operator portions. strip these off 
 // and return them as a string
 std::string get_operator_portions_as_string(const std::string& op) {
@@ -1282,6 +1321,8 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 
+    // TODO: somewhere in these functions the operator portions disappear. not sure this matters for future use cases
+
     consolidate_permutations_plus_swaps(ordered, {});
 
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
@@ -1388,6 +1429,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
         ints.labels.push_back(idx);
         ints.labels.push_back(idx2);
         ints.labels.push_back(idx);
+        ints.op_portions = occ_repulsion[i].op_portions;
         
         ints.sort();
         

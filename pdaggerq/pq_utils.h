@@ -182,6 +182,9 @@ std::vector<std::string> get_operator_portions_as_vector(const std::string& op);
  */
 std::string get_operator_base_name(std::string op);
 
+/// eliminate terms based on operator portions (for bernoulli)
+void eliminate_operator_portions(std::shared_ptr<pq_string> &in);
+
 }
 
 #endif 

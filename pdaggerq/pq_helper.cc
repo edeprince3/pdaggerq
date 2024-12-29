@@ -792,10 +792,11 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                                 op_right.push_back(idx1);
 
                                 // do not transpose de-excitation amplitude labels
-                                label_left.push_back(idx1);
-                                label_right.push_back(idx2);
-                                //label_left.push_back(idx2);
-                                //label_right.push_back(idx1);
+                                //label_left.push_back(idx1);
+                                //label_right.push_back(idx2);
+                                // transpose de-excitation amplitude labels
+                                label_left.push_back(idx2);
+                                label_right.push_back(idx1);
                             }
                         }else {
                             printf("\n");
@@ -1195,18 +1196,20 @@ void pq_helper::simplify() {
         // replace any funny labels that were added with conventional ones
         use_conventional_labels(pq_str);
 
+        // eliminate terms based on operator portions (for bernoulli)
+        eliminate_operator_portions(pq_str);
 
-        // TODO: if UCC de-excitation amplitudes were transposed, transpose them back
-//        if ( is_unitary_cc ) {
-//            // relabel amplitudes t(i, a) -> t(a, i)
-//            for (size_t j = 0; j < ordered[i]->amps['t'].size(); j++) {
-//                // check if first label is occupied or not. if so, reverse order and flip sign
-//                if ( ordered[i]->amps['t'][j].labels.size() == 0 ) continue;
-//                if ( is_occ(ordered[i]->amps['t'][j].labels[0]) ) {
-//                    std::reverse(ordered[i]->amps['t'][j].labels.begin(), ordered[i]->amps['t'][j].labels.end());
-//                }
-//            }
-//        }
+        // if UCC de-excitation amplitudes were transposed, transpose them back
+        if ( is_unitary_cc ) {
+            // relabel amplitudes t(i, a) -> t(a, i)
+            for (size_t j = 0; j < pq_str->amps['t'].size(); j++) {
+                // check if first label is occupied or not. if so, reverse order and flip sign
+                if ( pq_str->amps['t'][j].labels.size() == 0 ) continue;
+                if ( is_occ(pq_str->amps['t'][j].labels[0]) ) {
+                    std::reverse(pq_str->amps['t'][j].labels.begin(), pq_str->amps['t'][j].labels.end());
+                }
+            }
+        }
 
         // replace creation / annihilation operators with rdms
         if ( use_rdms ) {
