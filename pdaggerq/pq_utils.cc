@@ -69,7 +69,7 @@ std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_po
         }
     }
     if ( !has_amps && !has_ints ) {
-        return "A";
+        return "";
     }
 
     // now, count the number of occupied / virtual labels in the bra
@@ -239,14 +239,12 @@ void eliminate_operator_portions(std::shared_ptr<pq_string> &in){
     // all components of "N" type
     for (size_t i = 0; i < n_op_portions; i++) {
 
-        std::string type = bernoulli_type(in, "N", i);
-        if ( type != "N" && type != "A") {
+        if ( bernoulli_type(in, "N", i) == "R" ) {
             in->skip = true;
             return;
         }
 
-        type = bernoulli_type(in, "R", i);
-        if ( type != "R" && type != "A") {
+        if ( bernoulli_type(in, "R", i) == "N" ) {
             in->skip = true;
             return;
         }
