@@ -154,6 +154,7 @@ std::string amplitudes::to_string(char symbol) const {
     }
 
     // bernoulli
+/*
     if ( !op_portions.empty() ) {
         val += "{";
         size_t size  = op_portions.size();
@@ -162,6 +163,7 @@ std::string amplitudes::to_string(char symbol) const {
         }
         val += op_portions[size-1] + "}";
     }
+*/
 
     return val;
 }
@@ -430,6 +432,7 @@ std::string integrals::to_string(const std::string &symbol) const {
     }
 
     // bernoulli
+/*
     if ( !op_portions.empty() ) {
         val += "{";
         size_t size  = op_portions.size();
@@ -438,6 +441,7 @@ std::string integrals::to_string(const std::string &symbol) const {
         }
         val += op_portions[size-1] + "}";
     }
+*/
 
     return val;
 }
