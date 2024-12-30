@@ -429,6 +429,16 @@ std::string integrals::to_string(const std::string &symbol) const {
         exit(1);
     }
 
+    // bernoulli
+    if ( !op_portions.empty() ) {
+        val += "{";
+        size_t size  = op_portions.size();
+        for (int j = 0; j < op_portions.size()-1; j++) {
+            val += op_portions[j] + ",";
+        }
+        val += op_portions[size-1] + "}";
+    }
+
     return val;
 }
 

@@ -30,6 +30,163 @@
 
 namespace pdaggerq {
 
+
+// determine the operator type for the part of an input string corresponding to a target portion (for bernoulli)
+std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_portion, size_t portion_number) {
+
+    std::shared_ptr<pq_string> newguy (new pq_string(in->vacuum));
+
+    // portions in integrals
+    bool has_ints = false;
+    for (const auto & int_pair : in->ints) {
+        const std::string &type = int_pair.first;
+        const std::vector<integrals> &ints = int_pair.second;
+        for (const integrals & integral : ints) {
+            std::string portion = integral.op_portions[portion_number];
+            if ( portion != target_portion ) {
+                continue;
+            }
+            has_ints = true;
+            newguy->set_integrals(type, integral.labels);
+        }
+    }
+
+    // portions in amplitudes
+    bool has_amps = false;
+    for (const auto & amp_pair : in->amps) {
+        const char &type = amp_pair.first;
+        if ( type != 't' ) {
+            continue;
+        }
+        const std::vector<amplitudes> &amps = amp_pair.second;
+        for (const amplitudes & amp : amps) {
+            std::string portion = amp.op_portions[portion_number];
+            if ( portion != target_portion ) {
+                continue;
+            }
+            has_amps = true;
+            newguy->set_amplitudes(type, amp.n_create, amp.n_annihilate, amp.n_ph, amp.labels);
+        }
+    }
+    if ( !has_amps && !has_ints ) {
+        return "A";
+    }
+
+    // now, count the number of occupied / virtual labels in the bra
+    // and ket, excluding those labels that are repeated
+
+    int no_bra = 0;
+    int nv_bra = 0;
+    int nt_bra = 0;
+
+    int no_ket = 0;
+    int nv_ket = 0;
+    int nt_ket = 0;
+
+    // portions in integrals
+    for (const auto & int_pair : newguy->ints) {
+        const std::string &type = int_pair.first;
+        const std::vector<integrals> &ints = int_pair.second;
+
+        int n_create = 1;
+        int n_annihilate = 1;
+        if ( type == "eri" || type == "two_body" ) {
+            n_create = 2;
+            n_annihilate = 2;
+        }
+
+        for (const integrals & integral : ints) {
+
+            for (int j = 0; j < n_create; j++) {
+                std::string label = integral.labels[j];
+
+                // skip repeated labels
+                int found = newguy->index_in_anywhere(label);
+                if ( found == 2 ) {
+                    continue;
+                }
+
+                nt_bra++;
+                if (is_occ(label)) {
+                    no_bra++;
+                }else {
+                    nv_bra++;
+                }
+            }
+
+            for (int j = n_create; j < n_create + n_annihilate; j++) {
+                std::string label = integral.labels[j];
+
+                // skip repeated labels
+                int found = newguy->index_in_anywhere(label);
+                if ( found == 2 ) {
+                    continue;
+                }
+
+                nt_ket++;
+                if (is_occ(label)) {
+                    no_ket++;
+                }else {
+                    nv_ket++;
+                }
+            }
+        }
+    }
+
+    // portions in amplitudes
+    for (const auto & amp_pair : newguy->amps) {
+        const char &type = amp_pair.first;
+        if ( type != 't' ) {
+            continue;
+        }
+        const std::vector<amplitudes> &amps = amp_pair.second;
+        for (const amplitudes & amp : amps) {
+
+            for (int j = 0; j < amp.n_create; j++) {
+                std::string label = amp.labels[j];
+
+                // skip repeated labels
+                int found = newguy->index_in_anywhere(label);
+                if ( found == 2 ) {
+                    continue;
+                }
+
+                nt_bra++;
+                if (is_occ(label)) {
+                    no_bra++;
+                }else {
+                    nv_bra++;
+                }
+            }
+
+            for (int j = amp.n_create; j < amp.n_create + amp.n_annihilate; j++) {
+                std::string label = amp.labels[j];
+
+                // skip repeated labels
+                int found = newguy->index_in_anywhere(label);
+                if ( found == 2 ) {
+                    continue;
+                }
+
+                nt_ket++;
+                if (is_occ(label)) {
+                    no_ket++;
+                }else {
+                    nv_ket++;
+                }
+            }
+        }
+    }
+
+    // return the portion type
+    if ( no_bra == nt_bra && nv_ket == nt_ket ) {
+        return "N"; 
+    }else if ( no_ket == nt_ket && nv_bra == nt_bra ) {
+        return "N";
+    }
+    return "R";
+}
+
 // eliminate terms based on operator portions (for bernoulli)
 void eliminate_operator_portions(std::shared_ptr<pq_string> &in){
 
@@ -67,10 +224,33 @@ void eliminate_operator_portions(std::shared_ptr<pq_string> &in){
         exit(1);
     }
 
-    //std::vector<std::string> strings = in->get_string();
-    //for (auto string: strings){
-    //    printf("%s\n", string.c_str());
-    //}
+    // now, eliminate pieces that should not exist. we can do this by
+    // counting how many occupied and virtual labels there are in 
+    // the bra and ket parts of the operators of "N" or "R" type, but
+    // we must be careful to ignore repeated labels within the relevant
+    // parts of the string. we should just build a new string that
+    // contains only the relevant pieces
+
+    size_t n_op_portions = 0;
+    for (const auto & [ key, value ] : len_map) {
+        n_op_portions = key; 
+    }
+
+    // all components of "N" type
+    for (size_t i = 0; i < n_op_portions; i++) {
+
+        std::string type = bernoulli_type(in, "N", i);
+        if ( type != "N" && type != "A") {
+            in->skip = true;
+            return;
+        }
+
+        type = bernoulli_type(in, "R", i);
+        if ( type != "R" && type != "A") {
+            in->skip = true;
+            return;
+        }
+    }
 }
 
 // bernoulli expansion involves operator portions. strip these off 
