@@ -1479,11 +1479,6 @@ void pq_helper::add_bernoulli_operator(double factor,
                                        const std::vector<std::string> &ops,
                                        const int max_order) {
 
-    printf("\n");
-    printf("    whoops... add_bernoulli_operator is still a work in progress\n");
-    printf("\n");
-    exit(1);
-
     std::vector<pq_operator_terms> bernoulli_terms = get_bernoulli_operator_terms(factor, targets, ops, max_order);
     for (auto term : bernoulli_terms){
         add_operator_product(term.factor, term.operators);
