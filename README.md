@@ -306,14 +306,38 @@ add_quadruple_commutator(1.0/24.0, ['f'], ['t2'], ['t1'], ['t1'], ['t1'])
 
 #### add_st_operator: 
 
-set strings corresponding to a similarity transformed operator commutator involving five operators. The first argument
+set strings corresponding to a similarity transformed operator. The first argument
 after the numerical value is a list of operators; the product of these operators will be similarity transformed. The
 next argument is a list of operators appearing as a sum the exponential function. The similarity transformation is
 performed by applying the BCH expansion with four nested commutators.
 
 ```
 add_st_operator(1.0, ['v'],['t1','t2'])
-```    
+```
+
+#### add_bernoulli_operator: 
+
+set strings corresponding to the Bernoulli representation of the similarity transformed operator that is sometimes used
+in unitary coupled-cluster theory. The first argument
+after the numerical value is a list of operators; the product of these operators will be similarity transformed. The
+next argument is a list of operators appearing as a sum the exponential function. The last argument is the order to
+which the expansion is complete. 
+
+```
+add_bernoulli_operator(1.0, ['v'],['t1','t2'], n)
+```
+
+#### set_unitary_cc:
+
+for unitary coupled-cluster, pass a value of "True" to this function to indicate that the cluster operator is antihermitian  
+(i.e., $\hat{T}_n \to \hat{T}_n - \hat{T}_n^\dagger$). Passing a value of "False" will result in the default behavior of 
+the program. Note that care must be taken when evaluating a similarity transformation involving antihermitian cluster 
+operators because (1) the cluster operators do not commute, and (2) the BCH expansion does not truncate.
+
+```
+set_unitary_cc(True)
+```
+
 #### set_print_level: 
 
 Control the amount of output. Any value greater than the default value of 0 will cause the code to print starting
