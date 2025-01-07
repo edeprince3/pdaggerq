@@ -426,7 +426,7 @@ class pq_helper {
 
     /**
      *
-     * add a quadrupole commutator involving five operators, [[[[op0, op1], op2], op3], op4]
+     * add a quadruple commutator involving five operators, [[[[op0, op1], op2], op3], op4]
      *
      * @param op0: a list of strings defining an operator product
      * @param op1: a list of strings defining an operator product
@@ -443,7 +443,7 @@ class pq_helper {
 
     /**
      *
-     * generate a list of operators resulting from a quadrupole commutator involving five operators, [[[[op0, op1], op2], op3], op4]
+     * generate a list of operators resulting from a quadruple commutator involving five operators, [[[[op0, op1], op2], op3], op4]
      *
      * @param op0: a list of strings defining an operator product
      * @param op1: a list of strings defining an operator product
@@ -458,6 +458,44 @@ class pq_helper {
                                                                   const std::vector<std::string> &op2,
                                                                   const std::vector<std::string> &op3,
                                                                   const std::vector<std::string> &op4);
+    /**
+     *
+     * add a quintuple commutator involving five operators, [[[[[op0, op1], op2], op3], op4], op5]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     * @param op3: a list of strings defining an operator product
+     * @param op4: a list of strings defining an operator product
+     * @param op5: a list of strings defining an operator product
+     *
+     */
+    void add_quintuple_commutator(double factor, const std::vector<std::string> &op0,
+                                                 const std::vector<std::string> &op1,
+                                                 const std::vector<std::string> &op2,
+                                                 const std::vector<std::string> &op3,
+                                                 const std::vector<std::string> &op4,
+                                                 const std::vector<std::string> &op5);
+
+    /**
+     *
+     * generate a list of operators resulting from a quintuple commutator involving five operators, [[[[[op0, op1], op2], op3], op4], op5]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     * @param op3: a list of strings defining an operator product
+     * @param op4: a list of strings defining an operator product
+     * @param op5: a list of strings defining an operator product
+     *
+     */
+    std::vector<pq_operator_terms> get_quintuple_commutator_terms(double factor,
+                                                                  const std::vector<std::string> &op0,
+                                                                  const std::vector<std::string> &op1,
+                                                                  const std::vector<std::string> &op2,
+                                                                  const std::vector<std::string> &op3,
+                                                                  const std::vector<std::string> &op4,
+                                                                  const std::vector<std::string> &op5);
 
     /**
      *

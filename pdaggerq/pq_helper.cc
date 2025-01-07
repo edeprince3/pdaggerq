@@ -128,6 +128,8 @@ void export_pq_helper(py::module& m) {
         .def("add_double_commutator", &pq_helper::add_double_commutator)
         .def("add_triple_commutator", &pq_helper::add_triple_commutator)
         .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
+        .def("add_quintuple_commutator", &pq_helper::add_quintuple_commutator)
+        //.def("add_hextuple_commutator", &pq_helper::add_hextuple_commutator)
         .def("add_operator_product", &pq_helper::add_operator_product);
 
     //py::class_<pdaggerq::pq_operator_terms, std::shared_ptr<pdaggerq::pq_operator_terms> >(m, "pq_operator_terms")
@@ -279,8 +281,8 @@ void pq_helper::set_unitary_cc(bool is_unitary) {
 }
 
 void pq_helper::add_anticommutator(double factor,
-                               const std::vector<std::string> &op0,
-                               const std::vector<std::string> &op1){
+                                   const std::vector<std::string> &op0,
+                                   const std::vector<std::string> &op1){
 
     add_operator_product(factor, concatinate_operators({op0, op1}) );
     add_operator_product(factor, concatinate_operators({op1, op0}) );
@@ -298,8 +300,8 @@ void pq_helper::add_commutator(double factor,
 }
 
 std::vector<pq_operator_terms> pq_helper::get_commutator_terms(double factor,
-                                                                          const std::vector<std::string> &op0,
-                                                                          const std::vector<std::string> &op1){
+                                                               const std::vector<std::string> &op0,
+                                                               const std::vector<std::string> &op1){
 
     std::vector<pq_operator_terms> ops;
 
@@ -318,13 +320,12 @@ void pq_helper::add_double_commutator(double factor,
     for (auto op : ops){
         add_operator_product(op.factor, op.operators);
     }
-
 }
 
 std::vector<pq_operator_terms> pq_helper::get_double_commutator_terms(double factor,
-                                                                                 const std::vector<std::string> &op0,
-                                                                                 const std::vector<std::string> &op1,
-                                                                                 const std::vector<std::string> &op2){
+                                                                      const std::vector<std::string> &op0,
+                                                                      const std::vector<std::string> &op1,
+                                                                      const std::vector<std::string> &op2){
 
     std::vector<pq_operator_terms> ops;
 
@@ -346,14 +347,13 @@ void pq_helper::add_triple_commutator(double factor,
     for (auto op : ops){
         add_operator_product(op.factor, op.operators);
     }
-
 }
 
 std::vector<pq_operator_terms> pq_helper::get_triple_commutator_terms(double factor,
-                                                                                 const std::vector<std::string> &op0,
-                                                                                 const std::vector<std::string> &op1,
-                                                                                 const std::vector<std::string> &op2,
-                                                                                 const std::vector<std::string> &op3){
+                                                                      const std::vector<std::string> &op0,
+                                                                      const std::vector<std::string> &op1,
+                                                                      const std::vector<std::string> &op2,
+                                                                      const std::vector<std::string> &op3){
 
     std::vector<pq_operator_terms> ops;
 
@@ -370,11 +370,11 @@ std::vector<pq_operator_terms> pq_helper::get_triple_commutator_terms(double fac
 }
 
 void pq_helper::add_quadruple_commutator(double factor,
-                                           const std::vector<std::string> &op0,
-                                           const std::vector<std::string> &op1,
-                                           const std::vector<std::string> &op2,
-                                           const std::vector<std::string> &op3,
-                                           const std::vector<std::string> &op4){
+                                         const std::vector<std::string> &op0,
+                                         const std::vector<std::string> &op1,
+                                         const std::vector<std::string> &op2,
+                                         const std::vector<std::string> &op3,
+                                         const std::vector<std::string> &op4){
 
     std::vector<pq_operator_terms> ops = get_quadruple_commutator_terms(factor, op0, op1, op2, op3, op4);
     for (auto op : ops){
@@ -383,11 +383,11 @@ void pq_helper::add_quadruple_commutator(double factor,
 }
 
 std::vector<pq_operator_terms> pq_helper::get_quadruple_commutator_terms(double factor,
-                                                                                    const std::vector<std::string> &op0,
-                                                                                    const std::vector<std::string> &op1,
-                                                                                    const std::vector<std::string> &op2,
-                                                                                    const std::vector<std::string> &op3,
-                                                                                    const std::vector<std::string> &op4){
+                                                                         const std::vector<std::string> &op0,
+                                                                         const std::vector<std::string> &op1,
+                                                                         const std::vector<std::string> &op2,
+                                                                         const std::vector<std::string> &op3,
+                                                                         const std::vector<std::string> &op4){
 
     std::vector<pq_operator_terms> ops;
 
@@ -409,6 +409,66 @@ std::vector<pq_operator_terms> pq_helper::get_quadruple_commutator_terms(double 
     ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op2, op1, op0})));
 
     return ops;  
+}
+
+std::vector<pq_operator_terms> pq_helper::get_quintuple_commutator_terms(double factor,
+                                                                         const std::vector<std::string> &op0,
+                                                                         const std::vector<std::string> &op1,
+                                                                         const std::vector<std::string> &op2,
+                                                                         const std::vector<std::string> &op3,
+                                                                         const std::vector<std::string> &op4,
+                                                                         const std::vector<std::string> &op5){
+
+    std::vector<pq_operator_terms> ops;
+
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1, op2, op3, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0, op2, op3, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op2, op0, op1, op3, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op2, op1, op0, op3, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op0, op1, op2, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op1, op0, op2, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op2, op0, op1, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op2, op1, op0, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op0, op1, op2, op3, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op1, op0, op2, op3, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op2, op0, op1, op3, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op2, op1, op0, op3, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op0, op1, op2, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op1, op0, op2, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op2, op0, op1, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op2, op1, op0, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op0, op1, op2, op3, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op1, op0, op2, op3, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op2, op0, op1, op3, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op2, op1, op0, op3, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op3, op0, op1, op2, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op3, op1, op0, op2, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op3, op2, op0, op1, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op3, op2, op1, op0, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op0, op1, op2, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op1, op0, op2, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op2, op0, op1, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op2, op1, op0, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op3, op0, op1, op2})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op3, op1, op0, op2})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op3, op2, op0, op1})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op3, op2, op1, op0})));
+
+    return ops;  
+}
+
+void pq_helper::add_quintuple_commutator(double factor,
+                                         const std::vector<std::string> &op0,
+                                         const std::vector<std::string> &op1,
+                                         const std::vector<std::string> &op2,
+                                         const std::vector<std::string> &op3,
+                                         const std::vector<std::string> &op4,
+                                         const std::vector<std::string> &op5){
+
+    std::vector<pq_operator_terms> ops = get_quintuple_commutator_terms(factor, op0, op1, op2, op3, op4, op5);
+    for (auto op : ops){
+        add_operator_product(op.factor, op.operators);
+    }
 }
 
 // add a string of operators
