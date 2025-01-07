@@ -102,7 +102,7 @@ std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_po
 
                 // skip repeated labels
                 int found = newguy->index_in_anywhere(label);
-                if ( found == 2 ) {
+                if ( found != 1 ) {
                     continue;
                 }
 
@@ -119,7 +119,7 @@ std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_po
 
                 // skip repeated labels
                 int found = newguy->index_in_anywhere(label);
-                if ( found == 2 ) {
+                if ( found != 1 ) {
                     continue;
                 }
 
