@@ -29,6 +29,10 @@ import psi4
 from ucc4 import ucc4_iterations
 from ucc4 import ucc4_energy
 
+# quccsd iterations
+from quccsd import quccsd_iterations
+from quccsd import quccsd_energy
+
 # ucc3 iterations
 from ucc3 import ucc3_iterations
 from ucc3 import ucc3_energy
@@ -373,6 +377,82 @@ def ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True):
     print('')
 
     return cc_energy + nuclear_repulsion_energy
+
+def quccsd(mol, do_eom_ccsd = False):
+    """
+
+    run quccsd
+
+    :param mol: a psi4 molecule
+    :param do_eom_ccsd: do run eom-ccsd? default false
+    :return cc_energy: the total quccsd energy
+
+    """
+
+    nsocc, nsvirt, fock, tei = get_integrals()
+    
+    # occupied, virtual slices
+    n = np.newaxis
+    o = slice(None, nsocc)
+    v = slice(nsocc, None)
+
+    # orbital energies
+    row, col = fock.shape
+    eps = np.zeros(row)
+    for i in range(0,row):
+        eps[i] = fock[i,i]
+
+    # energy denominators
+    e_abij = 1 / (-eps[v, n, n, n] - eps[n, v, n, n] + eps[n, n, o, n] + eps[
+        n, n, n, o])
+    e_ai = 1 / (-eps[v, n] + eps[n, o])
+
+    # hartree-fock energy
+    hf_energy = 1.0 * einsum('ii', fock[o, o]) -0.5 * einsum('ijij', tei[o, o, o, o])
+
+    t1 = np.zeros((nsvirt, nsocc))
+    t2 = np.zeros((nsvirt, nsvirt, nsocc, nsocc))
+    t1, t2 = quccsd_iterations(t1, t2, fock, tei, o, v, e_ai, e_abij,
+                      hf_energy, e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
+
+    cc_energy = quccsd_energy(t1, t2, fock, tei, o, v)
+
+    nuclear_repulsion_energy = mol.nuclear_repulsion_energy()
+
+    print("")
+    print("    QUCCSD Correlation Energy: {: 20.12f}".format(cc_energy - hf_energy))
+    print("    QUCCSD Total Energy:       {: 20.12f}".format(cc_energy + nuclear_repulsion_energy))
+    print("")
+
+    if not do_eom_ccsd: 
+        return cc_energy + nuclear_repulsion_energy
+
+    print("    error: EOM-QUCCSD is not implemented.")
+    print("")
+
+    ## now eom-ccsd?
+    #print("    ==> EOM-CCSD <==")
+    #print("")
+    #from eom_ccsd import build_eom_quccsd_H
+
+    ## populate core list for super inefficicent implementation of CVS approximation
+    #core_list = []
+    #for i in range (0, nsocc):
+    #    core_list.append(i)
+    #H = build_eom_quccsd_H(fock, tei, o, v, t1, t2, nsocc, nsvirt, core_list)
+
+    #print('    eigenvalues of e(-T) H e(T):')
+    #print('')
+
+    #print('    %5s %20s %20s' % ('state', 'total energy','excitation energy'))
+    #en, vec = np.linalg.eig(H)
+    #en.sort()
+    #for i in range (1,min(21,len(en))):
+    #    print('    %5i %20.12f %20.12f' % ( i, en[i] + nuclear_repulsion_energy,en[i]-cc_energy ))
+
+    #print('')
+
+    #return cc_energy + nuclear_repulsion_energy
 
 def ucc3(mol):
     """
