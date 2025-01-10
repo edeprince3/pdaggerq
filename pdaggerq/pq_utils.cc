@@ -179,6 +179,9 @@ std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_po
     }
 
     // return the portion type
+    if ( nt_bra > 2 ) { // TODO: need to figure out maximum desired excitation order from the user
+        return "R"; 
+    }
     if ( no_bra == nt_bra && nv_ket == nt_ket ) {
         return "N"; 
     }else if ( no_ket == nt_ket && nv_bra == nt_bra ) {
