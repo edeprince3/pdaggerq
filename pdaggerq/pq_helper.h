@@ -611,20 +611,6 @@ class pq_helper {
      */
     void deserialize(const std::string & filename);
 
-    /** 
-     * 
-     * is the cluster operator antihermitian for UCC?
-     * 
-     */
-    bool is_unitary_cc = false;
-
-    /** 
-     * 
-     * maximum excitation level for "N" type operators in the Bernoulli expansion for UCC
-     * 
-     */
-    int bernoulli_excitation_order = 2;
-
 private:
 
     /**
@@ -704,6 +690,20 @@ private:
      *
      */
     bool find_paired_permutations;
+
+    /** 
+     * 
+     * is the cluster operator antihermitian for UCC?
+     * 
+     */
+    bool is_unitary_cc = false;
+
+    /** 
+     * 
+     * maximum excitation level for "N" type operators in the Bernoulli expansion for UCC
+     * 
+     */
+    int bernoulli_excitation_order = 2;
 
 };
 
