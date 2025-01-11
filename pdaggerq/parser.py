@@ -16,11 +16,9 @@
 
 import re
 from pdaggerq.algebra import (BaseTerm, Index, TensorTerm, TensorTermAction,
-                              OneBody, TwoBody, FockMat, Delta, Dipole,
-                              D1, D2, D3, D4, BosonDiagonal,
-                              T0amps, T1amps, T2amps, T3amps, T4amps,
-                              Left0amps, Left1amps, Left2amps, Left3amps, Left4amps,
-                              Right0amps, Right1amps, Right2amps, Right3amps, Right4amps,
+                              OneBody, TwoBody, Delta,
+                              D1, D2, D3, D4,
+                              Rank0Amps, Rank1Amps, Rank2Amps, Rank3Amps, Rank4Amps,
                               ContractionPermuter, ContractionPairPermuter2,
                               ContractionPairPermuter3, ContractionPairPermuter6)
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
@@ -32,34 +30,34 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
     tensor_map = {
         'h' : OneBody,
         'g' : TwoBody,
-        'f' : FockMat,
+        'f' : OneBody,
         'd' : Delta,
-        'd+' : Dipole,
-        'd-' : Dipole,
-        'w0' : BosonDiagonal,
+        'd+' : OneBody,
+        'd-' : OneBody,
+        'w0' : Rank0Amps,
         'd1' : D1,
         'd2' : D2,
         'd3' : D3,
         'd4' : D4,
-        't0' : T0amps,
-        't1' : T1amps,
-        't2' : T2amps,
-        't3' : T3amps,
-        't4' : T4amps,
-        'r0' : Right0amps,
-        'r1' : Right1amps,
-        'r2' : Right2amps,
-        'r3' : Right3amps,
-        'r4' : Right4amps,
-        'l0' : Left0amps,
-        'l1' : Left1amps,
-        'l2' : Left2amps,
-        'l3' : Left3amps,
-        'l4' : Left4amps,
+        't0' : Rank0Amps,
+        't1' : Rank1Amps,
+        't2' : Rank2Amps,
+        't3' : Rank3Amps,
+        't4' : Rank4Amps,
+        'r0' : Rank0Amps,
+        'r1' : Rank1Amps,
+        'r2' : Rank2Amps,
+        'r3' : Rank3Amps,
+        'r4' : Rank4Amps,
+        'l0' : Rank0Amps,
+        'l1' : Rank1Amps,
+        'l2' : Rank2Amps,
+        'l3' : Rank3Amps,
+        'l4' : Rank4Amps,
     }
     # tensor action has different constructor, so put new ones here
     tensor_action_map = {
-        'p' : ContractionPermuter,
+        'p'   : ContractionPermuter,
         'pp2' : ContractionPairPermuter2,
         'pp3' : ContractionPairPermuter3,
         'pp6' : ContractionPairPermuter6
@@ -137,7 +135,7 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         # make operator label lowercase from this point on
         term_string = term_string.lower()
         if term_string in tensor_map.keys():
-            return tensor_map[term_string](indices=tuple(idx), spin=spin, active=active, boson=boson)
+            return tensor_map[term_string](indices=tuple(idx), name=term_string, spin=spin, active=active, boson=boson)
         elif term_string in tensor_action_map.keys():
             return tensor_action_map[term_string](indices=tuple(idx), spin=spin)
         else:
