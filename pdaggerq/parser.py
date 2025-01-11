@@ -15,14 +15,14 @@
 #   limitations under the License.
 
 import re
-from pdaggerq.algebra import (OneBody, TwoBody, T1amps, T2amps, T3amps, T4amps,
-                              Index, TensorTerm, D1, D2, D3, D4,
-                              Delta, Left0amps, Left1amps,
-                              Left2amps, Left3amps, Left4amps, Right0amps,
-                              Right1amps, Right2amps, Right3amps, Right4amps,
-                              FockMat, Dipole, BaseTerm, ContractionPermuter,
-                              ContractionPairPermuter3, ContractionPairPermuter6,
-                              ContractionPairPermuter2, TensorTermAction, )
+from pdaggerq.algebra import (BaseTerm, Index, TensorTerm, TensorTermAction,
+                              OneBody, TwoBody, FockMat, Delta, Dipole,
+                              D1, D2, D3, D4, BosonDiagonal,
+                              T0amps, T1amps, T2amps, T3amps, T4amps,
+                              Left0amps, Left1amps, Left2amps, Left3amps, Left4amps,
+                              Right0amps, Right1amps, Right2amps, Right3amps, Right4amps,
+                              ContractionPermuter, ContractionPairPermuter2,
+                              ContractionPairPermuter3, ContractionPairPermuter6)
 from pdaggerq.config import OCC_INDICES, VIRT_INDICES
 
 
@@ -36,10 +36,12 @@ def string_to_baseterm(term_string, occ_idx=OCC_INDICES, virt_idx=VIRT_INDICES):
         'd' : Delta,
         'd+' : Dipole,
         'd-' : Dipole,
+        'w0' : BosonDiagonal,
         'd1' : D1,
         'd2' : D2,
         'd3' : D3,
         'd4' : D4,
+        't0' : T0amps,
         't1' : T1amps,
         't2' : T2amps,
         't3' : T3amps,

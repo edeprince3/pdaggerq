@@ -26,7 +26,7 @@ import numpy as np
 from pdaggerq.config import *
 
 # these are integrals, RDMs, etc. that require explicit slicing in einsum
-tensors_with_slices = ['h', 'g', 'f', 'kd', 'd1', 'd2', 'd3', 'd4']
+tensors_with_slices = ['h', 'g', 'f', 'kd', 'd1', 'd2', 'd3', 'd4', 'dipole']
 
 class Index:
 
@@ -313,7 +313,8 @@ class TensorTerm:
 
 
         # these are amplitudes, having fixed shape and do not require explicit slicing
-        tensors_amps  = ['t'+str(i) for i in range(1,5)]
+        tensors_amps  = ['w0']
+        tensors_amps += ['t'+str(i) for i in range(0,5)]
         tensors_amps += ['r'+str(i) for i in range(0,5)]
         tensors_amps += ['l'+str(i) for i in range(0,5)]
 
@@ -517,6 +518,11 @@ class D4(BaseTerm):
     def __init__(self, *, indices=Tuple[Index, ...], name='d4', spin='', active='', boson=''):
         super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
+class T0amps(BaseTerm):
+
+    def __init__(self, *, indices=(), name='t0', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
+
 class T1amps(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='t1', spin='', active='', boson=''):
@@ -568,6 +574,11 @@ class Delta(BaseTerm):
 class Dipole(BaseTerm):
 
     def __init__(self, *, indices=Tuple[Index, ...], name='dipole', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
+
+class BosonDiagonal(BaseTerm):
+
+    def __init__(self, *, indices=Tuple[Index, ...], name='w0', spin='', active='', boson=''):
         super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class ContractionPermuter(TensorTermAction):
