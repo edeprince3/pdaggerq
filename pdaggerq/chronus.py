@@ -315,8 +315,9 @@ def add_constructor(output_content, class_name):
 
     return text + output_content
 
-def to_chronus_string(input_content, class_name="REPLACEME", is_active=False):
+def to_chronus_string(input_content, class_name="REPLACEME", is_eom=True, is_active=False):
 
+    #print(input_content)
     # code
     output_content = re.sub(r'}',r'  }', input_content)
 
@@ -334,7 +335,10 @@ def to_chronus_string(input_content, class_name="REPLACEME", is_active=False):
 
     match = re.compile("/+ Evaluate Equations /+\s*\n").search(output_content)
     if match:
-        output_content = re.sub(r'/+ Evaluate Equations /+\s*\n','  void '+class_name+'<MatsT,IntsT>::buildSigma(const EOMCCSDVector<MatsT> &V, EOMCCSDVector<MatsT> &HV, EOMCCEigenVecType vecType) const {\n\n    TAManager &TAmanager = TAManager::get();\n\n', output_content)
+        if is_eom:
+            output_content = re.sub(r'/+ Evaluate Equations /+\s*\n','  void '+class_name+'<MatsT,IntsT>::buildSigma(const EOMCCSDVector<MatsT> &V, EOMCCSDVector<MatsT> &HV, EOMCCEigenVecType vecType) const {\n\n    TAManager &TAmanager = TAManager::get();\n\n', output_content)
+        else:
+            output_content = re.sub(r'/+ Evaluate Equations /+\s*\n','  void '+class_name+'<MatsT,IntsT>::updateT() {//TODO: fill in variable names\n\n    TAManager &TAmanager = TAManager::get();\n\n', output_content)
 
     if is_active:
         output_content = re.sub(r't1\["(..)"\]',r't1["\1_vo"]' ,output_content) # must happen before block replacement
@@ -388,11 +392,14 @@ def to_chronus_string(input_content, class_name="REPLACEME", is_active=False):
     if match:
         output_content = extract_malloc_reusetmps(output_content, class_name) # must happen after 1. add_malloc 2. removing everything until ##### Scalars #####
 
-    output_content = add_tenser_definition(output_content, class_name)
-    output_content = add_constructor(output_content, class_name)
-    output_content = add_build_diag(output_content, class_name)
-    output_content = add_build_pc(output_content, class_name)
-    output_content = add_destructor(output_content, class_name)
+    if is_eom: 
+        output_content = add_tenser_definition(output_content, class_name)
+        output_content = add_constructor(output_content, class_name)
+        output_content = add_build_diag(output_content, class_name)
+        output_content = add_build_pc(output_content, class_name)
+        output_content = add_destructor(output_content, class_name)
+    else:
+        output_content += '  }\n\n'
 
     # names of derived classes
     output_content = re.sub(r'void','template <typename MatsT, typename IntsT>\n  void', output_content)
@@ -403,7 +410,7 @@ def to_chronus_string(input_content, class_name="REPLACEME", is_active=False):
 
     # print the result
     output_content = "////// Start of ChronusQ generated code //////\n\n" + output_content
-    print(output_content)
     output_content = output_content + "\n\n////// End of ChronusQ generated code //////\n"
+    print(output_content)
     return output_content
     
