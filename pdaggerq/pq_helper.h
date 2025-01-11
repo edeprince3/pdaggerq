@@ -182,12 +182,21 @@ class pq_helper {
 
     /**
      *
-     * set whether or not the cluster operator is antihermitian for ucc
+     * set whether or not the cluster operator is antihermitian for UCC
      *
      * @param is_unitary: true/false
      *
      */
     void set_unitary_cc(bool is_unitary);
+
+    /**
+     *
+     * set maximum excitation level for "N" type operators in the Bernoulli expansion for UCC
+     *
+     * @param excitation_order: the maximum excitation level for "N" type operators (default 2)
+     *
+     */
+    void set_bernoulli_excitation_order(int excitation_order);
 
     /**
      *
@@ -604,10 +613,17 @@ class pq_helper {
 
     /** 
      * 
-     * is the cluster operator antihermitian for ucc?
+     * is the cluster operator antihermitian for UCC?
      * 
      */
-    bool is_unitary_cc;
+    bool is_unitary_cc = false;
+
+    /** 
+     * 
+     * maximum excitation level for "N" type operators in the Bernoulli expansion for UCC
+     * 
+     */
+    int bernoulli_excitation_order = 2;
 
 private:
 

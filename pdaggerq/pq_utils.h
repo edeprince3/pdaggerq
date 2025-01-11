@@ -183,7 +183,10 @@ std::vector<std::string> get_operator_portions_as_vector(const std::string& op);
 std::string get_operator_base_name(std::string op);
 
 /// eliminate terms based on operator portions (for bernoulli)
-void eliminate_operator_portions(std::shared_ptr<pq_string> &in);
+void eliminate_operator_portions(std::shared_ptr<pq_string> &in, int bernoulli_excitation_order);
+
+/// determine the operator type for the part of an input string corresponding to a target portion (for bernoulli)
+std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_portion, size_t portion_number, int bernoulli_excitation_order);
 
 }
 
