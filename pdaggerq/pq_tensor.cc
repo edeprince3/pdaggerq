@@ -84,6 +84,7 @@ amplitudes& amplitudes::operator=(const amplitudes& rhs) {
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
     label_ranges = rhs.label_ranges;
+    op_portions = rhs.op_portions;
 
     n_create = rhs.n_create;
     n_annihilate = rhs.n_annihilate;
@@ -151,6 +152,18 @@ std::string amplitudes::to_string(char symbol) const {
         val += labels[size-1] + ")";
 
     }
+
+    // bernoulli
+/*
+    if ( !op_portions.empty() ) {
+        val += "{";
+        size_t size  = op_portions.size();
+        for (int j = 0; j < op_portions.size()-1; j++) {
+            val += op_portions[j] + ",";
+        }
+        val += op_portions[size-1] + "}";
+    }
+*/
 
     return val;
 }
@@ -282,6 +295,7 @@ integrals& integrals::operator=(const integrals& rhs) {
     labels = rhs.labels;
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
+    op_portions = rhs.op_portions;
 
     return *this;
 }
@@ -416,6 +430,18 @@ std::string integrals::to_string(const std::string &symbol) const {
         printf("\n");
         exit(1);
     }
+
+    // bernoulli
+/*
+    if ( !op_portions.empty() ) {
+        val += "{";
+        size_t size  = op_portions.size();
+        for (int j = 0; j < op_portions.size()-1; j++) {
+            val += op_portions[j] + ",";
+        }
+        val += op_portions[size-1] + "}";
+    }
+*/
 
     return val;
 }
@@ -589,6 +615,7 @@ delta_functions& delta_functions::operator=(const delta_functions& rhs) {
     labels = rhs.labels;
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
+    op_portions = rhs.op_portions;
 
     return *this;
 }

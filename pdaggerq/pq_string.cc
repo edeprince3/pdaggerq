@@ -968,20 +968,22 @@ void pq_string::reset_label_ranges(const std::unordered_map<std::string, std::ve
 
 
 // set labels for integrals
-void pq_string::set_integrals(const std::string &type, const std::vector<std::string> &in) {
+void pq_string::set_integrals(const std::string &type, const std::vector<std::string> &in, std::vector<std::string> op_portions) {
     integrals new_ints;
     new_ints.labels = in;
+    new_ints.op_portions = op_portions;
     new_ints.sort();
     ints[type].push_back(new_ints);
 }
 
 // set labels for amplitudes
-void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in) {
+void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in, std::vector<std::string> op_portions) {
     amplitudes new_amps;
     new_amps.labels = in;
     new_amps.n_create = n_create;
     new_amps.n_annihilate = n_annihilate;
     new_amps.n_ph = n_ph;
+    new_amps.op_portions = op_portions;
     new_amps.sort();
     amps[type].push_back(new_amps);
 }

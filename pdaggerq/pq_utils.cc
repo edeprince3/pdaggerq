@@ -1216,6 +1216,8 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 
+    // TODO: the operator portions are not considered in the comparisons below. not sure this matters for future use cases
+
     consolidate_permutations_plus_swaps(ordered, {});
 
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
@@ -1322,6 +1324,7 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
         ints.labels.push_back(idx);
         ints.labels.push_back(idx2);
         ints.labels.push_back(idx);
+        ints.op_portions = occ_repulsion[i].op_portions;
         
         ints.sort();
         

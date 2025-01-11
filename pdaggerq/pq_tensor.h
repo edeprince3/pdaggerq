@@ -78,6 +78,13 @@ class tensor {
 
     /**
      *
+     * operator portions, e.g., {"A", "N", "R", ...}, "A" = "N" + "R" (used for Bernoulli expansion)
+     *
+     */
+    std::vector<std::string> op_portions;
+
+    /**
+     *
      * number of permutations required to sort tensor labels
      *
      */

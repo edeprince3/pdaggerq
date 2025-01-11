@@ -26,12 +26,13 @@ import numpy as np
 from numpy import einsum
 import psi4
 
+from cc_tools import quccsd
 from cc_tools import ucc3
 from cc_tools import ucc4
 
 def main():
 
-    # UCC3 and UCC4 / H2O / STO-3G
+    # UCC3, UCC4, and QUCCSD / H2O / STO-3G
 
     # set molecule
     mol = psi4.geometry("""
@@ -53,21 +54,29 @@ def main():
     }
     psi4.set_options(psi4_options)
 
-    en = ucc3(mol)
+    ucc3_en = ucc3(mol)
 
     # check ucc3 energy
-    assert np.isclose(en,-75.020316846984, rtol = 1e-8, atol = 1e-8)
+    assert np.isclose(ucc3_en, -75.020316846984, rtol = 1e-8, atol = 1e-8)
 
     print('    UCC(3) Total Energy..........................................................PASSED')
     print('')
     #exit()
 
-    en = ucc4(mol)
+    ucc4_en = ucc4(mol)
 
     # check ucc4 energy
-    assert np.isclose(en,-75.019691944947, rtol = 1e-8, atol = 1e-8)
+    assert np.isclose(ucc4_en, -75.019691944947, rtol = 1e-8, atol = 1e-8)
 
     print('    UCC(4) Total Energy..........................................................PASSED')
+    print('')
+
+    quccsd_en = quccsd(mol, do_eom_ccsd = False)
+
+    # check quccsd energy
+    assert np.isclose(quccsd_en, -75.019606376906, rtol = 1e-8, atol = 1e-8)
+
+    print('    QUCCSD Total Energy..........................................................PASSED')
     print('')
 
 if __name__ == "__main__":
