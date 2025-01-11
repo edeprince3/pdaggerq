@@ -193,10 +193,10 @@ class pq_helper {
      *
      * set maximum excitation level for "N" type operators in the Bernoulli expansion for UCC
      *
-     * @param excitation_order: the maximum excitation level for "N" type operators (default 2)
+     * @param excitation_level: the maximum excitation level for "N" type operators (default 2)
      *
      */
-    void set_bernoulli_excitation_order(int excitation_order);
+    void set_bernoulli_excitation_level(int excitation_level);
 
     /**
      *
@@ -703,7 +703,7 @@ private:
      * maximum excitation level for "N" type operators in the Bernoulli expansion for UCC
      * 
      */
-    int bernoulli_excitation_order = 2;
+    int bernoulli_excitation_level = 2;
 
 };
 

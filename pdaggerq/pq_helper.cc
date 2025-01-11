@@ -54,7 +54,7 @@ void export_pq_helper(py::module& m) {
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
         .def("set_unitary_cc", &pq_helper::set_unitary_cc)
-        .def("set_bernoulli_excitation_order", &pq_helper::set_bernoulli_excitation_order)
+        .def("set_bernoulli_excitation_level", &pq_helper::set_bernoulli_excitation_level)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
@@ -176,7 +176,7 @@ pq_helper::pq_helper(const std::string &vacuum_type)
     is_unitary_cc = false;
 
     // default maximum excitation order for "N" type operators in Bernoulli expansion for UCC
-    bernoulli_excitation_order = 2;
+    bernoulli_excitation_level = 2;
 
     // by default, do not look for paired permutations (until parsers catch up)
     find_paired_permutations = false;
@@ -286,8 +286,8 @@ void pq_helper::set_unitary_cc(bool is_unitary) {
 }
 
 // is the cluster operator antihermitian for ucc? default false
-void pq_helper::set_bernoulli_excitation_order(int excitation_order) {
-    bernoulli_excitation_order = excitation_order;
+void pq_helper::set_bernoulli_excitation_level(int excitation_level) {
+    bernoulli_excitation_level = excitation_level;
 }
 
 void pq_helper::add_anticommutator(double factor,
@@ -1361,7 +1361,7 @@ void pq_helper::simplify() {
         use_conventional_labels(pq_str);
 
         // eliminate terms based on operator portions (for bernoulli)
-        eliminate_operator_portions(pq_str, bernoulli_excitation_order);
+        eliminate_operator_portions(pq_str, bernoulli_excitation_level);
 
         // if UCC de-excitation amplitudes were transposed, transpose them back
         if ( is_unitary_cc ) {

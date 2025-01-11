@@ -28,7 +28,7 @@
 namespace pdaggerq {
 
 // determine the operator type for the part of an input string corresponding to a target portion (for bernoulli)
-std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_portion, size_t portion_number, int bernoulli_excitation_order) {
+std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_portion, size_t portion_number, int bernoulli_excitation_level) {
 
     std::shared_ptr<pq_string> newguy (new pq_string(in->vacuum));
 
@@ -175,7 +175,7 @@ std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_po
     }
 
     // return the portion type
-    if ( nt_bra > bernoulli_excitation_order ) { // TODO: need to figure out maximum desired excitation order from the user
+    if ( nt_bra > bernoulli_excitation_level ) { 
         return "R"; 
     }
     if ( no_bra == nt_bra && nv_ket == nt_ket ) {
@@ -187,7 +187,7 @@ std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_po
 }
 
 // eliminate terms based on operator portions (for bernoulli)
-void eliminate_operator_portions(std::shared_ptr<pq_string> &in, int bernoulli_excitation_order){
+void eliminate_operator_portions(std::shared_ptr<pq_string> &in, int bernoulli_excitation_level){
 
     // first, ensure the list of portions is of the same size for all amplitudes and integrals
 
@@ -238,12 +238,12 @@ void eliminate_operator_portions(std::shared_ptr<pq_string> &in, int bernoulli_e
     // all components of "N" type
     for (size_t i = 0; i < n_op_portions; i++) {
 
-        if ( bernoulli_type(in, "N", i, bernoulli_excitation_order) == "R" ) {
+        if ( bernoulli_type(in, "N", i, bernoulli_excitation_level) == "R" ) {
             in->skip = true;
             return;
         }
 
-        if ( bernoulli_type(in, "R", i, bernoulli_excitation_order) == "N" ) {
+        if ( bernoulli_type(in, "R", i, bernoulli_excitation_level) == "N" ) {
             in->skip = true;
             return;
         }
