@@ -154,40 +154,6 @@ void removeSpaces(std::string &x);
 /// expand general labels, p -> o,v
 bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<std::shared_ptr<pq_string> > & list, int occ_label_count, int vir_label_count);
 
-/**
- *
- * strip operator portions off of an operator and return them as a string (for bernoulli expansion)
- *
- * @param op: an operator, e.g., "t2", "v", "V{R}", etc.
- * @return ret: a string specifying the operator portions
- */
-std::string get_operator_portions_as_string(const std::string& op);
-
-/**
- *
- * strip operator portions off of an operator and return them as a vector (for bernoulli expansion)
- *
- * @param op: an operator, e.g., "t2", "v", "V{R}", etc.
- * @return ret: a vector of strings specifying the operator portions
- */
-std::vector<std::string> get_operator_portions_as_vector(const std::string& op);
-
-/**
- *
- * strip operator portions off of an operator and return the base operator name (for bernoulli expansion)
- *
- * @param op: an operator, e.g., "t2", "v", "V{R}", etc.
- * @return ret: a string specifying the operator base name
- *
- */
-std::string get_operator_base_name(std::string op);
-
-/// eliminate terms based on operator portions (for bernoulli)
-void eliminate_operator_portions(std::shared_ptr<pq_string> &in, int bernoulli_excitation_order);
-
-/// determine the operator type for the part of an input string corresponding to a target portion (for bernoulli)
-std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_portion, size_t portion_number, int bernoulli_excitation_order);
-
 }
 
 #endif 

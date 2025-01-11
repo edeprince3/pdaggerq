@@ -35,6 +35,7 @@
 
 #include "pq_helper.h"
 #include "pq_utils.h"
+#include "pq_bernoulli.h"
 #include "pq_string.h"
 #include "pq_add_label_ranges.h"
 #include "pq_add_spin_labels.h"
