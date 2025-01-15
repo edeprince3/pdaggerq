@@ -1,10 +1,10 @@
-$p^{\dagger}q$
 
 <div align = "center">
     <img src="pq_logo.png" height="100px">
 </div>
 
-pdaggerq is a fermionic computer algebra package for bringing strings of creation / annihilation operators to normal
+
+$p^{\dagger}q$ is a fermionic computer algebra package for bringing strings of creation / annihilation operators to normal
 order with respect to a true vacuum or the Fermi vacuum. The code can evaluate expressions like projections that 
 arise in coupled cluster theory and can be used to generate working many-body electronic structure codes. 
 In the examples section we provide worked examples that generate equations and Python code for CCSD, 
