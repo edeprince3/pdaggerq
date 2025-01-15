@@ -2062,7 +2062,7 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_4(double 
     }
 
 
-    // -1/48 [[[[V, sigma]_R, sigma]_A, sigma]_R, sigma]
+    // -1/48 [[[[V, sigma]_R, sigma], sigma]_R, sigma]
 
     for (auto target: targets){
         b_targets.push_back(target + "{A,R,A,R,A}");
@@ -2190,7 +2190,7 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_4(double 
     // -1/720 [[[[V_N, sigma], sigma], sigma], sigma]
 
     for (auto target: targets){
-        b_targets.push_back(target + "{A,A,A,A,A}");
+        b_targets.push_back(target + "{N,A,A,A,A}");
     }
 
     for (auto op: ops){
