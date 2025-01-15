@@ -2669,7 +2669,7 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_5(double 
     }
 
     for (auto op: ops){
-        b_ops1.push_back(op + "{N,A,R,R,A,A}");
+        b_ops1.push_back(op + "{A,A,R,R,A,A}");
         b_ops2.push_back(op + "{A,A,R,R,A,A}");
         b_ops3.push_back(op + "{A,A,A,R,A,A}");
         b_ops4.push_back(op + "{A,A,A,A,A,A}");
@@ -2709,8 +2709,593 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_6(double 
     std::vector<std::string> b_ops5;
     std::vector<std::string> b_ops6;
 
+
+    //     1/64    [[[[[[V_A, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+
     for (auto target: targets){
-        b_targets.push_back(target + "{A,A,A,A,A,A,A}");
+        b_targets.push_back(target + "{A,R,R,R,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,R,R,R,A}");
+        b_ops2.push_back(op + "{A,A,R,R,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    int dim = (int)ops.size();
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 64.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/64    [[[[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,R,R,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,R,R,R,A}");
+        b_ops2.push_back(op + "{A,A,R,R,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 64.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/192   [[[[[[V_A, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,A,R,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,A,R,R,R,A}");
+        b_ops2.push_back(op + "{A,A,A,R,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/192   [[[[[[V_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,A,R,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,A,R,R,R,A}");
+        b_ops2.push_back(op + "{A,A,A,R,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/192   [[[[[[V_A, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,R,A,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,A,R,R,A}");
+        b_ops2.push_back(op + "{A,A,R,A,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/192   [[[[[[V_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,R,A,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,A,R,R,A}");
+        b_ops2.push_back(op + "{A,A,R,A,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/192   [[[[[[V_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,R,R,A,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,R,A,R,A}");
+        b_ops2.push_back(op + "{A,A,R,R,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,A,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/192   [[[[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,R,R,A,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,R,A,R,A}");
+        b_ops2.push_back(op + "{A,A,R,R,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,A,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/576   [[[[[[V_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,A,R,A,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,A,R,A,R,A}");
+        b_ops2.push_back(op + "{A,A,A,R,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,A,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/576   [[[[[[V_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,A,R,A,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,A,R,A,R,A}");
+        b_ops2.push_back(op + "{A,A,A,R,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,A,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/2880  [[[[[[V_A, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,A,A,A,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,A,A,A,R,A}");
+        b_ops2.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 2880.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/2880  [[[[[[V_R, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,A,A,A,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,A,A,A,R,A}");
+        b_ops2.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 2880.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/192   [[[[[[V_A, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,R,R,R,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,R,R,A,A}");
+        b_ops2.push_back(op + "{A,A,R,R,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/192   [[[[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,R,R,R,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,R,R,A,A}");
+        b_ops2.push_back(op + "{A,A,R,R,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/576   [[[[[[V_A, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,A,R,R,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,A,R,R,A,A}");
+        b_ops2.push_back(op + "{A,A,A,R,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/576   [[[[[[V_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,A,R,R,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,A,R,R,A,A}");
+        b_ops2.push_back(op + "{A,A,A,R,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/576   [[[[[[V_A, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,R,A,R,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,A,R,A,A}");
+        b_ops2.push_back(op + "{A,A,R,A,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/576   [[[[[[V_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,R,A,R,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,A,R,A,A}");
+        b_ops2.push_back(op + "{A,A,R,A,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/2880  [[[[[[V_A, sigma]_R, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{A,R,R,A,A,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,A,A,A,A}");
+        b_ops2.push_back(op + "{A,A,R,A,A,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 2880.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/2880  [[[[[[V_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{R,R,R,A,A,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,R,R,A,A,A,A}");
+        b_ops2.push_back(op + "{A,A,R,A,A,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 2880.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/30240 [[[[[[V_N, sigma]_A, sigma]_A, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,A,A,A,A,A}");
     }
 
     for (auto op: ops){
@@ -2722,20 +3307,252 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_6(double 
         b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
     }
 
-    int dim = (int)ops.size();
-
     for (int i = 0; i < dim; i++) {
         for (int j = 0; j < dim; j++) {
             for (int k = 0; k < dim; k++) {
                 for (int l = 0; l < dim; l++) {
                     for (int l = 0; l < dim; l++) {
-                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 32.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 30240.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
                         bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
         	    }
                 }
             }
         }
     }
+
+
+    //    -1/2880  [[[[[[V_N, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,A,A,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops2.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 2880.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/192   [[[[[[V_N, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,R,R,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,A,R,R,R,R,A}");
+        b_ops2.push_back(op + "{A,A,R,R,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 192.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/576   [[[[[[V_N, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,R,A,R,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,A,R,A,R,R,A}");
+        b_ops2.push_back(op + "{A,A,R,A,R,R,A}");
+        b_ops3.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/576   [[[[[[V_N, sigma]_A, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,R,R,A,R,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,A,R,R,A,R,A}");
+        b_ops2.push_back(op + "{A,A,R,R,A,R,A}");
+        b_ops3.push_back(op + "{A,A,A,R,A,R,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,R,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/8640  [[[[[[V_N, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,A,A,A,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops2.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 8640.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //    -1/576   [[[[[[V_N, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,R,R,R,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,A,R,R,R,A,A}");
+        b_ops2.push_back(op + "{A,A,R,R,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,R,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 576.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/1728  [[[[[[V_N, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,R,A,R,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,A,R,A,R,A,A}");
+        b_ops2.push_back(op + "{A,A,R,A,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 1728.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
+    //     1/8640  [[[[[[V_N, sigma]_A, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+
+    for (auto target: targets){
+        b_targets.push_back(target + "{N,A,R,A,A,A,A}");
+    }
+
+    for (auto op: ops){
+        b_ops1.push_back(op + "{A,A,R,A,A,A,A}");
+        b_ops2.push_back(op + "{A,A,R,A,A,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
+    }
+
+    for (int i = 0; i < dim; i++) {
+        for (int j = 0; j < dim; j++) {
+            for (int k = 0; k < dim; k++) {
+                for (int l = 0; l < dim; l++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 8640.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        	    }
+                }
+            }
+        }
+    }
+
+
 
     return bernoulli_terms;
 }
