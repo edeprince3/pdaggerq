@@ -2437,10 +2437,10 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_5(double 
     }
 
     for (auto op: ops){
-        b_ops1.push_back(op + "{A,R,R,R,R,A}");
-        b_ops2.push_back(op + "{A,A,R,R,R,A}");
-        b_ops3.push_back(op + "{A,A,A,R,R,A}");
-        b_ops4.push_back(op + "{A,A,A,A,R,A}");
+        b_ops1.push_back(op + "{A,R,R,R,A,A}");
+        b_ops2.push_back(op + "{A,A,R,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,A,A}");
         b_ops5.push_back(op + "{A,A,A,A,A,A}");
     }
 
@@ -3341,7 +3341,7 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_6(double 
             for (int k = 0; k < dim; k++) {
                 for (int l = 0; l < dim; l++) {
                     for (int l = 0; l < dim; l++) {
-                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(1.0 / 2880.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
+                        std::vector<pq_operator_terms> tmp = get_hextuple_commutator_terms(-1.0 / 2880.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[l]}, {b_ops6[l]});
                         bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
         	    }
                 }
@@ -3440,14 +3440,14 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_6(double 
     //     1/8640  [[[[[[V_N, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_A, sigma]_A
 
     for (auto target: targets){
-        b_targets.push_back(target + "{N,A,A,A,A,A,A}");
+        b_targets.push_back(target + "{N,A,A,A,R,A,A}");
     }
 
     for (auto op: ops){
-        b_ops1.push_back(op + "{A,A,A,A,A,A,A}");
-        b_ops2.push_back(op + "{A,A,A,A,A,A,A}");
-        b_ops3.push_back(op + "{A,A,A,A,A,A,A}");
-        b_ops4.push_back(op + "{A,A,A,A,A,A,A}");
+        b_ops1.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops2.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops3.push_back(op + "{A,A,A,A,R,A,A}");
+        b_ops4.push_back(op + "{A,A,A,A,R,A,A}");
         b_ops5.push_back(op + "{A,A,A,A,A,A,A}");
         b_ops6.push_back(op + "{A,A,A,A,A,A,A}");
     }
