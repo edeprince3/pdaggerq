@@ -343,7 +343,7 @@ class pq_helper {
 
     /**
      *
-     * generate list of fourth-order terms from the Bernoulli-number representation of the similarity-transformed operator
+     * generate list of fifth-order terms from the Bernoulli-number representation of the similarity-transformed operator
      *
      * @param targets: a list of strings defining the operator product to be transformed (here, f)
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
@@ -355,7 +355,7 @@ class pq_helper {
 
     /**
      *
-     * generate list of fourth-order terms from the Bernoulli-number representation of the similarity-transformed operator
+     * generate list of sixth-order terms from the Bernoulli-number representation of the similarity-transformed operator
      *
      * @param targets: a list of strings defining the operator product to be transformed (here, f)
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)

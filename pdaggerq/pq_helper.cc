@@ -1651,9 +1651,9 @@ void pq_helper::add_bernoulli_operator(double factor,
 
 std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, const int max_order) {
 
-    if ( max_order > 5 ) {
+    if ( max_order > 6 ) {
         printf("\n");
-        printf("    error: Bernoulli terms beyond 5th-order are not yet implemented.\n");
+        printf("    error: Bernoulli terms beyond 6th-order are not yet implemented.\n");
         printf("\n");
         exit(1);
     }
@@ -2062,15 +2062,15 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_4(double 
     }
 
 
-    // -1/48 [[[[V, sigma]_R, sigma]_R, sigma]_R, sigma]
+    // -1/48 [[[[V, sigma]_R, sigma]_A, sigma]_R, sigma]
 
     for (auto target: targets){
-        b_targets.push_back(target + "{A,R,R,R,A}");
+        b_targets.push_back(target + "{A,R,A,R,A}");
     }
 
     for (auto op: ops){
-        b_ops1.push_back(op + "{A,R,R,R,A}");
-        b_ops2.push_back(op + "{A,A,R,R,A}");
+        b_ops1.push_back(op + "{A,R,A,R,A}");
+        b_ops2.push_back(op + "{A,A,A,R,A}");
         b_ops3.push_back(op + "{A,A,A,R,A}");
         b_ops4.push_back(op + "{A,A,A,A,A}");
     }
