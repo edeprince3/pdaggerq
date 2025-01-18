@@ -1827,131 +1827,72 @@ std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms_3(double 
 
     std::vector<pq_operator_terms> bernoulli_terms;
 
-    // mutable copies of targets and ops
-    std::vector<std::string> b_targets;
-    std::vector<std::string> b_ops1;
-    std::vector<std::string> b_ops2;
-    std::vector<std::string> b_ops3;
+    std::vector<std::string> targets_partitions;
+    std::vector<std::string> b_ops1_partitions;
+    std::vector<std::string> b_ops2_partitions;
+    std::vector<std::string> b_ops3_partitions;
+    std::vector<double> bernoulli_factors;
 
     // 1/24 [[[V_N, sigma], sigma]_R, sigma]
-
-    for (auto target: targets){
-        b_targets.push_back(target + "{N,A,R,A}");
-    }
-
-    for (auto op: ops){
-        b_ops1.push_back(op + "{A,A,R,A}");
-        b_ops2.push_back(op + "{A,A,R,A}");
-        b_ops3.push_back(op + "{A,A,A,A}");
-    }
-
-    int dim = (int)ops.size();
-
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            for (int k = 0; k < dim; k++) {
-                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 24.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
-                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
-            }
-        }
-    }
+    targets_partitions.push_back("{N,A,R,A}");
+    b_ops1_partitions.push_back("{A,A,R,A}");
+    b_ops2_partitions.push_back("{A,A,R,A}");
+    b_ops3_partitions.push_back("{A,A,A,A}");
+    bernoulli_factors.push_back(1.0/24.0);
 
     // 1/8 [[[V_R, sigma]_R, sigma]_R, sigma]
-
-    b_targets.clear();
-    for (auto target: targets){
-        b_targets.push_back(target + "{R,R,R,A}");
-    }
-
-    b_ops1.clear();
-    b_ops2.clear();
-    b_ops3.clear();
-    for (auto op: ops){
-        b_ops1.push_back(op + "{A,R,R,A}");
-        b_ops2.push_back(op + "{A,A,R,A}");
-        b_ops3.push_back(op + "{A,A,A,A}");
-    }
-
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            for (int k = 0; k < dim; k++) {
-                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 8.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
-                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
-            }
-        }
-    }
+    targets_partitions.push_back("{R,R,R,A}");
+    b_ops1_partitions.push_back("{A,R,R,A}");
+    b_ops2_partitions.push_back("{A,A,R,A}");
+    b_ops3_partitions.push_back("{A,A,A,A}");
+    bernoulli_factors.push_back(1.0/8.0);
 
     // 1/8 [[[V, sigma]_R, sigma]_R, sigma]
-
-    b_targets.clear();
-    for (auto target: targets){
-        b_targets.push_back(target + "{A,R,R,A}");
-    }
-
-    b_ops1.clear();
-    b_ops2.clear();
-    b_ops3.clear();
-    for (auto op: ops){
-        b_ops1.push_back(op + "{A,R,R,A}");
-        b_ops2.push_back(op + "{A,A,R,A}");
-        b_ops3.push_back(op + "{A,A,A,A}");
-    }
-
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            for (int k = 0; k < dim; k++) {
-                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 8.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
-                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
-            }
-        }
-    }
+    targets_partitions.push_back("{A,R,R,A}");
+    b_ops1_partitions.push_back("{A,R,R,A}");
+    b_ops2_partitions.push_back("{A,A,R,A}");
+    b_ops3_partitions.push_back("{A,A,A,A}");
+    bernoulli_factors.push_back(1.0/8.0);
 
     // -1/24 [[[V, sigma]_R, sigma], sigma]
-
-    b_targets.clear();
-    for (auto target: targets){
-        b_targets.push_back(target + "{A,R,A,A}");
-    }
-
-    b_ops1.clear();
-    b_ops2.clear();
-    b_ops3.clear();
-    for (auto op: ops){
-        b_ops1.push_back(op + "{A,R,A,A}");
-        b_ops2.push_back(op + "{A,A,A,A}");
-        b_ops3.push_back(op + "{A,A,A,A}");
-    }
-
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            for (int k = 0; k < dim; k++) {
-                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(-1.0 / 24.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
-                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
-            }
-        }
-    }
+    targets_partitions.push_back("{A,R,A,A}");
+    b_ops1_partitions.push_back("{A,R,A,A}");
+    b_ops2_partitions.push_back("{A,A,A,A}");
+    b_ops3_partitions.push_back("{A,A,A,A}");
+    bernoulli_factors.push_back(-1.0/24.0);
 
     // -1/24 [[[V_R, sigma]_R, sigma], sigma]
+    targets_partitions.push_back("{R,R,A,A}");
+    b_ops1_partitions.push_back("{A,R,A,A}");
+    b_ops2_partitions.push_back("{A,A,A,A}");
+    b_ops3_partitions.push_back("{A,A,A,A}");
+    bernoulli_factors.push_back(-1.0/24.0);
 
-    b_targets.clear();
-    for (auto target: targets){
-        b_targets.push_back(target + "{R,R,A,A}");
-    }
+    int dim = (int)ops.size();
+    for (size_t p = 0; p < targets_partitions.size(); p++){
 
-    b_ops1.clear();
-    b_ops2.clear();
-    b_ops3.clear();
-    for (auto op: ops){
-        b_ops1.push_back(op + "{A,R,A,A}");
-        b_ops2.push_back(op + "{A,A,A,A}");
-        b_ops3.push_back(op + "{A,A,A,A}");
-    }
+        // mutable copies of targets and ops
+        std::vector<std::string> b_targets;
+        std::vector<std::string> b_ops1;
+        std::vector<std::string> b_ops2;
+        std::vector<std::string> b_ops3;
 
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            for (int k = 0; k < dim; k++) {
-                std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(-1.0 / 24.0 * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
-                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        for (auto target: targets){
+            b_targets.push_back(target + targets_partitions[p]);
+        }
+
+        for (auto op: ops){
+            b_ops1.push_back(op + b_ops1_partitions[p]);
+            b_ops2.push_back(op + b_ops2_partitions[p]);
+            b_ops3.push_back(op + b_ops3_partitions[p]);
+        }
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                for (int k = 0; k < dim; k++) {
+                    std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(bernoulli_factors[p] * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
+                    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+                }
             }
         }
     }
