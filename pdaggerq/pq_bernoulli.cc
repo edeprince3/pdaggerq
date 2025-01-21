@@ -316,4 +316,553 @@ std::string get_operator_base_name(std::string op) {
     return ret;
 }
 
+// generate lists of operator partitions, e.g., { {'N', 'A'}, {'A', 'A'} }
+std::vector<std::string> get_partitions_list(std::vector<std::string> in ) {
+    std::vector<std::string> partitions_list;
+    for (size_t i = 0; i < in.size(); i++) {
+        std::string partitions = "{";
+        for (size_t j = 0; j < i; j++) {
+            partitions += "A,";
+        }
+        for (size_t j = i; j < in.size(); j++) {
+            partitions += in[j];
+            if ( j < in.size() - 1 ) {
+                partitions += ",";
+            }
+        }
+        partitions += "}";
+        partitions_list.push_back(partitions);
+    }
+    return partitions_list;
+}
+
+// first-order bernoulli terms: 1/2 [v, sigma] + 1/2 [v_R, sigma]
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_1(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    std::vector<std::string> targets_partitions;
+    std::vector<std::string> b_ops_partitions;
+    std::vector<double> bernoulli_factors;
+
+    // 1/2 [v, sigma]
+    targets_partitions.push_back("{A,A}");
+    b_ops_partitions.push_back("{A,A}");
+    bernoulli_factors.push_back(0.5);
+
+    // 1/2 [v_R, sigma]
+    targets_partitions.push_back("{R,A}");
+    b_ops_partitions.push_back("{A,A}");
+    bernoulli_factors.push_back(0.5);
+
+    int dim = (int)ops.size();
+
+    pq_helper pq("");
+
+    for (size_t p = 0; p < targets_partitions.size(); p++){
+
+        // mutable copies of targets and ops
+        std::vector<std::string> b_targets;
+        std::vector<std::string> b_ops;
+
+        for (auto target: targets){
+            b_targets.push_back(target + targets_partitions[p]);
+        }
+
+        for (auto op: ops){
+            b_ops.push_back(op + b_ops_partitions[p]);
+        }
+
+        for (int i = 0; i < dim; i++) {
+            std::vector<pq_operator_terms> tmp = pq.get_commutator_terms(bernoulli_factors[p] * factor, b_targets, {b_ops[i]});
+            bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+        }
+    }
+
+    return bernoulli_terms;
+}
+
+// second-order bernoulli terms: 1/12 [[V_N, sigma], sigma] + 1/4 [[V, sigma]_R, sigma] + 1/4 [[V_R, sigma]_R, sigma]
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_2(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    std::vector<std::vector<std::string> > partitions_lists;
+    std::vector<double> bernoulli_factors;
+
+    // 1/12 [[V_N, sigma], sigma]
+    partitions_lists.push_back(get_partitions_list({"N", "A", "A"}));
+    bernoulli_factors.push_back(1.0/12.0);
+
+    // 1/4 [[V, sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A"}));
+    bernoulli_factors.push_back(1.0/4.0);
+
+    // 1/4 [[V_R, sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/4.0);
+
+    int dim = (int)ops.size();
+
+    pq_helper pq("");
+
+    for (size_t p = 0; p < partitions_lists.size(); p++){
+
+        // mutable copies of targets and ops
+        std::vector<std::string> b_targets;
+        std::vector<std::string> b_ops1;
+        std::vector<std::string> b_ops2;
+
+        for (auto target: targets){
+            b_targets.push_back(target + partitions_lists[p][0]);
+        }
+
+        for (auto op: ops){
+            b_ops1.push_back(op + partitions_lists[p][1]);
+            b_ops2.push_back(op + partitions_lists[p][2]);
+        }
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                std::vector<pq_operator_terms> tmp = pq.get_double_commutator_terms(bernoulli_factors[p] * factor, b_targets, {b_ops1[i]}, {b_ops2[j]});
+                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+            }
+        }
+    }
+
+    return bernoulli_terms;
+}
+
+// third-order bernoulli terms
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_3(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    std::vector<std::vector<std::string> > partitions_lists;
+    std::vector<double> bernoulli_factors;
+
+    // 1/24 [[[V_N, sigma], sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "A"}));
+    bernoulli_factors.push_back(1.0/24.0);
+
+    // 1/8 [[[V_R, sigma]_R, sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/8.0);
+
+    // 1/8 [[[V, sigma]_R, sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/8.0);
+
+    // -1/24 [[[V, sigma]_R, sigma], sigma]
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/24.0);
+
+    // -1/24 [[[V_R, sigma]_R, sigma], sigma]
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/24.0);
+
+    int dim = (int)ops.size();
+
+    pq_helper pq("");
+
+    for (size_t p = 0; p < partitions_lists.size(); p++){
+
+        // mutable copies of targets and ops
+        std::vector<std::string> b_targets;
+        std::vector<std::string> b_ops1;
+        std::vector<std::string> b_ops2;
+        std::vector<std::string> b_ops3;
+
+        for (auto target: targets){
+            b_targets.push_back(target + partitions_lists[p][0]);
+        }
+
+        for (auto op: ops){
+            b_ops1.push_back(op + partitions_lists[p][1]);
+            b_ops2.push_back(op + partitions_lists[p][2]);
+            b_ops3.push_back(op + partitions_lists[p][3]);
+        }
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                for (int k = 0; k < dim; k++) {
+                    std::vector<pq_operator_terms> tmp = pq.get_triple_commutator_terms(bernoulli_factors[p] * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]});
+                    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+                }
+            }
+        }
+    }
+
+    return bernoulli_terms;
+}
+
+// fourth-order bernoulli terms
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_4(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+    
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    std::vector<std::vector<std::string> > partitions_lists;
+    std::vector<double> bernoulli_factors;
+    
+    // 1/16 [[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/16.0);
+    
+    // 1/16 [[[[V, sigma]_R, sigma]_R, sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/16.0);
+    
+    // 1/48 [[[[V_N, sigma], sigma]_R, sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/48.0);
+    
+    // -1/48 [[[[V, sigma]_R, sigma], sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/48.0);
+    
+    // -1/48 [[[[V_R, sigma]_R, sigma], sigma]_R, sigma]
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/48.0);
+
+    // -1/144 [[[[V_N, sigma], sigma]_R, sigma], sigma]
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/144.0);
+        
+    // -1/48 [[[[V, sigma]_R, sigma]_R, sigma], sigma]
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/48.0);
+            
+    // -1/48 [[[[V_R, sigma]_R, sigma]_R, sigma], sigma]
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/48.0);
+            
+    // -1/720 [[[[V_N, sigma], sigma], sigma], sigma]
+    partitions_lists.push_back(get_partitions_list({"N", "A", "A", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/720.0);
+
+    int dim = (int)ops.size();
+
+    pq_helper pq("");
+
+    for (size_t p = 0; p < partitions_lists.size(); p++){
+                
+        // mutable copies of targets and ops
+        std::vector<std::string> b_targets;
+        std::vector<std::string> b_ops1;
+        std::vector<std::string> b_ops2;
+        std::vector<std::string> b_ops3;
+        std::vector<std::string> b_ops4;
+
+        for (auto target: targets){
+            b_targets.push_back(target + partitions_lists[p][0]);
+        }
+
+        for (auto op: ops){
+            b_ops1.push_back(op + partitions_lists[p][1]);
+            b_ops2.push_back(op + partitions_lists[p][2]);
+            b_ops3.push_back(op + partitions_lists[p][3]);
+            b_ops4.push_back(op + partitions_lists[p][4]);
+        }
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                for (int k = 0; k < dim; k++) {
+                    for (int l = 0; l < dim; l++) {
+                        std::vector<pq_operator_terms> tmp = pq.get_quadruple_commutator_terms(bernoulli_factors[p] * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]});
+                        bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+                    }
+                }
+            }
+        }
+    }
+
+    return bernoulli_terms;
+}
+
+// fifth-order bernoulli terms
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_5(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+    
+    std::vector<pq_operator_terms> bernoulli_terms;
+    
+    std::vector<std::vector<std::string> > partitions_lists;
+    std::vector<double> bernoulli_factors;
+    
+    //  1/32   [[[[[V_A, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/32.0);
+    
+    //  1/32   [[[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/32.0);
+
+    // -1/96   [[[[[V_A, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "R", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/96.0);
+
+    // -1/96   [[[[[V_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "R", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/96.0);
+
+    // -1/96   [[[[[V_A, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A 
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/96.0);
+
+    // -1/96   [[[[[V_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A 
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/96.0);
+
+    // -1/96   [[[[[V_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "R", "A", "A"})); 
+    bernoulli_factors.push_back(-1.0/96.0);
+        
+    // -1/96   [[[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/96.0);
+
+    //  1/288  [[[[[V_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "R", "A", "A"}));
+    bernoulli_factors.push_back(1.0/288.0);
+
+    //  1/288  [[[[[V_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "R", "A", "A"}));
+    bernoulli_factors.push_back(1.0/288.0);
+
+    //  1/1440 [[[[[V_A, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "A", "A", "A"}));
+    bernoulli_factors.push_back(1.0/1440.0);
+
+    //  1/1440 [[[[[V_R, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "A", "A", "A"}));
+    bernoulli_factors.push_back(1.0/1440.0);
+
+    // -1/1440 [[[[[V_N, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "A", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/1440.0);
+
+    //  1/96   [[[[[V_N, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/96.0);
+
+    // -1/288  [[[[[V_N, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/288.0);
+
+    // -1/288  [[[[[V_N, sigma]_A, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/288.0);
+
+    int dim = (int)ops.size();
+
+    pq_helper pq("");
+
+    for (size_t p = 0; p < partitions_lists.size(); p++){
+
+        // mutable copies of targets and ops
+        std::vector<std::string> b_targets;
+        std::vector<std::string> b_ops1;
+        std::vector<std::string> b_ops2;
+        std::vector<std::string> b_ops3;
+        std::vector<std::string> b_ops4;
+        std::vector<std::string> b_ops5;
+
+        for (auto target: targets){
+            b_targets.push_back(target + partitions_lists[p][0]);
+        }
+
+        for (auto op: ops){
+            b_ops1.push_back(op + partitions_lists[p][1]);
+            b_ops2.push_back(op + partitions_lists[p][2]);
+            b_ops3.push_back(op + partitions_lists[p][3]);
+            b_ops4.push_back(op + partitions_lists[p][4]);
+            b_ops5.push_back(op + partitions_lists[p][5]);
+        }
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                for (int k = 0; k < dim; k++) {
+                    for (int l = 0; l < dim; l++) {
+                        for (int m = 0; m < dim; m++) {
+                            std::vector<pq_operator_terms> tmp = pq.get_quintuple_commutator_terms(bernoulli_factors[p] * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[m]});
+                            bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return bernoulli_terms;
+}
+
+// sixth-order bernoulli terms
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_6(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops) {
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    std::vector<std::vector<std::string> > partitions_lists;
+    std::vector<double> bernoulli_factors;
+
+    //     1/64    [[[[[[V_A, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/64.0);
+
+    //     1/64    [[[[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/64.0);
+
+    //    -1/192   [[[[[[V_A, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/192.0);
+
+    //    -1/192   [[[[[[V_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/192.0);
+
+    //    -1/192   [[[[[[V_A, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "A", "R", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/192.0);
+
+    //    -1/192   [[[[[[V_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "A", "R", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/192.0);
+
+    //    -1/192   [[[[[[V_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/192.0);
+
+    //    -1/192   [[[[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/192.0);
+
+    //     1/576   [[[[[[V_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(1.0/576.0);
+
+    //     1/576   [[[[[[V_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(1.0/576.0);
+
+    //     1/2880  [[[[[[V_A, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "A", "A", "R", "A"}));
+    bernoulli_factors.push_back(1.0/2880.0);
+
+    //     1/2880  [[[[[[V_R, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "A", "A", "R", "A"}));
+    bernoulli_factors.push_back(1.0/2880.0);
+
+    //    -1/192   [[[[[[V_A, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/192.0);
+
+    //    -1/192   [[[[[[V_R, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/192.0);
+
+    //     1/576   [[[[[[V_A, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "A", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(1.0/576.0);
+
+    //     1/576   [[[[[[V_R, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "A", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(1.0/576.0);
+
+    //     1/576   [[[[[[V_A, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "A", "R", "A", "A"}));
+    bernoulli_factors.push_back(1.0/576.0);
+
+    //     1/576   [[[[[[V_R, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "A", "R", "A", "A"}));
+    bernoulli_factors.push_back(1.0/576.0);
+
+    //     1/2880  [[[[[[V_A, sigma]_R, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"A", "R", "R", "A", "A", "A", "A"}));
+    bernoulli_factors.push_back(1.0/2880.0);
+
+    //     1/2880  [[[[[[V_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"R", "R", "R", "A", "A", "A", "A"}));
+    bernoulli_factors.push_back(1.0/2880.0);
+
+    //     1/30240 [[[[[[V_N, sigma]_A, sigma]_A, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "A", "A", "A", "A", "A"}));
+    bernoulli_factors.push_back(1.0/30240.0);
+
+    //    -1/2880  [[[[[[V_N, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "A", "A", "R", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/2880.0);
+
+    //     1/192   [[[[[[V_N, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N" ,"A", "R", "R", "R", "R", "A"}));
+    bernoulli_factors.push_back(1.0/192.0);
+
+    //    -1/576   [[[[[[V_N, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "A", "R", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/576.0);
+
+    //    -1/576   [[[[[[V_N, sigma]_A, sigma]_R, sigma]_R, sigma]_A, sigma]_R, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "R", "A", "R", "A"}));
+    bernoulli_factors.push_back(-1.0/576.0);
+
+    //     1/8640  [[[[[[V_N, sigma]_A, sigma]_A, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "A", "A", "R", "A", "A"}));
+    bernoulli_factors.push_back(1.0/8640.0);
+
+    //    -1/576   [[[[[[V_N, sigma]_A, sigma]_R, sigma]_R, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "R", "R", "A", "A"}));
+    bernoulli_factors.push_back(-1.0/576.0);
+
+    //     1/1728  [[[[[[V_N, sigma]_A, sigma]_R, sigma]_A, sigma]_R, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "A", "R", "A", "A"}));
+    bernoulli_factors.push_back(1.0/1728.0);
+
+    //     1/8640  [[[[[[V_N, sigma]_A, sigma]_R, sigma]_A, sigma]_A, sigma]_A, sigma]_A
+    partitions_lists.push_back(get_partitions_list({"N", "A", "R", "A", "A", "A", "A"}));
+    bernoulli_factors.push_back(1.0/8640.0);
+
+    int dim = (int)ops.size();
+
+    pq_helper pq("");
+
+    for (size_t p = 0; p < partitions_lists.size(); p++){
+
+        // mutable copies of targets and ops
+        std::vector<std::string> b_targets;
+        std::vector<std::string> b_ops1;
+        std::vector<std::string> b_ops2;
+        std::vector<std::string> b_ops3;
+        std::vector<std::string> b_ops4;
+        std::vector<std::string> b_ops5;
+        std::vector<std::string> b_ops6;
+
+        for (auto target: targets){
+            b_targets.push_back(target + partitions_lists[p][0]);
+        }
+
+        for (auto op: ops){
+            b_ops1.push_back(op + partitions_lists[p][1]);
+            b_ops2.push_back(op + partitions_lists[p][2]);
+            b_ops3.push_back(op + partitions_lists[p][3]);
+            b_ops4.push_back(op + partitions_lists[p][4]);
+            b_ops5.push_back(op + partitions_lists[p][5]);
+            b_ops6.push_back(op + partitions_lists[p][6]);
+        }
+
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                for (int k = 0; k < dim; k++) {
+                    for (int l = 0; l < dim; l++) {
+                        for (int m = 0; m < dim; m++) {
+                            for (int n = 0; n < dim; n++) {
+                                std::vector<pq_operator_terms> tmp = pq.get_hextuple_commutator_terms(bernoulli_factors[p] * factor, b_targets, {b_ops1[i]}, {b_ops2[j]}, {b_ops3[k]}, {b_ops4[l]}, {b_ops5[m]}, {b_ops6[n]});
+                                bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return bernoulli_terms;
+}
+
 } // End namespaces
