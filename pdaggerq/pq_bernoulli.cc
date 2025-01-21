@@ -341,36 +341,33 @@ std::vector<pq_operator_terms> get_bernoulli_operator_terms_1(double factor, con
 
     std::vector<pq_operator_terms> bernoulli_terms;
 
-    std::vector<std::string> targets_partitions;
-    std::vector<std::string> b_ops_partitions;
+    std::vector<std::vector<std::string> > partitions_lists;
     std::vector<double> bernoulli_factors;
 
     // 1/2 [v, sigma]
-    targets_partitions.push_back("{A,A}");
-    b_ops_partitions.push_back("{A,A}");
+    partitions_lists.push_back(get_partitions_list({"A", "A"}));
     bernoulli_factors.push_back(0.5);
 
     // 1/2 [v_R, sigma]
-    targets_partitions.push_back("{R,A}");
-    b_ops_partitions.push_back("{A,A}");
+    partitions_lists.push_back(get_partitions_list({"R", "A"}));
     bernoulli_factors.push_back(0.5);
 
     int dim = (int)ops.size();
 
     pq_helper pq("");
 
-    for (size_t p = 0; p < targets_partitions.size(); p++){
+    for (size_t p = 0; p < partitions_lists.size(); p++){
 
         // mutable copies of targets and ops
         std::vector<std::string> b_targets;
         std::vector<std::string> b_ops;
 
         for (auto target: targets){
-            b_targets.push_back(target + targets_partitions[p]);
+            b_targets.push_back(target + partitions_lists[p][0]);
         }
 
         for (auto op: ops){
-            b_ops.push_back(op + b_ops_partitions[p]);
+            b_ops.push_back(op + partitions_lists[p][1]);
         }
 
         for (int i = 0; i < dim; i++) {
