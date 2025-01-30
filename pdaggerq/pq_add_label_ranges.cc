@@ -184,7 +184,10 @@ void add_label_ranges(const std::shared_ptr<pq_string>& in, std::vector<std::sha
     }
 
     // now expand paired permutations (3) where label ranges don't match TODO
-    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
+    for (size_t i = 0; i < tmp.size(); i++) {
+
+        std::shared_ptr<pq_string> & tmp_str = tmp[i];
+
         size_t n = tmp_str->paired_permutations_3.size() / 6;
 
         for (size_t j = 0; j < n; j++) {
@@ -217,7 +220,10 @@ void add_label_ranges(const std::shared_ptr<pq_string>& in, std::vector<std::sha
     }
 
     // now expand paired permutations (6) where label ranges don't match TODO
-    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
+    for (size_t i = 0; i < tmp.size(); i++) {
+
+        std::shared_ptr<pq_string> & tmp_str = tmp[i];
+
         size_t n = tmp_str->paired_permutations_6.size() / 6;
 
         for (size_t j = 0; j < n; j++) {
