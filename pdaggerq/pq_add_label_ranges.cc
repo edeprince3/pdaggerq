@@ -122,7 +122,9 @@ void add_label_ranges(const std::shared_ptr<pq_string>& in, std::vector<std::sha
     tmp.push_back(newguy);
 
     // but first expand single permutations where ranges don't match 
-    for (std::shared_ptr<pq_string> & tmp_str : tmp) {
+    for (size_t i = 0; i < tmp.size(); i++) {
+
+        std::shared_ptr<pq_string> & tmp_str = tmp[i];
 
         size_t n = tmp_str->permutations.size() / 2;
 
