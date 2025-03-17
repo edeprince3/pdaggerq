@@ -91,471 +91,396 @@ def ucc4_energy(t1, t2, f, g, o, v):
 
     #    < 0 | e(-T) H e(T) | 0> :
     
-    #	  1.0000 f(i,i)
-    energy =  1.000000000000000 * einsum('ii', f[o, o])
+    #	  1.00 f(i,i)
+    energy =  1.00 * einsum('ii', f[o, o])
     
-    #	 -0.5000 <j,i||j,i>
-    energy += -0.500000000000000 * einsum('jiji', g[o, o, o, o])
+    #	 -0.50 <j,i||j,i>
+    energy += -0.50 * einsum('jiji', g[o, o, o, o])
     
-    #	  1.0000 f(i,a)*t1(a,i)
-    energy +=  1.000000000000000 * einsum('ia,ai', f[o, v], t1)
+    #	  1.00 f(i,a)*t1(a,i)
+    energy +=  1.00 * einsum('ia,ai', f[o, v], t1)
     
-    #	  1.0000 f(a,i)*t1(a,i)
-    energy +=  1.000000000000000 * einsum('ai,ai', f[v, o], t1)
+    #	  1.00 f(a,i)*t1(a,i)
+    energy +=  1.00 * einsum('ai,ai', f[v, o], t1)
     
-    #	  0.2500 <j,i||a,b>*t2(a,b,j,i)
-    energy +=  0.250000000000000 * einsum('jiab,abji', g[o, o, v, v], t2)
+    #	  0.250 <j,i||a,b>*t2(a,b,j,i)
+    energy +=  0.250 * einsum('jiab,abji', g[o, o, v, v], t2)
     
-    #	  0.2500 <b,a||i,j>*t2(a,b,j,i)
-    energy +=  0.250000000000000 * einsum('baij,abji', g[v, v, o, o], t2)
+    #	  0.250 <b,a||i,j>*t2(a,b,j,i)
+    energy +=  0.250 * einsum('baij,abji', g[v, v, o, o], t2)
     
-    #	 -1.0000 f(j,i)*t1(a,i)*t1(a,j)
-    energy += -1.000000000000000 * einsum('ji,ai,aj', f[o, o], t1, t1, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -1.00 f(j,i)*t1(a,i)*t1(a,j)
+    energy += -1.00 * einsum('ji,ai,aj', f[o, o], t1, t1, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	  1.0000 f(a,b)*t1(a,i)*t1(b,i)
-    energy +=  1.000000000000000 * einsum('ab,ai,bi', f[v, v], t1, t1, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	  1.00 f(a,b)*t1(a,i)*t1(b,i)
+    energy +=  1.00 * einsum('ab,ai,bi', f[v, v], t1, t1, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.5000 f(a,i)*t1(b,j)*t2(b,a,i,j)
-    energy += -0.500000000000000 * einsum('ai,bj,baij', f[v, o], t1, t2, optimize=['einsum_path', (0, 2), (0, 1)])
+    #	 -0.50 f(a,i)*t2(b,a,i,j)*t1(b,j)
+    energy += -0.50 * einsum('ai,baij,bj', f[v, o], t2, t1, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.5000 f(i,a)*t1(b,j)*t2(a,b,j,i)
-    energy += -0.500000000000000 * einsum('ia,bj,abji', f[o, v], t1, t2, optimize=['einsum_path', (0, 2), (0, 1)])
+    #	 -0.50 f(i,a)*t2(a,b,j,i)*t1(b,j)
+    energy += -0.50 * einsum('ia,abji,bj', f[o, v], t2, t1, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.5000 f(j,i)*t2(b,a,i,k)*t2(a,b,k,j)
-    energy += -0.500000000000000 * einsum('ji,baik,abkj', f[o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
+    #	 -0.50 f(j,i)*t2(b,a,i,k)*t2(a,b,k,j)
+    energy += -0.50 * einsum('ji,baik,abkj', f[o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
     
-    #	  0.5000 f(a,b)*t2(c,a,i,j)*t2(b,c,j,i)
-    energy +=  0.500000000000000 * einsum('ab,caij,bcji', f[v, v], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
+    #	  0.50 f(a,b)*t2(c,a,i,j)*t2(b,c,j,i)
+    energy +=  0.50 * einsum('ab,caij,bcji', f[v, v], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
     
-    #	 -0.5000 <k,j||a,i>*t1(b,i)*t2(a,b,k,j)
-    energy += -0.500000000000000 * einsum('kjai,bi,abkj', g[o, o, v, o], t1, t2, optimize=['einsum_path', (0, 2), (0, 1)])
+    #	 -0.50 <k,j||a,i>*t2(a,b,k,j)*t1(b,i)
+    energy += -0.50 * einsum('kjai,abkj,bi', g[o, o, v, o], t2, t1, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.5000 <i,a||b,c>*t1(a,j)*t2(b,c,j,i)
-    energy += -0.500000000000000 * einsum('iabc,aj,bcji', g[o, v, v, v], t1, t2, optimize=['einsum_path', (0, 2), (0, 1)])
+    #	 -0.50 <i,a||b,c>*t1(a,j)*t2(b,c,j,i)
+    energy += -0.50 * einsum('iabc,aj,bcji', g[o, v, v, v], t1, t2, optimize=['einsum_path', (0, 2), (0, 1)])
     
-    #	  0.5000 <k,a||i,j>*t1(b,k)*t2(b,a,j,i)
-    energy +=  0.500000000000000 * einsum('kaij,bk,baji', g[o, v, o, o], t1, t2, optimize=['einsum_path', (0, 2), (0, 1)])
+    #	  0.50 <k,a||i,j>*t2(b,a,j,i)*t1(b,k)
+    energy +=  0.50 * einsum('kaij,baji,bk', g[o, v, o, o], t2, t1, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	  0.5000 <b,a||c,i>*t1(c,j)*t2(a,b,i,j)
-    energy +=  0.500000000000000 * einsum('baci,cj,abij', g[v, v, v, o], t1, t2, optimize=['einsum_path', (0, 2), (0, 1)])
+    #	  0.50 <b,a||c,i>*t2(a,b,i,j)*t1(c,j)
+    energy +=  0.50 * einsum('baci,abij,cj', g[v, v, v, o], t2, t1, optimize=['einsum_path', (0, 1), (0, 1)])
+    
+    #	  0.50 <k,i||j,i>*t2(b,a,j,l)*t2(a,b,l,k)
+    energy +=  0.50 * einsum('kiji,bajl,ablk', g[o, o, o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
+    
+    #	 -0.50 <j,l||i,l>*t2(b,a,i,k)*t2(a,b,k,j)
+    energy += -0.50 * einsum('jlil,baik,abkj', g[o, o, o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
     
     #	  0.1250 <l,k||i,j>*t2(b,a,j,i)*t2(a,b,l,k)
-    energy +=  0.125000000000000 * einsum('lkij,baji,ablk', g[o, o, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    energy +=  0.1250 * einsum('lkij,baji,ablk', g[o, o, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	  1.0000 <j,a||b,i>*t2(c,a,i,k)*t2(b,c,k,j)
-    energy +=  1.000000000000000 * einsum('jabi,caik,bckj', g[o, v, v, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	  1.00 <j,a||b,i>*t2(c,a,i,k)*t2(b,c,k,j)
+    energy +=  1.00 * einsum('jabi,caik,bckj', g[o, v, v, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     
     #	  0.1250 <b,a||c,d>*t2(a,b,i,j)*t2(c,d,j,i)
-    energy +=  0.125000000000000 * einsum('bacd,abij,cdji', g[v, v, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    energy +=  0.1250 * einsum('bacd,abij,cdji', g[v, v, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.1667 f(j,a)*t1(a,i)*t2(c,b,i,k)*t2(b,c,k,j)
-    energy += -0.166666666666670 * einsum('ja,ai,cbik,bckj', f[o, v], t1, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	 -0.16666666666667 f(j,a)*t1(a,i)*t2(c,b,i,k)*t2(b,c,k,j)
+    energy += -0.16666666666667 * einsum('ja,ai,cbik,bckj', f[o, v], t1, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	 -0.1667 f(i,b)*t1(a,i)*t2(c,a,j,k)*t2(b,c,k,j)
-    energy += -0.166666666666670 * einsum('ib,ai,cajk,bckj', f[o, v], t1, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	 -0.16666666666667 f(i,b)*t2(c,a,j,k)*t1(a,i)*t2(b,c,k,j)
+    energy += -0.16666666666667 * einsum('ib,cajk,ai,bckj', f[o, v], t2, t1, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
     
-    #	 -0.3333 f(a,i)*t1(a,j)*t2(c,b,i,k)*t2(b,c,k,j)
-    energy += -0.333333333333330 * einsum('ai,aj,cbik,bckj', f[v, o], t1, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	 -0.3333333333333 f(a,i)*t1(a,j)*t2(c,b,i,k)*t2(b,c,k,j)
+    energy += -0.3333333333333 * einsum('ai,aj,cbik,bckj', f[v, o], t1, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	 -0.3333 f(a,i)*t1(b,i)*t2(c,a,j,k)*t2(b,c,k,j)
-    energy += -0.333333333333330 * einsum('ai,bi,cajk,bckj', f[v, o], t1, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	 -0.3333333333333 f(a,i)*t2(c,a,j,k)*t2(b,c,k,j)*t1(b,i)
+    energy += -0.3333333333333 * einsum('ai,cajk,bckj,bi', f[v, o], t2, t2, t1, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     
-    #	 -0.1667 f(j,b)*t1(a,i)*t2(c,a,i,k)*t2(b,c,k,j)
-    energy += -0.166666666666670 * einsum('jb,ai,caik,bckj', f[o, v], t1, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
+    #	 -0.16666666666667 f(j,b)*t2(c,a,i,k)*t1(a,i)*t2(b,c,k,j)
+    energy += -0.16666666666667 * einsum('jb,caik,ai,bckj', f[o, v], t2, t1, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     
-    #	  0.3333 f(i,a)*t1(c,k)*t2(c,b,j,k)*t2(a,b,j,i)
-    energy +=  0.333333333333330 * einsum('ia,ck,cbjk,abji', f[o, v], t1, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
+    #	  0.3333333333333 f(i,a)*t2(a,b,j,i)*t2(c,b,j,k)*t1(c,k)
+    energy +=  0.3333333333333 * einsum('ia,abji,cbjk,ck', f[o, v], t2, t2, t1, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	  0.1667 f(k,a)*t1(c,k)*t2(c,b,i,j)*t2(a,b,j,i)
-    energy +=  0.166666666666670 * einsum('ka,ck,cbij,abji', f[o, v], t1, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	  0.16666666666667 f(k,a)*t2(a,b,j,i)*t2(c,b,i,j)*t1(c,k)
+    energy +=  0.16666666666667 * einsum('ka,abji,cbij,ck', f[o, v], t2, t2, t1, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     
-    #	  0.1667 f(i,c)*t1(c,k)*t2(b,a,j,k)*t2(a,b,j,i)
-    energy +=  0.166666666666670 * einsum('ic,ck,bajk,abji', f[o, v], t1, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	  0.16666666666667 f(i,c)*t2(a,b,j,i)*t2(b,a,j,k)*t1(c,k)
+    energy +=  0.16666666666667 * einsum('ic,abji,bajk,ck', f[o, v], t2, t2, t1, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     
-    #	  0.1667 f(a,i)*t1(c,k)*t2(b,a,i,j)*t2(b,c,k,j)
-    energy +=  0.166666666666670 * einsum('ai,ck,baij,bckj', f[v, o], t1, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.16666666666667 f(a,i)*t2(b,a,i,j)*t2(b,c,k,j)*t1(c,k)
+    energy +=  0.16666666666667 * einsum('ai,baij,bckj,ck', f[v, o], t2, t2, t1, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	 -0.0833 <k,i||a,b>*t2(d,c,j,l)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy += -0.083333333333330 * einsum('kiab,dcjl,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	 -0.083333333333333 <k,i||a,b>*t2(a,b,j,i)*t2(d,c,j,l)*t2(c,d,l,k)
+    energy += -0.083333333333333 * einsum('kiab,abji,dcjl,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	  0.0208 <l,k||a,b>*t2(d,c,i,j)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy +=  0.020833333333330 * einsum('lkab,dcij,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.02083333333333333 <l,k||a,b>*t2(a,b,j,i)*t2(d,c,i,j)*t2(c,d,l,k)
+    energy +=  0.02083333333333333 * einsum('lkab,abji,dcij,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	 -0.0833 <j,i||a,c>*t2(d,b,k,l)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy += -0.083333333333330 * einsum('jiac,dbkl,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	 -0.083333333333333 <j,i||a,c>*t2(a,b,j,i)*t2(d,b,k,l)*t2(c,d,l,k)
+    energy += -0.083333333333333 * einsum('jiac,abji,dbkl,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	  0.3333 <k,i||a,c>*t2(d,b,j,l)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy +=  0.333333333333330 * einsum('kiac,dbjl,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.3333333333333 <k,i||a,c>*t2(a,b,j,i)*t2(d,b,j,l)*t2(c,d,l,k)
+    energy +=  0.3333333333333 * einsum('kiac,abji,dbjl,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	 -0.0833 <l,k||a,c>*t2(d,b,i,j)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy += -0.083333333333330 * einsum('lkac,dbij,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
+    #	 -0.083333333333333 <l,k||a,c>*t2(a,b,j,i)*t2(d,b,i,j)*t2(c,d,l,k)
+    energy += -0.083333333333333 * einsum('lkac,abji,dbij,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     
-    #	  0.0208 <j,i||c,d>*t2(b,a,k,l)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy +=  0.020833333333330 * einsum('jicd,bakl,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.02083333333333333 <j,i||c,d>*t2(a,b,j,i)*t2(b,a,k,l)*t2(c,d,l,k)
+    energy +=  0.02083333333333333 * einsum('jicd,abji,bakl,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	 -0.0833 <k,i||c,d>*t2(b,a,j,l)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy += -0.083333333333330 * einsum('kicd,bajl,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
+    #	 -0.083333333333333 <k,i||c,d>*t2(a,b,j,i)*t2(b,a,j,l)*t2(c,d,l,k)
+    energy += -0.083333333333333 * einsum('kicd,abji,bajl,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     
-    #	 -0.1667 <b,a||i,j>*t2(d,c,i,l)*t2(a,b,j,k)*t2(c,d,l,k)
-    energy += -0.166666666666670 * einsum('baij,dcil,abjk,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	 -0.16666666666667 <b,a||i,j>*t2(a,b,j,k)*t2(d,c,i,l)*t2(c,d,l,k)
+    energy += -0.16666666666667 * einsum('baij,abjk,dcil,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	  0.0417 <b,a||i,j>*t2(d,c,j,i)*t2(a,b,k,l)*t2(c,d,l,k)
-    energy +=  0.041666666666670 * einsum('baij,dcji,abkl,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	  0.0416666666666667 <b,a||i,j>*t2(a,b,k,l)*t2(d,c,j,i)*t2(c,d,l,k)
+    energy +=  0.0416666666666667 * einsum('baij,abkl,dcji,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	 -0.1667 <b,a||i,j>*t2(d,a,k,l)*t2(c,b,j,i)*t2(c,d,l,k)
-    energy += -0.166666666666670 * einsum('baij,dakl,cbji,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	 -0.16666666666667 <b,a||i,j>*t2(d,a,k,l)*t2(c,b,j,i)*t2(c,d,l,k)
+    energy += -0.16666666666667 * einsum('baij,dakl,cbji,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
     
-    #	  0.3333 <b,a||i,j>*t2(d,a,i,l)*t2(c,b,j,k)*t2(c,d,l,k)
-    energy +=  0.333333333333330 * einsum('baij,dail,cbjk,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	  0.3333333333333 <b,a||i,j>*t2(d,a,i,l)*t2(c,b,j,k)*t2(c,d,l,k)
+    energy +=  0.3333333333333 * einsum('baij,dail,cbjk,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	  0.0104 <j,i||a,b>*t2(d,c,k,l)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy +=  0.010416666666670 * einsum('jiab,dckl,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.010416666666666666 <j,i||a,b>*t2(a,b,j,i)*t2(d,c,k,l)*t2(c,d,l,k)
+    energy +=  0.010416666666666666 * einsum('jiab,abji,dckl,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	  0.0104 <b,a||i,j>*t2(a,b,j,i)*t2(d,c,k,l)*t2(c,d,l,k)
-    energy +=  0.010416666666670 * einsum('baij,abji,dckl,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
+    #	  0.010416666666666666 <b,a||i,j>*t2(a,b,j,i)*t2(d,c,k,l)*t2(c,d,l,k)
+    energy +=  0.010416666666666666 * einsum('baij,abji,dckl,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     
-    #	 -0.0104 <l,k||c,d>*t2(b,a,i,j)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy += -0.010416666666670 * einsum('lkcd,baij,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
+    #	 -0.010416666666666666 <l,k||c,d>*t2(b,a,i,j)*t2(a,b,j,i)*t2(c,d,l,k)
+    energy += -0.010416666666666666 * einsum('lkcd,baij,abji,cdlk', g[o, o, v, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     
-    #	 -0.0104 <d,c||k,l>*t2(b,a,i,j)*t2(a,b,j,i)*t2(c,d,l,k)
-    energy += -0.010416666666670 * einsum('dckl,baij,abji,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
+    #	 -0.010416666666666666 <d,c||k,l>*t2(b,a,i,j)*t2(a,b,j,i)*t2(c,d,l,k)
+    energy += -0.010416666666666666 * einsum('dckl,baij,abji,cdlk', g[v, v, o, o], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     
-    #	 -0.0833 f(j,i)*t2(d,c,i,m)*t2(b,a,k,l)*t2(a,b,k,j)*t2(c,d,m,l)
-    energy += -0.083333333333330 * einsum('ji,dcim,bakl,abkj,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (0, 3), (0, 1), (0, 1)])
+    #	 -0.083333333333333 f(j,i)*t2(a,b,k,j)*t2(b,a,k,l)*t2(d,c,i,m)*t2(c,d,m,l)
+    energy += -0.083333333333333 * einsum('ji,abkj,bakl,dcim,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 3), (0, 1), (0, 1)])
     
-    #	 -0.0417 f(j,i)*t2(d,c,i,k)*t2(b,a,l,m)*t2(a,b,k,j)*t2(c,d,m,l)
-    energy += -0.041666666666670 * einsum('ji,dcik,balm,abkj,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (1, 2), (1, 2), (0, 1)])
+    #	 -0.0416666666666667 f(j,i)*t2(a,b,k,j)*t2(b,a,l,m)*t2(d,c,i,k)*t2(c,d,m,l)
+    energy += -0.0416666666666667 * einsum('ji,abkj,balm,dcik,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (1, 2), (1, 2), (0, 1)])
     
-    #	  0.3333 f(j,i)*t2(d,b,i,m)*t2(c,a,k,l)*t2(a,b,k,j)*t2(c,d,m,l)
-    energy +=  0.333333333333330 * einsum('ji,dbim,cakl,abkj,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (1, 2), (1, 2), (0, 1)])
+    #	  0.3333333333333 f(j,i)*t2(a,b,k,j)*t2(c,a,k,l)*t2(d,b,i,m)*t2(c,d,m,l)
+    energy +=  0.3333333333333 * einsum('ji,abkj,cakl,dbim,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (1, 2), (1, 2), (0, 1)])
     
-    #	  0.1667 f(j,i)*t2(d,b,i,k)*t2(c,a,l,m)*t2(a,b,k,j)*t2(c,d,m,l)
-    energy +=  0.166666666666670 * einsum('ji,dbik,calm,abkj,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1), (0, 1)])
+    #	  0.16666666666667 f(j,i)*t2(a,b,k,j)*t2(c,a,l,m)*t2(d,b,i,k)*t2(c,d,m,l)
+    energy +=  0.16666666666667 * einsum('ji,abkj,calm,dbik,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1), (0, 1)])
     
-    #	 -0.0833 f(j,i)*t2(b,a,i,m)*t2(d,c,k,l)*t2(a,b,k,j)*t2(c,d,m,l)
-    energy += -0.083333333333330 * einsum('ji,baim,dckl,abkj,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1), (0, 1)])
+    #	 -0.083333333333333 f(j,i)*t2(b,a,i,m)*t2(a,b,k,j)*t2(d,c,k,l)*t2(c,d,m,l)
+    energy += -0.083333333333333 * einsum('ji,baim,abkj,dckl,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 3), (0, 1), (0, 1)])
     
-    #	  0.0833 f(a,b)*t2(e,a,k,l)*t2(d,c,i,j)*t2(b,c,j,i)*t2(d,e,l,k)
-    energy +=  0.083333333333330 * einsum('ab,eakl,dcij,bcji,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (0, 3), (0, 1), (0, 1)])
+    #	  0.083333333333333 f(a,b)*t2(e,a,k,l)*t2(b,c,j,i)*t2(d,c,i,j)*t2(d,e,l,k)
+    energy +=  0.083333333333333 * einsum('ab,eakl,bcji,dcij,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (0, 3), (0, 1), (0, 1)])
     
-    #	 -0.3333 f(a,b)*t2(e,a,j,l)*t2(d,c,i,k)*t2(b,c,j,i)*t2(d,e,l,k)
-    energy += -0.333333333333330 * einsum('ab,eajl,dcik,bcji,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (1, 2), (1, 2), (0, 1)])
+    #	 -0.3333333333333 f(a,b)*t2(e,a,j,l)*t2(b,c,j,i)*t2(d,c,i,k)*t2(d,e,l,k)
+    energy += -0.3333333333333 * einsum('ab,eajl,bcji,dcik,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (1, 2), (1, 2), (0, 1)])
     
-    #	  0.0833 f(a,b)*t2(e,a,i,j)*t2(d,c,k,l)*t2(b,c,j,i)*t2(d,e,l,k)
-    energy +=  0.083333333333330 * einsum('ab,eaij,dckl,bcji,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1), (0, 1)])
+    #	  0.083333333333333 f(a,b)*t2(e,a,i,j)*t2(b,c,j,i)*t2(d,c,k,l)*t2(d,e,l,k)
+    energy +=  0.083333333333333 * einsum('ab,eaij,bcji,dckl,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 3), (0, 1), (0, 1)])
     
-    #	  0.0417 f(a,b)*t2(c,a,k,l)*t2(e,d,i,j)*t2(b,c,j,i)*t2(d,e,l,k)
-    energy +=  0.041666666666670 * einsum('ab,cakl,edij,bcji,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (1, 2), (1, 2), (0, 1)])
+    #	  0.0416666666666667 f(a,b)*t2(c,a,k,l)*t2(b,c,j,i)*t2(e,d,i,j)*t2(d,e,l,k)
+    energy +=  0.0416666666666667 * einsum('ab,cakl,bcji,edij,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (1, 2), (1, 2), (0, 1)])
     
-    #	 -0.1667 f(a,b)*t2(c,a,j,l)*t2(e,d,i,k)*t2(b,c,j,i)*t2(d,e,l,k)
-    energy += -0.166666666666670 * einsum('ab,cajl,edik,bcji,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1), (0, 1)])
+    #	 -0.16666666666667 f(a,b)*t2(c,a,j,l)*t2(b,c,j,i)*t2(e,d,i,k)*t2(d,e,l,k)
+    energy += -0.16666666666667 * einsum('ab,cajl,bcji,edik,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 3), (0, 1), (0, 1)])
     
-    #	  0.0208 f(l,k)*t2(b,a,i,j)*t2(a,b,j,i)*t2(d,c,k,m)*t2(c,d,m,l)
-    energy +=  0.020833333333330 * einsum('lk,baij,abji,dckm,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (1, 2), (0, 2), (0, 1)])
+    #	  0.02083333333333333 f(l,k)*t2(b,a,i,j)*t2(a,b,j,i)*t2(d,c,k,m)*t2(c,d,m,l)
+    energy +=  0.02083333333333333 * einsum('lk,baij,abji,dckm,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (1, 2), (0, 2), (0, 1)])
     
-    #	 -0.0208 f(c,d)*t2(b,a,i,j)*t2(a,b,j,i)*t2(e,c,k,l)*t2(d,e,l,k)
-    energy += -0.020833333333330 * einsum('cd,baij,abji,eckl,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (1, 2), (0, 2), (0, 1)])
+    #	 -0.02083333333333333 f(c,d)*t2(b,a,i,j)*t2(a,b,j,i)*t2(e,c,k,l)*t2(d,e,l,k)
+    energy += -0.02083333333333333 * einsum('cd,baij,abji,eckl,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (1, 2), (0, 2), (0, 1)])
     
-    #	 -0.0208 f(j,i)*t2(d,c,l,m)*t2(b,a,i,k)*t2(a,b,k,j)*t2(c,d,m,l)
-    energy += -0.020833333333330 * einsum('ji,dclm,baik,abkj,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (1, 2), (0, 2), (0, 1)])
+    #	 -0.02083333333333333 f(j,i)*t2(b,a,i,k)*t2(a,b,k,j)*t2(d,c,l,m)*t2(c,d,m,l)
+    energy += -0.02083333333333333 * einsum('ji,baik,abkj,dclm,cdml', f[o, o], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 3), (0, 1), (0, 1)])
     
-    #	  0.0208 f(a,b)*t2(e,d,k,l)*t2(c,a,i,j)*t2(b,c,j,i)*t2(d,e,l,k)
-    energy +=  0.020833333333330 * einsum('ab,edkl,caij,bcji,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 4), (1, 2), (0, 2), (0, 1)])
+    #	  0.02083333333333333 f(a,b)*t2(c,a,i,j)*t2(b,c,j,i)*t2(e,d,k,l)*t2(d,e,l,k)
+    energy +=  0.02083333333333333 * einsum('ab,caij,bcji,edkl,delk', f[v, v], t2, t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 3), (0, 1), (0, 1)])
     
     return energy
-    
-    
+
+
 def ucc4_singles_residual(t1, t2, f, g, o, v):
-    
+
     #    < 0 | m* e e(-T) H e(T) | 0> :
     
-    #	  1.0000 f(e,m)
-    singles_res =  1.000000000000000 * einsum('em->em', f[v, o])
+    #	  1.00 f(e,m)
+    singles_res =  1.00 * einsum('em->em', f[v, o])
     
-    #	 -1.0000 f(i,m)*t1(e,i)
-    singles_res += -1.000000000000000 * einsum('im,ei->em', f[o, o], t1)
+    #	 -1.00 f(i,m)*t1(e,i)
+    singles_res += -1.00 * einsum('im,ei->em', f[o, o], t1)
     
-    #	  1.0000 f(e,a)*t1(a,m)
-    singles_res +=  1.000000000000000 * einsum('ea,am->em', f[v, v], t1)
+    #	  1.00 f(e,a)*t1(a,m)
+    singles_res +=  1.00 * einsum('ea,am->em', f[v, v], t1)
     
-    #	 -1.0000 f(i,a)*t2(a,e,m,i)
-    singles_res += -1.000000000000000 * einsum('ia,aemi->em', f[o, v], t2)
+    #	 -1.00 f(i,a)*t2(a,e,m,i)
+    singles_res += -1.00 * einsum('ia,aemi->em', f[o, v], t2)
     
-    #	  1.0000 <i,e||a,m>*t1(a,i)
-    singles_res +=  1.000000000000000 * einsum('ieam,ai->em', g[o, v, v, o], t1)
+    #	 -0.50 <j,i||a,m>*t2(a,e,j,i)
+    singles_res += -0.50 * einsum('jiam,aeji->em', g[o, o, v, o], t2)
     
-    #	 -1.0000 <a,e||m,i>*t1(a,i)
-    singles_res += -1.000000000000000 * einsum('aemi,ai->em', g[v, v, o, o], t1)
+    #	 -0.50 <i,e||a,b>*t2(a,b,m,i)
+    singles_res += -0.50 * einsum('ieab,abmi->em', g[o, v, v, v], t2)
     
-    #	 -0.5000 <j,i||a,m>*t2(a,e,j,i)
-    singles_res += -0.500000000000000 * einsum('jiam,aeji->em', g[o, o, v, o], t2)
+    #	  0.50 f(a,i)*t2(b,a,i,j)*t2(b,e,m,j)
+    singles_res +=  0.50 * einsum('ai,baij,bemj->em', f[v, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.5000 <i,e||a,b>*t2(a,b,m,i)
-    singles_res += -0.500000000000000 * einsum('ieab,abmi->em', g[o, v, v, v], t2)
+    #	  0.250 f(a,m)*t2(b,a,i,j)*t2(b,e,j,i)
+    singles_res +=  0.250 * einsum('am,baij,beji->em', f[v, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
     
-    #	  1.0000 f(j,i)*t1(a,i)*t2(a,e,m,j)
-    singles_res +=  1.000000000000000 * einsum('ji,ai,aemj->em', f[o, o], t1, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	 -1.0000 f(a,b)*t1(a,i)*t2(b,e,m,i)
-    singles_res += -1.000000000000000 * einsum('ab,ai,bemi->em', f[v, v], t1, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	 -0.5000 f(i,m)*t1(a,j)*t2(a,e,j,i)
-    singles_res += -0.500000000000000 * einsum('im,aj,aeji->em', f[o, o], t1, t2, optimize=['einsum_path', (1, 2), (0, 1)])
-    
-    #	  0.5000 f(e,a)*t1(b,i)*t2(a,b,m,i)
-    singles_res +=  0.500000000000000 * einsum('ea,bi,abmi->em', f[v, v], t1, t2, optimize=['einsum_path', (1, 2), (0, 1)])
-    
-    #	  0.5000 f(a,i)*t2(b,a,i,j)*t2(b,e,m,j)
-    singles_res +=  0.500000000000000 * einsum('ai,baij,bemj->em', f[v, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	  0.2500 f(a,m)*t2(b,a,i,j)*t2(b,e,j,i)
-    singles_res +=  0.250000000000000 * einsum('am,baij,beji->em', f[v, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
-    
-    #	  0.2500 f(e,i)*t2(b,a,i,j)*t2(a,b,m,j)
-    singles_res +=  0.250000000000000 * einsum('ei,baij,abmj->em', f[v, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
-    
-    #	 -0.5000 <k,a||i,j>*t2(b,a,j,i)*t2(b,e,m,k)
-    singles_res += -0.500000000000000 * einsum('kaij,baji,bemk->em', g[o, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	  1.0000 <j,a||m,i>*t2(b,a,i,k)*t2(b,e,k,j)
-    singles_res +=  1.000000000000000 * einsum('jami,baik,bekj->em', g[o, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	 -0.2500 <k,e||i,j>*t2(b,a,j,i)*t2(a,b,m,k)
-    singles_res += -0.250000000000000 * einsum('keij,baji,abmk->em', g[o, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	  0.5000 <j,e||m,i>*t2(b,a,i,k)*t2(a,b,k,j)
-    singles_res +=  0.500000000000000 * einsum('jemi,baik,abkj->em', g[o, v, o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
-    
-    #	 -0.5000 <b,a||c,i>*t2(a,b,i,j)*t2(c,e,m,j)
-    singles_res += -0.500000000000000 * einsum('baci,abij,cemj->em', g[v, v, v, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	 -0.2500 <b,a||c,m>*t2(a,b,i,j)*t2(c,e,j,i)
-    singles_res += -0.250000000000000 * einsum('bacm,abij,ceji->em', g[v, v, v, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	  1.0000 <a,e||b,i>*t2(c,a,i,j)*t2(b,c,m,j)
-    singles_res +=  1.000000000000000 * einsum('aebi,caij,bcmj->em', g[v, v, v, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
-    
-    #	  0.5000 <a,e||b,m>*t2(c,a,i,j)*t2(b,c,j,i)
-    singles_res +=  0.500000000000000 * einsum('aebm,caij,bcji->em', g[v, v, v, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
-    
-    #	 -0.3333 f(i,a)*t2(c,b,j,k)*t2(a,b,j,i)*t2(c,e,m,k)
-    singles_res += -0.333333333333330 * einsum('ia,cbjk,abji,cemk->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 2), (0, 1)])
-    
-    #	 -0.1667 f(i,a)*t2(c,b,j,k)*t2(a,b,m,i)*t2(c,e,k,j)
-    singles_res += -0.166666666666670 * einsum('ia,cbjk,abmi,cekj->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
-    
-    #	 -0.1667 f(k,a)*t2(c,b,i,j)*t2(a,b,j,i)*t2(c,e,m,k)
-    singles_res += -0.166666666666670 * einsum('ka,cbij,abji,cemk->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 2), (0, 1)])
-    
-    #	  0.3333 f(j,a)*t2(c,b,i,k)*t2(a,b,m,i)*t2(c,e,k,j)
-    singles_res +=  0.333333333333330 * einsum('ja,cbik,abmi,cekj->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
-    
-    #	 -0.1667 f(i,a)*t2(c,b,j,k)*t2(a,e,j,i)*t2(b,c,m,k)
-    singles_res += -0.166666666666670 * einsum('ia,cbjk,aeji,bcmk->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
-    
-    #	 -0.1667 f(k,a)*t2(c,b,i,j)*t2(a,e,j,i)*t2(b,c,m,k)
-    singles_res += -0.166666666666670 * einsum('ka,cbij,aeji,bcmk->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
-    
-    #	  0.1667 f(j,a)*t2(c,b,i,k)*t2(a,e,m,i)*t2(b,c,k,j)
-    singles_res +=  0.166666666666670 * einsum('ja,cbik,aemi,bckj->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (1, 3), (0, 2), (0, 1)])
-    
-    #	 -0.1667 f(i,c)*t2(b,a,j,k)*t2(a,b,j,i)*t2(c,e,m,k)
-    singles_res += -0.166666666666670 * einsum('ic,bajk,abji,cemk->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 2), (0, 1)])
-    
-    #	  0.3333 f(i,b)*t2(c,a,j,k)*t2(a,e,j,i)*t2(b,c,m,k)
-    singles_res +=  0.333333333333330 * einsum('ib,cajk,aeji,bcmk->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
-    
-    #	  0.1667 f(i,b)*t2(c,a,j,k)*t2(a,e,m,i)*t2(b,c,k,j)
-    singles_res +=  0.166666666666670 * einsum('ib,cajk,aemi,bckj->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (1, 3), (0, 2), (0, 1)])
-    
-    #	 -0.0833 f(j,c)*t2(b,a,i,k)*t2(a,b,m,i)*t2(c,e,k,j)
-    singles_res += -0.083333333333330 * einsum('jc,baik,abmi,cekj->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
-    
-    #	 -0.0833 f(k,b)*t2(c,a,i,j)*t2(a,e,j,i)*t2(b,c,m,k)
-    singles_res += -0.083333333333330 * einsum('kb,caij,aeji,bcmk->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
-    
-    #	  0.1667 f(j,b)*t2(c,a,i,k)*t2(a,e,m,i)*t2(b,c,k,j)
-    singles_res +=  0.166666666666670 * einsum('jb,caik,aemi,bckj->em', f[o, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 2), (0, 1)])
+    #	  0.250 f(e,i)*t2(b,a,i,j)*t2(a,b,m,j)
+    singles_res +=  0.250 * einsum('ei,baij,abmj->em', f[v, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
     
     return singles_res
     
     
 def ucc4_doubles_residual(t1, t2, f, g, o, v):
-    
+
     #    < 0 | m* n* f e e(-T) H e(T) | 0> :
     
-    #	  1.0000 <e,f||m,n>
-    doubles_res =  1.000000000000000 * einsum('efmn->efmn', g[v, v, o, o])
+    #	  1.00 <e,f||m,n>
+    doubles_res =  1.00 * einsum('efmn->efmn', g[v, v, o, o])
     
-    #	 -1.0000 P(m,n)f(i,n)*t2(e,f,m,i)
-    contracted_intermediate = -1.000000000000000 * einsum('in,efmi->efmn', f[o, o], t2)
+    #	 -1.00 P(m,n)f(i,n)*t2(e,f,m,i)
+    contracted_intermediate = -1.00 * einsum('in,efmi->efmn', f[o, o], t2)
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	  1.0000 P(e,f)f(e,a)*t2(a,f,m,n)
-    contracted_intermediate =  1.000000000000000 * einsum('ea,afmn->efmn', f[v, v], t2)
+    #	  1.00 P(e,f)f(e,a)*t2(a,f,m,n)
+    contracted_intermediate =  1.00 * einsum('ea,afmn->efmn', f[v, v], t2)
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	  1.0000 P(e,f)<i,e||m,n>*t1(f,i)
-    contracted_intermediate =  1.000000000000000 * einsum('iemn,fi->efmn', g[o, v, o, o], t1)
+    #	  1.00 P(e,f)<i,e||m,n>*t1(f,i)
+    contracted_intermediate =  1.00 * einsum('iemn,fi->efmn', g[o, v, o, o], t1)
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	  1.0000 P(m,n)<e,f||a,n>*t1(a,m)
-    contracted_intermediate =  1.000000000000000 * einsum('efan,am->efmn', g[v, v, v, o], t1)
+    #	  1.00 P(m,n)<e,f||a,n>*t1(a,m)
+    contracted_intermediate =  1.00 * einsum('efan,am->efmn', g[v, v, v, o], t1)
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	  0.5000 <j,i||m,n>*t2(e,f,j,i)
-    doubles_res +=  0.500000000000000 * einsum('jimn,efji->efmn', g[o, o, o, o], t2)
+    #	  0.50 <j,i||m,n>*t2(e,f,j,i)
+    doubles_res +=  0.50 * einsum('jimn,efji->efmn', g[o, o, o, o], t2)
     
-    #	  1.0000 P(m,n)*P(e,f)<i,e||a,n>*t2(a,f,m,i)
-    contracted_intermediate =  1.000000000000000 * einsum('iean,afmi->efmn', g[o, v, v, o], t2)
+    #	  1.00 P(m,n)*P(e,f)<i,e||a,n>*t2(a,f,m,i)
+    contracted_intermediate =  1.00 * einsum('iean,afmi->efmn', g[o, v, v, o], t2)
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	  0.5000 <e,f||a,b>*t2(a,b,m,n)
-    doubles_res +=  0.500000000000000 * einsum('efab,abmn->efmn', g[v, v, v, v], t2)
+    #	  0.50 <e,f||a,b>*t2(a,b,m,n)
+    doubles_res +=  0.50 * einsum('efab,abmn->efmn', g[v, v, v, v], t2)
     
-    #	 -1.0000 P(m,n)f(i,a)*t1(a,n)*t2(e,f,m,i)
-    contracted_intermediate = -1.000000000000000 * einsum('ia,an,efmi->efmn', f[o, v], t1, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -1.00 P(m,n)f(i,a)*t1(a,n)*t2(e,f,m,i)
+    contracted_intermediate = -1.00 * einsum('ia,an,efmi->efmn', f[o, v], t1, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	 -1.0000 P(e,f)f(i,a)*t1(e,i)*t2(a,f,m,n)
-    contracted_intermediate = -1.000000000000000 * einsum('ia,ei,afmn->efmn', f[o, v], t1, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -1.00 P(e,f)f(i,a)*t2(a,f,m,n)*t1(e,i)
+    contracted_intermediate = -1.00 * einsum('ia,afmn,ei->efmn', f[o, v], t2, t1, optimize=['einsum_path', (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	 -0.5000 P(m,n)f(a,n)*t1(a,i)*t2(e,f,m,i)
-    contracted_intermediate = -0.500000000000000 * einsum('an,ai,efmi->efmn', f[v, o], t1, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -0.50 P(m,n)f(a,n)*t1(a,i)*t2(e,f,m,i)
+    contracted_intermediate = -0.50 * einsum('an,ai,efmi->efmn', f[v, o], t1, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	 -0.5000 P(e,f)f(e,i)*t1(a,i)*t2(a,f,m,n)
-    contracted_intermediate = -0.500000000000000 * einsum('ei,ai,afmn->efmn', f[v, o], t1, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -0.50 P(e,f)f(e,i)*t2(a,f,m,n)*t1(a,i)
+    contracted_intermediate = -0.50 * einsum('ei,afmn,ai->efmn', f[v, o], t2, t1, optimize=['einsum_path', (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	 -0.5000 P(m,n)<j,i||a,b>*t2(a,b,n,i)*t2(e,f,m,j)
-    contracted_intermediate = -0.500000000000000 * einsum('jiab,abni,efmj->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -0.50 P(m,n)<j,i||a,b>*t2(a,b,n,i)*t2(e,f,m,j)
+    contracted_intermediate = -0.50 * einsum('jiab,abni,efmj->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	  0.2500 <j,i||a,b>*t2(a,b,m,n)*t2(e,f,j,i)
-    doubles_res +=  0.250000000000000 * einsum('jiab,abmn,efji->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	  0.250 <j,i||a,b>*t2(a,b,m,n)*t2(e,f,j,i)
+    doubles_res +=  0.250 * einsum('jiab,abmn,efji->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.5000 <j,i||a,b>*t2(a,e,j,i)*t2(b,f,m,n)
-    doubles_res += -0.500000000000000 * einsum('jiab,aeji,bfmn->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -0.50 <j,i||a,b>*t2(a,e,j,i)*t2(b,f,m,n)
+    doubles_res += -0.50 * einsum('jiab,aeji,bfmn->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	  1.0000 P(m,n)<j,i||a,b>*t2(a,e,n,i)*t2(b,f,m,j)
-    contracted_intermediate =  1.000000000000000 * einsum('jiab,aeni,bfmj->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	  1.00 P(m,n)<j,i||a,b>*t2(a,e,n,i)*t2(b,f,m,j)
+    contracted_intermediate =  1.00 * einsum('jiab,aeni,bfmj->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	 -0.5000 <j,i||a,b>*t2(a,e,m,n)*t2(b,f,j,i)
-    doubles_res += -0.500000000000000 * einsum('jiab,aemn,bfji->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 2), (0, 1)])
+    #	 -0.50 <j,i||a,b>*t2(a,e,m,n)*t2(b,f,j,i)
+    doubles_res += -0.50 * einsum('jiab,aemn,bfji->efmn', g[o, o, v, v], t2, t2, optimize=['einsum_path', (0, 2), (0, 1)])
     
-    #	 -0.2500 P(m,n)<b,a||n,i>*t2(a,b,i,j)*t2(e,f,m,j)
-    contracted_intermediate = -0.250000000000000 * einsum('bani,abij,efmj->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -0.250 P(m,n)<b,a||n,i>*t2(a,b,i,j)*t2(e,f,m,j)
+    contracted_intermediate = -0.250 * einsum('bani,abij,efmj->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
     #	  0.1250 <b,a||m,n>*t2(a,b,i,j)*t2(e,f,j,i)
-    doubles_res +=  0.125000000000000 * einsum('bamn,abij,efji->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    doubles_res +=  0.1250 * einsum('bamn,abij,efji->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.2500 P(e,f)<a,e||i,j>*t2(b,a,j,i)*t2(b,f,m,n)
-    contracted_intermediate = -0.250000000000000 * einsum('aeij,baji,bfmn->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	 -0.250 P(e,f)<a,e||i,j>*t2(b,a,j,i)*t2(b,f,m,n)
+    contracted_intermediate = -0.250 * einsum('aeij,baji,bfmn->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	  0.5000 P(m,n)*P(e,f)<a,e||n,i>*t2(b,a,i,j)*t2(b,f,m,j)
-    contracted_intermediate =  0.500000000000000 * einsum('aeni,baij,bfmj->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    #	  0.50 P(m,n)*P(e,f)<a,e||n,i>*t2(b,a,i,j)*t2(b,f,m,j)
+    contracted_intermediate =  0.50 * einsum('aeni,baij,bfmj->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	 -0.2500 P(e,f)<a,e||m,n>*t2(b,a,i,j)*t2(b,f,j,i)
-    contracted_intermediate = -0.250000000000000 * einsum('aemn,baij,bfji->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
+    #	 -0.250 P(e,f)<a,e||m,n>*t2(b,a,i,j)*t2(b,f,j,i)
+    contracted_intermediate = -0.250 * einsum('aemn,baij,bfji->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
     #	  0.1250 <e,f||i,j>*t2(b,a,j,i)*t2(a,b,m,n)
-    doubles_res +=  0.125000000000000 * einsum('efij,baji,abmn->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
+    doubles_res +=  0.1250 * einsum('efij,baji,abmn->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (0, 1), (0, 1)])
     
-    #	 -0.2500 P(m,n)<e,f||n,i>*t2(b,a,i,j)*t2(a,b,m,j)
-    contracted_intermediate = -0.250000000000000 * einsum('efni,baij,abmj->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
+    #	 -0.250 P(m,n)<e,f||n,i>*t2(b,a,i,j)*t2(a,b,m,j)
+    contracted_intermediate = -0.250 * einsum('efni,baij,abmj->efmn', g[v, v, o, o], t2, t2, optimize=['einsum_path', (1, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	  0.2500 P(m,n)f(j,i)*t2(b,a,i,k)*t2(a,b,n,j)*t2(e,f,m,k)
-    contracted_intermediate =  0.250000000000000 * einsum('ji,baik,abnj,efmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
+    #	  0.250 P(m,n)f(j,i)*t2(b,a,i,k)*t2(a,b,n,j)*t2(e,f,m,k)
+    contracted_intermediate =  0.250 * einsum('ji,baik,abnj,efmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	 -0.2500 f(j,i)*t2(b,a,i,k)*t2(a,b,m,n)*t2(e,f,k,j)
-    doubles_res += -0.250000000000000 * einsum('ji,baik,abmn,efkj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
+    #	 -0.250 f(j,i)*t2(b,a,i,k)*t2(a,b,m,n)*t2(e,f,k,j)
+    doubles_res += -0.250 * einsum('ji,baik,abmn,efkj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
     
-    #	  0.5000 P(e,f)f(j,i)*t2(b,a,i,k)*t2(a,e,k,j)*t2(b,f,m,n)
-    contracted_intermediate =  0.500000000000000 * einsum('ji,baik,aekj,bfmn->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
+    #	  0.50 P(e,f)f(j,i)*t2(b,a,i,k)*t2(a,e,k,j)*t2(b,f,m,n)
+    contracted_intermediate =  0.50 * einsum('ji,baik,aekj,bfmn->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	 -0.5000 P(m,n)*P(e,f)f(j,i)*t2(b,a,i,k)*t2(a,e,n,j)*t2(b,f,m,k)
-    contracted_intermediate = -0.500000000000000 * einsum('ji,baik,aenj,bfmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
+    #	 -0.50 P(m,n)*P(e,f)f(j,i)*t2(b,a,i,k)*t2(a,e,n,j)*t2(b,f,m,k)
+    contracted_intermediate = -0.50 * einsum('ji,baik,aenj,bfmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	  0.2500 P(m,n)f(j,i)*t2(b,a,i,k)*t2(e,f,n,j)*t2(a,b,m,k)
-    contracted_intermediate =  0.250000000000000 * einsum('ji,baik,efnj,abmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (1, 3), (0, 2), (0, 1)])
+    #	  0.250 P(m,n)f(j,i)*t2(b,a,i,k)*t2(a,b,m,k)*t2(e,f,n,j)
+    contracted_intermediate =  0.250 * einsum('ji,baik,abmk,efnj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	 -0.5000 P(m,n)f(a,b)*t2(c,a,i,j)*t2(b,c,n,i)*t2(e,f,m,j)
-    contracted_intermediate = -0.500000000000000 * einsum('ab,caij,bcni,efmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
+    #	 -0.50 P(m,n)f(a,b)*t2(c,a,i,j)*t2(b,c,n,i)*t2(e,f,m,j)
+    contracted_intermediate = -0.50 * einsum('ab,caij,bcni,efmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	  0.2500 f(a,b)*t2(c,a,i,j)*t2(b,c,m,n)*t2(e,f,j,i)
-    doubles_res +=  0.250000000000000 * einsum('ab,caij,bcmn,efji->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
+    #	  0.250 f(a,b)*t2(c,a,i,j)*t2(b,c,m,n)*t2(e,f,j,i)
+    doubles_res +=  0.250 * einsum('ab,caij,bcmn,efji->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
     
-    #	 -0.2500 P(e,f)f(a,b)*t2(c,a,i,j)*t2(b,e,j,i)*t2(c,f,m,n)
-    contracted_intermediate = -0.250000000000000 * einsum('ab,caij,beji,cfmn->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
+    #	 -0.250 P(e,f)f(a,b)*t2(c,a,i,j)*t2(b,e,j,i)*t2(c,f,m,n)
+    contracted_intermediate = -0.250 * einsum('ab,caij,beji,cfmn->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	  0.5000 P(m,n)*P(e,f)f(a,b)*t2(c,a,i,j)*t2(b,e,n,i)*t2(c,f,m,j)
-    contracted_intermediate =  0.500000000000000 * einsum('ab,caij,beni,cfmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
+    #	  0.50 P(m,n)*P(e,f)f(a,b)*t2(c,a,i,j)*t2(b,e,n,i)*t2(c,f,m,j)
+    contracted_intermediate =  0.50 * einsum('ab,caij,beni,cfmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	 -0.2500 P(e,f)f(a,b)*t2(c,a,i,j)*t2(b,e,m,n)*t2(c,f,j,i)
-    contracted_intermediate = -0.250000000000000 * einsum('ab,caij,bemn,cfji->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (1, 3), (0, 2), (0, 1)])
+    #	 -0.250 P(e,f)f(a,b)*t2(c,a,i,j)*t2(b,e,m,n)*t2(c,f,j,i)
+    contracted_intermediate = -0.250 * einsum('ab,caij,bemn,cfji->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (1, 3), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	 -0.0833 P(m,n)f(i,n)*t2(b,a,j,k)*t2(a,b,j,i)*t2(e,f,m,k)
-    contracted_intermediate = -0.083333333333330 * einsum('in,bajk,abji,efmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 2), (0, 1)])
+    #	 -0.083333333333333 P(m,n)f(i,n)*t2(a,b,j,i)*t2(b,a,j,k)*t2(e,f,m,k)
+    contracted_intermediate = -0.083333333333333 * einsum('in,abji,bajk,efmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	 -0.0417 P(m,n)f(i,n)*t2(b,a,j,k)*t2(a,b,m,i)*t2(e,f,k,j)
-    contracted_intermediate = -0.041666666666670 * einsum('in,bajk,abmi,efkj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	 -0.0416666666666667 P(m,n)f(i,n)*t2(a,b,m,i)*t2(b,a,j,k)*t2(e,f,k,j)
+    contracted_intermediate = -0.0416666666666667 * einsum('in,abmi,bajk,efkj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	  0.3333 P(m,n)*P(e,f)f(i,n)*t2(b,a,j,k)*t2(a,e,j,i)*t2(b,f,m,k)
-    contracted_intermediate =  0.333333333333330 * einsum('in,bajk,aeji,bfmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.3333333333333 P(m,n)*P(e,f)f(i,n)*t2(b,a,j,k)*t2(a,e,j,i)*t2(b,f,m,k)
+    contracted_intermediate =  0.3333333333333 * einsum('in,bajk,aeji,bfmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	  0.0833 P(m,n)*P(e,f)f(i,n)*t2(b,a,j,k)*t2(a,e,m,i)*t2(b,f,k,j)
-    contracted_intermediate =  0.083333333333330 * einsum('in,bajk,aemi,bfkj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.083333333333333 P(m,n)*P(e,f)f(i,n)*t2(b,a,j,k)*t2(a,e,m,i)*t2(b,f,k,j)
+    contracted_intermediate =  0.083333333333333 * einsum('in,bajk,aemi,bfkj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	 -0.0833 P(m,n)f(i,n)*t2(b,a,j,k)*t2(e,f,j,i)*t2(a,b,m,k)
-    contracted_intermediate = -0.083333333333330 * einsum('in,bajk,efji,abmk->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	 -0.083333333333333 P(m,n)f(i,n)*t2(b,a,j,k)*t2(a,b,m,k)*t2(e,f,j,i)
+    contracted_intermediate = -0.083333333333333 * einsum('in,bajk,abmk,efji->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate) 
     
-    #	  0.0833 P(e,f)f(e,a)*t2(c,b,i,j)*t2(a,b,j,i)*t2(c,f,m,n)
-    contracted_intermediate =  0.083333333333330 * einsum('ea,cbij,abji,cfmn->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 2), (0, 1)])
+    #	  0.083333333333333 P(e,f)f(e,a)*t2(a,b,j,i)*t2(c,b,i,j)*t2(c,f,m,n)
+    contracted_intermediate =  0.083333333333333 * einsum('ea,abji,cbij,cfmn->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (1, 2), (0, 2), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	 -0.3333 P(m,n)*P(e,f)f(e,a)*t2(c,b,i,j)*t2(a,b,n,i)*t2(c,f,m,j)
-    contracted_intermediate = -0.333333333333330 * einsum('ea,cbij,abni,cfmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	 -0.3333333333333 P(m,n)*P(e,f)f(e,a)*t2(a,b,n,i)*t2(c,b,i,j)*t2(c,f,m,j)
+    contracted_intermediate = -0.3333333333333 * einsum('ea,abni,cbij,cfmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	  0.0833 P(e,f)f(e,a)*t2(c,b,i,j)*t2(a,b,m,n)*t2(c,f,j,i)
-    contracted_intermediate =  0.083333333333330 * einsum('ea,cbij,abmn,cfji->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.083333333333333 P(e,f)f(e,a)*t2(a,b,m,n)*t2(c,b,i,j)*t2(c,f,j,i)
+    contracted_intermediate =  0.083333333333333 * einsum('ea,abmn,cbij,cfji->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	  0.0417 P(e,f)f(e,a)*t2(c,b,i,j)*t2(a,f,j,i)*t2(b,c,m,n)
-    contracted_intermediate =  0.041666666666670 * einsum('ea,cbij,afji,bcmn->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	  0.0416666666666667 P(e,f)f(e,a)*t2(a,f,j,i)*t2(c,b,i,j)*t2(b,c,m,n)
+    contracted_intermediate =  0.0416666666666667 * einsum('ea,afji,cbij,bcmn->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->femn', contracted_intermediate) 
     
-    #	 -0.0833 P(m,n)*P(e,f)f(e,a)*t2(c,b,i,j)*t2(a,f,n,i)*t2(b,c,m,j)
-    contracted_intermediate = -0.083333333333330 * einsum('ea,cbij,afni,bcmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 2), (0, 1), (0, 1)])
+    #	 -0.083333333333333 P(m,n)*P(e,f)f(e,a)*t2(a,f,n,i)*t2(c,b,i,j)*t2(b,c,m,j)
+    contracted_intermediate = -0.083333333333333 * einsum('ea,afni,cbij,bcmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 1), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	 -0.1667 P(m,n)*P(e,f)f(j,m)*t2(b,a,i,k)*t2(a,e,n,i)*t2(b,f,k,j)
-    contracted_intermediate = -0.166666666666670 * einsum('jm,baik,aeni,bfkj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
+    #	 -0.16666666666667 P(m,n)*P(e,f)f(j,m)*t2(b,a,i,k)*t2(a,e,n,i)*t2(b,f,k,j)
+    contracted_intermediate = -0.16666666666667 * einsum('jm,baik,aeni,bfkj->efmn', f[o, o], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
-    #	  0.1667 P(m,n)*P(e,f)f(f,b)*t2(c,a,i,j)*t2(a,e,n,i)*t2(b,c,m,j)
-    contracted_intermediate =  0.166666666666670 * einsum('fb,caij,aeni,bcmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
+    #	  0.16666666666667 P(m,n)*P(e,f)f(f,b)*t2(c,a,i,j)*t2(a,e,n,i)*t2(b,c,m,j)
+    contracted_intermediate =  0.16666666666667 * einsum('fb,caij,aeni,bcmj->efmn', f[v, v], t2, t2, t2, optimize=['einsum_path', (0, 3), (0, 1), (0, 1)])
     doubles_res +=  1.00000 * contracted_intermediate + -1.00000 * einsum('efmn->efnm', contracted_intermediate)  + -1.00000 * einsum('efmn->femn', contracted_intermediate)  +  1.00000 * einsum('efmn->fenm', contracted_intermediate) 
     
     return doubles_res

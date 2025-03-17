@@ -66,10 +66,11 @@ def main():
     ucc4_en = ucc4(mol)
 
     # check ucc4 energy
-    assert np.isclose(ucc4_en, -75.019691944947, rtol = 1e-8, atol = 1e-8)
+    assert np.isclose(ucc4_en, -75.019768257645, rtol = 1e-8, atol = 1e-8)
 
     print('    UCC(4) Total Energy..........................................................PASSED')
     print('')
+    #exit()
 
     quccsd_en = quccsd(mol, do_eom_ccsd = False)
 

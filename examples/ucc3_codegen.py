@@ -61,18 +61,13 @@ def main():
     print('#    < 0 | m* e e(-T) H e(T) | 0> :')
     print('')
 
-    # up to 2nd-order
+    # up to 1st-order
 
     pq.add_operator_product(1.0,['f'])
 
     pq.add_operator_product(1.0,['v'])
 
-    pq.add_commutator(1.0/1.0,['f'],['t1'])
     pq.add_commutator(1.0/1.0,['f'],['t2'])
-
-    pq.add_commutator(1.0/1.0,['v'],['t2'])
-    
-    pq.add_double_commutator(1.0/2.0,['f'],['t2'],['t2'])
     
     pq.simplify()
 

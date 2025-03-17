@@ -17,7 +17,7 @@ def main():
     print('#    < 0 | e(-T) H e(T) | 0> :')
     print('')
 
-    # up to 4th-order
+    # up to fourth order
 
     pq.add_operator_product(1.0, ['f']) # 0
     pq.add_operator_product(1.0, ['v']) # 1
@@ -59,9 +59,6 @@ def main():
     print('return energy')
     print('')
 
-    print('return energy')
-    print('')
-
     pq.clear()
 
     # CCSD singles equations
@@ -74,24 +71,24 @@ def main():
     print('#    < 0 | m* e e(-T) H e(T) | 0> :')
     print('')
 
-    # up to 3rd order
+    # up to second order
     pq.add_operator_product(1.0, ['f']) # 0
     pq.add_operator_product(1.0, ['v']) # 1
 
     pq.add_commutator(1.0, ['f'],['t1']) # 2
     pq.add_commutator(1.0, ['f'],['t2']) # 1
-    pq.add_commutator(1.0, ['v'],['t1']) # 3
+    #pq.add_commutator(1.0, ['v'],['t1']) # 3
     pq.add_commutator(1.0, ['v'],['t2']) # 2
 
     #pq.add_double_commutator(0.5, ['f'],['t1'],['t1']) # 4
-    pq.add_double_commutator(0.5, ['f'],['t1'],['t2']) # 3
-    pq.add_double_commutator(0.5, ['f'],['t2'],['t1']) # 3
+    #pq.add_double_commutator(0.5, ['f'],['t1'],['t2']) # 3
+    #pq.add_double_commutator(0.5, ['f'],['t2'],['t1']) # 3
     pq.add_double_commutator(0.5, ['f'],['t2'],['t2']) # 2
 
     #pq.add_double_commutator(0.5, ['v'],['t1'],['t1']) # 5
     #pq.add_double_commutator(0.5, ['v'],['t1'],['t2']) # 4
     #pq.add_double_commutator(0.5, ['v'],['t2'],['t1']) # 4
-    pq.add_double_commutator(0.5, ['v'],['t2'],['t2']) # 3
+    #pq.add_double_commutator(0.5, ['v'],['t2'],['t2']) # 3
 
     #pq.add_triple_commutator(1.0 / 6.0, ['f'],['t1'],['t1'],['t1']) # 6
     #pq.add_triple_commutator(1.0 / 6.0, ['f'],['t1'],['t1'],['t2']) # 5
@@ -100,7 +97,7 @@ def main():
     #pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t1'],['t1']) # 5
     #pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t1'],['t2']) # 4
     #pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t2'],['t1']) # 4
-    pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t2'],['t2']) # 3
+    #pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t2'],['t2']) # 3
 
     pq.simplify()
 
