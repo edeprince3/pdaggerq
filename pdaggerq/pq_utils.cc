@@ -1061,7 +1061,7 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     if ( ordered.empty() ) return;
 
     // probably only relevant for vacuum = fermi
-    //if ( ordered[0]->vacuum != "FERMI" ) return;
+    if ( ordered[0]->vacuum != "FERMI" ) return;
 
     // look for paired permutations of non-summed labels:
     if ( find_paired_permutations ) {
@@ -1396,7 +1396,7 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
 
 
         do_continue = false;
-        static char types[] = {'t', 'l', 'r', 'u', 'm', 's', 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F'};
+        static char types[] = {'t', 'l', 'r', 'u', 'm', 's', 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'Q', 'X', 'Y', 'Z'};
         //static char types[] = {'t', 'l', 'r', 'u', 'm', 's'};
         for (auto & type : types) {
             std::vector<amplitudes> & amps = in->amps[type];
