@@ -162,7 +162,7 @@ class pq_string {
      *
      */
     static inline
-    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's', 'D', 'a', 'b'};
+    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's', 'D'};
 
     /**
      *

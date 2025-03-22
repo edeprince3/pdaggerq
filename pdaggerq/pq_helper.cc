@@ -1415,10 +1415,14 @@ std::vector<std::vector<std::string> > pq_helper::strings() const {
     const auto &reference = is_blocked ? ordered_blocked : ordered;
 
     std::vector<std::vector<std::string> > list;
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        std::vector<std::string> my_string = pq_str->get_string();
-        if ( (int)my_string.size() > 0 ) {
-            list.push_back(my_string);
+    // print operators by rank
+    for (size_t i = 0; i < 9; i++) {
+        for (const std::shared_ptr<pq_string> & pq_str : reference) {
+            if ( pq_str->symbol.size() != i  ) continue;
+            std::vector<std::string> my_string = pq_str->get_string();
+            if ( (int)my_string.size() > 0 ) {
+                list.push_back(my_string);
+            }
         }
     }
 

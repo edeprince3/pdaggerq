@@ -299,6 +299,12 @@ bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
             deltas.labels.push_back(in->symbol[i+1]);
             deltas.sort();
             s1->deltas.push_back(deltas);
+            // AED
+            if ( is_occ(in->symbol[i]) && is_vir(in->symbol[i+1]) ) {
+                s1->skip = true;
+            }else if ( is_vir(in->symbol[i]) && is_occ(in->symbol[i+1]) ) {
+                s1->skip = true;
+            }
 
             s2->sign = -s2->sign;
             s2->symbol.push_back(in->symbol[i+1]);
