@@ -88,6 +88,7 @@ amplitudes& amplitudes::operator=(const amplitudes& rhs) {
 
     n_create = rhs.n_create;
     n_annihilate = rhs.n_annihilate;
+    n_ph = rhs.n_ph;
 
     return *this;
 }
