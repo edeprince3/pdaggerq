@@ -24,6 +24,7 @@
 #ifndef PQ_BERNOULLI_H
 #define PQ_BERNOULLI_H
 
+#include "pq_helper.h"
 #include "pq_string.h"
 
 namespace pdaggerq {
@@ -61,6 +62,87 @@ void eliminate_operator_portions(std::shared_ptr<pq_string> &in, int bernoulli_e
 
 /// determine the operator type for the part of an input string corresponding to a target portion (for bernoulli)
 std::string bernoulli_type(std::shared_ptr<pq_string> &in, std::string target_portion, size_t portion_number, int bernoulli_excitation_level);
+
+/**
+ *
+ * generate list of first-order terms from the Bernoulli-number representation of the similarity-transformed operator
+ *
+ * @param targets: a list of strings defining the operator product to be transformed (e.g., v)
+ * @param ops: a list of strings defining a sum of operators that define the transformation (e.g., t1, t2)
+ *
+ */
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_1(double factor,
+                                                              const std::vector<std::string> &targets,
+                                                              const std::vector<std::string> &ops);
+
+/**
+ *
+ * generate list of second-order terms from the Bernoulli-number representation of the similarity-transformed operator
+ *
+ * @param targets: a list of strings defining the operator product to be transformed (e.g., v)
+ * @param ops: a list of strings defining a sum of operators that define the transformation (e.g., t1, t2)
+ *
+ */
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_2(double factor,
+                                                              const std::vector<std::string> &targets,
+                                                              const std::vector<std::string> &ops);
+
+/**
+ *
+ * generate list of third-order terms from the Bernoulli-number representation of the similarity-transformed operator
+ *
+ * @param targets: a list of strings defining the operator product to be transformed (e.g., v)
+ * @param ops: a list of strings defining a sum of operators that define the transformation (e.g., t1, t2)
+ *
+ */
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_3(double factor,
+                                                              const std::vector<std::string> &targets,
+                                                              const std::vector<std::string> &ops);
+
+/**
+ *
+ * generate list of fourth-order terms from the Bernoulli-number representation of the similarity-transformed operator
+ *
+ * @param targets: a list of strings defining the operator product to be transformed (e.g., v)
+ * @param ops: a list of strings defining a sum of operators that define the transformation (e.g., t1, t2)
+ *
+ */
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_4(double factor,
+                                                              const std::vector<std::string> &targets,
+                                                              const std::vector<std::string> &ops);
+
+/**
+ *
+ * generate list of fifth-order terms from the Bernoulli-number representation of the similarity-transformed operator
+ *
+ * @param targets: a list of strings defining the operator product to be transformed (e.g., v)
+ * @param ops: a list of strings defining a sum of operators that define the transformation (e.g., t1, t2)
+ *
+ */
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_5(double factor,
+                                                              const std::vector<std::string> &targets,
+                                                              const std::vector<std::string> &ops);
+
+/**
+ *
+ * generate list of sixth-order terms from the Bernoulli-number representation of the similarity-transformed operator
+ *
+ * @param targets: a list of strings defining the operator product to be transformed (e.g., v)
+ * @param ops: a list of strings defining a sum of operators that define the transformation (e.g., t1, t2)
+ *
+ */
+std::vector<pq_operator_terms> get_bernoulli_operator_terms_6(double factor,
+                                                              const std::vector<std::string> &targets,
+                                                              const std::vector<std::string> &ops);
+
+/**
+ *
+ * generate lists of operator partitions, e.g., { {'N', 'A'}, {'A', 'A'} }
+ *
+ * @param in: a list of strings defining the operator partitions
+ *
+ */
+std::vector<std::string> get_partitions_list(std::vector<std::string> in );
 
 }
 
