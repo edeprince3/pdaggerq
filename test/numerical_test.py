@@ -12,12 +12,12 @@ import re
 tests  = (
     "cisd",
     "ccsd",
-    "ccsd_with_spin",
+    "ccsd_with_spin", # requires psi4
     "lambda_ccsd",
     "eom_ccsd",
     "ccsdt",
     "cc3",
-    "ccsdt_with_spin"
+    "ccsdt_with_spin" # requires psi4
 )
 
 # get the path to the script
