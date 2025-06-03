@@ -308,7 +308,7 @@ namespace pdaggerq {
             if (Vertex::print_type_ == "python")
                 newname = "del " + lhs_name;
             else if (Vertex::print_type_ == "c++")
-                newname = lhs_name + ".~TArrayD();";
+                newname = ".deallocate(" + lhs_name + ")";
 
             Term newterm(tempterm);
             newterm.print_override_ = newname;
@@ -624,7 +624,7 @@ namespace pdaggerq {
             if (!perm_as_rhs && Term::deallocate_) {
                 // delete the permutation vertex
                 if (Vertex::print_type_ == "c++")
-                    output += perm_vertex->name() + ".~TArrayD();";
+                    output += ".deallocate(" + perm_vertex->name() + ")";
                 else if (Vertex::print_type_ == "python")
                     output += "del " + perm_vertex->name();
                 output += "\n";
