@@ -401,6 +401,28 @@ namespace pdaggerq {
 
         sout << h1 << " Evaluate Equations " << h1 << endl << endl;
 
+        // test composer for printing
+        if (false) {
+            cout << "########### Creating Composer ###########" << endl;
+            Composer *cmp = nullptr;
+            cmp = new TAMM_Composer();
+
+            // debug by printing every vertex in every term
+            for (const auto &term: all_terms) {
+                cout << cmp->compose(term.lhs()) << "|";
+                cout << *term.lhs() << " = ";
+                for (const auto &op: term.rhs()) {
+                    cout << cmp->compose(op) << "|";
+                    cout << *op << " * ";
+                }
+                cout << endl;
+//            cout << cmp->compose(term) << endl;
+            }
+
+            delete cmp; // delete composer
+            exit(42); // exit early for debugging
+        }
+
         // update terms in merged equation
         merged_eq.terms() = all_terms;
 

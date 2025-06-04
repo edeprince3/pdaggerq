@@ -37,6 +37,7 @@
 
 #include "../../pdaggerq/pq_helper.h"
 #include "equation.h"
+#include "composer.h"
 #include "timer.h"
 
 using std::ofstream;
