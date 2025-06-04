@@ -241,8 +241,11 @@ namespace pdaggerq {
             vertex_vector tensors;
             for (const auto &op: link_vector) {
                 if (op->empty()) continue;
-                if (op->is_scalar())
-                    scalars.push_back(op);
+                if (op->is_scalar()) {
+                    // pure scalars should be added first
+                    if (!op->is_linked()) scalars.insert(scalars.begin(), op);
+                    else scalars.push_back(op);
+                }
                 else {
                     tensors.push_back(op);
                 }
