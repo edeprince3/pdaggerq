@@ -494,6 +494,7 @@ namespace pdaggerq {
 
     void Linkage::forget(bool forget_all) const {
         // clears all vectors that track the graph structure of the linkage (allows for rebuilding)
+        std::lock_guard<std::mutex> lock(mtx_);
         all_vert_.clear();
         link_vector_.clear();
         permutations_.clear();
