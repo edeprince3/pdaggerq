@@ -153,53 +153,32 @@ struct shape {
         }
         return result;
     }
+    bool operator<(const shape &other) const {
+        // Compare total scaling (L+v+Q+o)
+        uint_fast8_t total = n_, other_total = other.n_;
+        if (total != other_total) return total < other_total;
 
-    bool operator<( const shape & other) const {
+        /// compare totals of properties
 
-        /// priority: o_ + v_ + L_, v_ + L_, L_, v_, va, oa
+        // disregard occupied lines (L+v+Q)
+        total -= o_, other_total -= other.o_;
+        if (total != other_total) return total < other_total;
 
-        // prioritize total scaling over individual scaling factors
-        if (n_ != other.n_)
-            return n_ < other.n_;
+        // disregard density lines (L+v)
+        total -= Q_; other_total -= other.Q_;
+        if (total != other_total) return total < other_total;
 
-        /// if total scaling is the same, prioritize individual scaling factors
-        if (Q_ + other.Q_ > 0) {
-            // prioritize sum of v_ and L_ and Q_ over individual L_ and v_ and Q_
-            uint_fast8_t sum = v_ + L_ + Q_;
-            uint_fast8_t other_sum = other.v_ + other.L_ + other.Q_;
-            if (sum != other_sum)
-                return sum < other_sum;
-
-            // if sum of v_ and L_ and Q_ is the same, prioritize Q_ over L_ and v_
-            if (Q_ != other.Q_)
-                return Q_ < other.Q_;
-        }
-
-        if (L_ + other.L_ > 0) {
-            // prioritize sum of v_ and L_ over individual L_ and v_
-            uint_fast8_t sum = v_ + L_;
-            uint_fast8_t other_sum = other.v_ + other.L_;
-            if (sum != other_sum)
-                return sum < other_sum;
-
-            // if sum of v_ and L_ is the same, prioritize L_ over v_
-            if (L_ != other.L_)
-                return L_ < other.L_;
-        }
-
-        // prioritize v_ over o_
+        /// compare individual properties
+        if (L_ != other.L_) return L_ < other.L_;
         if (v_ != other.v_) return v_ < other.v_;
-
-        // prioritize o over spin
+        if (Q_ != other.Q_) return Q_ < other.Q_;
         if (o_ != other.o_) return o_ < other.o_;
 
-        // prioritize alpha over beta virtuals spin
-        if (va_ != other.va_) return va_ < other.va_;
-
-        // prioritize beta over alpha occupied spin
+        // Compare individual spin components (alpha spins will be considered first)
+        if (vb_ != other.vb_) return vb_ < other.vb_;
         if (ob_ != other.ob_) return ob_ < other.ob_;
 
-        // equal or greater scaling, return false
+        // scaling is equal
         return false;
     }
     bool operator>( const shape & other) const {
