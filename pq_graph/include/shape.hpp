@@ -170,8 +170,8 @@ struct shape {
 
         /// compare individual properties
         if (L_ != other.L_) return L_ < other.L_;
-        if (v_ != other.v_) return v_ < other.v_;
         if (Q_ != other.Q_) return Q_ < other.Q_;
+        if (v_ != other.v_) return v_ < other.v_;
         if (o_ != other.o_) return o_ < other.o_;
 
         // Compare individual spin components (alpha spins will be considered first)
