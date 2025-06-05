@@ -466,7 +466,7 @@ namespace pdaggerq {
 
 
                         dse_term1.rhs_[i] = dp1;     // replace B1 with dp1
-                        dse_term1.rhs_[i + 1] = dp1; // replace B2 with dp2
+                        dse_term1.rhs_[i + 1] = dp2; // replace B2 with dp2
 
                         // add scalar to front of rhs
                         dse_term1.rhs_.insert(dse_term1.rhs_.begin(), lam);
