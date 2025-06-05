@@ -400,16 +400,23 @@ namespace pdaggerq {
                 // create lines for the density fitting vertices
                 Line den_line = Line("Q");
 
-                line_vector B1_lines{den_line, lines[0], lines[2]};
-                line_vector B2_lines{den_line, lines[1], lines[3]};
-                line_vector B3_lines{den_line, lines[0], lines[3]};
-                line_vector B4_lines{den_line, lines[1], lines[2]};
+                line_vector B1_lines{lines[0], lines[2], den_line};
+                line_vector B2_lines{lines[1], lines[3], den_line};
+                line_vector B3_lines{lines[0], lines[3], den_line};
+                line_vector B4_lines{lines[1], lines[2], den_line};
+
 
                 // create vertices
-                VertexPtr B1 = make_shared<const Vertex>("B", B1_lines);
-                VertexPtr B2 = make_shared<const Vertex>("B", B2_lines);
-                VertexPtr B3 = make_shared<const Vertex>("B", B3_lines);
-                VertexPtr B4 = make_shared<const Vertex>("B", B4_lines);
+                MutableVertexPtr B1 = make_shared<Vertex>("B", B1_lines);
+                MutableVertexPtr B2 = make_shared<Vertex>("B", B2_lines);
+                MutableVertexPtr B3 = make_shared<Vertex>("B", B3_lines);
+                MutableVertexPtr B4 = make_shared<Vertex>("B", B4_lines);
+
+                B1->vertex_type_ = 'v'; B1->has_blk_ = op->has_blk_; B1->update_name();
+                B2->vertex_type_ = 'v'; B2->has_blk_ = op->has_blk_; B2->update_name();
+                B3->vertex_type_ = 'v'; B3->has_blk_ = op->has_blk_; B3->update_name();
+                B4->vertex_type_ = 'v'; B4->has_blk_ = op->has_blk_; B4->update_name();
+
 
                 // create two new terms replacing the eri with the two new vertices
                 Term new_term1 = *this, new_term2 = *this;
@@ -423,10 +430,15 @@ namespace pdaggerq {
                 new_term2.rhs_.insert(new_term2.rhs_.begin() + (i+1), B4);
                 new_term2.coefficient_ *= -1; // change sign of term2
 
+                // the spins of the cholesky vectors need to be the same
+
+                bool keep_term1 = lines[0].a_ == lines[2].a_ && lines[1].a_ == lines[3].a_;
+                bool keep_term2 = lines[0].a_ == lines[3].a_ && lines[1].a_ == lines[2].a_;
+
 
                 // add new terms to vector
-                new_terms.push_back(new_term1);
-                new_terms.push_back(new_term2);
+                if (keep_term1) new_terms.push_back(new_term1);
+                if (keep_term2) new_terms.push_back(new_term2);
             }
         }
 
