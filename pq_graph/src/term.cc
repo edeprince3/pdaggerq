@@ -392,6 +392,7 @@ namespace pdaggerq {
                 // term with eri looks like <pq||rs>
                 // to do density fitting, we need to replace it with a product of two density fitting vertices within
                 // two terms, so we need to create two new vertices and two new terms
+
                 // <pq||rs> = <pq|rs> - <pq|sr> = (pr|qs) - (ps|qr) = (Q|pr)(Q|qs) - (Q|ps)(Q|qr)
 
                 // grab the lines from the eri
@@ -400,10 +401,10 @@ namespace pdaggerq {
                 // create lines for the density fitting vertices
                 Line den_line = Line("Q");
 
-                line_vector B1_lines{lines[0], lines[2], den_line};
-                line_vector B2_lines{lines[1], lines[3], den_line};
-                line_vector B3_lines{lines[0], lines[3], den_line};
-                line_vector B4_lines{lines[1], lines[2], den_line};
+                line_vector B1_lines{lines[0], lines[2], den_line}; // (Q|pr)
+                line_vector B2_lines{lines[1], lines[3], den_line}; // (Q|qs)
+                line_vector B3_lines{lines[0], lines[3], den_line}; // (Q|ps)
+                line_vector B4_lines{lines[1], lines[2], den_line}; // (Q|qr)
 
 
                 // create vertices
@@ -430,6 +431,9 @@ namespace pdaggerq {
                 new_term2.rhs_.insert(new_term2.rhs_.begin() + (i+1), B4);
                 new_term2.coefficient_ *= -1; // change sign of term2
 
+                new_term1.compute_scaling(true);
+                new_term2.compute_scaling(true); // recompute scaling of new terms
+
                 // the spins of the cholesky vectors need to be the same
 
                 bool keep_term1 = lines[0].a_ == lines[2].a_ && lines[1].a_ == lines[3].a_;
@@ -439,6 +443,60 @@ namespace pdaggerq {
                 // add new terms to vector
                 if (keep_term1) new_terms.push_back(new_term1);
                 if (keep_term2) new_terms.push_back(new_term2);
+
+                bool add_dse = false; // flag to add DSE terms with QED (hard-coded for now)
+                if (add_dse) {
+                    // add DSE terms with QED
+                    // <pq||rs> + dp(pr)dp(qs) - dp(ps)dp(qr)
+                    // (pr|qs) + dp(pr)dp(qs)
+
+                    // clone new_term1
+                    if (keep_term1) {
+                        Term dse_term1 = new_term1.clone();
+
+                        // replace B1 and B2 with product of dipole moments
+                        B1_lines.pop_back(); B2_lines.pop_back(); // remove Q lines
+                        MutableVertexPtr dp1 = make_shared<Vertex>("dp", B1_lines);
+                        MutableVertexPtr dp2 = make_shared<Vertex>("dp", B2_lines);
+                        MutableVertexPtr lam = make_shared<Vertex>("lam", line_vector{}); // create lambda vertex
+
+
+                        dp1->vertex_type_ = 'v'; dp1->has_blk_ = op->has_blk_; dp1->update_name();
+                        dp2->vertex_type_ = 'v'; dp2->has_blk_ = op->has_blk_; dp2->update_name();
+
+
+                        dse_term1.rhs_[i] = dp1;     // replace B1 with dp1
+                        dse_term1.rhs_[i + 1] = dp1; // replace B2 with dp2
+
+                        // add scalar to front of rhs
+                        dse_term1.rhs_.insert(dse_term1.rhs_.begin(), lam);
+                        dse_term1.compute_scaling(true); // recompute scaling of new term
+                        new_terms.push_back(dse_term1);
+                    }
+
+                    // clone new_term2
+                    if (keep_term2) {
+                        Term dse_term2 = new_term2.clone();
+
+                        // replace B3 and B4 with product of dipole moments
+                        B3_lines.pop_back(); B4_lines.pop_back(); // remove Q lines
+                        MutableVertexPtr dp3 = make_shared<Vertex>("dp", B3_lines);
+                        MutableVertexPtr dp4 = make_shared<Vertex>("dp", B4_lines);
+                        MutableVertexPtr lam = make_shared<Vertex>("lam", line_vector{}); // create lambda vertex
+
+                        dp3->vertex_type_ = 'v'; dp3->has_blk_ = op->has_blk_; dp3->update_name();
+                        dp4->vertex_type_ = 'v'; dp4->has_blk_ = op->has_blk_; dp4->update_name();
+
+                        dse_term2.rhs_[i] = dp3;     // replace B3 with dp3
+                        dse_term2.rhs_[i + 1] = dp4; // replace B4 with dp4
+
+                        // add scalar to front of rhs
+                        dse_term2.rhs_.insert(dse_term2.rhs_.begin(), lam);
+                        dse_term2.compute_scaling(true); // recompute scaling of new term
+                        new_terms.push_back(dse_term2);
+                    }
+                }
+
             }
         }
 
