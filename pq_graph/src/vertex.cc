@@ -331,6 +331,7 @@ namespace pdaggerq {
         lines_ = lines; // set lines
         rank_ = lines.size(); // set rank
         shape_ = shape(lines_); // create shape from lines
+        has_blk_ |= shape_.b_ > 0; // beta dims only occurs with blocking
         if (update_name)
             this->update_name(); // update name
 
