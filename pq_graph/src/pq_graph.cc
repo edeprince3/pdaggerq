@@ -147,7 +147,8 @@ namespace pdaggerq {
         }
 
 
-        if (options.contains("max_shape_map")) {
+        // set controls for the maximum shape of an intermediate
+        if (options.contains("max_shape_map")) { // define by using a map
             std::map<string, long> max_shape_map;
             try {
                 max_shape_map = options["max_shape_map"].cast<std::map<string, long>>();
@@ -179,7 +180,35 @@ namespace pdaggerq {
             Term::max_shape_.v_  = max_v;
             Term::max_shape_.va_ = max_v;
 
-        } else {
+        } else if (options.contains("max_shape")) { // define by parsing a string (e.g. o2v2 or o5v12 or o0v4)
+            string max_shape_str = options["max_shape"].cast<string>();
+
+            // check if the string is valid (must have an 'o' followed by a number and a 'v' followed by a number)
+            auto o_pos = max_shape_str.find('o');
+            auto v_pos = max_shape_str.find('v');
+            if (o_pos == string::npos || v_pos == string::npos || o_pos >= v_pos) {
+                throw invalid_argument("max_shape must be a string of the form 'oN' or 'oNvM' where N and M are integers.");
+            }
+            // extract the numbers after 'o' and 'v'
+            size_t max_o = 0, max_v = 0;
+            try {
+                max_o = std::stoul(max_shape_str.substr(o_pos + 1, v_pos - o_pos - 1));
+                max_v = std::stoul(max_shape_str.substr(v_pos + 1));
+            } catch (const std::exception &e) {
+                throw invalid_argument("max_shape must be a string of the form 'oN' or 'oNvM' where N and M are integers.");
+            }
+            // check if the numbers are valid
+            if (max_o > static_cast<size_t>(-1l)/2l || max_v > static_cast<size_t>(-1l)/2l) {
+                throw invalid_argument("max_shape values must be less than or equal to " + std::to_string(static_cast<size_t>(-1l)/2l));
+            }
+            // set the max shape
+            Term::max_shape_.n_  = max_o + max_v;
+            Term::max_shape_.o_  = max_o;
+            Term::max_shape_.oa_ = max_o;
+            Term::max_shape_.v_  = max_v;
+            Term::max_shape_.va_ = max_v;
+        }
+        else {
             auto n_max = static_cast<size_t>(-1l);
             Term::max_shape_.n_  = n_max;
             Term::max_shape_.o_  = n_max;
