@@ -228,7 +228,7 @@ struct LinkMerger {
             }
         }
 
-        // #pragma omp parallel for schedule(guided) default(none) shared(all_links, all_infos, link_merge_map_, dummy)
+        #pragma omp parallel for schedule(guided) default(none) shared(all_links, all_infos, link_merge_map_, dummy)
         for (size_t k = 0; k < all_links.size(); k++) {
             auto &link1 = all_links[k];
             auto &link1_info = all_infos[k];
@@ -327,10 +327,11 @@ struct LinkMerger {
 
                 if (!same_connectivity) continue;
                 else {
-                    // #pragma omp critical
+                    // forget calls are on distinct Linkage objects, and Linkage::forget is now thread-safe.
+                    link1->forget(true);
+                    link2->forget(true);
+                    #pragma omp critical(LinkMergeMapUpdate)
                     {
-                        link1->forget(true); // forget the link history for memory efficiency
-                        link2->forget(true); // forget the link history for memory efficiency
                         link_merge_map_[link1].push_back(link2); 
                     }
                 }
@@ -387,7 +388,7 @@ struct LinkMerger {
                             if (a_scales != b_scales) return a_scales > b_scales;
                             else return a.first->id() < b.first->id();
 
-                        }), merge_entry);
+                       }), merge_entry);
             }
 
         linkage_vector sorted_links;
@@ -574,7 +575,7 @@ struct LinkMerger {
             MutableVertexPtr merged_vertex_init;
             string link_type = target_infos[0].link->type();
 
-            // #pragma omp parallel for default(none) shared(target_infos, merge_infos, new_terms, merged_vertex_init, link_type, target_link)
+            #pragma omp parallel for default(none) shared(target_infos, merge_infos, new_terms, merged_vertex_init, link_type, target_link, pq_graph_, link_tracker_)
             for (size_t i = 0; i < target_infos.size(); i++) {
                 // build merged vertex
                 MutableVertexPtr merged_vertex = target_infos[i].link->shallow();
@@ -631,9 +632,9 @@ struct LinkMerger {
                 new_terms[i] = new_term.shallow();
 
                 // add merged vertex to saved linkages
-                pq_graph_.saved_linkages()[link_type].insert(as_link(merged_vertex));
-                // #pragma omp critical
+                #pragma omp critical(PQGraphUpdateInMerge)
                 {
+                    pq_graph_.saved_linkages()[link_type].insert(as_link(merged_vertex));
                     pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_id);
                 }
             }
@@ -882,7 +883,7 @@ size_t PQGraph::prune(bool keep_single_use) {
         saved_linkages_ = new_saved_linkages;
 
         // unset the temp in all the terms
-        // #pragma omp parallel for schedule(guided) shared(all_terms, remove_unused, sorted_to_remove) default(none)
+        #pragma omp parallel for schedule(guided) shared(all_terms, remove_unused, sorted_to_remove) default(none)
         for (auto &term_ptr: all_terms) {
             Term &term = *term_ptr;
             bool made_replacement = false;
@@ -930,7 +931,7 @@ size_t PQGraph::prune(bool keep_single_use) {
 
     if (opt_level_ >= 6) {
 
-        // #pragma omp parallel for schedule(guided) default(none) shared(all_terms)
+        #pragma omp parallel for schedule(guided) default(none) shared(all_terms)
         for (Term *term_ptr: all_terms) {
             Term &term = *term_ptr;
             // factor the term linkage
@@ -959,14 +960,14 @@ pair<set<Term *>, set<Term*>> PQGraph::get_matching_terms(const LinkagePtr &inte
     set<Term*> tmp_terms;
 
     vector<string> eq_keys = get_equation_keys();
-// #pragma omp parallel for schedule(guided) default(none) shared(equations_, eq_keys, tmp_terms, intermediate)
+    #pragma omp parallel for schedule(guided) default(none) shared(equations_, eq_keys, tmp_terms, intermediate)
     for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
         // get equation
         Equation &equation = equations_[eq_name]; // get equation
 
         // get all terms with this tmp
         set<Term*> tmp_terms_local = equation.get_temp_terms(intermediate);
-// #pragma omp critical
+        #pragma omp critical(InsertTmpTerms) // ensure thread-safe insertion into tmp_terms
         {
             // add terms to tmp_terms
             tmp_terms.insert(tmp_terms_local.begin(), tmp_terms_local.end());
@@ -998,7 +999,7 @@ size_t PQGraph::merge_terms() {
     // iterate over equations and merge terms
     size_t num_merged = 0;
     vector<string> eq_keys = get_equation_keys();
-// #pragma omp parallel for reduction(+:num_merged) default(none) shared(equations_, eq_keys)
+    #pragma omp parallel for reduction(+:num_merged) default(none) shared(equations_, eq_keys)
     for (const auto &key: eq_keys) {
         Equation &eq = equations_[key];
         if (eq.is_temp_equation_) continue; // skip tmps equation

@@ -391,7 +391,7 @@ bool Term::make_scalars(linkage_set &scalars, long &id) {
             MutableLinkagePtr new_scalar = as_link(scalar_link->shallow());
 
             // check if scalar is already in set of scalars for setting the id
-            #pragma omp critical
+            #pragma omp critical(ScalarSubstitution)
             {
                 long new_id = id + 1;
                 auto scalar_pos = scalars.find(new_scalar);
