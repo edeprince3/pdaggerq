@@ -154,18 +154,18 @@ struct shape {
         return result;
     }
     bool operator<(const shape &other) const {
-        // Compare total scaling (L+v+Q+o)
+        // Compare total scaling (L+Q+v+o)
         uint_fast8_t total = n_, other_total = other.n_;
         if (total != other_total) return total < other_total;
 
         /// compare totals of properties
 
-        // disregard occupied lines (L+v+Q)
+        // disregard occupied lines (L+Q+v)
         total -= o_, other_total -= other.o_;
         if (total != other_total) return total < other_total;
 
-        // disregard density lines (L+v)
-        total -= Q_; other_total -= other.Q_;
+        // disregard virtual lines (L+Q)
+        total -= v_; other_total -= other.v_;
         if (total != other_total) return total < other_total;
 
         /// compare individual properties
