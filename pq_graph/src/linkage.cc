@@ -231,9 +231,9 @@ namespace pdaggerq {
         if (!sig_lines.empty())
             lines_.insert(lines_.begin(), sig_lines.begin(), sig_lines.end());
 
-        // add density lines to the beginning of lines_
+        // add density lines to the end of lines
         if (!den_lines.empty())
-            lines_.insert(lines_.begin(), den_lines.begin(), den_lines.end());
+            lines_.insert(lines_.end(), den_lines.begin(), den_lines.end());
 
 //        std::sort(lines_.begin(), lines_.end(), line_compare());
 

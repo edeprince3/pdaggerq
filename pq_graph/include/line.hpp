@@ -154,20 +154,20 @@ namespace pdaggerq {
         }
 
         bool operator<(const Line& other) const {
-            // sort by sig, den, o, a, then label
+            // sort by sig, o, a, den, then label
             if (sig_ ^ other.sig_) return sig_;
-            if (den_ ^ other.den_) return den_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
+            if (den_ ^ other.den_) return den_;
             return label_ < other.label_;
         }
 
         bool same_kind(const Line& other) const {
-            // sort by sig, den, o, a, but not label
+            // sort by sig, o, a, den, but not label
             if (sig_ ^ other.sig_) return sig_;
-            if (den_ ^ other.den_) return den_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
+            if (den_ ^ other.den_) return den_;
             if (sig_ & other.sig_) return label_ <= other.label_; // L should be first
             return true;
         }
