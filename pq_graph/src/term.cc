@@ -469,7 +469,7 @@ namespace pdaggerq {
                         dse_term1.rhs_[i + 1] = dp2; // replace B2 with dp2
 
                         // add scalar to front of rhs
-                        dse_term1.rhs_.insert(dse_term1.rhs_.begin(), lam);
+//                        dse_term1.rhs_.insert(dse_term1.rhs_.begin(), lam);
                         dse_term1.compute_scaling(true); // recompute scaling of new term
                         new_terms.push_back(dse_term1);
                     }
@@ -491,7 +491,7 @@ namespace pdaggerq {
                         dse_term2.rhs_[i + 1] = dp4; // replace B4 with dp4
 
                         // add scalar to front of rhs
-                        dse_term2.rhs_.insert(dse_term2.rhs_.begin(), lam);
+//                        dse_term2.rhs_.insert(dse_term2.rhs_.begin(), lam);
                         dse_term2.compute_scaling(true); // recompute scaling of new term
                         new_terms.push_back(dse_term2);
                     }
