@@ -82,8 +82,11 @@ linkage_set Term::make_all_links() const {
         if (subgraph->empty()) continue; // skip if subgraph is empty
         if (subgraph->is_temp()) continue; // the subgraph is already a temp, no need to test it.
 
-        // do not get intermediates with a scalar, unless adding
-        bool with_scalar = subgraph->left()->is_scalar() || subgraph->right()->is_scalar();
+        // do not make intermediates with pure scalars (unless adding)
+        const auto &subleft = subgraph->left(), subright = subgraph->right();
+        bool with_scalar;
+        with_scalar  =  subleft->is_scalar() && !subleft->is_linked();
+        with_scalar |= subright->is_scalar() && !subright->is_linked();
         if (with_scalar && !subgraph->is_addition()) continue;
 
         // get best permutation of subgraph and relabel with generic lines
