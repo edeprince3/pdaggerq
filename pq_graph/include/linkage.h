@@ -396,6 +396,10 @@ namespace pdaggerq {
         vertex_vector find_scalars() const;
 
         /**
+         * determine if linkage has any scalars
+         */
+
+        /**
          * Get connec_map, the map of connections between lines
          * @return connec_map
          */
