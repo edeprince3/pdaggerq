@@ -480,23 +480,77 @@ namespace pdaggerq {
         return swap_sign_best; // return sign change
     }
 
-    void Vertex::sort(line_vector &lines, bool ignore_pairs) {
+    void Vertex::sort(line_vector &lines, bool merge_braket, bool ignore_labels) {
         if (lines.empty()) return; // do nothing if rank is zero
 
         // sort lines by occ/vir status (virs on left, occ on right); sort lines by blocks for same occ/vir (alpha on left, beta on right).
         // if all these are equal, sort by ASCII ordering of line name
-        if (ignore_pairs)
-            std::sort(lines.begin(), lines.end(), std::less<>());
-        else {
-            // sort first half and second half separately (note: odd ranks have more in first half. TODO: not always ideal)
-            size_t half = lines.size() - lines.size() / 2;
-            std::sort(lines.begin(), lines.begin() + half, std::less<>());
-            std::sort(lines.begin() + half, lines.end(), std::less<>());
+        if (merge_braket) {
+            if (ignore_labels) std::sort(lines.begin(), lines.end(), line_compare());
+            else std::sort(lines.begin(), lines.end(), std::less<>());
+            return;
         }
+
+        // sort the bra and ket lines separately
+        size_t n = lines.size();
+        line_vector bra, ket, sig, den;
+
+        // separate lines that are sig or den
+        for (const Line &line : lines) {
+            if (line.sig_) sig.push_back(line); // if line is sig, add to siglines
+            else if (line.den_) den.push_back(line); // if line is den, add to denlines
+        }
+
+        // sort the sig and den lines
+        if (ignore_labels) {
+            std::sort(sig.begin(), sig.end(), line_compare());
+            std::sort(den.begin(), den.end(), line_compare());
+        } else {
+            std::sort(sig.begin(), sig.end(), std::less<>());
+            std::sort(den.begin(), den.end(), std::less<>());
+        }
+
+        // get number of lines that are not sig or den
+        n -= sig.size() - den.size();
+        if (n == 0) return; // if there are no lines, do nothing
+
+        // reserve space for bra and ket lines
+        size_t hsize = n - n / 2;
+        bra.reserve(hsize); ket.reserve(hsize);
+
+        // loop over lines and separate them into bra and ket lines
+        size_t pos = 0;
+        for (const Line &line : lines) {
+            if (line.sig_ || line.den_) continue; // skip sig and den lines
+            if (pos < hsize) {
+                bra.push_back(line); // add to bra lines (note: bra will never be smaller than ket)
+            } else {
+                ket.push_back(line); // add to ket lines
+            }
+        }
+
+        // sort bra and ket lines
+        if (ignore_labels) {
+            std::sort(bra.begin(), bra.end(), line_compare());
+            std::sort(ket.begin(), ket.end(), line_compare());
+        } else {
+            std::sort(bra.begin(), bra.end(), std::less<>());
+            std::sort(ket.begin(), ket.end(), std::less<>());
+        }
+
+        // merge bra and ket lines
+        lines.clear(); // clear lines
+        lines.reserve(n); // reserve space for lines
+
+        lines.insert(lines.end(), sig.begin(), sig.end()); // add sig
+        lines.insert(lines.end(), bra.begin(), bra.end()); // add bra
+        lines.insert(lines.end(), ket.begin(), ket.end()); // add ket
+        lines.insert(lines.end(), den.begin(), den.end()); // add den
+
     }
 
     void Vertex::sort() {
-        sort(lines_, false);
+        sort(lines_, false, false); // sort lines without merging brackets and ignoring labels
         update_lines(lines_); // set lines
     }
 

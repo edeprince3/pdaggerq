@@ -199,9 +199,12 @@ namespace pdaggerq {
         /**
          * Sorts lines such that virtual lines come first; if the vertex is blocked, then
          * the blocked lines (alpha/active) come first, followed by the full lines (full/beta) for the same virtual/occupied block
+         * @param lines vector of lines to sort
+         * @param merge_braket do we sort the bra and ket indices separately? (default false)
+         * @param ignore_labels do we ignore the labels of the lines when sorting? (default false)
          */
+        static void sort(line_vector &lines, bool merge_braket = false, bool ignore_labels = false); // static version of sort
         void sort();
-        static void sort(line_vector &lines, bool ignore_pairs = false); // static version of sort
 
         /**
          * get the ovstring of from lines

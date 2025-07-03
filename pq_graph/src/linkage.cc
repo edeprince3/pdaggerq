@@ -227,15 +227,16 @@ namespace pdaggerq {
                 add_line(right_lines[i]);
         }
 
+        // sort lines of linkage
+        Vertex::sort(lines_, false, true);
+
         // add sigma lines to the beginning of lines_
         if (!sig_lines.empty())
             lines_.insert(lines_.begin(), sig_lines.begin(), sig_lines.end());
 
-        // add density lines to the beginning of lines_
+        // add density lines to the end of lines
         if (!den_lines.empty())
-            lines_.insert(lines_.begin(), den_lines.begin(), den_lines.end());
-
-//        std::sort(lines_.begin(), lines_.end(), line_compare());
+            lines_.insert(lines_.end(), den_lines.begin(), den_lines.end());
 
         // update vertex members
         set_properties();
