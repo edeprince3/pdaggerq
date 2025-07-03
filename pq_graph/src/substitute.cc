@@ -236,7 +236,14 @@ bool Term::substitute(const LinkagePtr &linkage) {
         }
 
         new_term_linkage = as_link(new_term_linkage)->best_permutation();
-        if (new_term_linkage->netscales().first > best_linkage->netscales().first) continue;
+        const auto &[new_flop, new_mem] = new_term_linkage->netscales();
+        const auto &[best_flop, best_mem] = best_linkage->netscales();
+
+        if (new_flop > best_flop) continue; // new_linkage is worse than the best one
+        if (new_flop == best_flop) {
+            // for the same flop cost, prefer the one with less memory
+            if (new_mem > best_mem) continue; // new_linkage is worse than the best one
+        }
 
         // create the best permutation of the substitution and break
         best_linkage = new_term_linkage;
