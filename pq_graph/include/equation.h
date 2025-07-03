@@ -59,6 +59,7 @@ namespace pdaggerq {
         static inline bool permuted_merge_ = false; // whether to merge terms with permutations
         static inline bool separate_conditions_ = true; // whether to separate terms into their conditions
         static inline bool no_scalars_ = false; // whether to remove scalar terms
+        static inline bool no_trace_ = false; // whether to remove scalar terms
         bool is_temp_equation_ = false; // whether this is an equation to hold intermediates
         bool allow_substitution_ = true; // whether to allow substitution of linkages
 

@@ -146,6 +146,12 @@ namespace pdaggerq {
                 cout << "'no_scalars' is set to true. Scalars will not be included in the final equations." << endl;
         }
 
+        if (options.contains("no_trace")) {
+            Equation::no_trace_ = options["no_trace"].cast<bool>();
+            if (Equation::no_trace_)
+                cout << "'no_trace' is set to true. Terms including a trace will not be included in the final equations." << endl;
+        }
+
 
         // set controls for the maximum shape of an intermediate
         if (options.contains("max_shape_map")) { // define by using a map
@@ -493,7 +499,7 @@ namespace pdaggerq {
             bool has_self_link = term.apply_self_links();
 
             // skip term if it has a self-link and scalars are not allowed
-            if (has_self_link && Equation::no_scalars_)
+            if ( has_self_link && (Equation::no_trace_ || Equation::no_scalars_) )
                 continue;
 
             // use the term to build the assignment vertex
