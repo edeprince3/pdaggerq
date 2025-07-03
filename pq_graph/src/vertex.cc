@@ -332,6 +332,9 @@ namespace pdaggerq {
         rank_ = lines.size(); // set rank
         shape_ = shape(lines_); // create shape from lines
         has_blk_ |= shape_.b_ > 0; // beta dims only occurs with blocking
+        for (const Line &line : lines_) {
+            has_blk_ |= line.has_blk(); // check if any line has a block
+        }
         if (update_name)
             this->update_name(); // update name
 

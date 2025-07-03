@@ -691,7 +691,8 @@ namespace pdaggerq {
             auto binarize_link = Linkage::link(binarize_vertices);
             MutableVertexPtr binarize_vertex = make_shared<Vertex>("tmps_", binarize_link->lines());
             binarize_vertex->vertex_type_ = 'b';    // sets printing for binarization vertex
-            binarize_vertex->sort();                // sort labels of binarization vertex
+            binarize_vertex->has_blk_ = binarize_link->has_blk_; // set has_blk for binarization vertex
+//            binarize_vertex->sort();                // sort labels of binarization vertex
             binarize_vertex->update_name();         // update name of binarization vertex
 
             if (lhs_->name() == binarize_vertex->name()) {

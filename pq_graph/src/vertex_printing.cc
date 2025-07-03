@@ -143,6 +143,9 @@ namespace pdaggerq {
         for (const Line &line : lines) {
             if (!use_trial_index && line.sig_) continue;
             line_str += line.label_;
+            if (line.has_blk()) {
+                line_str += line.block();
+            }
             line_str += ",";
         }
         line_str.pop_back(); // remove last comma

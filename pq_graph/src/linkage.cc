@@ -231,9 +231,9 @@ namespace pdaggerq {
         if (!sig_lines.empty())
             lines_.insert(lines_.begin(), sig_lines.begin(), sig_lines.end());
 
-        // add density lines to the end of lines
+        // add density lines to the beginning of lines_
         if (!den_lines.empty())
-            lines_.insert(lines_.end(), den_lines.begin(), den_lines.end());
+            lines_.insert(lines_.begin(), den_lines.begin(), den_lines.end());
 
 //        std::sort(lines_.begin(), lines_.end(), line_compare());
 
@@ -463,12 +463,17 @@ namespace pdaggerq {
         bool same_type = id_ == other->id() && type() == other->type();
         if (!same_type) return false;
 
+        // Lock other's mutex if it's being accessed by const methods modifying mutable members
+        // However, operator== should ideally not modify state. Assuming it's safe or other is const.
+        // For safety in general concurrent access to Linkage objects, if other.mtx_ protects mutable members
+        // read by operator==, it should be locked. But operator== itself doesn't modify.
+        // The issue is more with copy/move of mutable members.
         return  *this == *as_link(other);
     }
 
     void Linkage::copy_link(const Linkage &other) {
-        // Lock the mutex for the scope of the function
-//        std::lock_guard<std::mutex> lock(mtx_);
+        // Lock the mutex of the source object ('other') to ensure thread-safe reads of its mutable members
+        std::lock_guard<std::mutex> lock_other(other.mtx_);
 
         // call base class copy constructor
         Vertex::operator=(other);
@@ -539,8 +544,8 @@ namespace pdaggerq {
     }
 
     void Linkage::move_link(Linkage &&other) {
-        // Lock the mutex for the scope of the function
-//        std::lock_guard<std::mutex> lock(mtx_);
+        // Lock the mutex of the source object ('other') to ensure thread-safe reads/moves of its mutable members
+        std::lock_guard<std::mutex> lock_other(other.mtx_);
 
         // call base class move constructor
         this->Vertex::operator=(other);
