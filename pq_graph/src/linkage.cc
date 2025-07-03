@@ -227,9 +227,6 @@ namespace pdaggerq {
                 add_line(right_lines[i]);
         }
 
-        // sort lines of linkage
-        Vertex::sort(lines_, false, true);
-
         // add sigma lines to the beginning of lines_
         if (!sig_lines.empty())
             lines_.insert(lines_.begin(), sig_lines.begin(), sig_lines.end());
