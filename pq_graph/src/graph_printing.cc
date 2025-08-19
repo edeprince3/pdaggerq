@@ -286,6 +286,17 @@ namespace pdaggerq {
 
                         // indicate that a tmp was found
                         found_any = true;
+
+                        // We need to allocate the tmp when using c++ or cpp
+                        if (Vertex::print_type_ == "c++" && Term::deallocate_) {
+                            string allocatename;
+                            string lhs_name = temp->str(true, false);
+                            allocatename = ".allocate(" + lhs_name + ")";
+                            Term allocateterm(tempterm);
+                            allocateterm.print_override_ = allocatename;
+                            all_terms.insert(all_terms.begin() + (int) last_pos_idx, allocateterm);
+                        }
+
                         break;
                     }
                 }
@@ -294,6 +305,17 @@ namespace pdaggerq {
                     all_terms.insert(all_terms.begin() + (int)last_pos_idx, tempterm);
                     declare_ids.insert(temp_id); // add tmp id to set
                     found_any = true;
+
+                    // We need to allocate the tmp when using c++ or cpp
+                    if (Vertex::print_type_ == "c++" && Term::deallocate_) {
+                        string allocatename;
+                        string lhs_name = temp->str(true, false);
+                        allocatename = ".allocate(" + lhs_name + ")";
+                        Term allocateterm(tempterm);
+                        allocateterm.print_override_ = allocatename;
+                        all_terms.insert(all_terms.begin() + (int) last_pos_idx, allocateterm);
+                    }
+
                 }
             }
         } while (found_any && ++attempts < copy.equations_["temp"].size());
@@ -645,11 +667,13 @@ namespace pdaggerq {
             // if an intermediate vertex was created, delete it
             if (!perm_as_rhs && Term::deallocate_) {
                 // delete the permutation vertex
-                if (Vertex::print_type_ == "c++")
-                    output += ".deallocate(" + perm_vertex->name() + ")";
-                else if (Vertex::print_type_ == "python")
+//                if (Vertex::print_type_ == "c++")
+//                    output += ".deallocate(" + perm_vertex->name() + ")";
+//                else
+                if (Vertex::print_type_ == "python") {
                     output += "del " + perm_vertex->name();
-                output += "\n";
+                    output += "\n";
+                }
             }
 
             if (!perm_terms.empty())
