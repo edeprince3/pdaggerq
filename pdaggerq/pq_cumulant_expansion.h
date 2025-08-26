@@ -43,7 +43,6 @@ void cumulant_expansion(std::vector<std::shared_ptr<pq_string> > &ordered, std::
 /// expand rdms in an input string using cumulant expansion, ignoring the n-body cumulant
 bool expand_rdms(const std::shared_ptr<pq_string>& in, std::vector<std::shared_ptr<pq_string> > &list, int order);
 
-
 }
 
 #endif 
