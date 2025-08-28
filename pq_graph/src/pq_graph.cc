@@ -527,12 +527,31 @@ namespace pdaggerq {
                 }
             }
 
-            if (use_density_fitting_){
+
+            terms.push_back(term);
+        }
+
+        if (use_density_fitting_){
+            vector<Term> new_terms;
+            new_terms.reserve(4*terms.size());
+            std::cout << "Applying density fitting..." << std::endl;
+            for (const auto &term : terms){
                 vector<Term> density_fitted_terms = term.density_fitting();
-                terms.insert(terms.end(), density_fitted_terms.begin(), density_fitted_terms.end());
-            } else {
-                terms.push_back(term);
+                new_terms.insert(new_terms.end(), density_fitted_terms.begin(), density_fitted_terms.end());
             }
+            terms = new_terms;
+        }
+
+        bool restricted_spin_ = false; // hard-coded for now. TODO: make an option
+        if (has_blocks && restricted_spin_) {
+            vector<Term> new_terms;
+            new_terms.reserve(4*terms.size());
+            std::cout << "Converting beta blocks to alpha blocks..." << std::endl;
+            for (const auto &term : terms){
+                vector<Term> alpha_terms = term.convert_beta_to_alpha();
+                new_terms.insert(new_terms.end(), alpha_terms.begin(), alpha_terms.end());
+            }
+            terms = new_terms;
         }
 
 

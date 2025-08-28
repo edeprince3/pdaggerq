@@ -298,7 +298,7 @@ namespace pdaggerq {
          * Recursively update the lines of the linkage using a map
          * @param line_map map of old lines to new lines
          */
-        void replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name = true) override;
+        void replace_lines(const LineMap &line_map, bool update_name = true) override;
 
         /**
          * Less than operator

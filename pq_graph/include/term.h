@@ -515,15 +515,33 @@ namespace pdaggerq {
         bool is_compatible(const LinkagePtr &linkage) const;
 
         /**
+         * determines if the term is valid (non-zero coefficient, non-empty lhs and rhs, valid spin blocks, etc)
+         * @return
+         */
+        bool is_valid();
+
+        /**
          * swaps the sign of the term
          */
         void swap_sign() { coefficient_ *= -1; }
 
         /**
+         * Replaces lines in the term given by a map of Line replacements
+         */
+        void replace_lines(const LineMap &line_map);
+
+        /**
          * Replace all two-body operators with density fitting operators
          * @return vector of terms with density fitting operators
          */
-        vector<Term> density_fitting();
+        vector<Term> density_fitting() const;
+
+        /**
+         * Convert a beta term to an alpha term by changing all lines to alpha or applying permutations from alpha-beta
+         * @return vector of converted terms
+         */
+        vector<Term> convert_beta_to_alpha() const;
+
 
     }; // end Term class
 

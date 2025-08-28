@@ -235,6 +235,9 @@ namespace pdaggerq {
 
 // declare hash functions for Line class
 namespace pdaggerq {
+    struct LineHash;
+    typedef std::unordered_map<Line, Line, LineHash> LineMap;
+
     struct LineHash {
         uint_fast16_t operator()(const Line &line) const {
 
@@ -264,10 +267,10 @@ namespace pdaggerq {
          * @param new_lines the new lines
          * @return a map of the old lines to the new lines
          */
-        static std::unordered_map<Line, Line, LineHash> map_lines(const line_vector &old_lines,
+        static LineMap map_lines(const line_vector &old_lines,
                                                                   const line_vector &new_lines) {
 
-            std::unordered_map<Line, Line, LineHash> line_map;
+            LineMap line_map;
             line_map.reserve(old_lines.size() + new_lines.size());
 
             // we want to map the old lines to the new lines

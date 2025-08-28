@@ -237,7 +237,7 @@ namespace pdaggerq {
         update_lines(lines);
     }
 
-    void Vertex::replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name) {
+    void Vertex::replace_lines(const LineMap &line_map, bool update_name) {
         for (Line &line : lines_) {
             // find the line in the map and replace it (if it exists)
             auto it = line_map.find(line);
@@ -264,7 +264,7 @@ namespace pdaggerq {
         size_t occ_idx = 0, virt_idx = 0, sig_idx = 0, den_idx = 0;
 
         // map lines to their first appearance
-        unordered_map<Line, Line, LineHash> line_map;
+        LineMap line_map;
         for (const auto &line : lines_) {
             // first check if line is already in map; skip if it is
             if (line_map.find(line) != line_map.end())

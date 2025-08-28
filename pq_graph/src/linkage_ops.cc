@@ -302,7 +302,7 @@ namespace pdaggerq {
         return {replacement, true};
     }
 
-    void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name) {
+    void Linkage::replace_lines(const LineMap &line_map, bool update_name) {
 
         // call the base class replace_lines to replace the lines of the root vertex
         Vertex::replace_lines(line_map, update_name);

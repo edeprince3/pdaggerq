@@ -271,7 +271,7 @@ namespace pdaggerq {
         size_t occ_idx = 0, virt_idx = 0, sig_idx = 0, den_idx = 0;
 
         // map lines to their first appearance
-        unordered_map<Line, Line, LineHash> line_map;
+        LineMap line_map;
         for (const auto &line : lines) {
             // first check if line is already in map; skip if it is
             if (line_map.find(line) != line_map.end())
@@ -592,7 +592,7 @@ namespace pdaggerq {
             }
         }
         if (compatible) {
-            unordered_map<Line, Line, LineHash> line_map = LineHash::map_lines(lines_, lines);
+            LineMap line_map = LineHash::map_lines(lines_, lines);
             this->replace_lines(line_map, update_name);
         }
 
