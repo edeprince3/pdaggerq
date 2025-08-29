@@ -820,18 +820,18 @@ namespace pdaggerq {
 
                 t2abji_map[aa] = aa;
                 t2abji_map[ba] = bb;
-                t2abji_map[ia] = jb;
-                t2abji_map[ja] = ia;
+                t2abji_map[ia] = ib;
+                t2abji_map[ja] = ja;
 
-                t2baij_map[aa] = bb;
-                t2baij_map[ba] = aa;
+                t2baij_map[aa] = ab;
+                t2baij_map[ba] = ba;
                 t2baij_map[ia] = ia;
                 t2baij_map[ja] = jb;
 
-                t2baji_map[aa] = bb;
-                t2baji_map[ba] = aa;
-                t2baji_map[ia] = jb;
-                t2baji_map[ja] = ia;
+                t2baji_map[aa] = ab;
+                t2baji_map[ba] = ba;
+                t2baji_map[ia] = ib;
+                t2baji_map[ja] = ja;
             }
         }
 
