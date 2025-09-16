@@ -800,7 +800,7 @@ size_t PQGraph::prune(bool keep_single_use) {
             }
 
             // skip if temp is used more than once
-            if (num_occurrences >= 1) continue;
+            if (num_occurrences > 1) continue;
 
         }
 
