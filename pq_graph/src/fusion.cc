@@ -784,26 +784,28 @@ size_t PQGraph::prune(bool keep_single_use) {
 
         auto [tmp_decl_terms, terms] = terms_pair;
 
-        // remove (regardless of use) if temp has only one pure vertex or if never declared
-        if (!tmp_decl_terms.empty() && temp->vertices().size() > 1) {
+        // remove (regardless of use) if never declared
+        if (!tmp_decl_terms.empty()) {
 
             // count number of occurrences of the temp in the terms
             size_t num_occurrences = 0;
             for (auto &term: terms) {
                 if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
                 for (auto &vertex: term->rhs()) {
-                    if (vertex->is_linked()) {
-                        auto all_temps = as_link(vertex)->find_links(temp);
-                        num_occurrences += all_temps.size();
-                    }
+                    num_occurrences += as_link(vertex)->count(temp, false);
                 }
             }
 
             // skip if temp is used at least once
             if (num_occurrences > 1) continue;
+            else if (num_occurrences == 1) {
+                // skip if temp is used only once and we want to keep single use temps
+                if (keep_single_use) continue;
 
-            if (keep_single_use && num_occurrences == 1)
-                continue; // skip if temp is used only once and we want to keep single use temps
+                // for now, we cannot remove if the temp is an addition
+                if (temp->is_addition())
+                    continue;
+            }
         }
 
         num_removed++;
