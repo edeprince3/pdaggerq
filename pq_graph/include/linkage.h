@@ -109,7 +109,6 @@ namespace pdaggerq {
 
     public:
         long id_ = -1; // id of the linkage (default to -1 if not set)
-        size_t depth_{}; // number of vertices in the linkage
         bool addition_ = false; // whether the linkage is an addition; else it is a contraction
         bool reused_ = false; // whether the linkage is a shared operator (can be extracted)
 
@@ -501,6 +500,15 @@ namespace pdaggerq {
         bool has_temp(const VertexPtr &temp, bool enter_temps = true, long depth = -1) const override;
 
         /**
+         * goes down the tree and counts all occurences of the target vertex
+         * @param target the vertex to count
+         * @param enter_temps whether to enter intermediate vertices
+         * @param depth maximum depth to search for links
+         * @return number of occurences of the target vertex
+         */
+        size_t count(const VertexPtr &target, bool enter_temps = true, long depth = -1) const override;
+
+        /**
          * goes down the tree and finds all occurences of the target link
          * @param link the link to find
          * @param enter_temps whether to enter intermediate vertices
@@ -544,7 +552,9 @@ namespace pdaggerq {
          * Get depth of linkage
          * @return depth of linkage
          */
-        size_t depth() const override { return depth_; }
+        size_t depth() const override {
+            return 1 + std::max(left_->depth(), right_->depth());
+        }
 
 
     }; // class linkage

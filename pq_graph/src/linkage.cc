@@ -302,10 +302,6 @@ namespace pdaggerq {
 
 
     void Linkage::set_properties() {
-        // determine the depth of the linkage
-        depth_ = 1;
-        size_t left_depth = left_->depth(), right_depth = right_->depth();
-        depth_ += std::max(left_depth, right_depth);
 
         // create the name of the linkage
         base_name_.reserve(left_->name_.size() + right_->name_.size() + 1);
@@ -389,14 +385,14 @@ namespace pdaggerq {
         // check if linkage type is the same
         if (addition_ != other.addition_) return false;
 
-        // check the depth of the linkage
-        if (depth_ != other.depth_) return false;
-
         // note, we do NOT check the id of the linkage
 
         // check if left and right vertices are linked in the same way
         if ( left_->is_linked() !=  other.left_->is_linked()) return false;
         if (right_->is_linked() != other.right_->is_linked()) return false;
+
+        // check the depth of the linkage
+        if (depth() != other.depth()) return false;
 
         // check that scales are equal
         if (flop_scale_ != other.flop_scale_) return false;
@@ -480,7 +476,6 @@ namespace pdaggerq {
         // fill linkage data (shallow copy, but vertex cannot be modified)
         left_  = other.left_;
         right_ = other.right_;
-        depth_ = other.depth_;
 
         // copy vectors that keep track of the graph structure
         all_vert_     = other.all_vert_;
@@ -552,7 +547,6 @@ namespace pdaggerq {
         // move linkage data
         left_  = std::move(other.left_);
         right_ = std::move(other.right_);
-        depth_ = other.depth_;
 
         // move vectors that keep track of the graph structure
         all_vert_     = std::move(other.all_vert_);

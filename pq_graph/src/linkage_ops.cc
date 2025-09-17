@@ -75,8 +75,8 @@ namespace pdaggerq {
             return {flops, mems};
 
         // use depth to reserve space for scaling
-        flops.reserve(depth_+1);
-        mems.reserve(depth_+1);
+        flops.reserve(depth()+1);
+        mems.reserve(depth()+1);
 
         // add the scaling of the left vertex
         if (left_->is_linked()) {
@@ -117,7 +117,7 @@ namespace pdaggerq {
 
         // else regenerate the result vector
         result.clear();
-        result.reserve(2*(depth_+1));
+        result.reserve(2*(depth()+1));
 
         // add operators from the left (excluding additions for now)
         if (left_->is_linked() && !left_->empty()) {
@@ -233,7 +233,7 @@ namespace pdaggerq {
         bool replaced = *target_vertex == *this;
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
-        if (depth_ < target_vertex->depth())
+        if (depth() < target_vertex->depth())
             return {shallow(), false}; // if the target vertex is deeper, it cannot be replaced
 
         VertexPtr new_left = left_->shallow(), new_right = right_->shallow();
@@ -324,7 +324,7 @@ namespace pdaggerq {
     }
 
     bool Linkage::has_temp(const VertexPtr &temp, bool enter_temps, long search_depth) const {
-        if (temp->is_linked() && depth_ < as_link(temp)->depth_)
+        if (depth() < temp->depth())
             return false; // if the depth of the temp is greater than this linkage, there cannot be a match
 
         if (same_temp(temp)) return true;
@@ -341,8 +341,28 @@ namespace pdaggerq {
         return false;
     }
 
+    size_t Linkage::count(const VertexPtr &target, bool enter_temps, long search_depth) const {
+
+
+        if (target == nullptr) return 0; // if the target vertex is null, return 0
+        if (this->depth() < target->depth()) return 0; // if the target vertex is deeper, it cannot be found
+
+        size_t cnt = 0;
+        bool found = *target == *this;
+        if (found) cnt++; // if this is the target vertex, increment the cnt
+        if (is_temp() && !enter_temps) return cnt; // do not enter temps if not allowed
+
+        // recursively check if left and right vertices have the target up to a certain search_depth
+        if (search_depth > 0 || search_depth == -1) {
+            search_depth = search_depth == -1 ? -1 : search_depth - 1;
+            cnt += left_->count(target, enter_temps, search_depth);
+            cnt += right_->count(target, enter_temps, search_depth);
+        }
+        return cnt;
+    }
+
     bool Linkage::has_link(const VertexPtr &link, bool enter_temps, long search_depth) const {
-        if (link->is_linked() && depth_ < as_link(link)->depth_)
+        if (depth() < link->depth())
             return false; // if the depth of the temp is greater than this linkage, there cannot be a match
 
         if (*this == *link) return true;
@@ -439,7 +459,7 @@ namespace pdaggerq {
 
         // initialize the result vector with the identity permutation
         result = {as_link(shallow())};
-        result.reserve(2*(depth_+1)); // reserve space for the result vector
+        result.reserve(2*(depth()+1)); // reserve space for the result vector
 
         // do not generate permutations for temps (their structure is fixed)
         if (is_temp()) return result;
@@ -578,7 +598,7 @@ namespace pdaggerq {
 
         // build permutations of root vertex
         linkage_vector top_perms = {as_link(shallow())};
-        linkage_set unique_subgraphs; unique_subgraphs.reserve(4 * (depth_+1));
+        linkage_set unique_subgraphs; unique_subgraphs.reserve(4 * (depth()+1));
 
         // now add the subgraphs of the left and right vertices
         for (const auto &perm : top_perms) {
