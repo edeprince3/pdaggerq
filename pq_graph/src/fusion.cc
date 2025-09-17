@@ -802,6 +802,9 @@ size_t PQGraph::prune(bool keep_single_use) {
                 // skip if temp is used only once and we want to keep single use temps
                 if (keep_single_use) continue;
 
+                // we always keep scalar additions
+                if (temp->is_scalar()) continue;
+
                 // for now, we cannot remove if the temp is an addition
                 if (temp->is_addition())
                     continue;
