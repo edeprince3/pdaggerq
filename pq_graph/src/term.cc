@@ -751,23 +751,15 @@ namespace pdaggerq {
         return new_terms;
     }
 
-    void Term::replace_lines(const LineMap &line_map) {
-        //TODO: also replace lines in lhs and eq
-        if (line_map.empty()) return; // if map is empty, return
-        for (auto & op : rhs_) {
-            MutableVertexPtr new_op = op->clone();
-            new_op->replace_lines(line_map);
-            if (op->vertex_type_ == 'a')
-                new_op->sort();
-            new_op->update_name();
-            op = new_op;
-        }
-    }
-
     bool Term::is_valid() {
-        // any 'ab' or 'ba' blocks invalid
         for (const auto & op : rhs_) {
-            if (op->shape_.a_ % 2 == 1) {
+            // any 'ab' or 'ba' blocks for 1 body operators are invalid
+            if (op->rank() == 2 && op->shape_.a_ == 1 && op->shape_.b_ == 1) {
+                return false;
+            }
+
+            // should have same number of alpha and beta lines for 2 body operators
+            if (op->rank() == 4 && (op->shape_.a_ > 0 && op->shape_.b_ > 0) && (op->shape_.a_ != op->shape_.b_)) {
                 return false;
             }
         }
@@ -775,17 +767,36 @@ namespace pdaggerq {
         return true;
     }
 
+    void Term::replace_lines(const LineMap &line_map) {
+        //TODO: also replace lines in lhs and eq
+        if (line_map.empty()) return; // if map is empty, return
+        for (auto & op : rhs_) {
+            MutableVertexPtr new_op = op->clone();
+            new_op->replace_lines(line_map);
+            new_op->update_name();
+
+            if (new_op->base_name() == "eri") {
+                if (new_op->permute_eri())
+                    swap_sign(); // swap sign if eri is permuted with sign change
+            }
+
+            op = new_op;
+        }
+    }
+
     vector<Term> Term::convert_beta_to_alpha() const {
 
         // create a copy of the current term
         Term alpha_term = *this;
+
+        return {alpha_term};
 
         // initialize map to determine which lines to change.
         LineMap beta_to_alpha;
 
         // first we change lines associated with all beta amplitudes
         for (auto & op : alpha_term.rhs_) {
-            if (op->vertex_type_ == 'a' && op->shape_.a_ == 0){
+            if (op->vertex_type_ == 'a' && op->shape_.a_ == 0 && op->shape_.b_ > 0){
                 for (const auto & line : op->lines()){
                     Line new_line = line;
                     new_line.a_ = true;
@@ -797,8 +808,10 @@ namespace pdaggerq {
         // replace lines using the map
         alpha_term.replace_lines(beta_to_alpha);
 
+        return {alpha_term};
+
         // now we replace all t2-aa blocks with permutations of t2-ab blocks
-        LineMap t2abij_map, t2abji_map, t2baij_map, t2baji_map;
+        LineMap t2abij_map, t2baij_map;
         for (auto & op : alpha_term.rhs_) {
             if (op->vertex_type_ == 'a' && op->shape_.a_ == 4){
 
@@ -818,20 +831,10 @@ namespace pdaggerq {
                 t2abij_map[ia] = ia;
                 t2abij_map[ja] = jb;
 
-                t2abji_map[aa] = aa;
-                t2abji_map[ba] = bb;
-                t2abji_map[ia] = ib;
-                t2abji_map[ja] = ja;
-
-                t2baij_map[aa] = ab;
-                t2baij_map[ba] = ba;
+                t2baij_map[aa] = ba;
+                t2baij_map[ba] = ab;
                 t2baij_map[ia] = ia;
                 t2baij_map[ja] = jb;
-
-                t2baji_map[aa] = ab;
-                t2baji_map[ba] = ba;
-                t2baji_map[ia] = ib;
-                t2baji_map[ja] = ja;
             }
         }
 
@@ -839,23 +842,16 @@ namespace pdaggerq {
         if (!t2abij_map.empty()) {
             Term abij_term = alpha_term.clone();
             Term baij_term = alpha_term.clone();
-            Term abji_term = alpha_term.clone();
-            Term baji_term = alpha_term.clone();
 
             // replace lines using the maps
             abij_term.replace_lines(t2abij_map);
             baij_term.replace_lines(t2baij_map);
-            abji_term.replace_lines(t2abji_map);
-            baji_term.replace_lines(t2baji_map);
 
             baij_term.coefficient_ *= -1;
-            abji_term.coefficient_ *= -1;
 
             vector<Term> new_terms;// = {abij_term, baij_term, abji_term, baji_term};
             if (abij_term.is_valid()) new_terms.push_back(abij_term);
             if (baij_term.is_valid()) new_terms.push_back(baij_term);
-            if (abji_term.is_valid()) new_terms.push_back(abji_term);
-            if (baji_term.is_valid()) new_terms.push_back(baji_term);
             return new_terms;
         } else if (alpha_term.is_valid()) {
             return {alpha_term};
