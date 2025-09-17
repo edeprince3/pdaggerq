@@ -131,6 +131,9 @@ namespace pdaggerq {
         /// whether to use density fitted integrals
         bool use_density_fitting_ = false;
 
+        /// whether to apply permutations to terms before optimization
+        bool apply_permutations_ = true;
+
         /// whether the equations have any sigma vectors
         bool has_sigma_vecs_ = false;
 

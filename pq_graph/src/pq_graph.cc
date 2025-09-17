@@ -227,6 +227,10 @@ namespace pdaggerq {
             Linkage::low_memory_ = options["low_memory"].cast<bool>();
         }
 
+        if (options.contains("apply_permutations")) {
+            apply_permutations_ = options["apply_permutations"].cast<bool>();
+        }
+
         if (options.contains("batch_size")) {
             batch_size_ = static_cast<size_t>(options["batch_size"].cast<long>());
             if (batch_size_ < 1ul) {
@@ -376,6 +380,10 @@ namespace pdaggerq {
         cout << "    low_memory: " << (Linkage::low_memory_ ? "true" : "false")
              << "  // whether to recompute or save all possible permutations of each term in memory (default: false)" << endl
              << "                       // if true, permutations are recomputed on the fly. Recommended if memory runs out." << endl;
+
+        cout << "    apply_permutations: " << (apply_permutations_ ? "true" : "false")
+             << "  // whether to apply permutations to terms before optimization (default: true)" << endl
+             << "                       // generally leads to better optimization, but may be significantly slower." << endl;
 
         cout << "    nthreads: " << nthreads_
              << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
@@ -554,6 +562,16 @@ namespace pdaggerq {
             terms = new_terms;
         }
 
+        if (apply_permutations_){
+            vector<Term> new_terms;
+            new_terms.reserve(4*terms.size());
+            std::cout << "Applying density fitting..." << std::endl;
+            for (const auto &term : terms){
+                vector<Term> permuted_terms = term.expand_perms();
+                new_terms.insert(new_terms.end(), permuted_terms.begin(), permuted_terms.end());
+            }
+            terms = new_terms;
+        }
 
         // build equation
         Equation& new_equation = equations_[assigment_name];
