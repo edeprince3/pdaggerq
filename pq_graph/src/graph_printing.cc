@@ -72,7 +72,7 @@ namespace pdaggerq {
         if (Vertex::print_type_ == "python" || Vertex::print_type_ == "einsum") {
             Vertex::print_type_ = "python";
             cout << "Formatting equations for python" << endl;
-        } else if (Vertex::print_type_ == "c++" || Vertex::print_type_ == "cpp") {
+        } else if (Vertex::print_type_ == "c++" || Vertex::print_type_ == "cpp" || Vertex::print_type_ == "tamm" || Vertex::print_type_ == "tiledarray") {
             Vertex::print_type_ = "c++";
             cout << "Formatting equations for c++" << endl;
         } else {
