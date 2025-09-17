@@ -792,7 +792,7 @@ size_t PQGraph::prune(bool keep_single_use) {
             for (auto &term: terms) {
                 if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
                 for (auto &vertex: term->rhs()) {
-                    num_occurrences += as_link(vertex)->count(temp, false);
+                    num_occurrences += as_link(vertex)->count(temp);
                 }
             }
 
