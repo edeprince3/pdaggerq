@@ -703,6 +703,11 @@ namespace pdaggerq {
 
         // we need binarization for c++ output. if more than 2 vertices, binarize into two terms
         bool binarize = rhs_.size() > 2;
+        // if there are exactly two vertices, check if one of them is an addition. If so, binarize
+        if (!binarize && rhs_.size() == 2) {
+            binarize  = rhs_[0]->is_expandable(false, true);
+            binarize |= rhs_[1]->is_expandable(false, true);
+        }
         if (binarize && Term::binarize_) {
 
             vertex_vector binarize_vertices = rhs_;
@@ -736,7 +741,7 @@ namespace pdaggerq {
 
             // initialize term to binarize
             Term binarize_last_term = *this;          // copy term
-            binarize_last_term.rhs_ = {binarize_vertex, last_vertex};
+            binarize_last_term.rhs_ = {last_vertex, binarize_vertex};
             binarize_last_term.expand_rhs(binarize_last_term.term_linkage(true));          // expand rhs
 
             output += binarize_last_term.str();
