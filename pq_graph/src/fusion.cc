@@ -805,8 +805,9 @@ size_t PQGraph::prune(bool keep_single_use) {
                 // we always keep scalars
                 if (temp->is_scalar()) continue;
 
-                // we always keep reused temps
-                if (temp->is_reused()) continue;
+                // we keep reused temps if they are used in the equations
+                Term *used_term = *terms.begin();
+                if (temp->is_reused() && !used_term->lhs()->is_temp()) continue;
 
             }
         }
