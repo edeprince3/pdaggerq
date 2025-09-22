@@ -805,6 +805,9 @@ size_t PQGraph::prune(bool keep_single_use) {
                 // we always keep scalars
                 if (temp->is_scalar()) continue;
 
+                // we always keep reused temps
+                if (temp->is_reused()) continue;
+
             }
         }
 
