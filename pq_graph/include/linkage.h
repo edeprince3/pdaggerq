@@ -127,8 +127,8 @@ namespace pdaggerq {
             return "temp";
         }
 
-        bool is_expandable(bool expand_scalar = false) const override {
-            return !is_temp() && !is_addition() && !empty() && ( !is_scalar() || expand_scalar );
+        bool is_expandable(bool expand_scalar = false, bool expand_addition = false) const override {
+            return !is_temp() && !empty() && ( !is_addition() || expand_addition) && ( !is_scalar() || expand_scalar );
         }
 
         bool is_linked() const override { return true; } // indicates the vertex is linked to another vertex
