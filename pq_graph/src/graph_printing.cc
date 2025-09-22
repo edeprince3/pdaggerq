@@ -710,11 +710,20 @@ namespace pdaggerq {
         }
         if (binarize && Term::binarize_) {
 
+            // determine binarization order
             vertex_vector binarize_vertices = rhs_;
 
+            bool reverse_order = rhs_.size() == 2 && rhs_[1]->is_expandable(false, true);
+
             // extract last vertex
-            VertexPtr last_vertex = binarize_vertices.back();
-            binarize_vertices.pop_back();
+            VertexPtr remainder_vertex;
+            if (reverse_order) {
+                remainder_vertex = binarize_vertices.front();
+                binarize_vertices.erase(binarize_vertices.begin());
+            } else {
+                remainder_vertex = binarize_vertices.back();
+                binarize_vertices.pop_back();
+            }
 
             // make intermediate vertex for the binarization
             auto binarize_link = Linkage::link(binarize_vertices);
@@ -741,7 +750,9 @@ namespace pdaggerq {
 
             // initialize term to binarize
             Term binarize_last_term = *this;          // copy term
-            binarize_last_term.rhs_ = {last_vertex, binarize_vertex};
+            if (reverse_order)
+                 binarize_last_term.rhs_ = {remainder_vertex, binarize_vertex};
+            else binarize_last_term.rhs_ = {binarize_vertex, remainder_vertex};
             binarize_last_term.expand_rhs(binarize_last_term.term_linkage(true));          // expand rhs
 
             output += binarize_last_term.str();
