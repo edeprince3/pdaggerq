@@ -565,7 +565,7 @@ namespace pdaggerq {
         if (apply_permutations_){
             vector<Term> new_terms;
             new_terms.reserve(4*terms.size());
-            std::cout << "Applying density fitting..." << std::endl;
+            std::cout << "Applying permutations..." << std::endl;
             for (const auto &term : terms){
                 vector<Term> permuted_terms = term.expand_perms();
                 new_terms.insert(new_terms.end(), permuted_terms.begin(), permuted_terms.end());
