@@ -805,6 +805,9 @@ size_t PQGraph::prune(bool keep_single_use) {
                 // we always keep scalars
                 if (temp->is_scalar()) continue;
 
+                // we keep temps that are additions or have additions in them
+                if (temp->is_addition() || temp->left()->is_addition() || temp->right()->is_addition()) continue;
+
                 // we keep reused temps if they are used in the equations
                 Term *used_term = *terms.begin();
                 if (temp->is_reused() && !used_term->lhs()->is_temp()) continue;
@@ -859,6 +862,7 @@ size_t PQGraph::prune(bool keep_single_use) {
         });
 
         auto remove_unused = [&sorted_to_remove](VertexPtr vertex){
+            // TODO: this lambda does not work with temps that have additions in them
             bool made_replacement = false;
             if (vertex->is_linked()) {
                 for (auto &temp: sorted_to_remove) {
@@ -938,7 +942,6 @@ size_t PQGraph::prune(bool keep_single_use) {
     }
 
     if (opt_level_ >= 6) {
-
         #pragma omp parallel for schedule(guided) default(none) shared(all_terms)
         for (Term *term_ptr: all_terms) {
             Term &term = *term_ptr;
