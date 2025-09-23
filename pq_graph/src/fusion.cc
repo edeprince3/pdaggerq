@@ -516,6 +516,7 @@ struct LinkMerger {
                     pos = merge_str.find('\n', pos + 5);
                 }
             }
+            /*
             cout << "Target Terms: " << endl;
             for (auto &link_info: link_tracker_.link_track_map_[target_link]) {
                 auto &term = link_info.term;
@@ -542,6 +543,7 @@ struct LinkMerger {
                 }
             }
             cout << endl;
+            */
         }
     }
 
@@ -745,6 +747,7 @@ size_t PQGraph::merge_intermediates(){
 
 size_t PQGraph::prune(bool keep_single_use) {
 
+    keep_single_use = false;
     if (opt_level_< 5)
         return 0; // do not remove unused temps if pruning is disabled
 
@@ -806,9 +809,9 @@ size_t PQGraph::prune(bool keep_single_use) {
                 if (temp->is_scalar()) continue;
 
                 // we keep temps that are additions or have additions in them
-                if (temp->is_addition() || temp->left()->is_addition() || temp->right()->is_addition()) continue;
+//                if (temp->is_addition() || temp->left()->is_addition() || temp->right()->is_addition()) continue;
 
-                // we keep reused temps if they are used in the equations
+                // we keep reused temps if it is used in an equation
                 Term *used_term = *terms.begin();
                 if (temp->is_reused() && !used_term->lhs()->is_temp()) continue;
 

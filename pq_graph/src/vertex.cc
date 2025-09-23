@@ -261,6 +261,8 @@ namespace pdaggerq {
 
     VertexPtr Vertex::relabel() const {
 
+        return clone(); // disable relabeling for non-linked vertices
+
         size_t occ_idx = 0, virt_idx = 0, sig_idx = 0, den_idx = 0;
 
         // map lines to their first appearance

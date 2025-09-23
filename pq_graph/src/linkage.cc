@@ -241,6 +241,9 @@ namespace pdaggerq {
 
     VertexPtr Linkage::relabel() const {
 
+        // TODO: fix relabeling for vertices with additions.
+        return clone();
+
         // create a deep copy of the linkage
         MutableLinkagePtr new_link = as_link(clone());
 
