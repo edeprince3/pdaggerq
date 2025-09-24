@@ -174,7 +174,8 @@ namespace pdaggerq {
         return false;
     }
 
-    vertex_vector  Linkage::find_links(const VertexPtr &target_vertex, long search_depth) const {
+    vertex_vector
+    Linkage::find_links(const VertexPtr &target_vertex, bool enter_temps, bool enter_additions, long search_depth) const {
 
         if (target_vertex == nullptr) return {}; // if the target vertex is null, return an empty vector
         if (this->depth() < target_vertex->depth()) return {}; // if the target vertex is deeper, it cannot be found
@@ -187,11 +188,13 @@ namespace pdaggerq {
         if (search_depth > 0 || search_depth == -1) {
             search_depth = search_depth == -1 ? -1 : search_depth - 1;
             if (left_->is_linked()) {
-                const auto &left_links = as_link(left_)->find_links(target_vertex, search_depth);
+                const auto &left_links =
+                        as_link(left_)->find_links(target_vertex, enter_temps, enter_additions, search_depth);
                 links.insert(links.end(), left_links.begin(), left_links.end());
             }
             if (right_->is_linked()) {
-                const auto &right_links = as_link(right_)->find_links(target_vertex, search_depth);
+                const auto &right_links =
+                        as_link(right_)->find_links(target_vertex, enter_temps, enter_additions, search_depth);
                 links.insert(links.end(), right_links.begin(), right_links.end());
             }
         }
@@ -341,7 +344,7 @@ namespace pdaggerq {
         return false;
     }
 
-    size_t Linkage::count(const VertexPtr &target, bool enter_temps, long search_depth) const {
+    size_t Linkage::count(const VertexPtr &target, bool enter_temps, bool enter_additions, long search_depth) const {
 
 
         if (target == nullptr) return 0; // if the target vertex is null, return 0
@@ -355,8 +358,8 @@ namespace pdaggerq {
         // recursively check if left and right vertices have the target up to a certain search_depth
         if (search_depth > 0 || search_depth == -1) {
             search_depth = search_depth == -1 ? -1 : search_depth - 1;
-            cnt += left_->count(target, enter_temps, search_depth);
-            cnt += right_->count(target, enter_temps, search_depth);
+            cnt += left_->count(target, enter_temps, enter_additions, search_depth);
+            cnt += right_->count(target, enter_temps, enter_additions, search_depth);
         }
         return cnt;
     }

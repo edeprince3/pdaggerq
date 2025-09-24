@@ -488,7 +488,8 @@ namespace pdaggerq {
          * @param search_depth maximum depth to search for links
          * @return vector of all vertices that match the target
          */
-        vertex_vector find_links(const VertexPtr &target_vertex, long search_depth = -1) const;
+        vertex_vector
+        find_links(const VertexPtr &target_vertex, bool enter_temps = true, bool enter_additions = true, long search_depth = -1) const;
 
         /**
          * goes down the tree and finds all occurences of the target intermediate
@@ -506,7 +507,7 @@ namespace pdaggerq {
          * @param depth maximum depth to search for links
          * @return number of occurences of the target vertex
          */
-        size_t count(const VertexPtr &target, bool enter_temps = true, long depth = -1) const override;
+        size_t count(const VertexPtr &target, bool enter_temps = true, bool enter_additions = true, long depth = -1) const override;
 
         /**
          * goes down the tree and finds all occurences of the target link
