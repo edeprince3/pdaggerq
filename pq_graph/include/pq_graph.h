@@ -37,7 +37,6 @@
 
 #include "../../pdaggerq/pq_helper.h"
 #include "equation.h"
-#include "composer.h"
 #include "timer.h"
 
 using std::ofstream;
@@ -299,13 +298,6 @@ namespace pdaggerq {
          * @note recomputes scaling after adding tmps
          */
         static Term &add_tmp(const LinkagePtr& precon, Equation &equation, double coeff = 1.0);
-
-        /**
-         * Find the common coefficient of a set of terms
-         * @param terms terms to find common coefficient of
-         * @return common coefficient
-         */
-        static double common_coefficient(set<Term*> &terms);
 
         /**
          * print the scaling of the current equations and difference from previous scalings
