@@ -263,6 +263,9 @@ struct LinkMerger {
                     auto &link2_term = link2_info[i].term;
                     auto &trunc_term2 = link2_info[i].trunc_term;
 
+                    // ensure both trunc links have the same exact lines
+                    if (link1_trunc->lines() != link2_trunc->lines()) { same_connectivity = false; break; }
+
                     // ensure link is not within an addition (cannot merge)
                     auto term1_temps = link1_term->term_linkage()->get_temps(true, false);
                     auto term2_temps = link2_term->term_linkage()->get_temps(true, false);
@@ -278,13 +281,6 @@ struct LinkMerger {
                         if (*temp == *link2_trunc) { found2 = true; break; }
                     }
                     if (!found2) { same_connectivity = false; break; }
-
-                    // ensure both trunc links have the same lines
-                    line_vector lines1_sorted = link1_trunc->lines();
-                    line_vector lines2_sorted = link2_trunc->lines();
-                    std::sort(lines1_sorted.begin(), lines1_sorted.end());
-                    std::sort(lines2_sorted.begin(), lines2_sorted.end());
-                    if (lines1_sorted != lines2_sorted) { same_connectivity = false; break; }
 
                     // ensure connectivity of the two trunc links are the same for all terms
                     VertexPtr link1_2 = link1_trunc + link2_trunc;
@@ -307,6 +303,9 @@ struct LinkMerger {
                     term1_link = link1_term->lhs() + term1_link;
                     term2_link = link2_term->lhs() + term2_link;
 
+                    // ensure both the links have the same exact lines
+                    if (term1_link->lines() != term2_link->lines()) { same_connectivity = false; break; }
+
                     if (*term1_link != *term2_link) { same_connectivity = false; break; }
 
                     // now check the other trunc term
@@ -315,6 +314,9 @@ struct LinkMerger {
 
                     term1_link = link1_term->lhs() + term1_link;
                     term2_link = link2_term->lhs() + term2_link;
+
+                    // ensure both the links have the same exact lines
+                    if (term1_link->lines() != term2_link->lines()) { same_connectivity = false; break; }
 
                     if (*term1_link != *term2_link) { same_connectivity = false; break; }
 
