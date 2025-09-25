@@ -243,7 +243,7 @@ namespace pdaggerq {
          * @param allow_equality allow equality of scaling
          * @return number of substitutions
          */
-        size_t substitute(const LinkagePtr &linkage, bool allow_equality = false);
+        size_t substitute(const LinkagePtr &linkage, bool allow_equality);
 
         /**
          * test a linkage substituted into the equation
@@ -251,7 +251,7 @@ namespace pdaggerq {
          * @param test_flop_map reference to flop scaling map that collects the flop scaling of the substitution
          * @return number of substitutions
          */
-        size_t test_substitute(const MutableLinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality = false);
+        size_t test_substitute(const MutableLinkagePtr &linkage, scaling_map &test_flop_map, scaling_map &test_mem_map, bool allow_equality);
 
         /**
          * collect all possible linkages from all terms

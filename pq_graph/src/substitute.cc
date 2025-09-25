@@ -219,7 +219,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         MutableLinkagePtr link_to_sub; // best linkage to substitute
 
         // populate with pairs of flop maps with linkage for each equation
-        vector<pair<scaling_map, MutableLinkagePtr>> test_data(n_linkages);
+        vector<pair<pair<scaling_map,scaling_map>, MutableLinkagePtr>> test_data(n_linkages);
 
 
         // print ratio for showing progress
@@ -282,13 +282,14 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             linkage->id() = temp_id;
 
             scaling_map test_flop_map; // flop map for test equation
+            scaling_map test_mem_map; // flop map for test equation
             size_t numSubs = 0; // number of substitutions made
             for (auto &[eq_name, equation]: equations_) { // iterate over equations
 
                 if (eq_name == "scalar" || eq_name == "reused") continue; // skip scalar and reuse equations
 
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
-                numSubs += equation.test_substitute(linkage, test_flop_map);
+                numSubs += equation.test_substitute(linkage, test_flop_map, test_mem_map, allow_equality);
             }
 
             // add to test scalings if we found a tmp that occurs in more than one term
@@ -306,13 +307,15 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                     precon_term.compute_scaling();
                     // add scaling of declaration term to the test flop map if we are keeping the declaration
                     test_flop_map += precon_term.flop_map();
+                    test_mem_map += precon_term.mem_map();
                 }
 
                 // set any negative values to zero
                 test_flop_map.all_positive();
+                test_mem_map.all_positive();
 
                 // save this test flop map and linkage for serial testing
-                test_data[i] = make_pair(test_flop_map, linkage);
+                test_data[i] = make_pair(make_pair(test_flop_map, test_mem_map), linkage);
 
             } else { // if we didn't make a substitution, add linkage to ignore linkages
                 linkage->forget(); // clear linkage history
@@ -333,8 +336,10 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          * Iterate over all test scalings, remove incompatible ones, and sort them
          */
 
-        std::multimap<scaling_map, MutableLinkagePtr> sorted_test_data;
-        for (auto &[test_flop_map, test_linkage]: test_data) {
+        std::multimap<pair<scaling_map, scaling_map>, MutableLinkagePtr> sorted_test_data;
+        for (auto &[test_maps, test_linkage]: test_data) {
+
+            auto &[test_flop_map, test_mem_map] = test_maps;
 
             // skip empty linkages
             if (test_linkage == nullptr) continue;
@@ -357,14 +362,13 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
             // if we haven't made a substitution yet and this is either a
             // scalar or a sigma vector, keep it
-            if (is_reused || (is_scalar && !Equation::no_scalars_)) keep = true;
+            if (keep || is_reused || (is_scalar && !Equation::no_scalars_)) keep = true;
 
             // if the scaling is the same and it is allowed, set keep to true
-            if (!keep && is_equiv && allow_equality) keep = true;
-
+            if (is_equiv && allow_equality) keep = true;
 
             if (keep) {
-                sorted_test_data.insert(make_pair(test_flop_map, test_linkage));
+                sorted_test_data.insert(make_pair(make_pair(test_flop_map, test_mem_map), test_linkage));
             } else {
                 ignore_linkages.insert(test_linkage); // add linkage to ignore linkages
             }
@@ -390,7 +394,9 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             update_timer.start();
 
             size_t batch_count = 0;
-            for (const auto &[found_flop, found_linkage]: sorted_test_data) {
+            for (const auto &[found_scalings, found_linkage]: sorted_test_data) {
+
+                auto & [found_flop, found_mem] = found_scalings;
 
                 substitute_timer.start();
 
@@ -673,7 +679,7 @@ size_t Equation::substitute(const LinkagePtr &linkage, bool allow_equality) {
     return num_subs;
 }
 
-size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality) {
+size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &test_flop_map, scaling_map &test_mem_map, bool allow_equality) {
 
     // scaling of the linkage cannot be more than the equation
     if (linkage->netscales().first > flop_map()) return 0;
@@ -681,7 +687,9 @@ size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &
     /// iterate over terms and substitute
     size_t num_terms = terms_.size();
     size_t num_subs = 0; // number of substitutions
-    test_flop_map += flop_map_; // test memory scaling map
+    test_flop_map += flop_map_; // test flop scaling map
+    test_mem_map += mem_map_; // test memory scaling map
+
     for (int i = 0; i < num_terms; i++) {
         // skip term if linkage is not compatible
         if (!terms_[i].is_compatible(linkage)) continue;
@@ -693,11 +701,13 @@ size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &
         // It's faster to subtract the old scaling and add the new scaling than
         // to recompute the scaling map from scratch
         test_flop_map -= term.flop_map(); // subtract flop scaling map for term
+        test_mem_map -= term.mem_map(); // subtract memory scaling map for term
 
         // substitute linkage in term copy
         bool madeSub = term.substitute(linkage);
         term.term_linkage()->forget(); // clear the linkage history for lazy evaluation
         test_flop_map += term.flop_map(); // add new flop scaling map for term
+        test_mem_map += term.mem_map(); // add new memory scaling map for term
 
         // increment number of substitutions if substitution was successful
         if (madeSub) ++num_subs; // increment number of substitutions
