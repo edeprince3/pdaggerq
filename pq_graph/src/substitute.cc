@@ -180,17 +180,6 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
     cout << "    Number of threads used: " << nthreads_ << endl;
     cout << " ====================================================" << endl << endl;
 
-    // give user a warning if the number of possible linkages is large
-    // suggest using the batch algorithm, making the max linkage smaller, or increasing number of threads
-    if (all_links_.size() * num_contract > 1000 * 10000) {
-        cout << "WARNING: There are a large number of contractions and candidate intermediates." << endl;
-        cout << "         This may take a long time to run." << endl;
-        cout
-                << "         Consider increasing the number of threads, making the max depth smaller, or using the batch algorithm."
-                << endl;
-        cout << endl; //185
-    }
-
     static size_t total_num_merged = 0;
     size_t num_merged = merge_terms();
     total_num_merged += num_merged;
