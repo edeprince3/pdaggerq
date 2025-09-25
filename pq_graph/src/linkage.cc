@@ -208,9 +208,11 @@ namespace pdaggerq {
         }
 
         // right external lines
-        for (uint_fast8_t i = 0; i < right_half; i++) {
-            if (right_ext_idx[i]) // if external or addition, add line
-                add_line(right_lines[i]);
+        if (!addition_) {
+            for (uint_fast8_t i = 0; i < right_half; i++) {
+                if (right_ext_idx[i]) // if external or addition, add line
+                    add_line(right_lines[i]);
+            }
         }
 
         // second half of lines
@@ -222,9 +224,11 @@ namespace pdaggerq {
         }
 
         // right external lines
-        for (uint_fast8_t i = right_half; i < right_size; i++) {
-            if (right_ext_idx[i]) // if external or addition, add line
-                add_line(right_lines[i]);
+        if (!addition_) {
+            for (uint_fast8_t i = right_half; i < right_size; i++) {
+                if (right_ext_idx[i]) // if external or addition, add line
+                    add_line(right_lines[i]);
+            }
         }
 
         // add sigma lines to the beginning of lines_
