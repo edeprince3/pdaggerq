@@ -689,29 +689,50 @@ namespace pdaggerq {
         if (binarize && Term::binarize_) {
 
             // determine binarization order
-            vertex_vector binarize_vertices = rhs_;
+            vertex_vector left_binarize = rhs_;
+            VertexPtr left_remainder = left_binarize.back();
+            left_binarize.pop_back();
 
-            bool reverse_order = rhs_.size() == 2 && rhs_[1]->is_expandable(false, true);
+            vertex_vector right_binarize = rhs_;
+            VertexPtr right_remainder = right_binarize.front();
+            right_binarize.erase(right_binarize.begin());
 
-            // extract last vertex
+            LinkagePtr left_bin_link  = Linkage::link(left_binarize);
+            LinkagePtr right_bin_link = Linkage::link(right_binarize);
+
+
+            // determine binarization ordering
+            auto only_last_expands = (rhs_.size() == 2 && rhs_[1]->is_expandable(false, true));
+            auto left_shape = left_bin_link->shape_;
+            auto right_shape = right_bin_link->shape_;
+
+            bool order_left = true; // order left by default
+            if (only_last_expands)                     order_left = false;
+            else if (left_shape != right_shape)        order_left = left_shape < right_shape;
+            else if (*left_bin_link > *right_bin_link) order_left = false;
+
+            VertexPtr binarize_link;
             VertexPtr remainder_vertex;
-            if (reverse_order) {
-                remainder_vertex = binarize_vertices.front();
-                binarize_vertices.erase(binarize_vertices.begin());
+            vertex_vector binarize_vertices;
+
+            if (order_left) {
+                binarize_link = left_bin_link;
+                remainder_vertex = left_remainder;
+                binarize_vertices = left_binarize;
             } else {
-                remainder_vertex = binarize_vertices.back();
-                binarize_vertices.pop_back();
+                binarize_link = right_bin_link;
+                remainder_vertex = right_remainder;
+                binarize_vertices = right_binarize;
             }
 
             // make intermediate vertex for the binarization
-            auto binarize_link = Linkage::link(binarize_vertices);
             MutableVertexPtr binarize_vertex = make_shared<Vertex>("tmps_", binarize_link->lines());
             binarize_vertex->vertex_type_ = 'b';    // sets printing for binarization vertex
             binarize_vertex->has_blk_ = binarize_link->has_blk_; // set has_blk for binarization vertex
             binarize_vertex->sort();                // half sort labels of binarization vertex
             binarize_vertex->update_name();         // update name of binarization vertex
 
-            if (lhs_->name() == binarize_vertex->name()) {
+            if (lhs_->name() == binarize_vertex->name() || remainder_vertex->name() == binarize_vertex->name()) {
                 binarize_vertex->vertex_type_ = 'd';
                 binarize_vertex->update_name();
             }
@@ -728,9 +749,11 @@ namespace pdaggerq {
 
             // initialize term to binarize
             Term binarize_last_term = *this;          // copy term
-            if (reverse_order)
-                 binarize_last_term.rhs_ = {remainder_vertex, binarize_vertex};
-            else binarize_last_term.rhs_ = {binarize_vertex, remainder_vertex};
+
+            if (order_left)
+                 binarize_last_term.rhs_ = {binarize_vertex, remainder_vertex};
+            else binarize_last_term.rhs_ = {remainder_vertex, binarize_vertex};
+
             binarize_last_term.expand_rhs(binarize_last_term.term_linkage(true));          // expand rhs
 
             output += binarize_last_term.str();
