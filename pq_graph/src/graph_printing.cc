@@ -679,85 +679,75 @@ namespace pdaggerq {
             return left_term.str() + '\n' + right_term.str();
         }
 
-        // we need binarization for c++ output. if more than 2 vertices, binarize into two terms
-        bool binarize = rhs_.size() > 2;
-        // if there are exactly two vertices, check if one of them is an addition. If so, binarize
-        if (!binarize && rhs_.size() == 2) {
-            binarize  = rhs_[0]->is_expandable(false, true);
-            binarize |= rhs_[1]->is_expandable(false, true);
-        }
-        if (binarize && Term::binarize_) {
+        if (Term::binarize_) {
+            // we need binarization for c++ output.
+            // ensure only two operations within any term. create intermediates as needed.
 
-            // determine binarization order
-            vertex_vector left_binarize = rhs_;
-            VertexPtr left_remainder = left_binarize.back();
-            left_binarize.pop_back();
+            // determine if binarization is needed
+            Term binarized_term = clone(); // copy of current term to modify
+            bool needs_binarization = binarized_term.rhs_.size() > 2;
+            bool made_any_change = false;
 
-            vertex_vector right_binarize = rhs_;
-            VertexPtr right_remainder = right_binarize.front();
-            right_binarize.erase(right_binarize.begin());
+            int count = 1;
 
-            LinkagePtr left_bin_link  = Linkage::link(left_binarize);
-            LinkagePtr right_bin_link = Linkage::link(right_binarize);
+            // helper to create intermediate vertex/term and update binarized_term
+            auto make_interm = [&](const std::vector<VertexPtr> &verts, size_t erase_pos, size_t erase_count, size_t insert_pos) {
+                MutableVertexPtr interm_vertex;
+                if (verts.size() == 2) interm_vertex = make_shared<Vertex>("tmps_", (verts[0] * verts[1])->lines());
+                else interm_vertex = make_shared<Vertex>("tmps_", verts[0]->lines());
 
+                interm_vertex->vertex_type_ = (char)count + '0';
+                interm_vertex->sort();
+                interm_vertex->update_name();
 
-            // determine binarization ordering
-            auto only_last_expands = (rhs_.size() == 2 && rhs_[1]->is_expandable(false, true));
-            auto left_shape = left_bin_link->shape_;
-            auto right_shape = right_bin_link->shape_;
+                Term interm_term = binarized_term;
+                interm_term.reset_perm();
+                interm_term.coefficient_ = 1.0;
+                interm_term.comments_.clear();
+                interm_term.is_assignment_ = true;
 
-            bool order_left = true; // order left by default
-            if (only_last_expands)                     order_left = false;
-            else if (left_shape != right_shape)        order_left = left_shape < right_shape;
-            else if (*left_bin_link > *right_bin_link) order_left = false;
+                interm_term.lhs_ = interm_vertex;
+                interm_term.rhs_ = verts;
+                interm_term.compute_scaling(true);
 
-            VertexPtr binarize_link;
-            VertexPtr remainder_vertex;
-            vertex_vector binarize_vertices;
+                output += interm_term.str();
+                output += "\n";
 
-            if (order_left) {
-                binarize_link = left_bin_link;
-                remainder_vertex = left_remainder;
-                binarize_vertices = left_binarize;
-            } else {
-                binarize_link = right_bin_link;
-                remainder_vertex = right_remainder;
-                binarize_vertices = right_binarize;
-            }
+                for (size_t e = 0; e < erase_count; ++e)
+                    binarized_term.rhs_.erase(binarized_term.rhs_.begin() + erase_pos);
+                binarized_term.rhs_.insert(binarized_term.rhs_.begin() + insert_pos, interm_vertex);
+                binarized_term.compute_scaling(true);
 
-            // make intermediate vertex for the binarization
-            MutableVertexPtr binarize_vertex = make_shared<Vertex>("tmps_", binarize_link->lines());
-            binarize_vertex->vertex_type_ = 'b';    // sets printing for binarization vertex
-            binarize_vertex->has_blk_ = binarize_link->has_blk_; // set has_blk for binarization vertex
-            binarize_vertex->sort();                // half sort labels of binarization vertex
-            binarize_vertex->update_name();         // update name of binarization vertex
+                made_any_change = true;
+                ++count;
+            };
 
-            if (lhs_->name() == binarize_vertex->name() || remainder_vertex->name() == binarize_vertex->name()) {
-                binarize_vertex->vertex_type_ = 'd';
-                binarize_vertex->update_name();
-            }
+            do {
+                needs_binarization = binarized_term.rhs_.size() > 2;
 
-            // initialize initial binarization term
-            Term binarize_term;
-            binarize_term.lhs_ = binarize_vertex;     // set lhs to binarization vertex
-            binarize_term.rhs_ = binarize_vertices;   // set rhs to binarization vertices
-            binarize_term.expand_rhs(binarize_link);          // expand rhs
-            binarize_term.is_assignment_ = true;      // set term as assignment
+                if (needs_binarization) {
+                    VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
+                    // create intermediate from first two vertices
+                    make_interm({left, right}, 0, 2, 0);
+                } else if (binarized_term.rhs_.size() == 2) {
+                    // check if left or right is an addition that needs to be binarized
+                    VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
+                    bool left_is_add  =  left->is_expandable(false, true);
+                    bool right_is_add = right->is_expandable(false, true);
 
-            // add string to output
-            output += binarize_term.str() + "\n";
+                    if (left_is_add)
+                        make_interm({left}, 0, 1, 0);
 
-            // initialize term to binarize
-            Term binarize_last_term = *this;          // copy term
+                    if (right_is_add)
+                        make_interm({right}, 1, 1, 1);
+                }
+            } while (needs_binarization);
 
-            if (order_left)
-                 binarize_last_term.rhs_ = {binarize_vertex, remainder_vertex};
-            else binarize_last_term.rhs_ = {remainder_vertex, binarize_vertex};
-
-            binarize_last_term.expand_rhs(binarize_last_term.term_linkage(true));          // expand rhs
-
-            output += binarize_last_term.str();
-            return output;
+            // now print the final binarized term if a change was made
+            if (made_any_change) {
+                output += binarized_term.str();
+                return output;
+            } // else we continue to print the original term
         }
 
         if (Vertex::print_type_ == "python")

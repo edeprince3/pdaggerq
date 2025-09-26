@@ -66,16 +66,14 @@ namespace pdaggerq {
             name_ += "[\"";
             name_ += "perm_" + dimstring();
             name_ += "\"]";
-        } else if (vertex_type_ == 'b') {
+        } else if (vertex_type_ != '\0') {
             name_ += "[\"";
-            name_ += "bin_" + dimstring();
+            name_ += "bin";
+            name_ += vertex_type_;
+            name_ += '_';
+            name_ += dimstring();
             name_ += "\"]";
-        } else if (vertex_type_ == 'd') {
-            name_ += "[\"";
-            name_ += "bin2_" + dimstring();
-            name_ += "\"]";
-        }
-
+        } // else prints without map
     }
 
     string Vertex::dimstring() const {
