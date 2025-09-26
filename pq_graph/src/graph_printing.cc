@@ -723,12 +723,24 @@ namespace pdaggerq {
             };
 
             do {
-                needs_binarization = binarized_term.rhs_.size() > 2;
+                size_t n = binarized_term.rhs_.size();
+                needs_binarization = n > 2;
 
                 if (needs_binarization) {
                     VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
+
+                    // determine which intermediate is larger: first two or last two
+                    VertexPtr &left_end = binarized_term.rhs_[n - 2];
+                    VertexPtr &right_end = binarized_term.rhs_[n - 1];
+
+                    // prefer to binarize larger intermediate first. prefer left for ties
+                    bool first_larger = *(left*right) >= *(left_end*right_end);
+
                     // create intermediate from first two vertices
-                    make_interm({left, right}, 0, 2, 0);
+                    if (first_larger)
+                         make_interm({left, right}, 0, 2, 0);
+                    else make_interm({left_end, right_end}, n - 2, 2, n - 2);
+
                 } else if (binarized_term.rhs_.size() == 2) {
                     // check if left or right is an addition that needs to be binarized
                     VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
