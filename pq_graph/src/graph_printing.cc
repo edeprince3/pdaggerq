@@ -734,11 +734,11 @@ namespace pdaggerq {
                     VertexPtr &right_end = binarized_term.rhs_[n - 1];
 
                     // prefer to binarize larger intermediate first. prefer left for ties
-                    bool first_larger = *(left*right) >= *(left_end*right_end);
+                    bool first_smaller = (left*right)->shape_ <= (left_end*right_end)->shape_;
 
                     // create intermediate from first two vertices
-                    if (first_larger)
-                         make_interm({left, right}, 0, 2, 0);
+                    if (first_smaller)
+                        make_interm({left, right}, 0, 2, 0);
                     else make_interm({left_end, right_end}, n - 2, 2, n - 2);
 
                 } else if (binarized_term.rhs_.size() == 2) {
