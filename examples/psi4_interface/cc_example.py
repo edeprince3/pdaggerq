@@ -60,7 +60,7 @@ def main():
 
     # run ccsd
     s1 = time.time()
-    en1 = ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True)
+    en1 = ccsd(mol, do_eom_ccsd = True, use_spin_orbital_basis = True)
     e1 = time.time()
     time_1 = e1-s1
 

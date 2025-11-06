@@ -19,6 +19,9 @@
 Driver for spin-orbital CCSD and EOM-CCSD. (EOM-)CCSD code generated with pdaggerq. Integrals come from psi4.
 """
 
+import scipy
+from scipy.sparse.linalg import LinearOperator
+
 import numpy as np
 from numpy import einsum
 
@@ -355,24 +358,59 @@ def ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True):
         return cc_energy + nuclear_repulsion_energy
 
     # now eom-ccsd?
+    nstates = 21
+
     print("    ==> EOM-CCSD <==")
     print("")
-    from eom_ccsd import build_eom_ccsd_H
 
-    # populate core list for super inefficicent implementation of CVS approximation
-    core_list = []
-    for i in range (0, nsocc):
-        core_list.append(i)
-    H = build_eom_ccsd_H(fock, tei, o, v, t1, t2, nsocc, nsvirt, core_list)
+    # full diagonalization (for testing)
+    full_diagonalization = False
+
+    if full_diagonalization:
+
+        from eom_ccsd import build_eom_ccsd_H
+
+        # populate core list for super inefficicent implementation of CVS approximation
+        core_list = []
+        for i in range (0, nsocc):
+            core_list.append(i)
+        H = build_eom_ccsd_H(fock, tei, o, v, t1, t2, nsocc, nsvirt, core_list)
+
+        print('    eigenvalues of e(-T) H e(T):')
+        print('')
+
+        print('    %5s %20s %20s' % ('state', 'total energy','excitation energy'))
+        en, vec = np.linalg.eig(H)
+        en.sort()
+        for i in range (1,min(nstates,len(en))):
+            print('    %5i %20.12f %20.12f' % ( i, en[i] + nuclear_repulsion_energy,en[i] - cc_energy ))
+
+        print('')
+
+    # sparse diagonalization
+
+    from eom_ccsd import HbarOperator
+
+    # unique oo/vv pairs
+    i_idx, j_idx = np.triu_indices(nsocc, k=1)
+    a_idx, b_idx = np.triu_indices(nsvirt, k=1)
+
+    dim = 1 + nsocc*nsvirt + len(i_idx) * len(a_idx)
+
+    Hbar = HbarOperator(t1, t2, fock, tei, nsocc, nsvirt)
+    HbarR = LinearOperator((dim, dim), matvec=Hbar.matvec, dtype=np.float64)
+
+    ex, rvec = scipy.sparse.linalg.eigs(HbarR, k=nstates)
+    idx = np.argsort(ex)
+    ex = ex[idx]
+    rvec = rvec[:, idx]
 
     print('    eigenvalues of e(-T) H e(T):')
     print('')
 
     print('    %5s %20s %20s' % ('state', 'total energy','excitation energy'))
-    en, vec = np.linalg.eig(H)
-    en.sort()
-    for i in range (1,min(21,len(en))):
-        print('    %5i %20.12f %20.12f' % ( i, en[i] + nuclear_repulsion_energy,en[i]-cc_energy ))
+    for i in range (1, nstates):
+        print('    %5i %20.12f %20.12f' % ( i, ex[i].real + nuclear_repulsion_energy, ex[i].real - cc_energy ))
 
     print('')
 
