@@ -226,12 +226,13 @@ def get_integrals():
 
     return nsocc, nsvirt, fock, gtei
 
-def ccsd_with_spin(mol):
+def ccsd_with_spin(mol, do_eom_ccsd = False):
     """
 
     run ccsd, with spin
 
     :param mol: a psi4 molecule
+    :param do_eom_ccsd: do run eom-ccsd? default false
     :return cc_energy: the total ccsd energy
 
     """
@@ -302,6 +303,47 @@ def ccsd_with_spin(mol):
     print("    CCSD Total Energy:       {: 20.12f}".format(cc_energy + nuclear_repulsion_energy))
     print("")
 
+    if not do_eom_ccsd: 
+        return cc_energy + nuclear_repulsion_energy
+
+    # now eom-ccsd?
+    nstates = 11
+
+    print("    ==> EOM-CCSD <==")
+    print("")
+
+    from eom_ccsd import HbarOperatorWithSpin
+
+    # unique oo/vv pairs
+    i_idx_a, j_idx_a = np.triu_indices(nocc_a, k=1)
+    i_idx_b, j_idx_b = np.triu_indices(nocc_b, k=1)
+    a_idx_a, b_idx_a = np.triu_indices(nvirt_a, k=1)
+    a_idx_b, b_idx_b = np.triu_indices(nvirt_b, k=1)
+
+    dim = 1 
+    dim += nocc_a * nvirt_a
+    dim += nocc_b * nvirt_b
+    dim += len(i_idx_a) * len(a_idx_a)
+    dim += len(i_idx_b) * len(a_idx_b)
+    dim += nocc_a * nvirt_a * nocc_b * nvirt_b
+
+    Hbar = HbarOperatorWithSpin(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, fa, fb, g_aaaa, g_bbbb, g_abab, nocc_a, nocc_b, nvirt_a, nvirt_b)
+    HbarR = LinearOperator((dim, dim), matvec=Hbar.matvec, dtype=np.float64)
+
+    ex, rvec = scipy.sparse.linalg.eigs(HbarR, k=nstates)
+    idx = np.argsort(ex)
+    ex = ex[idx]
+    rvec = rvec[:, idx]
+
+    print('    eigenvalues of e(-T) H e(T):')
+    print('')
+
+    print('    %5s %20s %20s' % ('state', 'total energy','excitation energy'))
+    for i in range (1, nstates):
+        print('    %5i %20.12f %20.12f' % ( i, ex[i].real + nuclear_repulsion_energy, ex[i].real - cc_energy ))
+
+    print('')
+
     return cc_energy + nuclear_repulsion_energy
 
 def ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True):
@@ -317,7 +359,7 @@ def ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True):
     """
 
     if not use_spin_orbital_basis : 
-        return ccsd_with_spin(mol)
+        return ccsd_with_spin(mol, do_eom_ccsd = do_eom_ccsd)
 
     nsocc, nsvirt, fock, tei = get_integrals()
     
@@ -358,7 +400,7 @@ def ccsd(mol, do_eom_ccsd = False, use_spin_orbital_basis = True):
         return cc_energy + nuclear_repulsion_energy
 
     # now eom-ccsd?
-    nstates = 21
+    nstates = 11
 
     print("    ==> EOM-CCSD <==")
     print("")
