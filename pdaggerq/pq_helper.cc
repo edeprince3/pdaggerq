@@ -54,6 +54,7 @@ void export_pq_helper(py::module& m) {
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
         .def("set_unitary_cc", &pq_helper::set_unitary_cc)
+        .def("set_hamiltonian_normal_ordered", &pq_helper::set_hamiltonian_normal_ordered)
         .def("set_bernoulli_excitation_level", &pq_helper::set_bernoulli_excitation_level)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
@@ -134,10 +135,6 @@ void export_pq_helper(py::module& m) {
         .def("add_hextuple_commutator", &pq_helper::add_hextuple_commutator)
         .def("add_operator_product", &pq_helper::add_operator_product);
 
-    //py::class_<pdaggerq::pq_operator_terms, std::shared_ptr<pdaggerq::pq_operator_terms> >(m, "pq_operator_terms")
-    //    .def(py::init< double, std::vector<std::string> >())
-    //    .def("factor", &pq_operator_terms::factor)
-    //    .def("operators", &pq_operator_terms::operators);
     py::class_<pdaggerq::pq_operator_terms>(m, "pq_operator_terms")
         .def(py::init<double, std::vector<std::string>>())
         .def("factor", &pq_operator_terms::get_factor)
@@ -278,6 +275,11 @@ void pq_helper::set_right_operators_type(const std::string &type) {
         printf("\n");
         exit(1);
     }
+}
+
+// use the normal ordered form of the hamiltonian operator? default false
+void pq_helper::set_hamiltonian_normal_ordered(bool is_normal_ordered) {
+    is_hamiltonian_normal_ordered = is_normal_ordered;
 }
 
 // is the cluster operator antihermitian for ucc? default false
@@ -644,34 +646,91 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         // get bernoulli operator portions
         std::string op_portions = get_operator_portions_as_string(in[count]);
 
-        // term 1
-        std::string v_type = "j1";
-        if ( op_portions.length() > 0 ) { 
-            v_type += "{" + op_portions + "}";
-        }
-        tmp_in.emplace_back(v_type);
-        for (int i = count+1; i < (int)in.size(); i++) {
-            tmp_in.push_back(in[i]);
-        }
-        in.clear();
-        for (const auto & op : tmp_in) {
-            in.push_back(op);
-        }
-        add_operator_product(factor, in);
+        if ( !is_hamiltonian_normal_ordered ) {
+            // term 1
+            std::string v_type = "j1";
+            if ( op_portions.length() > 0 ) { 
+                v_type += "{" + op_portions + "}";
+            }
+            tmp_in.emplace_back(v_type);
+            for (int i = count+1; i < (int)in.size(); i++) {
+                tmp_in.push_back(in[i]);
+            }
+            in.clear();
+            for (const auto & op : tmp_in) {
+                in.push_back(op);
+            }
+            add_operator_product(factor, in);
 
-        // term 2
-        in.clear();
-        for (int i = 0; i < count; i++) {
-            in.push_back(tmp_in[i]);
+            // term 2
+            in.clear();
+            for (int i = 0; i < count; i++) {
+                in.push_back(tmp_in[i]);
+            }
+            v_type[1] = '2';
+            in.emplace_back(v_type);
+            for (int i = count + 1; i < (int)tmp_in.size(); i++) {
+                in.push_back(tmp_in[i]);
+            }
+            add_operator_product(factor, in);
+        }else {
+            for (int label = 0; label < 16; label++) {
+                std::vector<std::string> my_in;
+                for (int i = 0; i < count; i++) {
+                    my_in.push_back(in[i]);
+                }
+                // only term 2 (16 times...)
+                std::string v_type = "j2" + std::to_string(label);
+                if ( op_portions.length() > 0 ) { 
+                    v_type += "{" + op_portions + "}";
+                }
+                my_in.push_back(v_type);
+                for (int i = count+1; i < (int)in.size(); i++) {
+                    my_in.push_back(in[i]);
+                }
+                in.clear();
+                for (const auto & op : my_in) {
+                    in.push_back(op);
+                }
+                add_operator_product(factor, in);
+            }
         }
-        v_type[1] = '2';
-        in.emplace_back(v_type);
-        for (int i = count + 1; i < (int)tmp_in.size(); i++) {
-            in.push_back(tmp_in[i]);
-        }
-        add_operator_product(factor, in);
-        
         return;
+    }
+
+    count = 0;
+    bool found_f = false;
+    for (const std::string & op : in) {
+        if (op == "f" || op == "F") {
+            found_f = true;
+            break;
+        }else {
+            count++;
+        }
+    }
+    if ( found_f ) {
+        if ( !is_hamiltonian_normal_ordered ) {
+            // do nothing
+        }else {
+            // add each block of F separately, Fvv, Fvo, Fov, Foo
+            for (int label = 0; label < 4; label++) {
+                std::vector<std::string> my_in;
+                for (int i = 0; i < count; i++) {
+                    my_in.push_back(in[i]);
+                }
+                // 4 blocks
+                my_in.push_back('f' + std::to_string(label));
+                for (int i = count+1; i < (int)in.size(); i++) {
+                    my_in.push_back(in[i]);
+                }
+                in.clear();
+                for (const auto & op : my_in) {
+                    in.push_back(op);
+                }
+                add_operator_product(factor, in);
+            }
+            return;
+        }
     }
 
     // now check for t and add de-excitation operators if doing unitary cc
@@ -816,17 +875,55 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
 
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
+                    if ( is_hamiltonian_normal_ordered ) {
 
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
+                        // find number in string representing which block of F this is
+                        std::string num_str;
+                        size_t pos = op.find('{', 1); // start in position 1
+                        if (pos != std::string::npos) {
+                            num_str = op.substr(1, pos - 1);
+                        } else {
+                            num_str = op.substr(1);
+                        }
+                        int label = std::stoi(num_str);
 
-                    // index 2
-                    tmp_string.push_back(idx2);
+                        // Map the bits of 'label' (0 to 3) to 'o' (occupied) or 'v' (virtual)
+                        // label & 2 checks the first index, label & 1 checks the second
+                        std::string idx1 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                        
+                        // Normal ordering: pushing true creators (C) left of true annihilators (A)
+                        if (label == 0) {
+                            // 00 (v v) -> C A -> Already normal ordered
+                            tmp_string.push_back(idx1+"*"); 
+                            tmp_string.push_back(idx2);
+                        }else if (label == 1) {
+                            // 01 (v o) -> C C -> Already normal ordered (preserve relative order)
+                            tmp_string.push_back(idx1+"*"); 
+                            tmp_string.push_back(idx2);
+                        }else if (label == 2) {
+                            // 10 (o v) -> A A -> Already normal ordered (preserve relative order)
+                            tmp_string.push_back(idx1+"*"); 
+                            tmp_string.push_back(idx2);
+                        }else if (label == 3) {
+                            // 11 (o o) -> A C -> Swap needed to put C before A
+                            factor *= -1;
+                            tmp_string.push_back(idx2); 
+                            tmp_string.push_back(idx1+"*");
+                        }
 
-                    // integrals
-                    newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+                        newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+                    }else {
+                        std::string idx1 = "p" + std::to_string(gen_label_count++);
+                        std::string idx2 = "p" + std::to_string(gen_label_count++);
+
+                        tmp_string.push_back(idx1+"*"); 
+                        tmp_string.push_back(idx2);
+
+                        newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+                    }
+
+
 
                 }else if (op.substr(0, 2) == "d+" || op.substr(0, 2) == "D+") { // one-electron operator (dipole + boson creator)
 
@@ -882,6 +979,11 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                     if (op.substr(1, 1) == "1" ){
 
+                        // no contribution from -<pi||qi> p*q if hamiltonian is normal ordered
+                        if ( is_hamiltonian_normal_ordered ) {
+                            return;
+                        }
+
                         factor *= -1.0;
 
                         std::string idx1 = "p" + std::to_string(gen_label_count++);
@@ -900,18 +1002,97 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                         factor *= 0.25;
 
-                        std::string idx1 = "p" + std::to_string(gen_label_count++);
-                        std::string idx2 = "p" + std::to_string(gen_label_count++);
-                        std::string idx3 = "p" + std::to_string(gen_label_count++);
-                        std::string idx4 = "p" + std::to_string(gen_label_count++);
+                        if ( is_hamiltonian_normal_ordered ) {
 
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3);
-                        tmp_string.push_back(idx4);
+                            // find number in string representing which block of V (J2) this is
+                            std::string num_str;
+                            size_t pos = op.find('{', 2); // start in index 2
+                            if (pos != std::string::npos) {
+                                num_str = op.substr(2, pos - 2);
+                            } else {
+                                num_str = op.substr(2);
+                            }
+                            int label = std::stoi(num_str);
 
-                        newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+                            // Check the bits of 'label' to assign 'o' (occupied) or 'v' (virtual) 
+                            // and increment the correct counter on the fly.
+                            std::string idx1 = (label & 8) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                            std::string idx2 = (label & 4) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                            std::string idx3 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                            std::string idx4 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
 
+                            // Normal ordering: pushing true creators (C) to the left of true annihilators (A)
+                            if (label == 0) {
+                                // 0000 (v v v v) -> C C A A
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                            }else if (label == 1) {
+                                // 0001 (v v v o) -> C C A C
+                                factor *= -1;
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx3);
+                            }else if (label == 2) {
+                                // 0010 (v v o v) -> C C C A
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                            }else if (label == 3) {
+                                // 0011 (v v o o) -> C C C C
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                            }else if (label == 4) {
+                                // 0100 (v o v v) -> C A A A
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                            }else if (label == 5) {
+                                // 0101 (v o v o) -> C A A C
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
+                            }else if (label == 6) {
+                                // 0110 (v o o v) -> C A C A
+                                factor *= -1;
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
+                            }else if (label == 7) {
+                                // 0111 (v o o o) -> C A C C
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*");
+                            }else if (label == 8) {
+                                // 1000 (o v v v) -> A C A A
+                                factor *= -1;
+                                tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                            }else if (label == 9) {
+                                // 1001 (o v v o) -> A C A C
+                                factor *= -1;
+                                tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3);
+                            }else if (label == 10) {
+                                // 1010 (o v o v) -> A C C A
+                                tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4);
+                            }else if (label == 11) {
+                                // 1011 (o v o o) -> A C C C
+                                factor *= -1;
+                                tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*");
+                            }else if (label == 12) {
+                                // 1100 (o o v v) -> A A A A
+                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                            }else if (label == 13) {
+                                // 1101 (o o v o) -> A A A C
+                                factor *= -1;
+                                tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
+                            }else if (label == 14) {
+                                // 1110 (o o o v) -> A A C A
+                                tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
+                            }else if (label == 15) {
+                                // 1111 (o o o o) -> A A C C
+                                tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*");
+                            }
+                            
+                            newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+                        }else {
+                        
+                            std::string idx1 = "p" + std::to_string(gen_label_count++);
+                            std::string idx2 = "p" + std::to_string(gen_label_count++);
+                            std::string idx3 = "p" + std::to_string(gen_label_count++);
+                            std::string idx4 = "p" + std::to_string(gen_label_count++);
+
+                            tmp_string.push_back(idx1+"*");
+                            tmp_string.push_back(idx2+"*");
+                            tmp_string.push_back(idx3);
+                            tmp_string.push_back(idx4);
+
+                            newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+                        }
                     }
 
                 }else if (op.substr(0, 1) == "t"){
@@ -1315,7 +1496,7 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                 }else {
                         printf("\n");
-                        printf("    error: undefined string\n");
+                        printf("    error: undefined string: %s\n", op.c_str());
                         printf("\n");
                         exit(1);
                 }

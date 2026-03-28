@@ -182,6 +182,15 @@ class pq_helper {
 
     /**
      *
+     * set whether or not we use the normal-ordered form of the hamiltonian
+     *
+     * @param is_normal_ordered: true/false
+     *
+     */
+    void set_hamiltonian_normal_ordered(bool is_normal_ordered);
+
+    /**
+     *
      * set whether or not the cluster operator is antihermitian for UCC
      *
      * @param is_unitary: true/false
@@ -643,6 +652,13 @@ private:
      *
      */
     bool find_paired_permutations;
+
+    /** 
+     * 
+     * use the normal-ordered form of the hamiltonian? 
+     * 
+     */
+    bool is_hamiltonian_normal_ordered = false;
 
     /** 
      * 
