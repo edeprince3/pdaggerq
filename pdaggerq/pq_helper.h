@@ -26,6 +26,8 @@
 
 #include "pq_string.h"
 
+#include <utility>
+
 namespace pdaggerq {
 
 class pq_operator_terms {
@@ -264,6 +266,27 @@ class pq_helper {
      *
      */
     void process_operator_products(std::vector<pq_operator_terms> ops);
+
+    /**
+     *
+     * check if there are fluctuation potential operators that needs to
+     * be split into multiple terms
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_fluctuation_potential(std::vector<pq_operator_terms> ops_in);
+
+    /**
+     *
+     * check if there are cluster amplitudes that need to be renamed / expanded as
+     * 't1' = 't1e' or 't1' = 't1e' - 't1d', etc.
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_cluster_amplitudes(std::vector<pq_operator_terms> ops_in);
+
 
     /**
      *

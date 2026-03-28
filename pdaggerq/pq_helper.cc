@@ -24,6 +24,8 @@
 #ifndef _python_api2_h_
 #define _python_api2_h_
 
+#include <tuple>
+#include <utility>
 #include <memory>
 #include <vector>
 #include <iostream>
@@ -567,6 +569,33 @@ void pq_helper::add_hextuple_commutator(double factor,
 }
 
 void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
+
+    // 'v' = 'j1' + 'j2'
+    bool done_processing = false;
+    std::vector<pq_operator_terms> new_ops;
+    do {
+        std::tie(done_processing, new_ops) = process_fluctuation_potential(ops);
+        ops = new_ops;
+    }while(!done_processing);
+
+    // 't1' = 't1e' or 't1' = 't1e' - 't1d', etc.
+    done_processing = false;
+    do {
+        std::tie(done_processing, new_ops) = process_cluster_amplitudes(ops);
+        ops = new_ops;
+    }while(!done_processing);
+
+    if (is_hamiltonian_normal_ordered) {
+        // TODO: normal order 'j2' and drop 'j1' 
+        // TODO: normal order 'f' 
+        printf("\n");
+        printf("    error: the normal ordered hamiltonian operators are broken\n");
+        printf("\n");
+        exit(1);
+    }
+
+    // TODO: normal order the entire argument, if desired
+
     for (auto op : ops){
         add_operator_product(op.factor, op.operators);
     }
@@ -580,56 +609,62 @@ void pq_helper::py_add_operator_product(double factor, std::vector<std::string> 
 
 }
 
-// add a string of operators
-void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
+// check if there are fluctuation potential operators that needs to be split into multiple terms
+std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_potential(std::vector<pq_operator_terms> ops_in){
 
-    // check if there is a fluctuation potential operator that needs to be split into multiple terms
+    std::vector<pq_operator_terms> ops_out;
 
-    // 'v' cannot appear in left operators ... exit with error
-    for (std::vector<std::string> & left_operator : left_operators) {
-        for (const std::string & op : left_operator) {
-            if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+    bool done_processing = true;
 
-                printf("\n");
-                printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
-                printf("\n");
-                exit(1);
+    for (auto op: ops_in) {
+        double factor = op.factor;
+        std::vector<std::string> in = op.operators;
+
+        // 'v' cannot appear in left operators ... exit with error
+        for (std::vector<std::string> & left_operator : left_operators) {
+            for (const std::string & op : left_operator) {
+                if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+
+                    printf("\n");
+                    printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
+                    printf("\n");
+                    exit(1);
+                }
             }
         }
-    }
-    
-    // 'v' cannot appear in right operators ... exit with error
-    for (std::vector<std::string> & right_operator : right_operators) {
-        for (const std::string & op : right_operator) {
-            if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+        
+        // 'v' cannot appear in right operators ... exit with error
+        for (std::vector<std::string> & right_operator : right_operators) {
+            for (const std::string & op : right_operator) {
+                if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
 
-                printf("\n");
-                printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
-                printf("\n");
-                exit(1);
+                    printf("\n");
+                    printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
+                    printf("\n");
+                    exit(1);
+                }
             }
         }
-    }
 
-    int count = 0;
-    bool found_v = false;
-    std::vector<std::string> tmp_in;
-    for (const std::string & op : in) {
-        if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
-            found_v = true;
-            break;
-        }else {
-            tmp_in.push_back(op);
-            count++;
+        int count = 0;
+        bool found_v = false;
+        std::vector<std::string> tmp_in;
+        for (const std::string & op : in) {
+            if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+                found_v = true;
+                break;
+            }else {
+                tmp_in.push_back(op);
+                count++;
+            }
         }
-    }
-    if ( found_v ) {
+        if ( found_v ) {
+            done_processing = false;
 
-        // get bernoulli operator portions
-        std::string op_portions = get_operator_portions_as_string(in[count]);
+            // get bernoulli operator portions
+            std::string op_portions = get_operator_portions_as_string(in[count]);
 
-        if ( !is_hamiltonian_normal_ordered ) {
-            // term 1
+            // term 1 (j1)
             std::string v_type = "j1";
             if ( op_portions.length() > 0 ) { 
                 v_type += "{" + op_portions + "}";
@@ -642,9 +677,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             for (const auto & op : tmp_in) {
                 in.push_back(op);
             }
-            add_operator_product(factor, in);
+            ops_out.push_back(pq_operator_terms(factor, in));
 
-            // term 2
+            // term 2 (j2)
             in.clear();
             for (int i = 0; i < count; i++) {
                 in.push_back(tmp_in[i]);
@@ -654,131 +689,97 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             for (int i = count + 1; i < (int)tmp_in.size(); i++) {
                 in.push_back(tmp_in[i]);
             }
-            add_operator_product(factor, in);
+            ops_out.push_back(pq_operator_terms(factor, in));
+
         }else {
-            for (int label = 0; label < 16; label++) {
-                std::vector<std::string> my_in;
-                for (int i = 0; i < count; i++) {
-                    my_in.push_back(in[i]);
-                }
-                // only term 2 (16 times...)
-                std::string v_type = "j2" + std::to_string(label);
-                if ( op_portions.length() > 0 ) { 
-                    v_type += "{" + op_portions + "}";
-                }
-                my_in.push_back(v_type);
-                for (int i = count+1; i < (int)in.size(); i++) {
-                    my_in.push_back(in[i]);
-                }
-                in.clear();
-                for (const auto & op : my_in) {
-                    in.push_back(op);
-                }
-                add_operator_product(factor, in);
-            }
-        }
-        return;
-    }
-
-    // check if there is a fock operator that should be treated in normal order
-
-    count = 0;
-    bool found_f = false;
-    for (const std::string & op : in) {
-        if (op == "f" || op == "F") {
-            found_f = true;
-            break;
-        }else {
-            count++;
-        }
-    }
-    if ( found_f ) {
-        if ( !is_hamiltonian_normal_ordered ) {
-            // do nothing
-        }else {
-            // add each block of F separately, Fvv, Fvo, Fov, Foo
-            for (int label = 0; label < 4; label++) {
-                std::vector<std::string> my_in;
-                for (int i = 0; i < count; i++) {
-                    my_in.push_back(in[i]);
-                }
-                // 4 blocks
-                my_in.push_back('f' + std::to_string(label));
-                for (int i = count+1; i < (int)in.size(); i++) {
-                    my_in.push_back(in[i]);
-                }
-                in.clear();
-                for (const auto & op : my_in) {
-                    in.push_back(op);
-                }
-                add_operator_product(factor, in);
-            }
-            return;
+            ops_out.push_back(op);
         }
     }
 
-    // now check for t and add de-excitation operators if doing unitary cc
-    // first, if unitary cc, t can't show up in right or left operator lists (yet)
-    if ( is_unitary_cc ) {
-        for (size_t i = 0; i < left_operators.size(); i++) {
-            for (size_t j = 0; j < left_operators[i].size(); j++) {
-                if ( left_operators[i][j].substr(0,1) == "t" || left_operators[i][j].substr(0,1) == "T" ||
-                     left_operators[i][j].substr(0,2) == "t{" || left_operators[i][j].substr(0,2) == "T{" ){
+    return std::make_pair(done_processing, ops_out);
+}
 
-                    printf("\n");
-                    printf("    error: unitary cluster operators cannot appear in the bra state\n");
-                    printf("\n");
-                    exit(1);
+// check for t and add de-excitation operators if doing unitary cc
+std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplitudes(std::vector<pq_operator_terms> ops_in){
 
+    std::vector<pq_operator_terms> ops_out;
+
+    bool done_processing = true;
+
+    for (auto op: ops_in) {
+        double factor = op.factor;
+        std::vector<std::string> in = op.operators;
+
+        // first, if unitary cc, t can't show up in right or left operator lists (yet)
+        if ( is_unitary_cc ) {
+            for (size_t i = 0; i < left_operators.size(); i++) {
+                for (size_t j = 0; j < left_operators[i].size(); j++) {
+                    if ( left_operators[i][j].substr(0,1) == "t" || left_operators[i][j].substr(0,1) == "T" ||
+                         left_operators[i][j].substr(0,2) == "t{" || left_operators[i][j].substr(0,2) == "T{" ){
+
+                        printf("\n");
+                        printf("    error: unitary cluster operators cannot appear in the bra state\n");
+                        printf("\n");
+                        exit(1);
+
+                    }
+                }
+            }
+            for (size_t i = 0; i < right_operators.size(); i++) {
+                for (size_t j = 0; j < right_operators[i].size(); j++) {
+                    if ( right_operators[i][j].substr(0,1) == "t" || right_operators[i][j].substr(0,1) == "T" ||
+                         right_operators[i][j].substr(0,2) == "t{" || right_operators[i][j].substr(0,2) == "T{" ){
+
+                        printf("\n");
+                        printf("    error: unitary cluster operators cannot appear in the ket state\n");
+                        printf("\n");
+                        exit(1);
+
+                    }
                 }
             }
         }
-        for (size_t i = 0; i < right_operators.size(); i++) {
-            for (size_t j = 0; j < right_operators[i].size(); j++) {
-                if ( right_operators[i][j].substr(0,1) == "t" || right_operators[i][j].substr(0,1) == "T" ||
-                     right_operators[i][j].substr(0,2) == "t{" || right_operators[i][j].substr(0,2) == "T{" ){
 
-                    printf("\n");
-                    printf("    error: unitary cluster operators cannot appear in the ket state\n");
-                    printf("\n");
-                    exit(1);
-
+        // now either rename cluster operators or split them into two, depending on whether we're unitary or not
+        int count = 0;
+        bool found_t = false;
+        for (size_t i = 0; i < in.size(); i++) {
+            if ( in[i].substr(0,1) == "t" || in[i].substr(0,1) == "T" ) {
+                if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" ) {
+                    found_t = true;
+                    break;
+                }else {
+                    count++;
                 }
-            }
-        }
-    }
-
-    // now either rename cluster operators or split them into two, depending on whether we're unitary or not
-    count = 0;
-    bool found_t = false;
-    for (size_t i = 0; i < in.size(); i++) {
-        if ( in[i].substr(0,1) == "t" || in[i].substr(0,1) == "T" ) {
-            if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" ) {
-                found_t = true;
-                break;
             }else {
                 count++;
             }
+        }
+
+        if ( found_t ) {
+            done_processing = false;
+
+            // term 1 (excitation)
+
+            in[count].insert(1, "e", 1);
+            ops_out.push_back(pq_operator_terms(factor, in));
+
+            // term 2 (de-excitation)
+            if ( is_unitary_cc ) {
+
+                in[count][1] = 'd';
+                ops_out.push_back(pq_operator_terms(-factor, in));
+            }
         }else {
-            count++;
+            ops_out.push_back(op);
         }
     }
 
-    if ( found_t ) {
+    return std::make_pair(done_processing, ops_out);
+}
 
-        // term 1 (excitation)
-
-        in[count].insert(1, "e", 1);
-        add_operator_product(factor, in);
-
-        // term 2 (de-excitation)
-        if ( is_unitary_cc ) {
-
-            in[count][1] = 'd';
-            add_operator_product(-factor, in);
-        }
-        return;
-    }
+// add a string of operators
+void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
     // apply any extra operators on left or right:
     std::vector<std::string> save;
@@ -1660,10 +1661,8 @@ void pq_helper::add_st_operator(double factor,
                                 const std::vector<std::string> &ops,
                                 bool do_operators_commute = true){
 
-    std::vector<pq_operator_terms> st_terms = get_st_operator_terms(factor, targets, ops, do_operators_commute);
-    for (auto term : st_terms){
-        add_operator_product(term.factor, term.operators);
-    }
+    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute);
+    process_operator_products(st_ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true){
@@ -1809,9 +1808,7 @@ void pq_helper::add_bernoulli_operator(double factor,
                                        const int max_order) {
 
     std::vector<pq_operator_terms> bernoulli_terms = get_bernoulli_operator_terms(factor, targets, ops, max_order);
-    for (auto term : bernoulli_terms){
-        add_operator_product(term.factor, term.operators);
-    }
+    process_operator_products(bernoulli_terms);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, const int max_order) {
