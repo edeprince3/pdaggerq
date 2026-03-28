@@ -133,7 +133,7 @@ void export_pq_helper(py::module& m) {
         .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
         .def("add_quintuple_commutator", &pq_helper::add_quintuple_commutator)
         .def("add_hextuple_commutator", &pq_helper::add_hextuple_commutator)
-        .def("add_operator_product", &pq_helper::add_operator_product);
+        .def("add_operator_product", &pq_helper::py_add_operator_product);
 
     py::class_<pdaggerq::pq_operator_terms>(m, "pq_operator_terms")
         .def(py::init<double, std::vector<std::string>>())
@@ -296,9 +296,10 @@ void pq_helper::add_anticommutator(double factor,
                                    const std::vector<std::string> &op0,
                                    const std::vector<std::string> &op1){
 
-    add_operator_product(factor, concatinate_operators({op0, op1}) );
-    add_operator_product(factor, concatinate_operators({op1, op0}) );
-
+    std::vector<pq_operator_terms> ops;
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1}) ));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op1, op0}) ));
+    process_operator_products(ops);
 }
 
 void pq_helper::add_commutator(double factor,
@@ -306,9 +307,7 @@ void pq_helper::add_commutator(double factor,
                                const std::vector<std::string> &op1){
 
     std::vector<pq_operator_terms> ops = get_commutator_terms(factor, op0, op1);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_commutator_terms(double factor,
@@ -329,9 +328,7 @@ void pq_helper::add_double_commutator(double factor,
                                       const std::vector<std::string> &op2){
 
     std::vector<pq_operator_terms> ops = get_double_commutator_terms(factor, op0, op1, op2);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_double_commutator_terms(double factor,
@@ -356,9 +353,7 @@ void pq_helper::add_triple_commutator(double factor,
                                         const std::vector<std::string> &op3){
 
     std::vector<pq_operator_terms> ops = get_triple_commutator_terms(factor, op0, op1, op2, op3);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_triple_commutator_terms(double factor,
@@ -389,9 +384,7 @@ void pq_helper::add_quadruple_commutator(double factor,
                                          const std::vector<std::string> &op4){
 
     std::vector<pq_operator_terms> ops = get_quadruple_commutator_terms(factor, op0, op1, op2, op3, op4);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_quadruple_commutator_terms(double factor,
@@ -478,9 +471,7 @@ void pq_helper::add_quintuple_commutator(double factor,
                                          const std::vector<std::string> &op5){
 
     std::vector<pq_operator_terms> ops = get_quintuple_commutator_terms(factor, op0, op1, op2, op3, op4, op5);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_hextuple_commutator_terms(double factor,
@@ -572,21 +563,30 @@ void pq_helper::add_hextuple_commutator(double factor,
                                         const std::vector<std::string> &op6){
 
     std::vector<pq_operator_terms> ops = get_hextuple_commutator_terms(factor, op0, op1, op2, op3, op4, op5, op6);
+    process_operator_products(ops);
+}
+
+void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
     for (auto op : ops){
         add_operator_product(op.factor, op.operators);
     }
 }
 
+// wrapper for python calling add_operator_product directly
+void pq_helper::py_add_operator_product(double factor, std::vector<std::string>  in){
+
+    std::vector<pq_operator_terms> ops = {pq_operator_terms( factor, in)};
+    process_operator_products(ops);
+
+}
+
 // add a string of operators
 void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
-    // check if there is a fluctuation potential operator 
-    // that needs to be split into multiple terms
+    // check if there is a fluctuation potential operator that needs to be split into multiple terms
 
-    // left operators 
-    // this is not handled correctly now that left operators can be sums of products of operators ... just exit with an error
+    // 'v' cannot appear in left operators ... exit with error
     for (std::vector<std::string> & left_operator : left_operators) {
-        std::vector<std::string> tmp;
         for (const std::string & op : left_operator) {
             if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
 
@@ -594,22 +594,12 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
                 printf("\n");
                 exit(1);
-
-            }else {
-                tmp.push_back(op);
             }
         }
-        left_operator.clear();
-        for (const auto & op : tmp) {
-            left_operator.push_back(op);
-        }
-        tmp.clear();
     }
     
-    // right operators 
-    // this is not handled correectly now that right operators can be sums of products of operators ... just exit with an error
+    // 'v' cannot appear in right operators ... exit with error
     for (std::vector<std::string> & right_operator : right_operators) {
-        std::vector<std::string> tmp;
         for (const std::string & op : right_operator) {
             if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
 
@@ -617,16 +607,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
                 printf("\n");
                 exit(1);
-
-            }else {
-                tmp.push_back(op);
             }
         }
-        right_operator.clear();
-        for (const std::string & op : tmp) {
-            right_operator.push_back(op);
-        }
-        tmp.clear();
     }
 
     int count = 0;
@@ -697,6 +679,8 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         }
         return;
     }
+
+    // check if there is a fock operator that should be treated in normal order
 
     count = 0;
     bool found_f = false;

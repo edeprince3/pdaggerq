@@ -238,10 +238,32 @@ class pq_helper {
      *
      * add a product of operators (i.e., {'h','t1'} )
      *
+     * @param factor: the numerical factor associated with the operator product
      * @param in: a list of strings defining the operator product
      *
      */
     void add_operator_product(double factor, std::vector<std::string> in);
+
+    /**
+     *
+     * python wrapper for calling add_operator_product() to 
+     * add a product of operators (i.e., {'h','t1'} )
+     *
+     * @param factor: the numerical factor associated with the operator product
+     * @param in: a list of strings defining the operator product
+     *
+     */
+    void py_add_operator_product(double factor, std::vector<std::string>  in);
+
+    /**
+     *
+     * process a list of operator products, expanding the list where 
+     * necessary, e.g., 't1' -> 'te1' - 'td1', 'v' -> 'j1' + 'j2', etc.
+     *
+     * @param in: a list of pq_operator_terms
+     *
+     */
+    void process_operator_products(std::vector<pq_operator_terms> ops);
 
     /**
      *
