@@ -568,46 +568,6 @@ void pq_helper::add_hextuple_commutator(double factor,
     process_operator_products(ops);
 }
 
-void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
-
-    // 'v' = 'j1' + 'j2'
-    bool done_processing = false;
-    std::vector<pq_operator_terms> new_ops;
-    do {
-        std::tie(done_processing, new_ops) = process_fluctuation_potential(ops);
-        ops = new_ops;
-    }while(!done_processing);
-
-    // 't1' = 't1e' or 't1' = 't1e' - 't1d', etc.
-    done_processing = false;
-    do {
-        std::tie(done_processing, new_ops) = process_cluster_amplitudes(ops);
-        ops = new_ops;
-    }while(!done_processing);
-
-    if (is_hamiltonian_normal_ordered) {
-        // TODO: normal order 'j2' and drop 'j1' 
-        // TODO: normal order 'f' 
-        printf("\n");
-        printf("    error: the normal ordered hamiltonian operators are broken\n");
-        printf("\n");
-        exit(1);
-    }
-
-    // TODO: normal order the entire argument, if desired
-
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
-}
-
-// wrapper for python calling add_operator_product directly
-void pq_helper::py_add_operator_product(double factor, std::vector<std::string>  in){
-
-    std::vector<pq_operator_terms> ops = {pq_operator_terms( factor, in)};
-    process_operator_products(ops);
-
-}
 
 // check if there are fluctuation potential operators that needs to be split into multiple terms
 std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_potential(std::vector<pq_operator_terms> ops_in){
@@ -778,15 +738,75 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplit
     return std::make_pair(done_processing, ops_out);
 }
 
+void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
+
+    bool done_processing = false;
+    std::vector<pq_operator_terms> new_ops;
+
+    // check for fluctuation potential because it should be split as
+    // 'v' = 'j1' + 'j2'
+    do {
+        std::tie(done_processing, new_ops) = process_fluctuation_potential(ops);
+        ops = new_ops;
+    }while(!done_processing);
+
+    // check for cluster amplitudes because they should be renamed/split as
+    // 't1' = 't1e' or 't1' = 't1e' - 't1d', etc.
+    done_processing = false;
+    do {
+        std::tie(done_processing, new_ops) = process_cluster_amplitudes(ops);
+        ops = new_ops;
+    }while(!done_processing);
+
+    if (is_hamiltonian_normal_ordered) {
+        // TODO: normal order 'j2' and drop 'j1' 
+        // TODO: normal order 'f' 
+        printf("\n");
+        printf("    error: the normal ordered hamiltonian operators are broken\n");
+        printf("\n");
+        exit(1);
+    }
+
+    // normal order the central operator, if desired
+    /*if (is_central_operator_normal_ordered) {
+
+        std::vector<std::vector<std::string> save_left_operators;
+        for (const std::vector<std::string> & ops : left_operators) {
+            save_left_operators.push_back(ops);
+        }
+
+        std::vector<std::vector<std::string> save_right_operators;
+        for (const std::vector<std::string> & ops : right_operators) {
+            save_right_operators.push_back(ops);
+        }
+
+        left_operators.clear();
+        right_operators.clear();
+
+        for (const std::vector<std::string> & ops : save_left_operators) {
+            left_operators.push_back(ops);
+        }
+        for (const std::vector<std::string> & ops : save_right_operators) {
+            left_operators.push_back(ops);
+        }
+    }*/
+
+    for (auto op : ops){
+        add_operator_product(op.factor, op.operators);
+    }
+}
+
+// wrapper for python calling add_operator_product directly
+void pq_helper::py_add_operator_product(double factor, std::vector<std::string>  in){
+
+    std::vector<pq_operator_terms> ops = {pq_operator_terms(factor, in)};
+    process_operator_products(ops);
+}
+
 // add a string of operators
 void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
     // apply any extra operators on left or right:
-    std::vector<std::string> save;
-    for (const std::string & op : in) {
-        save.push_back(op);
-    }
-
     if ( (int)left_operators.size() == 0 ) {
         std::vector<std::string> junk;
         junk.emplace_back("1");
@@ -798,709 +818,15 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         right_operators.push_back(junk);
     }
 
-    // build strings
-    double original_factor = factor;
-
     for (std::vector<std::string> & left_operator : left_operators) {
         for (std::vector<std::string> & right_operator : right_operators) {
 
-            std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
-
-            factor = original_factor;
-
-            std::vector<std::string> tmp_string;
-
-            bool has_w0       = false;
-
+            // build pq_strings
             int occ_label_count = 0;
             int vir_label_count = 0;
-            int gen_label_count = 0;
+            std::shared_ptr<pq_string> newguy = build_new_string(factor, left_operator, in, right_operator, occ_label_count, vir_label_count);
 
-            // apply any extra operators on left or right:
-            std::vector<std::string> tmp = left_operator;
-            for (const std::string & op : save) {
-                tmp.push_back(op);
-            }
-            for (const std::string & op : right_operator) {
-                tmp.push_back(op);
-            }
-
-            for (std::string & op_including_portions : tmp) {
-
-                // bernoulli expansion requires operator portion specification. split into base name and portion
-                std::string op = get_operator_base_name(op_including_portions);
-                std::vector<std::string> op_portions = get_operator_portions_as_vector(op_including_portions);
-                
-                // blank string
-                if ( op.empty() ) continue;
-
-                // Stephen: removed so that we can distinguish lower- and uppercase indices
-                // lowercase indices
-                // std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
-
-                // remove spaces
-                removeSpaces(op);
-
-                // remove parentheses
-                removeParentheses(op);
-
-                if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
-
-                    // index 2
-                    tmp_string.push_back(idx2);
-
-                    // integrals
-                    newguy->set_integrals("core", {idx1, idx2}, op_portions);
-
-                }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
-
-                    if ( is_hamiltonian_normal_ordered ) {
-
-                        // find number in string representing which block of F this is
-                        std::string num_str;
-                        size_t pos = op.find('{', 1); // start in position 1
-                        if (pos != std::string::npos) {
-                            num_str = op.substr(1, pos - 1);
-                        } else {
-                            num_str = op.substr(1);
-                        }
-                        int label = std::stoi(num_str);
-
-                        // Map the bits of 'label' (0 to 3) to 'o' (occupied) or 'v' (virtual)
-                        // label & 2 checks the first index, label & 1 checks the second
-                        std::string idx1 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
-                        
-                        // Normal ordering: pushing true creators (C) left of true annihilators (A)
-                        if (label == 0) {
-                            // 00 (v v) -> C A -> Already normal ordered
-                            tmp_string.push_back(idx1+"*"); 
-                            tmp_string.push_back(idx2);
-                        }else if (label == 1) {
-                            // 01 (v o) -> C C -> Already normal ordered (preserve relative order)
-                            tmp_string.push_back(idx1+"*"); 
-                            tmp_string.push_back(idx2);
-                        }else if (label == 2) {
-                            // 10 (o v) -> A A -> Already normal ordered (preserve relative order)
-                            tmp_string.push_back(idx1+"*"); 
-                            tmp_string.push_back(idx2);
-                        }else if (label == 3) {
-                            // 11 (o o) -> A C -> Swap needed to put C before A
-                            factor *= -1;
-                            tmp_string.push_back(idx2); 
-                            tmp_string.push_back(idx1+"*");
-                        }
-
-                        newguy->set_integrals("fock", {idx1, idx2}, op_portions);
-                    }else {
-                        std::string idx1 = "p" + std::to_string(gen_label_count++);
-                        std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                        tmp_string.push_back(idx1+"*"); 
-                        tmp_string.push_back(idx2);
-
-                        newguy->set_integrals("fock", {idx1, idx2}, op_portions);
-                    }
-
-
-
-                }else if (op.substr(0, 2) == "d+" || op.substr(0, 2) == "D+") { // one-electron operator (dipole + boson creator)
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
-
-                    // index 2
-                    tmp_string.push_back(idx2);
-
-                    // integrals
-                    newguy->set_integrals("d+", {idx1, idx2}, op_portions);
-
-                    // boson operator
-                    newguy->is_boson_dagger.push_back(true);
-
-                }else if (op.substr(0, 2) == "d-" || op.substr(0, 2) == "D-") { // one-electron operator (dipole + boson annihilator)
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
-
-                    // index 2
-                    tmp_string.push_back(idx2);
-
-                    // integrals
-                    newguy->set_integrals("d-", {idx1, idx2}, op_portions);
-
-                    // boson operator
-                    newguy->is_boson_dagger.push_back(false);
-
-                }else if (op.substr(0, 1) == "g" || op.substr(0, 1) == "G") { // general two-electron operator
-
-                    //factor *= 0.25;
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-                    std::string idx3 = "p" + std::to_string(gen_label_count++);
-                    std::string idx4 = "p" + std::to_string(gen_label_count++);
-
-                    tmp_string.push_back(idx1+"*");
-                    tmp_string.push_back(idx2+"*");
-                    tmp_string.push_back(idx3);
-                    tmp_string.push_back(idx4);
-
-                    newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3}, op_portions);
-
-                }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
-
-                    if (op.substr(1, 1) == "1" ){
-
-                        // no contribution from -<pi||qi> p*q if hamiltonian is normal ordered
-                        if ( is_hamiltonian_normal_ordered ) {
-                            return;
-                        }
-
-                        factor *= -1.0;
-
-                        std::string idx1 = "p" + std::to_string(gen_label_count++);
-                        std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                        // index 1
-                        tmp_string.push_back(idx1+"*");
-
-                        // index 2
-                        tmp_string.push_back(idx2);
-
-                        // integrals
-                        newguy->set_integrals("occ_repulsion", {idx1, idx2}, op_portions);
-
-                    }else if (op.substr(1, 1) == "2" ){
-
-                        factor *= 0.25;
-
-                        if ( is_hamiltonian_normal_ordered ) {
-
-                            // find number in string representing which block of V (J2) this is
-                            std::string num_str;
-                            size_t pos = op.find('{', 2); // start in index 2
-                            if (pos != std::string::npos) {
-                                num_str = op.substr(2, pos - 2);
-                            } else {
-                                num_str = op.substr(2);
-                            }
-                            int label = std::stoi(num_str);
-
-                            // Check the bits of 'label' to assign 'o' (occupied) or 'v' (virtual) 
-                            // and increment the correct counter on the fly.
-                            std::string idx1 = (label & 8) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
-                            std::string idx2 = (label & 4) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
-                            std::string idx3 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
-                            std::string idx4 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
-
-                            // Normal ordering: pushing true creators (C) to the left of true annihilators (A)
-                            if (label == 0) {
-                                // 0000 (v v v v) -> C C A A
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
-                            }else if (label == 1) {
-                                // 0001 (v v v o) -> C C A C
-                                factor *= -1;
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx3);
-                            }else if (label == 2) {
-                                // 0010 (v v o v) -> C C C A
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
-                            }else if (label == 3) {
-                                // 0011 (v v o o) -> C C C C
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
-                            }else if (label == 4) {
-                                // 0100 (v o v v) -> C A A A
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
-                            }else if (label == 5) {
-                                // 0101 (v o v o) -> C A A C
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
-                            }else if (label == 6) {
-                                // 0110 (v o o v) -> C A C A
-                                factor *= -1;
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
-                            }else if (label == 7) {
-                                // 0111 (v o o o) -> C A C C
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*");
-                            }else if (label == 8) {
-                                // 1000 (o v v v) -> A C A A
-                                factor *= -1;
-                                tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
-                            }else if (label == 9) {
-                                // 1001 (o v v o) -> A C A C
-                                factor *= -1;
-                                tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3);
-                            }else if (label == 10) {
-                                // 1010 (o v o v) -> A C C A
-                                tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4);
-                            }else if (label == 11) {
-                                // 1011 (o v o o) -> A C C C
-                                factor *= -1;
-                                tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*");
-                            }else if (label == 12) {
-                                // 1100 (o o v v) -> A A A A
-                                tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
-                            }else if (label == 13) {
-                                // 1101 (o o v o) -> A A A C
-                                factor *= -1;
-                                tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
-                            }else if (label == 14) {
-                                // 1110 (o o o v) -> A A C A
-                                tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
-                            }else if (label == 15) {
-                                // 1111 (o o o o) -> A A C C
-                                tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*");
-                            }
-                            
-                            newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
-                        }else {
-                        
-                            std::string idx1 = "p" + std::to_string(gen_label_count++);
-                            std::string idx2 = "p" + std::to_string(gen_label_count++);
-                            std::string idx3 = "p" + std::to_string(gen_label_count++);
-                            std::string idx4 = "p" + std::to_string(gen_label_count++);
-
-                            tmp_string.push_back(idx1+"*");
-                            tmp_string.push_back(idx2+"*");
-                            tmp_string.push_back(idx3);
-                            tmp_string.push_back(idx4);
-
-                            newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
-                        }
-                    }
-
-                }else if (op.substr(0, 1) == "t"){
-
-                    int n = std::stoi(op.substr(2));
-                    std::vector<std::string> labels;
-
-                    if ( n == 0 ){
-
-                        // nothing to do
-
-                    }else {
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
- 
-                        // excitation:
-                        if ( op.substr(0,2) == "te" ) {
-
-                            for (int id = 0; id < n; id++) {
-
-                                std::string idx1 = "v" + std::to_string(vir_label_count++);
-                                std::string idx2 = "o" + std::to_string(occ_label_count++);
-
-                                op_left.push_back(idx1+"*");
-                                op_right.push_back(idx2);
-
-                                label_left.push_back(idx1);
-                                label_right.push_back(idx2);
-                            }
-                        }else if ( op.substr(0,2) == "td" ) {
-
-                            // de-excitation:
-                            for (int id = 0; id < n; id++) {
-
-                                std::string idx1 = "v" + std::to_string(vir_label_count++);
-                                std::string idx2 = "o" + std::to_string(occ_label_count++);
-
-                                op_left.push_back(idx2+"*");
-                                op_right.push_back(idx1);
-
-                                // do not transpose de-excitation amplitude labels
-                                //label_left.push_back(idx1);
-                                //label_right.push_back(idx2);
-                                // transpose de-excitation amplitude labels
-                                label_left.push_back(idx2);
-                                label_right.push_back(idx1);
-                            }
-                        }else {
-                            printf("\n");
-                            printf("    invalid operator type: %s\n", op.c_str());
-                            printf("\n");
-                            exit(1);
-                        }
-
-                        // a*b*...
-                        for (int id = 0; id < n; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // op*j*...
-                        for (int id = 0; id < n; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-
-                        // tn(ab...
-                        for (int id = 0; id < n; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ab......ji)
-                        for (int id = n-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-
-                        // factor = 1/(n!)^2
-                        double my_factor = 1.0;
-                        for (int id = 0; id < n; id++) {
-                            my_factor *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor / my_factor;
-                    }
-
-                    int n_ph = 0;
-                    if (op.size() > 3 ) {
-                        if ( op.substr(3,1) == ",") {
-                            n_ph = std::stoi(op.substr(4));
-                            if ( op.substr(0,2) == "te" ) {
-                                // excitation
-                                for (int ph = 0; ph < n_ph; ph++) {
-                                    newguy->is_boson_dagger.push_back(true);
-                                }
-                            }else if ( op.substr(0,2) == "td" ) {
-                                // de-excitation
-                                for (int ph = 0; ph < n_ph; ph++) {
-                                    newguy->is_boson_dagger.push_back(false);
-                                }
-                            }
-                        }
-                    }
-                    newguy->set_amplitudes('t', n, n, n_ph, labels, op_portions);
-
-                }else if (op.substr(0, 1) == "w" || op.substr(0, 1) == "W"){ // w0 B*B
-
-                    if (op.substr(1, 1) == "0" ){
-
-                        has_w0 = true;
-
-                        newguy->is_boson_dagger.push_back(true);
-                        newguy->is_boson_dagger.push_back(false);
-
-                    }else {
-                        printf("\n");
-                        printf("    error: only w0 is supported\n");
-                        printf("\n");
-                        exit(1);
-                    }
-
-                }else if (op.substr(0, 2) == "b+" || op.substr(0, 2) == "B+"){ // B*
-
-                        newguy->is_boson_dagger.push_back(true);
-
-                }else if (op.substr(0, 2) == "b-" || op.substr(0, 2) == "B-"){ // B
-
-                        newguy->is_boson_dagger.push_back(false);
-
-                }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
-
-
-                    int n = std::stoi(op.substr(1));
-                    int n_annihilate = n;
-                    int n_create     = n;
-                    std::vector<std::string> labels;
-
-                    if ( n == 0 ){
-
-                        // nothing to do
-
-                    }else {
-
-                        if ( right_operators_type == "IP" ) n_create--;
-                        if ( right_operators_type == "DIP" ) n_create -= 2;
-                        if ( right_operators_type == "EA" ) n_annihilate--;
-                        if ( right_operators_type == "DEA" ) n_annihilate -= 2;
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n_create; id++) {
-                            std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            op_left.push_back(idx1+"*");
-                            label_left.push_back(idx1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
-                            op_right.push_back(idx2);
-                            label_right.push_back(idx2);
-                        }
-                        // a*b*...
-                        for (int id = 0; id < n_create; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // ij...
-                        for (int id = 0; id < n_annihilate; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-
-                        // tn(ab...
-                        for (int id = 0; id < n_create; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ab......ji)
-                        for (int id = n_annihilate-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-
-                        // factor = 1/(n!)^2
-                        double my_factor_create = 1.0;
-                        double my_factor_annihilate = 1.0;
-                        for (int id = 0; id < n_create; id++) {
-                            my_factor_create *= (id+1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            my_factor_annihilate *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
-                    }
-
-                    int n_ph = 0;
-                    if (op.size() > 2 ) {
-                        if ( op.substr(2,1) == ",") {
-                            n_ph = std::stoi(op.substr(3));
-                            for (int ph = 0; ph < n_ph; ph++) {
-                                newguy->is_boson_dagger.push_back(true);
-                            }
-                        }
-                    }
-                    newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels, op_portions);
-
-                }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
-
-                    int n = std::stoi(op.substr(1));
-                    int n_annihilate = n;
-                    int n_create     = n;
-                    std::vector<std::string> labels;
-
-                    if ( n == 0 ){
-
-                        // nothing to do
-
-                    }else {
-                        
-                        if ( left_operators_type == "IP" ) n_annihilate--;
-                        if ( left_operators_type == "DIP" ) n_annihilate -= 2;
-                        if ( left_operators_type == "EA" ) n_create--;
-                        if ( left_operators_type == "DEA" ) n_create -= 2;
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n_create; id++) {
-                            std::string idx1 = "o" + std::to_string(occ_label_count++);
-                            op_left.push_back(idx1+"*");
-                            label_left.push_back(idx1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            std::string idx2 = "v" + std::to_string(vir_label_count++);
-                            op_right.push_back(idx2);
-                            label_right.push_back(idx2);
-                        }
-                        // op*j*...
-                        for (int id = 0; id < n_create; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // ab...
-                        for (int id = 0; id < n_annihilate; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-
-                        // tn(ij... 
-                        for (int id = 0; id < n_create; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ij......ba)
-                        for (int id = n_annihilate-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-                        
-                        // factor = 1/(n!)^2
-                        double my_factor_create = 1.0;
-                        double my_factor_annihilate = 1.0;
-                        for (int id = 0; id < n_create; id++) {
-                            my_factor_create *= (id+1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            my_factor_annihilate *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
-                    
-                    }
-
-                    int n_ph = 0;
-                    if (op.size() > 2 ) {
-                        if ( op.substr(2,1) == ",") {
-                            n_ph = std::stoi(op.substr(3));
-                            for (int ph = 0; ph < n_ph; ph++) {
-                                newguy->is_boson_dagger.push_back(false);
-                            }
-                        }
-                    }
-                    newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels, op_portions);
-
-                }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
-
-
-                    if (op.substr(1, 1) == "1" ){
-
-                        // find comma
-                        size_t pos = op.find(',');
-                        if ( pos == std::string::npos ) {
-                            printf("\n");
-                            printf("    error in e1 operator definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-                        size_t len = pos - 2; 
-
-                        // index 1
-                        tmp_string.push_back(op.substr(2, len) + "*");
-
-                        // index 2
-                        tmp_string.push_back(op.substr(pos + 1));
-
-                    }else if (op.substr(1, 1) == "2" ){
-
-                        // count indices
-                        size_t pos = 0;
-                        int ncomma = 0;
-                        std::vector<size_t> commas;
-                        pos = op.find(',', pos + 1);
-                        commas.push_back(pos);
-                        while( pos != std::string::npos){
-                            pos = op.find(',', pos + 1);
-                            commas.push_back(pos);
-                            ncomma++;
-                        }
-
-                        if ( ncomma != 3 ) {
-                            printf("\n");
-                            printf("    error in e2 definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
-                        tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
-                        tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1));
-                        tmp_string.push_back(op.substr(commas[2] + 1));
-
-                    }else if (op.substr(1, 1) == "3" ){
-
-                        // count indices
-                        size_t pos = 0;
-                        int ncomma = 0;
-                        std::vector<size_t> commas;
-                        pos = op.find(',', pos + 1);
-                        commas.push_back(pos);
-                        while( pos != std::string::npos){
-                            pos = op.find(',', pos + 1);
-                            commas.push_back(pos);
-                            ncomma++;
-                        }
-
-                        if ( ncomma != 5 ) {
-                            printf("\n");
-                            printf("    error in e3 definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
-                        tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
-                        tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[2] + 1, commas[3] - commas[2] - 1));
-                        tmp_string.push_back(op.substr(commas[3] + 1, commas[4] - commas[3] - 1));
-                        tmp_string.push_back(op.substr(commas[4] + 1));
-
-                    }else if (op.substr(1, 1) == "4" ){
-
-                        // count indices
-                        size_t pos = 0;
-                        int ncomma = 0;
-                        std::vector<size_t> commas;
-                        pos = op.find(',', pos + 1);
-                        commas.push_back(pos);
-                        while( pos != std::string::npos){
-                            pos = op.find(',', pos + 1);
-                            commas.push_back(pos);
-                            ncomma++;
-                        }
-
-                        if ( ncomma != 7 ) {
-                            printf("\n");
-                            printf("    error in e4 definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
-                        tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
-                        tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[2] + 1, commas[3] - commas[2] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[3] + 1, commas[4] - commas[3] - 1));
-                        tmp_string.push_back(op.substr(commas[4] + 1, commas[5] - commas[4] - 1));
-                        tmp_string.push_back(op.substr(commas[5] + 1, commas[6] - commas[5] - 1));
-                        tmp_string.push_back(op.substr(commas[6] + 1));
-
-                    }else {
-                        printf("\n");
-                        printf("    error: only e1, e2, e3, and e4 operators are supported\n");
-                        printf("\n");
-                        exit(1);
-                    }
-
-                }else if (op.substr(0, 1) == "1" ) { // unit operator ... do nothing
-
-                }else if (op.substr(0, 1) == "a" || op.substr(0, 1) == "A"){ // single creator / annihilator
-
-
-                    if (op.substr(1, 1) == "*" ){ // creator
-
-                        tmp_string.push_back(op.substr(1) + "*");
-
-                    }else { // annihilator
-
-                        tmp_string.push_back(op.substr(1));
-
-                    }
-
-                }else {
-                        printf("\n");
-                        printf("    error: undefined string: %s\n", op.c_str());
-                        printf("\n");
-                        exit(1);
-                }
-            }
-
-            newguy->factor = factor;
-
-            for (const std::string & op : tmp_string) {
-                newguy->string.push_back(op);
-            }
-
-            newguy->has_w0 = has_w0;
-
-            // make sure factor > 0
-            if ( newguy->factor < 0.0 ) {
-                newguy->factor = fabs(newguy->factor);
-                newguy->sign *= -1;
-            }
-
+            // bring pq_strings to normal order
             if (vacuum == "TRUE") {
                 add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
             } else {
@@ -1508,6 +834,713 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             }
         }
     }
+}
+
+// build a pq_string from the string representations of operators
+std::shared_ptr<pq_string> pq_helper::build_new_string(double factor, 
+    std::vector<std::string> left_op, 
+    std::vector<std::string> central_op, 
+    std::vector<std::string> right_op,
+    int & occ_label_count,
+    int & vir_label_count){
+
+    std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
+    
+    std::vector<std::string> tmp_string;
+    
+    bool has_w0       = false;
+    
+    occ_label_count = 0;
+    vir_label_count = 0;
+    int gen_label_count = 0;
+    
+    // apply any extra operators on left or right:
+    std::vector<std::string> tmp = left_op;
+    for (const std::string & op : central_op) {
+        tmp.push_back(op);
+    }
+    for (const std::string & op : right_op) {
+        tmp.push_back(op);
+    }
+    
+    for (std::string & op_including_portions : tmp) {
+    
+        // bernoulli expansion requires operator portion specification. split into base name and portion
+        std::string op = get_operator_base_name(op_including_portions);
+        std::vector<std::string> op_portions = get_operator_portions_as_vector(op_including_portions);
+        
+        // blank string
+        if ( op.empty() ) continue;
+    
+        // Stephen: removed so that we can distinguish lower- and uppercase indices
+        // lowercase indices
+        // std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
+    
+        // remove spaces
+        removeSpaces(op);
+    
+        // remove parentheses
+        removeParentheses(op);
+    
+        if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
+    
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+            // index 1
+            tmp_string.push_back(idx1+"*");
+    
+            // index 2
+            tmp_string.push_back(idx2);
+    
+            // integrals
+            newguy->set_integrals("core", {idx1, idx2}, op_portions);
+    
+        }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
+    
+            if ( is_hamiltonian_normal_ordered ) {
+    
+                // find number in string representing which block of F this is
+                std::string num_str;
+                size_t pos = op.find('{', 1); // start in position 1
+                if (pos != std::string::npos) {
+                    num_str = op.substr(1, pos - 1);
+                } else {
+                    num_str = op.substr(1);
+                }
+                int label = std::stoi(num_str);
+    
+                // Map the bits of 'label' (0 to 3) to 'o' (occupied) or 'v' (virtual)
+                // label & 2 checks the first index, label & 1 checks the second
+                std::string idx1 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                std::string idx2 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                
+                // Normal ordering: pushing true creators (C) left of true annihilators (A)
+                if (label == 0) {
+                    // 00 (v v) -> C A -> Already normal ordered
+                    tmp_string.push_back(idx1+"*"); 
+                    tmp_string.push_back(idx2);
+                }else if (label == 1) {
+                    // 01 (v o) -> C C -> Already normal ordered (preserve relative order)
+                    tmp_string.push_back(idx1+"*"); 
+                    tmp_string.push_back(idx2);
+                }else if (label == 2) {
+                    // 10 (o v) -> A A -> Already normal ordered (preserve relative order)
+                    tmp_string.push_back(idx1+"*"); 
+                    tmp_string.push_back(idx2);
+                }else if (label == 3) {
+                    // 11 (o o) -> A C -> Swap needed to put C before A
+                    factor *= -1;
+                    tmp_string.push_back(idx2); 
+                    tmp_string.push_back(idx1+"*");
+                }
+    
+                newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+            }else {
+                std::string idx1 = "p" + std::to_string(gen_label_count++);
+                std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+                tmp_string.push_back(idx1+"*"); 
+                tmp_string.push_back(idx2);
+    
+                newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+            }
+    
+        }else if (op.substr(0, 2) == "d+" || op.substr(0, 2) == "D+") { // one-electron operator (dipole + boson creator)
+    
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+            // index 1
+            tmp_string.push_back(idx1+"*");
+    
+            // index 2
+            tmp_string.push_back(idx2);
+    
+            // integrals
+            newguy->set_integrals("d+", {idx1, idx2}, op_portions);
+    
+            // boson operator
+            newguy->is_boson_dagger.push_back(true);
+    
+        }else if (op.substr(0, 2) == "d-" || op.substr(0, 2) == "D-") { // one-electron operator (dipole + boson annihilator)
+    
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+            // index 1
+            tmp_string.push_back(idx1+"*");
+    
+            // index 2
+            tmp_string.push_back(idx2);
+    
+            // integrals
+            newguy->set_integrals("d-", {idx1, idx2}, op_portions);
+    
+            // boson operator
+            newguy->is_boson_dagger.push_back(false);
+    
+        }else if (op.substr(0, 1) == "g" || op.substr(0, 1) == "G") { // general two-electron operator
+    
+            //factor *= 0.25;
+    
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+            std::string idx3 = "p" + std::to_string(gen_label_count++);
+            std::string idx4 = "p" + std::to_string(gen_label_count++);
+    
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2+"*");
+            tmp_string.push_back(idx3);
+            tmp_string.push_back(idx4);
+    
+            newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3}, op_portions);
+    
+        }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
+    
+            if (op.substr(1, 1) == "1" ){
+    
+                // no contribution from -<pi||qi> p*q if hamiltonian is normal ordered
+                if ( is_hamiltonian_normal_ordered ) {
+                    printf("\n");
+                    printf("    normal ordered hamiltonian is broken\n");
+                    printf("\n");
+                    exit(1);
+                    return newguy;
+                }
+    
+                factor *= -1.0;
+    
+                std::string idx1 = "p" + std::to_string(gen_label_count++);
+                std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+                // index 1
+                tmp_string.push_back(idx1+"*");
+    
+                // index 2
+                tmp_string.push_back(idx2);
+    
+                // integrals
+                newguy->set_integrals("occ_repulsion", {idx1, idx2}, op_portions);
+    
+            }else if (op.substr(1, 1) == "2" ){
+    
+                factor *= 0.25;
+    
+                if ( is_hamiltonian_normal_ordered ) {
+    
+                    // find number in string representing which block of V (J2) this is
+                    std::string num_str;
+                    size_t pos = op.find('{', 2); // start in index 2
+                    if (pos != std::string::npos) {
+                        num_str = op.substr(2, pos - 2);
+                    } else {
+                        num_str = op.substr(2);
+                    }
+                    int label = std::stoi(num_str);
+    
+                    // Check the bits of 'label' to assign 'o' (occupied) or 'v' (virtual) 
+                    // and increment the correct counter on the fly.
+                    std::string idx1 = (label & 8) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                    std::string idx2 = (label & 4) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                    std::string idx3 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                    std::string idx4 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+    
+                    // Normal ordering: pushing true creators (C) to the left of true annihilators (A)
+                    if (label == 0) {
+                        // 0000 (v v v v) -> C C A A
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                    }else if (label == 1) {
+                        // 0001 (v v v o) -> C C A C
+                        factor *= -1;
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx3);
+                    }else if (label == 2) {
+                        // 0010 (v v o v) -> C C C A
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                    }else if (label == 3) {
+                        // 0011 (v v o o) -> C C C C
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                    }else if (label == 4) {
+                        // 0100 (v o v v) -> C A A A
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                    }else if (label == 5) {
+                        // 0101 (v o v o) -> C A A C
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
+                    }else if (label == 6) {
+                        // 0110 (v o o v) -> C A C A
+                        factor *= -1;
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
+                    }else if (label == 7) {
+                        // 0111 (v o o o) -> C A C C
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*");
+                    }else if (label == 8) {
+                        // 1000 (o v v v) -> A C A A
+                        factor *= -1;
+                        tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                    }else if (label == 9) {
+                        // 1001 (o v v o) -> A C A C
+                        factor *= -1;
+                        tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3);
+                    }else if (label == 10) {
+                        // 1010 (o v o v) -> A C C A
+                        tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4);
+                    }else if (label == 11) {
+                        // 1011 (o v o o) -> A C C C
+                        factor *= -1;
+                        tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*");
+                    }else if (label == 12) {
+                        // 1100 (o o v v) -> A A A A
+                        tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                    }else if (label == 13) {
+                        // 1101 (o o v o) -> A A A C
+                        factor *= -1;
+                        tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
+                    }else if (label == 14) {
+                        // 1110 (o o o v) -> A A C A
+                        tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
+                    }else if (label == 15) {
+                        // 1111 (o o o o) -> A A C C
+                        tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*");
+                    }
+                    
+                    newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+                }else {
+                
+                    std::string idx1 = "p" + std::to_string(gen_label_count++);
+                    std::string idx2 = "p" + std::to_string(gen_label_count++);
+                    std::string idx3 = "p" + std::to_string(gen_label_count++);
+                    std::string idx4 = "p" + std::to_string(gen_label_count++);
+    
+                    tmp_string.push_back(idx1+"*");
+                    tmp_string.push_back(idx2+"*");
+                    tmp_string.push_back(idx3);
+                    tmp_string.push_back(idx4);
+    
+                    newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+                }
+            }
+    
+        }else if (op.substr(0, 1) == "t"){
+    
+            int n = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+    
+                // excitation:
+                if ( op.substr(0,2) == "te" ) {
+    
+                    for (int id = 0; id < n; id++) {
+    
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
+    
+                        op_left.push_back(idx1+"*");
+                        op_right.push_back(idx2);
+    
+                        label_left.push_back(idx1);
+                        label_right.push_back(idx2);
+                    }
+                }else if ( op.substr(0,2) == "td" ) {
+    
+                    // de-excitation:
+                    for (int id = 0; id < n; id++) {
+    
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
+    
+                        op_left.push_back(idx2+"*");
+                        op_right.push_back(idx1);
+    
+                        // do not transpose de-excitation amplitude labels
+                        //label_left.push_back(idx1);
+                        //label_right.push_back(idx2);
+                        // transpose de-excitation amplitude labels
+                        label_left.push_back(idx2);
+                        label_right.push_back(idx1);
+                    }
+                }else {
+                    printf("\n");
+                    printf("    invalid operator type: %s\n", op.c_str());
+                    printf("\n");
+                    exit(1);
+                }
+    
+                // a*b*...
+                for (int id = 0; id < n; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // op*j*...
+                for (int id = 0; id < n; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ab...
+                for (int id = 0; id < n; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ab......ji)
+                for (int id = n-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+    
+                // factor = 1/(n!)^2
+                double my_factor = 1.0;
+                for (int id = 0; id < n; id++) {
+                    my_factor *= (id+1);
+                }
+                factor *= 1.0 / my_factor / my_factor;
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 3 ) {
+                if ( op.substr(3,1) == ",") {
+                    n_ph = std::stoi(op.substr(4));
+                    if ( op.substr(0,2) == "te" ) {
+                        // excitation
+                        for (int ph = 0; ph < n_ph; ph++) {
+                            newguy->is_boson_dagger.push_back(true);
+                        }
+                    }else if ( op.substr(0,2) == "td" ) {
+                        // de-excitation
+                        for (int ph = 0; ph < n_ph; ph++) {
+                            newguy->is_boson_dagger.push_back(false);
+                        }
+                    }
+                }
+            }
+            newguy->set_amplitudes('t', n, n, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "w" || op.substr(0, 1) == "W"){ // w0 B*B
+    
+            if (op.substr(1, 1) == "0" ){
+    
+                has_w0 = true;
+    
+                newguy->is_boson_dagger.push_back(true);
+                newguy->is_boson_dagger.push_back(false);
+    
+            }else {
+                printf("\n");
+                printf("    error: only w0 is supported\n");
+                printf("\n");
+                exit(1);
+            }
+    
+        }else if (op.substr(0, 2) == "b+" || op.substr(0, 2) == "B+"){ // B*
+    
+                newguy->is_boson_dagger.push_back(true);
+    
+        }else if (op.substr(0, 2) == "b-" || op.substr(0, 2) == "B-"){ // B
+    
+                newguy->is_boson_dagger.push_back(false);
+    
+        }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
+    
+    
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+    
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // a*b*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ij...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ab...
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ab......ji)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+    
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 2 ) {
+                if ( op.substr(2,1) == ",") {
+                    n_ph = std::stoi(op.substr(3));
+                    for (int ph = 0; ph < n_ph; ph++) {
+                        newguy->is_boson_dagger.push_back(true);
+                    }
+                }
+            }
+            newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
+    
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+                
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // op*j*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ab...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ij... 
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ij......ba)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+                
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 2 ) {
+                if ( op.substr(2,1) == ",") {
+                    n_ph = std::stoi(op.substr(3));
+                    for (int ph = 0; ph < n_ph; ph++) {
+                        newguy->is_boson_dagger.push_back(false);
+                    }
+                }
+            }
+            newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
+    
+    
+            if (op.substr(1, 1) == "1" ){
+    
+                // find comma
+                size_t pos = op.find(',');
+                if ( pos == std::string::npos ) {
+                    printf("\n");
+                    printf("    error in e1 operator definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+                size_t len = pos - 2; 
+    
+                // index 1
+                tmp_string.push_back(op.substr(2, len) + "*");
+    
+                // index 2
+                tmp_string.push_back(op.substr(pos + 1));
+    
+            }else if (op.substr(1, 1) == "2" ){
+    
+                // count indices
+                size_t pos = 0;
+                int ncomma = 0;
+                std::vector<size_t> commas;
+                pos = op.find(',', pos + 1);
+                commas.push_back(pos);
+                while( pos != std::string::npos){
+                    pos = op.find(',', pos + 1);
+                    commas.push_back(pos);
+                    ncomma++;
+                }
+    
+                if ( ncomma != 3 ) {
+                    printf("\n");
+                    printf("    error in e2 definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+    
+                tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
+                tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1));
+                tmp_string.push_back(op.substr(commas[2] + 1));
+    
+            }else if (op.substr(1, 1) == "3" ){
+    
+                // count indices
+                size_t pos = 0;
+                int ncomma = 0;
+                std::vector<size_t> commas;
+                pos = op.find(',', pos + 1);
+                commas.push_back(pos);
+                while( pos != std::string::npos){
+                    pos = op.find(',', pos + 1);
+                    commas.push_back(pos);
+                    ncomma++;
+                }
+    
+                if ( ncomma != 5 ) {
+                    printf("\n");
+                    printf("    error in e3 definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+    
+                tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
+                tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[2] + 1, commas[3] - commas[2] - 1));
+                tmp_string.push_back(op.substr(commas[3] + 1, commas[4] - commas[3] - 1));
+                tmp_string.push_back(op.substr(commas[4] + 1));
+    
+            }else if (op.substr(1, 1) == "4" ){
+    
+                // count indices
+                size_t pos = 0;
+                int ncomma = 0;
+                std::vector<size_t> commas;
+                pos = op.find(',', pos + 1);
+                commas.push_back(pos);
+                while( pos != std::string::npos){
+                    pos = op.find(',', pos + 1);
+                    commas.push_back(pos);
+                    ncomma++;
+                }
+    
+                if ( ncomma != 7 ) {
+                    printf("\n");
+                    printf("    error in e4 definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+    
+                tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
+                tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[2] + 1, commas[3] - commas[2] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[3] + 1, commas[4] - commas[3] - 1));
+                tmp_string.push_back(op.substr(commas[4] + 1, commas[5] - commas[4] - 1));
+                tmp_string.push_back(op.substr(commas[5] + 1, commas[6] - commas[5] - 1));
+                tmp_string.push_back(op.substr(commas[6] + 1));
+    
+            }else {
+                printf("\n");
+                printf("    error: only e1, e2, e3, and e4 operators are supported\n");
+                printf("\n");
+                exit(1);
+            }
+    
+        }else if (op.substr(0, 1) == "1" ) { // unit operator ... do nothing
+    
+        }else if (op.substr(0, 1) == "a" || op.substr(0, 1) == "A"){ // single creator / annihilator
+    
+    
+            if (op.substr(1, 1) == "*" ){ // creator
+    
+                tmp_string.push_back(op.substr(1) + "*");
+    
+            }else { // annihilator
+    
+                tmp_string.push_back(op.substr(1));
+    
+            }
+    
+        }else {
+                printf("\n");
+                printf("    error: undefined string: %s\n", op.c_str());
+                printf("\n");
+                exit(1);
+        }
+    }
+    
+    newguy->factor = factor;
+    
+    for (const std::string & op : tmp_string) {
+        newguy->string.push_back(op);
+    }
+    
+    newguy->has_w0 = has_w0;
+    
+    // make sure factor > 0
+    if ( newguy->factor < 0.0 ) {
+        newguy->factor = fabs(newguy->factor);
+        newguy->sign *= -1;
+    }
+    return newguy;
 }
 
 void pq_helper::simplify() {
