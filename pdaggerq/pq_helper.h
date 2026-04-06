@@ -258,7 +258,7 @@ class pq_helper {
      * @param vir_label_count: how many virtual labels in the pq_string?
      *
      */
-    std::shared_ptr<pq_string> build_new_string(double factor, 
+    std::vector<std::shared_ptr<pq_string>> build_new_strings(double factor, 
         std::vector<std::string> left_op, 
         std::vector<std::string> central_op, 
         std::vector<std::string> right_op,

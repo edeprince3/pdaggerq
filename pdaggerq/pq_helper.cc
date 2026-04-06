@@ -824,20 +824,20 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
             // build pq_strings
             int occ_label_count = 0;
             int vir_label_count = 0;
-            std::shared_ptr<pq_string> newguy = build_new_string(factor, left_operator, in, right_operator, occ_label_count, vir_label_count);
+            std::vector<std::shared_ptr<pq_string>> new_pq_strings = build_new_strings(factor, left_operator, in, right_operator, occ_label_count, vir_label_count);
 
             // bring pq_strings to normal order
             if (vacuum == "TRUE") {
-                add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
+                add_new_string_true_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations);
             } else {
-                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations, occ_label_count, vir_label_count);
+                add_new_string_fermi_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, occ_label_count, vir_label_count);
             }
         }
     }
 }
 
 // build a pq_string from the string representations of operators
-std::shared_ptr<pq_string> pq_helper::build_new_string(double factor, 
+std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double factor, 
     std::vector<std::string> left_op, 
     std::vector<std::string> central_op, 
     std::vector<std::string> right_op,
@@ -853,7 +853,7 @@ std::shared_ptr<pq_string> pq_helper::build_new_string(double factor,
     occ_label_count = 0;
     vir_label_count = 0;
     int gen_label_count = 0;
-    
+ 
     // apply any extra operators on left or right:
     std::vector<std::string> tmp = left_op;
     for (const std::string & op : central_op) {
@@ -1006,7 +1006,7 @@ std::shared_ptr<pq_string> pq_helper::build_new_string(double factor,
                     printf("    normal ordered hamiltonian is broken\n");
                     printf("\n");
                     exit(1);
-                    return newguy;
+                    //return newguy;
                 }
     
                 factor *= -1.0;
@@ -1540,7 +1540,92 @@ std::shared_ptr<pq_string> pq_helper::build_new_string(double factor,
         newguy->factor = fabs(newguy->factor);
         newguy->sign *= -1;
     }
-    return newguy;
+
+    // two more steps before we have proper pq_string objects
+    // 1. expand general labels (fermi vacuum)
+    // 2. convert "string" to "symbol", "is_dagger", and "is_dagger_fermi"
+
+    std::vector< std::shared_ptr<pq_string> > new_pq_strings;
+    new_pq_strings.push_back(newguy);
+
+    // expand general labels (fermi vacuum)
+    if (vacuum != "TRUE") {
+        
+        bool done_expanding = false;
+        do {
+            std::vector< std::shared_ptr<pq_string> > list;
+            done_expanding = true;
+            for (const std::shared_ptr<pq_string> & pq_str : new_pq_strings) {
+                bool am_i_done = expand_general_labels(pq_str, list, occ_label_count, vir_label_count);
+                if ( !am_i_done ) done_expanding = false;
+            }
+            if (!done_expanding) {
+                new_pq_strings.clear();
+                for (std::shared_ptr<pq_string> & pq_str : list) {
+                    new_pq_strings.push_back(pq_str);
+                }
+                occ_label_count++;
+                vir_label_count++;
+            }
+        }while(!done_expanding);
+    }
+
+    // now, we need to convert the list "new_pq_strings[i]->string" into symbols and daggers
+    if (vacuum == "TRUE") {
+        for (auto & my_string: new_pq_strings ) {
+            for (size_t i = 0; i < my_string->string.size(); i++) {
+                std::string me = my_string->string[i];
+                if ( me.find('*') != std::string::npos ) {
+                    removeStar(me);
+                    my_string->is_dagger.push_back(true);
+                }else {
+                    my_string->is_dagger.push_back(false);
+                }
+                my_string->symbol.push_back(me);
+            }
+        }
+    }else {
+        for (auto & my_string: new_pq_strings ) {
+            for (size_t i = 0; i < my_string->string.size(); i++) {
+                std::string me = my_string->string[i];
+
+                std::string me_nostar = me;
+                if (me_nostar.find('*') != std::string::npos ){
+                    removeStar(me_nostar);
+                }
+
+                if ( is_vir(me_nostar) ) {
+                    if (me.find('*') != std::string::npos ){
+                        my_string->is_dagger.push_back(true);
+                        my_string->is_dagger_fermi.push_back(true);
+                    }else {
+                        my_string->is_dagger.push_back(false);
+                        my_string->is_dagger_fermi.push_back(false);
+                    }
+                    my_string->symbol.push_back(me_nostar);
+                }else if ( is_occ(me_nostar) ) {
+                    if (me.find('*') != std::string::npos ){
+                        my_string->is_dagger.push_back(true);
+                        my_string->is_dagger_fermi.push_back(false);
+                    }else {
+                        my_string->is_dagger.push_back(false);
+                        my_string->is_dagger_fermi.push_back(true);
+                    }
+                    my_string->symbol.push_back(me_nostar);
+                }
+            }
+        }
+    }
+
+    // make sure all factors are non-negative
+    for (auto & my_string: new_pq_strings ) {
+        if ( my_string->factor < 0.0 ) {
+            my_string->sign *= -1;
+            my_string->factor = fabs(my_string->factor);
+        }
+    }
+
+    return new_pq_strings;
 }
 
 void pq_helper::simplify() {
