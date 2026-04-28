@@ -301,14 +301,14 @@ class pq_string
      * is the string in normal order? checks both fermion and boson parts
      *
      */
-    bool is_normal_order();
+    bool is_normal_order(bool keep_operators);
 
     /**
      *
      * is the bosonic part of the string in normal order?
      *
      */
-    bool is_boson_normal_order();
+    bool is_boson_normal_order(bool keep_operators);
 
     /**
      *
@@ -362,6 +362,14 @@ class pq_string
      * @param copy_daggers_and_symbols: copy the dagers and symbols?
      */
     void copy(void * copy_me, bool copy_daggers_and_symbols = true);
+
+    /**
+     *
+     * append string data to an existing string
+     *
+     * @param add_me: pointer to pq_string to be copied
+     */
+    void append(void * add_me);
 
     /**
      *

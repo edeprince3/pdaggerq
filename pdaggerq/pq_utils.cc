@@ -1516,7 +1516,7 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_true_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators){
 
 
     for (auto & my_string: in ) {
@@ -1537,7 +1537,7 @@ void add_new_string_true_vacuum(const std::vector<std::shared_ptr<pq_string>> &i
             std::vector< std::shared_ptr<pq_string> > list;
             done_rearranging = true;
             for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-                bool am_i_done = swap_operators_true_vacuum(pq_str, list);
+                bool am_i_done = swap_operators_true_vacuum(pq_str, list, keep_operators);
                 if ( !am_i_done ) done_rearranging = false;
             }
             tmp.clear();
@@ -1601,7 +1601,8 @@ bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<st
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count){
+void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators) {
+
         
     std::vector< std::shared_ptr<pq_string> > new_strings[in.size()];
     #pragma omp parallel for schedule(dynamic) default(none) shared(in, new_strings) firstprivate(print_level)
@@ -1647,7 +1648,7 @@ void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &
             std::vector< std::shared_ptr<pq_string> > list;
             done_rearranging = true;
             for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-                bool am_i_done = swap_operators_fermi_vacuum(pq_str, list);
+                bool am_i_done = swap_operators_fermi_vacuum(pq_str, list, keep_operators);
                 if ( !am_i_done ) done_rearranging = false;
             }
             tmp.clear();

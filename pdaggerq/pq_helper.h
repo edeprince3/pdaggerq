@@ -251,21 +251,15 @@ class pq_helper {
      * build a pq_string from the string representations of operators
      *
      * @param factor: the numerical factor associated with the operator product
-     * @param left_op: a list of strings defining the bra
-     * @param central_op: a list of strings defining the central operator product
-     * @param right_op: a list of strings defining the ket
+     * @param input_op: a list of strings defining the operator product
      * @param occ_label_count: how many occupied labels in the pq_string?
      * @param vir_label_count: how many virtual labels in the pq_string?
      *
      */
     std::vector<std::shared_ptr<pq_string>> build_new_strings(double factor, 
-        std::vector<std::string> left_op, 
-        std::vector<std::string> central_op, 
-        std::vector<std::string> right_op,
+        std::vector<std::string> input_op, 
         int & occ_label_count,
         int & vir_label_count);
-
-
 
     /**
      *

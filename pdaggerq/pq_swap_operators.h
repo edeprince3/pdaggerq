@@ -38,7 +38,16 @@ namespace pdaggerq {
  * @param in: the input string
  * @param ordered: a list of strings to which the new strings will be added after applying appropriate rules for the swap
  */
-bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered);
+bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, bool keep_operators);
+
+/**
+ *
+ * swap two operators in a string to bring that string toward normal order with respect to the fermi vacuum
+ * without creating a new string with deltas
+ *
+ * @param in: the input string
+ */
+bool swap_operators_fermi_vacuum_no_deltas(std::shared_ptr<pq_string> &in);
 
 /**
  *
@@ -47,7 +56,7 @@ bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
  * @param in: the input string
  * @param ordered: a list of strings to which the new strings will be added after applying appropriate rules for the swap
  */
-bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered);
+bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, bool keep_operators);
 
 }
 
