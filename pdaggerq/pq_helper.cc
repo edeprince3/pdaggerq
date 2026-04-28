@@ -584,7 +584,7 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
         // 'v' cannot appear in left operators ... exit with error
         for (std::vector<std::string> & left_operator : left_operators) {
             for (const std::string & op : left_operator) {
-                if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+                if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
 
                     printf("\n");
                     printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
@@ -597,7 +597,7 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
         // 'v' cannot appear in right operators ... exit with error
         for (std::vector<std::string> & right_operator : right_operators) {
             for (const std::string & op : right_operator) {
-                if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+                if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
 
                     printf("\n");
                     printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
@@ -608,10 +608,15 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
         }
 
         int count = 0;
-        bool found_v = false;
+        bool found_v = false; // fluctuation potential
+        bool found_vn = false; // normal-ordered fluctuation potential
         std::vector<std::string> tmp_in;
         for (const std::string & op : in) {
-            if (op == "v" || op == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+            if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+                if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
+                    found_vn = true;
+                    break;
+                }
                 found_v = true;
                 break;
             }else {
@@ -619,44 +624,152 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
                 count++;
             }
         }
-        if ( found_v ) {
+        if ( found_v || found_vn ) {
             done_processing = false;
 
             // get bernoulli operator portions
             std::string op_portions = get_operator_portions_as_string(in[count]);
 
-            // term 1 (j1)
-            std::string v_type = "j1";
-            if ( op_portions.length() > 0 ) { 
-                v_type += "{" + op_portions + "}";
-            }
-            tmp_in.emplace_back(v_type);
-            for (int i = count+1; i < (int)in.size(); i++) {
-                tmp_in.push_back(in[i]);
-            }
-            in.clear();
-            for (const auto & op : tmp_in) {
-                in.push_back(op);
-            }
-            ops_out.push_back(pq_operator_terms(factor, in));
+            if ( found_v ) {
+                // term 1 (j1)
+                std::string v_type = "j1";
+                if ( op_portions.length() > 0 ) { 
+                    v_type += "{" + op_portions + "}";
+                }
+                tmp_in.emplace_back(v_type);
+                for (int i = count+1; i < (int)in.size(); i++) {
+                    tmp_in.push_back(in[i]);
+                }
+                in.clear();
+                for (const auto & op : tmp_in) {
+                    in.push_back(op);
+                }
+                ops_out.push_back(pq_operator_terms(factor, in));
 
-            // term 2 (j2)
-            in.clear();
-            for (int i = 0; i < count; i++) {
-                in.push_back(tmp_in[i]);
-            }
-            v_type[1] = '2';
-            in.emplace_back(v_type);
-            for (int i = count + 1; i < (int)tmp_in.size(); i++) {
-                in.push_back(tmp_in[i]);
-            }
-            ops_out.push_back(pq_operator_terms(factor, in));
+                // term 2 (j2)
+                in.clear();
+                for (int i = 0; i < count; i++) {
+                    in.push_back(tmp_in[i]);
+                }
+                v_type[1] = '2';
+                in.emplace_back(v_type);
+                for (int i = count + 1; i < (int)tmp_in.size(); i++) {
+                    in.push_back(tmp_in[i]);
+                }
+                ops_out.push_back(pq_operator_terms(factor, in));
+            }else {
 
+                for (int label = 0; label < 16; label++) {
+                    std::vector<std::string> my_in;
+                    for (int i = 0; i < count; i++) {
+                        my_in.push_back(in[i]);
+                    }
+                    // only term 2 (16 times...)
+                    std::string v_type = "jn" + std::to_string(label);
+                    if ( op_portions.length() > 0 ) { 
+                        v_type += "{" + op_portions + "}";
+                    }
+                    my_in.push_back(v_type);
+                    for (int i = count+1; i < (int)in.size(); i++) {
+                        my_in.push_back(in[i]);
+                    }
+                    in.clear();
+                    for (const auto & op : my_in) {
+                        in.push_back(op);
+                    }
+                    ops_out.push_back(pq_operator_terms(factor, in));
+                }
+            }
         }else {
             ops_out.push_back(op);
         }
     }
 
+    return std::make_pair(done_processing, ops_out);
+}
+
+// check if there are normal-ordered fock operators that needs to be split into multiple terms
+std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fock_operator(std::vector<pq_operator_terms> ops_in){
+    std::vector<pq_operator_terms> ops_out;
+
+    bool done_processing = true;
+
+    for (auto op: ops_in) {
+        double factor = op.factor;
+        std::vector<std::string> in = op.operators;
+
+        // 'f' cannot appear in left operators ... exit with error
+        for (std::vector<std::string> & left_operator : left_operators) {
+            for (const std::string & op : left_operator) {
+                if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") {
+                    if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
+
+                        printf("\n");
+                        printf("    error: the normal-ordered fock operator cannot appear in operators defining the bra state\n");
+                        printf("\n");
+                        exit(1);
+                    }
+                }
+            }
+        }
+        
+        // 'f' cannot appear in right operators ... exit with error
+        for (std::vector<std::string> & right_operator : right_operators) {
+            for (const std::string & op : right_operator) {
+                if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") {
+                    if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
+
+                        printf("\n");
+                        printf("    error: the normal-ordered fock operator cannot appear in operators defining the ket state\n");
+                        printf("\n");
+                        exit(1);
+                    }
+                }
+            }
+        }
+
+        int count = 0;
+        bool found_fn = false; // normal-ordered fn potential
+        std::vector<std::string> tmp_in;
+        for (const std::string & op : in) {
+            if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") {
+                if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
+                    found_fn = true;
+                    break;
+                }else {
+                    tmp_in.push_back(op);
+                    count++;
+                }
+            }else {
+                tmp_in.push_back(op);
+                count++;
+            }
+        }
+        if ( found_fn ) {
+
+            done_processing = false;
+
+            // add each block of F separately, Fvv, Fvo, Fov, Foo
+            for (int label = 0; label < 4; label++) {
+                std::vector<std::string> my_in;
+                for (int i = 0; i < count; i++) {
+                    my_in.push_back(in[i]);
+                }
+                // 4 blocks
+                my_in.push_back('f' + std::to_string(label));
+                for (int i = count+1; i < (int)in.size(); i++) {
+                    my_in.push_back(in[i]);
+                }
+                in.clear();
+                for (const auto & op : my_in) {
+                    in.push_back(op);
+                }
+                ops_out.push_back(pq_operator_terms(factor, in));
+            }
+        }else {
+            ops_out.push_back(op);
+        }
+    }
     return std::make_pair(done_processing, ops_out);
 }
 
@@ -741,13 +854,20 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplit
 
 void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
 
-    bool done_processing = false;
     std::vector<pq_operator_terms> new_ops;
 
     // check for fluctuation potential because it should be split as
     // 'v' = 'j1' + 'j2'
+    bool done_processing = false;
     do {
         std::tie(done_processing, new_ops) = process_fluctuation_potential(ops);
+        ops = new_ops;
+    }while(!done_processing);
+
+    // check for normal-ordered fock operator because it should be split
+    done_processing = false;
+    do {
+        std::tie(done_processing, new_ops) = process_fock_operator(ops);
         ops = new_ops;
     }while(!done_processing);
 
@@ -790,7 +910,9 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     int o_count_1 = 0;
     int v_count_1 = 0;
     std::vector<std::shared_ptr<pq_string>> center_strings = build_new_strings(1.0, in, o_count_1, v_count_1);
+*/
 
+/*
     // bring pq_strings to normal order
     std::vector<std::shared_ptr<pq_string>> ordered_center_strings;
     if (vacuum == "TRUE") {
@@ -917,14 +1039,49 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             newguy->set_integrals("core", {idx1, idx2}, op_portions);
     
         }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
+  
+            // normal ordered or not?
+            if ( op.size() == 1 ) { 
+                std::string idx1 = "p" + std::to_string(gen_label_count++);
+                std::string idx2 = "p" + std::to_string(gen_label_count++);
     
-            std::string idx1 = "p" + std::to_string(gen_label_count++);
-            std::string idx2 = "p" + std::to_string(gen_label_count++);
+                tmp_string.push_back(idx1+"*"); 
+                tmp_string.push_back(idx2);
     
-            tmp_string.push_back(idx1+"*"); 
-            tmp_string.push_back(idx2);
-    
-            newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+                newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+
+           }else {
+               // find number in string representing which block of F this is
+               std::string num_str = op.substr(1);
+               int label = std::stoi(num_str);
+
+               // Map the bits of 'label' (0 to 3) to 'o' (occupied) or 'v' (virtual)
+               // label & 2 checks the first index, label & 1 checks the second
+               std::string idx1 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+               std::string idx2 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+               
+               // Normal ordering: pushing true creators (C) left of true annihilators (A)
+               if (label == 0) {
+                   // 00 (v v) -> C A -> Already normal ordered
+                   tmp_string.push_back(idx1+"*"); 
+                   tmp_string.push_back(idx2);
+               }else if (label == 1) {
+                   // 01 (v o) -> C C -> Already normal ordered (preserve relative order)
+                   tmp_string.push_back(idx1+"*"); 
+                   tmp_string.push_back(idx2);
+               }else if (label == 2) {
+                   // 10 (o v) -> A A -> Already normal ordered (preserve relative order)
+                   tmp_string.push_back(idx1+"*"); 
+                   tmp_string.push_back(idx2);
+               }else if (label == 3) {
+                   // 11 (o o) -> A C -> Swap needed to put C before A
+                   factor *= -1;
+                   tmp_string.push_back(idx2); 
+                   tmp_string.push_back(idx1+"*");
+               }
+
+               newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+           }
     
         }else if (op.substr(0, 2) == "d+" || op.substr(0, 2) == "D+") { // one-electron operator (dipole + boson creator)
     
@@ -1008,6 +1165,86 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 tmp_string.push_back(idx3);
                 tmp_string.push_back(idx4);
     
+                newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+
+            }else if (op.substr(1, 1) == "n" ){ // normal ordered fluctuation potential
+
+                factor *= 0.25;
+
+                // find number in string representing which block of V (JN) this is
+                std::string num_str;
+                size_t pos = op.find('{', 2); // start in index 2
+                if (pos != std::string::npos) {
+                    num_str = op.substr(2, pos - 2);
+                } else {
+                    num_str = op.substr(2);
+                }
+                int label = std::stoi(num_str);
+
+                // Check the bits of 'label' to assign 'o' (occupied) or 'v' (virtual) 
+                // and increment the correct counter on the fly.
+                std::string idx1 = (label & 8) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                std::string idx2 = (label & 4) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                std::string idx3 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                std::string idx4 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+
+                // Normal ordering: pushing true creators (C) to the left of true annihilators (A)
+                if (label == 0) {
+                    // 0000 (v v v v) -> C C A A
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 1) {
+                    // 0001 (v v v o) -> C C A C
+                    factor *= -1;
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx3);
+                }else if (label == 2) {
+                    // 0010 (v v o v) -> C C C A
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 3) {
+                    // 0011 (v v o o) -> C C C C
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 4) {
+                    // 0100 (v o v v) -> C A A A
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 5) {
+                    // 0101 (v o v o) -> C A A C
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
+                }else if (label == 6) {
+                    // 0110 (v o o v) -> C A C A
+                    factor *= -1;
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
+                }else if (label == 7) {
+                    // 0111 (v o o o) -> C A C C
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*");
+                }else if (label == 8) {
+                    // 1000 (o v v v) -> A C A A
+                    factor *= -1;
+                    tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 9) {
+                    // 1001 (o v v o) -> A C A C
+                    factor *= -1;
+                    tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3);
+                }else if (label == 10) {
+                    // 1010 (o v o v) -> A C C A
+                    tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4);
+                }else if (label == 11) {
+                    // 1011 (o v o o) -> A C C C
+                    factor *= -1;
+                    tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*");
+                }else if (label == 12) {
+                    // 1100 (o o v v) -> A A A A
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 13) {
+                    // 1101 (o o v o) -> A A A C
+                    factor *= -1;
+                    tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
+                }else if (label == 14) {
+                    // 1110 (o o o v) -> A A C A
+                    tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
+                }else if (label == 15) {
+                    // 1111 (o o o o) -> A A C C
+                    tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*");
+                }
+                
                 newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
             }
     

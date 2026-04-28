@@ -284,13 +284,24 @@ class pq_helper {
 
     /**
      *
-     * check if there are fluctuation potential operators that needs to
+     * check if there are fluctuation potential operators that need to
      * be split into multiple terms
      *
      * @param ops: a list of pq_operator_terms
      *
      */
     std::pair<bool,std::vector<pq_operator_terms>> process_fluctuation_potential(std::vector<pq_operator_terms> ops_in);
+
+
+    /**
+     *
+     * check if there are normal-ordered foc operators that need to
+     * be split into multiple terms
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_fock_operator(std::vector<pq_operator_terms> ops_in);
 
     /**
      *

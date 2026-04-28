@@ -1612,7 +1612,7 @@ void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &
         // check if this string can be fully contracted ...
         int nc = 0;
         int na = 0;
-        for (size_t i = 0; i < mystring->symbol.size(); i++) {
+        for (size_t i = 0; i < mystring->is_dagger_fermi.size(); i++) {
             if ( mystring->is_dagger_fermi[i] ) nc++;
             else na++;
         }
