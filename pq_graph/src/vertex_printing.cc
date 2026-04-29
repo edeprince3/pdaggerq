@@ -58,10 +58,12 @@ namespace pdaggerq {
             name_ += "[\"";
             name_ += dimstring();
             name_ += "\"]";
-        } else if (vertex_type_ == 'a' && has_blk_) {
-            name_ += "[\"";
-            name_ += blk_string();
-            name_ += "\"]";
+        } else if (vertex_type_ == 'a') {
+            if (has_blk_) {
+                name_ += "[\"";
+                name_ += blk_string();
+                name_ += "\"]";
+            }
         } else if (vertex_type_ == 'p') {
             name_ += "[\"";
             name_ += "perm_" + dimstring();
