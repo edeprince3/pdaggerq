@@ -82,16 +82,18 @@ size_t PQGraph::prune(bool keep_single_use) {
 
         auto [tmp_decl_terms, terms] = terms_pair;
 
-        // remove (regardless of use) if never declared
+	// remove (regardless of use) if never declared
         if (!tmp_decl_terms.empty()) {
 
             // count number of occurrences of the temp in the terms
+            Term *used_term = nullptr;
             size_t num_occurrences = 0;
             for (auto &term: terms) {
                 if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
                 for (auto &vertex: term->rhs()) {
                     num_occurrences += as_link(vertex)->count(temp, false);
                 }
+                used_term = term;
             }
 
             // skip if temp is used at least once
@@ -107,8 +109,7 @@ size_t PQGraph::prune(bool keep_single_use) {
                 if (temp->is_addition() || temp->left()->is_addition() || temp->right()->is_addition()) continue;
 
                 // we keep reused temps if it is used in an equation
-                Term *used_term = *terms.begin();
-                if (temp->is_reused() && !used_term->lhs()->is_temp()) continue;
+                if (temp->is_reused() && used_term && !used_term->lhs()->is_temp()) continue;
 
             }
         }
@@ -392,7 +393,7 @@ void PQGraph::reindex() {
     auto reindex_vertex = [this, &temp_map](VertexPtr &vertex) {
         if (vertex != nullptr && vertex->is_linked()) {
             // get temps and sort by id
-            auto nested_temps = as_link(vertex)->get_temps();
+            auto nested_temps = as_link(vertex)->get_temps(false, true);
             std::sort(nested_temps.begin(), nested_temps.end(), [](const VertexPtr &a, const VertexPtr &b) {
                 return a->id() < b->id();
             });
@@ -426,9 +427,9 @@ void PQGraph::reindex() {
     linkage_map<size_t> last_usage;
     size_t loc = 0;
     for (auto &term : all_terms) {
-        auto found_temps = term.lhs()->get_temps(false);
+        auto found_temps = term.lhs()->get_temps(false, true);
         for (auto &op : term.rhs()) {
-            auto rhs_temps = op->get_temps();
+            auto rhs_temps = op->get_temps(false, true);
             found_temps.insert(found_temps.end(), rhs_temps.begin(), rhs_temps.end());
         }
         for (auto &temp : found_temps) {
