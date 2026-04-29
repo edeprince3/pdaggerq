@@ -32,12 +32,14 @@
 #include <algorithm>
 #include <cstring>
 #include <bitset>
+#include <cstdint>
 
 using std::runtime_error;
 using std::hash;
 using std::array;
 using std::find;
 using std::string;
+using std::uint_fast8_t;
 
 
 namespace pdaggerq {
