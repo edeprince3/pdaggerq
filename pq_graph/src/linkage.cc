@@ -585,18 +585,23 @@ namespace pdaggerq {
 
     void Linkage::update_lines(const line_vector &lines, bool update_name) {
 
-        // map lines to the new lines if compatible
-        bool compatible = true;
+        // map lines to the new lines if compatible (same type and block)        
+        bool compatible = lines_.size() == lines.size();
         for (size_t i = 0; i < lines_.size(); i++) {
-            if (!lines_[i].equivalent(lines[i])) {
-                compatible = false; break;
-            }
+            if (!compatible) break;
+            compatible = lines_[i].equivalent(lines[i]);
         }
+        
         if (compatible) {
+            // if compatible, update lines and properties
             LineMap line_map = LineHash::map_lines(lines_, lines);
             this->replace_lines(line_map, update_name);
+        } else {
+            // if not compatible, just replace lines and update properties 
+            // (we will lose the connectivity information, but the user should be aware of this)
+            lines_ = lines;
+            set_properties();
         }
-
         if (update_name)
             this->update_name();
     }

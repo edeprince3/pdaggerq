@@ -372,7 +372,8 @@ namespace pdaggerq {
          * @param regenerate whether to regenerate the permutations
          * @return vector of permutations
          */
-         static inline bool low_memory_ = false; // whether to store permutations in memory for lazy evaluation
+         static inline bool cache_elements_ = true; // whether to cache/store the vertices and permutations of the linkage (mutable to allow for lazy evaluation)
+         static inline size_t cache_depth_ = 16; // max permutations to cache/store. beyond this depth, permutations will not be cached and will be regenerated each time (mutable to allow for lazy evaluation)
         linkage_vector permutations(bool regenerate = false) const;
 
         /**

@@ -109,15 +109,23 @@ namespace pdaggerq {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             result = fully_expand ? all_vert_ : link_vector_;
-        }
+        
 
-        // if the link vector is already generated and does not need to be regenerated, return it
-        if (!regenerate && !result.empty())
-            return result;
+            // if the link vector is already generated and does not need to be regenerated, return it
+            if (!regenerate && !result.empty())
+                return result;
+	}
 
         // else regenerate the result vector
         result.clear();
-        result.reserve(2*(depth()+1));
+	
+        // determine depth to reserve space for the result vector (worst case is 2^(depth) permutations)
+        size_t depth = this->depth();
+        size_t reserve_size = 1ULL << std::min(cache_depth_, depth); // reserve space based on depth, but cap it at cache_depth_
+        result.reserve(reserve_size);
+        
+        // only cache permutations if caching is enabled and depth is less than or equal to cache_depth_ 
+        bool cache_permutations = cache_elements_ && cache_depth_ >= depth;
 
         // add operators from the left (excluding additions for now)
         if (left_->is_linked() && !left_->empty()) {
@@ -143,8 +151,8 @@ namespace pdaggerq {
             result.push_back(right_);
         }
 
-        // copy the result vector to the link_vector if the size is less than 32
-        bool store_vector = !low_memory_;
+        // copy the result vector to the link_vector if the size is less than cache size
+        bool store_vector = cache_elements_ && cache_depth_ >= depth;
         if (store_vector) {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
@@ -443,32 +451,35 @@ namespace pdaggerq {
         // initialize the result vector
 
         linkage_vector result;
-
         {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             result = permutations_;
-        }
 
-        // if the result vector is already generated and does not need to be regenerated, return it
-        if (!regenerate && !result.empty())
-            return result;
+            // if the result vector is already generated and does not need to be regenerated, return it
+            if (!regenerate && !result.empty())
+                return result;
 
-        if (empty()) {
-            result.clear();
-            return result;
+            if (empty()) {
+                result.clear();
+                return result;
+            }
         }
 
 
         // initialize the result vector with the identity permutation
         result = {as_link(shallow())};
-        result.reserve(2*(depth()+1)); // reserve space for the result vector
+
+        // determine depth to reserve space for the result vector (worst case is 2^(depth) permutations)
+        size_t depth = this->depth();
+        size_t reserve_size = 1ULL << std::min(cache_depth_, depth); // reserve space based on depth, but cap it at cache_depth_
+        result.reserve(reserve_size);
+        
+        // only cache permutations if caching is enabled and depth is less than or equal to cache_depth_ 
+        bool cache_permutations = cache_elements_ && cache_depth_ >= depth;
 
         // do not generate permutations for temps (their structure is fixed)
         if (is_temp()) return result;
-
-        // do not store permutations if the depth is too large
-        bool store_permutations = !low_memory_;
 
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {
@@ -498,8 +509,8 @@ namespace pdaggerq {
                 result.push_back(as_link(right_perm + left_perm));
             }
 
-            // copy the result vector to the permutations_ vector only if low memory mode is off
-            if (store_permutations) {
+            // copy the result vector to the permutations_ vector only if caching is enabled and the size is less than cache size
+            if (cache_permutations) {
                 // Lock the mutex for the scope
                 std::lock_guard<std::mutex> lock(mtx_);
                 permutations_ = result;
@@ -529,7 +540,7 @@ namespace pdaggerq {
         }
 
         // copy the result vector to the permutations_ vector only if low memory mode is off
-        if (store_permutations) {
+        if (cache_permutations) {
             // Lock the mutex for the scope
             std::lock_guard<std::mutex> lock(mtx_);
             permutations_ = result;

@@ -223,9 +223,13 @@ namespace pdaggerq {
             Term::max_shape_.va_ = n_max;
         }
 
-        if (options.contains("low_memory")) {
-            Linkage::low_memory_ = options["low_memory"].cast<bool>();
+        if (options.contains("cache_elements")) {
+            Linkage::cache_elements_ = options["cache_elements"].cast<bool>();
         }
+
+	if (options.contains("cache_depth")) {
+	    Linkage::cache_depth_ = options["cache_depth"].cast<size_t>();
+	}
 
         if (options.contains("apply_permutations")) {
             apply_permutations_ = options["apply_permutations"].cast<bool>();
@@ -377,9 +381,11 @@ namespace pdaggerq {
         cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
                                                                "for no limit.): " << endl;
 
-        cout << "    low_memory: " << (Linkage::low_memory_ ? "true" : "false")
-             << "  // whether to recompute or save all possible permutations of each term in memory (default: false)" << endl
-             << "                       // if true, permutations are recomputed on the fly. Recommended if memory runs out." << endl;
+        cout << "    cache_elements: " << (Linkage::cache_elements_ ? "true" : "false")
+             << "  // whether to cache the elements and permutations of linkages for faster access (default: true)" << endl;
+	
+	cout << "    cache_depth: " << Linkage::cache_depth_
+	     << "  // maximum depth of linkages to cache in memory (default: 16)" << endl;
 
         cout << "    apply_permutations: " << (apply_permutations_ ? "true" : "false")
              << "  // whether to apply permutations to terms before optimization (default: true)" << endl
