@@ -1605,7 +1605,7 @@ void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &
 
         
     std::vector< std::shared_ptr<pq_string> > new_strings[in.size()];
-    #pragma omp parallel for schedule(dynamic) default(none) shared(in, new_strings) firstprivate(print_level)
+    #pragma omp parallel for schedule(dynamic) default(none) shared(in, new_strings, keep_operators) firstprivate(print_level)
     for (size_t k = 0; k < in.size(); k++) {
         const std::shared_ptr<pq_string>& mystring = in[k];
 
