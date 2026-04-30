@@ -105,8 +105,14 @@ size_t PQGraph::prune(bool keep_single_use) {
                 // we always keep scalars
                 if (temp->is_scalar()) continue;
 
-                // we keep temps that are additions or have additions in them
-                if (temp->is_addition() || temp->left()->is_addition() || temp->right()->is_addition()) continue;
+                // multiplications between additions require the temp to be kept
+                if (
+                    !temp->is_addition() && 
+                    (
+                        (temp->left()->is_addition() && !temp->left()->is_temp())  || 
+                        (temp->right()->is_addition() && !temp->right()->is_temp())
+                    )
+                ) continue;
 
                 // we keep reused temps if it is used in an equation
                 if (temp->is_reused() && used_term && !used_term->lhs()->is_temp()) continue;
