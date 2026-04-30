@@ -409,6 +409,22 @@ void PQGraph::reindex() {
         }
     };
 
+    // read-only version for parallel use (all temps already in temp_map)
+    auto reindex_vertex_parallel = [&temp_map](VertexPtr &vertex) {
+        if (vertex != nullptr && vertex->is_linked()) {
+            auto nested_temps = as_link(vertex)->get_temps();
+            std::sort(nested_temps.begin(), nested_temps.end(), [](const VertexPtr &a, const VertexPtr &b) {
+                return a->id() < b->id();
+            });
+            for (auto &temp : nested_temps) {
+                auto it = temp_map.find(as_link(temp));
+                if (it != temp_map.end()) {
+                    vertex = as_link(vertex)->replace_id(temp, it->second).first;
+                }
+            }
+        }
+    };
+
     // extract every term in every equation
     vector<Term*> term_ptrs = every_term();
     vector<Term> all_terms; all_terms.reserve(term_ptrs.size());
@@ -452,24 +468,27 @@ void PQGraph::reindex() {
         reindex_vertex(new_temp);
     }
 
-    // loop over all vertices in all equations and terms
-    for (auto & [name, eq] : equations_) {
+    // loop over all vertices in all equations and terms (parallel — temp_map is read-only here)
+    vector<string> reindex_eq_keys = get_equation_keys();
+#pragma omp parallel for schedule(guided) default(none) shared(equations_, reindex_eq_keys, reindex_vertex_parallel)
+    for (const auto &name : reindex_eq_keys) {
+        auto &eq = equations_[name];
         eq.collect_scaling(true);
 
         // reindex all rhs first
         for (auto &term : eq.terms()) {
             for (auto &op : term.rhs())
-                reindex_vertex(op);
+                reindex_vertex_parallel(op);
         }
 
         // reindex all lhs
         for (auto &term : eq.terms()) {
-            reindex_vertex(term.lhs());
+            reindex_vertex_parallel(term.lhs());
         }
 
         // reindex all eq
         for (auto &term : eq.terms())
-            reindex_vertex(term.eq());
+            reindex_vertex_parallel(term.eq());
 
         // recollect scaling
         eq.collect_scaling(true);
