@@ -82,7 +82,7 @@ size_t PQGraph::prune(bool keep_single_use) {
 
         auto [tmp_decl_terms, terms] = terms_pair;
 
-	// remove (regardless of use) if never declared
+	    // remove (regardless of use) if never declared
         if (!tmp_decl_terms.empty()) {
 
             // count number of occurrences of the temp in the terms
@@ -388,7 +388,7 @@ void PQGraph::reindex() {
     // search for all intermediates and update temp counts
     linkage_map<long> temp_map; // map to track found linkages to their current counts
 
-    auto reindex_vertex = [this, &temp_map](VertexPtr &vertex) {
+    auto reindex_vertex = [this, &temp_map](VertexPtr &vertex, bool read_only) {
         if (vertex != nullptr && vertex->is_linked()) {
             // get temps and sort by id
             auto nested_temps = as_link(vertex)->get_temps();
@@ -398,28 +398,18 @@ void PQGraph::reindex() {
             for (auto &temp : nested_temps) {
                 // find temp in temp map
                 auto it = temp_map.find(as_link(temp));
-                long &temp_id = temp_map[as_link(temp)];
-                if (it == temp_map.end()) {
-                    temp_id = ++temp_counts_[temp->type()];
-                }
+                if (read_only) {
+                    if (it != temp_map.end()) {
+                        vertex = as_link(vertex)->replace_id(temp, it->second).first;
+                    }                    
+                } else {
+                    long &temp_id = temp_map[as_link(temp)];
+                    if (it == temp_map.end()) {
+                        temp_id = ++temp_counts_[temp->type()];
+                    }
 
-                // replace temp id in lhs
-                vertex = as_link(vertex)->replace_id(temp, temp_id).first;
-            }
-        }
-    };
-
-    // read-only version for parallel use (all temps already in temp_map)
-    auto reindex_vertex_parallel = [&temp_map](VertexPtr &vertex) {
-        if (vertex != nullptr && vertex->is_linked()) {
-            auto nested_temps = as_link(vertex)->get_temps();
-            std::sort(nested_temps.begin(), nested_temps.end(), [](const VertexPtr &a, const VertexPtr &b) {
-                return a->id() < b->id();
-            });
-            for (auto &temp : nested_temps) {
-                auto it = temp_map.find(as_link(temp));
-                if (it != temp_map.end()) {
-                    vertex = as_link(vertex)->replace_id(temp, it->second).first;
+                    // replace temp id in lhs
+                    vertex = as_link(vertex)->replace_id(temp, temp_id).first;
                 }
             }
         }
@@ -465,12 +455,12 @@ void PQGraph::reindex() {
     // reindex all temps
     for (auto & [link, _] : last_usage_vec) {
         VertexPtr new_temp = link->clone();
-        reindex_vertex(new_temp);
+        reindex_vertex(new_temp, false);
     }
 
     // loop over all vertices in all equations and terms (parallel — temp_map is read-only here)
     vector<string> reindex_eq_keys = get_equation_keys();
-#pragma omp parallel for schedule(guided) default(none) shared(equations_, reindex_eq_keys, reindex_vertex_parallel)
+#pragma omp parallel for schedule(guided) default(none) shared(equations_, reindex_eq_keys, reindex_vertex)
     for (const auto &name : reindex_eq_keys) {
         auto &eq = equations_[name];
         eq.collect_scaling(true);
@@ -478,17 +468,17 @@ void PQGraph::reindex() {
         // reindex all rhs first
         for (auto &term : eq.terms()) {
             for (auto &op : term.rhs())
-                reindex_vertex_parallel(op);
+                reindex_vertex(op, true);
         }
 
         // reindex all lhs
         for (auto &term : eq.terms()) {
-            reindex_vertex_parallel(term.lhs());
+            reindex_vertex(term.lhs(), true);
         }
 
         // reindex all eq
         for (auto &term : eq.terms())
-            reindex_vertex_parallel(term.eq());
+            reindex_vertex(term.eq(), true);
 
         // recollect scaling
         eq.collect_scaling(true);
