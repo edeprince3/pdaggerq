@@ -233,7 +233,10 @@ struct LinkMerger {
             }
         }
 
-        #pragma omp parallel for schedule(guided) default(none) shared(all_links, all_infos, link_merge_map_, dummy)
+        // per-index results to avoid critical section
+        vector<vector<pair<LinkagePtr, LinkagePtr>>> per_k_results(all_links.size());
+
+        #pragma omp parallel for schedule(guided) default(none) shared(all_links, all_infos, dummy, per_k_results)
         for (size_t k = 0; k < all_links.size(); k++) {
             auto &link1 = all_links[k];
             auto &link1_info = all_infos[k];
@@ -242,7 +245,7 @@ struct LinkMerger {
                 auto &link2 = all_links[l];
                 auto &link2_info = all_infos[l];
 
-                // skip does not have the same number of trunc terms 
+                // skip does not have the same number of trunc terms
                 if (link1_info.size() != link2_info.size()) continue;
 
                 // shapes must be the same
@@ -334,14 +337,17 @@ struct LinkMerger {
 
                 if (!same_connectivity) continue;
                 else {
-                    // forget calls are on distinct Linkage objects, and Linkage::forget is now thread-safe.
-                    link1->forget(true);
-                    link2->forget(true);
-                    #pragma omp critical(LinkMergeMapUpdate)
-                    {
-                        link_merge_map_[link1].push_back(link2); 
-                    }
+                    per_k_results[k].push_back({link1, link2});
                 }
+            }
+        }
+
+        // serial merge of per-index results into link_merge_map_
+        for (auto &results : per_k_results) {
+            for (auto &[target, merge] : results) {
+                target->forget(true);
+                merge->forget(true);
+                link_merge_map_[target].push_back(merge);
             }
         }
     }
@@ -523,34 +529,6 @@ struct LinkMerger {
                     pos = merge_str.find('\n', pos + 5);
                 }
             }
-            /*
-            cout << "Target Terms: " << endl;
-            for (auto &link_info: link_tracker_.link_track_map_[target_link]) {
-                auto &term = link_info.term;
-                string term_str = term->str();
-                // replace all newlines with newlines and spaces
-                pos = term_str.find('\n');
-                while (pos != string::npos) {
-                    term_str.replace(pos, 1, "\n    ");
-                    pos = term_str.find('\n', pos + 5);
-                }
-                cout << "    " << term_str << endl;
-            }
-            for (auto &merge_link: merge_links) {
-                for (auto &link_info: link_tracker_.link_track_map_[merge_link]) {
-                    auto &term = link_info.term;
-                    string term_str = term->str();
-                    // replace all newlines with newlines and spaces
-                    pos = term_str.find('\n');
-                    while (pos != string::npos) {
-                        term_str.replace(pos, 1, "\n    ");
-                        pos = term_str.find('\n', pos + 5);
-                    }
-                    cout << "    " << term_str << endl;
-                }
-            }
-            cout << endl;
-            */
         }
     }
 
@@ -577,10 +555,12 @@ struct LinkMerger {
 
             // merge the trunc terms
             vector<Term> new_terms(target_infos.size());
+            vector<MutableVertexPtr> merged_vertices(target_infos.size());
+            vector<long> max_ids(target_infos.size());
             MutableVertexPtr merged_vertex_init;
             string link_type = target_infos[0].link->type();
 
-            #pragma omp parallel for default(none) shared(target_infos, merge_infos, new_terms, merged_vertex_init, link_type, target_link, pq_graph_, link_tracker_)
+            #pragma omp parallel for default(none) shared(target_infos, merge_infos, new_terms, merged_vertices, max_ids, merged_vertex_init, link_type, target_link, pq_graph_, link_tracker_)
             for (size_t i = 0; i < target_infos.size(); i++) {
                 // build merged vertex
                 MutableVertexPtr merged_vertex = target_infos[i].link->shallow();
@@ -600,7 +580,6 @@ struct LinkMerger {
                     else merged_vertex = merged_vertex + target_vertex;
 
                     // add the pq string to track evaluation
-                    // add original pq to unique term
                     if (Vertex::print_type_ == "python")   merged_pq += "\n    # ";
                     else if (Vertex::print_type_ == "c++") merged_pq += "\n    // ";
                     merged_pq += string(merge_term->lhs()->name().size(), ' ');
@@ -636,12 +615,15 @@ struct LinkMerger {
                 new_term.reorder();
                 new_terms[i] = new_term.shallow();
 
-                // add merged vertex to saved linkages
-                #pragma omp critical(PQGraphUpdateInMerge)
-                {
-                    pq_graph_.saved_linkages()[link_type].insert(as_link(merged_vertex));
-                    pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_id);
-                }
+                // store for batch update after parallel loop
+                merged_vertices[i] = as_link(merged_vertex);
+                max_ids[i] = max_id;
+            }
+
+            // batch update saved linkages and temp counts (no critical section needed)
+            for (size_t i = 0; i < merged_vertices.size(); i++) {
+                pq_graph_.saved_linkages()[link_type].insert(merged_vertices[i]);
+                pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_ids[i]);
             }
 
             // overwrite the target terms with the new terms

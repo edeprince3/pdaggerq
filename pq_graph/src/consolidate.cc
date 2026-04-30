@@ -128,7 +128,10 @@ size_t PQGraph::prune(bool keep_single_use) {
     }
 
     // remove all terms with lhs set to nullptr if any are found
-    for (auto &[name, eq]: equations_) {
+    vector<string> eq_keys_for_removal = get_equation_keys();
+#pragma omp parallel for schedule(guided) default(none) shared(equations_, eq_keys_for_removal)
+    for (const auto &name : eq_keys_for_removal) {
+        auto &eq = equations_[name];
         vector<Term> new_terms;
         for (auto &term: eq.terms()) {
             if (term.lhs() != nullptr) {
@@ -161,7 +164,6 @@ size_t PQGraph::prune(bool keep_single_use) {
         });
 
         auto remove_unused = [&sorted_to_remove](VertexPtr vertex){
-            // TODO: this lambda does not work with temps that have additions in them
             bool made_replacement = false;
             if (vertex->is_linked()) {
                 for (auto &temp: sorted_to_remove) {
@@ -219,7 +221,7 @@ size_t PQGraph::prune(bool keep_single_use) {
                 }
             }
 
-            // // remove temps from the rhs
+            // remove temps from the rhs
             for (auto &op: term.rhs()) {
                 if (op != nullptr && op->is_linked()) {
                     auto [new_op, replaced] = remove_unused(op);
@@ -266,23 +268,19 @@ size_t PQGraph::prune(bool keep_single_use) {
 pair<set<Term *>, set<Term*>> PQGraph::get_matching_terms(const LinkagePtr &intermediate) {
     // grab all terms with this tmp
 
-    // initialize vector of term pointers
-    set<Term*> tmp_terms;
-
     vector<string> eq_keys = get_equation_keys();
-#pragma omp parallel for schedule(guided) default(none) shared(equations_, eq_keys, tmp_terms, intermediate)
-    for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
-        // get equation
-        Equation &equation = equations_[eq_name]; // get equation
+    vector<set<Term*>> per_eq_results(eq_keys.size());
 
-        // get all terms with this tmp
-        set<Term*> tmp_terms_local = equation.get_temp_terms(intermediate);
-#pragma omp critical(InsertTmpTerms) // ensure thread-safe insertion into tmp_terms
-        {
-            // add terms to tmp_terms
-            tmp_terms.insert(tmp_terms_local.begin(), tmp_terms_local.end());
-        }
+#pragma omp parallel for schedule(guided) default(none) shared(equations_, eq_keys, per_eq_results, intermediate)
+    for (size_t i = 0; i < eq_keys.size(); i++) {
+        Equation &equation = equations_[eq_keys[i]];
+        per_eq_results[i] = equation.get_temp_terms(intermediate);
+    }
 
+    // serial merge
+    set<Term*> tmp_terms;
+    for (auto &local_set : per_eq_results) {
+        tmp_terms.insert(local_set.begin(), local_set.end());
     }
 
     set<Term*> tmp_decl_terms;
