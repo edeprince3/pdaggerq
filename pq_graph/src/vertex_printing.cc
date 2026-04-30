@@ -303,13 +303,62 @@ namespace pdaggerq {
                 output = left_->str() + " + ";
 
                 if (left_labels != right_labels) {
-                    // we need to permute the right to match the left
-                    output += "einsum('";
-                    output += right_labels + "->" + left_labels + "',";
+                    // check if labels are a permutation (same character set)
+                    string sorted_left = left_labels, sorted_right = right_labels;
+                    std::sort(sorted_left.begin(), sorted_left.end());
+                    std::sort(sorted_right.begin(), sorted_right.end());
+                    if (sorted_left == sorted_right) {
+                        // same characters, different order: einsum permutation is valid
+                        output += "einsum('";
+                        output += right_labels + "->" + left_labels + "',";
+                    } else {
+                        // different character sets - check if positional types match
+                        string left_types, right_types;
+                        for (const auto &line: left_->lines())
+                            if (!(line.sig_ && !Vertex::use_trial_index)) left_types += line.type();
+                        for (const auto &line: right_->lines())
+                            if (!(line.sig_ && !Vertex::use_trial_index)) right_types += line.type();
+
+                        if (left_types != right_types && left_types.size() == right_types.size()) {
+                            // types differ positionally - need np.transpose
+                            output += "np.transpose(";
+                        }
+                        // else: same positional types - direct addition is valid (no permutation needed)
+                    }
                 }
                 output += right_->str();
-                if (left_labels != right_labels)
-                    output += ")";
+                if (left_labels != right_labels) {
+                    string sorted_left = left_labels, sorted_right = right_labels;
+                    std::sort(sorted_left.begin(), sorted_left.end());
+                    std::sort(sorted_right.begin(), sorted_right.end());
+                    if (sorted_left == sorted_right)
+                        output += ")";
+                    else {
+                        // check if types differ and close transpose
+                        string left_types, right_types;
+                        for (const auto &line: left_->lines())
+                            if (!(line.sig_ && !Vertex::use_trial_index)) left_types += line.type();
+                        for (const auto &line: right_->lines())
+                            if (!(line.sig_ && !Vertex::use_trial_index)) right_types += line.type();
+                        if (left_types != right_types && left_types.size() == right_types.size()) {
+                            // build axis permutation
+                            string perm = ", (";
+                            vector<bool> used(right_types.size(), false);
+                            for (size_t i = 0; i < left_types.size(); i++) {
+                                for (size_t j = 0; j < right_types.size(); j++) {
+                                    if (!used[j] && left_types[i] == right_types[j]) {
+                                        perm += to_string(j) + ",";
+                                        used[j] = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            perm.pop_back();
+                            perm += "))";
+                            output += perm;
+                        }
+                    }
+                }
                 return output;
             }
 
@@ -337,28 +386,63 @@ namespace pdaggerq {
                 output += scalar_str + " * ";
             }
             if (!tensors.empty()) {
-                output += "einsum('";
-                for (const auto &index: indices)
-                    output += index + ",";
-                output.pop_back();
-                output += "->";
+                // build output subscript string
+                string output_labels;
                 for (const auto &line: lines_)
                     if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else output += line.label_[0];
-                output += "',";
+                    else output_labels += line.label_[0];
 
-                for (const auto &tensor: tensors) {
-                    string tensor_str = tensor->str();
-                    if (tensor->is_addition() && !tensor->is_temp())
-                        tensor_str = "(" + tensor_str + ")";
-                    output += tensor_str + ",";
+                // check if this is a single-tensor case with incompatible label rename
+                bool skip_einsum = false;
+                if (tensors.size() == 1) {
+                    string sorted_input = indices[0], sorted_output = output_labels;
+                    std::sort(sorted_input.begin(), sorted_input.end());
+                    std::sort(sorted_output.begin(), sorted_output.end());
+                    if (sorted_input != sorted_output) {
+                        // different character sets - check positional types
+                        string input_types, output_types;
+                        for (const auto &line: tensors[0]->lines())
+                            if (!(line.sig_ && !Vertex::use_trial_index)) input_types += line.type();
+                        for (const auto &line: lines_)
+                            if (!(line.sig_ && !Vertex::use_trial_index)) output_types += line.type();
+
+                        if (input_types == output_types) {
+                            // same positional types - just a notational rename, skip einsum
+                            skip_einsum = true;
+                        }
+                        // else: types differ - would need np.transpose (handled below)
+                    }
+                    // also skip if input == output (identity - no permutation needed)
+                    if (indices[0] == output_labels) skip_einsum = true;
                 }
 
-                if (tensors.size() > 2)
-                    output += "optimize='optimal'";
-                else output.pop_back();
+                if (skip_einsum) {
+                    string tensor_str = tensors[0]->str();
+                    if (tensors[0]->is_addition() && !tensors[0]->is_temp())
+                        tensor_str = "(" + tensor_str + ")";
+                    output += tensor_str;
+                } else {
+                    output += "einsum('";
+                    for (const auto &index: indices)
+                        output += index + ",";
+                    output.pop_back();
+                    output += "->";
+                    output += output_labels;
+                    output += "',";
 
-                output += ")";
+                    for (const auto &tensor: tensors) {
+                        string tensor_str = tensor->str();
+                        if (tensor->is_addition() && !tensor->is_temp())
+                            tensor_str = "(" + tensor_str + ")";
+                        output += tensor_str + ",";
+                    }
+
+                    if (tensors.size() > 2)
+                        output += "optimize='optimal'";
+                    else output.pop_back();
+
+                    output += ")";
+                }
 
             } else {
                 output.pop_back(); output.pop_back(); output.pop_back();

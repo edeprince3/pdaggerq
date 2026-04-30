@@ -153,7 +153,12 @@ struct LinkTracker {
 
             vector<pair<string, size_t>> argsorted_infos;
             for (size_t i = 0; i < link_infos.size(); i++) {
-                argsorted_infos.emplace_back(link_infos[i].trunc_term.str(), i);
+                // use trunc_term.str() as primary key, and term's full str() as secondary
+                // to break ties consistently across different link info vectors
+                string sort_key = link_infos[i].trunc_term.str();
+                sort_key += "|";
+                sort_key += link_infos[i].term->str();
+                argsorted_infos.emplace_back(sort_key, i);
             }
             std::sort(argsorted_infos.begin(), argsorted_infos.end());
 
@@ -567,10 +572,6 @@ struct LinkMerger {
             vector<vector<LinkInfo>> merge_infos;
             for (auto &merge_link: merge_links) {
                 auto &merge_info = link_tracker_.link_track_map_[merge_link];
-                // sort merge infos by hash string of the link
-                std::sort(merge_info.begin(), merge_info.end(), [](const LinkInfo &a, const LinkInfo &b) {
-                        return a.link->base_name_ < b.link->base_name_;
-                        });
                 merge_infos.push_back(merge_info);
             }
 

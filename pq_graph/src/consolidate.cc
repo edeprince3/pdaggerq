@@ -91,7 +91,7 @@ size_t PQGraph::prune(bool keep_single_use) {
             for (auto &term: terms) {
                 if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
                 for (auto &vertex: term->rhs()) {
-                    num_occurrences += as_link(vertex)->count(temp, false);
+                    num_occurrences += as_link(vertex)->count(temp, true);
                 }
                 used_term = term;
             }
@@ -393,7 +393,7 @@ void PQGraph::reindex() {
     auto reindex_vertex = [this, &temp_map](VertexPtr &vertex) {
         if (vertex != nullptr && vertex->is_linked()) {
             // get temps and sort by id
-            auto nested_temps = as_link(vertex)->get_temps(false, true);
+            auto nested_temps = as_link(vertex)->get_temps();
             std::sort(nested_temps.begin(), nested_temps.end(), [](const VertexPtr &a, const VertexPtr &b) {
                 return a->id() < b->id();
             });
@@ -427,9 +427,9 @@ void PQGraph::reindex() {
     linkage_map<size_t> last_usage;
     size_t loc = 0;
     for (auto &term : all_terms) {
-        auto found_temps = term.lhs()->get_temps(false, true);
+        auto found_temps = term.lhs()->get_temps(false);
         for (auto &op : term.rhs()) {
-            auto rhs_temps = op->get_temps(false, true);
+            auto rhs_temps = op->get_temps();
             found_temps.insert(found_temps.end(), rhs_temps.begin(), rhs_temps.end());
         }
         for (auto &temp : found_temps) {

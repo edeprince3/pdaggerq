@@ -878,7 +878,44 @@ namespace pdaggerq {
 
         // permute tensors if needed
         if (lhs_string != rhs_string) {
-            einsum_string = "einsum('" + rhs_string + "->" + lhs_string + "', " + einsum_string + " )";
+            // check if this is a valid permutation (same character set) vs a label rename (different chars)
+            string sorted_lhs = lhs_string, sorted_rhs = rhs_string;
+            std::sort(sorted_lhs.begin(), sorted_lhs.end());
+            std::sort(sorted_rhs.begin(), sorted_rhs.end());
+
+            if (sorted_lhs == sorted_rhs) {
+                // same character set, different order: valid einsum permutation
+                einsum_string = "einsum('" + rhs_string + "->" + lhs_string + "', " + einsum_string + " )";
+            } else {
+                // different character sets - compare line types positionally
+                const auto &lhs_lines = lhs_->lines();
+                const auto &rhs_lines = term_linkage(true)->lines();
+
+                string lhs_types, rhs_types;
+                for (const auto &line : lhs_lines)
+                    if (!(line.sig_ && !Vertex::use_trial_index)) lhs_types += line.type();
+                for (const auto &line : rhs_lines)
+                    if (!(line.sig_ && !Vertex::use_trial_index)) rhs_types += line.type();
+
+                if (lhs_types != rhs_types && lhs_types.size() == rhs_types.size()) {
+                    // types differ positionally - need axis permutation via np.transpose
+                    string perm = "np.transpose(" + einsum_string + ", (";
+                    vector<bool> used(rhs_types.size(), false);
+                    for (size_t i = 0; i < lhs_types.size(); i++) {
+                        for (size_t j = 0; j < rhs_types.size(); j++) {
+                            if (!used[j] && lhs_types[i] == rhs_types[j]) {
+                                perm += to_string(j) + ",";
+                                used[j] = true;
+                                break;
+                            }
+                        }
+                    }
+                    perm.pop_back();
+                    perm += "))";
+                    einsum_string = perm;
+                }
+                // else: types match positionally - no permutation needed (just label rename)
+            }
         }
         output += einsum_string;
 
