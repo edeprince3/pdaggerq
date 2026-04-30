@@ -12,13 +12,19 @@ import re
 tests  = (
     "cisd",
     "ccsd",
-    "ccsd_with_spin", # requires psi4
+    "eom_ccsd_quick",
+    "cc3",
+    "ccsdt",
     "lambda_ccsd",
     "eom_ccsd",
-    "ccsdt",
-    "cc3",
-    "ccsdt_with_spin" # requires psi4
 )
+
+try:
+    import psi4
+    psi4_available = True
+except ImportError:
+    psi4_available = False
+tests += ("ccsd_with_spin", "ccsdt_with_spin") if psi4_available else ()
 
 # get the path to the script
 script_path = os.path.dirname(os.path.realpath(__file__))
