@@ -573,144 +573,51 @@ namespace pdaggerq {
 
     }
 
-    static pair<scaling_map, scaling_map> compute_chain_netscales(
-            const vertex_vector &ops, const vector<size_t> &order) {
-
-        vector<shape> flops, mems;
-        flops.reserve(order.size());
-        mems.reserve(order.size());
-
-        // collect the effective operators (skip empty and unit constants)
-        Line current_buf[32];
-        uint_fast8_t current_count = 0;
-
-        for (size_t step = 0; step < order.size(); step++) {
-            const auto &op = ops[order[step]];
-            if (op->empty()) continue;
-            if (op->is_constant() && fabs(op->value() - 1.0) < 1e-8) continue;
-
-            const auto &right_lines = op->lines();
-            uint_fast8_t right_size = right_lines.size();
-
-            if (current_count == 0) {
-                // first effective operator — just copy its lines
-                for (uint_fast8_t i = 0; i < right_size && i < 32; i++)
-                    current_buf[i] = right_lines[i];
-                current_count = std::min(right_size, (uint_fast8_t)32);
-                continue;
-            }
-
-            // match current lines with right operator's lines
-            struct Entry { const Line* line; bool in_left; bool in_right; };
-            Entry entries[32];
-            uint_fast8_t entry_count = 0;
-
-            for (uint_fast8_t i = 0; i < current_count; i++)
-                entries[entry_count++] = {&current_buf[i], true, false};
-
-            LineEqual line_eq;
-            for (uint_fast8_t i = 0; i < right_size; i++) {
-                bool found = false;
-                for (uint_fast8_t j = 0; j < entry_count; j++) {
-                    if (line_eq(entries[j].line, &right_lines[i])) {
-                        entries[j].in_right = true;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found && entry_count < 32)
-                    entries[entry_count++] = {&right_lines[i], false, true};
-            }
-
-            // compute flop_scale (all lines) and external lines + mem shape for next step
-            shape flop_scale{};
-            shape mem_scale{};
-            uint_fast8_t new_count = 0;
-            for (uint_fast8_t j = 0; j < entry_count; j++) {
-                flop_scale += *entries[j].line;
-                if (!entries[j].in_left || !entries[j].in_right) {
-                    // external line — keep for next step
-                    mem_scale += *entries[j].line;
-                    if (new_count < 32)
-                        current_buf[new_count++] = *entries[j].line;
-                }
-            }
-
-            flops.push_back(flop_scale);
-            mems.push_back(mem_scale);
-            current_count = new_count;
-        }
-
-        return {scaling_map(flops), scaling_map(mems)};
-    }
-
     LinkagePtr Linkage::best_permutation() const {
 
         // initialize the best permutation as the current linkage
         LinkagePtr best_perm = as_link(shallow());
 
-        // for temps or additions, use the original approach
-        if (is_temp()) return best_perm;
-        if (left_->empty() || right_->empty()) {
-            if (left_->empty() && right_->is_linked())
-                return as_link(right_->shallow())->best_permutation();
-            if (right_->empty() && left_->is_linked())
-                return as_link(left_->shallow())->best_permutation();
-            return best_perm;
-        }
-        if (is_addition()) {
-            const LinkagePtr &left_perm = as_link(left_)->best_permutation();
-            const LinkagePtr &right_perm = as_link(right_)->best_permutation();
-            bool same_left_right = *left_perm == *right_perm;
-            if (!same_left_right) {
-                auto lr = as_link(left_perm + right_perm);
-                auto rl = as_link(right_perm + left_perm);
-                auto [lr_flops, lr_mems] = lr->netscales();
-                auto [rl_flops, rl_mems] = rl->netscales();
-                auto [best_flops, best_mems] = best_perm->netscales();
-                // pick best among current, lr, rl
-                for (const auto &candidate : {lr, rl}) {
-                    auto [f, m] = candidate->netscales();
-                    int check = f.compare(best_flops);
-                    if (check == scaling_map::this_better ||
-                       (check == scaling_map::this_same && m.compare(best_mems) == scaling_map::this_better)) {
-                        best_flops = f; best_mems = m; best_perm = candidate;
-                    }
-                }
-            }
+        // generate every permutation
+        const linkage_vector &all_perms = permutations();
+        if (all_perms.size() <= 1) {
+            // if no permutations, return this as the best permutation
             return best_perm;
         }
 
-        // for contraction chains: use lightweight cost evaluation
-        const vertex_vector &link_vec = link_vector();
-        size_t n = link_vec.size();
-        if (n <= 1) return best_perm;
+        // test scaling of each permutation
+        auto [best_flops, best_mems] = best_perm->netscales();
+        for (const auto &perm : all_perms) {
+            auto [flops, mems] = perm->netscales();
 
-        // identity ordering
-        vector<size_t> best_order(n);
-        std::iota(best_order.begin(), best_order.end(), 0);
-        auto [best_flops, best_mems] = compute_chain_netscales(link_vec, best_order);
-
-        // test all permutations (lightweight — no Linkage allocation)
-        vector<size_t> idxs(n);
-        std::iota(idxs.begin(), idxs.end(), 0);
-        while (std::next_permutation(idxs.begin(), idxs.end())) {
-            auto [flops, mems] = compute_chain_netscales(link_vec, idxs);
+            // check if flops current permutation is better than best permutation
             int scaling_check = flops.compare(best_flops);
+
             bool make_best = scaling_check == scaling_map::this_better;
             if (!make_best && scaling_check == scaling_map::this_same) {
+                // if flops are the same, check mems
                 scaling_check = mems.compare(best_mems);
                 make_best = scaling_check == scaling_map::this_better;
+
+                // if the mems are the same, check the lines
+                if (!make_best && scaling_check == scaling_map::this_same) {
+                    make_best = perm->lines() < best_perm->lines();
+                }
+
+                // if lines are the same, use string representation of names
+                if (!make_best && scaling_check == scaling_map::this_same) {
+                    make_best = perm->name() < best_perm->name();
+                }
             }
+
             if (make_best) {
                 best_flops = flops;
                 best_mems = mems;
-                best_order = idxs;
+                best_perm = perm;
             }
         }
 
-        // build only the winning permutation
-        best_perm = link(link_vec, best_order);
+        // return the best permutation
         return best_perm;
     }
 
