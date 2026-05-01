@@ -272,7 +272,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             }
 
             // check if this linkage is in the ignore set
-            if (ignore_linkages.find(linkage) != ignore_linkages.end()) {
+            if (ignore_linkages.contains(linkage)) {
                 linkage->forget(); // clear linkage history
                 continue;
             }

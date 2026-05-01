@@ -141,11 +141,18 @@ size_t PQGraph::prune(bool keep_single_use) {
         vector<Term> new_terms;
         for (auto &term: eq.terms()) {
             if (term.lhs() != nullptr) {
-                term.reorder(true);
                 new_terms.push_back(term);
             }
         }
         eq.terms() = new_terms;
+    }
+
+    // reorder surviving terms (serial to avoid races on shared sub-linkage caches)
+    for (const auto &name : eq_keys_for_removal) {
+        auto &eq = equations_[name];
+        for (auto &term: eq.terms()) {
+            term.reorder(true);
+        }
     }
 
     // get all terms in the equations
@@ -201,10 +208,11 @@ size_t PQGraph::prune(bool keep_single_use) {
         }
         saved_linkages_ = new_saved_linkages;
 
-        // unset the temp in all the terms
-#pragma omp parallel for schedule(guided) shared(all_terms, remove_unused, sorted_to_remove) default(none)
-        for (auto &term_ptr: all_terms) {
-            Term &term = *term_ptr;
+        // unset the temp in all the terms (Phase 1: parallel replacement only)
+        vector<bool> needs_reorder(all_terms.size(), false);
+#pragma omp parallel for schedule(guided) shared(all_terms, remove_unused, sorted_to_remove, needs_reorder) default(none)
+        for (size_t i = 0; i < all_terms.size(); i++) {
+            Term &term = *all_terms[i];
             bool made_replacement = false;
 
             // remove temps from the lhs
@@ -240,7 +248,14 @@ size_t PQGraph::prune(bool keep_single_use) {
 
             if (made_replacement) {
                 term.request_update();
-                term.reorder();
+                needs_reorder[i] = true;
+            }
+        }
+
+        // Phase 2: reorder terms that had replacements (serial to avoid cache races on shared sub-linkages)
+        for (size_t i = 0; i < all_terms.size(); i++) {
+            if (needs_reorder[i]) {
+                all_terms[i]->reorder();
             }
         }
 
@@ -249,7 +264,6 @@ size_t PQGraph::prune(bool keep_single_use) {
     }
 
     if (opt_level_ >= 6) {
-#pragma omp parallel for schedule(guided) default(none) shared(all_terms)
         for (Term *term_ptr: all_terms) {
             Term &term = *term_ptr;
             // factor the term linkage
