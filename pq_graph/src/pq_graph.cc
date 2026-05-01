@@ -233,6 +233,9 @@ namespace pdaggerq {
 
         if (options.contains("apply_permutations")) {
             apply_permutations_ = options["apply_permutations"].cast<bool>();
+        } else {
+            // default to applying permutations for higher optimization levels
+            apply_permutations_ = opt_level_ >= 6;
         }
 
         if (options.contains("batch_size")) {
@@ -270,9 +273,7 @@ namespace pdaggerq {
             } else if (nthreads_ < 0) {
                 nthreads_ = (int) omp_get_max_threads();
             }
-            Equation::nthreads_ = nthreads_;
-            omp_set_num_threads(nthreads_);
-            
+            Equation::nthreads_ = nthreads_;            
         } else {
             // use OMP_NUM_THREADS if available
             char *omp_num_threads = getenv("OMP_NUM_THREADS");
@@ -283,10 +284,10 @@ namespace pdaggerq {
                             "Using the maximum number of threads instead." << endl;
                     nthreads_ = (int) omp_get_max_threads();
                 }
-                Equation::nthreads_ = nthreads_;
-                omp_set_num_threads(nthreads_);
+                Equation::nthreads_ = nthreads_;                
             }
         }
+        omp_set_num_threads(nthreads_);
 
         // set defined conditions
         if (options.contains("conditions")){

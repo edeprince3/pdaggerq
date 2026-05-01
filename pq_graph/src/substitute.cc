@@ -27,6 +27,15 @@
 #include <memory>
 #include "../include/pq_graph.h"
 
+#ifdef _OPENMP
+#include <omp.h>
+#else
+#define omp_get_max_threads() 1
+#define omp_set_num_threads(n) 1
+#define omp_get_num_threads() 1
+#define omp_get_thread_num() 0
+#endif
+
 using std::next_permutation;
 using std::string;
 using std::vector;
@@ -61,21 +70,33 @@ void PQGraph::make_all_links(bool recompute) {
 
 linkage_set Equation::make_all_links(bool compute_all) {
 
-    linkage_set all_linkages(2048); // all possible linkages in the equations (start with large bucket n_ops)
+    linkage_set all_linkages(2048);
 
-#pragma omp parallel for schedule(guided) shared(terms_, all_linkages) default(none) firstprivate(compute_all)
-    for (auto & term : terms_) { // iterate over terms
+    // determine thread count for thread-local accumulation
+    int num_threads = 1;
+    #pragma omp parallel
+    {
+        #pragma omp single
+        num_threads = omp_get_num_threads();
+    }
+    std::vector<linkage_set> local_sets(num_threads);
 
-        // skip term if it is optimal, and we are not computing all linkages
+#pragma omp parallel for schedule(guided) default(none) shared(terms_, local_sets) firstprivate(compute_all)
+    for (size_t i = 0; i < terms_.size(); i++) {
+        auto &term = terms_[i];
+
         if (!compute_all && term.generated_linkages_)
             continue;
 
-        term.reorder(); // reorder term (only if necessary)
-        all_linkages += term.make_all_links(); // nerate linkages in term and add to the set of all linkages
+        term.reorder();
+        local_sets[omp_get_thread_num()] += term.make_all_links();
 
-        term.generated_linkages_ = true; // set term to have generated linkages
+        term.generated_linkages_ = true;
+    }
 
-    } // iterate over terms
+    // serial merge — no contention
+    for (auto &ls : local_sets)
+        all_linkages += ls;
 
     return all_linkages;
 }
@@ -234,15 +255,42 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          * If they can, save the flop map for each equation.
          * If the flop map is better than the current best flop map, save the linkage.
          */
+
+        int num_threads = 1;
+        #pragma omp parallel
+        {
+            #pragma omp single
+            num_threads = omp_get_num_threads();
+        }
+        std::vector<linkage_vector> local_ignores(num_threads);
+
 #pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
-            ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
+            ignore_linkages, equations_, stdout, local_ignores) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
             format_sigma, print_ratio, print_progress, only_scalars, separate_sigma_)
         for (int i = 0; i < n_linkages; ++i) {
 
-            // copy linkage
-            MutableLinkagePtr linkage = as_link(test_linkages[i]->shallow());
-            bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
-            bool is_sigma = linkage->is_sigma_;
+            // use original const pointer for early-exit checks (avoids expensive shallow copy)
+            const LinkagePtr &orig_linkage = test_linkages[i];
+            bool is_scalar = orig_linkage->is_scalar();
+            bool is_sigma = orig_linkage->is_sigma_;
+
+            if (is_scalar && Equation::no_scalars_) {
+                local_ignores[omp_get_thread_num()].push_back(orig_linkage);
+                continue;
+            }
+
+            if ((format_sigma && is_sigma) || (only_scalars && !is_scalar)) {
+                local_ignores[omp_get_thread_num()].push_back(orig_linkage);
+                continue;
+            }
+
+            // check if this linkage is in the ignore set
+            if (ignore_linkages.contains(orig_linkage)) {
+                continue;
+            }
+
+            // now make the mutable shallow copy (only for linkages that pass early checks)
+            MutableLinkagePtr linkage = as_link(orig_linkage->shallow());
 
             string eq_type; // get equation type
             if (is_scalar){
@@ -252,29 +300,6 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 linkage->reused_ = true;
             } else {
                 eq_type = "temp";
-            }
-
-            if (is_scalar) {
-                // if no scalars are allowed, skip this linkage
-                if (Equation::no_scalars_) {
-                    linkage->forget(); // clear linkage history
-                    ignore_linkages.insert(linkage); // add linkage to ignore linkages
-                    continue;
-                }
-            }
-
-            if ((format_sigma && is_sigma) || (only_scalars && !is_scalar)) {
-                // when formatting for sigma vectors,
-                // we only keep linkages without a sigma vector and are not scalars
-                linkage->forget(); // clear linkage history
-                ignore_linkages.insert(linkage);
-                continue;
-            }
-
-            // check if this linkage is in the ignore set
-            if (ignore_linkages.contains(linkage)) {
-                linkage->forget(); // clear linkage history
-                continue;
             }
 
             // set id of linkage
@@ -319,7 +344,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
             } else { // if we didn't make a substitution, add linkage to ignore linkages
                 linkage->forget(); // clear linkage history
-                ignore_linkages.insert(linkage);
+                local_ignores[omp_get_thread_num()].push_back(linkage);
             }
 
             if (print_progress && i % print_ratio == 0) {
@@ -329,6 +354,11 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
         } // end iterations over all linkages
         if (print_progress) std::cout << "  Done" << std::endl << std::endl;
+
+        // merge thread-local ignore sets into the shared ignore set (serial, no contention)
+        for (auto &local : local_ignores) {
+            ignore_linkages.insert(local.begin(), local.end());
+        }
 
 
 
@@ -917,28 +947,34 @@ bool Term::make_scalars(linkage_set &scalars, long &id) {
     for (const auto& [perm_linkage, perm_scalars] : term_scalars) {
         for (const auto &scalar : perm_scalars) {
 
-            // reorder scalar for the best permutation
+            // reorder scalar for the best permutation (outside critical section)
             LinkagePtr scalar_link = as_link(scalar)->best_permutation();
             MutableLinkagePtr new_scalar = as_link(scalar_link->shallow());
 
-            // check if scalar is already in set of scalars for setting the id
+            // only protect ID assignment and set insertion
+            long new_id;
             #pragma omp critical(ScalarSubstitution)
             {
-                long new_id = id + 1;
                 auto scalar_pos = scalars.find(new_scalar);
                 if (scalar_pos != scalars.end())
-                    new_id = scalar_pos->get()->id(); // if scalar is already in set of scalars, change the id
-                else ++id; // if scalar is not in set of scalars, increment the id for the next scalar
-
-                new_scalar->id_ = new_id;
-
-                // replace scalar in the term linkage
-                auto [subbed_linkage, replaced] = as_link(perm_linkage)->replace(scalar, new_scalar);
-                if (replaced) {
-                    new_linkage = as_link(subbed_linkage);
-                    scalars.insert(new_scalar); // insert scalar into set of scalars
-                    made_scalar = true;
+                    new_id = scalar_pos->get()->id();
+                else {
+                    new_id = id + 1;
+                    ++id;
                 }
+            }
+
+            new_scalar->id_ = new_id;
+
+            // replace scalar in the term linkage (outside critical section)
+            auto [subbed_linkage, replaced] = as_link(perm_linkage)->replace(scalar, new_scalar);
+            if (replaced) {
+                new_linkage = as_link(subbed_linkage);
+                #pragma omp critical(ScalarSubstitution)
+                {
+                    scalars.insert(new_scalar);
+                }
+                made_scalar = true;
             }
             if (made_scalar) break;
         }

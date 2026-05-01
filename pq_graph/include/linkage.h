@@ -29,6 +29,8 @@
 #include <memory>
 #include <mutex>
 #include <utility>
+#include <algorithm>
+#include <cstring>
 
 #include "vertex.h"
 #include "scaling_map.hpp"
@@ -60,6 +62,7 @@ namespace pdaggerq {
      */
     extern MutableVertexPtr operator*(const VertexPtr &left, const VertexPtr &right);
     extern MutableVertexPtr operator*(const MutableVertexPtr &left, const MutableVertexPtr &right);
+    extern MutableVertexPtr operator*(VertexPtr &&left, const VertexPtr &right);
     extern MutableVertexPtr operator*(double factor, const VertexPtr &right);
     extern MutableVertexPtr operator*(const VertexPtr &left, double factor);
 
@@ -87,6 +90,27 @@ namespace pdaggerq {
 
     typedef std::set<long, std::less<>> idset;
 
+    struct ConnecMap {
+        static constexpr uint_fast8_t MAX_SIZE = 20;
+        std::array<int_fast8_t, 2> data_[MAX_SIZE];
+        uint_fast8_t size_ = 0;
+
+        void clear() { size_ = 0; }
+        void reserve(uint_fast8_t) {}
+        void push_back(std::array<int_fast8_t, 2> v) { data_[size_++] = v; }
+        uint_fast8_t size() const { return size_; }
+        bool empty() const { return size_ == 0; }
+        auto begin() { return &data_[0]; }
+        auto end() { return &data_[size_]; }
+        auto begin() const { return &data_[0]; }
+        auto end() const { return &data_[size_]; }
+        bool operator==(const ConnecMap &o) const {
+            if (size_ != o.size_) return false;
+            return std::memcmp(data_, o.data_, size_ * 2) == 0;
+        }
+        bool operator!=(const ConnecMap &o) const { return !(*this == o); }
+    };
+
     /**
      * Class to represent contractions of a single vertex with a set of other vertices
      * The contraction itself is also a vertex and is defined by a left and right vertex
@@ -101,6 +125,9 @@ namespace pdaggerq {
         /// cost of linkage (flops and memory) as pair of vir and occ counts
         shape flop_scale_{}; // flops
         shape mem_scale_{}; // memory
+
+        size_t depth_ = 0; // cached depth of the linkage tree
+        size_t hash_ = 0; // cached hash of base_name_
 
         mutable std::mutex mtx_; // mutex for thread safety
         mutable vertex_vector all_vert_; // all vertices from linkages (mutable to allow for lazy evaluation)
@@ -147,7 +174,7 @@ namespace pdaggerq {
         const VertexPtr &right() const { return right_; }
 
         /// map of connec_map between lines
-        std::vector<std::array<int_fast8_t, 2>> connec_map_; // connec_map between lines
+        ConnecMap connec_map_;
 
         /********** Constructors **********/
 
@@ -403,13 +430,16 @@ namespace pdaggerq {
          * Get connec_map, the map of connections between lines
          * @return connec_map
          */
-        const std::vector<std::array<int_fast8_t, 2>> &connec_map() const { return connec_map_; }
+        const ConnecMap &connec_map() const { return connec_map_; }
+
+        size_t cached_hash() const { return hash_; }
 
         /**
          * Make a series of linkages from vertices into a single linkage
          * @param op_vec list of vertices
          */
         static LinkagePtr link(const vertex_vector &op_vec);
+        static LinkagePtr link(const vertex_vector &op_vec, const vector<size_t> &order);
 
         /**
          * copy just the members of the linkage that do not depend on the vertices
@@ -555,7 +585,7 @@ namespace pdaggerq {
          * @return depth of linkage
          */
         size_t depth() const override {
-            return 1 + std::max(left_->depth(), right_->depth());
+            return depth_;
         }
 
 

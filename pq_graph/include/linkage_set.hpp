@@ -43,8 +43,7 @@ namespace pdaggerq {
         LinkageHash() = default;
 
         size_t operator()(const LinkagePtr &linkage) const {
-            constexpr hash<string> str_hash;
-            return str_hash(linkage->base_name());
+            return linkage->cached_hash();
         }
     }; // struct linkage_hash
 

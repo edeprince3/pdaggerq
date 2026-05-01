@@ -560,7 +560,7 @@ struct LinkMerger {
             MutableVertexPtr merged_vertex_init;
             string link_type = target_infos[0].link->type();
 
-            #pragma omp parallel for default(none) shared(target_infos, merge_infos, new_terms, merged_vertices, max_ids, merged_vertex_init, link_type, target_link, pq_graph_, link_tracker_)
+            #pragma omp parallel for schedule(guided) default(none) shared(target_infos, merge_infos, new_terms, merged_vertices, max_ids, merged_vertex_init, link_type, target_link, pq_graph_, link_tracker_)
             for (size_t i = 0; i < target_infos.size(); i++) {
                 // build merged vertex
                 MutableVertexPtr merged_vertex = target_infos[i].link->shallow();
