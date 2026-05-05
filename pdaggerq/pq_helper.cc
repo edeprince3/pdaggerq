@@ -1520,6 +1520,157 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             }
             newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels, op_portions);
     
+        }else if (op.substr(0, 1) == "x" || op.substr(0, 1) == "X"){
+   
+            // more right-hand operators 
+    
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+    
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // a*b*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ij...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ab...
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ab......ji)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+    
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 2 ) {
+                if ( op.substr(2,1) == ",") {
+                    n_ph = std::stoi(op.substr(3));
+                    for (int ph = 0; ph < n_ph; ph++) {
+                        newguy->is_boson_dagger.push_back(true);
+                    }
+                }
+            }
+            newguy->set_amplitudes('x', n_create, n_annihilate, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "y" || op.substr(0, 1) == "Y"){
+    
+            // more left-hand operators 
+
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+                
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // op*j*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ab...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ij... 
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ij......ba)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+                
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 2 ) {
+                if ( op.substr(2,1) == ",") {
+                    n_ph = std::stoi(op.substr(3));
+                    for (int ph = 0; ph < n_ph; ph++) {
+                        newguy->is_boson_dagger.push_back(false);
+                    }
+                }
+            }
+            newguy->set_amplitudes('y', n_create, n_annihilate, n_ph, labels, op_portions);
+    
         }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
     
     

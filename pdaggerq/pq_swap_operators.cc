@@ -61,7 +61,6 @@ bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
             n_new_strings = 2;
 
             // delta function
-            std::vector<std::string> labels;
             delta_functions deltas;
             deltas.labels.push_back(in->symbol[i]);
             deltas.labels.push_back(in->symbol[i+1]);
@@ -356,7 +355,6 @@ bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
 
         if ( swap ) {
 
-            std::vector<std::string> labels;
             delta_functions deltas;
             deltas.labels.push_back(in->symbol[i]);
             deltas.labels.push_back(in->symbol[i+1]);

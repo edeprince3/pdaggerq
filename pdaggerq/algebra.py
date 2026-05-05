@@ -33,6 +33,8 @@ tensors_amps  = ['w0']
 tensors_amps += ['t'+str(i) for i in range(0,5)]
 tensors_amps += ['r'+str(i) for i in range(0,5)]
 tensors_amps += ['l'+str(i) for i in range(0,5)]
+tensors_amps += ['x'+str(i) for i in range(0,5)]
+tensors_amps += ['y'+str(i) for i in range(0,5)]
 
 class Index:
 
