@@ -47,6 +47,20 @@ def latex(pq, terms, input_string = '', kill_deltas = False, terms_per_line = 2)
         amplitude_types.append('l' + str(i) + '(')
         amplitude_types.append('m' + str(i) + '(')
 
+    for i in range (1, 5):
+        for p in range (0, 5):
+            amplitude_types.append('t' + str(i) + '_' + str(p) + 'p(')
+            amplitude_types.append('r' + str(i) + '_' + str(p) + 'p(')
+            amplitude_types.append('s' + str(i) + '_' + str(p) + 'p(')
+            amplitude_types.append('l' + str(i) + '_' + str(p) + 'p(')
+            amplitude_types.append('m' + str(i) + '_' + str(p) + 'p(')
+    for p in range (0, 5):
+        amplitude_types.append('t0' + '_' + str(p) + 'p')
+        amplitude_types.append('r0' + '_' + str(p) + 'p')
+        amplitude_types.append('s0' + '_' + str(p) + 'p')
+        amplitude_types.append('l0' + '_' + str(p) + 'p')
+        amplitude_types.append('m0' + '_' + str(p) + 'p')
+
     output_string = ''
     if len(terms) == 0 :
         output_string += '0'
@@ -151,6 +165,48 @@ def latex(pq, terms, input_string = '', kill_deltas = False, terms_per_line = 2)
                     this_string += term[i][count]
                     count += 2
                 this_string += '}'
+            # amplitudes with photons
+            elif term[i][0:6] in amplitude_types:
+                #excitation order
+                nbra = int(term[i][1])
+                nket = int(term[i][1])
+
+                #n photon
+                np = int(term[i][3])
+
+                # adjust number of bra/ket terms for IP, EA, etc.
+                if term[i][0] == 'r' or term[i][0] == 's':
+                    op_type = pq.get_right_operators_type()
+                    if op_type == "IP":
+                        nbra -= 1
+                    elif op_type == "DIP":
+                        nbra -= 2
+                    elif op_type == "EA":
+                        nket -= 1
+                    elif op_type == "DEA":
+                        nket -= 2
+                elif term[i][0] == 'l' or term[i][0] == 'm':
+                    op_type = pq.get_right_operators_type()
+                    if op_type == "IP":
+                        nket -= 1
+                    elif op_type == "DIP":
+                        nket -= 2
+                    elif op_type == "EA":
+                        nbra -= 1
+                    elif op_type == "DEA":
+                        nbra -= 2
+
+                this_string += '~{}^{[' + str(np) + ']}'
+                this_string += term[i][0] + '^{' 
+                count = 6
+                for bra_id in range (0, nbra):
+                    this_string += term[i][count]
+                    count += 2
+                this_string += '}_{' 
+                for ket_id in range (0, nket):
+                    this_string += term[i][count]
+                    count += 2
+                this_string += '}'
             # D1
             elif 'D1(' in term[i]:
                 this_string += '~{}^1' + term[i][0] + '^{' + term[i][3] + '}_{' + term[i][5] + '}'
@@ -163,6 +219,15 @@ def latex(pq, terms, input_string = '', kill_deltas = False, terms_per_line = 2)
             # t4/r4/l4
             elif 'D4(' in term[i]:
                 this_string += '~{}^4' + term[i][0] + '^{' + term[i][3] + term[i][5] + term[i][7] + term[i][9] + '}_{' + term[i][11] + term[i][13] + term[i][15] + term[i][17] + '}'
+            # w0
+            elif 'w0' in term[i]:
+                this_string += '\omega_\\text{cav}'
+            # d+
+            elif 'd+(' in term[i]:
+                this_string += '\sqrt{\\frac{\omega_\\text{cav}}{2}}d_{' +  term[i][3] + term[i][5] + '}'
+            # d-
+            elif 'd-(' in term[i]:
+                this_string += '\sqrt{\\frac{\omega_\\text{cav}}{2}}d_{' +  term[i][3] + term[i][5] + '}'
             # creator / annihilator
             else: 
                 tmp = '\\hat{a}'
