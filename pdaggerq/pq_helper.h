@@ -26,6 +26,8 @@
 
 #include "pq_string.h"
 
+#include <utility>
+
 namespace pdaggerq {
 
 class pq_operator_terms {
@@ -182,6 +184,15 @@ class pq_helper {
 
     /**
      *
+     * set whether or not we use the normal-ordered form of the hamiltonian
+     *
+     * @param is_normal_ordered: true/false
+     *
+     */
+    void set_hamiltonian_normal_ordered(bool is_normal_ordered);
+
+    /**
+     *
      * set whether or not the cluster operator is antihermitian for UCC
      *
      * @param is_unitary: true/false
@@ -229,10 +240,79 @@ class pq_helper {
      *
      * add a product of operators (i.e., {'h','t1'} )
      *
+     * @param factor: the numerical factor associated with the operator product
      * @param in: a list of strings defining the operator product
      *
      */
     void add_operator_product(double factor, std::vector<std::string> in);
+
+    /**
+     *
+     * build a pq_string from the string representations of operators
+     *
+     * @param factor: the numerical factor associated with the operator product
+     * @param input_op: a list of strings defining the operator product
+     * @param occ_label_count: how many occupied labels in the pq_string?
+     * @param vir_label_count: how many virtual labels in the pq_string?
+     *
+     */
+    std::vector<std::shared_ptr<pq_string>> build_new_strings(double factor, 
+        std::vector<std::string> input_op, 
+        int & occ_label_count,
+        int & vir_label_count);
+
+    /**
+     *
+     * python wrapper for calling add_operator_product() to 
+     * add a product of operators (i.e., {'h','t1'} )
+     *
+     * @param factor: the numerical factor associated with the operator product
+     * @param in: a list of strings defining the operator product
+     *
+     */
+    void py_add_operator_product(double factor, std::vector<std::string>  in);
+
+    /**
+     *
+     * process a list of operator products, expanding the list where 
+     * necessary, e.g., 't1' -> 'te1' - 'td1', 'v' -> 'j1' + 'j2', etc.
+     *
+     * @param in: a list of pq_operator_terms
+     *
+     */
+    void process_operator_products(std::vector<pq_operator_terms> ops);
+
+    /**
+     *
+     * check if there are fluctuation potential operators that need to
+     * be split into multiple terms
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_fluctuation_potential(std::vector<pq_operator_terms> ops_in);
+
+
+    /**
+     *
+     * check if there are normal-ordered foc operators that need to
+     * be split into multiple terms
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_fock_operator(std::vector<pq_operator_terms> ops_in);
+
+    /**
+     *
+     * check if there are cluster amplitudes that need to be renamed / expanded as
+     * 't1' = 't1e' or 't1' = 't1e' - 't1d', etc.
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_cluster_amplitudes(std::vector<pq_operator_terms> ops_in);
+
 
     /**
      *
@@ -643,6 +723,13 @@ private:
      *
      */
     bool find_paired_permutations;
+
+    /** 
+     * 
+     * use the normal-ordered form of the hamiltonian? 
+     * 
+     */
+    bool is_hamiltonian_normal_ordered = false;
 
     /** 
      * 
