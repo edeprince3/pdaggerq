@@ -216,8 +216,17 @@ class pq_string
      * supported amplitude and rdm types
      *
      */
-    static inline
-    char amplitude_types[] {'t', 'l', 'r', 'u', 'm', 's', 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F', 'I', 'J', 'K', 'L', 'M', 'N', 'T'};
+    static inline std::vector<char> amplitude_types = {'D'}; //'t', 'l', 'r', 'u', 'm', 's', 'D'};
+
+    void add_amplitude_type(const char type) {
+
+        // check if the type already exists in the static shared vector
+        auto it = std::find(amplitude_types.begin(), amplitude_types.end(), type);
+
+        if (it == amplitude_types.end()) {
+            amplitude_types.push_back(type);
+        }
+    }
 
 
     /**

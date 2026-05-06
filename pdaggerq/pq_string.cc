@@ -1039,6 +1039,11 @@ void pq_string::set_integrals(const std::string &type, const std::vector<std::st
 
 // set labels for amplitudes
 void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in, std::vector<std::string> op_portions, bool has_permutational_symmetry) { /* has_permutational_symmetry = true */
+
+    // add this type of amplitude, if not already known
+    add_amplitude_type(type);
+
+    // build new amplitude
     amplitudes new_amps;
     new_amps.has_permutational_symmetry = has_permutational_symmetry;
     new_amps.labels = in;

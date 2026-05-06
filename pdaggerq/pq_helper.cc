@@ -1085,8 +1085,13 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 }
             }
 
+            // add amplitude type
+            newguy->add_amplitude_type(name);
+
+            // define amplitude
             int order = (labels.size() + 1) / 2;
             newguy->set_amplitudes(name, order, order, 0, labels, {}, false);
+
 
         }else if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
     
