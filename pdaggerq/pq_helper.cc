@@ -1003,12 +1003,19 @@ void pq_helper::py_add_new_string(double factor,
 
     newguy->factor = factor; 
 
+    // make sure factor > 0
+    if ( newguy->factor < 0.0 ) {
+        newguy->factor = fabs(newguy->factor);
+        newguy->sign *= -1;
+    }
+
+    // TODO: nph fixed at zero. no operator types for Bernoulli specified.
     for (size_t i = 0; i < type.size(); i++){ 
         newguy->set_amplitudes(type[i], order[i], order[i], 0, amps_labels[i], {}, has_permutational_symmetry);
     }
     newguy->string = ops_labels;
 
-    // now, we need to convert the list "new_pq_strings[i]->string" into symbols and daggers
+    // now, we need to convert the list newguy->string into symbols and daggers
     newguy->strings_to_symbols_and_daggers(vacuum);
 
     std::vector<std::shared_ptr<pq_string>> new_pq_strings;
