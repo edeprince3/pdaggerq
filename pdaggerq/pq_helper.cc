@@ -1062,7 +1062,33 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
         // remove parentheses
         removeParentheses(op);
     
-        if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
+        if (op.substr(0, 1) == "o" || op.substr(0, 1) == "O") { // general user-specified operator
+
+            // split off the second character, which should be the amplitude name
+            char name = '\0';
+            if (op.size() >= 2) {
+                name = op[1];
+            }
+
+            // extract labels starting from index 2
+            std::vector<std::string> labels;
+            if (op.size() > 2) {
+                std::string listPart = op.substr(2); // get "p,q,r1,s2"
+                std::stringstream ss(listPart);
+                std::string segment;
+
+                while (std::getline(ss, segment, ',')) {
+                    if (!segment.empty()) {
+                        labels.size();
+                        labels.push_back(segment);
+                    }
+                }
+            }
+
+            int order = (labels.size() + 1) / 2;
+            newguy->set_amplitudes(name, order, order, 0, labels, {}, false);
+
+        }else if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
     
             std::string idx1 = "p" + std::to_string(gen_label_count++);
             std::string idx2 = "p" + std::to_string(gen_label_count++);
