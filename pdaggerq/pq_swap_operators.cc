@@ -27,11 +27,12 @@
 
 namespace pdaggerq {
 
-bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered) {
+bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, bool keep_operators) {
 
     if ( in->skip ) return true;
 
-    if ( in->is_normal_order() ) {
+    if ( in->is_normal_order(keep_operators) ) {
+
         // push current ordered operator onto running list
         ordered.push_back(in);
         return true;
@@ -60,7 +61,6 @@ bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
             n_new_strings = 2;
 
             // delta function
-            std::vector<std::string> labels;
             delta_functions deltas;
             deltas.labels.push_back(in->symbol[i]);
             deltas.labels.push_back(in->symbol[i+1]);
@@ -130,7 +130,7 @@ bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
 
     if ( n_new_strings == 1 ) {
 
-        if ( in->is_boson_normal_order() ) {
+        if ( in->is_boson_normal_order(keep_operators) ) {
             if ( !in->skip ) {
                 // copy boson daggers
                 for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
@@ -181,7 +181,7 @@ bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
 
     }else if ( n_new_strings == 2 ) {
 
-        if ( in->is_boson_normal_order() ) {
+        if ( in->is_boson_normal_order(keep_operators) ) {
             if ( !in->skip ) {
                 // copy boson daggers
                 for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {
@@ -270,11 +270,73 @@ bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
     return false;
 }
 
-bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered) {
+bool swap_operators_fermi_vacuum_no_deltas(std::shared_ptr<pq_string> &in) {
 
     if ( in->skip ) return true;
 
-    if ( in->is_normal_order() ) {
+    // don't call this function here because it will set the "skip" flag
+    //if ( in->is_normal_order() ) {
+    //    return true;
+    //}
+
+    // rearrange operators
+
+    bool am_i_done = true;
+
+    for (int i = 0; i < (int)in->symbol.size()-1; i++) {
+
+        bool swap = ( !in->is_dagger_fermi[i] && in->is_dagger_fermi[i+1] );
+
+        if ( swap ) {
+
+            in->sign = -in->sign;
+
+            std::string tmp_symbol = in->symbol[i];
+            in->symbol[i] = in->symbol[i+1];
+            in->symbol[i+1] = tmp_symbol;
+
+            bool tmp_is_dagger = in->is_dagger[i];
+            in->is_dagger[i] = in->is_dagger[i+1];
+            in->is_dagger[i+1] = tmp_is_dagger;
+
+            bool tmp_is_dagger_fermi = in->is_dagger_fermi[i];
+            in->is_dagger_fermi[i] = in->is_dagger_fermi[i+1];
+            in->is_dagger_fermi[i+1] = tmp_is_dagger_fermi;
+
+            am_i_done = false;
+        }
+    }
+
+    // now, the operator is closer to normal order in the fermion space
+    // we should more toward normal order in the boson space, too
+
+    // don't call this function here because it will set the "skip" flag
+    //if ( in->is_boson_normal_order() ) {
+    //    return false;
+    //}
+
+    for (int i = 0; i < (int)in->is_boson_dagger.size()-1; i++) {
+
+        // swap operators?
+        bool swap = ( !in->is_boson_dagger[i] && in->is_boson_dagger[i+1] );
+
+        if ( swap ) {
+            bool tmp = in->is_boson_dagger[i];
+            in->is_boson_dagger[i] = in->is_boson_dagger[i+1];
+            in->is_boson_dagger[i+1] = tmp;
+            
+            am_i_done = false;
+        }
+    }
+
+    return am_i_done;
+}
+
+bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, bool keep_operators) {
+
+    if ( in->skip ) return true;
+
+    if ( in->is_normal_order(keep_operators) ) {
 
         // push current ordered operator onto running list
         ordered.push_back(in);
@@ -293,7 +355,6 @@ bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
 
         if ( swap ) {
 
-            std::vector<std::string> labels;
             delta_functions deltas;
             deltas.labels.push_back(in->symbol[i]);
             deltas.labels.push_back(in->symbol[i+1]);
@@ -329,7 +390,7 @@ bool swap_operators_true_vacuum(const std::shared_ptr<pq_string> &in, std::vecto
     // now, s1 and s2 are closer to normal order in the fermion space
     // we should more toward normal order in the boson space, too
 
-    if ( in->is_boson_normal_order() ) {
+    if ( in->is_boson_normal_order(keep_operators) ) {
 
         // copy boson daggers 
         for (size_t i = 0; i < in->is_boson_dagger.size(); i++) {

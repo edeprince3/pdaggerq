@@ -24,13 +24,68 @@
 #define PQ_STRING_H
 
 #include "pq_tensor.h"
+#include<cmath>
+#include<sstream>
 #include <map>
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
 
 namespace pdaggerq {
 
-class pq_string {
+// work-around for finite precision of std::to_string
+template <typename T> std::string to_string_with_precision(const T a_value, const int n = 14) {
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
+}
+
+// determine minimum precision needed
+template <typename T> int minimum_precision(T factor) {
+    constexpr double epsilon = 1.0e-10;
+    double factor_abs = std::fabs((double)factor);
+
+    if (fabs(factor_abs - epsilon) < epsilon)
+        return 0;
+
+    // represent factor as a string of a fixed precision
+    std::stringstream ss;
+    ss << std::fixed << 10*factor_abs;
+    std::string str = ss.str();
+
+    int precision = 0;
+    bool decimal_point_encountered = false;
+    bool is_repeated = false;
+    char last_digit = ' ';
+    int  repeat_count = 0;
+
+    for (char digit : str) {
+        is_repeated = (digit == last_digit);
+        last_digit = digit;
+        if (digit == '.') {
+            decimal_point_encountered = true;
+        } else if (decimal_point_encountered && is_repeated) {
+            if (++repeat_count >= 12) break; // keep at most 12 repeating digits
+        }
+
+        if (!is_repeated) repeat_count = 0; // reset count
+        if (decimal_point_encountered) precision++; // increment precision
+
+    }
+
+    // if the last repeating digit is zero, we can reduce the precision
+    if (precision >= repeat_count && last_digit == '0')
+        precision -= repeat_count;
+
+    // we should always have at least two digits
+    if (precision < 2)
+        precision = 2;
+
+    return precision;
+}
+
+class pq_string 
+{
 
   private:
 
@@ -115,10 +170,10 @@ class pq_string {
 
     /**
      *
-     * sort amplitude, integral, and delta function labels (useful when comparing strings)
+     * sort amplitude, integral,and delta function labels and define key (for comparing strings)
      *
      */
-    void sort_labels();
+    void sort();
 
     /**
      *
@@ -162,7 +217,8 @@ class pq_string {
      *
      */
     static inline
-    char amplitude_types[] {'l', 'r', 't', 'u', 'm', 's', 'D'};
+    char amplitude_types[] {'t', 'l', 'r', 'u', 'm', 's', 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F', 'I', 'J', 'K', 'L', 'M', 'N', 'T'};
+
 
     /**
      *
@@ -253,21 +309,37 @@ class pq_string {
      * is the string in normal order? checks both fermion and boson parts
      *
      */
-    bool is_normal_order();
+    bool is_normal_order(bool keep_operators);
 
     /**
      *
      * is the bosonic part of the string in normal order?
      *
      */
-    bool is_boson_normal_order();
+    bool is_boson_normal_order(bool keep_operators);
 
     /**
      *
      * print string information to stdout
      *
      */
-    void print();
+    void print() const;
+
+    /**
+     *
+     * serialize string information to a buffer
+     * @param buffer: the buffer to send the string information to
+     *
+     */
+    void serialize(std::ofstream &buffer) const;
+
+    /**
+     *
+     * deserialize string information from a buffer
+     * @param buffer: the buffer to read the string information from
+     *
+     */
+    void deserialize(std::ifstream &buffer);
 
     /**
      *
@@ -278,12 +350,34 @@ class pq_string {
 
     /**
      *
+     * return string identifier as std::string
+     *
+     */
+    std::string get_key();
+
+    /**
+     *
+     * string identifier as std::string
+     *
+     */
+    std::string key;
+
+    /**
+     *
      * copy string data, possibly excluding symbols and daggers. 
      *
      * @param copy_me: pointer to pq_string to be copied
      * @param copy_daggers_and_symbols: copy the dagers and symbols?
      */
     void copy(void * copy_me, bool copy_daggers_and_symbols = true);
+
+    /**
+     *
+     * append string data to an existing string
+     *
+     * @param add_me: pointer to pq_string to be copied
+     */
+    void append(void * add_me);
 
     /**
      *
@@ -323,8 +417,9 @@ class pq_string {
      *
      * @param type: the integrals_type
      * @param in: the list of labels for the integrals
+     * @param op_portions: {"A", "N", "R", ...}, "A" = "N" + "R" (used for Bernoulli expansion)
      */
-    void set_integrals(const std::string &type, const std::vector<std::string> &in);
+    void set_integrals(const std::string &type, const std::vector<std::string> &in, std::vector<std::string> op_portions = {});
 
     /**
      *
@@ -333,10 +428,31 @@ class pq_string {
      * @param type: the amplitudes_type
      * @param n_create: the number of labels corresponding to creation operators
      * @param n_annihilate: the number of labels corresponding to annihilation operators
+     * @param n_ph: the number of photons
      * @param in: the list of labels for the amplitudes
+     * @param op_portions: {"A", "N", "R", ...}, "A" = "N" + "R" (used for Bernoulli expansion)
      * @param has_permutational_symmetry: do the amplitudes have permutational symmetry? e.g., t2(a,b,i,j) = -t2(b,a,i,j), etc.
      */
-    void set_amplitudes(char type, int n_create, int n_annihilate, const std::vector<std::string> &in, bool has_permutational_symmetry = true);
+    void set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in, std::vector<std::string> op_portions = {}, bool has_permutational_symmetry = true);
+
+    /** 
+     *
+     * how many times does an index appear amplitudes, deltas, and integrals?
+     *
+     * @param idx: the index
+     * @return: the number of times idx appears in the string
+     *
+     */
+    int index_in_anywhere(const std::string &idx);
+
+    /** 
+     *
+     * convert the list of labels for fermionic creation / annihilation operators  into symbols and daggers
+     *
+     * @param vacuum: the vacuum type
+     *
+     */
+    void strings_to_symbols_and_daggers(std::string vacuum);
 };
 
 }

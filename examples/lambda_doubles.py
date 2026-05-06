@@ -31,7 +31,7 @@ pq.add_st_operator(-1.0,['e2(e,f,n,m)','v'],['t1','t2'])
 pq.simplify()
 
 # grab list of fully-contracted strings, then print
-doubles_residual_terms = pq.fully_contracted_strings()
+doubles_residual_terms = pq.strings()
 for my_term in doubles_residual_terms:
     print(my_term)
 

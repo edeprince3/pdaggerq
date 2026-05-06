@@ -26,6 +26,8 @@
 
 #include "pq_string.h"
 
+#include <utility>
+
 namespace pdaggerq {
 
 class pq_operator_terms {
@@ -51,7 +53,50 @@ class pq_helper {
      * @param vacuum_type: normal order is defined with respect to the TRUE vacuum or the FERMI vacuum
      *
      */
-    explicit pq_helper(const std::string &vacuum_type);
+    explicit pq_helper(const std::string &vacuum_type = "");
+
+    /**
+     *
+     * copy constructor
+     *
+     * @param other: a pq_helper object
+     *
+     */
+    pq_helper(const pq_helper &other);
+
+    /**
+     *
+     * move constructor
+     *
+     * @param other: a pq_helper object
+     *
+     */
+    pq_helper(pq_helper &&other) = default;
+
+    /**
+     *
+     * copy assignment operator
+     *
+     * @param other: a pq_helper object
+     *
+     */
+    pq_helper &operator=(const pq_helper &other);
+
+    /**
+     *
+     * move assignment operator
+     *
+     * @param other: a pq_helper object
+     *
+     */
+    pq_helper &operator=(pq_helper &&other) = default;
+
+    /**
+     *
+     * clone the pq_helper object (calls copy constructor and moves the result)
+     *
+     */
+    pq_helper clone() const { return pq_helper(*this); }
 
     /**
      *
@@ -89,12 +134,26 @@ class pq_helper {
 
     /**
      *
+     * get operators to apply to the left of any operator products we add
+     *
+     */
+    const std::vector<std::vector<std::string>> & get_left_operators() const { return left_operators; }
+
+    /**
+     *
      * set operators to apply to the right of any operator products we add
      *
      * @param in: strings indicating a sum (outer list) of products (inner lists) of operators that define the ket state
      *
      */
     void set_right_operators(const std::vector<std::vector<std::string>> &in);
+
+    /**
+     *
+     * get operators to apply to the right of any operator products we add
+     *
+     */
+    const std::vector<std::vector<std::string>> & get_right_operators() const { return right_operators; }
 
     /**
      *
@@ -143,6 +202,33 @@ class pq_helper {
 
     /**
      *
+     * set whether or not we use the normal-ordered form of the hamiltonian
+     *
+     * @param is_normal_ordered: true/false
+     *
+     */
+    void set_hamiltonian_normal_ordered(bool is_normal_ordered);
+
+    /**
+     *
+     * set whether or not the cluster operator is antihermitian for UCC
+     *
+     * @param is_unitary: true/false
+     *
+     */
+    void set_unitary_cc(bool is_unitary);
+
+    /**
+     *
+     * set maximum excitation level for "N" type operators in the Bernoulli expansion for UCC
+     *
+     * @param excitation_level: the maximum excitation level for "N" type operators (default 2)
+     *
+     */
+    void set_bernoulli_excitation_level(int excitation_level);
+
+    /**
+     *
      * set whether we should search for paired ov permutations that arise in ccsdt
      *
      * @param do_find_paired_permutations: true/false
@@ -172,10 +258,79 @@ class pq_helper {
      *
      * add a product of operators (i.e., {'h','t1'} )
      *
+     * @param factor: the numerical factor associated with the operator product
      * @param in: a list of strings defining the operator product
      *
      */
     void add_operator_product(double factor, std::vector<std::string> in);
+
+    /**
+     *
+     * build a pq_string from the string representations of operators
+     *
+     * @param factor: the numerical factor associated with the operator product
+     * @param input_op: a list of strings defining the operator product
+     * @param occ_label_count: how many occupied labels in the pq_string?
+     * @param vir_label_count: how many virtual labels in the pq_string?
+     *
+     */
+    std::vector<std::shared_ptr<pq_string>> build_new_strings(double factor, 
+        std::vector<std::string> input_op, 
+        int & occ_label_count,
+        int & vir_label_count);
+
+    /**
+     *
+     * python wrapper for calling add_operator_product() to 
+     * add a product of operators (i.e., {'h','t1'} )
+     *
+     * @param factor: the numerical factor associated with the operator product
+     * @param in: a list of strings defining the operator product
+     *
+     */
+    void py_add_operator_product(double factor, std::vector<std::string>  in);
+
+    /**
+     *
+     * process a list of operator products, expanding the list where 
+     * necessary, e.g., 't1' -> 'te1' - 'td1', 'v' -> 'j1' + 'j2', etc.
+     *
+     * @param in: a list of pq_operator_terms
+     *
+     */
+    void process_operator_products(std::vector<pq_operator_terms> ops);
+
+    /**
+     *
+     * check if there are fluctuation potential operators that need to
+     * be split into multiple terms
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_fluctuation_potential(std::vector<pq_operator_terms> ops_in);
+
+
+    /**
+     *
+     * check if there are normal-ordered foc operators that need to
+     * be split into multiple terms
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_fock_operator(std::vector<pq_operator_terms> ops_in);
+
+    /**
+     *
+     * check if there are cluster amplitudes that need to be renamed / expanded as
+     * 't1' = 't1e' or 't1' = 't1e' - 't1d', etc.
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_cluster_amplitudes(std::vector<pq_operator_terms> ops_in);
+
 
     /**
      *
@@ -184,10 +339,13 @@ class pq_helper {
      *
      * @param targets: a list of strings defining the operator product to be transformed (here, f)
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     * @param do_operators_commute: do the operators that define the similarity transformation commute?
      *
      */
-    void add_st_operator(double factor, const std::vector<std::string> &targets,
-                                        const std::vector<std::string> &ops);
+    void add_st_operator(double factor, 
+                         const std::vector<std::string> &targets,
+                         const std::vector<std::string> &ops,
+                         bool do_operators_commute);
 
     /**
      *
@@ -196,9 +354,43 @@ class pq_helper {
      *
      * @param targets: a list of strings defining the operator product to be transformed (here, f)
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     * @param do_operators_commute: do the operators that define the similarity transformation commute?
      *
      */
-    std::vector<pq_operator_terms> get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops);
+    std::vector<pq_operator_terms> get_st_operator_terms(double factor, 
+                                                         const std::vector<std::string> &targets,
+                                                         const std::vector<std::string> &ops,
+                                                         bool do_operators_commute);
+
+    /**
+     *
+     * add the Bernoulli-number representation of the similarity-transformed operator expanded
+     * to a order max_order
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     * @param max_order: the maximum order of the Bernoulli-number representation of the similarity-transformed operator
+     *
+     */
+    void add_bernoulli_operator(double factor, 
+                                const std::vector<std::string> &targets,
+                                const std::vector<std::string> &ops,
+                                const int max_order);
+
+    /**
+     *
+     * generate list of terms resulting from the Bernoulli-number representation of the similarity-transformed operator expanded
+     * to a order max_order
+     *
+     * @param targets: a list of strings defining the operator product to be transformed (here, f)
+     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
+     * @param max_order: the maximum order of the Bernoulli-number representation of the similarity-transformed operator
+     *
+     */
+    std::vector<pq_operator_terms> get_bernoulli_operator_terms(double factor, 
+                                                                const std::vector<std::string> &targets,
+                                                                const std::vector<std::string> &ops,
+                                                                const int max_order);
 
     /**
      *
@@ -294,7 +486,7 @@ class pq_helper {
 
     /**
      *
-     * add a quadrupole commutator involving five operators, [[[[op0, op1], op2], op3], op4]
+     * add a quadruple commutator involving five operators, [[[[op0, op1], op2], op3], op4]
      *
      * @param op0: a list of strings defining an operator product
      * @param op1: a list of strings defining an operator product
@@ -311,7 +503,7 @@ class pq_helper {
 
     /**
      *
-     * generate a list of operators resulting from a quadrupole commutator involving five operators, [[[[op0, op1], op2], op3], op4]
+     * generate a list of operators resulting from a quadruple commutator involving five operators, [[[[op0, op1], op2], op3], op4]
      *
      * @param op0: a list of strings defining an operator product
      * @param op1: a list of strings defining an operator product
@@ -326,6 +518,86 @@ class pq_helper {
                                                                   const std::vector<std::string> &op2,
                                                                   const std::vector<std::string> &op3,
                                                                   const std::vector<std::string> &op4);
+    /**
+     *
+     * add a quintuple commutator involving six operators, [[[[[op0, op1], op2], op3], op4], op5]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     * @param op3: a list of strings defining an operator product
+     * @param op4: a list of strings defining an operator product
+     * @param op5: a list of strings defining an operator product
+     *
+     */
+    void add_quintuple_commutator(double factor, const std::vector<std::string> &op0,
+                                                 const std::vector<std::string> &op1,
+                                                 const std::vector<std::string> &op2,
+                                                 const std::vector<std::string> &op3,
+                                                 const std::vector<std::string> &op4,
+                                                 const std::vector<std::string> &op5);
+
+    /**
+     *
+     * generate a list of operators resulting from a quintuple commutator involving six operators, [[[[[op0, op1], op2], op3], op4], op5]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     * @param op3: a list of strings defining an operator product
+     * @param op4: a list of strings defining an operator product
+     * @param op5: a list of strings defining an operator product
+     *
+     */
+    std::vector<pq_operator_terms> get_quintuple_commutator_terms(double factor,
+                                                                  const std::vector<std::string> &op0,
+                                                                  const std::vector<std::string> &op1,
+                                                                  const std::vector<std::string> &op2,
+                                                                  const std::vector<std::string> &op3,
+                                                                  const std::vector<std::string> &op4,
+                                                                  const std::vector<std::string> &op5);
+    /**
+     *
+     * add a hextuple commutator involving seven operators, [[[[[[op0, op1], op2], op3], op4], op5], op6]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     * @param op3: a list of strings defining an operator product
+     * @param op4: a list of strings defining an operator product
+     * @param op5: a list of strings defining an operator product
+     * @param op6: a list of strings defining an operator product
+     *
+     */
+    void add_hextuple_commutator(double factor, const std::vector<std::string> &op0,
+                                                const std::vector<std::string> &op1,
+                                                const std::vector<std::string> &op2,
+                                                const std::vector<std::string> &op3,
+                                                const std::vector<std::string> &op4,
+                                                const std::vector<std::string> &op5,
+                                                const std::vector<std::string> &op6);
+
+    /**
+     *
+     * generate a list of operators resulting from a hextuple commutator involving seven operators, [[[[[[op0, op1], op2], op3], op4], op5], op6]
+     *
+     * @param op0: a list of strings defining an operator product
+     * @param op1: a list of strings defining an operator product
+     * @param op2: a list of strings defining an operator product
+     * @param op3: a list of strings defining an operator product
+     * @param op4: a list of strings defining an operator product
+     * @param op5: a list of strings defining an operator product
+     * @param op6: a list of strings defining an operator product
+     *
+     */
+    std::vector<pq_operator_terms> get_hextuple_commutator_terms(double factor,
+                                                                 const std::vector<std::string> &op0,
+                                                                 const std::vector<std::string> &op1,
+                                                                 const std::vector<std::string> &op2,
+                                                                 const std::vector<std::string> &op3,
+                                                                 const std::vector<std::string> &op4,
+                                                                 const std::vector<std::string> &op5,
+                                                                 const std::vector<std::string> &op6);
 
     /**
      *
@@ -345,26 +617,10 @@ class pq_helper {
 
     /**
      *
-     * get a list of all strings 
+     * get a list of all strings (true vacuum) or fully-contracted strings (fermi vacuum)
      *
      */
     std::vector<std::vector<std::string> > strings() const;
-
-    /**
-     *
-     * get list of fully-contracted strings
-     *
-     */
-    std::vector<std::vector<std::string> > fully_contracted_strings() const;
-
-    /**
-     *
-     * get list of fully-contracted strings, after spin tracing
-     *
-     * @param spin_labels: a map/dictionary mapping non-summed labels onto spins ("a" or "b")
-     */
-    [[deprecated("use pq_helper::block_by_spin(spin_labels) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels);
 
     /**
      *
@@ -375,16 +631,6 @@ class pq_helper {
 
     /**
      *
-     * get list of fully-contracted strings, after assigning ranges to the labels
-     *
-     * @param label_ranges: a map/dictionary mapping non-summed labels onto ranges ("all", "active", or "external")
-     */
-    [[deprecated("use pq_helper::block_by_range(label_ranges) instead")]]
-    std::vector<std::vector<std::string> > fully_contracted_strings_with_ranges(
-            const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
-
-    /**
-     *
      * this function is used to block strings by label ranges
      *
      */
@@ -392,19 +638,29 @@ class pq_helper {
 
     /**
      *
-     * print strings to stdout
+     * get const reference to list of ordered strings
+     * @param bool blocked: if true, return blocked strings
      *
-     * @param string_type: a string specifying which strings to print ("all", "one-body", "two-body", "fully-contracted").
-     *                     on the python side, the default value is "fully-contracted"
      */
-    void print(const std::string &string_type) const;
+    const std::vector< std::shared_ptr<pq_string> > &get_ordered_strings(bool blocked) const {
+        return blocked ? ordered_blocked : ordered;
+    }
 
     /**
      *
-     * the number of threads
+     * serializes the pq_helper object
+     * @param filename: the name of the file to which the pq_helper object is serialized
      *
      */
-    static inline int nthreads = 1;
+    void serialize(const std::string & filename) const;
+
+    /**
+     *
+     * deserializes the pq_helper object
+     * @param filename: the name of the file from which the pq_helper object is deserialized
+     *
+     */
+    void deserialize(const std::string & filename);
 
 private:
 
@@ -486,6 +742,26 @@ private:
      */
     bool find_paired_permutations;
 
+    /** 
+     * 
+     * use the normal-ordered form of the hamiltonian? 
+     * 
+     */
+    bool is_hamiltonian_normal_ordered = false;
+
+    /** 
+     * 
+     * is the cluster operator antihermitian for UCC?
+     * 
+     */
+    bool is_unitary_cc = false;
+
+    /** 
+     * 
+     * maximum excitation level for "N" type operators in the Bernoulli expansion for UCC
+     * 
+     */
+    int bernoulli_excitation_level = 2;
 
 };
 

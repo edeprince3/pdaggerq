@@ -1,0 +1,194 @@
+#!/usr/bin/env python
+"""
+A full working spin-orbital CCSD code generated with pdaggerq
+
+If you want to run the example here you should install pyscf openfermion and openfermion-pyscf
+The actual CCSD code (ccsd_energy, singles_residual, doubles_res, kernel)
+do not depend on those packages but you gotta get integrals frome somehwere.
+
+We also check the code by using pyscfs functionality for generating spin-orbital
+t-amplitudes from RCCSD.  the main() function is fairly straightforward.
+"""
+
+# set allow numpy built with MKL to consume more threads for tensordot
+import os
+os.environ["MKL_NUM_THREADS"] = "{}".format(os.cpu_count() - 1)
+
+import numpy as np
+from numpy import einsum
+
+
+def ccsd_energy(t1, t2, f, g, o, v):
+    """
+    < 0 | e(-T) H e(T) | 0> :
+
+    :param f:
+    :param g:
+    :param t1:
+    :param t2:
+    :param o:
+    :param v:
+    :return:
+    """
+    #	  1.0000 f(i,i)
+    energy = 1.0 * einsum('ii', f[o, o])
+
+    #	  1.0000 f(i,a)*t1(a,i)
+    energy += 1.0 * einsum('ia,ai', f[o, v], t1)
+
+    #	 -0.5000 <j,i||j,i>
+    energy += -0.5 * einsum('jiji', g[o, o, o, o])
+
+    #	  0.2500 <j,i||a,b>*t2(a,b,j,i)
+    energy += 0.25 * einsum('jiab,abji', g[o, o, v, v], t2)
+
+    #	 -0.5000 <j,i||a,b>*t1(a,i)*t1(b,j)
+    energy += -0.5 * einsum('jiab,ai,bj', g[o, o, v, v], t1, t1,
+                            optimize=['einsum_path', (0, 1), (0, 1)])
+
+    return energy
+
+def integral_maps(f, eri, o, v):
+    eri_map = {}
+
+    eri_map["oooo"] = eri[o,o,o,o]
+    eri_map["oovo"] = eri[o,o,v,o]
+    eri_map["oovv"] = eri[o,o,v,v]
+    eri_map["vooo"] = eri[v,o,o,o]
+    eri_map["vovo"] = eri[v,o,v,o]
+    eri_map["vovv"] = eri[v,o,v,v]
+    eri_map["vvoo"] = eri[v,v,o,o]
+    eri_map["vvvo"] = eri[v,v,v,o]
+    eri_map["vvvv"] = eri[v,v,v,v]
+
+    f_map = {}
+    f_map["oo"] = f[o,o]
+    f_map["ov"] = f[o,v]
+    f_map["vo"] = f[v,o]
+    f_map["vv"] = f[v,v]
+
+    return f_map, eri_map
+
+def residuals(t1, t2, f, eri):
+    tmps_ = {}
+
+    # INSERTED CODE
+
+    return rt1, rt2
+
+def kernel(t1, t2, fock, g, o, v, e_ai, e_abij, max_iter=100, stopping_eps=1.0E-12,
+           diis_size=None, diis_start_cycle=4):
+
+    # initialize diis if diis_size is not None
+    # else normal scf iterate
+    if diis_size is not None:
+        from diis import DIIS
+        diis_update = DIIS(diis_size, start_iter=diis_start_cycle)
+        t1_dim = t1.size
+        old_vec = np.hstack((t1.flatten(), t2.flatten()))
+
+    fock_e_ai = np.reciprocal(e_ai)
+    fock_e_abij = np.reciprocal(e_abij)
+    old_energy = ccsd_energy(t1, t2, fock, g, o, v)
+    f_map, g_map = integral_maps(fock, g, o, v)
+
+    for idx in range(max_iter):
+
+        singles_res, doubles_res = residuals(t1, t2, f_map, g_map)
+
+        singles_res += fock_e_ai * t1
+        doubles_res += fock_e_abij * t2
+
+        new_singles = singles_res * e_ai
+        new_doubles = doubles_res * e_abij
+
+        # diis update
+        if diis_size is not None:
+            vectorized_iterate = np.hstack(
+                (new_singles.flatten(), new_doubles.flatten()))
+            error_vec = old_vec - vectorized_iterate
+            new_vectorized_iterate = diis_update.compute_new_vec(vectorized_iterate,
+                                                                 error_vec)
+            new_singles = new_vectorized_iterate[:t1_dim].reshape(t1.shape)
+            new_doubles = new_vectorized_iterate[t1_dim:].reshape(t2.shape)
+            old_vec = new_vectorized_iterate
+
+        current_energy = ccsd_energy(new_singles, new_doubles, fock, g, o, v)
+        delta_e = np.abs(old_energy - current_energy)
+
+        if delta_e < stopping_eps:
+            return new_singles, new_doubles
+        else:
+            t1 = new_singles
+            t2 = new_doubles
+            old_energy = current_energy
+            print("\tIteration {: 5d}\t{: 5.15f}\t{: 5.15f}\t{: 5.15f}\t{: 5.15f}".format(idx, old_energy, delta_e, np.linalg.norm(singles_res), np.linalg.norm(doubles_res)))
+    else:
+        print("Did not converge")
+        return new_singles, new_doubles
+
+
+def main():
+    from itertools import product
+    import pyscf
+    import openfermion as of
+    from openfermion.chem.molecular_data import spinorb_from_spatial
+    from openfermionpyscf import run_pyscf
+    from pyscf.cc.addons import spatial2spin
+    import numpy as np
+
+
+    basis = 'cc-pvdz'
+    mol = pyscf.M(
+        atom='H 0 0 0; B 0 0 {}'.format(1.6),
+        basis=basis)
+
+    mf = mol.RHF().run()
+    mycc = mf.CCSD().run()
+    print('CCSD correlation energy', mycc.e_corr)
+
+    molecule = of.MolecularData(geometry=[['H', (0, 0, 0)], ['B', (0, 0, 1.6)]],
+                                basis=basis, charge=0, multiplicity=1)
+    molecule = run_pyscf(molecule, run_ccsd=True)
+    oei, tei = molecule.get_integrals()
+    norbs = int(mf.mo_coeff.shape[1])
+    occ = mf.mo_occ
+    nele = int(sum(occ))
+    nocc = nele // 2
+    assert np.allclose(np.transpose(mycc.t2, [1, 0, 3, 2]), mycc.t2)
+
+    soei, stei = spinorb_from_spatial(oei, tei)
+    astei = np.einsum('ijkl', stei) - np.einsum('ijlk', stei)
+
+    # put in physics notation. OpenFermion stores <12|2'1'>
+    gtei = astei.transpose(0, 1, 3, 2)
+
+    eps = np.kron(molecule.orbital_energies, np.ones(2))
+    n = np.newaxis
+    o = slice(None, 2 * nocc)
+    v = slice(2 * nocc, None)
+
+    e_abij = 1 / (-eps[v, n, n, n] - eps[n, v, n, n] + eps[n, n, o, n] + eps[
+        n, n, n, o])
+    e_ai = 1 / (-eps[v, n] + eps[n, o])
+
+    fock = soei + np.einsum('piiq->pq', astei[:, o, o, :])
+    hf_energy = 0.5 * np.einsum('ii', (fock + soei)[o, o])
+    hf_energy_test = 1.0 * einsum('ii', fock[o, o]) -0.5 * einsum('ijij', gtei[o, o, o, o])
+    print(hf_energy_test, hf_energy)
+    assert np.isclose(hf_energy + molecule.nuclear_repulsion, molecule.hf_energy)
+
+    g = gtei
+    nsvirt = 2 * (norbs - nocc)
+    nsocc = 2 * nocc
+    t1f, t2f = kernel(np.zeros((nsvirt, nsocc)), np.zeros((nsvirt, nsvirt, nsocc, nsocc)), fock, g, o, v, e_ai, e_abij,
+                      diis_size=8, diis_start_cycle=4)
+    e_corr = ccsd_energy(t1f, t2f, fock, g, o, v) - hf_energy
+
+    assert np.isclose(e_corr, mycc.e_corr)
+
+
+
+
+if __name__ == "__main__":
+    main()

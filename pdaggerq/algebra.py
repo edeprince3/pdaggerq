@@ -23,42 +23,18 @@ import numpy as np
 # This imports fake values of all these quantities (zero tensors) so
 # we can build the optimal tensor contraction orderings
 # NOTE: THESE ARE PROTECTED VARIABLE NAMES FOR THIS MODULE
-from pdaggerq.config import (o, v, h, f, g, t1, t2, t3, t4, l1, l2, l3, l4, r1,
-                             r2, r3, r4, kd, g_aaaa, g_bbbb, g_abab, f_aa, f_bb,
-                             t1_aa, t1_bb, t2_aaaa, t2_abab, t2_bbbb, h_aa, h_bb,
-                             t3_aaaaaa, 
-                             t3_aabaab, 
-                             t3_abbabb, 
-                             t3_bbbbbb, 
-                             r2_aaaa, 
-                             r2_abab, 
-                             r2_bbbb, 
-                             r3_aaaaaa, 
-                             r3_aabaab, 
-                             r3_abbabb, 
-                             r3_bbbbbb, 
-                             l2_aaaa, 
-                             l2_abab, 
-                             l2_bbbb, 
-                             l3_aaaaaa, 
-                             l3_aabaab, 
-                             l3_abbabb, 
-                             l3_bbbbbb,
-                             t4_aaaaaaaa,
-                             t4_aaabaaab,
-                             t4_aabbaabb,
-                             t4_abbbabbb,
-                             t4_bbbbbbbb,
-                             r4_aaaaaaaa,
-                             r4_aaabaaab,
-                             r4_aabbaabb,
-                             r4_abbbabbb,
-                             r4_bbbbbbbb,
-                             l4_aaaaaaaa,
-                             l4_aaabaaab,
-                             l4_aabbaabb,
-                             l4_abbbabbb,
-                             l4_bbbbbbbb, r0, l0)
+from pdaggerq.config import *
+
+# these are integrals, RDMs, etc. that require explicit slicing in einsum
+tensors_with_slices = ['h', 'g', 'f', 'kd', 'd1', 'd2', 'd3', 'd4', 'dipole']
+
+# these are amplitudes, having fixed shape and do not require explicit slicing
+tensors_amps  = ['w0']
+tensors_amps += ['t'+str(i) for i in range(0,5)]
+tensors_amps += ['r'+str(i) for i in range(0,5)]
+tensors_amps += ['l'+str(i) for i in range(0,5)]
+tensors_amps += ['x'+str(i) for i in range(0,5)]
+tensors_amps += ['y'+str(i) for i in range(0,5)]
 
 class Index:
 
@@ -96,19 +72,30 @@ class BaseTerm:
 
     :param indices: Tuple[Index, ...], tuple of indices for the tensor
     :param str name: name of the tensor
-    :param str spin: spin sector associated with tensor. if spin orbital than leave as
+    :param str boson: boson (in cavity qed, photon) number in the format of `_np` where `n`
+                      is an integer. If purely fermionic/electronic then leave as an empty
+                      string ``. Always start string with an underscore unless empty.
+    :param str spin: spin sector associated with tensor. If spin orbital then leave as
                      an empty string ``.  the alpha-alpha block is `_aa`, beta-beta block
                      is `_bb`. etc.  Always start string with an underscore unless empty.
     """
 
-    def __init__(self, *, indices: Tuple[Index, ...], name: str, spin: str):
-        self.spin = spin
+    def __init__(self, *, indices: Tuple[Index, ...], name: str, boson: str, spin: str, active: str):
         self.name = name
+        self.boson = boson
+        self.spin = spin
+        self.active = active
         self.indices = indices
+        self.varname = name+boson+spin+active
 
     def __repr__(self):
-        return "{}".format(self.name) + "{}".format(self.spin) + "(" + ",".join(
-            repr(xx) for xx in self.indices) + ")"
+        tmp = ("{}".format(self.name) +
+               "{}".format(self.boson) +
+               "{}".format(self.spin) +
+               "{}".format(self.active))
+        if len(self.indices) > 0:
+            tmp += "(" + ",".join(repr(xx) for xx in self.indices) + ")"
+        return tmp
 
     def __str__(self):
         return self.__repr__()
@@ -140,6 +127,38 @@ class BaseTerm:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def createArray(self):
+        # slicing of non-amplitude tensors is done at einsum_string(), not here
+        idx_all = True if self.name in tensors_with_slices else False
+        arrayDims = []
+        for xx,index in enumerate(self.indices):
+            # TODO: add case where active *AND* spin can be toggled on together
+            if (self.active != '') and (self.spin == ''):
+                if idx_all:
+                    arrayDims.append(active_dims["all"][self.active[xx+1]])
+                else:
+                    arrayDims.append(active_dims[index.support][self.active[xx+1]])
+            elif (self.spin != '') and (self.active == ''):
+                if idx_all:
+                    arrayDims.append(spin_traced_dims["all"][self.spin[xx+1]])
+                else:
+                    arrayDims.append(spin_traced_dims[index.support][self.spin[xx+1]])
+            else:
+                if idx_all:
+                    arrayDims.append(spin_orbital_dims["all"])
+                else:
+                    arrayDims.append(spin_orbital_dims[index.support])
+
+        globals()[self.varname] = np.zeros(tuple(arrayDims))
+        return
+
+    def cleanArray(self):
+        if self.varname in globals():
+            del globals()[self.varname]
+        else:
+            pass
+        return
 
 
 class TensorTermAction:
@@ -182,13 +201,14 @@ class TensorTermAction:
 
 class TensorTerm:
     """
-    collection  of BaseTerms that can be translated to a einsnum contraction
+    collection  of BaseTerms that can be translated to a einsum contraction
     """
 
     def __init__(self, base_terms: Tuple[BaseTerm, ...], coefficient=1.0,
                  permutation_ops=None):
         self.base_terms = base_terms
         self.coefficient = coefficient
+        self.coefficient_minprec = self._minimum_precision(coefficient)
         if permutation_ops is not None:
             if len(permutation_ops) == 0:
                 self.actions = None
@@ -199,10 +219,10 @@ class TensorTerm:
 
     def __repr__(self):
         if self.actions is None:
-            return "{: 5.4f} ".format(self.coefficient) + "*".join(
+            return f"{self.coefficient_minprec} " + "*".join(
                 xx.__repr__() for xx in self.base_terms)
         else:
-            return "{: 5.4f} ".format(self.coefficient) + "*".join(
+            return f"{self.coefficient_minprec} " + "*".join(
                 xx.__repr__() for xx in self.actions) + "*".join(
                 xx.__repr__() for xx in self.base_terms)
 
@@ -216,6 +236,71 @@ class TensorTerm:
 
     def __rmul__(self, other):
         return self.__mul__(other)
+
+    def _minimum_precision(self, coeff):
+        """
+        Python translation of the pq_string.minimum_precision() method.
+        Takes a coefficient and print the digits smartly (e.g. '0.2500000' -> '0.25', '0.33333333' -> keep)
+
+        :param coeff: string that represent a float with many digits
+
+        :return coeff_min: string that represent a float with minimum precision
+        """
+        # check if factor is actually numerically 0:
+        epsilon = 1.0e-10
+        fabs = abs(coeff)
+        if abs(fabs-epsilon) <= epsilon:
+            return '0.0'
+
+        # unprocess (possibly) processed coefficient float
+        from fractions import Fraction
+        x = Fraction(coeff).limit_denominator(100)
+        coeff = x.numerator/x.denominator
+
+        # initialize variables
+        precision = 0
+        decimal_point_encountered = False
+        is_repeated = False
+        last_digit = ''
+        repeat_count = 0
+
+        for digit in f"{coeff: .30f}":
+            # check if digit is repeated
+            if digit == last_digit:
+                is_repeated = True
+
+            last_digit = digit
+
+            # are we at a decimal point?
+            if digit == '.':
+               decimal_point_encountered = True
+
+            elif decimal_point_encountered and is_repeated:
+                # keep at most 12 repeating digits
+                repeat_count += 1
+                if repeat_count >= 12:
+                    break
+
+            # reset count
+            if not is_repeated:
+                repeat_count = 0
+
+            # increment precision
+            if decimal_point_encountered:
+                precision += 1
+
+        # if the last repeating digit is zero, we can reduce the precision
+        if precision >= repeat_count and last_digit == '0':
+            precision -= repeat_count
+
+        # we should always have at least two digits
+        if precision < 2:
+            precision = 2
+
+        # print coeff with computed precision using nested {}, what could be more pythonic??
+        coeff_minprec = f"{coeff: .{precision}f}"
+
+        return coeff_minprec
 
     def einsum_string(self, update_val,
                       output_variables=None,
@@ -233,55 +318,75 @@ class TensorTerm:
             occ_char = 'o'
         if virt_char is None:
             virt_char = 'v'  # v = slice(nocc, None)
-
         for bt in self.base_terms:
-            tensor_index_ranges = []
+            tensor_index_ranges = [] # 'o', 'v', or ':'
+            # parse indices and process them
             string_indices = [xx.name for xx in bt.indices]
-            for idx_type in string_indices:
-                if idx_type in occupied:
-                    if bt.name in ['h', 'g', 'f', 'kd']:
-                        tensor_index_ranges.append(occ_char)
+            for idx_loc,idx_type in enumerate(string_indices):
+                if bt.name in tensors_with_slices:
+                    # Parse slice type (o or v or :)
+                    idx_str = ''
+                    if idx_type in occupied:
+                        idx_str += occ_char
+                    elif idx_type in virtual:
+                        idx_str += virt_char
                     else:
-                        tensor_index_ranges.append(':')
-                    if output_variables is not None:
-                        if idx_type in output_variables:
-                            tensor_out_idx.append(idx_type)
-                elif idx_type in virtual:  # virtual
-                    if bt.name in ['h', 'g', 'f', 'kd']:
-                        tensor_index_ranges.append(virt_char)
-                    else:
-                        tensor_index_ranges.append(':')
-                    if output_variables is not None:
-                        if idx_type in output_variables:
-                            tensor_out_idx.append(idx_type)
-                else:  # route to output with ->
-                    tensor_index_ranges.append(idx_type)
+                        idx_str += ':'
 
-            if bt.name in ['t1', 't2', 't3', 'l2', 'l1', 'r1', 'r2', 'r0', 'l0']:
-                einsum_tensors.append(bt.name + bt.spin)
+                    # add spin label (a/b) to o/v slices, but not : slice
+                    if bt.spin != '' and idx_str!= ':':
+                        idx_str += bt.spin[idx_loc+1]
+
+                    # add active-space label (0/1) to o/v slices, but not : slice
+                    if bt.active != '' and idx_str!= ':':
+                        idx_str += bt.active[idx_loc+1]
+
+                    tensor_index_ranges.append(idx_str)
+
+                # add current index to einsum output indices
+                if output_variables is not None:
+                    if idx_type in output_variables:
+                        tensor_out_idx.append(idx_type)
+
+            if bt.name in tensors_amps:
+                # T, L, and R amplitudes have fixed shape even with spin, so just append their content
+                einsum_tensors.append(bt.name + bt.boson + bt.spin + bt.active)
             else:
+                # append the appropriate slice for other tensors (e.g. h[o,o] or d2[:,v,:,v])
                 einsum_tensors.append(
-                    bt.name + bt.spin + "[" + ", ".join(tensor_index_ranges) + "]")
+                    bt.name + bt.boson + bt.spin + bt.active + "[" + ", ".join(tensor_index_ranges) + "]")
+
+            # this is a list of indices for einsum inputs (e.g., 'ijef', 'efab')
             einsum_strings.append("".join(string_indices))
+
         if tensor_out_idx:
             out_tensor_ordered = list(filter(None, [
                 xx if xx in tensor_out_idx else None for xx in
                 output_variables]))
             einsum_out_strings += "->{}".format("".join(out_tensor_ordered))
 
-        teinsum_string = "= {: 5.15f} * einsum(\'".format(self.coefficient)
+        teinsum_string = f"= {self.coefficient_minprec} * einsum(\'"
 
         if len(einsum_strings) > 2 and optimize:
-            einsum_path_string = "np.einsum_path(\'".format(self.coefficient)
+            # construct arrays on the fly
+            for bt in self.base_terms:
+                bt.createArray()
+            einsum_path_string = "np.einsum_path(\'"
             einsum_path_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
                 einsum_tensors) + ", optimize=\'optimal\')"
+            # TODO: this still introduce a bug when optimizing expressions with r1/l1 in it
+            # Alternatively use "optimize=True" everywhere, but it will be recomputing the
+            # optimal path in every iteration, making it more expensive in the long run.
             einsum_optimal_path = eval(einsum_path_string)
             # print(einsum_optimal_path[1])
             teinsum_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
                 einsum_tensors) + ", optimize={})".format(
                 einsum_optimal_path[0])
+            # clean up arrays
+            for bt in self.base_terms:
+                bt.cleanArray()
         else:
             teinsum_string += ",".join(
                 einsum_strings) + einsum_out_strings + "\', " + ", ".join(
@@ -343,190 +448,63 @@ class TensorTerm:
             teinsum_string += " + ".join(update_val_line)
         return teinsum_string
 
-class Right0amps(BaseTerm):
+class Rank0Amps(BaseTerm):
 
-    def __init__(self, *, indices=(), name='r0', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=(), name='t0', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
-    def __repr__(self):
-        return "r0"
+class Rank1Amps(BaseTerm):
 
-class Right1amps(BaseTerm):
+    def __init__(self, *, indices=(), name='t1', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='r1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+class Rank2Amps(BaseTerm):
 
-    def __repr__(self):
-        return "r1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
+    def __init__(self, *, indices=(), name='t2', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
-class Right2amps(BaseTerm):
+class Rank3Amps(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='r2', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=(), name='t3', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
-    def __repr__(self):
-        return "r2{}({},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                        self.indices[2], self.indices[3])
+class Rank4Amps(BaseTerm):
 
-class Right3amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='r3', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "r3{}({},{},{},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                              self.indices[2], self.indices[3],
-                                              self.indices[4], self.indices[5])
-
-class Right4amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='r4', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "r4{}({},{},{},{},{},{},{},{})".format(self.spin, self.indices[0],
-                                                    self.indices[1],
-                                                    self.indices[2],
-                                                    self.indices[3],
-                                                    self.indices[4],
-                                                    self.indices[5],
-                                                    self.indices[6],
-                                                    self.indices[7])
-class Left0amps(BaseTerm):
-
-    def __init__(self, *, indices=(), name='l0', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "l0"
-
-
-class Left1amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "l1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
-class Left1amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='l1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "l1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
-
-class Left2amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='l2', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "l2{}({},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                        self.indices[2], self.indices[3])
-
-class Left3amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='l3', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "l3{}({},{},{},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                              self.indices[2], self.indices[3],
-                                              self.indices[4], self.indices[5])
-
-
-class Left4amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='l4', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "l4{}({},{},{},{},{},{},{},{})".format(self.spin, self.indices[0],
-                                                    self.indices[1],
-                                                    self.indices[2],
-                                                    self.indices[3],
-                                                    self.indices[4],
-                                                    self.indices[5],
-                                                    self.indices[6],
-                                                    self.indices[7]
-                                                    )
+    def __init__(self, *, indices=(), name='t4', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class D1(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='d1'):
-        super().__init__(indices=indices, name=name)
+    def __init__(self, *, indices=Tuple[Index, ...], name='d1', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
-    def __repr__(self):
-        return "d1({},{})".format(self.indices[0], self.indices[1])
+class D2(BaseTerm):
 
+    def __init__(self, *, indices=Tuple[Index, ...], name='d2', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
-class T1amps(BaseTerm):
+class D3(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='t1', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='d3', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
-    def __repr__(self):
-        return "t1{}({},{})".format(self.spin, self.indices[0], self.indices[1])
+class D4(BaseTerm):
 
+    def __init__(self, *, indices=Tuple[Index, ...], name='d4', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
-class T2amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='t2', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "t2{}({},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                        self.indices[2], self.indices[3])
-
-class T3amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='t3', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "t3{}({},{},{},{},{},{})".format(self.spin, self.indices[0], self.indices[1],
-                                              self.indices[2], self.indices[3],
-                                              self.indices[4], self.indices[5])
-
-class T4amps(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='t4', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "t4{}({},{},{},{},{},{},{},{})".format(self.spin, self.indices[0],
-                                                    self.indices[1],
-                                                    self.indices[2],
-                                                    self.indices[3],
-                                                    self.indices[4],
-                                                    self.indices[5],
-                                                    self.indices[6],
-                                                    self.indices[7])
 class OneBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='h', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "h{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
-
-class FockMat(BaseTerm):
-
-    def __init__(self, *, indices=Tuple[Index, ...], name='f', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "f{}({},{})".format(self.spin, self.indices[0], self.indices[1])
-
+    def __init__(self, *, indices=Tuple[Index, ...], name='h', spin='', active='', boson=''):
+        if name=='d+' or name=='d-':
+            super().__init__(indices=indices, name='dipole', spin=spin, active=active, boson=boson)
+        else:
+            super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
 class TwoBody(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='g', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='g', spin='', active='', boson=''):
+        super().__init__(indices=indices, name=name, spin=spin, active=active, boson=boson)
 
     def __repr__(self):
         return "<{},{}||{},{}>{}".format(self.indices[0], self.indices[1],
@@ -534,8 +512,8 @@ class TwoBody(BaseTerm):
 
 class Delta(BaseTerm):
 
-    def __init__(self, *, indices=Tuple[Index, ...], name='kd', spin=''):
-        super().__init__(indices=indices, name=name, spin=spin)
+    def __init__(self, *, indices=Tuple[Index, ...], name='', spin='', active='', boson=''):
+        super().__init__(indices=indices, name='kd', spin=spin, active=active, boson=boson)
 
     def __repr__(self):
         return "d({},{})".format(self.indices[0], self.indices[1])
@@ -545,29 +523,17 @@ class ContractionPermuter(TensorTermAction):
     def __init__(self, *, spin='', indices=Tuple[Index, ...], name='P'):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "P({},{})".format(self.indices[0], self.indices[1])
-
 class ContractionPairPermuter6(TensorTermAction):
 
     def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP6'):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "PP6({},{},{},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3], self.indices[4], self.indices[5])
 
 class ContractionPairPermuter2(TensorTermAction):
 
     def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP2'):
         super().__init__(indices=indices, name=name, spin=spin)
 
-    def __repr__(self):
-        return "PP2({},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3])
-
 class ContractionPairPermuter3(TensorTermAction):
 
     def __init__(self, *, spin='', indices=Tuple[Index, ...], name='PP3'):
         super().__init__(indices=indices, name=name, spin=spin)
-
-    def __repr__(self):
-        return "PP3({},{},{},{},{},{})".format(self.indices[0], self.indices[1], self.indices[2], self.indices[3], self.indices[4], self.indices[5])

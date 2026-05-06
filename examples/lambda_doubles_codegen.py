@@ -36,7 +36,7 @@ def main():
     pq.simplify()
 
     # grab list of fully-contracted strings, then print
-    doubles_residual_terms = pq.fully_contracted_strings()
+    doubles_residual_terms = pq.strings()
     for my_term in doubles_residual_terms:
         print(my_term)
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)

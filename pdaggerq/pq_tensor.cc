@@ -23,6 +23,8 @@
 #include"pq_tensor.h"
 
 #include<string>
+#include <iostream>
+#include <fstream>
 
 namespace pdaggerq {
 
@@ -30,7 +32,6 @@ namespace pdaggerq {
 void amplitudes::sort() {
 
     numerical_labels.clear();
-    numerical_labels.reserve(labels.size());
 
     // convert labels to numerical labels
     for (std::string & label : labels) {
@@ -42,6 +43,10 @@ void amplitudes::sort() {
         }
         numerical_labels.push_back(numerical_label);
     }
+
+    // add number of photons to the numerical labels
+    char char_n_ph = '0' + n_ph;
+    numerical_labels.push_back((int)char_n_ph);
 
     permutations = 0;
 
@@ -72,7 +77,6 @@ void amplitudes::sort() {
             break;
         }
     }
-
 }
 
 /// copy amplitudes
@@ -82,9 +86,11 @@ amplitudes& amplitudes::operator=(const amplitudes& rhs) {
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
     label_ranges = rhs.label_ranges;
+    op_portions = rhs.op_portions;
 
     n_create = rhs.n_create;
     n_annihilate = rhs.n_annihilate;
+    n_ph = rhs.n_ph;
 
     return *this;
 }
@@ -133,14 +139,16 @@ std::string amplitudes::to_string(char symbol) const {
         order = n_annihilate;
     }
 
+    val = symbol_s + std::to_string(order);
+
+    if ( n_ph > 0 ) {
+        val += "_" + std::to_string(n_ph) + "p";
+    }
+
     if ( !labels.empty() ) {
 
+        val += "(";
         size_t size  = labels.size();
-        //size_t order = labels.size() / 2;
-        //if ( 2*order != size ) {
-        //    order++;
-        //}
-        val = symbol_s + std::to_string(order) + "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
         }
@@ -148,9 +156,17 @@ std::string amplitudes::to_string(char symbol) const {
 
     }
 
-    if ( order == 0 ) {
-        val = symbol_s + "0";
+    // bernoulli
+/*
+    if ( !op_portions.empty() ) {
+        val += "{";
+        size_t size  = op_portions.size();
+        for (int j = 0; j < op_portions.size()-1; j++) {
+            val += op_portions[j] + ",";
+        }
+        val += op_portions[size-1] + "}";
     }
+*/
 
     return val;
 }
@@ -162,37 +178,38 @@ std::string amplitudes::to_string_with_label_ranges(char symbol) {
 
     std::string symbol_s(1, symbol);
 
-    std::string range = "_";
-    for (const std::string & label_range : label_ranges) {
-        if ( label_range == "act" ) {
-            range += "1";
-        }else {
-            range += "0";
-        }
-    }
-
     size_t order = n_create;
     if ( n_annihilate > n_create ) {
         order = n_annihilate;
     }
 
+    val = symbol_s + std::to_string(order);
+
+    if ( n_ph > 0 ) {
+        val += "_" + std::to_string(n_ph) + "p";
+    }
+
+    if ( !label_ranges.empty() ) {
+        std::string range = "_";
+        for (const std::string & label_range : label_ranges) {
+            if ( label_range == "act" ) {
+                range += "1";
+            }else {
+                range += "0";
+            }
+        }
+        val += range;
+    }
+
     if ( !labels.empty() ) {
 
         size_t size  = labels.size();
-        //size_t order = labels.size() / 2;
-        //if ( 2*order != size ) {
-        //    order++;
-        //}
-        val = symbol_s + std::to_string(order) + range + "(";
+        val += "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
         }
         val += labels[size-1] + ")";
 
-    }
-
-    if ( order == 0 ) {
-        val = symbol_s + "0";
     }
 
     return val;
@@ -205,33 +222,32 @@ std::string amplitudes::to_string_with_spin(char symbol) const {
 
     std::string symbol_s(1, symbol);
 
-    std::string spin = "_";
-    for (const std::string & spin_label : spin_labels) {
-        spin += spin_label;
-    }
-
     size_t order = n_create;
     if ( n_annihilate > n_create ) {
         order = n_annihilate;
     }
 
-    if ( !labels.empty() ) {
+    val = symbol_s + std::to_string(order);
 
+    if ( n_ph > 0 ) {
+        val += "_" + std::to_string(n_ph) + "p";
+    }
+
+    if ( !spin_labels.empty() ) {
+        std::string spin = "_";
+        for (const std::string & spin_label : spin_labels) {
+            spin += spin_label;
+        }
+        val += spin;
+    }
+
+    if ( !labels.empty() ) {
         size_t size  = labels.size();
-        //size_t order = labels.size() / 2;
-        //if ( 2*order != size ) {
-        //    order++;
-        //}
-        val = symbol_s + std::to_string(order) + spin + "(";
+        val += "(";
         for (int j = 0; j < size-1; j++) {
             val += labels[j] + ",";
         }
         val += labels[size-1] + ")";
-
-    }
-
-    if ( order == 0 ) {
-        val = symbol_s + "0";
     }
 
     return val;
@@ -282,6 +298,7 @@ integrals& integrals::operator=(const integrals& rhs) {
     labels = rhs.labels;
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
+    op_portions = rhs.op_portions;
 
     return *this;
 }
@@ -338,6 +355,13 @@ void integrals::print(const std::string &symbol) const {
         printf(",");
         printf("%s", labels[1].c_str());
         printf(")");
+        printf(" ");
+    }else if ( symbol == "occ_repulsion") {
+        printf("<?");
+        printf("%s", labels[0].c_str());
+        printf("||?");
+        printf("%s", labels[1].c_str());
+        printf(">");
         printf(" ");
     }else {
         printf("\n");
@@ -397,12 +421,30 @@ std::string integrals::to_string(const std::string &symbol) const {
             + ","
             + labels[1]
             + ")";
+    }else if ( symbol == "occ_repulsion") {
+        val = "<?"
+            + labels[0]
+            + "||?"
+            + labels[1]
+            + ">";
     }else {
         printf("\n");
         printf("    unknown integral type: %s\n", symbol.c_str());
         printf("\n");
         exit(1);
     }
+
+    // bernoulli
+/*
+    if ( !op_portions.empty() ) {
+        val += "{";
+        size_t size  = op_portions.size();
+        for (int j = 0; j < op_portions.size()-1; j++) {
+            val += op_portions[j] + ",";
+        }
+        val += op_portions[size-1] + "}";
+    }
+*/
 
     return val;
 }
@@ -529,7 +571,6 @@ std::string integrals::to_string_with_spin(const std::string &symbol) const {
     return val;
 }
 
-
 /// sort deltas labels
 void delta_functions::sort() {
 
@@ -546,6 +587,28 @@ void delta_functions::sort() {
         numerical_labels.push_back(numerical_label);
     }
 
+    // sort labels. don't worry about permutations
+    for (size_t step = 1; step < numerical_labels.size(); step++) {
+        
+        bool swapped = false;
+        for (size_t i = 0; i < numerical_labels.size() - step; i++) {
+    
+            // compare elements
+            if (numerical_labels[i] > numerical_labels[i + 1]) {
+    
+              // swap
+              int temp = numerical_labels[i];
+              numerical_labels[i] = numerical_labels[i + 1];
+              numerical_labels[i + 1] = temp;
+
+              swapped = true;
+
+            }
+        }
+        if ( !swapped ) {
+            break;
+        }
+    }
     permutations = 0;
 }
 
@@ -555,6 +618,7 @@ delta_functions& delta_functions::operator=(const delta_functions& rhs) {
     labels = rhs.labels;
     numerical_labels = rhs.numerical_labels;
     spin_labels = rhs.spin_labels;
+    op_portions = rhs.op_portions;
 
     return *this;
 }

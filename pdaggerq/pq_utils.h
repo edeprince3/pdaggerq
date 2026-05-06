@@ -56,9 +56,6 @@ int index_in_amplitudes(const std::string &idx, const std::vector<amplitudes> &a
 /// how many times does an index appear in operators (symbol)?
 int index_in_operators(const std::string &idx, const std::vector<std::string> &ops);
 
-/// how many times does an index appear amplitudes, deltas, and integrals?
-int index_in_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx);
-
 /// replace one label with another (in delta functions)
 void replace_index_in_deltas(const std::string &old_idx, const std::string &new_idx, std::vector<delta_functions> &deltas);
 
@@ -79,16 +76,6 @@ void swap_two_labels(std::shared_ptr<pq_string> &in, const std::string &label1, 
 
 /// compare two strings
 bool compare_strings(const std::shared_ptr<pq_string> &ordered_1, const std::shared_ptr<pq_string> &ordered_2, int & n_permute);
-
-/// compare two lists of amplitudes
-bool compare_amplitudes( const std::vector<amplitudes> &amps1,
-                         const std::vector<amplitudes> &amps2,
-                         int & n_permute );
-
-/// compare two lists of integrals
-bool compare_integrals( const std::vector<integrals> &ints1,
-                        const std::vector<integrals> &ints2,
-                        int & n_permute );
 
 // consolidate terms that differ may differ by permutations of summed labels
 void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> > &ordered,
@@ -137,9 +124,6 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 /// cancel terms where appropriate
 void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations);
 
-/// reorder t amplitudes as t1, t2, t3, t4
-void reorder_t_amplitudes(std::shared_ptr<pq_string> &in);
-
 /// re-classify fluctuation potential terms
 void reclassify_integrals(std::shared_ptr<pq_string> &in);
 
@@ -150,10 +134,10 @@ void gobble_deltas(std::shared_ptr<pq_string> &in);
 void use_conventional_labels(std::shared_ptr<pq_string> &in);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
+void add_new_string_true_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count);
+void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops);

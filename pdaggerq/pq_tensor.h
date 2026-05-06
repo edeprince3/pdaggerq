@@ -25,6 +25,8 @@
 
 #include<vector>
 #include<string>
+#include <iostream>
+#include <fstream>
 
 namespace pdaggerq {
 
@@ -46,12 +48,6 @@ class tensor {
      */
     ~tensor() = default;
 
-    //TODO:
-    // The creation and destruction of the std::vector objects are a performance bottleneck (32% of runtime for ccsdt).
-    // This is because the std::vector objects are created and destroyed many times during the execution.
-    // These objects should be replaced with stack-allocated arrays like std::array, rather than heap-allocated arrays.
-    // This would require a significant refactoring of the code base, however.
-
     /**
      *
      * human readable tensor labels
@@ -72,6 +68,20 @@ class tensor {
      *
      */
     std::vector<std::string> spin_labels;
+
+    /**
+     *
+     * ranges that labels span ("act", "ext")
+     *
+     */
+    std::vector<std::string> label_ranges;
+
+    /**
+     *
+     * operator portions, e.g., {"A", "N", "R", ...}, "A" = "N" + "R" (used for Bernoulli expansion)
+     *
+     */
+    std::vector<std::string> op_portions;
 
     /**
      *
@@ -169,10 +179,19 @@ class tensor {
 
     /**
      *
-     * ranges that labels span ("act", "ext")
+     * serialize tensor information to a file
      *
+     * @param buffer: the file buffer
      */
-    std::vector<std::string> label_ranges;
+    virtual void serialize(std::ofstream &buffer) const;
+
+    /**
+     *
+     * deserialize tensor information from a file
+     *
+     * @param buffer: the file buffer
+     */
+    virtual void deserialize(std::ifstream &buffer);
 
 };
 
@@ -199,7 +218,7 @@ class amplitudes: public tensor {
      * sort numerical amplitudes labels, keep track of permutations, assuming there is permutational symmetry
      *
      */
-    void sort();
+    void sort() override;
 
     /**
      *
@@ -216,7 +235,7 @@ class amplitudes: public tensor {
      * @param symbol: the amplitudes type
      */
     void print(char symbol) const;
-    void print(const std::string &symbol) const {
+    void print(const std::string &symbol) const override {
         print(symbol[0]);
     }
 
@@ -227,7 +246,7 @@ class amplitudes: public tensor {
      * @param symbol: the amplitudes type
      */
     std::string to_string(char symbol) const;
-    std::string to_string(const std::string &symbol) const {
+    std::string to_string(const std::string &symbol) const override {
         return to_string(symbol[0]);
     }
 
@@ -238,7 +257,7 @@ class amplitudes: public tensor {
      * @param symbol: the amplitudes type
      */
     std::string to_string_with_spin(char symbol) const;
-    std::string to_string_with_spin(const std::string &symbol) const {
+    std::string to_string_with_spin(const std::string &symbol) const override {
         return to_string_with_spin(symbol[0]);
     }
 
@@ -270,6 +289,49 @@ class amplitudes: public tensor {
      *
      */
     bool has_permutational_symmetry = true;
+
+    /**
+     *
+     * serialize tensor information to a file
+     *
+     * @param buffer: the file buffer
+     */
+    void serialize(std::ofstream &buffer) const override {
+        // call base class serialize
+        tensor::serialize(buffer);
+
+        // n_create
+        buffer.write(reinterpret_cast<const char *>(&n_create), sizeof(n_create));
+
+        // n_annihilate
+        buffer.write(reinterpret_cast<const char *>(&n_annihilate), sizeof(n_annihilate));
+    }
+
+    /**
+     *
+     * deserialize tensor information from a file
+     *
+     * @param buffer: the file buffer
+     */
+     void deserialize(std::ifstream &buffer) override {
+        // call base class deserialize
+        tensor::deserialize(buffer);
+
+        // n_create
+        buffer.read(reinterpret_cast<char *>(&n_create), sizeof(n_create));
+
+        // n_annihilate
+        buffer.read(reinterpret_cast<char *>(&n_annihilate), sizeof(n_annihilate));
+    }
+
+
+    /**
+     *
+     * the number of photons
+     *
+     */
+    int n_ph = 0;
+
 };
 
 class integrals: public tensor {
@@ -295,7 +357,7 @@ class integrals: public tensor {
      * sort numerical integrals labels, keep track of permutations
      *
      */
-    void sort();
+    void sort() override;
 
     /**
      *
@@ -311,7 +373,7 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    void print(const std::string &symbol) const;
+    void print(const std::string &symbol) const override;
 
     /**
      *
@@ -319,7 +381,7 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    std::string to_string(const std::string &symbol) const;
+    std::string to_string(const std::string &symbol) const override;
 
     /**
      *
@@ -327,7 +389,7 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    std::string to_string_with_spin(const std::string &symbol) const;
+    std::string to_string_with_spin(const std::string &symbol) const override;
 
     /**
      *
@@ -335,8 +397,18 @@ class integrals: public tensor {
      *
      * @param symbol: the integrals type
      */
-    std::string to_string_with_label_ranges(const std::string &symbol);
+    std::string to_string_with_label_ranges(const std::string &symbol) override;
 
+    /**
+     *
+     * serialize tensor information to a file
+     *
+     * @param buffer: the file buffer
+     */
+    void serialize(std::ofstream &buffer) const override {
+        // call base class serialize
+        tensor::serialize(buffer);
+    }
 };
 
 class delta_functions: public tensor {
@@ -362,7 +434,7 @@ class delta_functions: public tensor {
      * sort numerical deltas labels
      *
      */
-    void sort();
+    void sort() override;
 
     /**
      *
@@ -385,7 +457,7 @@ class delta_functions: public tensor {
      *
      */
     std::string to_string() const;
-    std::string to_string(const std::string &symbol) const {
+    std::string to_string(const std::string &symbol) const override {
         return to_string();
     }
 
@@ -395,7 +467,7 @@ class delta_functions: public tensor {
      *
      */
     std::string to_string_with_spin() const;
-    std::string to_string_with_spin(const std::string &symbol) const {
+    std::string to_string_with_spin(const std::string &symbol) const override {
         return to_string_with_spin();
     }
 
@@ -406,6 +478,16 @@ class delta_functions: public tensor {
      */
     std::string to_string_with_label_ranges() const;
 
+    /**
+     *
+     * serialize tensor information to a file
+     *
+     * @param buffer: the file buffer
+     */
+    void serialize(std::ofstream &buffer) const override {
+        // call base class serialize
+        tensor::serialize(buffer);
+    }
 };
 
 }

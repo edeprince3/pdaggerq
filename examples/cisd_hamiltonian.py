@@ -19,7 +19,7 @@ def main():
 
     pq.simplify()
 
-    H00 = pq.fully_contracted_strings()
+    H00 = pq.strings()
     H00 = contracted_strings_to_tensor_terms(H00)
     for my_term in H00:
         print("#\t", my_term)
@@ -41,7 +41,7 @@ def main():
 
     pq.simplify()
 
-    Hs0 = pq.fully_contracted_strings()
+    Hs0 = pq.strings()
     Hs0 = contracted_strings_to_tensor_terms(Hs0)
     for my_term in Hs0:
         print("#\t", my_term)
@@ -64,7 +64,7 @@ def main():
 
     pq.simplify()
 
-    H0s = pq.fully_contracted_strings()
+    H0s = pq.strings()
     H0s = contracted_strings_to_tensor_terms(H0s)
     for my_term in H0s:
         print("#\t", my_term)
@@ -87,7 +87,7 @@ def main():
 
     pq.simplify()
 
-    Hd0 = pq.fully_contracted_strings()
+    Hd0 = pq.strings()
     Hd0 = contracted_strings_to_tensor_terms(Hd0)
     for my_term in Hd0:
         print("#\t", my_term)
@@ -110,7 +110,7 @@ def main():
     
     pq.simplify()
 
-    H0d = pq.fully_contracted_strings()
+    H0d = pq.strings()
     H0d = contracted_strings_to_tensor_terms(H0d)
     for my_term in H0d:
         print("#\t", my_term)
@@ -133,7 +133,7 @@ def main():
 
     pq.simplify()
 
-    Hss = pq.fully_contracted_strings()
+    Hss = pq.strings()
     Hss = contracted_strings_to_tensor_terms(Hss)
     for my_term in Hss:
         print("#\t", my_term)
@@ -156,7 +156,7 @@ def main():
     
     pq.simplify()
 
-    Hsd = pq.fully_contracted_strings()
+    Hsd = pq.strings()
     Hsd = contracted_strings_to_tensor_terms(Hsd)
     for my_term in Hsd:
         print("#\t", my_term)
@@ -180,7 +180,7 @@ def main():
     
     pq.simplify()
 
-    Hds = pq.fully_contracted_strings()
+    Hds = pq.strings()
     Hds = contracted_strings_to_tensor_terms(Hds)
     for my_term in Hds:
         print("#\t", my_term)
@@ -203,7 +203,7 @@ def main():
     
     pq.simplify()
 
-    Hdd = pq.fully_contracted_strings()
+    Hdd = pq.strings()
     Hdd = contracted_strings_to_tensor_terms(Hdd)
     for my_term in Hdd:
         print("#\t", my_term)

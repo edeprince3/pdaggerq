@@ -24,22 +24,26 @@
 #ifndef _python_api2_h_
 #define _python_api2_h_
 
+#include <tuple>
+#include <utility>
 #include <memory>
 #include <vector>
 #include <iostream>
 #include <string>
 #include <cctype>
 #include <algorithm>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "pq_helper.h"
 #include "pq_utils.h"
+#include "pq_bernoulli.h"
 #include "pq_string.h"
 #include "pq_add_label_ranges.h"
 #include "pq_add_spin_labels.h"
 #include "pq_cumulant_expansion.h"
-
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "pq_swap_operators.h"
+#include "../pq_graph/include/pq_graph.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -53,64 +57,95 @@ void export_pq_helper(py::module& m) {
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
         .def("add_new_string", &pq_helper::py_add_new_string)
+        .def("set_unitary_cc", &pq_helper::set_unitary_cc)
+        .def("set_hamiltonian_normal_ordered", &pq_helper::set_hamiltonian_normal_ordered)
+        .def("set_bernoulli_excitation_level", &pq_helper::set_bernoulli_excitation_level)
         .def("set_left_operators", &pq_helper::set_left_operators)
         .def("set_right_operators", &pq_helper::set_right_operators)
         .def("set_left_operators_type", &pq_helper::set_left_operators_type)
         .def("set_right_operators_type", &pq_helper::set_right_operators_type)
         .def("get_right_operators_type", &pq_helper::get_right_operators_type)
         .def("get_left_operators_type", &pq_helper::get_left_operators_type)
-        .def("set_cluster_operators_commute", &pq_helper::set_cluster_operators_commute)
         .def("set_find_paired_permutations", &pq_helper::set_find_paired_permutations)
         .def("simplify", &pq_helper::simplify)
         .def("clear", &pq_helper::clear)
+        .def("clone", &pq_helper::clone)
+        .def("save", &pq_helper::serialize)
+        .def("load", &pq_helper::deserialize)
         .def("set_use_rdms",
-             [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
-                 return self.set_use_rdms(do_use_rdms, ignore_cumulant);
-             },
-             py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
-        .def("print",
-             [](pq_helper& self, const std::string& string_type) {
-                 return self.print(string_type);
-             },
-             py::arg("string_type") = "fully-contracted" )
-        .def("strings", &pq_helper::strings)
-        .def("fully_contracted_strings", &pq_helper::fully_contracted_strings)
-        .def("fully_contracted_strings_with_spin",
-             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
+            [](pq_helper& self, const bool & do_use_rdms, const std::vector<int> & ignore_cumulant) {
+                return self.set_use_rdms(do_use_rdms, ignore_cumulant);
+            },
+            py::arg("do_use_rdms"), py::arg("ignore_cumulant") = empty_list )
+        .def("strings", 
+            [](pq_helper& self, 
+                const std::unordered_map<std::string, std::string> &spin_labels, 
+                const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
+
+                bool has_spin_labels = spin_labels.find("DUMMY") == spin_labels.end();
+                bool has_label_ranges = label_ranges.find("DUMMY") == label_ranges.end();
+
+                if ( has_spin_labels && has_label_ranges ) {
+                    printf("\n");
+                    printf("    error: cannot simultaneously block by spin and by range\n");
+                    printf("\n");
+                    exit(1);
+                }
+                
+                if ( has_spin_labels ) {
+                
+                    // spin blocking 
                     self.block_by_spin(spin_labels);
-                    return self.fully_contracted_strings();
-             },
-             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+                    return self.strings();
+                
+                } else if ( has_label_ranges ) {
+                
+                    // range labels
+                   self.block_by_range(label_ranges);
+                   return self.strings();
+
+                   // no blocking
+                } else return self.strings();
+
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>{{"DUMMY",""}},
+            py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>{{"DUMMY",{""}}} )
         .def("block_by_spin",
-             [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
-                    self.block_by_spin(spin_labels);
-             },
-                py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
-        .def("fully_contracted_strings_with_ranges",
-             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
-                    self.block_by_range(label_ranges);
-                    return self.fully_contracted_strings();
-             },
-             py::arg("label_ranges") = std::unordered_map<std::string, std::vector<std::string>>() )
+            [](pq_helper& self, const std::unordered_map<std::string, std::string> &spin_labels) {
+                self.block_by_spin(spin_labels);
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
         .def("block_by_range",
-             [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
-                 self.block_by_range(label_ranges);
-             },
-                py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
-        .def("add_st_operator", &pq_helper::add_st_operator)
+            [](pq_helper& self, const std::unordered_map<std::string, std::vector<std::string> > &label_ranges) {
+                self.block_by_range(label_ranges);
+            },
+            py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+        .def("add_st_operator",
+            [](pq_helper& self, double factor, 
+                                const std::vector<std::string> &targets, 
+                                const std::vector<std::string> &ops, 
+                                bool do_operators_commute) {
+                return self.add_st_operator(factor, targets, ops, do_operators_commute);
+            },
+            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true )
         .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
+        .def("add_bernoulli_operator", &pq_helper::add_bernoulli_operator)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
         .def("add_commutator", &pq_helper::add_commutator)
         .def("add_double_commutator", &pq_helper::add_double_commutator)
         .def("add_triple_commutator", &pq_helper::add_triple_commutator)
         .def("add_quadruple_commutator", &pq_helper::add_quadruple_commutator)
-        .def("add_operator_product", &pq_helper::add_operator_product);
+        .def("add_quintuple_commutator", &pq_helper::add_quintuple_commutator)
+        .def("add_hextuple_commutator", &pq_helper::add_hextuple_commutator)
+        .def("add_operator_product", &pq_helper::py_add_operator_product);
 
     py::class_<pdaggerq::pq_operator_terms>(m, "pq_operator_terms")
         .def(py::init<double, std::vector<std::string>>())
         .def("factor", &pq_operator_terms::get_factor)
         .def("operators", &pq_operator_terms::get_operators);
 
+    // add pq graph class for optimizing, visualizing, and generating code from pq_helper
+    PQGraph::export_pq_graph(m);
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {
@@ -138,9 +173,11 @@ pq_helper::pq_helper(const std::string &vacuum_type)
 
     print_level = 0;
 
-    // assume operators entering a similarity transformation
-    // commute. only relevant for the add_st_operator() function
-    cluster_operators_commute = true;
+    // assume cluster operator is not antihermitian by default
+    is_unitary_cc = false;
+
+    // default maximum excitation order for "N" type operators in Bernoulli expansion for UCC
+    bernoulli_excitation_level = 2;
 
     // by default, do not look for paired permutations (until parsers catch up)
     find_paired_permutations = false;
@@ -152,6 +189,46 @@ pq_helper::pq_helper(const std::string &vacuum_type)
     left_operators_type = "EE";
 
 }
+
+pq_helper::pq_helper(const pq_helper &other) {
+
+    // copy data
+    this->vacuum                    = other.vacuum;
+    this->print_level               = other.print_level;
+    this->use_rdms                  = other.use_rdms;
+    this->ignore_cumulant_rdms      = other.ignore_cumulant_rdms;
+    this->left_operators            = other.left_operators;
+    this->right_operators           = other.right_operators;
+    this->right_operators_type      = other.right_operators_type;
+    this->left_operators_type       = other.left_operators_type;
+    this->find_paired_permutations  = other.find_paired_permutations;
+
+    // deep copy pointers to pq_strings
+    ordered.clear();
+    ordered.reserve(other.ordered.size());
+    for (const std::shared_ptr<pq_string> & pq_str : other.ordered) {
+        this->ordered.push_back(std::make_shared<pq_string>(*pq_str));
+    }
+
+    ordered_blocked.clear();
+    ordered_blocked.reserve(other.ordered_blocked.size());
+    for (const std::shared_ptr<pq_string> & pq_str : other.ordered_blocked) {
+        this->ordered_blocked.push_back(std::make_shared<pq_string>(*pq_str));
+    }
+}
+
+pq_helper &pq_helper::operator=(const pq_helper &other) {
+    // check for self-assignment
+    if (this == &other) {
+        return *this;
+    }
+
+    // construct deep copy and move to this
+    *this = std::move(pq_helper(other));
+    return *this;
+
+}
+
 
 void pq_helper::set_find_paired_permutations(bool do_find_paired_permutations) {
     find_paired_permutations = do_find_paired_permutations;
@@ -204,18 +281,29 @@ void pq_helper::set_right_operators_type(const std::string &type) {
     }
 }
 
-// do operators entering similarity transformation commute? default true
-void pq_helper::set_cluster_operators_commute(bool do_cluster_operators_commute) {
-    cluster_operators_commute = do_cluster_operators_commute;
+// use the normal ordered form of the hamiltonian operator? default false
+void pq_helper::set_hamiltonian_normal_ordered(bool is_normal_ordered) {
+    is_hamiltonian_normal_ordered = is_normal_ordered;
+}
+
+// is the cluster operator antihermitian for ucc? default false
+void pq_helper::set_unitary_cc(bool is_unitary) {
+    is_unitary_cc = is_unitary;
+}
+
+// is the cluster operator antihermitian for ucc? default false
+void pq_helper::set_bernoulli_excitation_level(int excitation_level) {
+    bernoulli_excitation_level = excitation_level;
 }
 
 void pq_helper::add_anticommutator(double factor,
-                               const std::vector<std::string> &op0,
-                               const std::vector<std::string> &op1){
+                                   const std::vector<std::string> &op0,
+                                   const std::vector<std::string> &op1){
 
-    add_operator_product(factor, concatinate_operators({op0, op1}) );
-    add_operator_product(factor, concatinate_operators({op1, op0}) );
-
+    std::vector<pq_operator_terms> ops;
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1}) ));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op1, op0}) ));
+    process_operator_products(ops);
 }
 
 void pq_helper::add_commutator(double factor,
@@ -223,14 +311,12 @@ void pq_helper::add_commutator(double factor,
                                const std::vector<std::string> &op1){
 
     std::vector<pq_operator_terms> ops = get_commutator_terms(factor, op0, op1);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_commutator_terms(double factor,
-                                                                          const std::vector<std::string> &op0,
-                                                                          const std::vector<std::string> &op1){
+                                                               const std::vector<std::string> &op0,
+                                                               const std::vector<std::string> &op1){
 
     std::vector<pq_operator_terms> ops;
 
@@ -246,16 +332,13 @@ void pq_helper::add_double_commutator(double factor,
                                       const std::vector<std::string> &op2){
 
     std::vector<pq_operator_terms> ops = get_double_commutator_terms(factor, op0, op1, op2);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
-
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_double_commutator_terms(double factor,
-                                                                                 const std::vector<std::string> &op0,
-                                                                                 const std::vector<std::string> &op1,
-                                                                                 const std::vector<std::string> &op2){
+                                                                      const std::vector<std::string> &op0,
+                                                                      const std::vector<std::string> &op1,
+                                                                      const std::vector<std::string> &op2){
 
     std::vector<pq_operator_terms> ops;
 
@@ -274,17 +357,14 @@ void pq_helper::add_triple_commutator(double factor,
                                         const std::vector<std::string> &op3){
 
     std::vector<pq_operator_terms> ops = get_triple_commutator_terms(factor, op0, op1, op2, op3);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
-
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_triple_commutator_terms(double factor,
-                                                                                 const std::vector<std::string> &op0,
-                                                                                 const std::vector<std::string> &op1,
-                                                                                 const std::vector<std::string> &op2,
-                                                                                 const std::vector<std::string> &op3){
+                                                                      const std::vector<std::string> &op0,
+                                                                      const std::vector<std::string> &op1,
+                                                                      const std::vector<std::string> &op2,
+                                                                      const std::vector<std::string> &op3){
 
     std::vector<pq_operator_terms> ops;
 
@@ -301,24 +381,22 @@ std::vector<pq_operator_terms> pq_helper::get_triple_commutator_terms(double fac
 }
 
 void pq_helper::add_quadruple_commutator(double factor,
-                                           const std::vector<std::string> &op0,
-                                           const std::vector<std::string> &op1,
-                                           const std::vector<std::string> &op2,
-                                           const std::vector<std::string> &op3,
-                                           const std::vector<std::string> &op4){
+                                         const std::vector<std::string> &op0,
+                                         const std::vector<std::string> &op1,
+                                         const std::vector<std::string> &op2,
+                                         const std::vector<std::string> &op3,
+                                         const std::vector<std::string> &op4){
 
     std::vector<pq_operator_terms> ops = get_quadruple_commutator_terms(factor, op0, op1, op2, op3, op4);
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-    }
+    process_operator_products(ops);
 }
 
 std::vector<pq_operator_terms> pq_helper::get_quadruple_commutator_terms(double factor,
-                                                                                    const std::vector<std::string> &op0,
-                                                                                    const std::vector<std::string> &op1,
-                                                                                    const std::vector<std::string> &op2,
-                                                                                    const std::vector<std::string> &op3,
-                                                                                    const std::vector<std::string> &op4){
+                                                                         const std::vector<std::string> &op0,
+                                                                         const std::vector<std::string> &op1,
+                                                                         const std::vector<std::string> &op2,
+                                                                         const std::vector<std::string> &op3,
+                                                                         const std::vector<std::string> &op4){
 
     std::vector<pq_operator_terms> ops;
 
@@ -342,107 +420,482 @@ std::vector<pq_operator_terms> pq_helper::get_quadruple_commutator_terms(double 
     return ops;  
 }
 
+std::vector<pq_operator_terms> pq_helper::get_quintuple_commutator_terms(double factor,
+                                                                         const std::vector<std::string> &op0,
+                                                                         const std::vector<std::string> &op1,
+                                                                         const std::vector<std::string> &op2,
+                                                                         const std::vector<std::string> &op3,
+                                                                         const std::vector<std::string> &op4,
+                                                                         const std::vector<std::string> &op5){
+
+    std::vector<pq_operator_terms> ops;
+
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1, op2, op3, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0, op2, op3, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op2, op0, op1, op3, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op2, op1, op0, op3, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op0, op1, op2, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op1, op0, op2, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op2, op0, op1, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op2, op1, op0, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op0, op1, op2, op3, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op1, op0, op2, op3, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op2, op0, op1, op3, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op2, op1, op0, op3, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op0, op1, op2, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op1, op0, op2, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op2, op0, op1, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op2, op1, op0, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op0, op1, op2, op3, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op1, op0, op2, op3, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op2, op0, op1, op3, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op2, op1, op0, op3, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op3, op0, op1, op2, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op3, op1, op0, op2, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op3, op2, op0, op1, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op3, op2, op1, op0, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op0, op1, op2, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op1, op0, op2, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op2, op0, op1, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op2, op1, op0, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op3, op0, op1, op2})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op3, op1, op0, op2})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op3, op2, op0, op1})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op3, op2, op1, op0})));
+
+    return ops;  
+}
+
+void pq_helper::add_quintuple_commutator(double factor,
+                                         const std::vector<std::string> &op0,
+                                         const std::vector<std::string> &op1,
+                                         const std::vector<std::string> &op2,
+                                         const std::vector<std::string> &op3,
+                                         const std::vector<std::string> &op4,
+                                         const std::vector<std::string> &op5){
+
+    std::vector<pq_operator_terms> ops = get_quintuple_commutator_terms(factor, op0, op1, op2, op3, op4, op5);
+    process_operator_products(ops);
+}
+
+std::vector<pq_operator_terms> pq_helper::get_hextuple_commutator_terms(double factor,
+                                                                        const std::vector<std::string> &op0,
+                                                                        const std::vector<std::string> &op1,
+                                                                        const std::vector<std::string> &op2,
+                                                                        const std::vector<std::string> &op3,
+                                                                        const std::vector<std::string> &op4,
+                                                                        const std::vector<std::string> &op5,
+                                                                        const std::vector<std::string> &op6){
+
+    std::vector<pq_operator_terms> ops;
+
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op0, op1, op2, op3, op4, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op1, op0, op2, op3, op4, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op2, op0, op1, op3, op4, op5, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op2, op1, op0, op3, op4, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op0, op1, op2, op4, op5, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op1, op0, op2, op4, op5, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op3, op2, op0, op1, op4, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op3, op2, op1, op0, op4, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op0, op1, op2, op3, op5, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op1, op0, op2, op3, op5, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op2, op0, op1, op3, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op2, op1, op0, op3, op5, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op0, op1, op2, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op1, op0, op2, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op4, op3, op2, op0, op1, op5, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op4, op3, op2, op1, op0, op5, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op0, op1, op2, op3, op4, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op1, op0, op2, op3, op4, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op2, op0, op1, op3, op4, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op2, op1, op0, op3, op4, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op3, op0, op1, op2, op4, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op3, op1, op0, op2, op4, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op3, op2, op0, op1, op4, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op3, op2, op1, op0, op4, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op0, op1, op2, op3, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op1, op0, op2, op3, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op2, op0, op1, op3, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op2, op1, op0, op3, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op3, op0, op1, op2, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op3, op1, op0, op2, op6})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op5, op4, op3, op2, op0, op1, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op5, op4, op3, op2, op1, op0, op6})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op0, op1, op2, op3, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op1, op0, op2, op3, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op2, op0, op1, op3, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op2, op1, op0, op3, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op3, op0, op1, op2, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op3, op1, op0, op2, op4, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op3, op2, op0, op1, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op3, op2, op1, op0, op4, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op4, op0, op1, op2, op3, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op4, op1, op0, op2, op3, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op4, op2, op0, op1, op3, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op4, op2, op1, op0, op3, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op4, op3, op0, op1, op2, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op4, op3, op1, op0, op2, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op4, op3, op2, op0, op1, op5})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op4, op3, op2, op1, op0, op5})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op5, op0, op1, op2, op3, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op5, op1, op0, op2, op3, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op5, op2, op0, op1, op3, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op5, op2, op1, op0, op3, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op5, op3, op0, op1, op2, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op5, op3, op1, op0, op2, op4})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op5, op3, op2, op0, op1, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op5, op3, op2, op1, op0, op4})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op5, op4, op0, op1, op2, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op5, op4, op1, op0, op2, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op5, op4, op2, op0, op1, op3})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op5, op4, op2, op1, op0, op3})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op5, op4, op3, op0, op1, op2})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op5, op4, op3, op1, op0, op2})));
+    ops.push_back(pq_operator_terms(-factor, concatinate_operators({op6, op5, op4, op3, op2, op0, op1})));
+    ops.push_back(pq_operator_terms( factor, concatinate_operators({op6, op5, op4, op3, op2, op1, op0})));
+
+    return ops;  
+}
+
+void pq_helper::add_hextuple_commutator(double factor,
+                                        const std::vector<std::string> &op0,
+                                        const std::vector<std::string> &op1,
+                                        const std::vector<std::string> &op2,
+                                        const std::vector<std::string> &op3,
+                                        const std::vector<std::string> &op4,
+                                        const std::vector<std::string> &op5,
+                                        const std::vector<std::string> &op6){
+
+    std::vector<pq_operator_terms> ops = get_hextuple_commutator_terms(factor, op0, op1, op2, op3, op4, op5, op6);
+    process_operator_products(ops);
+}
+
+
+// check if there are fluctuation potential operators that needs to be split into multiple terms
+std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_potential(std::vector<pq_operator_terms> ops_in){
+
+    std::vector<pq_operator_terms> ops_out;
+
+    bool done_processing = true;
+
+    for (auto op: ops_in) {
+        double factor = op.factor;
+        std::vector<std::string> in = op.operators;
+
+        // 'v' cannot appear in left operators ... exit with error
+        for (std::vector<std::string> & left_operator : left_operators) {
+            for (const std::string & op : left_operator) {
+                if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+
+                    printf("\n");
+                    printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
+                    printf("\n");
+                    exit(1);
+                }
+            }
+        }
+        
+        // 'v' cannot appear in right operators ... exit with error
+        for (std::vector<std::string> & right_operator : right_operators) {
+            for (const std::string & op : right_operator) {
+                if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+
+                    printf("\n");
+                    printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
+                    printf("\n");
+                    exit(1);
+                }
+            }
+        }
+
+        int count = 0;
+        bool found_v = false; // fluctuation potential
+        bool found_vn = false; // normal-ordered fluctuation potential
+        std::vector<std::string> tmp_in;
+        for (const std::string & op : in) {
+            if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+                if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
+                    found_vn = true;
+                    break;
+                }
+                found_v = true;
+                break;
+            }else {
+                tmp_in.push_back(op);
+                count++;
+            }
+        }
+        if ( found_v || found_vn ) {
+            done_processing = false;
+
+            // get bernoulli operator portions
+            std::string op_portions = get_operator_portions_as_string(in[count]);
+
+            if ( found_v ) {
+                // term 1 (j1)
+                std::string v_type = "j1";
+                if ( op_portions.length() > 0 ) { 
+                    v_type += "{" + op_portions + "}";
+                }
+                tmp_in.emplace_back(v_type);
+                for (int i = count+1; i < (int)in.size(); i++) {
+                    tmp_in.push_back(in[i]);
+                }
+                in.clear();
+                for (const auto & op : tmp_in) {
+                    in.push_back(op);
+                }
+                ops_out.push_back(pq_operator_terms(factor, in));
+
+                // term 2 (j2)
+                in.clear();
+                for (int i = 0; i < count; i++) {
+                    in.push_back(tmp_in[i]);
+                }
+                v_type[1] = '2';
+                in.emplace_back(v_type);
+                for (int i = count + 1; i < (int)tmp_in.size(); i++) {
+                    in.push_back(tmp_in[i]);
+                }
+                ops_out.push_back(pq_operator_terms(factor, in));
+            }else {
+
+                for (int label = 0; label < 16; label++) {
+                    std::vector<std::string> my_in;
+                    for (int i = 0; i < count; i++) {
+                        my_in.push_back(in[i]);
+                    }
+                    // only term 2 (16 times...)
+                    std::string v_type = "jn" + std::to_string(label);
+                    if ( op_portions.length() > 0 ) { 
+                        v_type += "{" + op_portions + "}";
+                    }
+                    my_in.push_back(v_type);
+                    for (int i = count+1; i < (int)in.size(); i++) {
+                        my_in.push_back(in[i]);
+                    }
+                    in.clear();
+                    for (const auto & op : my_in) {
+                        in.push_back(op);
+                    }
+                    ops_out.push_back(pq_operator_terms(factor, in));
+                }
+            }
+        }else {
+            ops_out.push_back(op);
+        }
+    }
+
+    return std::make_pair(done_processing, ops_out);
+}
+
+// check if there are normal-ordered fock operators that needs to be split into multiple terms
+std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fock_operator(std::vector<pq_operator_terms> ops_in){
+    std::vector<pq_operator_terms> ops_out;
+
+    bool done_processing = true;
+
+    for (auto op: ops_in) {
+        double factor = op.factor;
+        std::vector<std::string> in = op.operators;
+
+        // 'f' cannot appear in left operators ... exit with error
+        for (std::vector<std::string> & left_operator : left_operators) {
+            for (const std::string & op : left_operator) {
+                if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") {
+                    if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
+
+                        printf("\n");
+                        printf("    error: the normal-ordered fock operator cannot appear in operators defining the bra state\n");
+                        printf("\n");
+                        exit(1);
+                    }
+                }
+            }
+        }
+        
+        // 'f' cannot appear in right operators ... exit with error
+        for (std::vector<std::string> & right_operator : right_operators) {
+            for (const std::string & op : right_operator) {
+                if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") {
+                    if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
+
+                        printf("\n");
+                        printf("    error: the normal-ordered fock operator cannot appear in operators defining the ket state\n");
+                        printf("\n");
+                        exit(1);
+                    }
+                }
+            }
+        }
+
+        int count = 0;
+        bool found_fn = false; // normal-ordered fn potential
+        std::vector<std::string> tmp_in;
+        for (const std::string & op : in) {
+            if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") {
+                if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
+                    found_fn = true;
+                    break;
+                }else {
+                    tmp_in.push_back(op);
+                    count++;
+                }
+            }else {
+                tmp_in.push_back(op);
+                count++;
+            }
+        }
+        if ( found_fn ) {
+
+            done_processing = false;
+
+            // add each block of F separately, Fvv, Fvo, Fov, Foo
+            for (int label = 0; label < 4; label++) {
+                std::vector<std::string> my_in;
+                for (int i = 0; i < count; i++) {
+                    my_in.push_back(in[i]);
+                }
+                // 4 blocks
+                my_in.push_back('f' + std::to_string(label));
+                for (int i = count+1; i < (int)in.size(); i++) {
+                    my_in.push_back(in[i]);
+                }
+                in.clear();
+                for (const auto & op : my_in) {
+                    in.push_back(op);
+                }
+                ops_out.push_back(pq_operator_terms(factor, in));
+            }
+        }else {
+            ops_out.push_back(op);
+        }
+    }
+    return std::make_pair(done_processing, ops_out);
+}
+
+// check for t and add de-excitation operators if doing unitary cc
+std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplitudes(std::vector<pq_operator_terms> ops_in){
+
+    std::vector<pq_operator_terms> ops_out;
+
+    bool done_processing = true;
+
+    for (auto op: ops_in) {
+        double factor = op.factor;
+        std::vector<std::string> in = op.operators;
+
+        // first, if unitary cc, t can't show up in right or left operator lists (yet)
+        if ( is_unitary_cc ) {
+            for (size_t i = 0; i < left_operators.size(); i++) {
+                for (size_t j = 0; j < left_operators[i].size(); j++) {
+                    if ( left_operators[i][j].substr(0,1) == "t" || left_operators[i][j].substr(0,1) == "T" ||
+                         left_operators[i][j].substr(0,2) == "t{" || left_operators[i][j].substr(0,2) == "T{" ){
+
+                        printf("\n");
+                        printf("    error: unitary cluster operators cannot appear in the bra state\n");
+                        printf("\n");
+                        exit(1);
+
+                    }
+                }
+            }
+            for (size_t i = 0; i < right_operators.size(); i++) {
+                for (size_t j = 0; j < right_operators[i].size(); j++) {
+                    if ( right_operators[i][j].substr(0,1) == "t" || right_operators[i][j].substr(0,1) == "T" ||
+                         right_operators[i][j].substr(0,2) == "t{" || right_operators[i][j].substr(0,2) == "T{" ){
+
+                        printf("\n");
+                        printf("    error: unitary cluster operators cannot appear in the ket state\n");
+                        printf("\n");
+                        exit(1);
+
+                    }
+                }
+            }
+        }
+
+        // now either rename cluster operators or split them into two, depending on whether we're unitary or not
+        int count = 0;
+        bool found_t = false;
+        for (size_t i = 0; i < in.size(); i++) {
+            if ( in[i].substr(0,1) == "t" || in[i].substr(0,1) == "T" ) {
+                if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" ) {
+                    found_t = true;
+                    break;
+                }else {
+                    count++;
+                }
+            }else {
+                count++;
+            }
+        }
+
+        if ( found_t ) {
+            done_processing = false;
+
+            // term 1 (excitation)
+
+            in[count].insert(1, "e", 1);
+            ops_out.push_back(pq_operator_terms(factor, in));
+
+            // term 2 (de-excitation)
+            if ( is_unitary_cc ) {
+
+                in[count][1] = 'd';
+                ops_out.push_back(pq_operator_terms(-factor, in));
+            }
+        }else {
+            ops_out.push_back(op);
+        }
+    }
+
+    return std::make_pair(done_processing, ops_out);
+}
+
+void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
+
+    std::vector<pq_operator_terms> new_ops;
+
+    // check for fluctuation potential because it should be split as
+    // 'v' = 'j1' + 'j2'
+    bool done_processing = false;
+    do {
+        std::tie(done_processing, new_ops) = process_fluctuation_potential(ops);
+        ops = new_ops;
+    }while(!done_processing);
+
+    // check for normal-ordered fock operator because it should be split
+    done_processing = false;
+    do {
+        std::tie(done_processing, new_ops) = process_fock_operator(ops);
+        ops = new_ops;
+    }while(!done_processing);
+
+    // check for cluster amplitudes because they should be renamed/split as
+    // 't1' = 't1e' or 't1' = 't1e' - 't1d', etc.
+    done_processing = false;
+    do {
+        std::tie(done_processing, new_ops) = process_cluster_amplitudes(ops);
+        ops = new_ops;
+    }while(!done_processing);
+
+    for (auto op : ops){
+        add_operator_product(op.factor, op.operators);
+    }
+}
+
+// wrapper for python calling add_operator_product directly
+void pq_helper::py_add_operator_product(double factor, std::vector<std::string>  in){
+
+    std::vector<pq_operator_terms> ops = {pq_operator_terms(factor, in)};
+    process_operator_products(ops);
+}
+
 // add a string of operators
 void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
-    // check if there is a fluctuation potential operator 
-    // that needs to be split into multiple terms
-
-    // left operators 
-    // this is not handled correctly now that left operators can be sums of products of operators ... just exit with an error
-    for (std::vector<std::string> & left_operator : left_operators) {
-        std::vector<std::string> tmp;
-        for (const std::string & op : left_operator) {
-            if (op == "v" ) {
-
-                printf("\n");
-                printf("    error: the fluctuation potential cannot appear in operators defining the bra state\n");
-                printf("\n");
-                exit(1);
-
-                tmp.emplace_back("j1");
-                tmp.emplace_back("j2");
-            }else {
-                tmp.push_back(op);
-            }
-        }
-        left_operator.clear();
-        for (const auto & op : tmp) {
-            left_operator.push_back(op);
-        }
-        tmp.clear();
-    }
-    
-    // right operators 
-    // this is not handled correectly now that right operators can be sums of products of operators ... just exit with an error
-    for (std::vector<std::string> & right_operator : right_operators) {
-        std::vector<std::string> tmp;
-        for (const std::string & op : right_operator) {
-            if (op == "v" ) {
-
-                printf("\n");
-                printf("    error: the fluctuation potential cannot appear in operators defining the ket state\n");
-                printf("\n");
-                exit(1);
-
-                tmp.emplace_back("j1");
-                tmp.emplace_back("j2");
-            }else {
-                tmp.push_back(op);
-            }
-        }
-        right_operator.clear();
-        for (const std::string & op : tmp) {
-            right_operator.push_back(op);
-        }
-        tmp.clear();
-    }
-
-    int count = 0;
-    bool found_v = false;
-    std::vector<std::string> tmp_in;
-    for (const std::string & op : in) {
-        if (op == "v" ) {
-            found_v = true;
-            break;
-        }else {
-            tmp_in.push_back(op);
-            count++;
-        }
-    }
-    if ( found_v ) {
-
-        // term 1
-        tmp_in.emplace_back("j1");
-        for (int i = count+1; i < (int)in.size(); i++) {
-            tmp_in.push_back(in[i]);
-        }
-        in.clear();
-        for (const auto & op : tmp_in) {
-            in.push_back(op);
-        }
-        add_operator_product(factor, in);
-
-        // term 2
-        in.clear();
-        for (int i = 0; i < count; i++) {
-            in.push_back(tmp_in[i]);
-        }
-        in.emplace_back("j2");
-        for (int i = count + 1; i < (int)tmp_in.size(); i++) {
-            in.push_back(tmp_in[i]);
-        }
-        add_operator_product(factor, in);
-        
-        return;
-    }
-
-    // apply any extra operators on left or right:
-    std::vector<std::string> save;
-    for (const std::string & op : in) {
-        save.push_back(op);
-    }
-
+    // make sure left / right operator lists aren't empty
     if ( (int)left_operators.size() == 0 ) {
         std::vector<std::string> junk;
         junk.emplace_back("1");
@@ -454,698 +907,86 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
         right_operators.push_back(junk);
     }
 
-    // build strings
-    double original_factor = factor;
+/*
+    int o_count_1 = 0;
+    int v_count_1 = 0;
+    std::vector<std::shared_ptr<pq_string>> center_strings = build_new_strings(1.0, in, o_count_1, v_count_1);
+*/
+
+/*
+    // bring pq_strings to normal order
+    std::vector<std::shared_ptr<pq_string>> ordered_center_strings;
+    if (vacuum == "TRUE") {
+        add_new_string_true_vacuum(center_strings, ordered_center_strings, print_level, find_paired_permutations, true);
+    } else {
+        add_new_string_fermi_vacuum(center_strings, ordered_center_strings, print_level, find_paired_permutations, true);
+    }
+*/
 
     for (std::vector<std::string> & left_operator : left_operators) {
+
+/*
+        int o_count_2 = o_count_1;
+        int v_count_2 = v_count_1;
+        std::vector<std::shared_ptr<pq_string>> left_strings = build_new_strings(1.0, left_operator, o_count_2, v_count_2);
+*/
+
         for (std::vector<std::string> & right_operator : right_operators) {
 
-            std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
+/*
+            int o_count_3 = o_count_2;
+            int v_count_3 = v_count_2;
+            std::vector<std::shared_ptr<pq_string>> right_strings = build_new_strings(1.0, right_operator, o_count_3, v_count_3);
+*/
 
-            factor = original_factor;
+            int o_count = 0;
+            int v_count = 0;
+            std::vector<std::shared_ptr<pq_string>> left_strings = build_new_strings(1.0, left_operator, o_count, v_count);
+            std::vector<std::shared_ptr<pq_string>> center_strings = build_new_strings(1.0, in, o_count, v_count);
+            std::vector<std::shared_ptr<pq_string>> right_strings = build_new_strings(1.0, right_operator, o_count, v_count);
 
-            std::vector<std::string> tmp_string;
+/*
+            for (auto & pq_str: center_strings) {
+                bool done_rearranging = false;
+                do {
+                    done_rearranging = true;
+                    bool am_i_done = swap_operators_fermi_vacuum_no_deltas(pq_str);
 
-            bool has_w0       = false;
-
-            int occ_label_count = 0;
-            int vir_label_count = 0;
-            int gen_label_count = 0;
-
-            // apply any extra operators on left or right:
-            std::vector<std::string> tmp = left_operator;
-            for (const std::string & op : save) {
-                tmp.push_back(op);
+                    if ( !am_i_done ) done_rearranging = false;
+                }while(!done_rearranging);
             }
-            for (const std::string & op : right_operator) {
-                tmp.push_back(op);
-            }
+*/
 
-            for (std::string & op : tmp) {
+            // sandwich pq_strings together
+            std::vector<std::shared_ptr<pq_string>> new_pq_strings;
+            for (auto & left: left_strings){
+                for (auto & right: right_strings){
+                    for (auto & center: center_strings){
 
-                // blank string
-                if ( op.empty() ) continue;
+                        // is the center bit fully contracted?
+                        if ( center->symbol.size() == 0 && center->is_boson_dagger.size() == 0 ) {
+                            continue;
+                        }
 
-                // lowercase indices
-                std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
+                        std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
 
-                // remove spaces
-                removeSpaces(op);
+                        newguy->append(left.get());
+                        newguy->append(center.get());
+                        newguy->append(right.get());
 
-                // remove parentheses
-                removeParentheses(op);
+                        newguy->factor *= factor;
 
-                if (op.substr(0, 1) == "h" ) { // one-electron operator
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
-
-                    // index 2
-                    tmp_string.push_back(idx2);
-
-                    // integrals
-                    newguy->set_integrals("core", {idx1, idx2});
-
-                }else if (op.substr(0, 1) == "f" ) { // fock operator
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
-
-                    // index 2
-                    tmp_string.push_back(idx2);
-
-                    // integrals
-                    newguy->set_integrals("fock", {idx1, idx2});
-
-                }else if (op.substr(0, 2) == "d+" ) { // one-electron operator (dipole + boson creator)
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
-
-                    // index 2
-                    tmp_string.push_back(idx2);
-
-                    // integrals
-                    newguy->set_integrals("d+", {idx1, idx2});
-
-                    // boson operator
-                    newguy->is_boson_dagger.push_back(true);
-
-                }else if (op.substr(0, 2) == "d-" ) { // one-electron operator (dipole + boson annihilator)
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                    // index 1
-                    tmp_string.push_back(idx1+"*");
-
-                    // index 2
-                    tmp_string.push_back(idx2);
-
-                    // integrals
-                    newguy->set_integrals("d-", {idx1, idx2});
-
-                    // boson operator
-                    newguy->is_boson_dagger.push_back(false);
-
-                }else if (op.substr(0, 1) == "g" ) { // general two-electron operator
-
-                    //factor *= 0.25;
-
-                    std::string idx1 = "p" + std::to_string(gen_label_count++);
-                    std::string idx2 = "p" + std::to_string(gen_label_count++);
-                    std::string idx3 = "p" + std::to_string(gen_label_count++);
-                    std::string idx4 = "p" + std::to_string(gen_label_count++);
-
-                    tmp_string.push_back(idx1+"*");
-                    tmp_string.push_back(idx2+"*");
-                    tmp_string.push_back(idx3);
-                    tmp_string.push_back(idx4);
-
-                    newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3});
-
-                }else if (op.substr(0, 1) == "j" ) { // fluctuation potential
-
-                    if (op.substr(1, 1) == "1" ){
-
-                        factor *= -1.0;
-
-                        std::string idx1 = "p" + std::to_string(gen_label_count++);
-                        std::string idx2 = "p" + std::to_string(gen_label_count++);
-
-                        // index 1
-                        tmp_string.push_back(idx1+"*");
-
-                        // index 2
-                        tmp_string.push_back(idx2);
-
-                        // integrals
-                        newguy->set_integrals("occ_repulsion", {idx1, idx2});
-
-                    }else if (op.substr(1, 1) == "2" ){
-
-                        factor *= 0.25;
-
-                        std::string idx1 = "p" + std::to_string(gen_label_count++);
-                        std::string idx2 = "p" + std::to_string(gen_label_count++);
-                        std::string idx3 = "p" + std::to_string(gen_label_count++);
-                        std::string idx4 = "p" + std::to_string(gen_label_count++);
-
-                        tmp_string.push_back(idx1+"*");
-                        tmp_string.push_back(idx2+"*");
-                        tmp_string.push_back(idx3);
-                        tmp_string.push_back(idx4);
-
-                        newguy->set_integrals("eri", {idx1, idx2, idx4, idx3});
+                        new_pq_strings.push_back(newguy);
 
                     }
-
-                }else if (op.substr(0, 1) == "t" ){
-
-                    int n = std::stoi(op.substr(1));
-
-                    std::vector<std::string> op_left;
-                    std::vector<std::string> op_right;
-                    std::vector<std::string> label_left;
-                    std::vector<std::string> label_right;
-                    for (int id = 0; id < n; id++) {
-
-                        std::string idx1 = "v" + std::to_string(vir_label_count++);
-                        std::string idx2 = "o" + std::to_string(occ_label_count++);
-
-                        op_left.push_back(idx1+"*");
-                        op_right.push_back(idx2);
-
-                        label_left.push_back(idx1);
-                        label_right.push_back(idx2);
-                    }
-                    // a*b*...
-                    for (int id = 0; id < n; id++) {
-                        tmp_string.push_back(op_left[id]);
-                    }
-                    // op*j*...
-                    for (int id = 0; id < n; id++) {
-                        tmp_string.push_back(op_right[id]);
-                    }
-                    std::vector<std::string> labels;
-                    // tn(ab...
-                    for (int id = 0; id < n; id++) {
-                        labels.push_back(label_left[id]);
-                    }
-                    // tn(ab......ji)
-                    for (int id = n-1; id >= 0; id--) {
-                        labels.push_back(label_right[id]);
-                    }
-                    newguy->set_amplitudes('t', n, n, labels);
-
-                    // factor = 1/(n!)^2
-                    double my_factor = 1.0;
-                    for (int id = 0; id < n; id++) {
-                        my_factor *= (id+1);
-                    }
-                    factor *= 1.0 / my_factor / my_factor;
-
-                }else if (op.substr(0, 1) == "w" ){ // w0 B*B
-
-                    if (op.substr(1, 1) == "0" ){
-
-                        has_w0 = true;
-
-                        newguy->is_boson_dagger.push_back(true);
-                        newguy->is_boson_dagger.push_back(false);
-
-                    }else {
-                        printf("\n");
-                        printf("    error: only w0 is supported\n");
-                        printf("\n");
-                        exit(1);
-                    }
-
-                }else if (op.substr(0, 2) == "b+" ){ // B*
-
-                        newguy->is_boson_dagger.push_back(true);
-
-                }else if (op.substr(0, 2) == "b-" ){ // B
-
-                        newguy->is_boson_dagger.push_back(false);
-
-                }else if (op.substr(0, 1) == "u" ){ // t-amplitudes + boson creator
-
-                    int n = std::stoi(op.substr(1));
-
-                    if ( n == 0 ){
-
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('u', n, n, labels);
-
-                        newguy->is_boson_dagger.push_back(true);
-
-                    }else {
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n; id++) {
-                            
-                            std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
-                            
-                            op_left.push_back(idx1+"*");
-                            op_right.push_back(idx2);
-                            
-                            label_left.push_back(idx1);
-                            label_right.push_back(idx2);
-                        }
-                        // a*b*...
-                        for (int id = 0; id < n; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // op*j*...
-                        for (int id = 0; id < n; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-                        std::vector<std::string> labels;
-                        // tn(ab... 
-                        for (int id = 0; id < n; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ab......ji)
-                        for (int id = n-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-                        newguy->set_amplitudes('u', n, n, labels);
-                        
-                        // factor = 1/(n!)^2
-                        double my_factor = 1.0;
-                        for (int id = 0; id < n; id++) {
-                            my_factor *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor / my_factor;
-
-                        newguy->is_boson_dagger.push_back(true);
-                    }
-
-                }else if (op.substr(0, 1) == "r" ){
-
-
-                    int n = std::stoi(op.substr(1));
-
-                    if ( n == 0 ){
-
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('r', n, n, labels);
-
-                    }else {
-
-                        int n_annihilate = n;
-                        int n_create     = n;
-                        if ( right_operators_type == "IP" ) n_create--;
-                        if ( right_operators_type == "DIP" ) n_create -= 2;
-                        if ( right_operators_type == "EA" ) n_annihilate--;
-                        if ( right_operators_type == "DEA" ) n_annihilate -= 2;
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n_create; id++) {
-                            std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            op_left.push_back(idx1+"*");
-                            label_left.push_back(idx1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
-                            op_right.push_back(idx2);
-                            label_right.push_back(idx2);
-                        }
-                        // a*b*...
-                        for (int id = 0; id < n_create; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // ij...
-                        for (int id = 0; id < n_annihilate; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-                        std::vector<std::string> labels;
-                        // tn(ab...
-                        for (int id = 0; id < n_create; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ab......ji)
-                        for (int id = n_annihilate-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-                        newguy->set_amplitudes('r', n_create, n_annihilate, labels);
-
-                        // factor = 1/(n!)^2
-                        double my_factor_create = 1.0;
-                        double my_factor_annihilate = 1.0;
-                        for (int id = 0; id < n_create; id++) {
-                            my_factor_create *= (id+1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            my_factor_annihilate *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
-
-                    }
-
-                }else if (op.substr(0, 1) == "s" ){ // r amplitudes + boson creator
-
-                    int n = std::stoi(op.substr(1));
-
-                    if ( n == 0 ){
-
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('s', n, n, labels);
-
-                        newguy->is_boson_dagger.push_back(true);
-
-                    }else {
-                       
-                        int n_annihilate = n;
-                        int n_create     = n;
-                        if ( right_operators_type == "IP" ) n_create--;
-                        if ( right_operators_type == "DIP" ) n_create -= 2;
-                        if ( right_operators_type == "EA" ) n_annihilate--;
-                        if ( right_operators_type == "DEA" ) n_annihilate -= 2;
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right; 
-                        for (int id = 0; id < n_create; id++) {
-                            std::string idx1 = "v" + std::to_string(vir_label_count++);
-                            op_left.push_back(idx1+"*");
-                            label_left.push_back(idx1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            std::string idx2 = "o" + std::to_string(occ_label_count++);
-                            op_right.push_back(idx2);
-                            label_right.push_back(idx2);
-                        }
-                        // a*b*...
-                        for (int id = 0; id < n_create; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // ij...
-                        for (int id = 0; id < n_annihilate; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-                        std::vector<std::string> labels;
-                        // tn(ab... 
-                        for (int id = 0; id < n_create; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ab......ji)
-                        for (int id = n_annihilate-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        } 
-                        newguy->set_amplitudes('s', n_create, n_annihilate, labels);
-                        
-                        // factor = 1/(n!)^2
-                        double my_factor_create = 1.0;
-                        double my_factor_annihilate = 1.0;
-                        for (int id = 0; id < n_create; id++) {
-                            my_factor_create *= (id+1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            my_factor_annihilate *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
-                    
-                        newguy->is_boson_dagger.push_back(true);
-
-                    }
-
-                }else if (op.substr(0, 1) == "l" ){
-
-                    int n = std::stoi(op.substr(1));
-
-                    if ( n == 0 ){
-
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('l', n, n, labels);
-
-                    }else {
-                        
-                        int n_annihilate = n;
-                        int n_create     = n;
-                        if ( left_operators_type == "IP" ) n_annihilate--;
-                        if ( left_operators_type == "DIP" ) n_annihilate -= 2;
-                        if ( left_operators_type == "EA" ) n_create--;
-                        if ( left_operators_type == "DEA" ) n_create -= 2;
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n_create; id++) {
-                            std::string idx1 = "o" + std::to_string(occ_label_count++);
-                            op_left.push_back(idx1+"*");
-                            label_left.push_back(idx1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            std::string idx2 = "v" + std::to_string(vir_label_count++);
-                            op_right.push_back(idx2);
-                            label_right.push_back(idx2);
-                        }
-                        // op*j*...
-                        for (int id = 0; id < n_create; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // ab...
-                        for (int id = 0; id < n_annihilate; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-                        std::vector<std::string> labels;
-                        // tn(ij... 
-                        for (int id = 0; id < n_create; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ij......ba)
-                        for (int id = n_annihilate-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-                        newguy->set_amplitudes('l', n_create, n_annihilate, labels);
-                        
-                        // factor = 1/(n!)^2
-                        double my_factor_create = 1.0;
-                        double my_factor_annihilate = 1.0;
-                        for (int id = 0; id < n_create; id++) {
-                            my_factor_create *= (id+1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            my_factor_annihilate *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
-                    
-                    }
-
-                }else if (op.substr(0, 1) == "m" ){ // l amplitudes plus boson annihilator
-
-                    int n = std::stoi(op.substr(1));
-
-                    if ( n == 0 ){
-
-                        std::vector<std::string> labels;
-                        newguy->set_amplitudes('m', n, n, labels);
-
-                        newguy->is_boson_dagger.push_back(false);
-
-                    }else {
-
-                        int n_annihilate = n;
-                        int n_create     = n;
-                        if ( left_operators_type == "IP" ) n_annihilate--;
-                        if ( left_operators_type == "DIP" ) n_annihilate -= 2;
-                        if ( left_operators_type == "EA" ) n_create--;
-                        if ( left_operators_type == "DEA" ) n_create -= 2;
-
-                        std::vector<std::string> op_left;
-                        std::vector<std::string> op_right;
-                        std::vector<std::string> label_left;
-                        std::vector<std::string> label_right;
-                        for (int id = 0; id < n_create; id++) {
-                            std::string idx1 = "o" + std::to_string(occ_label_count++);
-                            op_left.push_back(idx1+"*");
-                            label_left.push_back(idx1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            std::string idx2 = "v" + std::to_string(vir_label_count++);
-                            op_right.push_back(idx2);
-                            label_right.push_back(idx2);
-                        }
-                        // op*j*...
-                        for (int id = 0; id < n_create; id++) {
-                            tmp_string.push_back(op_left[id]);
-                        }
-                        // ab...
-                        for (int id = 0; id < n_annihilate; id++) {
-                            tmp_string.push_back(op_right[id]);
-                        }
-                        std::vector<std::string> labels;
-                        // tn(ij... 
-                        for (int id = 0; id < n_create; id++) {
-                            labels.push_back(label_left[id]);
-                        }
-                        // tn(ij......ba)
-                        for (int id = n_annihilate-1; id >= 0; id--) {
-                            labels.push_back(label_right[id]);
-                        }
-                        newguy->set_amplitudes('m', n_create, n_annihilate, labels);
-
-                        // factor = 1/(n!)^2
-                        double my_factor_create = 1.0;
-                        double my_factor_annihilate = 1.0;
-                        for (int id = 0; id < n_create; id++) {
-                            my_factor_create *= (id+1);
-                        }
-                        for (int id = 0; id < n_annihilate; id++) {
-                            my_factor_annihilate *= (id+1);
-                        }
-                        factor *= 1.0 / my_factor_create / my_factor_annihilate;
-
-                        newguy->is_boson_dagger.push_back(false);
-
-                    }
-
-                }else if (op.substr(0, 1) == "e" ){
-
-
-                    if (op.substr(1, 1) == "1" ){
-
-                        // find comma
-                        size_t pos = op.find(',');
-                        if ( pos == std::string::npos ) {
-                            printf("\n");
-                            printf("    error in e1 operator definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-                        size_t len = pos - 2; 
-
-                        // index 1
-                        tmp_string.push_back(op.substr(2, len) + "*");
-
-                        // index 2
-                        tmp_string.push_back(op.substr(pos + 1));
-
-                    }else if (op.substr(1, 1) == "2" ){
-
-                        // count indices
-                        size_t pos = 0;
-                        int ncomma = 0;
-                        std::vector<size_t> commas;
-                        pos = op.find(',', pos + 1);
-                        commas.push_back(pos);
-                        while( pos != std::string::npos){
-                            pos = op.find(',', pos + 1);
-                            commas.push_back(pos);
-                            ncomma++;
-                        }
-
-                        if ( ncomma != 3 ) {
-                            printf("\n");
-                            printf("    error in e2 definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
-                        tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
-                        tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1));
-                        tmp_string.push_back(op.substr(commas[2] + 1));
-
-                    }else if (op.substr(1, 1) == "3" ){
-
-                        // count indices
-                        size_t pos = 0;
-                        int ncomma = 0;
-                        std::vector<size_t> commas;
-                        pos = op.find(',', pos + 1);
-                        commas.push_back(pos);
-                        while( pos != std::string::npos){
-                            pos = op.find(',', pos + 1);
-                            commas.push_back(pos);
-                            ncomma++;
-                        }
-
-                        if ( ncomma != 5 ) {
-                            printf("\n");
-                            printf("    error in e3 definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
-                        tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
-                        tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[2] + 1, commas[3] - commas[2] - 1));
-                        tmp_string.push_back(op.substr(commas[3] + 1, commas[4] - commas[3] - 1));
-                        tmp_string.push_back(op.substr(commas[4] + 1));
-
-                    }else if (op.substr(1, 1) == "4" ){
-
-                        // count indices
-                        size_t pos = 0;
-                        int ncomma = 0;
-                        std::vector<size_t> commas;
-                        pos = op.find(',', pos + 1);
-                        commas.push_back(pos);
-                        while( pos != std::string::npos){
-                            pos = op.find(',', pos + 1);
-                            commas.push_back(pos);
-                            ncomma++;
-                        }
-
-                        if ( ncomma != 7 ) {
-                            printf("\n");
-                            printf("    error in e4 definition\n");
-                            printf("\n");
-                            exit(1);
-                        }
-
-                        tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
-                        tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[2] + 1, commas[3] - commas[2] - 1) + "*");
-                        tmp_string.push_back(op.substr(commas[3] + 1, commas[4] - commas[3] - 1));
-                        tmp_string.push_back(op.substr(commas[4] + 1, commas[5] - commas[4] - 1));
-                        tmp_string.push_back(op.substr(commas[5] + 1, commas[6] - commas[5] - 1));
-                        tmp_string.push_back(op.substr(commas[6] + 1));
-
-                    }else {
-                        printf("\n");
-                        printf("    error: only e1, e2, e3, and e4 operators are supported\n");
-                        printf("\n");
-                        exit(1);
-                    }
-
-                }else if (op.substr(0, 1) == "1" ) { // unit operator ... do nothing
-
-                }else if (op.substr(0, 1) == "a" ){ // single creator / annihilator
-
-
-                    if (op.substr(1, 1) == "*" ){ // creator
-
-                        tmp_string.push_back(op.substr(1) + "*");
-
-                    }else { // annihilator
-
-                        tmp_string.push_back(op.substr(1));
-
-                    }
-
-                }else {
-                        printf("\n");
-                        printf("    error: undefined string\n");
-                        printf("\n");
-                        exit(1);
                 }
             }
 
-            newguy->factor = factor;
-
-            for (const std::string & op : tmp_string) {
-                newguy->string.push_back(op);
-            }
-
-            newguy->has_w0 = has_w0;
+            // bring pq_strings to normal order
             if (vacuum == "TRUE") {
-                add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
+                add_new_string_true_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, false);
             } else {
-                add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations, occ_label_count, vir_label_count);
+                add_new_string_fermi_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, false);
             }
         }
     }
@@ -1163,17 +1004,896 @@ void pq_helper::py_add_new_string(double factor,
     newguy->factor = factor; 
 
     for (size_t i = 0; i < type.size(); i++){ 
-        newguy->set_amplitudes(type[i], order[i], order[i], amps_labels[i], has_permutational_symmetry);
+        newguy->set_amplitudes(type[i], order[i], order[i], 0, amps_labels[i], {}, has_permutational_symmetry);
     }
     newguy->string = ops_labels;
 
+    // now, we need to convert the list "new_pq_strings[i]->string" into symbols and daggers
+    newguy->strings_to_symbols_and_daggers(vacuum);
+
+    std::vector<std::shared_ptr<pq_string>> new_pq_strings;
+
+    new_pq_strings.push_back(newguy);
+
     if (vacuum == "TRUE") {
-        add_new_string_true_vacuum(newguy, ordered, print_level, find_paired_permutations);
+        add_new_string_true_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, false);
     } else {
-        int occ_label_count = 0;
-        int vir_label_count = 0;
-        add_new_string_fermi_vacuum(newguy, ordered, print_level, find_paired_permutations, occ_label_count, vir_label_count);
+
+        add_new_string_fermi_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, false);
     }
+}
+// build a pq_string from the string representations of operators
+std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double factor, 
+    std::vector<std::string> input_op, 
+    int & occ_label_count,
+    int & vir_label_count){
+
+    std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
+    
+    std::vector<std::string> tmp_string;
+    
+    bool has_w0 = false;
+
+    int gen_label_count = 0;
+    
+    for (std::string & op_including_portions : input_op) {
+    
+        // bernoulli expansion requires operator portion specification. split into base name and portion
+        std::string op = get_operator_base_name(op_including_portions);
+        std::vector<std::string> op_portions = get_operator_portions_as_vector(op_including_portions);
+        
+        // blank string
+        if ( op.empty() ) continue;
+    
+        // Stephen: removed so that we can distinguish lower- and uppercase indices
+        // lowercase indices
+        // std::transform(op.begin(), op.end(), op.begin(), [](unsigned char c){ return std::tolower(c); });
+    
+        // remove spaces
+        removeSpaces(op);
+    
+        // remove parentheses
+        removeParentheses(op);
+    
+        if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
+    
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+            // index 1
+            tmp_string.push_back(idx1+"*");
+    
+            // index 2
+            tmp_string.push_back(idx2);
+    
+            // integrals
+            newguy->set_integrals("core", {idx1, idx2}, op_portions);
+    
+        }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
+  
+            // normal ordered or not?
+            if ( op.size() == 1 ) { 
+                std::string idx1 = "p" + std::to_string(gen_label_count++);
+                std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+                tmp_string.push_back(idx1+"*"); 
+                tmp_string.push_back(idx2);
+    
+                newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+
+           }else {
+               // find number in string representing which block of F this is
+               std::string num_str = op.substr(1);
+               int label = std::stoi(num_str);
+
+               // Map the bits of 'label' (0 to 3) to 'o' (occupied) or 'v' (virtual)
+               // label & 2 checks the first index, label & 1 checks the second
+               std::string idx1 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+               std::string idx2 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+               
+               // Normal ordering: pushing true creators (C) left of true annihilators (A)
+               if (label == 0) {
+                   // 00 (v v) -> C A -> Already normal ordered
+                   tmp_string.push_back(idx1+"*"); 
+                   tmp_string.push_back(idx2);
+               }else if (label == 1) {
+                   // 01 (v o) -> C C -> Already normal ordered (preserve relative order)
+                   tmp_string.push_back(idx1+"*"); 
+                   tmp_string.push_back(idx2);
+               }else if (label == 2) {
+                   // 10 (o v) -> A A -> Already normal ordered (preserve relative order)
+                   tmp_string.push_back(idx1+"*"); 
+                   tmp_string.push_back(idx2);
+               }else if (label == 3) {
+                   // 11 (o o) -> A C -> Swap needed to put C before A
+                   factor *= -1;
+                   tmp_string.push_back(idx2); 
+                   tmp_string.push_back(idx1+"*");
+               }
+
+               newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+           }
+    
+        }else if (op.substr(0, 2) == "d+" || op.substr(0, 2) == "D+") { // one-electron operator (dipole + boson creator)
+    
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+            // index 1
+            tmp_string.push_back(idx1+"*");
+    
+            // index 2
+            tmp_string.push_back(idx2);
+    
+            // integrals
+            newguy->set_integrals("d+", {idx1, idx2}, op_portions);
+    
+            // boson operator
+            newguy->is_boson_dagger.push_back(true);
+    
+        }else if (op.substr(0, 2) == "d-" || op.substr(0, 2) == "D-") { // one-electron operator (dipole + boson annihilator)
+    
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+            // index 1
+            tmp_string.push_back(idx1+"*");
+    
+            // index 2
+            tmp_string.push_back(idx2);
+    
+            // integrals
+            newguy->set_integrals("d-", {idx1, idx2}, op_portions);
+    
+            // boson operator
+            newguy->is_boson_dagger.push_back(false);
+    
+        }else if (op.substr(0, 1) == "g" || op.substr(0, 1) == "G") { // general two-electron operator
+    
+            //factor *= 0.25;
+    
+            std::string idx1 = "p" + std::to_string(gen_label_count++);
+            std::string idx2 = "p" + std::to_string(gen_label_count++);
+            std::string idx3 = "p" + std::to_string(gen_label_count++);
+            std::string idx4 = "p" + std::to_string(gen_label_count++);
+    
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2+"*");
+            tmp_string.push_back(idx3);
+            tmp_string.push_back(idx4);
+    
+            newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3}, op_portions);
+    
+        }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
+    
+            if (op.substr(1, 1) == "1" ){
+    
+                factor *= -1.0;
+    
+                std::string idx1 = "p" + std::to_string(gen_label_count++);
+                std::string idx2 = "p" + std::to_string(gen_label_count++);
+    
+                // index 1
+                tmp_string.push_back(idx1+"*");
+    
+                // index 2
+                tmp_string.push_back(idx2);
+    
+                // integrals
+                newguy->set_integrals("occ_repulsion", {idx1, idx2}, op_portions);
+    
+            }else if (op.substr(1, 1) == "2" ){
+    
+                factor *= 0.25;
+    
+                std::string idx1 = "p" + std::to_string(gen_label_count++);
+                std::string idx2 = "p" + std::to_string(gen_label_count++);
+                std::string idx3 = "p" + std::to_string(gen_label_count++);
+                std::string idx4 = "p" + std::to_string(gen_label_count++);
+    
+                tmp_string.push_back(idx1+"*");
+                tmp_string.push_back(idx2+"*");
+                tmp_string.push_back(idx3);
+                tmp_string.push_back(idx4);
+    
+                newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+
+            }else if (op.substr(1, 1) == "n" ){ // normal ordered fluctuation potential
+
+                factor *= 0.25;
+
+                // find number in string representing which block of V (JN) this is
+                std::string num_str;
+                size_t pos = op.find('{', 2); // start in index 2
+                if (pos != std::string::npos) {
+                    num_str = op.substr(2, pos - 2);
+                } else {
+                    num_str = op.substr(2);
+                }
+                int label = std::stoi(num_str);
+
+                // Check the bits of 'label' to assign 'o' (occupied) or 'v' (virtual) 
+                // and increment the correct counter on the fly.
+                std::string idx1 = (label & 8) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                std::string idx2 = (label & 4) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                std::string idx3 = (label & 2) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+                std::string idx4 = (label & 1) ? "o" + std::to_string(occ_label_count++) : "v" + std::to_string(vir_label_count++);
+
+                // Normal ordering: pushing true creators (C) to the left of true annihilators (A)
+                if (label == 0) {
+                    // 0000 (v v v v) -> C C A A
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 1) {
+                    // 0001 (v v v o) -> C C A C
+                    factor *= -1;
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx3);
+                }else if (label == 2) {
+                    // 0010 (v v o v) -> C C C A
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 3) {
+                    // 0011 (v v o o) -> C C C C
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 4) {
+                    // 0100 (v o v v) -> C A A A
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 5) {
+                    // 0101 (v o v o) -> C A A C
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
+                }else if (label == 6) {
+                    // 0110 (v o o v) -> C A C A
+                    factor *= -1;
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
+                }else if (label == 7) {
+                    // 0111 (v o o o) -> C A C C
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx2+"*");
+                }else if (label == 8) {
+                    // 1000 (o v v v) -> A C A A
+                    factor *= -1;
+                    tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 9) {
+                    // 1001 (o v v o) -> A C A C
+                    factor *= -1;
+                    tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx3);
+                }else if (label == 10) {
+                    // 1010 (o v o v) -> A C C A
+                    tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx4);
+                }else if (label == 11) {
+                    // 1011 (o v o o) -> A C C C
+                    factor *= -1;
+                    tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*");
+                }else if (label == 12) {
+                    // 1100 (o o v v) -> A A A A
+                    tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3); tmp_string.push_back(idx4);
+                }else if (label == 13) {
+                    // 1101 (o o v o) -> A A A C
+                    factor *= -1;
+                    tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx3);
+                }else if (label == 14) {
+                    // 1110 (o o o v) -> A A C A
+                    tmp_string.push_back(idx3); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*"); tmp_string.push_back(idx4);
+                }else if (label == 15) {
+                    // 1111 (o o o o) -> A A C C
+                    tmp_string.push_back(idx3); tmp_string.push_back(idx4); tmp_string.push_back(idx1+"*"); tmp_string.push_back(idx2+"*");
+                }
+                
+                newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+            }
+    
+        }else if (op.substr(0, 1) == "t"){
+    
+            int n = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+    
+                // excitation:
+                if ( op.substr(0,2) == "te" ) {
+    
+                    for (int id = 0; id < n; id++) {
+    
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
+    
+                        op_left.push_back(idx1+"*");
+                        op_right.push_back(idx2);
+    
+                        label_left.push_back(idx1);
+                        label_right.push_back(idx2);
+                    }
+                }else if ( op.substr(0,2) == "td" ) {
+    
+                    // de-excitation:
+                    for (int id = 0; id < n; id++) {
+    
+                        std::string idx1 = "v" + std::to_string(vir_label_count++);
+                        std::string idx2 = "o" + std::to_string(occ_label_count++);
+    
+                        op_left.push_back(idx2+"*");
+                        op_right.push_back(idx1);
+    
+                        // do not transpose de-excitation amplitude labels
+                        //label_left.push_back(idx1);
+                        //label_right.push_back(idx2);
+                        // transpose de-excitation amplitude labels
+                        label_left.push_back(idx2);
+                        label_right.push_back(idx1);
+                    }
+                }else {
+                    printf("\n");
+                    printf("    invalid operator type: %s\n", op.c_str());
+                    printf("\n");
+                    exit(1);
+                }
+    
+                // a*b*...
+                for (int id = 0; id < n; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // op*j*...
+                for (int id = 0; id < n; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ab...
+                for (int id = 0; id < n; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ab......ji)
+                for (int id = n-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+    
+                // factor = 1/(n!)^2
+                double my_factor = 1.0;
+                for (int id = 0; id < n; id++) {
+                    my_factor *= (id+1);
+                }
+                factor *= 1.0 / my_factor / my_factor;
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 3 ) {
+                if ( op.substr(3,1) == ",") {
+                    n_ph = std::stoi(op.substr(4));
+                    if ( op.substr(0,2) == "te" ) {
+                        // excitation
+                        for (int ph = 0; ph < n_ph; ph++) {
+                            newguy->is_boson_dagger.push_back(true);
+                        }
+                    }else if ( op.substr(0,2) == "td" ) {
+                        // de-excitation
+                        for (int ph = 0; ph < n_ph; ph++) {
+                            newguy->is_boson_dagger.push_back(false);
+                        }
+                    }
+                }
+            }
+            newguy->set_amplitudes('t', n, n, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "w" || op.substr(0, 1) == "W"){ // w0 B*B
+    
+            if (op.substr(1, 1) == "0" ){
+    
+                has_w0 = true;
+    
+                newguy->is_boson_dagger.push_back(true);
+                newguy->is_boson_dagger.push_back(false);
+    
+            }else {
+                printf("\n");
+                printf("    error: only w0 is supported\n");
+                printf("\n");
+                exit(1);
+            }
+    
+        }else if (op.substr(0, 2) == "b+" || op.substr(0, 2) == "B+"){ // B*
+    
+                newguy->is_boson_dagger.push_back(true);
+    
+        }else if (op.substr(0, 2) == "b-" || op.substr(0, 2) == "B-"){ // B
+    
+                newguy->is_boson_dagger.push_back(false);
+    
+        }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
+    
+    
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+    
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // a*b*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ij...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ab...
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ab......ji)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+    
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 2 ) {
+                if ( op.substr(2,1) == ",") {
+                    n_ph = std::stoi(op.substr(3));
+                    for (int ph = 0; ph < n_ph; ph++) {
+                        newguy->is_boson_dagger.push_back(true);
+                    }
+                }
+            }
+            newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
+    
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+                
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // op*j*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ab...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ij... 
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ij......ba)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+                
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 2 ) {
+                if ( op.substr(2,1) == ",") {
+                    n_ph = std::stoi(op.substr(3));
+                    for (int ph = 0; ph < n_ph; ph++) {
+                        newguy->is_boson_dagger.push_back(false);
+                    }
+                }
+            }
+            newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "x" || op.substr(0, 1) == "X"){
+   
+            // more right-hand operators 
+    
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+    
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // a*b*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ij...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ab...
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ab......ji)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+    
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 2 ) {
+                if ( op.substr(2,1) == ",") {
+                    n_ph = std::stoi(op.substr(3));
+                    for (int ph = 0; ph < n_ph; ph++) {
+                        newguy->is_boson_dagger.push_back(true);
+                    }
+                }
+            }
+            newguy->set_amplitudes('x', n_create, n_annihilate, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "y" || op.substr(0, 1) == "Y"){
+    
+            // more left-hand operators 
+
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+                
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // op*j*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ab...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ij... 
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ij......ba)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+                
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            
+            }
+    
+            int n_ph = 0;
+            if (op.size() > 2 ) {
+                if ( op.substr(2,1) == ",") {
+                    n_ph = std::stoi(op.substr(3));
+                    for (int ph = 0; ph < n_ph; ph++) {
+                        newguy->is_boson_dagger.push_back(false);
+                    }
+                }
+            }
+            newguy->set_amplitudes('y', n_create, n_annihilate, n_ph, labels, op_portions);
+    
+        }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
+    
+    
+            if (op.substr(1, 1) == "1" ){
+    
+                // find comma
+                size_t pos = op.find(',');
+                if ( pos == std::string::npos ) {
+                    printf("\n");
+                    printf("    error in e1 operator definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+                size_t len = pos - 2; 
+    
+                // index 1
+                tmp_string.push_back(op.substr(2, len) + "*");
+    
+                // index 2
+                tmp_string.push_back(op.substr(pos + 1));
+    
+            }else if (op.substr(1, 1) == "2" ){
+    
+                // count indices
+                size_t pos = 0;
+                int ncomma = 0;
+                std::vector<size_t> commas;
+                pos = op.find(',', pos + 1);
+                commas.push_back(pos);
+                while( pos != std::string::npos){
+                    pos = op.find(',', pos + 1);
+                    commas.push_back(pos);
+                    ncomma++;
+                }
+    
+                if ( ncomma != 3 ) {
+                    printf("\n");
+                    printf("    error in e2 definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+    
+                tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
+                tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1));
+                tmp_string.push_back(op.substr(commas[2] + 1));
+    
+            }else if (op.substr(1, 1) == "3" ){
+    
+                // count indices
+                size_t pos = 0;
+                int ncomma = 0;
+                std::vector<size_t> commas;
+                pos = op.find(',', pos + 1);
+                commas.push_back(pos);
+                while( pos != std::string::npos){
+                    pos = op.find(',', pos + 1);
+                    commas.push_back(pos);
+                    ncomma++;
+                }
+    
+                if ( ncomma != 5 ) {
+                    printf("\n");
+                    printf("    error in e3 definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+    
+                tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
+                tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[2] + 1, commas[3] - commas[2] - 1));
+                tmp_string.push_back(op.substr(commas[3] + 1, commas[4] - commas[3] - 1));
+                tmp_string.push_back(op.substr(commas[4] + 1));
+    
+            }else if (op.substr(1, 1) == "4" ){
+    
+                // count indices
+                size_t pos = 0;
+                int ncomma = 0;
+                std::vector<size_t> commas;
+                pos = op.find(',', pos + 1);
+                commas.push_back(pos);
+                while( pos != std::string::npos){
+                    pos = op.find(',', pos + 1);
+                    commas.push_back(pos);
+                    ncomma++;
+                }
+    
+                if ( ncomma != 7 ) {
+                    printf("\n");
+                    printf("    error in e4 definition\n");
+                    printf("\n");
+                    exit(1);
+                }
+    
+                tmp_string.push_back(op.substr(2, commas[0] - 2) + "*");
+                tmp_string.push_back(op.substr(commas[0] + 1, commas[1] - commas[0] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[1] + 1, commas[2] - commas[1] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[2] + 1, commas[3] - commas[2] - 1) + "*");
+                tmp_string.push_back(op.substr(commas[3] + 1, commas[4] - commas[3] - 1));
+                tmp_string.push_back(op.substr(commas[4] + 1, commas[5] - commas[4] - 1));
+                tmp_string.push_back(op.substr(commas[5] + 1, commas[6] - commas[5] - 1));
+                tmp_string.push_back(op.substr(commas[6] + 1));
+    
+            }else {
+                printf("\n");
+                printf("    error: only e1, e2, e3, and e4 operators are supported\n");
+                printf("\n");
+                exit(1);
+            }
+    
+        }else if (op.substr(0, 1) == "1" ) { // unit operator ... do nothing
+    
+        }else if (op.substr(0, 1) == "a" || op.substr(0, 1) == "A"){ // single creator / annihilator
+    
+    
+            if (op.substr(1, 1) == "*" ){ // creator
+    
+                tmp_string.push_back(op.substr(1) + "*");
+    
+            }else { // annihilator
+    
+                tmp_string.push_back(op.substr(1));
+    
+            }
+    
+        }else {
+                printf("\n");
+                printf("    error: undefined string: %s\n", op.c_str());
+                printf("\n");
+                exit(1);
+        }
+    }
+    
+    newguy->factor = factor;
+    
+    for (const std::string & op : tmp_string) {
+        newguy->string.push_back(op);
+    }
+    
+    newguy->has_w0 = has_w0;
+    
+    // make sure factor > 0
+    if ( newguy->factor < 0.0 ) {
+        newguy->factor = fabs(newguy->factor);
+        newguy->sign *= -1;
+    }
+
+    // two more steps before we have proper pq_string objects
+    // 1. expand general labels (fermi vacuum)
+    // 2. convert "string" to "symbol", "is_dagger", and "is_dagger_fermi"
+
+    std::vector< std::shared_ptr<pq_string> > new_pq_strings;
+    new_pq_strings.push_back(newguy);
+
+    // expand general labels (fermi vacuum)
+    if (vacuum != "TRUE") {
+        
+        bool done_expanding = false;
+        do {
+            std::vector< std::shared_ptr<pq_string> > list;
+            done_expanding = true;
+            for (const std::shared_ptr<pq_string> & pq_str : new_pq_strings) {
+                bool am_i_done = expand_general_labels(pq_str, list, occ_label_count, vir_label_count);
+                if ( !am_i_done ) done_expanding = false;
+            }
+            if (!done_expanding) {
+                new_pq_strings.clear();
+                for (std::shared_ptr<pq_string> & pq_str : list) {
+                    new_pq_strings.push_back(pq_str);
+                }
+            }
+            occ_label_count++;
+            vir_label_count++;
+        }while(!done_expanding);
+    }
+
+    // now, we need to convert the list "new_pq_strings[i]->string" into symbols and daggers
+    for (auto & my_string: new_pq_strings ) {
+        my_string->strings_to_symbols_and_daggers(vacuum);
+    }
+
+    // make sure all factors are non-negative
+    for (auto & my_string: new_pq_strings ) {
+        if ( my_string->factor < 0.0 ) {
+            my_string->sign *= -1;
+            my_string->factor = fabs(my_string->factor);
+        }
+    }
+
+    return new_pq_strings;
 }
 
 void pq_helper::simplify() {
@@ -1191,6 +1911,21 @@ void pq_helper::simplify() {
 
         // replace any funny labels that were added with conventional ones
         use_conventional_labels(pq_str);
+
+        // eliminate terms based on operator portions (for bernoulli)
+        eliminate_operator_portions(pq_str, bernoulli_excitation_level);
+
+        // if UCC de-excitation amplitudes were transposed, transpose them back
+        if ( is_unitary_cc ) {
+            // relabel amplitudes t(i, a) -> t(a, i)
+            for (size_t j = 0; j < pq_str->amps['t'].size(); j++) {
+                // check if first label is occupied or not. if so, reverse order and flip sign
+                if ( pq_str->amps['t'][j].labels.size() == 0 ) continue;
+                if ( is_occ(pq_str->amps['t'][j].labels[0]) ) {
+                    std::reverse(pq_str->amps['t'][j].labels.begin(), pq_str->amps['t'][j].labels.end());
+                }
+            }
+        }
 
         // replace creation / annihilation operators with rdms
         if ( use_rdms ) {
@@ -1218,7 +1953,9 @@ void pq_helper::simplify() {
                 rdm_labels.push_back(pq_str->symbol[n - i - 1]);
             }
 
-            pq_str->set_amplitudes('D', n_create, n_annihilate, rdm_labels);
+            // TODO: we're assuming no photons ... 
+            // TODO: would there ever be a use case where we'd want to specify operator portions here?
+            pq_str->set_amplitudes('D', n_create, n_annihilate, 0, rdm_labels);
             pq_str->symbol.clear();
         }
     }
@@ -1231,85 +1968,7 @@ void pq_helper::simplify() {
 
 }
 
-void pq_helper::print(const std::string &string_type) const {
-
-    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
-    const auto &reference = is_blocked ? ordered_blocked : ordered;
-
-    printf("\n");
-    printf("    ");
-
-    int n = 0;
-
-    if ( string_type == "all" ) {
-
-        printf("// normal-ordered strings:\n");
-        for (const std::shared_ptr<pq_string> & pq_str : reference) {
-            pq_str->print();
-        }
-        printf("\n");
-        return;
-
-    }else if ( string_type == "one-body" ) {
-        printf("// one-body strings:\n");
-        n = 1;
-    }else if ( string_type == "two-body" ) {
-        n = 2;
-        printf("// two-body strings:\n");
-    }else if ( string_type == "fully-contracted" ) {
-        printf("// fully-contracted strings:\n");
-        n = 0;
-    }
-
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        // number of fermion + boson operators
-        int my_n = pq_str->symbol.size() / 2 + pq_str->is_boson_dagger.size();
-        if ( my_n != n ) continue;
-        pq_str->print();
-    }
-    printf("\n");
-
-}
-
-// get list of fully-contracted strings, after assigning ranges to the labels
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_ranges(
-            const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
-
-    // add ranges to labels
-    pq_string::is_range_blocked = true;
-    if ( pq_string::is_spin_blocked ) {
-        printf("\n");
-        printf("    error: cannot simultaneously block by spin and by range\n");
-    }
-
-    std::vector< std::shared_ptr<pq_string> > range_blocked;
-
-    for (auto & pq_str : ordered) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector< std::shared_ptr<pq_string> > tmp;
-        add_label_ranges(pq_str, tmp, label_ranges);
-        for (const auto & op : tmp) {
-            range_blocked.push_back(op);
-        }
-    }
-
-    std::vector<std::vector<std::string> > list;
-    for (auto & pq_str : range_blocked) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = pq_str->get_string();
-        //std::vector<std::string> my_string = range_blocked[pq_str]->get_string();
-        if ( !my_string.empty() ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
-}
-
-// get list of fully-contracted strings, after assigning ranges to the labels
+// block labels by orbital spaces
 void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges) {
     ordered_blocked.clear();
 
@@ -1318,6 +1977,8 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     if ( pq_string::is_spin_blocked ) {
         printf("\n");
         printf("    error: cannot simultaneously block by spin and by range\n");
+        printf("\n");
+        exit(1);
     }
 
     std::vector< std::shared_ptr<pq_string> > range_blocked;
@@ -1333,42 +1994,7 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     }
 }
 
-// get list of fully-contracted strings, after spin tracing
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings_with_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
-
-    // perform spin tracing
-    pq_string::is_spin_blocked = true;
-    if ( pq_string::is_range_blocked ) {
-        printf("\n");
-        printf("    error: cannot simultaneously block by spin and by range\n");
-    }
-
-    std::vector< std::shared_ptr<pq_string> > spin_blocked;
-
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector< std::shared_ptr<pq_string> > tmp;
-        spin_blocking(pq_str, tmp, spin_labels);
-        for (const std::shared_ptr<pq_string> & op : tmp) {
-            spin_blocked.push_back(op);
-        }
-    }
-
-    std::vector<std::vector<std::string> > list;
-    for (auto & spin_str : spin_blocked) {
-        if ( !spin_str->symbol.empty() ) continue;
-        if ( !spin_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = spin_str->get_string();
-        if ( !my_string.empty() ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
-}
-
+// block labels by spin
 void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
     ordered_blocked.clear();
 
@@ -1377,6 +2003,8 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
     if ( pq_string::is_range_blocked ) {
         printf("\n");
         printf("    error: cannot simultaneously block by spin and by range\n");
+        printf("\n");
+        exit(1);
     }
 
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
@@ -1388,25 +2016,6 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
             ordered_blocked.push_back(tmp_pq_str);
         }
     }
-}
-
-std::vector<std::vector<std::string> > pq_helper::fully_contracted_strings() const {
-
-    bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
-    const auto &reference = is_blocked ? ordered_blocked : ordered;
-
-    std::vector<std::vector<std::string> > list;
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        if ( !pq_str->symbol.empty() ) continue;
-        if ( !pq_str->is_boson_dagger.empty() ) continue;
-        std::vector<std::string> my_string = pq_str->get_string();
-        if ( (int)my_string.size() > 0 ) {
-            list.push_back(my_string);
-        }
-    }
-
-    return list;
-
 }
 
 std::vector<std::vector<std::string> > pq_helper::strings() const {
@@ -1437,39 +2046,38 @@ void pq_helper::clear() {
     pq_string::is_range_blocked = false;
 }
 
-void pq_helper::add_st_operator(double factor, const std::vector<std::string> &targets,
-                                               const std::vector<std::string> &ops){
+void pq_helper::add_st_operator(double factor, 
+                                const std::vector<std::string> &targets,
+                                const std::vector<std::string> &ops,
+                                bool do_operators_commute = true){
 
-    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops);
-    for (auto op : st_ops){
-        add_operator_product(op.factor, op.operators);
-    }
-
+    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute);
+    process_operator_products(st_ops);
 }
 
-std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops){
+std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true){
 
     int dim = (int)ops.size();
 
-    std::vector<pq_operator_terms> st;
-    st.push_back(pq_operator_terms(factor, targets));
+    std::vector<pq_operator_terms> st_terms;
+    st_terms.push_back(pq_operator_terms(factor, targets));
 
     for (int i = 0; i < dim; i++) {
         std::vector<pq_operator_terms> tmp = get_commutator_terms(factor, targets, {ops[i]});
-        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+        st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
     }
 
-    if ( cluster_operators_commute ) {
+    if ( do_operators_commute ) {
 
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(factor, targets, {ops[i]}, {ops[j]});
-                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
             }
         }
         for (int i = 0; i < dim; i++) {
             std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]});
-            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+            st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
 
         // ijk
@@ -1477,7 +2085,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             for (int j = i + 1; j < dim; j++) {
                 for (int k = j + 1; k < dim; k++) {
                     std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
-                    st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
                 }
             }
         }
@@ -1488,15 +2096,15 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                 std::vector<pq_operator_terms> tmp1 = get_triple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]});
                 std::vector<pq_operator_terms> tmp2 = get_triple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]});
 
-                st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
-                st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
+                st_terms.insert(std::end(st_terms), std::begin(tmp1), std::end(tmp1));
+                st_terms.insert(std::end(st_terms), std::begin(tmp2), std::end(tmp2));
             }
         }
 
          // iii
         for (int i = 0; i < dim; i++) {
             std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
-            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+            st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
 
         // ijkl
@@ -1505,7 +2113,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                 for (int k = j + 1; k < dim; k++) {
                     for (int l = k + 1; l < dim; l++) {
                         std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
-                        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                        st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
                     }
                 }
             }
@@ -1519,9 +2127,9 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                     std::vector<pq_operator_terms> tmp2 = get_quadruple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[k]});
                     std::vector<pq_operator_terms> tmp3 = get_quadruple_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[k]});
 
-                    st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
-                    st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
-                    st.insert(std::end(st), std::begin(tmp3), std::end(tmp3));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp1), std::end(tmp1));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp2), std::end(tmp2));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp3), std::end(tmp3));
                 }
             }
         }
@@ -1530,7 +2138,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(0.25 * factor, targets, {ops[i]}, {ops[i]}, {ops[j]}, {ops[j]});
-                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
             }
         }
 
@@ -1540,15 +2148,15 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                 std::vector<pq_operator_terms> tmp1 = get_quadruple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[j]});
                 std::vector<pq_operator_terms> tmp2 = get_quadruple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[j]}, {ops[j]});
 
-                st.insert(std::end(st), std::begin(tmp1), std::end(tmp1));
-                st.insert(std::end(st), std::begin(tmp2), std::end(tmp2));
+                st_terms.insert(std::end(st_terms), std::begin(tmp1), std::end(tmp1));
+                st_terms.insert(std::end(st_terms), std::begin(tmp2), std::end(tmp2));
             }
         }
 
         // iiii
         for (int i = 0; i < dim; i++) {
             std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
-            st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+            st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
 
     }else {
@@ -1556,7 +2164,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]});
-                st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
             }
         }
 
@@ -1564,7 +2172,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
                     std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]});
-                    st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                    st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
                 }
             }
         }
@@ -1574,14 +2182,97 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
                 for (int k = 0; k < dim; k++) {
                     for (int l = 0; l < dim; l++) {
                         std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[j]}, {ops[k]}, {ops[l]});
-                        st.insert(std::end(st), std::begin(tmp), std::end(tmp));
+                        st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
                     }
                 }
             }
         }
     }
 
-    return st;
+    return st_terms;
+}
+
+void pq_helper::add_bernoulli_operator(double factor,
+                                       const std::vector<std::string> &targets,
+                                       const std::vector<std::string> &ops,
+                                       const int max_order) {
+
+    std::vector<pq_operator_terms> bernoulli_terms = get_bernoulli_operator_terms(factor, targets, ops, max_order);
+    process_operator_products(bernoulli_terms);
+}
+
+std::vector<pq_operator_terms> pq_helper::get_bernoulli_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, const int max_order) {
+
+    if ( max_order > 6 ) {
+        printf("\n");
+        printf("    error: Bernoulli terms beyond 6th-order are not yet implemented.\n");
+        printf("\n");
+        exit(1);
+    }
+
+    int dim = (int)ops.size();
+
+    std::vector<pq_operator_terms> bernoulli_terms;
+
+    // zeroth-order terms: v
+    bernoulli_terms.push_back(pq_operator_terms(factor, targets));
+
+    if ( max_order == 0 ) {
+        return bernoulli_terms;
+    }
+
+    // first-order terms: 1/2 [v, sigma] + 1/2 [v_R, sigma]
+
+    std::vector<pq_operator_terms> tmp = get_bernoulli_operator_terms_1(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    if ( max_order == 1 ) {
+        return bernoulli_terms;
+    }
+
+    // second-order terms: 1/12 [[V_N, sigma], sigma] + 1/4 [[V, sigma]_R, sigma] + 1/4 [[V_R, sigma]_R, sigma]
+    tmp.clear();
+    tmp = get_bernoulli_operator_terms_2(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    if ( max_order == 2 ) {
+        return bernoulli_terms;
+    }
+
+    // third-order terms: 
+    tmp.clear();
+    tmp = get_bernoulli_operator_terms_3(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    if ( max_order == 3 ) {
+        return bernoulli_terms;
+    }
+
+    // fourth-order terms: 
+    tmp.clear();
+    tmp = get_bernoulli_operator_terms_4(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+
+    if ( max_order == 4 ) {
+        return bernoulli_terms;
+    }
+
+    // fifth-order terms: 
+    tmp.clear();
+    tmp = get_bernoulli_operator_terms_5(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    if ( max_order == 5 ) {
+        return bernoulli_terms;
+    }
+
+    // sixth-order terms: 
+    tmp.clear();
+    tmp = get_bernoulli_operator_terms_6(factor, targets, ops);
+    bernoulli_terms.insert(std::end(bernoulli_terms), std::begin(tmp), std::end(tmp));
+
+    return bernoulli_terms;
 }
 
 } // End namespaces
