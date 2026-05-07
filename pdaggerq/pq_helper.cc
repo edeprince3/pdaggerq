@@ -2046,8 +2046,9 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
     }
 
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        if (!pq_str->symbol.empty()) continue;
-        if (!pq_str->is_boson_dagger.empty()) continue;
+        // skip terms with operators?
+        //if (!pq_str->symbol.empty()) continue;
+        //if (!pq_str->is_boson_dagger.empty()) continue;
         std::vector<std::shared_ptr<pq_string> > tmp_ordered;
         spin_blocking(pq_str, tmp_ordered, spin_labels);
         for (const std::shared_ptr<pq_string> & tmp_pq_str : tmp_ordered) {

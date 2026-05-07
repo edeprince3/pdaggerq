@@ -832,6 +832,14 @@ void pq_string::set_spin_everywhere(const std::string &target, const std::string
             }
         }
     }
+/*
+    // TODO operators
+    for (std::string & me : symbol) {
+        if ( me == target ) {
+            me += spin;
+        }
+    }
+*/
 }
 
 // reset spin labels
