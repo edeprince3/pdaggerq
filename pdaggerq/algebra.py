@@ -254,7 +254,7 @@ class TensorTerm:
 
         # unprocess (possibly) processed coefficient float
         from fractions import Fraction
-        x = Fraction(coeff).limit_denominator(100)
+        x = Fraction(coeff).limit_denominator(10000)
         coeff = x.numerator/x.denominator
 
         # initialize variables
@@ -293,9 +293,10 @@ class TensorTerm:
         if precision >= repeat_count and last_digit == '0':
             precision -= repeat_count
 
-        # we should always have at least two digits
-        if precision < 2:
-            precision = 2
+        # we should always have at least twelve digits for unitary CC
+        # so, sorry that printing will be awful for other cases
+        if precision < 12:
+            precision = 12
 
         # print coeff with computed precision using nested {}, what could be more pythonic??
         coeff_minprec = f"{coeff: .{precision}f}"

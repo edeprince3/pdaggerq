@@ -78,8 +78,8 @@ template <typename T> int minimum_precision(T factor) {
         precision -= repeat_count;
 
     // we should always have at least two digits
-    if (precision < 2)
-        precision = 2;
+    if (precision < 12)
+        precision = 12;
 
     return precision;
 }
