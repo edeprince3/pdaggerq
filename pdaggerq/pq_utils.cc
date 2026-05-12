@@ -25,6 +25,7 @@
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
 
+#include <unordered_set>
 #include <algorithm>
 #include <numeric>
 
@@ -161,6 +162,114 @@ int index_in_operators(const std::string &idx, const std::vector<std::string> &o
         }
     }
     return n;
+}
+
+std::unordered_map<std::string, int> count_labels(const std::shared_ptr<pq_string> &in, std::vector<char> ignore_amps = {}) {
+
+    // map to store string label -> occurrence count
+    std::unordered_map<std::string, int> counts;
+
+    // helper to update the map
+    auto add_to_counts = [&](const std::vector<std::string>& labels) {
+        for (const auto& label : labels) {
+            counts[label]++;
+        }
+    };
+    
+    // deltas
+    for (const auto& delta : in->deltas) {
+        add_to_counts(delta.labels);
+    }
+    
+    // integrals
+    for (const auto& int_pair : in->ints) {
+        for (const auto& integral : int_pair.second) {
+            add_to_counts(integral.labels);
+        }
+    }
+    
+    // amplitudes
+    for (const auto& amp_pair : in->amps) {
+        if (std::find(ignore_amps.begin(), ignore_amps.end(), amp_pair.first) != ignore_amps.end()) {
+            continue; 
+        }
+        for (const auto& amp : amp_pair.second) {
+            add_to_counts(amp.labels);
+        }
+    }
+    
+    // operators
+    add_to_counts(in->symbol);
+
+    return counts;
+}
+
+// does an index appear amplitudes, deltas, integrals, and operators?
+bool keep_ucc_term(const std::shared_ptr<pq_string> &in) {
+
+    // check if this term contains an eom operator (r or l)
+    bool has_eom_operator = (in->amps.count('r') > 0 || in->amps.count('l') > 0);
+    if (!has_eom_operator) { 
+        return true;
+    }
+
+    // get all summed and non-summed labels
+    std::unordered_map<std::string, int> counts = count_labels(in);
+
+    // summed and non-summed labels
+    std::unordered_set<std::string> summed_labels;
+    std::unordered_set<std::string> non_summed_labels;
+    
+    for (const auto& [label, count] : counts) {
+        if (count == 2) {
+            summed_labels.insert(label);
+            //printf("summed labels:     %s\n", label.c_str());
+        }else if (count == 1) {
+            non_summed_labels.insert(label);
+            //printf("non-summed labels: %s\n", label.c_str());
+        }else {
+            printf("\n");
+            printf("    a label appears %i times\n", count);
+            printf("\n");
+            exit(1);
+        }
+    }
+
+    // count labels on hbar (excluding r and l)
+    std::unordered_map<std::string, int> hbar_counts = count_labels(in, {'r', 'l'});
+
+    bool hbar_has_shared_sum = false;
+    bool hbar_has_external_leg = false;
+
+    for (const auto& [label, count] : hbar_counts) {
+        // summed_label appearing in hbar once must be shared with L or R
+        if (count == 1 && summed_labels.count(label)) {
+            hbar_has_shared_sum = true;
+        }
+
+        // non_summed_label appearing once in hbar is an index of the sigma vector
+        if (count == 1 && non_summed_labels.count(label)) {
+            hbar_has_external_leg = true;
+        }
+    }
+
+    // apply connectivity rules
+
+    // if hbar shares no sums with R or L, it's explicitly disconnected.
+    if (!hbar_has_shared_sum) {
+        //printf("explicitly disconnected\n");
+        //in->print();
+        return false;
+    }
+
+    // if hbar contributes no legs to sigma, it's a dangling artifact
+    if (!non_summed_labels.empty() && !hbar_has_external_leg) {
+        //printf("dangling artifact (no external legs)\n");
+        //in->print();
+        return false;
+    }
+
+    return true;
 }
 
 // does an index appear amplitudes, deltas, integrals, and operators?
@@ -1182,14 +1291,14 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 }
 
 // compare strings and remove terms that cancel
-void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations) {
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations, bool is_unitary_cc) {
 
     // sort amplitude labels, etc.
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
         pq_str->sort();
     }
 
-    // prune list so it only contains non-skipped ones
+    // prune list so it only contains non-skipped pq_strings
     std::vector< std::shared_ptr<pq_string> > pruned;
     for (const std::shared_ptr<pq_string> & pq_str : ordered) {
 
@@ -1226,6 +1335,15 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
+
+    if (is_unitary_cc) {
+        for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+            if ( pq_str->skip ) continue;
+            bool keep = keep_ucc_term(pq_str);
+            pq_str->skip = !keep;
+        }
+    }
+
 
     if ( ordered.empty() ) return;
 
@@ -1563,9 +1681,6 @@ void add_new_string_true_vacuum(const std::vector<std::shared_ptr<pq_string>> &i
 
     // alphabetize
     alphabetize(ordered);
-
-    // try to cancel similar terms
-    cleanup(ordered, find_paired_permutations);
 }
 
 // expand general labels, p -> o, v

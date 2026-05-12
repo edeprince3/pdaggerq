@@ -2002,7 +2002,7 @@ void pq_helper::simplify() {
     cumulant_expansion(ordered, ignore_cumulant_rdms);
 
     // try to cancel similar terms
-    cleanup(ordered, find_paired_permutations);
+    cleanup(ordered, find_paired_permutations, is_unitary_cc);
 
 }
 
