@@ -215,7 +215,7 @@ class amplitudes: public tensor {
 
     /**
      *
-     * sort numerical amplitudes labels, keep track of permutations
+     * sort numerical amplitudes labels, keep track of permutations, assuming there is permutational symmetry
      *
      */
     void sort() override;
@@ -282,6 +282,13 @@ class amplitudes: public tensor {
      *
      */
     int n_annihilate = -1;
+
+    /**
+     *
+     * does the amplitude have permutational symmetry, e.g., t2(a,b,i,j) = - t2(b,a,i,j), etc.?
+     *
+     */
+    bool has_permutational_symmetry = true;
 
     /**
      *
