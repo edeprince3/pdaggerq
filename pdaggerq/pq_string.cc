@@ -832,6 +832,14 @@ void pq_string::set_spin_everywhere(const std::string &target, const std::string
             }
         }
     }
+/*
+    // TODO operators
+    for (std::string & me : symbol) {
+        if ( me == target ) {
+            me += spin;
+        }
+    }
+*/
 }
 
 // reset spin labels
@@ -1038,8 +1046,14 @@ void pq_string::set_integrals(const std::string &type, const std::vector<std::st
 }
 
 // set labels for amplitudes
-void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in, std::vector<std::string> op_portions) {
+void pq_string::set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in, std::vector<std::string> op_portions, bool has_permutational_symmetry) { /* has_permutational_symmetry = true */
+
+    // add this type of amplitude, if not already known
+    add_amplitude_type(type);
+
+    // build new amplitude
     amplitudes new_amps;
+    new_amps.has_permutational_symmetry = has_permutational_symmetry;
     new_amps.labels = in;
     new_amps.n_create = n_create;
     new_amps.n_annihilate = n_annihilate;
@@ -1073,6 +1087,50 @@ int pq_string::index_in_anywhere(const std::string &idx) {
     n += index_in_operators(idx, symbol);
 
     return n;
+}
+
+void pq_string::strings_to_symbols_and_daggers(std::string vacuum){
+    if (vacuum == "TRUE") {
+        for (size_t i = 0; i < string.size(); i++) {
+            std::string me = string[i];
+            if ( me.find('*') != std::string::npos ) {
+                removeStar(me);
+                is_dagger.push_back(true);
+            }else {
+                is_dagger.push_back(false);
+            }
+            symbol.push_back(me);
+        }
+    }else {
+        for (size_t i = 0; i < string.size(); i++) {
+            std::string me = string[i];
+
+            std::string me_nostar = me;
+            if (me_nostar.find('*') != std::string::npos ){
+                removeStar(me_nostar);
+            }
+
+            if ( is_vir(me_nostar) ) {
+                if (me.find('*') != std::string::npos ){
+                    is_dagger.push_back(true);
+                    is_dagger_fermi.push_back(true);
+                }else {
+                    is_dagger.push_back(false);
+                    is_dagger_fermi.push_back(false);
+                }
+                symbol.push_back(me_nostar);
+            }else if ( is_occ(me_nostar) ) {
+                if (me.find('*') != std::string::npos ){
+                    is_dagger.push_back(true);
+                    is_dagger_fermi.push_back(false);
+                }else {
+                    is_dagger.push_back(false);
+                    is_dagger_fermi.push_back(true);
+                }
+                symbol.push_back(me_nostar);
+            }
+        }
+    }
 }
 
 }

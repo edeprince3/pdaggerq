@@ -1600,7 +1600,16 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
          * */
 
         do_continue = false;
-        static char types[] = {'t', 'l', 'r', 'x', 'y', 'D'};
+        static std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's', 'D'};
+        
+        // add user-added amplitude types
+        for (auto & type : in->amplitude_types) {
+            auto it = std::find(types.begin(), types.end(), type);
+            if (it == types.end()) {
+                types.push_back(type);
+            }
+        }
+
         for (auto & type : types) {
             std::vector<amplitudes> & amps = in->amps[type];
             

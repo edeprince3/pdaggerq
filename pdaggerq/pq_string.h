@@ -191,6 +191,13 @@ class pq_string
 
     /**
      *
+     * set a list of labels for fermionic creation / annihilation operators (from python side)
+     *
+     */
+    void set_operator_string(std::vector<std::string> in){string = in;}
+
+    /**
+     *
      * supported integral types
      *
      */
@@ -209,8 +216,18 @@ class pq_string
      * supported amplitude and rdm types
      *
      */
-    static inline
-    char amplitude_types[] {'l', 'r', 't', 'x', 'y', 'D'};
+    static inline std::vector<char> amplitude_types = {'D'}; //'t', 'l', 'r', 'u', 'm', 's', 'D'};
+
+    void add_amplitude_type(const char type) {
+
+        // check if the type already exists in the static shared vector
+        auto it = std::find(amplitude_types.begin(), amplitude_types.end(), type);
+
+        if (it == amplitude_types.end()) {
+            amplitude_types.push_back(type);
+        }
+    }
+
 
     /**
      *
@@ -423,8 +440,9 @@ class pq_string
      * @param n_ph: the number of photons
      * @param in: the list of labels for the amplitudes
      * @param op_portions: {"A", "N", "R", ...}, "A" = "N" + "R" (used for Bernoulli expansion)
+     * @param has_permutational_symmetry: do the amplitudes have permutational symmetry? e.g., t2(a,b,i,j) = -t2(b,a,i,j), etc.
      */
-    void set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in, std::vector<std::string> op_portions = {});
+    void set_amplitudes(char type, int n_create, int n_annihilate, int n_ph, const std::vector<std::string> &in, std::vector<std::string> op_portions = {}, bool has_permutational_symmetry = true);
 
     /** 
      *
@@ -436,6 +454,14 @@ class pq_string
      */
     int index_in_anywhere(const std::string &idx);
 
+    /** 
+     *
+     * convert the list of labels for fermionic creation / annihilation operators  into symbols and daggers
+     *
+     * @param vacuum: the vacuum type
+     *
+     */
+    void strings_to_symbols_and_daggers(std::string vacuum);
 };
 
 }

@@ -1024,7 +1024,38 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
         // remove parentheses
         removeParentheses(op);
     
-        if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
+        if (op.substr(0, 1) == "o" || op.substr(0, 1) == "O") { // general user-specified operator
+
+            // split off the second character, which should be the amplitude name
+            char name = '\0';
+            if (op.size() >= 2) {
+                name = op[1];
+            }
+
+            // extract labels starting from index 2
+            std::vector<std::string> labels;
+            if (op.size() > 2) {
+                std::string listPart = op.substr(2); // get "p,q,r1,s2"
+                std::stringstream ss(listPart);
+                std::string segment;
+
+                while (std::getline(ss, segment, ',')) {
+                    if (!segment.empty()) {
+                        labels.size();
+                        labels.push_back(segment);
+                    }
+                }
+            }
+
+            // add amplitude type
+            newguy->add_amplitude_type(name);
+
+            // define amplitude
+            int order = (labels.size() + 1) / 2;
+            newguy->set_amplitudes(name, order, order, 0, labels, {}, false);
+
+
+        }else if (op.substr(0, 1) == "h" || op.substr(0, 1) == "H") { // one-electron operator
     
             std::string idx1 = "p" + std::to_string(gen_label_count++);
             std::string idx2 = "p" + std::to_string(gen_label_count++);
@@ -1850,50 +1881,8 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
     }
 
     // now, we need to convert the list "new_pq_strings[i]->string" into symbols and daggers
-    if (vacuum == "TRUE") {
-        for (auto & my_string: new_pq_strings ) {
-            for (size_t i = 0; i < my_string->string.size(); i++) {
-                std::string me = my_string->string[i];
-                if ( me.find('*') != std::string::npos ) {
-                    removeStar(me);
-                    my_string->is_dagger.push_back(true);
-                }else {
-                    my_string->is_dagger.push_back(false);
-                }
-                my_string->symbol.push_back(me);
-            }
-        }
-    }else {
-        for (auto & my_string: new_pq_strings ) {
-            for (size_t i = 0; i < my_string->string.size(); i++) {
-                std::string me = my_string->string[i];
-
-                std::string me_nostar = me;
-                if (me_nostar.find('*') != std::string::npos ){
-                    removeStar(me_nostar);
-                }
-
-                if ( is_vir(me_nostar) ) {
-                    if (me.find('*') != std::string::npos ){
-                        my_string->is_dagger.push_back(true);
-                        my_string->is_dagger_fermi.push_back(true);
-                    }else {
-                        my_string->is_dagger.push_back(false);
-                        my_string->is_dagger_fermi.push_back(false);
-                    }
-                    my_string->symbol.push_back(me_nostar);
-                }else if ( is_occ(me_nostar) ) {
-                    if (me.find('*') != std::string::npos ){
-                        my_string->is_dagger.push_back(true);
-                        my_string->is_dagger_fermi.push_back(false);
-                    }else {
-                        my_string->is_dagger.push_back(false);
-                        my_string->is_dagger_fermi.push_back(true);
-                    }
-                    my_string->symbol.push_back(me_nostar);
-                }
-            }
-        }
+    for (auto & my_string: new_pq_strings ) {
+        my_string->strings_to_symbols_and_daggers(vacuum);
     }
 
     // make sure all factors are non-negative
@@ -2019,8 +2008,9 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
     }
 
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        if (!pq_str->symbol.empty()) continue;
-        if (!pq_str->is_boson_dagger.empty()) continue;
+        // skip terms with operators?
+        //if (!pq_str->symbol.empty()) continue;
+        //if (!pq_str->is_boson_dagger.empty()) continue;
         std::vector<std::shared_ptr<pq_string> > tmp_ordered;
         spin_blocking(pq_str, tmp_ordered, spin_labels);
         for (const std::shared_ptr<pq_string> & tmp_pq_str : tmp_ordered) {
@@ -2035,10 +2025,14 @@ std::vector<std::vector<std::string> > pq_helper::strings() const {
     const auto &reference = is_blocked ? ordered_blocked : ordered;
 
     std::vector<std::vector<std::string> > list;
-    for (const std::shared_ptr<pq_string> & pq_str : reference) {
-        std::vector<std::string> my_string = pq_str->get_string();
-        if ( (int)my_string.size() > 0 ) {
-            list.push_back(my_string);
+    // print operators by rank
+    for (size_t i = 0; i < 9; i++) {
+        for (const std::shared_ptr<pq_string> & pq_str : reference) {
+            if ( pq_str->symbol.size() != i  ) continue;
+            std::vector<std::string> my_string = pq_str->get_string();
+            if ( (int)my_string.size() > 0 ) {
+                list.push_back(my_string);
+            }
         }
     }
 
