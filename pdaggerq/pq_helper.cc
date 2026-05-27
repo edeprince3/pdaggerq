@@ -56,7 +56,6 @@ void export_pq_helper(py::module& m) {
     py::class_<pdaggerq::pq_helper, std::shared_ptr<pdaggerq::pq_helper> >(m, "pq_helper")
         .def(py::init< std::string >())
         .def("set_print_level", &pq_helper::set_print_level)
-        .def("add_new_string", &pq_helper::py_add_new_string)
         .def("set_unitary_cc", &pq_helper::set_unitary_cc)
         .def("set_hamiltonian_normal_ordered", &pq_helper::set_hamiltonian_normal_ordered)
         .def("set_bernoulli_excitation_level", &pq_helper::set_bernoulli_excitation_level)
@@ -992,43 +991,6 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     }
 }
 
-void pq_helper::py_add_new_string(double factor,
-                                  std::vector<char> type, 
-                                  std::vector<int> order, 
-                                  std::vector<std::vector<std::string>> amps_labels, 
-                                  std::vector<std::string> ops_labels,
-                                  bool has_permutational_symmetry){
-
-    std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
-
-    newguy->factor = factor; 
-
-    // make sure factor > 0
-    if ( newguy->factor < 0.0 ) {
-        newguy->factor = fabs(newguy->factor);
-        newguy->sign *= -1;
-    }
-
-    // TODO: nph fixed at zero. no operator types for Bernoulli specified.
-    for (size_t i = 0; i < type.size(); i++){ 
-        newguy->set_amplitudes(type[i], order[i], order[i], 0, amps_labels[i], {}, has_permutational_symmetry);
-    }
-    newguy->string = ops_labels;
-
-    // now, we need to convert the list newguy->string into symbols and daggers
-    newguy->strings_to_symbols_and_daggers(vacuum);
-
-    std::vector<std::shared_ptr<pq_string>> new_pq_strings;
-
-    new_pq_strings.push_back(newguy);
-
-    if (vacuum == "TRUE") {
-        add_new_string_true_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, false);
-    } else {
-
-        add_new_string_fermi_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, false);
-    }
-}
 // build a pq_string from the string representations of operators
 std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double factor, 
     std::vector<std::string> input_op, 
