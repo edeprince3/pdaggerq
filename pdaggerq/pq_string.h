@@ -24,6 +24,7 @@
 #define PQ_STRING_H
 
 #include "pq_tensor.h"
+#include<algorithm>
 #include<cmath>
 #include<sstream>
 #include <map>
