@@ -21,6 +21,7 @@
 //  limitations under the License.
 //
 
+#include <cstdint>
 #include <set>
 #include <utility>
 #include "../include/vertex.h"

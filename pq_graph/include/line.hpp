@@ -24,6 +24,7 @@
 #ifndef PDAGGERQ_LINE_HPP
 #define PDAGGERQ_LINE_HPP
 
+#include <cstdint>
 #include <utility>
 #include <stdexcept>
 #include <array>

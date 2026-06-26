@@ -21,6 +21,7 @@
 //  limitations under the License.
 //
 
+#include <cstdint>
 #include <algorithm>
 #include <iostream>
 #include <memory>

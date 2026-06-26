@@ -24,6 +24,7 @@
 #ifndef PDAGGERQ_SHAPE_HPP
 #define PDAGGERQ_SHAPE_HPP
 
+#include <cstdint>
 #include <sstream>
 #include <clocale>
 #include <stdexcept>
