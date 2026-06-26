@@ -23,6 +23,7 @@
 
 #ifndef PDAGGERQ_VERTEX_H
 #define PDAGGERQ_VERTEX_H
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <map>
