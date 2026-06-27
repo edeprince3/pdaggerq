@@ -169,8 +169,10 @@ namespace pdaggerq {
             bool right_external =  left_idx < 0;
 
             // keep track of external indicies
-            left_ext_idx[  left_idx] =  left_external;
-            right_ext_idx[right_idx] = right_external;
+            // (a -1 index means the line is absent on that side, so skip it to avoid an
+            //  out-of-bounds write at index -1)
+            if ( left_idx >= 0)  left_ext_idx[ left_idx] =  left_external;
+            if (right_idx >= 0) right_ext_idx[right_idx] = right_external;
 
             // update flop scaling
             flop_scale_ += line;
