@@ -283,6 +283,22 @@ class pq_helper {
     void process_operator_products(std::vector<pq_operator_terms> ops);
 
     /**
+     * Incrementally combine the running list of terms in `ordered` while it is
+     * being generated. This applies only the confluent, combine-only portion of
+     * simplify()/cleanup() (per-string delta/label canonicalization followed by
+     * consolidate_permutations_plus_swaps), so it is mathematically identical to
+     * consolidating once at the end -- permutation-operator formation is deferred
+     * to the final simplify(). Its purpose is to bound peak memory for expansions
+     * that would otherwise generate tens of millions of raw terms (e.g. the
+     * similarity transform of the two-electron operator with quadruple
+     * excitations) before any cancellation occurs.
+     *
+     * Only used for normal order relative to the fermi vacuum in standard
+     * (non-RDM, non-unitary) coupled-cluster expansions.
+     */
+    void consolidate_running_terms();
+
+    /**
      *
      * check if there are fluctuation potential operators that need to
      * be split into multiple terms

@@ -879,9 +879,76 @@ void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
         ops = new_ops;
     }while(!done_processing);
 
+    // While generating terms, periodically fold the running list down with the
+    // confluent (combine-only) part of simplify(). The brute-force normal
+    // ordering of high-rank similarity transforms (e.g. the two-electron
+    // operator with quadruple excitations) produces tens of millions of fully
+    // contracted raw terms that only collapse to a small set after cancellation;
+    // accumulating them all before simplify() exhausts memory (std::bad_alloc).
+    // Consolidating incrementally bounds peak memory to roughly one operator
+    // product's contribution plus the (small) combined result, without changing
+    // the final equations -- permutation-operator detection is left for the
+    // final simplify() so the output is identical to consolidating once at the
+    // end. This is only safe/meaningful for standard fermi-vacuum CC.
+    const bool can_consolidate = ( vacuum == "FERMI" && !use_rdms && !is_unitary_cc );
+    size_t consolidate_threshold = 100000;
+    if ( const char * env = getenv("PQ_CONSOLIDATE_THRESHOLD") ) {
+        consolidate_threshold = strtoull(env, nullptr, 10);
+    }
+
     for (auto op : ops){
         add_operator_product(op.factor, op.operators);
+        if ( can_consolidate && ordered.size() > consolidate_threshold ) {
+            consolidate_running_terms();
+        }
     }
+}
+
+void pq_helper::consolidate_running_terms() {
+
+    // apply delta functions and canonicalize labels so that equivalent terms
+    // acquire matching signatures (mirrors the per-string portion of simplify()).
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        if ( pq_str->skip ) continue;
+        gobble_deltas(pq_str);
+        reclassify_integrals(pq_str);
+        use_conventional_labels(pq_str);
+    }
+
+    // keep only fully contracted, non-skipped strings (mirrors the FERMI prune
+    // in cleanup(); terms that are not fully contracted never survive simplify()).
+    std::vector<std::shared_ptr<pq_string> > pruned;
+    pruned.reserve(ordered.size());
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        if ( pq_str->skip ) continue;
+        if ( !pq_str->symbol.empty() ) continue;
+        if ( !pq_str->is_boson_dagger.empty() ) continue;
+        pq_str->sort(); // sets the key used by consolidate_permutations_plus_swaps
+        pruned.push_back(pq_str);
+    }
+    ordered = pruned;
+
+    // combine terms that are equal up to swaps of (up to two) summed labels.
+    // this is the same sequence cleanup() uses, but without the subsequent
+    // permutation-operator formation, which is deferred to the final simplify().
+    static const std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
+    static const std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
+
+    consolidate_permutations_plus_swaps(ordered, {});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
+
+    // drop the terms that were merged away so their memory is released
+    std::vector<std::shared_ptr<pq_string> > kept;
+    kept.reserve(ordered.size());
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        if ( pq_str->skip ) continue;
+        kept.push_back(pq_str);
+    }
+    ordered = kept;
 }
 
 // wrapper for python calling add_operator_product directly
