@@ -312,7 +312,12 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          * Iterate over all test scalings, remove incompatible ones, and sort them
          */
 
-        std::multimap<scaling_map, MutableLinkagePtr> sorted_test_data;
+        // candidate substitutions, ordered by scaling. ties (linkages that yield the
+        // same scaling) are broken by a canonical key so that the substitution order
+        // -- and therefore the generated intermediates and final equations -- does not
+        // depend on the order in which the parallel search happened to populate the
+        // candidate set (which varies with thread scheduling).
+        std::vector<std::tuple<scaling_map, std::string, MutableLinkagePtr>> sorted_test_data;
         for (auto &[test_flop_map, test_linkage]: test_data) {
 
             // skip empty linkages
@@ -343,11 +348,20 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
 
             if (keep) {
-                sorted_test_data.insert(make_pair(test_flop_map, test_linkage));
+                sorted_test_data.emplace_back(test_flop_map, test_linkage->tot_str(true), test_linkage);
             } else {
                 ignore_linkages.insert(test_linkage); // add linkage to ignore linkages
             }
         }
+
+        // sort by scaling (best first), breaking ties on the canonical linkage string
+        std::sort(sorted_test_data.begin(), sorted_test_data.end(),
+                  [](const std::tuple<scaling_map, std::string, MutableLinkagePtr> &a,
+                     const std::tuple<scaling_map, std::string, MutableLinkagePtr> &b) {
+                      if (std::get<0>(a) < std::get<0>(b)) return true;
+                      if (std::get<0>(b) < std::get<0>(a)) return false;
+                      return std::get<1>(a) < std::get<1>(b);
+                  });
         substitute_timer.stop(); // stop timer for substitution
 
         makeSub = !sorted_test_data.empty();
@@ -369,7 +383,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             update_timer.start();
 
             size_t batch_count = 0;
-            for (const auto &[found_flop, found_linkage]: sorted_test_data) {
+            for (const auto &[found_flop, found_key, found_linkage]: sorted_test_data) {
 
                 substitute_timer.start();
 
