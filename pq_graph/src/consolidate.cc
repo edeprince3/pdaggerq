@@ -490,10 +490,22 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             num_merged = merge_terms();
             total_num_merged += num_merged;
 
-            size_t num_fused = merge_intermediates();
-            if (num_fused > 0) {
-                total_num_merged += num_fused;
-                cout << "Fused " << num_fused << " terms." << endl;
+            // Only fuse intermediates once candidate generation has reached full
+            // depth. Under the batched path, current_depth grows incrementally
+            // (1, 2, ...); fusing while intermediates are still generated at a
+            // truncated depth can merge two intermediates whose surrounding
+            // (truncated) terms compare equal at low depth but diverge once
+            // expanded to full depth -- producing a wrong linear combination.
+            // The non-batched path always runs at full depth (so this is a no-op
+            // there); any fusions deferred here are still applied by the
+            // full-depth merge_intermediates() call after the substitution loop.
+            bool at_full_depth = !batched_ || current_depth >= org_max_depth;
+            if (at_full_depth) {
+                size_t num_fused = merge_intermediates();
+                if (num_fused > 0) {
+                    total_num_merged += num_fused;
+                    cout << "Fused " << num_fused << " terms." << endl;
+                }
             }
 
             prune();
