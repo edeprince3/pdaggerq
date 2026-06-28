@@ -739,14 +739,14 @@ namespace pdaggerq {
         // get string of lines from lhs vertex
         for (auto & line : lhs_->lines())
             if (line.sig_ && !Vertex::use_trial_index) continue;
-            else lhs_string += line.label_.front();
+            else lhs_string += line.einsum_char();
 
         string rhs_string;
 
         // get string of lines from the term linkage
         for (auto & line : term_linkage(true)->lines())
             if (line.sig_ && !Vertex::use_trial_index) continue;
-            else rhs_string += line.label_.front();
+            else rhs_string += line.einsum_char();
 
         // make einsum string
         string einsum_string;
