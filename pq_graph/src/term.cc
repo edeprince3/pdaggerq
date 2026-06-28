@@ -429,9 +429,31 @@ namespace pdaggerq {
                 new_terms.push_back(new_term1);
                 new_terms.push_back(new_term2);
             }
+            else if (op->base_name() == "g") {
+                // cross-species electron-nuclear integral g(p,P,q,Q) = <p P|q Q> = (pq|PQ).
+                // density-fit with a shared auxiliary basis. different species do not
+                // antisymmetrize, so there is no exchange term: g(p,P,q,Q) = (Q'|pq)(Q'|PQ),
+                // a single product of an electron and a nuclear density-fitting vertex.
+
+                const line_vector &lines = op->lines(); // [0]=electron p, [1]=nuclear P, [2]=electron q, [3]=nuclear Q
+
+                Line den_line = Line("Q");
+
+                line_vector Be_lines{den_line, lines[0], lines[2]}; // electron pair (p,q)
+                line_vector Bp_lines{den_line, lines[1], lines[3]}; // nuclear pair  (P,Q)
+
+                VertexPtr Be = make_shared<const Vertex>("B", Be_lines);
+                VertexPtr Bp = make_shared<const Vertex>("B", Bp_lines);
+
+                Term new_term = *this;
+                new_term.rhs_[i] = Be;
+                new_term.rhs_.insert(new_term.rhs_.begin() + (i+1), Bp);
+
+                new_terms.push_back(new_term); // single term, no exchange
+            }
         }
 
-        if (new_terms.empty()) return {*this}; // if no eris, return itself
+        if (new_terms.empty()) return {*this}; // if no eris/gep, return itself
         return new_terms;
     }
 
