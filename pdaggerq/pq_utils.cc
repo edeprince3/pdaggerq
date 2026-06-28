@@ -74,10 +74,20 @@ void removeSpaces(std::string &x) {
 }
 
 // is a label classified as occupied?
+bool is_nuclear(const std::string &idx) {
+    // a nuclear orbital label carries the species prefix followed by a label,
+    // e.g. "pi" (occupied) or "pa" (virtual). a lone prefix char is not nuclear.
+    return idx.size() > 1 && idx.at(0) == nuclear_prefix;
+}
+
 bool is_occ(const std::string &idx) {
 
     // replacing above with comparison along char range
     if (idx.empty()) return false;
+
+    // nuclear labels carry a species prefix; classify the remaining label so
+    // that occupied/virtual is determined within the label's own species space
+    if ( is_nuclear(idx) ) return is_occ(idx.substr(1));
 
     // use integer comparison for speed
     char c_idx = idx.at(0);
@@ -95,6 +105,9 @@ bool is_occ(const std::string &idx) {
 // is a label classified as virtual?
 bool is_vir(const std::string &idx) {
     if (idx.empty()) return false;
+
+    // nuclear labels carry a species prefix; classify the remaining label
+    if ( is_nuclear(idx) ) return is_vir(idx.substr(1));
 
     // use integer comparison for speed
     char c_idx = idx.at(0);
@@ -1323,6 +1336,14 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
+    // nuclear (second-species) summed labels carry the species prefix. they form
+    // their own swap spaces so that summed labels are only ever exchanged within a
+    // species -- an electron label is never swapped with a nuclear one.
+    const std::string npfx(1, nuclear_prefix);
+    std::vector<std::string> nuc_occ_labels, nuc_vir_labels;
+    for (const auto & s : occ_labels) nuc_occ_labels.push_back(npfx + s);
+    for (const auto & s : vir_labels) nuc_vir_labels.push_back(npfx + s);
+
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 
     // TODO: the operator portions are not considered in the comparisons below. not sure this matters for future use cases
@@ -1335,6 +1356,19 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
+
+    // nuclear analogues, plus mixed electron/nuclear pairs for multicomponent terms
+    consolidate_permutations_plus_swaps(ordered, {nuc_occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {nuc_vir_labels});
+
+    consolidate_permutations_plus_swaps(ordered, {nuc_occ_labels, nuc_occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {nuc_vir_labels, nuc_vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {nuc_occ_labels, nuc_vir_labels});
+
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, nuc_occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, nuc_vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, nuc_occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, nuc_vir_labels});
 
     if (is_unitary_cc) {
         for (const std::shared_ptr<pq_string> & pq_str : ordered) {
@@ -1363,6 +1397,8 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
     consolidate_permutations_non_summed(ordered, occ_labels);
     consolidate_permutations_non_summed(ordered, vir_labels);
+    consolidate_permutations_non_summed(ordered, nuc_occ_labels);
+    consolidate_permutations_non_summed(ordered, nuc_vir_labels);
 
     // re-prune
     pruned.clear();
@@ -1405,20 +1441,29 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
     //   exit(1);
     //}
    
-    static std::vector<std::string> occ_out {"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", 
+    static std::vector<std::string> occ_out {"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N",
                                              "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
+    // nuclear occupied summation labels for a nuclear (proton) one-body fold
+    static std::vector<std::string> nuc_occ_out;
+    if ( nuc_occ_out.empty() )
+        for (const auto & s : occ_out) nuc_occ_out.push_back(std::string(1, nuclear_prefix) + s);
 
     for (size_t i = 0; i < in->ints["occ_repulsion"].size(); i++) {
 
+        // a nuclear fold sums over a nuclear occupied orbital, an electron fold over
+        // an electron occupied orbital
+        const std::vector<std::string> & out_list =
+            is_nuclear(in->ints["occ_repulsion"][i].labels[0]) ? nuc_occ_out : occ_out;
+
         // pick summation label not included in string already
         std::string idx;
-        
+
         int do_skip = -999;
-        
-        for (size_t i = 0; i < occ_out.size(); i++) {
-            if ( in->index_in_anywhere(occ_out[i]) == 0 ) {
-                idx = occ_out[i];
-                do_skip = i;
+
+        for (size_t k = 0; k < out_list.size(); k++) {
+            if ( in->index_in_anywhere(out_list[k]) == 0 ) {
+                idx = out_list[k];
+                do_skip = k;
                 break;
             }
         }
@@ -1512,6 +1557,34 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
 
                     replace_index_everywhere(in, in_idx, out_idx);
                     break;
+                }
+            }
+        }
+    }
+
+    // nuclear (second-species) labels: same conventional letters carried by the
+    // nuclear species prefix, e.g. no# -> ni,nj,...  nv# -> na,nb,...  np# -> np,nq,...
+    static const std::string np(1, nuclear_prefix);
+    static std::vector<std::string> nuc_occ_in, nuc_occ_out, nuc_vir_in, nuc_vir_out, nuc_gen_in, nuc_gen_out;
+    if ( nuc_occ_in.empty() ) {
+        for (const auto & s : occ_in) nuc_occ_in.push_back(np + s);
+        for (const auto & s : occ_out) nuc_occ_out.push_back(np + s);
+        for (const auto & s : vir_in) nuc_vir_in.push_back(np + s);
+        for (const auto & s : vir_out) nuc_vir_out.push_back(np + s);
+        for (const auto & s : gen_in) nuc_gen_in.push_back(np + s);
+        for (const auto & s : gen_out) nuc_gen_out.push_back(np + s);
+    }
+
+    for (size_t pass = 0; pass < 3; pass++) {
+        const std::vector<std::string> &in_list  = pass == 0 ? nuc_occ_in  : pass == 1 ? nuc_vir_in  : nuc_gen_in;
+        const std::vector<std::string> &out_list = pass == 0 ? nuc_occ_out : pass == 1 ? nuc_vir_out : nuc_gen_out;
+        for (const std::string & in_idx : in_list) {
+            if ( in->index_in_anywhere(in_idx) > 0 ) {
+                for (const std::string & out_idx : out_list) {
+                    if ( in->index_in_anywhere(out_idx) == 0 ) {
+                        replace_index_everywhere(in, in_idx, out_idx);
+                        break;
+                    }
                 }
             }
         }
@@ -1703,8 +1776,11 @@ bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<st
             std::shared_ptr<pq_string> newguy_occ = std::make_shared<pq_string>(in.get(), true);
             std::shared_ptr<pq_string> newguy_vir = std::make_shared<pq_string>(in.get(), true);
 
-	    std::string occ_label = "o" + std::to_string(occ_label_count+1);
-	    std::string vir_label = "v" + std::to_string(vir_label_count+1);
+	    // a nuclear general label expands into nuclear occupied/virtual labels,
+	    // so it stays within its own species' space
+	    std::string sp = is_nuclear(me_nostar) ? std::string(1, nuclear_prefix) : "";
+	    std::string occ_label = sp + "o" + std::to_string(occ_label_count+1);
+	    std::string vir_label = sp + "v" + std::to_string(vir_label_count+1);
 
             newguy_occ->string = in->string;
             newguy_vir->string = in->string;

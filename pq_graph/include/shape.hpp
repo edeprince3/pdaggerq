@@ -45,6 +45,8 @@ struct shape {
     uint_fast8_t L_ = 0; // sigma index
     uint_fast8_t Q_ = 0; // density index
 
+    uint_fast8_t no_ = 0, nv_ = 0; // nuclear (second-species) occupied / virtual
+
 
     // default constructors and assignments
     shape() = default;
@@ -63,6 +65,7 @@ struct shape {
         n_  += other.n_;
         L_  += other.L_;
         Q_  += other.Q_;
+        no_ += other.no_; nv_ += other.nv_;
 
         oa_ += other.oa_; ob_ += other.ob_;
         va_ += other.va_; vb_ += other.vb_;
@@ -79,10 +82,13 @@ struct shape {
         L_ = (L_ < other.L_) ? 0 : L_ - other.L_;
         Q_ = (Q_ < other.Q_) ? 0 : Q_ - other.Q_;
 
+        no_ = (no_ < other.no_) ? 0 : no_ - other.no_;
+        nv_ = (nv_ < other.nv_) ? 0 : nv_ - other.nv_;
+
         o_ = oa_ + ob_; v_ = va_ + vb_;
         a_ = oa_ + va_; b_ = ob_ + vb_;
 
-        n_ = (o_ + v_) + L_ + Q_;
+        n_ = (o_ + v_) + L_ + Q_ + no_ + nv_;
     }
 
     void operator+=(const pdaggerq::Line &line) {
@@ -90,6 +96,7 @@ struct shape {
 
         if (line.sig_) { ++L_; return; } // sigma
         if (line.den_) { ++Q_; return; } // density
+        if (line.nuc_) { if (line.o_) ++no_; else ++nv_; return; } // nuclear
 
         if (line.o_) { // occupied
             if (line.a_) ++oa_;
@@ -107,6 +114,7 @@ struct shape {
 
         if (line.sig_ && L_ != 0) { --L_; return; } // sigma
         if (line.den_ && Q_ != 0) { --Q_; return; } // density
+        if (line.nuc_) { if (line.o_) { if (no_ != 0) --no_; } else if (nv_ != 0) --nv_; return; } // nuclear
 
         if (line.o_ && o_ != 0) { // occupied
             if (line.a_ && oa_ != 0) --oa_;
@@ -125,7 +133,8 @@ struct shape {
             &&  o_ == other.o_  &&  v_ == other.v_
             && oa_ == other.oa_ && ob_ == other.ob_
             && va_ == other.va_ && vb_ == other.vb_
-            &&  L_ == other.L_  &&  Q_ == other.Q_;
+            &&  L_ == other.L_  &&  Q_ == other.Q_
+            && no_ == other.no_ && nv_ == other.nv_;
     }
     bool operator!=(const shape & other) const {
         return !(*this == other);
@@ -151,6 +160,14 @@ struct shape {
         if (Q_ > 0) {
             result += 'Q';
             result += std::to_string(Q_);
+        }
+        if (no_ > 0) {
+            result += 'O'; // nuclear occupied
+            result += std::to_string(no_);
+        }
+        if (nv_ > 0) {
+            result += 'V'; // nuclear virtual
+            result += std::to_string(nv_);
         }
         return result;
     }
@@ -193,6 +210,10 @@ struct shape {
 
         // prioritize o over spin
         if (o_ != other.o_) return o_ < other.o_;
+
+        // prioritize nuclear virtual, then nuclear occupied
+        if (nv_ != other.nv_) return nv_ < other.nv_;
+        if (no_ != other.no_) return no_ < other.no_;
 
         // prioritize alpha over beta virtuals spin
         if (va_ != other.va_) return va_ < other.va_;

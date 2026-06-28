@@ -55,6 +55,12 @@ namespace pdaggerq {
         char blk_type_ = '\0'; // type of blocking (s: spin, r: range, '\0': none)
         bool sig_ = false; // whether the line is an excited state index
         bool den_ = false; // whether the line is for density fitting
+        bool nuc_ = false; // whether the line belongs to the nuclear (second fermion) species
+
+        // nuclear orbital labels carry this prefix, e.g. "ni" (occ) / "na" (vir);
+        // must match pdaggerq::nuclear_prefix in the core. occupied/virtual is then
+        // determined from the remaining character, within the nuclear space.
+        static constexpr char nuclear_prefix_ = 'n';
 
         // valid line names
         static inline array<char, 32> occ_labels_ = {               // names of occupied lines
@@ -84,6 +90,14 @@ namespace pdaggerq {
             char line_char = label_[0];
             if (line_char == '\0')
                 return;
+
+            // nuclear (second-species) labels carry a prefix; a lone prefix char is
+            // still an electron label, so only multi-character "n*" labels are nuclear.
+            // occupied/virtual is then read from the next character within that space.
+            if (label_.size() > 1 && line_char == nuclear_prefix_) {
+                nuc_ = true;
+                line_char = label_[1];
+            }
 
             auto occ_it = find(occ_labels_.begin(), occ_labels_.end(), line_char);
             o_ = occ_it != occ_labels_.end();
@@ -140,14 +154,16 @@ namespace pdaggerq {
                        (o_ == other.o_)     &
                        (a_ == other.a_)     &
                      (sig_ == other.sig_)   &
-                     (den_ == other.den_);
+                     (den_ == other.den_)   &
+                     (nuc_ == other.nuc_);
         }
 
         bool equivalent(const Line& other) const {
             return   (o_ == other.o_)   &
                      (a_ == other.a_)   &
                    (sig_ == other.sig_) &
-                   (den_ == other.den_);
+                   (den_ == other.den_) &
+                   (nuc_ == other.nuc_);
         }
 
         bool operator!=(const Line& other) const {
@@ -155,18 +171,20 @@ namespace pdaggerq {
         }
 
         bool operator<(const Line& other) const {
-            // sort by sig, den, o, a, then label
+            // sort by sig, den, nuc, o, a, then label
             if (sig_ ^ other.sig_) return sig_;
             if (den_ ^ other.den_) return den_;
+            if (nuc_ ^ other.nuc_) return !nuc_; // electron lines before nuclear lines
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
             return label_ < other.label_;
         }
 
         bool same_kind(const Line& other) const {
-            // sort by sig, den, o, a, but not label
+            // sort by sig, den, nuc, o, a, but not label
             if (sig_ ^ other.sig_) return sig_;
             if (den_ ^ other.den_) return den_;
+            if (nuc_ ^ other.nuc_) return !nuc_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
             if (sig_ & other.sig_) return label_ <= other.label_; // L should be first
@@ -200,7 +218,22 @@ namespace pdaggerq {
         char type() const {
             if (sig_) return 'L';
             if (den_) return 'Q';
+            if (nuc_) return o_ ? 'O' : 'V'; // nuclear occupied/virtual (distinct block from electron o/v)
             return o_ ? 'o' : 'v';
+        }
+
+        // single character used as an einsum subscript for this line. electron
+        // labels are single characters, so their first character is unique within
+        // a term; nuclear labels share the prefix, so use the uppercased base
+        // character to keep nuclear indices distinct from one another and from
+        // electron indices. (sufficient for typical NEO index counts; a fully
+        // general scheme would assign characters from a per-term pool.)
+        char einsum_char() const {
+            if (nuc_ && label_.size() > 1) {
+                char c = label_[1];
+                return (c >= 'a' && c <= 'z') ? char(c - 'a' + 'A') : c;
+            }
+            return label_[0];
         }
 
         bool empty() const {
@@ -239,13 +272,14 @@ namespace pdaggerq {
     struct LineHash {
         uint_fast16_t operator()(const Line &line) const {
 
-            // we can store each boolean as a bit in an integral type (4 bits)
+            // we can store each boolean as a bit in an integral type (5 bits)
             uint16_t hash = line.o_;
             hash |= line.a_ << 1;
             hash |= line.sig_ << 2;
             hash |= line.den_ << 3;
+            hash |= line.nuc_ << 4;
 
-            // store the first character of the label and return (12 bits total)
+            // store the first character of the label and return
             return hash << 8 | line.label_[0];
         }
 
@@ -314,13 +348,14 @@ namespace pdaggerq {
     struct LinePropHash {
         uint_fast8_t operator()(const Line &line) const {
 
-            // we can store each boolean as a bit in an integral type (4 bits)
+            // we can store each boolean as a bit in an integral type (5 bits)
             uint16_t hash = line.o_;
             hash |= line.a_ << 1;
             hash |= line.sig_ << 2;
             hash |= line.den_ << 3;
+            hash |= line.nuc_ << 4;
 
-            // return the hash (4 bits)
+            // return the hash (5 bits)
             return hash;
         }
 
@@ -336,9 +371,10 @@ namespace pdaggerq {
             // store each boolean as a bit in an integral type
             hash |= line->a_;
             hash = (hash << shift) | line->sig_;
+            hash = (hash << shift) | line->den_;
 
-            // return the hash (4 bits)
-            return (hash << shift) | line->den_;
+            // return the hash (5 bits)
+            return (hash << shift) | line->nuc_;
         }
     };
     struct LinePropEqual {
