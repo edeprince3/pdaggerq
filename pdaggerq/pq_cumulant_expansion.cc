@@ -89,6 +89,34 @@ void cumulant_expansion(std::vector<std::shared_ptr<pq_string> > &ordered, std::
             }
         }while(!done_expanding_rdms);
     }
+
+    // multicomponent RDMs vanish unless each species is separately balanced (equal
+    // creation and annihilation operators of that species). The cumulant expansion
+    // can pair a creator and an annihilator of different species -- producing a
+    // spurious mixed-species lower RDM such as <e^ p> (one electron index, one
+    // nuclear index) that is identically zero because electrons and nuclei do not
+    // exchange. Drop any term containing such a species-unbalanced RDM.
+    auto is_nuc = [](const std::string &l) { return l.size() > 1 && l[0] == 'n'; };
+    std::vector<std::shared_ptr<pq_string>> kept;
+    kept.reserve(ordered.size());
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        bool vanishes = false;
+        auto rdm_pos = pq_str->amps.find('D');
+        if ( rdm_pos != pq_str->amps.end() ) {
+            for (const amplitudes & rdm : rdm_pos->second) {
+                size_t nuc_create = 0, nuc_annihilate = 0;
+                for (size_t j = 0; j < rdm.labels.size(); j++) {
+                    if ( is_nuc(rdm.labels[j]) ) {
+                        if ( j < rdm.n_create ) nuc_create++;
+                        else                    nuc_annihilate++;
+                    }
+                }
+                if ( nuc_create != nuc_annihilate ) { vanishes = true; break; }
+            }
+        }
+        if ( !vanishes ) kept.push_back(pq_str);
+    }
+    ordered = kept;
 }
 
 /// expand rdms in an input string using cumulant expansion, ignoring the n-body cumulant

@@ -38,10 +38,21 @@
 
 namespace pdaggerq {
 
-/// is a label classified as occupied?
+/// the species prefix marking a nuclear (e.g. proton) orbital label.
+/// nuclear labels are written as <prefix><electron-style label>, e.g. "ni"/"nj"
+/// (nuclear occupied) and "na"/"nb" (nuclear virtual). a lone "n" is still the
+/// electron occupied index; only multi-character labels beginning with the
+/// prefix are nuclear. the prefix is deliberately not 'o'/'v'/'p', which are
+/// pdaggerq's internal generic (occ/vir/general) electron label prefixes.
+constexpr char nuclear_prefix = 'n';
+
+/// is a label a nuclear (non-electron) orbital?
+bool is_nuclear(const std::string &idx);
+
+/// is a label classified as occupied? (within its own species' space)
 bool is_occ(const std::string &idx);
 
-/// is a label classified as virtual?
+/// is a label classified as virtual? (within its own species' space)
 bool is_vir(const std::string &idx);
 
 // does an index appear amplitudes, deltas, integrals, and operators?
