@@ -170,6 +170,13 @@ other components of your strings.
 
 Orbital labels refer to spin orbitals. There is functionality to integrate out spin in final expressions, [see below](#spin).
 
+For multicomponent (nuclear-electronic) methods, a second fermionic species is
+denoted by labels carrying the prefix `n`: `ni, nj, ...` are nuclear occupied
+and `na, nb, ...` are nuclear virtual orbitals (a lone `n` is still the electron
+occupied index). Electrons and nuclei occupy disjoint orbital spaces, so
+operators of different species never contract; see the multicomponent operators
+below.
+
 ### Operators
 
 #### Currently supported fermionic operators include
@@ -266,6 +273,56 @@ the unit operator
 ```
 '1'
 ```
+
+#### Multicomponent (nuclear-electronic) operators
+
+A second fermionic species (e.g. a quantum proton) can be treated alongside the
+electrons. Nuclear orbitals use the `n` label prefix (see the label convention
+above); operators of different species never contract and commute. The
+electron operators are unchanged; the additional operators are:
+
+the nuclear (proton) Fock operator, $\sum_{PQ} f_{PQ}\, \hat{a}^\dagger_P \hat{a}_Q$
+```
+'fp'
+```
+the electron-nuclear two-body (Coulomb) operator, $\sum_{pP qQ} g_{pP qQ}\, \hat{a}^\dagger_p \hat{a}^\dagger_P \hat{a}_Q \hat{a}_q$ (non-antisymmetrized: electrons and nuclei do not exchange)
+```
+'gep'
+```
+the nuclear-nuclear (proton-proton) fluctuation potential (antisymmetrized, for two or more quantum nuclei)
+```
+'vp'
+```
+the nuclear cluster amplitude with `n` nuclear particle-hole pairs
+```
+'tp1', 'tp2', ...
+```
+the mixed amplitude with `ne` electron pairs and `np` nuclear pairs
+```
+'tep11', 'tep21', ...
+```
+the nuclear and mixed lambda (de-excitation) amplitudes, mirroring `tp#`/`tep##`
+```
+'lp1', 'lp2', ...    'lep11', 'lep21', ...
+```
+Projection / excitation operators take explicit indices, so nuclear and mixed
+projections are written directly, e.g. `e2(i,ni,a,na)` (mixed double) or
+`e2(ni,nj,na,nb)` (nuclear double). Generated tensors are distinguished by
+species: `t2` / `t2_n` / `t2_ep` (and `l2` / `l2_n` / `l2_ep`) for electron /
+nuclear / mixed amplitudes, and `f(i,j)` / `f(ni,nj)` for the electron / nuclear
+Fock matrix.
+
+Reduced density matrices (`set_use_rdms(True)`) are likewise species-resolved:
+`D1` / `D2` (electron), `D1_n` / `D2_n` (nuclear), and the mixed electron-nuclear
+two-particle density `D2_ep`. A mixed RDM is nonzero only when each species is
+balanced, and the cumulant expansion respects this (the mixed two-RDM
+cumulant-expands to `D1 * D1_n` with no cross-species exchange).
+
+See [`examples/neo_ccd.py`](examples/neo_ccd.py) and
+[`examples/neo_ccsd.py`](examples/neo_ccsd.py) for worked NEO-CCD and NEO-CCSD
+examples (the latter including singles), and `pq_graph/tests/neo_ccsd_test.py`
+and `pq_graph/tests/neo_lambda_rdm_test.py` for the amplitude and lambda/RDM
+behavior.
 
 ### Methods
 Strings are defined in Python using the pq_helper class, which has the following functions:
