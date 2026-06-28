@@ -44,8 +44,10 @@ def build():
     blocks["rt2_e"]  = spin_traced("e2(i,j,a,b)", Tccsd)        # electron doubles
     blocks["rt1_p"]  = spin_traced("e1(ni,na)", Tccsd)          # proton singles
     blocks["rt2_ep"] = spin_traced("e2(i,ni,a,na)", Tccsd)      # mixed e-p double
-    Tccsdt = ["t1", "t2", "t3", "tp1", "tep11", "tep21"]
-    blocks["rt3_eep"] = spin_traced("e3(i,j,ni,a,b,na)", Tccsdt)  # NEO-CCSDT(eep) mixed triple
+    # NEO-CCSDT_eep (Pavosevic & Hammes-Schiffer, JCP 157, 074104 (2022), eq 6):
+    # NEO-CCSD + the eep triple t^{abA}_{ijI} ONLY -- no electron t3. Single proton -> no tp2.
+    Teep = ["t1", "t2", "tp1", "tep11", "tep21"]
+    blocks["rt3_eep"] = spin_traced("e3(i,j,ni,a,b,na)", Teep)  # NEO-CCSDT_eep mixed triple
     return blocks
 
 
