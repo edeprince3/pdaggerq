@@ -127,8 +127,8 @@ namespace pdaggerq {
         /// maximum number of temporary rhs (-1 for no limit by overflow)
         size_t max_temps_ = static_cast<size_t>(-1l);
 
-        /// whether to use density fitted integrals
-        bool use_density_fitting_ = false;
+        /// whether to decompose ERIs into their Cholesky or density-fitted form
+        bool decompose_eri_ = false;
 
         /// whether to expand permutations of terms before optimization
         bool expand_permutations_ = false;

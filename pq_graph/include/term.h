@@ -531,10 +531,10 @@ namespace pdaggerq {
         void replace_lines(const LineMap &line_map);
 
         /**
-         * Replace all two-body operators with density fitting operators
-         * @return vector of terms with density fitting operators
+         * Replace all two-body operators with decomposed eris
+         * @return vector of terms with decomposed eris
          */
-        vector<Term> density_fitting() const;
+        vector<Term> decompose_eri() const;
 
         /**
          * Convert a beta term to an alpha term by changing all lines to alpha or applying permutations from alpha-beta

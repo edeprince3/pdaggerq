@@ -140,8 +140,8 @@ namespace pdaggerq {
         if (options.contains("has_symmetric_eri"))
             Vertex::has_symmetric_eri_ = options["has_symmetric_eri"].cast<bool>();
 
-        if (options.contains("density_fitting"))
-            use_density_fitting_ = options["density_fitting"].cast<bool>();
+        if (options.contains("decompose_eri"))
+            decompose_eri_ = options["decompose_eri"].cast<bool>();
 
         if (options.contains("no_scalars")) {
             Equation::no_scalars_ = options["no_scalars"].cast<bool>();
@@ -345,20 +345,6 @@ namespace pdaggerq {
         cout << "                    // 1: print optimization steps without fusion or merging" << endl;
         cout << "                    // 2: print optimization steps with fusion and merging" << endl;
 
-        cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
-             << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
-
-        cout << "    has_symmetric_eri: " << (Vertex::has_symmetric_eri_ ? "true" : "false")
-             << "  // whether the two-electron integrals has bra/ket symmetry (default: false)" << endl;
-
-        cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")
-             << "  // whether to skip the scalar terms in the final equations (default: false)" << endl;
-
-        cout << "    use_trial_index: " << (Vertex::use_trial_index ? "true" : "false")
-             << "  // whether to store trial vectors as an additional index/dimension for "
-             << "tensors in a sigma-vector build (default: false)" << endl;
-        cout << "    separate_sigma: " << (separate_sigma_ ? "true" : "false")
-                << "  // whether to separate reusable intermediates for sigma-vector build (default: false)" << endl;
         cout << "    opt_level: " << opt_level_
              << "  // optimization level:" << endl;
         cout << "                  // 0: no optimization" << endl;
@@ -368,6 +354,41 @@ namespace pdaggerq {
         cout << "                  // 4: reordering, substitution, and separation; unused intermediates are removed (pruning)" << endl;
         cout << "                  // 5: reordering, substitution, separation, pruning, and merging of equivalent terms" << endl;
         cout << "                  // 6: reordering, substitution, separation, pruning, merging, and fusion of intermediates (default)" << endl;
+        
+        cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
+             << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
+
+        cout << "    has_symmetric_eri: " << (Vertex::has_symmetric_eri_ ? "true" : "false")
+             << "  // whether the two-electron integrals has bra/ket symmetry (default: false)" << endl;
+
+        cout << "    decompose_eri: " << (decompose_eri_ ? "true" : "false")
+             << "  // whether to decompose two-electron integrals into products (default: false)" << endl;
+
+        cout << "    no_trace: " << (Equation::no_trace_ ? "true" : "false")
+             << "  // whether to exclude terms containing a trace from the final equations (default: false)" << endl;
+
+        cout << "    expand_permutations: " << (expand_permutations_ ? "true" : "false")
+             << "  // whether to expand permutations of terms before optimization (default: true)" << endl
+             << "                       // generally leads to better optimization, but may be significantly slower." << endl;
+
+        cout << "    print_comments: " << (Term::print_comments_ ? "true" : "false")
+             << "  // whether to print comments alongside generated code (default: true)" << endl;
+
+        cout << "    deallocate: " << (Term::deallocate_ ? "true" : "false")
+             << "  // whether to insert deallocation statements for intermediates after last use (default: true)" << endl;
+
+        cout << "    binarize: " << (Term::binarize_ ? "true" : "false")
+             << "  // whether to decompose contractions into binary operations (default: false)" << endl;
+
+        cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")
+             << "  // whether to skip the scalar terms in the final equations (default: false)" << endl;
+
+        cout << "    use_trial_index: " << (Vertex::use_trial_index ? "true" : "false")
+             << "  // whether to store trial vectors as an additional index/dimension for "
+             << "tensors in a sigma-vector build (default: false)" << endl;
+
+        cout << "    separate_sigma: " << (separate_sigma_ ? "true" : "false")
+                << "  // whether to separate reusable intermediates for sigma-vector build (default: false)" << endl;
 
         cout << "    batched: " << (batched_ ? "true" : "false")
              << "  // candidate substitutions are applied in batches rather than one at a time. (default: false)" << endl;
@@ -390,10 +411,6 @@ namespace pdaggerq {
 	
 	    cout << "    cache_depth: " << Linkage::cache_depth_
 	         << "  // maximum depth of linkages to cache in memory (default: 16)" << endl;
-
-        cout << "    expand_permutations: " << (expand_permutations_ ? "true" : "false")
-             << "  // whether to expand permutations of terms before optimization (default: true)" << endl
-             << "                       // generally leads to better optimization, but may be significantly slower." << endl;
 
         cout << "    nthreads: " << nthreads_
              << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
@@ -549,13 +566,13 @@ namespace pdaggerq {
             terms.push_back(term);
         }
 
-        if (use_density_fitting_){
+        if (decompose_eri_){
             vector<Term> new_terms;
             new_terms.reserve(4*terms.size());
-            std::cout << "Applying density fitting..." << std::endl;
+            std::cout << "Decomposing ERIs into 3-index integrals..." << std::endl;
             for (const auto &term : terms){
-                vector<Term> density_fitted_terms = term.density_fitting();
-                new_terms.insert(new_terms.end(), density_fitted_terms.begin(), density_fitted_terms.end());
+                vector<Term> decomposed_eri_terms = term.decompose_eri();
+                new_terms.insert(new_terms.end(), decomposed_eri_terms.begin(), decomposed_eri_terms.end());
             }
             terms = new_terms;
         }

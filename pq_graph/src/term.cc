@@ -621,15 +621,15 @@ namespace pdaggerq {
         return conditions;
     }
 
-    vector<Term> Term::density_fitting() const {
-        // find every "eri" vertex and split it into two vertices and two terms using density fitting
+    vector<Term> Term::decompose_eri() const {
+        // find every "eri" vertex and split it into two vertices and two terms using decomposed eris
         // so <pq|rs> becomes (Q|pq)(Q|rs) - (Q|ps)(Q|qr)
 
         vector<Term> new_terms; //
         new_terms.reserve(rhs_.size()+1);
 
         // iterate over all rhs and every time we see a vertex that is an eri,
-        // split it into two vertices and two terms using density fitting
+        // split it into two vertices and two terms using decomposed eris
         if (rhs_.empty()) return {*this}; // if constant, return itself
 
         for (int i = 0; i < rhs_.size(); i++) {
@@ -638,7 +638,7 @@ namespace pdaggerq {
             // check if vertex is an eri
             if (op->base_name() == "eri") {
                 // term with eri looks like <pq||rs>
-                // to do density fitting, we need to replace it with a product of two density fitting vertices within
+                // to do decomposed eris, we need to replace it with a product of two decomposed eris vertices within
                 // two terms, so we need to create two new vertices and two new terms
 
                 // <pq||rs> = <pq|rs> - <pq|sr> = (pr|qs) - (ps|qr) = (Q|pr)(Q|qs) - (Q|ps)(Q|qr)
@@ -646,7 +646,7 @@ namespace pdaggerq {
                 // grab the lines from the eri
                 const line_vector &lines = op->lines();
 
-                // create lines for the density fitting vertices
+                // create lines for the decomposed eris vertices
                 Line den_line = Line("Q");
 
                 line_vector B1_lines{lines[0], lines[2], den_line}; // (Q|pr)
