@@ -90,9 +90,16 @@ namespace pdaggerq {
 
         // indicates whether the vertex is allowed to be permuted
         static inline bool allow_permute_ = true;
-        static inline bool use_trial_index = false;
         static inline bool permute_eri_ = true;
-        static inline string print_type_ = "c++"; // default print type is c++
+
+        // whether the eri has a symmetric ovstring (vvoo == oovv)
+        static inline bool has_symmetric_eri_ = false;
+
+        // whether to use trial index for sigma vertices (e.g., L and R) when printing
+        static inline bool use_trial_index = false;
+
+        // default print type is c++
+        static inline string print_type_ = "c++"; 
 
         /****** Constructors ******/
 
@@ -232,6 +239,12 @@ namespace pdaggerq {
          * @return the permuted vertex
          */
         Vertex permute(size_t perm_id, bool &swap_sign) const;
+
+        /**
+         * conjugate the bra and ket of the vertex
+         * @return the conjugated vertex
+         */
+        Vertex conj() const;
 
         /**
          * bring vertex to a canonical form and determine if a sign change is needed

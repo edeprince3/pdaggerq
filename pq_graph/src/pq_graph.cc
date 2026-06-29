@@ -137,6 +137,9 @@ namespace pdaggerq {
         if (options.contains("permute_eri"))
             Vertex::permute_eri_ = options["permute_eri"].cast<bool>();
 
+        if (options.contains("has_symmetric_eri"))
+            Vertex::has_symmetric_eri_ = options["has_symmetric_eri"].cast<bool>();
+
         if (options.contains("density_fitting"))
             use_density_fitting_ = options["density_fitting"].cast<bool>();
 
@@ -347,6 +350,9 @@ namespace pdaggerq {
 
         cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
              << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
+
+        cout << "    has_symmetric_eri: " << (Vertex::has_symmetric_eri_ ? "true" : "false")
+             << "  // whether the two-electron integrals has bra/ket symmetry (default: false)" << endl;
 
         cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")
              << "  // whether to skip the scalar terms in the final equations (default: false)" << endl;

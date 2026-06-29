@@ -425,6 +425,30 @@ namespace pdaggerq {
 
     }
 
+    Vertex Vertex::conj() const {
+        if (rank_ <= 2) return {}; // if rank is 2 or less, return empty vertex (no conj is possible)
+            
+        // create new conjugated vertex
+        Vertex conj_op(*this); // copy this vertex
+        
+        // swap first half of lines with second half
+        uint_fast8_t half_size = rank_ - rank_/2; // left n_ops
+        line_vector conj_lines(rank_);
+
+        // add ket to bra
+            for (uint_fast8_t i = 0; i < half_size; i++) {
+            conj_lines[i] = lines_[i+half_size];
+        }
+        // add bra to ket
+            for (uint_fast8_t i = half_size; i < rank_; i++) {
+            conj_lines[i] = lines_[i-half_size];
+        }
+
+        conj_op.update_lines(conj_lines);
+        return conj_op;
+
+    }
+
     bool Vertex::permute_eri() {
 
         // if allow_permute is false, do nothing
@@ -446,32 +470,29 @@ namespace pdaggerq {
         bool best_blk_valid = false; // is best blocking valid?
         size_t count = 0; // number of permutations tried
 
-        do { // test all permutations for a valid ovstring
-            new_eri = permute(id++, swap_sign); // get permutation
+        // Returns true if candidate is a better ERI representation than current best
+        auto is_better = [&](const Vertex &candidate) {
+            if (valid_ovstrings.find(candidate.ovstring()) == valid_ovstrings.end())
+                return false;
+            bool blk_valid = valid_blks.find(candidate.blk_string()) != valid_blks.end();
+            if (best_eri.empty() || (blk_valid && !best_blk_valid))
+                return true;
+            return blk_valid && candidate.lines_ < best_eri.lines_;
+        };
 
-            if (new_eri.empty()) continue; // if permutation is empty, do nothing
+        // Try all permutations and their conjugates to find the best valid ERI
+        do {
+            new_eri = permute(id++, swap_sign);
 
-            // check if ovstring is valid
-            ov_valid = valid_ovstrings.find(new_eri.ovstring()) != valid_ovstrings.end();
-            blk_valid = valid_blks.find(new_eri.blk_string()) != valid_blks.end();
-
-            if (ov_valid) {
-                if (best_eri.empty() || (blk_valid && !best_blk_valid)) {
-                    best_eri = new_eri; // set best eri to first valid ovstring
-                    swap_sign_best = swap_sign;
-                    best_blk_valid = blk_valid;
-                } else if (blk_valid) {
-                    // only replace best eri if the lines are more sorted
-                    bool better_lines = new_eri.lines_ < best_eri.lines_;
-                    if (better_lines) {
-                        best_eri = new_eri;
-                        swap_sign_best = swap_sign;
-                        best_blk_valid = blk_valid;
-                    }
-                }
+            // Prefer the permutation itself; fall back to its conjugate if allowed
+            Vertex candidate = new_eri;
+            if (!is_better(candidate) && Vertex::has_symmetric_eri_)
+                candidate = new_eri.conj();
+            if (is_better(candidate)) {
+                best_eri = candidate;
+                swap_sign_best = swap_sign;
+                best_blk_valid = valid_blks.find(candidate.blk_string()) != valid_blks.end();
             }
-
-        // end while when valid ovstring is found or throw error when max permutations is reached
         } while (!new_eri.empty());
 
         if (best_eri.empty())
