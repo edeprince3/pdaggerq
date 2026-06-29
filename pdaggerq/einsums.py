@@ -197,11 +197,14 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
         n = len(ops)
 
         if n == 1:
-            # einsums has no prefactored unary einsum; the axpy / permute-into-temp
-            # path is unused by current methods -- add it when first needed.
-            raise NotImplementedError(
-                "single-operand IR statement (add the axpy/permute path when a "
-                "method first emits one)")
+            # a single-operand statement is a (possibly permuted, scaled) copy --
+            # an antisymmetrizer permutation or a bare-integral assignment. One
+            # accumulating HPTT permute covers all four cases (assignment/accumulate
+            # x identity/permuted): C = cpref*C + coeff*perm(A). einsums' permute
+            # handles the identity permutation, so no index-match special case.
+            w(f"permute({cpref}, Indices{{{indices(tgt_idx)}}}, &{tgt_cxx}, "
+              f"{dbl(coeff)}, Indices{{{indices(op_idx[0])}}}, {op_cxx[0]});")
+            continue
 
         # left-fold the n operands into n-1 pairwise binary einsums, each emitted
         # as a TTGT (permute-align operands -> GEMM -> permute output if needed)

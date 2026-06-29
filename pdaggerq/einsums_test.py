@@ -154,10 +154,36 @@ def test_target_shape():
     print("test_target_shape OK")
 
 
+def test_single_operand():
+    # bare-integral assignment R[a,i] = f["vo"][a,i] -> overwriting permute (cpref 0)
+    s1 = {"target": {"name": "R", "indices": ["a", "i"], "classes": ["v", "o"],
+                     "is_intermediate": False},
+          "is_assignment": True, "coeff": 1.0,
+          "operands": [{"name": 'f["vo"]', "indices": ["a", "i"], "classes": ["v", "o"],
+                        "is_intermediate": False}]}
+    l1 = einsums.lower([s1], _operand_cxx, DIM)
+    assert len(l1) == 1 and l1[0].strip().startswith("permute(0.0,"), l1
+    assert "&R" in l1[0] and "1.0" in l1[0]
+
+    # antisymmetrizer permuted accumulate R[a,b,i,j] += -1 * P[b,a,i,j]
+    s2 = {"target": {"name": "R", "indices": ["a", "b", "i", "j"],
+                     "classes": ["v", "v", "o", "o"], "is_intermediate": False},
+          "is_assignment": False, "coeff": -1.0,
+          "operands": [{"name": 'tmps_["p"]', "indices": ["b", "a", "i", "j"],
+                        "classes": ["v", "v", "o", "o"], "is_intermediate": True}]}
+    l2 = einsums.lower([s2], _operand_cxx, DIM)
+    assert l2[0].strip().startswith("permute(1.0,"), l2   # cpref 1.0 = accumulate
+    assert "-1.0" in l2[0]
+    # no einsum/axpy for a unary op -- it's a permute
+    assert not any("einsum(" in x for x in l1 + l2)
+    print("test_single_operand OK")
+
+
 if __name__ == "__main__":
     test_binary_leftfold()
     test_split_repeats_diagonal()
     test_variadic_is_not_emitted()
     test_ttgt_ladder()
     test_target_shape()
+    test_single_operand()
     print("\nall einsums dispatch tests passed")
