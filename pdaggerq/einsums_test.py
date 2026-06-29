@@ -130,9 +130,34 @@ def test_ttgt_ladder():
     print("test_ttgt_ladder OK")
 
 
+def test_target_shape():
+    # the residual R's rank + index classes are read straight from the IR, so a
+    # consumer needn't hard-code t_rank / r_classes.
+    stmts = [{
+        "target": {"name": "R", "indices": ["a", "i", "A", "I"],
+                   "classes": ["v", "o", "V", "O"], "is_intermediate": False},
+        "is_assignment": True, "coeff": 1.0,
+        "operands": [
+            {"name": 'B["Qvo"]', "indices": ["Q", "a", "i"], "classes": ["Q", "v", "o"],
+             "is_intermediate": False},
+            {"name": 'B["QVO"]', "indices": ["Q", "A", "I"], "classes": ["Q", "V", "O"],
+             "is_intermediate": False},
+        ],
+    }]
+    rank, classes = einsums.target_shape(stmts, "R")
+    assert rank == 4 and classes == ["v", "o", "V", "O"], (rank, classes)
+    try:
+        einsums.target_shape(stmts, "nope")
+        assert False, "expected ValueError for a missing target"
+    except ValueError:
+        pass
+    print("test_target_shape OK")
+
+
 if __name__ == "__main__":
     test_binary_leftfold()
     test_split_repeats_diagonal()
     test_variadic_is_not_emitted()
     test_ttgt_ladder()
+    test_target_shape()
     print("\nall einsums dispatch tests passed")

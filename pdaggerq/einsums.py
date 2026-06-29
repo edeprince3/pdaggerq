@@ -49,6 +49,19 @@ def parse_ir(ir_lines):
     return [json.loads(l) for l in ir_lines if l.strip().startswith("{")]
 
 
+def target_shape(statements, target):
+    """``(rank, classes)`` of an output/intermediate ``target`` as it appears in
+    the parsed IR -- e.g. the residual ``R``'s index classes -- so a consumer need
+    not hard-code them. ``classes`` use the ``Line::type()`` vocabulary
+    (o/v electron, O/V proton, Q aux, L excited). Raises if the target is absent.
+    """
+    for st in statements:
+        if st["target"]["name"] == target:
+            classes = list(st["target"]["classes"])
+            return len(classes), classes
+    raise ValueError(f"target {target!r} not found in the IR")
+
+
 def dbl(x):
     """A C++ double literal (einsum requires both prefactors the same type)."""
     return repr(float(x))
