@@ -366,7 +366,12 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          * Iterate over all test scalings, remove incompatible ones, and sort them
          */
 
-        std::multimap<pair<scaling_map, scaling_map>, MutableLinkagePtr> sorted_test_data;
+        // candidate substitutions, ordered by scaling. ties (linkages that yield the
+        // same scaling) are broken by a canonical key so that the substitution order
+        // -- and therefore the generated intermediates and final equations -- does not
+        // depend on the order in which the parallel search happened to populate the
+        // candidate set (which varies with thread scheduling).
+        std::vector<std::tuple<pair<scaling_map, scaling_map>, std::string, MutableLinkagePtr>> sorted_test_data;
         for (auto &[test_maps, test_linkage]: test_data) {
 
             auto &[test_flop_map, test_mem_map] = test_maps;
@@ -398,11 +403,19 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             if (is_equiv && allow_equality) keep = true;
 
             if (keep) {
-                sorted_test_data.insert(make_pair(make_pair(test_flop_map, test_mem_map), test_linkage));
+                sorted_test_data.emplace_back(std::make_pair(test_flop_map, test_mem_map), test_linkage->tot_str(true), test_linkage);
             } else {
                 ignore_linkages.insert(test_linkage); // add linkage to ignore linkages
             }
         }
+        // sort by scaling (best first), breaking ties on the canonical linkage string
+        std::sort(sorted_test_data.begin(), sorted_test_data.end(),
+                  [](const std::tuple<std::pair<scaling_map, scaling_map>, std::string, MutableLinkagePtr> &a,
+                     const std::tuple<std::pair<scaling_map, scaling_map>, std::string, MutableLinkagePtr> &b) {
+                      if (std::get<0>(a).first != std::get<0>(b).first) return std::get<0>(a).first < std::get<0>(b).first;
+                      if (std::get<0>(a).second != std::get<0>(b).second) return std::get<0>(a).second < std::get<0>(b).second;
+                      return std::get<1>(a) < std::get<1>(b);
+                  });
         substitute_timer.stop(); // stop timer for substitution
 
         makeSub = !sorted_test_data.empty();
@@ -424,7 +437,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             update_timer.start();
 
             size_t batch_count = 0;
-            for (const auto &[found_scalings, found_linkage]: sorted_test_data) {
+            for (const auto &[found_scalings, found_key, found_linkage]: sorted_test_data) {
 
                 auto & [found_flop, found_mem] = found_scalings;
 
@@ -547,10 +560,22 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             num_merged = merge_terms();
             total_num_merged += num_merged;
 
-            size_t num_fused = merge_intermediates();
-            if (num_fused > 0) {
-                total_num_merged += num_fused;
-                cout << "Fused " << num_fused << " terms." << endl;
+            // Only fuse intermediates once candidate generation has reached full
+            // depth. Under the batched path, current_depth grows incrementally
+            // (1, 2, ...); fusing while intermediates are still generated at a
+            // truncated depth can merge two intermediates whose surrounding
+            // (truncated) terms compare equal at low depth but diverge once
+            // expanded to full depth -- producing a wrong linear combination.
+            // The non-batched path always runs at full depth (so this is a no-op
+            // there); any fusions deferred here are still applied by the
+            // full-depth merge_intermediates() call after the substitution loop.
+            bool at_full_depth = !batched_ || current_depth >= org_max_depth;
+            if (at_full_depth) {
+                size_t num_fused = merge_intermediates();
+                if (num_fused > 0) {
+                    total_num_merged += num_fused;
+                    cout << "Fused " << num_fused << " terms." << endl;
+                }
             }
 
             prune();

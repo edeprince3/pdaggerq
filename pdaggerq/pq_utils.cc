@@ -1725,72 +1725,7 @@ bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<st
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count){
-        
-    // if normal order is defined with respect to the fermi vacuum, we must
-    // check here if the input string contains any general-index operators
-    // (h, g, f, and v). If it does, then the string must be split to account 
-    // explicitly for sums over occupied and virtual labels
-
-    std::vector< std::shared_ptr<pq_string> > mystrings;
-    mystrings.push_back(in);
-
-    bool done_expanding = false;
-    do {
-        std::vector< std::shared_ptr<pq_string> > list;
-        done_expanding = true;
-        for (const std::shared_ptr<pq_string> & pq_str : mystrings) {
-            bool am_i_done = expand_general_labels(pq_str, list, occ_label_count, vir_label_count);
-            if ( !am_i_done ) done_expanding = false;
-        }
-        if (!done_expanding) {
-            mystrings.clear();
-            for (std::shared_ptr<pq_string> & pq_str : list) {
-                mystrings.push_back(pq_str);
-            }
-            occ_label_count++;
-            vir_label_count++;
-        }
-    }while(!done_expanding);
-
-    // now, we need to convert the list "mystrings[i]->string" into symbols and daggers
-    for (auto & mystring: mystrings ) {
-        for (size_t i = 0; i < mystring->string.size(); i++) {
-            std::string me = mystring->string[i];
-
-            std::string me_nostar = me;
-            if (me_nostar.find('*') != std::string::npos ){
-                removeStar(me_nostar);
-            }
-
-            if ( is_vir(me_nostar) ) {
-                if (me.find('*') != std::string::npos ){
-                    mystring->is_dagger.push_back(true);
-                    mystring->is_dagger_fermi.push_back(true);
-                }else {
-                    mystring->is_dagger.push_back(false);
-                    mystring->is_dagger_fermi.push_back(false);
-                }
-                mystring->symbol.push_back(me_nostar);
-            }else if ( is_occ(me_nostar) ) {
-                if (me.find('*') != std::string::npos ){
-                    mystring->is_dagger.push_back(true);
-                    mystring->is_dagger_fermi.push_back(false);
-                }else {
-                    mystring->is_dagger.push_back(false);
-                    mystring->is_dagger_fermi.push_back(true);
-                }
-                mystring->symbol.push_back(me_nostar);
-            }
-        }
-    }
-
-    // at this point, we've expanded all of the general labels
-    // and are ready to bring the strings to normal order
-
-    for (auto & mystring: mystrings ) {
 void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators) {
-
         
     std::vector< std::shared_ptr<pq_string> > new_strings[in.size()];
     #pragma omp parallel for schedule(dynamic) default(none) shared(in, new_strings, keep_operators) firstprivate(print_level)
@@ -1820,13 +1755,12 @@ void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &
         }
 
         // rearrange strings
-
+	//
         if ( print_level > 0 ) {
             printf("\n");
             printf("    ");
             printf("// starting string:\n");
             mystring->print();
-            fflush(stdout);
         }
 
         std::vector< std::shared_ptr<pq_string> > tmp;
@@ -1846,14 +1780,17 @@ void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &
                     tmp.push_back(pq_str);
                 }
             }
-
         }while(!done_rearranging);
 
-        //ordered.clear();
-        for (const std::shared_ptr<pq_string> & pq_str : tmp) {
+        new_strings[k] = tmp;
+        tmp.clear();
+    }
+
+    for (const auto& new_string : new_strings) {
+        if ( new_string.empty() ) continue;
+        for (const std::shared_ptr<pq_string> & pq_str : new_string) {
             ordered.push_back(pq_str);
         }
-        tmp.clear();
     }
 }
 
