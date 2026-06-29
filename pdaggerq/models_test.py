@@ -55,8 +55,27 @@ def test_bad_lookups_raise():
     print("test_bad_lookups_raise OK")
 
 
+def test_spin_axis():
+    # case enumeration (electron alpha/beta; NEO high-spin vs full nuclear manifold)
+    assert models.spin_cases("t2") == ["aaaa", "abab", "bbbb"]
+    assert models.spin_cases("tep11", "high-spin") == ["aa_n", "bb_n"]
+    assert models.spin_cases("tep11", "full") == ["aa_naa", "aa_nbb", "bb_naa", "bb_nbb"]
+    # spin-orbital default still generates; a spin block also generates non-empty
+    so = [l for l in models.residual_ir("neo-ccd(ep)", "tep11") if l.strip().startswith("{")]
+    blk = [l for l in models.residual_ir("neo-ccd(ep)", "tep11", spin_case="aa_n")
+           if l.strip().startswith("{")]
+    assert so and blk, (len(so), len(blk))
+    try:
+        models.residual_ir("neo-ccd(ep)", "tep11", spin_case="zz")
+        assert False, "expected ValueError for an unknown spin_case"
+    except ValueError:
+        pass
+    print("test_spin_axis OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
     test_cheap_models_generate()
+    test_spin_axis()
     print("\nall model tests passed")

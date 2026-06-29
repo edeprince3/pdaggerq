@@ -38,6 +38,7 @@ defined here only.
 """
 
 from ._pdaggerq import pq_helper, pq_graph
+from .spin import get_spin_labels
 
 # Conjugate (de-excitation) projection per amplitude: all-occ then all-vir,
 # electrons before the proton within each group (the proton carries pq_helper's
@@ -117,9 +118,17 @@ def energy_graph(name, df=True, opt_level=6):
     return _optimized(pq, "energy", df, opt_level)
 
 
-def residual_graph(name, amplitude, df=True, opt_level=6, label="R"):
+def residual_graph(name, amplitude, df=True, opt_level=6, label="R",
+                   spin_case=None, nuclear_spin="high-spin"):
     """Optimized pq_graph for the amplitude residual
-    ``<proj(amplitude)| e^-T H e^T |0> = 0``."""
+    ``<proj(amplitude)| e^-T H e^T |0> = 0``.
+
+    spin_case : None -> spin-orbital (no blocking, the default). Otherwise a spin
+                block name from :func:`spin_cases` (e.g. "abab", or NEO "aa_n") --
+                the equation is restricted to that block via ``block_by_spin``.
+    nuclear_spin : "high-spin" (single nuclear channel) or "full" -- see
+                :mod:`pdaggerq.spin`.
+    """
     m = model(name)
     if amplitude not in m.T:
         raise ValueError(f"model {name!r} has no amplitude {amplitude!r}; T={list(m.T)}")
@@ -130,10 +139,37 @@ def residual_graph(name, amplitude, df=True, opt_level=6, label="R"):
     for h in m.H:
         pq.add_st_operator(1.0, [h], list(m.T))
     pq.simplify()
+    if spin_case is not None:
+        cases = get_spin_labels([[PROJECTION[amplitude]]], nuclear_spin)
+        if spin_case not in cases:
+            raise ValueError(f"unknown spin_case {spin_case!r} for {amplitude!r}; "
+                             f"choose from {sorted(cases)}")
+        pq.block_by_spin(cases[spin_case])
     return _optimized(pq, label, df, opt_level)
 
 
-def residual_ir(name, amplitude, df=True, opt_level=6, label="R"):
+def residual_ir(name, amplitude, df=True, opt_level=6, label="R",
+                spin_case=None, nuclear_spin="high-spin"):
     """The amplitude residual as ``to_strings("ir")`` JSONL lines."""
-    g = residual_graph(name, amplitude, df=df, opt_level=opt_level, label=label)
+    g = residual_graph(name, amplitude, df=df, opt_level=opt_level, label=label,
+                       spin_case=spin_case, nuclear_spin=nuclear_spin)
     return g.to_strings("ir")
+
+
+def spin_cases(amplitude, nuclear_spin="high-spin"):
+    """The spin-block case names for an amplitude's residual, e.g. t2 ->
+    ['aaaa','abab','bbbb']; NEO tep11 high-spin -> ['aa_n','bb_n']."""
+    if amplitude not in PROJECTION:
+        raise KeyError(f"no projection defined for amplitude {amplitude!r}")
+    return sorted(get_spin_labels([[PROJECTION[amplitude]]], nuclear_spin))
+
+
+def residual_blocks(name, amplitude, df=True, opt_level=6, label="R",
+                    nuclear_spin="high-spin"):
+    """``{spin_case: ir_lines}`` for every spin block of the amplitude's residual
+    (the full unrestricted set). Spin-orbital is ``residual_ir(..., spin_case=None)``;
+    a restricted (closed-shell) implementation uses the closed-shell subset of
+    these blocks with the per-block Integrals factors supplied by the consumer."""
+    return {c: residual_ir(name, amplitude, df=df, opt_level=opt_level, label=label,
+                           spin_case=c, nuclear_spin=nuclear_spin)
+            for c in spin_cases(amplitude, nuclear_spin)}
