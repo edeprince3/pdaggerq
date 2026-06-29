@@ -10,8 +10,17 @@ and handled here:
 
 * ``einsum()`` is **binary** (one A, one B). An n-operand contraction is left-
   folded into n-1 pairwise einsums in pq_graph's (optimised) operand order,
-  materialising one small intermediate per step. Each binary contraction
-  dispatches to GEMM.
+  materialising one small intermediate per step.
+* einsums only GEMM-dispatches a binary contraction when each operand is laid out
+  ``[free…, K…]`` or ``[K…, free…]`` with the contracted block ``K`` **contiguous
+  at one end** (same K order in both) and the output is ``[freeA…, freeB…]`` --
+  otherwise it silently falls to a ~20x slower generic scalar loop (the fused
+  4-index "ladder" intermediates hit this). We therefore emit **TTGT**: permute
+  each operand into that layout (HPTT, skipped when already so), GEMM into the
+  natural ``[fA, fB]`` order, and fold any output permute into the accumulating
+  ``permute`` into the target. Permutes are emitted only when an operand isn't
+  already GEMM-ready; the K order is chosen to avoid permuting an operand when
+  possible.
 * a single tensor cannot be indexed with a **repeated label** (a diagonal, e.g. a
   proton trace ``B["QOO"][Q,J,J]``); ``split_repeats`` rewrites the summed
   diagonal into distinct contracted labels, exact when the operand is symmetric
@@ -118,8 +127,20 @@ def default_temp_decl(name, dims):
     return f'auto {name} = create_zero_tensor("{name}", {dims});'
 
 
+def _kblock(idx, kset):
+    """If the contracted indices ``kset`` form a contiguous block at one end of
+    ``idx``, return that block's label order (BLAS contracts it as op(A) with an
+    optional transpose); otherwise None."""
+    kpos = [i for i, l in enumerate(idx) if l in kset]
+    if not kpos:
+        return None
+    contiguous = kpos == list(range(kpos[0], kpos[0] + len(kpos)))
+    at_end = kpos[0] == 0 or kpos[-1] == len(idx) - 1
+    return [idx[i] for i in kpos] if (contiguous and at_end) else None
+
+
 def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="    "):
-    """Lower an IR statement list to einsums C++ contraction-body lines.
+    """Lower an IR statement list to einsums C++ contraction-body lines (TTGT).
 
     statements : list of IR dicts (already JSON-parsed, in emission order)
     operand_cxx: callable ``name -> (kind, cxx_expr)`` where kind is one of
@@ -132,15 +153,16 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
     Returns a list of C++ source lines (the body only; the caller emits the
     function signature, includes and namespace).
     """
-    def dims(labels, lab2cls):
-        return ", ".join(dim_of[lab2cls[l]] for l in labels)
-
     out = []
     w = lambda s: out.append(indent + s)
     declared_temps = set()
 
     for si, st in enumerate(statements):
         st, lab2cls = split_repeats(st)
+
+        def dims(labels):
+            return ", ".join(dim_of[lab2cls[l]] for l in labels)
+
         tgt = st["target"]
         ops = st["operands"]
         coeff = st["coeff"]
@@ -151,15 +173,14 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
 
         if tgt_kind == "temp" and tgt_cxx not in declared_temps:
             assert st["is_assignment"], f"temp {tgt_cxx} accumulated before declared"
-            w(temp_decl(tgt_cxx, dims(tgt_idx, lab2cls)))
+            w(temp_decl(tgt_cxx, dims(tgt_idx)))
             declared_temps.add(tgt_cxx)
-        target_ptr = tgt_cxx
 
         w(f"// [{si}] {'=' if st['is_assignment'] else '+='} {coeff} * "
           + " * ".join(o["name"] for o in ops))
 
         op_cxx = [operand_cxx(o["name"])[1] for o in ops]
-        op_idx = [o["indices"] for o in ops]
+        op_idx = [list(o["indices"]) for o in ops]
         n = len(ops)
 
         if n == 1:
@@ -169,30 +190,94 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
                 "single-operand IR statement (add the axpy/permute path when a "
                 "method first emits one)")
 
-        # left-fold the n operands into n-1 pairwise binary einsums
+        # left-fold the n operands into n-1 pairwise binary einsums, each emitted
+        # as a TTGT (permute-align operands -> GEMM -> permute output if needed)
         acc_cxx, acc_idx = op_cxx[0], op_idx[0]
         for k in range(1, n):
             last = (k == n - 1)
+            b_cxx, b_idx = op_cxx[k], op_idx[k]
+
+            # output index set of this pairwise step
             if last:
-                out_ptr, out_idx, ocpref, opref = "&" + target_ptr, tgt_idx, cpref, dbl(coeff)
+                out_set = set(tgt_idx)
             else:
                 downstream = set(tgt_idx)
                 for o in op_idx[k + 1:]:
                     downstream |= set(o)
-                seen, keep = set(), []
-                for l in list(acc_idx) + list(op_idx[k]):
-                    if l in downstream and l not in seen:
-                        seen.add(l)
-                        keep.append(l)
-                wname = f"w{si}_{k}"
-                w(temp_decl(wname, dims(keep, lab2cls)))
-                out_ptr, out_idx, ocpref, opref = "&" + wname, keep, "0.0", "1.0"
+                out_set = (set(acc_idx) | set(b_idx)) & downstream
 
-            w(f"einsum({ocpref}, Indices{{{indices(out_idx)}}}, {out_ptr}, {opref}, "
-              f"Indices{{{indices(acc_idx)}}}, {acc_cxx}, "
-              f"Indices{{{indices(op_idx[k])}}}, {op_cxx[k]});")
+            common = set(acc_idx) & set(b_idx)
+            kset = {l for l in common if l not in out_set}   # contracted
+            batch = common & out_set                          # in A, B and output
+            fa = [l for l in acc_idx if l in out_set]          # A's free (A order)
+            fb = [l for l in b_idx if l in out_set]            # B's free (B order)
+            gemm_order = fa + fb
+
+            if batch or not kset:
+                # batch index (or pure outer product): not a plain GEMM -- keep the
+                # generic einsum (correct; rare -- none in CCD(ep)).
+                if last:
+                    o_ptr, o_idx, ocp, op = "&" + tgt_cxx, tgt_idx, cpref, dbl(coeff)
+                else:
+                    keep, seen = [], set()
+                    for l in acc_idx + b_idx:
+                        if l in out_set and l not in seen:
+                            seen.add(l)
+                            keep.append(l)
+                    wname = f"w{si}_{k}"
+                    w(temp_decl(wname, dims(keep)))
+                    o_ptr, o_idx, ocp, op = "&" + wname, keep, "0.0", "1.0"
+                w(f"einsum({ocp}, Indices{{{indices(o_idx)}}}, {o_ptr}, {op}, "
+                  f"Indices{{{indices(acc_idx)}}}, {acc_cxx}, "
+                  f"Indices{{{indices(b_idx)}}}, {b_cxx});")
+                if not last:
+                    acc_cxx, acc_idx = o_ptr[1:], o_idx
+                continue
+
+            # choose the K order that lets an operand stay put (prefer B -- often
+            # the larger amplitude); permute the other into matrix layout.
+            korder = _kblock(b_idx, kset) or _kblock(acc_idx, kset) \
+                or [l for l in acc_idx if l in kset]
+
+            if _kblock(acc_idx, kset) == korder:
+                a_use, a_idx = acc_cxx, acc_idx                 # already [free,K]/[K,free]
+            else:
+                a_idx = fa + korder
+                a_use = f"a{si}_{k}"
+                w(temp_decl(a_use, dims(a_idx)))
+                w(f"permute(Indices{{{indices(a_idx)}}}, &{a_use}, "
+                  f"Indices{{{indices(acc_idx)}}}, {acc_cxx});")
+
+            if _kblock(b_idx, kset) == korder:
+                b_use_, b_use_idx = b_cxx, b_idx
+            else:
+                b_use_idx = korder + fb
+                b_use_ = f"b{si}_{k}"
+                w(temp_decl(b_use_, dims(b_use_idx)))
+                w(f"permute(Indices{{{indices(b_use_idx)}}}, &{b_use_}, "
+                  f"Indices{{{indices(b_idx)}}}, {b_cxx});")
 
             if not last:
-                acc_cxx, acc_idx = out_ptr[1:], out_idx  # drop the '&'
+                # intermediate stored in natural GEMM order [fa, fb]; becomes acc
+                wname = f"w{si}_{k}"
+                w(temp_decl(wname, dims(gemm_order)))
+                w(f"einsum(0.0, Indices{{{indices(gemm_order)}}}, &{wname}, 1.0, "
+                  f"Indices{{{indices(a_idx)}}}, {a_use}, "
+                  f"Indices{{{indices(b_use_idx)}}}, {b_use_});")
+                acc_cxx, acc_idx = wname, gemm_order
+            elif gemm_order == tgt_idx:
+                # GEMM straight into the target (accumulating with cpref)
+                w(f"einsum({cpref}, Indices{{{indices(tgt_idx)}}}, &{tgt_cxx}, {dbl(coeff)}, "
+                  f"Indices{{{indices(a_idx)}}}, {a_use}, "
+                  f"Indices{{{indices(b_use_idx)}}}, {b_use_});")
+            else:
+                # GEMM into natural order, then accumulate-permute into the target
+                gname = f"g{si}_{k}"
+                w(temp_decl(gname, dims(gemm_order)))
+                w(f"einsum(0.0, Indices{{{indices(gemm_order)}}}, &{gname}, 1.0, "
+                  f"Indices{{{indices(a_idx)}}}, {a_use}, "
+                  f"Indices{{{indices(b_use_idx)}}}, {b_use_});")
+                w(f"permute({cpref}, Indices{{{indices(tgt_idx)}}}, &{tgt_cxx}, {dbl(coeff)}, "
+                  f"Indices{{{indices(gemm_order)}}}, {gname});")
 
     return out

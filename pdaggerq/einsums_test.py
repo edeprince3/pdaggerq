@@ -8,8 +8,8 @@ from pdaggerq import einsums
 
 
 def _operand_cxx(name):
-    if name == "R":
-        return ("param", "R")
+    if name in ("R", "t2_ep"):
+        return ("param", name)
     if name.startswith("tmps_"):
         # tmps_["k"] -> tmp_k
         key = name.split('["')[1].rstrip('"]')
@@ -93,8 +93,46 @@ def test_variadic_is_not_emitted():
     print("test_variadic_is_not_emitted OK")
 
 
+def test_ttgt_ladder():
+    # the fused B*B*t ladder: einsums would fall to the generic scalar path on the
+    # second contraction; TTGT permute-aligns it so every einsum is a GEMM.
+    #   R[a,i,A,I] += -1 * B["QVV"][Q,A,B] * B["Qvv"][Q,a,b] * t2_ep[b,B,I,i]
+    stmt = {
+        "target": {"name": "R", "indices": ["a", "i", "A", "I"],
+                   "classes": ["v", "o", "V", "O"], "is_intermediate": False},
+        "is_assignment": False, "coeff": -1.0,
+        "operands": [
+            {"name": 'B["QVV"]', "indices": ["Q", "A", "B"], "classes": ["Q", "V", "V"],
+             "is_intermediate": False},
+            {"name": 'B["Qvv"]', "indices": ["Q", "a", "b"], "classes": ["Q", "v", "v"],
+             "is_intermediate": False},
+            {"name": "t2_ep", "indices": ["b", "B", "I", "i"], "classes": ["v", "V", "O", "o"],
+             "is_intermediate": False},
+        ],
+    }
+    lines = einsums.lower([stmt], _operand_cxx, DIM)
+    einsum_calls = [l for l in lines if "einsum(" in l]
+    permutes = [l for l in lines if l.strip().startswith("permute(")]
+
+    # two binary GEMMs (one per fold step), each strictly binary (3 Indices groups)
+    assert len(einsum_calls) == 2, lines
+    for c in einsum_calls:
+        assert c.count("Indices{") == 3, c
+    # first contraction (Q) needs no operand permute; the second contracts the
+    # non-contiguous {b,B} -> at least one operand-align permute is emitted
+    assert any("&a" in p or "&b" in p for p in permutes), lines
+    # the result lands in GEMM order [.,.,I,i] != R's [a,i,A,I] -> a final
+    # accumulating permute into R carries the coefficient
+    last = lines[-1].strip()
+    assert last.startswith("permute(") and "&R" in last and "-1.0" in last, last
+    # the slow generic 2-operand contraction directly into R must NOT appear
+    assert not any("&R" in c for c in einsum_calls), "ladder still writes R via generic einsum"
+    print("test_ttgt_ladder OK")
+
+
 if __name__ == "__main__":
     test_binary_leftfold()
     test_split_repeats_diagonal()
     test_variadic_is_not_emitted()
+    test_ttgt_ladder()
     print("\nall einsums dispatch tests passed")
