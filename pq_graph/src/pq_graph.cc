@@ -234,11 +234,8 @@ namespace pdaggerq {
 	    Linkage::cache_depth_ = options["cache_depth"].cast<size_t>();
 	}
 
-        if (options.contains("apply_permutations")) {
-            apply_permutations_ = options["apply_permutations"].cast<bool>();
-        } else {
-            // default to applying permutations for higher optimization levels
-            apply_permutations_ = opt_level_ >= 6;
+        if (options.contains("expand_permutations")) {
+            expand_permutations_ = options["expand_permutations"].cast<bool>();
         }
 
         if (options.contains("batch_size")) {
@@ -391,11 +388,11 @@ namespace pdaggerq {
         cout << "    cache_elements: " << (Linkage::cache_elements_ ? "true" : "false")
              << "  // whether to cache the elements and permutations of linkages for faster access (default: true)" << endl;
 	
-	cout << "    cache_depth: " << Linkage::cache_depth_
-	     << "  // maximum depth of linkages to cache in memory (default: 16)" << endl;
+	    cout << "    cache_depth: " << Linkage::cache_depth_
+	         << "  // maximum depth of linkages to cache in memory (default: 16)" << endl;
 
-        cout << "    apply_permutations: " << (apply_permutations_ ? "true" : "false")
-             << "  // whether to apply permutations to terms before optimization (default: true)" << endl
+        cout << "    expand_permutations: " << (expand_permutations_ ? "true" : "false")
+             << "  // whether to expand permutations of terms before optimization (default: true)" << endl
              << "                       // generally leads to better optimization, but may be significantly slower." << endl;
 
         cout << "    nthreads: " << nthreads_
@@ -575,10 +572,10 @@ namespace pdaggerq {
             terms = new_terms;
         }
 
-        if (apply_permutations_){
+        if (expand_permutations_){
             vector<Term> new_terms;
             new_terms.reserve(4*terms.size());
-            std::cout << "Applying permutations..." << std::endl;
+            std::cout << "Expanding permutations..." << std::endl;
             for (const auto &term : terms){
                 vector<Term> permuted_terms = term.expand_perms();
                 new_terms.insert(new_terms.end(), permuted_terms.begin(), permuted_terms.end());
