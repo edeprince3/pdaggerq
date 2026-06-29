@@ -424,6 +424,7 @@ namespace pdaggerq {
          */
         string str() const;
         string einsum_str() const;
+        string ir_str() const; // structured JSONL line for the einsums/codegen IR export
 
         string operator+(const string &other) const{ return str() + other; }
         friend string operator+(const string &other, const Term &term){ return other + term.str(); }

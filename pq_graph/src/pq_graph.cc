@@ -100,6 +100,8 @@ namespace pdaggerq {
         } else if (Vertex::print_type_ == "c++") {
             h1 = "///////////////////";
             h2 = "/////";
+        } else if (Vertex::print_type_ == "ir") {
+            h1 = "#"; h2 = "#";
         } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
 
         cout << endl << h1 << " PQ GRAPH " << h1 << endl << endl;
@@ -622,6 +624,8 @@ namespace pdaggerq {
         } else if (Vertex::print_type_ == "c++") {
             h1 = "///////////////////";
             h2 = "/////";
+        } else if (Vertex::print_type_ == "ir") {
+            h1 = "#"; h2 = "#";
         } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
 
         cout << h1 << " PQ GRAPH Analysis " << h1 << endl << endl;

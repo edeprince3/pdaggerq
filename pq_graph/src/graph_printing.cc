@@ -75,8 +75,11 @@ namespace pdaggerq {
         } else if (Vertex::print_type_ == "c++" || Vertex::print_type_ == "cpp") {
             Vertex::print_type_ = "c++";
             cout << "Formatting equations for c++" << endl;
+        } else if (Vertex::print_type_ == "ir") {
+            Vertex::print_type_ = "ir";
+            cout << "Formatting equations as codegen IR (JSONL)" << endl;
         } else {
-            cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
+            cout << "WARNING: output must be one of: python, einsum, c++, cpp, or ir" << endl;
             cout << "         Setting output to c++" << endl;
         }
         cout << endl;
@@ -91,6 +94,11 @@ namespace pdaggerq {
         } else if (Vertex::print_type_ == "c++") {
             h1 = "///////////////////";
             h2 = "/////";
+        } else if (Vertex::print_type_ == "ir") {
+            // IR is JSONL: every real line is one JSON object starting with '{'.
+            // Banners/declarations/comments are emitted as non-'{' lines that the
+            // consumer filters out, so their exact text does not matter here.
+            h1 = "#"; h2 = "#";
         } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
         
         sout << h1 << " PQ GRAPH Output " << h1 << endl << endl;
@@ -308,6 +316,9 @@ namespace pdaggerq {
             return newterm;
         };
 
+        // destructor insertion frees each tmp after its last use (python `del` /
+        // c++ `~TArrayD()`); the IR has no such notion, so skip it for "ir".
+        if (Vertex::print_type_ != "ir") {
         set<long> destroy_ids;
         map<size_t, vector<Term>, std::greater<>> destruct_terms;
         for (auto &tempterm: copy.equations_["temp"]) {
@@ -389,6 +400,7 @@ namespace pdaggerq {
             }
             cout << endl;
         }
+        } // end destructor insertion (skipped for "ir")
 
         sout << h1 << " Evaluate Equations " << h1 << endl << endl;
 
@@ -648,6 +660,9 @@ namespace pdaggerq {
         if (Vertex::print_type_ == "python")
             return einsum_str();
 
+        if (Vertex::print_type_ == "ir")
+            return ir_str();
+
         // get lhs vertex string
         output = lhs_->str();
 
@@ -771,6 +786,97 @@ namespace pdaggerq {
         }
 
         return output;
+    }
+
+    // JSON-escape a string (names like tmps_["12_vvoo"] contain quotes).
+    static string ir_jesc(const string &s) {
+        string o; o.reserve(s.size() + 2);
+        for (char c : s) {
+            if (c == '\\' || c == '"') o += '\\';
+            o += c;
+        }
+        return o;
+    }
+
+    // Serialize a vertex as {name, indices, classes, is_intermediate}.
+    // indices = einsum subscript chars (excited-state lines skipped, matching the
+    // python printer); classes = Line::type() (o/v electron, O/V proton, Q aux,
+    // L excited) for the dims lookup.
+    static string ir_vertex_json(const VertexPtr &v) {
+        string istr = "[", cstr = "[";
+        bool first = true;
+        for (const auto &line : v->lines()) {
+            if (line.sig_ && !Vertex::use_trial_index) continue;
+            if (!first) { istr += ","; cstr += ","; }
+            first = false;
+            istr += string("\"") + line.einsum_char() + "\"";
+            cstr += string("\"") + line.type() + "\"";
+        }
+        istr += "]"; cstr += "]";
+        return string("{\"name\":\"") + ir_jesc(v->name()) + "\""
+             + ",\"indices\":" + istr
+             + ",\"classes\":" + cstr
+             + ",\"is_intermediate\":" + (v->is_temp() ? "true" : "false") + "}";
+    }
+
+    // Emit one-or-more JSONL statements for "target [assign] coeff * <rhs_link>".
+    // A top-level addition A+B is split into "target = c*A" then "target += c*B"
+    // (mirroring graph_printing's term-level addition expansion); contractions
+    // become a single statement whose operands are the linkage's link_vector.
+    static string ir_emit(const VertexPtr &target, bool assign, double coeff,
+                          const VertexPtr &rhs_link, const std::set<string> &conds) {
+
+        // split additions (but a named temp used as an operand is left intact)
+        if (rhs_link->is_linked() && as_link(rhs_link)->is_addition() && !rhs_link->is_temp()) {
+            LinkagePtr al = as_link(rhs_link);
+            return ir_emit(target, assign, coeff, al->left(), conds)
+                 + "\n" + ir_emit(target, false, coeff, al->right(), conds);
+        }
+
+        string out = string("{\"target\":") + ir_vertex_json(target);
+        out += string(",\"is_assignment\":") + (assign ? "true" : "false");
+        { std::ostringstream cs; cs.precision(17); cs << coeff;
+          out += ",\"coeff\":" + cs.str(); }
+
+        // term-level spin-block / state conditions, if any (NEO spin blocking)
+        if (!conds.empty()) {
+            out += ",\"conditions\":[";
+            bool first = true;
+            for (const auto &c : conds) {
+                if (!first) out += ",";
+                first = false;
+                out += string("\"") + ir_jesc(c) + "\"";
+            }
+            out += "]";
+        }
+
+        // operands, in contraction order, mirroring the python printer's walk.
+        // A non-temp contraction flattens to its link_vector; a temp or bare
+        // vertex is itself the single operand.
+        out += ",\"operands\":[";
+        vertex_vector ops;
+        if (rhs_link->is_linked() && !rhs_link->is_temp())
+            ops = as_link(rhs_link)->link_vector();
+        else
+            ops = { rhs_link };
+        bool first = true;
+        for (const auto &op : ops) {
+            if (op->empty()) continue;
+            if (!first) out += ",";
+            first = false;
+            out += ir_vertex_json(op);
+        }
+        out += "]}";
+        return out;
+    }
+
+    // Structured JSONL line(s) describing this term as flat codegen statement(s):
+    // target, assignment flag, coefficient, and ordered operands -- each with its
+    // index labels and orbital-class chars. Consumed by the einsums/codegen
+    // lowering (see neocc/codegen/einsums_printer_plan.md). Permutation operators
+    // are already expanded into separate terms by Term::str() before this point.
+    string Term::ir_str() const {
+        return ir_emit(lhs_, is_assignment_, coefficient_, term_linkage(true), conditions());
     }
 
 }
