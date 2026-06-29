@@ -798,6 +798,17 @@ namespace pdaggerq {
         return o;
     }
 
+    // Whether a vertex is a generated intermediate (routes to the intermediate
+    // store, not inputs/outputs). is_temp() catches fusion intermediates (which
+    // are Linkages with an id), but permutation tmps are plain Vertices named
+    // "tmps_"; match those (and reused_/scalars_) by name prefix too.
+    static bool ir_is_intermediate(const VertexPtr &v) {
+        if (v->is_temp()) return true;
+        const string &n = v->name();
+        return n.rfind("tmps_", 0) == 0 || n.rfind("perm_tmps", 0) == 0
+            || n.rfind("reused_", 0) == 0 || n.rfind("scalars_", 0) == 0;
+    }
+
     // Serialize a vertex as {name, indices, classes, is_intermediate}.
     // indices = einsum subscript chars (excited-state lines skipped, matching the
     // python printer); classes = Line::type() (o/v electron, O/V proton, Q aux,
@@ -816,7 +827,7 @@ namespace pdaggerq {
         return string("{\"name\":\"") + ir_jesc(v->name()) + "\""
              + ",\"indices\":" + istr
              + ",\"classes\":" + cstr
-             + ",\"is_intermediate\":" + (v->is_temp() ? "true" : "false") + "}";
+             + ",\"is_intermediate\":" + (ir_is_intermediate(v) ? "true" : "false") + "}";
     }
 
     // Emit one-or-more JSONL statements for "target [assign] coeff * <rhs_link>".
