@@ -809,14 +809,15 @@ namespace pdaggerq {
             || n.rfind("reused_", 0) == 0 || n.rfind("scalars_", 0) == 0;
     }
 
-    // Serialize a vertex as {name, indices, classes, is_intermediate}.
+    // Serialize {name, indices, classes, is_intermediate} from a name + lines.
     // indices = einsum subscript chars (excited-state lines skipped, matching the
     // python printer); classes = Line::type() (o/v electron, O/V proton, Q aux,
     // L excited) for the dims lookup.
-    static string ir_vertex_json(const VertexPtr &v) {
+    static string ir_vertex_json_core(const string &name, const line_vector &lines,
+                                      bool is_intermediate) {
         string istr = "[", cstr = "[";
         bool first = true;
-        for (const auto &line : v->lines()) {
+        for (const auto &line : lines) {
             if (line.sig_ && !Vertex::use_trial_index) continue;
             if (!first) { istr += ","; cstr += ","; }
             first = false;
@@ -824,27 +825,63 @@ namespace pdaggerq {
             cstr += string("\"") + line.type() + "\"";
         }
         istr += "]"; cstr += "]";
-        return string("{\"name\":\"") + ir_jesc(v->name()) + "\""
+        return string("{\"name\":\"") + ir_jesc(name) + "\""
              + ",\"indices\":" + istr
              + ",\"classes\":" + cstr
-             + ",\"is_intermediate\":" + (ir_is_intermediate(v) ? "true" : "false") + "}";
+             + ",\"is_intermediate\":" + (is_intermediate ? "true" : "false") + "}";
     }
 
-    // Emit one-or-more JSONL statements for "target [assign] coeff * <rhs_link>".
-    // A top-level addition A+B is split into "target = c*A" then "target += c*B"
-    // (mirroring graph_printing's term-level addition expansion); contractions
-    // become a single statement whose operands are the linkage's link_vector.
-    static string ir_emit(const VertexPtr &target, bool assign, double coeff,
-                          const VertexPtr &rhs_link, const std::set<string> &conds) {
+    static string ir_vertex_json(const VertexPtr &v) {
+        return ir_vertex_json_core(v->name(), v->lines(), ir_is_intermediate(v));
+    }
 
-        // split additions (but a named temp used as an operand is left intact)
+    // Fresh names for synthetic hoisted intermediates (see ir_emit). Monotonic, so
+    // unique within an export; deterministic across fresh processes (like the
+    // optimizer's own tmp ids).
+    static long ir_hoist_counter = 0;
+
+    // Emit one-or-more JSONL statements for "target [assign] coeff * <rhs_link>",
+    // the target given as (tname, tlines, tinterm) so synthetic temps can be
+    // targets too. A top-level addition A+B is split into "target = c*A" then
+    // "target += c*B"; contractions become one statement over the linkage's
+    // link_vector. An operand that is itself an inline (un-named) non-temp linkage
+    // -- the (A+B)/nested-contraction sub-expressions the expression backends
+    // inline but einsums cannot -- is HOISTED: it gets a synthetic tmps_ name, its
+    // defining statement(s) are emitted first, and the operand is replaced by a
+    // reference to that temp. So the IR carries every operand's definition.
+    static string ir_emit(const string &tname, const line_vector &tlines, bool tinterm,
+                          bool assign, double coeff, const VertexPtr &rhs_link,
+                          const std::set<string> &conds) {
+
+        // split additions (a named temp used as an operand is left intact)
         if (rhs_link->is_linked() && as_link(rhs_link)->is_addition() && !rhs_link->is_temp()) {
             LinkagePtr al = as_link(rhs_link);
-            return ir_emit(target, assign, coeff, al->left(), conds)
-                 + "\n" + ir_emit(target, false, coeff, al->right(), conds);
+            return ir_emit(tname, tlines, tinterm, assign, coeff, al->left(), conds)
+                 + "\n" + ir_emit(tname, tlines, tinterm, false, coeff, al->right(), conds);
         }
 
-        string out = string("{\"target\":") + ir_vertex_json(target);
+        // gather operands (contraction order, mirroring the python printer's walk)
+        vertex_vector ops;
+        if (rhs_link->is_linked() && !rhs_link->is_temp())
+            ops = as_link(rhs_link)->link_vector();
+        else
+            ops = { rhs_link };
+
+        string prefix;                     // hoisted temp definitions, emitted first
+        std::vector<string> operand_jsons;
+        for (const auto &op : ops) {
+            if (op->empty()) continue;
+            if (op->is_linked() && !ir_is_intermediate(op)) {
+                // inline (A+B)/nested-contraction operand -> materialise into a temp
+                string tn = "tmps_[\"ir" + std::to_string(ir_hoist_counter++) + "\"]";
+                prefix += ir_emit(tn, op->lines(), true, true, 1.0, op, conds) + "\n";
+                operand_jsons.push_back(ir_vertex_json_core(tn, op->lines(), true));
+            } else {
+                operand_jsons.push_back(ir_vertex_json(op));
+            }
+        }
+
+        string out = string("{\"target\":") + ir_vertex_json_core(tname, tlines, tinterm);
         out += string(",\"is_assignment\":") + (assign ? "true" : "false");
         { std::ostringstream cs; cs.precision(17); cs << coeff;
           out += ",\"coeff\":" + cs.str(); }
@@ -861,24 +898,15 @@ namespace pdaggerq {
             out += "]";
         }
 
-        // operands, in contraction order, mirroring the python printer's walk.
-        // A non-temp contraction flattens to its link_vector; a temp or bare
-        // vertex is itself the single operand.
         out += ",\"operands\":[";
-        vertex_vector ops;
-        if (rhs_link->is_linked() && !rhs_link->is_temp())
-            ops = as_link(rhs_link)->link_vector();
-        else
-            ops = { rhs_link };
         bool first = true;
-        for (const auto &op : ops) {
-            if (op->empty()) continue;
+        for (const auto &oj : operand_jsons) {
             if (!first) out += ",";
             first = false;
-            out += ir_vertex_json(op);
+            out += oj;
         }
         out += "]}";
-        return out;
+        return prefix + out;
     }
 
     // Structured JSONL line(s) describing this term as flat codegen statement(s):
@@ -887,7 +915,8 @@ namespace pdaggerq {
     // lowering (see neocc/codegen/einsums_printer_plan.md). Permutation operators
     // are already expanded into separate terms by Term::str() before this point.
     string Term::ir_str() const {
-        return ir_emit(lhs_, is_assignment_, coefficient_, term_linkage(true), conditions());
+        return ir_emit(lhs_->name(), lhs_->lines(), ir_is_intermediate(lhs_),
+                       is_assignment_, coefficient_, term_linkage(true), conditions());
     }
 
 }
