@@ -80,7 +80,7 @@ def compare_outputs(test_name, script_path):
         raise AssertionError(f"Test {test_name} failed. Check {script_path}/test_outputs/difference/{test_name}_diff.out for details")
 
 # Tests
-ccsd_tests     = ("ccsd", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "ccsd", "ccsd_singles", "ccsd_t",
+ccsd_tests     = ("ccsd", "ccsd_d1", "ccsd_d2", "ccsd_doubles", "ccsd_energy", "ccsd_singles", "ccsd_t",
                   "eom_ccsd_sigma", "ea_eom_ccsd", "eom_ccsd_d1_by_hand", "eom_ccsd_d1", "eom_ccsd_hamiltonian","eom_ccsd", "ip_eom_ccsd",
                   "lambda_singles", "lambda_doubles", "ccsd_with_spin", "ucc3", "ucc4")
 ci_tests       = ("cid_d1", "cid_d2", "cisd_hamiltonian")

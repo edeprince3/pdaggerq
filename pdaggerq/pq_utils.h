@@ -44,6 +44,9 @@ bool is_occ(const std::string &idx);
 /// is a label classified as virtual?
 bool is_vir(const std::string &idx);
 
+// does an index appear amplitudes, deltas, integrals, and operators?
+bool found_index_anywhere(const std::shared_ptr<pq_string> &in, const std::string &idx);
+
 /// how many times does an index appear in deltas?
 int index_in_deltas(const std::string &idx, const std::vector<delta_functions> &deltas);
 
@@ -122,7 +125,7 @@ void compare_strings_with_swapped_summed_and_nonsummed_labels(
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 
 /// cancel terms where appropriate
-void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations);
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations, bool is_unitary_cc);
 
 /// re-classify fluctuation potential terms
 void reclassify_integrals(std::shared_ptr<pq_string> &in);
@@ -134,10 +137,10 @@ void gobble_deltas(std::shared_ptr<pq_string> &in);
 void use_conventional_labels(std::shared_ptr<pq_string> &in);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations);
+void add_new_string_true_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, int occ_label_count, int vir_label_count);
+void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators);
 
 /// concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops);

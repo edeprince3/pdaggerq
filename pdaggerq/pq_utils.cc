@@ -25,6 +25,7 @@
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
 
+#include <unordered_set>
 #include <algorithm>
 #include <numeric>
 
@@ -161,6 +162,114 @@ int index_in_operators(const std::string &idx, const std::vector<std::string> &o
         }
     }
     return n;
+}
+
+std::unordered_map<std::string, int> count_labels(const std::shared_ptr<pq_string> &in, std::vector<char> ignore_amps = {}) {
+
+    // map to store string label -> occurrence count
+    std::unordered_map<std::string, int> counts;
+
+    // helper to update the map
+    auto add_to_counts = [&](const std::vector<std::string>& labels) {
+        for (const auto& label : labels) {
+            counts[label]++;
+        }
+    };
+    
+    // deltas
+    for (const auto& delta : in->deltas) {
+        add_to_counts(delta.labels);
+    }
+    
+    // integrals
+    for (const auto& int_pair : in->ints) {
+        for (const auto& integral : int_pair.second) {
+            add_to_counts(integral.labels);
+        }
+    }
+    
+    // amplitudes
+    for (const auto& amp_pair : in->amps) {
+        if (std::find(ignore_amps.begin(), ignore_amps.end(), amp_pair.first) != ignore_amps.end()) {
+            continue; 
+        }
+        for (const auto& amp : amp_pair.second) {
+            add_to_counts(amp.labels);
+        }
+    }
+    
+    // operators
+    add_to_counts(in->symbol);
+
+    return counts;
+}
+
+// does an index appear amplitudes, deltas, integrals, and operators?
+bool keep_ucc_term(const std::shared_ptr<pq_string> &in) {
+
+    // check if this term contains an eom operator (r or l)
+    bool has_eom_operator = (in->amps.count('r') > 0 || in->amps.count('l') > 0);
+    if (!has_eom_operator) { 
+        return true;
+    }
+
+    // get all summed and non-summed labels
+    std::unordered_map<std::string, int> counts = count_labels(in);
+
+    // summed and non-summed labels
+    std::unordered_set<std::string> summed_labels;
+    std::unordered_set<std::string> non_summed_labels;
+    
+    for (const auto& [label, count] : counts) {
+        if (count == 2) {
+            summed_labels.insert(label);
+            //printf("summed labels:     %s\n", label.c_str());
+        }else if (count == 1) {
+            non_summed_labels.insert(label);
+            //printf("non-summed labels: %s\n", label.c_str());
+        }else {
+            printf("\n");
+            printf("    a label appears %i times\n", count);
+            printf("\n");
+            exit(1);
+        }
+    }
+
+    // count labels on hbar (excluding r and l)
+    std::unordered_map<std::string, int> hbar_counts = count_labels(in, {'r', 'l'});
+
+    bool hbar_has_shared_sum = false;
+    bool hbar_has_external_leg = false;
+
+    for (const auto& [label, count] : hbar_counts) {
+        // summed_label appearing in hbar once must be shared with L or R
+        if (count == 1 && summed_labels.count(label)) {
+            hbar_has_shared_sum = true;
+        }
+
+        // non_summed_label appearing once in hbar is an index of the sigma vector
+        if (count == 1 && non_summed_labels.count(label)) {
+            hbar_has_external_leg = true;
+        }
+    }
+
+    // apply connectivity rules
+
+    // if hbar shares no sums with R or L, it's explicitly disconnected.
+    if (!hbar_has_shared_sum) {
+        //printf("explicitly disconnected\n");
+        //in->print();
+        return false;
+    }
+
+    // if hbar contributes no legs to sigma, it's a dangling artifact
+    if (!non_summed_labels.empty() && !hbar_has_external_leg) {
+        //printf("dangling artifact (no external legs)\n");
+        //in->print();
+        return false;
+    }
+
+    return true;
 }
 
 // does an index appear amplitudes, deltas, integrals, and operators?
@@ -1182,14 +1291,14 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 }
 
 // compare strings and remove terms that cancel
-void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations) {
+void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations, bool is_unitary_cc) {
 
     // sort amplitude labels, etc.
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
         pq_str->sort();
     }
 
-    // prune list so it only contains non-skipped ones
+    // prune list so it only contains non-skipped pq_strings
     std::vector< std::shared_ptr<pq_string> > pruned;
     for (const std::shared_ptr<pq_string> & pq_str : ordered) {
 
@@ -1226,6 +1335,15 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
+
+    if (is_unitary_cc) {
+        for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+            if ( pq_str->skip ) continue;
+            bool keep = keep_ucc_term(pq_str);
+            pq_str->skip = !keep;
+        }
+    }
+
 
     if ( ordered.empty() ) return;
 
@@ -1482,7 +1600,16 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
          * */
 
         do_continue = false;
-        static char types[] = {'t', 'l', 'r', 'D'};
+        static std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's', 'D'};
+        
+        // add user-added amplitude types
+        for (auto & type : in->amplitude_types) {
+            auto it = std::find(types.begin(), types.end(), type);
+            if (it == types.end()) {
+                types.push_back(type);
+            }
+        }
+
         for (auto & type : types) {
             std::vector<amplitudes> & amps = in->amps[type];
             
@@ -1516,59 +1643,44 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
-void add_new_string_true_vacuum(const std::shared_ptr<pq_string> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations){
+void add_new_string_true_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators){
 
-    if ( in->factor < 0.0 ) {
-        in->sign *= -1;
-        in->factor = fabs(in->factor);
-    }
 
-    for (size_t i = 0; i < in->string.size(); i++) {
-        std::string me = in->string[i];
-        if ( me.find('*') != std::string::npos ) {
-            removeStar(me);
-            in->is_dagger.push_back(true);
-        }else {
-            in->is_dagger.push_back(false);
+    for (auto & my_string: in ) {
+
+        if ( print_level > 0 ) {
+            printf("\n");
+            printf("    ");
+            printf("// starting string:\n");
+            my_string->print();
         }
-        in->symbol.push_back(me);
-    }
 
-    if ( print_level > 0 ) {
-        printf("\n");
-        printf("    ");
-        printf("// starting string:\n");
-        in->print();
-    }
+        // rearrange strings
+        std::vector< std::shared_ptr<pq_string> > tmp;
+        tmp.push_back(my_string);
 
-    // rearrange strings
-    std::vector< std::shared_ptr<pq_string> > tmp;
-    tmp.push_back(in);
+        bool done_rearranging = false;
+        do { 
+            std::vector< std::shared_ptr<pq_string> > list;
+            done_rearranging = true;
+            for (const std::shared_ptr<pq_string> & pq_str : tmp) {
+                bool am_i_done = swap_operators_true_vacuum(pq_str, list, keep_operators);
+                if ( !am_i_done ) done_rearranging = false;
+            }
+            tmp.clear();
+            for (const std::shared_ptr<pq_string> & pq_str : list) {
+                tmp.push_back(pq_str);
+            }
+        }while(!done_rearranging);
 
-    bool done_rearranging = false;
-    do { 
-        std::vector< std::shared_ptr<pq_string> > list;
-        done_rearranging = true;
         for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-            bool am_i_done = swap_operators_true_vacuum(pq_str, list);
-            if ( !am_i_done ) done_rearranging = false;
+            ordered.push_back(pq_str);
         }
         tmp.clear();
-        for (const std::shared_ptr<pq_string> & pq_str : list) {
-            tmp.push_back(pq_str);
-        }
-    }while(!done_rearranging);
-
-    for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-        ordered.push_back(pq_str);
     }
-    tmp.clear();
 
     // alphabetize
     alphabetize(ordered);
-
-    // try to cancel similar terms
-    cleanup(ordered, find_paired_permutations);
 }
 
 // expand general labels, p -> o, v
@@ -1677,11 +1789,18 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
     // and are ready to bring the strings to normal order
 
     for (auto & mystring: mystrings ) {
+void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators) {
+
+        
+    std::vector< std::shared_ptr<pq_string> > new_strings[in.size()];
+    #pragma omp parallel for schedule(dynamic) default(none) shared(in, new_strings, keep_operators) firstprivate(print_level)
+    for (size_t k = 0; k < in.size(); k++) {
+        const std::shared_ptr<pq_string>& mystring = in[k];
 
         // check if this string can be fully contracted ...
         int nc = 0;
         int na = 0;
-        for (size_t i = 0; i < mystring->symbol.size(); i++) {
+        for (size_t i = 0; i < mystring->is_dagger_fermi.size(); i++) {
             if ( mystring->is_dagger_fermi[i] ) nc++;
             else na++;
         }
@@ -1718,7 +1837,7 @@ void add_new_string_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
             std::vector< std::shared_ptr<pq_string> > list;
             done_rearranging = true;
             for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-                bool am_i_done = swap_operators_fermi_vacuum(pq_str, list);
+                bool am_i_done = swap_operators_fermi_vacuum(pq_str, list, keep_operators);
                 if ( !am_i_done ) done_rearranging = false;
             }
             tmp.clear();

@@ -26,6 +26,8 @@
 
 #include "pq_string.h"
 
+#include <utility>
+
 namespace pdaggerq {
 
 class pq_operator_terms {
@@ -182,6 +184,15 @@ class pq_helper {
 
     /**
      *
+     * set whether or not we use the normal-ordered form of the hamiltonian
+     *
+     * @param is_normal_ordered: true/false
+     *
+     */
+    void set_hamiltonian_normal_ordered(bool is_normal_ordered);
+
+    /**
+     *
      * set whether or not the cluster operator is antihermitian for UCC
      *
      * @param is_unitary: true/false
@@ -229,10 +240,95 @@ class pq_helper {
      *
      * add a product of operators (i.e., {'h','t1'} )
      *
+     * @param factor: the numerical factor associated with the operator product
      * @param in: a list of strings defining the operator product
      *
      */
     void add_operator_product(double factor, std::vector<std::string> in);
+
+    /**
+     *
+     * build a pq_string from the string representations of operators
+     *
+     * @param factor: the numerical factor associated with the operator product
+     * @param input_op: a list of strings defining the operator product
+     * @param occ_label_count: how many occupied labels in the pq_string?
+     * @param vir_label_count: how many virtual labels in the pq_string?
+     *
+     */
+    std::vector<std::shared_ptr<pq_string>> build_new_strings(double factor, 
+        std::vector<std::string> input_op, 
+        int & occ_label_count,
+        int & vir_label_count);
+
+    /**
+     *
+     * python wrapper for calling add_operator_product() to 
+     * add a product of operators (i.e., {'h','t1'} )
+     *
+     * @param factor: the numerical factor associated with the operator product
+     * @param in: a list of strings defining the operator product
+     *
+     */
+    void py_add_operator_product(double factor, std::vector<std::string>  in);
+
+    /**
+     *
+     * process a list of operator products, expanding the list where 
+     * necessary, e.g., 't1' -> 'te1' - 'td1', 'v' -> 'j1' + 'j2', etc.
+     *
+     * @param in: a list of pq_operator_terms
+     *
+     */
+    void process_operator_products(std::vector<pq_operator_terms> ops);
+
+    /**
+     * Incrementally combine the running list of terms in `ordered` while it is
+     * being generated. This applies only the confluent, combine-only portion of
+     * simplify()/cleanup() (per-string delta/label canonicalization followed by
+     * consolidate_permutations_plus_swaps), so it is mathematically identical to
+     * consolidating once at the end -- permutation-operator formation is deferred
+     * to the final simplify(). Its purpose is to bound peak memory for expansions
+     * that would otherwise generate tens of millions of raw terms (e.g. the
+     * similarity transform of the two-electron operator with quadruple
+     * excitations) before any cancellation occurs.
+     *
+     * Only used for normal order relative to the fermi vacuum in standard
+     * (non-RDM, non-unitary) coupled-cluster expansions.
+     */
+    void consolidate_running_terms();
+
+    /**
+     *
+     * check if there are fluctuation potential operators that need to
+     * be split into multiple terms
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_fluctuation_potential(std::vector<pq_operator_terms> ops_in);
+
+
+    /**
+     *
+     * check if there are normal-ordered foc operators that need to
+     * be split into multiple terms
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_fock_operator(std::vector<pq_operator_terms> ops_in);
+
+    /**
+     *
+     * check if there are cluster amplitudes that need to be renamed / expanded as
+     * 't1' = 't1e' or 't1' = 't1e' - 't1d', etc.
+     *
+     * @param ops: a list of pq_operator_terms
+     *
+     */
+    std::pair<bool,std::vector<pq_operator_terms>> process_cluster_amplitudes(std::vector<pq_operator_terms> ops_in);
+
 
     /**
      *
@@ -293,78 +389,6 @@ class pq_helper {
                                                                 const std::vector<std::string> &targets,
                                                                 const std::vector<std::string> &ops,
                                                                 const int max_order);
-    /**
-     *
-     * generate list of first-order terms from the Bernoulli-number representation of the similarity-transformed operator
-     *
-     * @param targets: a list of strings defining the operator product to be transformed (here, f)
-     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
-     *
-     */
-    std::vector<pq_operator_terms> get_bernoulli_operator_terms_1(double factor, 
-                                                                  const std::vector<std::string> &targets,
-                                                                  const std::vector<std::string> &ops);
-
-    /**
-     *
-     * generate list of second-order terms from the Bernoulli-number representation of the similarity-transformed operator
-     *
-     * @param targets: a list of strings defining the operator product to be transformed (here, f)
-     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
-     *
-     */
-    std::vector<pq_operator_terms> get_bernoulli_operator_terms_2(double factor, 
-                                                                  const std::vector<std::string> &targets,
-                                                                  const std::vector<std::string> &ops);
-
-    /**
-     *
-     * generate list of third-order terms from the Bernoulli-number representation of the similarity-transformed operator
-     *
-     * @param targets: a list of strings defining the operator product to be transformed (here, f)
-     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
-     *
-     */
-    std::vector<pq_operator_terms> get_bernoulli_operator_terms_3(double factor, 
-                                                                  const std::vector<std::string> &targets,
-                                                                  const std::vector<std::string> &ops);
-
-    /**
-     *
-     * generate list of fourth-order terms from the Bernoulli-number representation of the similarity-transformed operator
-     *
-     * @param targets: a list of strings defining the operator product to be transformed (here, f)
-     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
-     *
-     */
-    std::vector<pq_operator_terms> get_bernoulli_operator_terms_4(double factor, 
-                                                                  const std::vector<std::string> &targets,
-                                                                  const std::vector<std::string> &ops);
-
-    /**
-     *
-     * generate list of fifth-order terms from the Bernoulli-number representation of the similarity-transformed operator
-     *
-     * @param targets: a list of strings defining the operator product to be transformed (here, f)
-     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
-     *
-     */
-    std::vector<pq_operator_terms> get_bernoulli_operator_terms_5(double factor, 
-                                                                  const std::vector<std::string> &targets,
-                                                                  const std::vector<std::string> &ops);
-
-    /**
-     *
-     * generate list of sixth-order terms from the Bernoulli-number representation of the similarity-transformed operator
-     *
-     * @param targets: a list of strings defining the operator product to be transformed (here, f)
-     * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
-     *
-     */
-    std::vector<pq_operator_terms> get_bernoulli_operator_terms_6(double factor, 
-                                                                  const std::vector<std::string> &targets,
-                                                                  const std::vector<std::string> &ops);
-
 
     /**
      *
@@ -715,6 +739,13 @@ private:
      *
      */
     bool find_paired_permutations;
+
+    /** 
+     * 
+     * use the normal-ordered form of the hamiltonian? 
+     * 
+     */
+    bool is_hamiltonian_normal_ordered = false;
 
     /** 
      * 

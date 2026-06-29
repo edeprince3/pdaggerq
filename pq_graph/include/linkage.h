@@ -24,6 +24,7 @@
 #ifndef PDAGGERQ_linkage_H
 #define PDAGGERQ_linkage_H
 
+#include <cstdint>
 #include <set>
 #include <unordered_set>
 #include <memory>

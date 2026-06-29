@@ -17,7 +17,7 @@
 
 """
 
-example script for running ccsd, ccsdt, ccsdqt, and eom-ccsdt using 
+example script for running uccsd(3) and uccsd(4) using
 pdaggerq-generated equations. Integrals come from psi4.
 
 """
@@ -26,13 +26,12 @@ import numpy as np
 from numpy import einsum
 import psi4
 
-from cc_tools import quccsd
 from cc_tools import ucc3
 from cc_tools import ucc4
 
 def main():
 
-    # UCC3, UCC4, and QUCCSD / H2O / STO-3G
+    # UCC3, UCC4 / H2O / STO-3G
 
     # set molecule
     mol = psi4.geometry("""
@@ -59,7 +58,7 @@ def main():
     # check ucc3 energy
     assert np.isclose(ucc3_en, -75.020316846984, rtol = 1e-8, atol = 1e-8)
 
-    print('    UCC(3) Total Energy..........................................................PASSED')
+    print('    UCCSD(3) Total Energy........................................................PASSED')
     print('')
     #exit()
 
@@ -68,17 +67,9 @@ def main():
     # check ucc4 energy
     assert np.isclose(ucc4_en, -75.019768257645, rtol = 1e-8, atol = 1e-8)
 
-    print('    UCC(4) Total Energy..........................................................PASSED')
+    print('    UCCSD(4) Total Energy........................................................PASSED')
     print('')
     #exit()
-
-    quccsd_en = quccsd(mol, do_eom_ccsd = False)
-
-    # check quccsd energy
-    assert np.isclose(quccsd_en, -75.019606376906, rtol = 1e-8, atol = 1e-8)
-
-    print('    QUCCSD Total Energy..........................................................PASSED')
-    print('')
 
 if __name__ == "__main__":
     main()
