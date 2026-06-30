@@ -48,13 +48,14 @@ def test_script_output(test_name):
     status = result.returncode
     if status != 0:
         with open("numerical_test.log", "a") as file:
-            file.write(f"Test {test_name} codegen\n")
+            file.write(f"Test {test_name} codegen failed!!\n")
+            file.write(result.stdout)
             file.write(result.stderr)
         raise AssertionError(f"Failure during execution:\n {result.stderr}")
 
     # append stdout to log file
     with open("numerical_test.log", "a") as file:
-        file.write(f"Test {test_name} codegen failed!!\n")
+        file.write(f"Test {test_name} codegen\n")
         file.write(result.stdout)
 
     # now run the generated code
