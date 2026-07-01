@@ -48,6 +48,7 @@ __all__ = [
     "lambda_graph", "lambda_ir",
     "gradient_graph", "gradient_ir",
     "rdm_graph", "rdm_ir",
+    "energy_from_rdm_graph", "energy_from_rdm_ir",
 ]
 
 # Conjugate (de-excitation) projection per amplitude: all-occ then all-vir,
@@ -274,3 +275,31 @@ def rdm_graph(name, operator, df=True, opt_level=6, label="D"):
 def rdm_ir(name, operator, df=True, opt_level=6, label="D"):
     """An RDM block as ``to_strings("ir")`` JSONL lines."""
     return rdm_graph(name, operator, df=df, opt_level=opt_level, label=label).to_strings("ir")
+
+
+def energy_from_rdm_graph(name, df=True, opt_level=6, label="E"):
+    """Optimized pq_graph for the ground-state energy ``<H>`` written as the trace
+    of the integrals against the RDMs -- ``E = h.D1 + (1/4)<pq||rs>.D2`` (electronic;
+    pdaggerq expresses ``h`` as ``f`` minus its mean-field), plus ``f.D1_n`` and
+    ``g.D2_ep`` for NEO. Built on the true vacuum with ``use_rdms`` so the density
+    operators are left as the RDM tensors (``D1``, ``D2``, ``D1_n``, ``D2_ep``) in
+    pdaggerq's own e1/e2 convention; neocc supplies those RDMs and the integrals and
+    evaluates the contraction. The D2 index-order / sign / factor convention thus
+    lives entirely in pdaggerq and matches :func:`rdm_graph`.
+
+    Uses the model's Hamiltonian (``model(name).H``) so the energy is consistent
+    with the residual/RDM equations. Returns the total ``<H>``; subtract the
+    reference energy for the correlation contribution.
+    """
+    m = model(name)
+    pq = pq_helper("true")
+    pq.set_use_rdms(True)
+    for h in m.H:
+        pq.add_operator_product(1.0, [h])
+    pq.simplify()
+    return _optimized(pq, label, df, opt_level)
+
+
+def energy_from_rdm_ir(name, df=True, opt_level=6, label="E"):
+    """The energy-from-RDM contraction as ``to_strings("ir")`` JSONL lines."""
+    return energy_from_rdm_graph(name, df=df, opt_level=opt_level, label=label).to_strings("ir")

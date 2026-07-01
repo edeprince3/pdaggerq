@@ -143,6 +143,20 @@ def test_rdm():
     print("test_rdm OK")
 
 
+def test_energy_from_rdm():
+    assert {"energy_from_rdm_graph", "energy_from_rdm_ir"} <= set(models.__all__)
+    # electronic: E is a scalar contracting the electron RDMs D1/D2 with integrals
+    e = einsums.parse_ir(models.energy_from_rdm_ir("ccsd"))
+    assert e and einsums.target_shape(e, "E") == (0, [])          # scalar energy
+    ops = {o["name"] for st in e for o in st["operands"]}
+    assert {"D1", "D2"} <= ops, ops
+    # NEO also traces the proton (D1_n) and mixed e-p (D2_ep) RDMs
+    ep = {o["name"] for st in einsums.parse_ir(models.energy_from_rdm_ir("neo-ccd(ep)"))
+          for o in st["operands"]}
+    assert {"D1", "D2", "D1_n", "D2_ep"} <= ep, ep
+    print("test_energy_from_rdm OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -150,4 +164,5 @@ if __name__ == "__main__":
     test_spin_axis()
     test_lambda_and_gradient()
     test_rdm()
+    test_energy_from_rdm()
     print("\nall model tests passed")
