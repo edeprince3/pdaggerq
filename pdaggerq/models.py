@@ -51,9 +51,9 @@ __all__ = [
     "lambda_graph", "lambda_ir",
     "gradient_graph", "gradient_ir",
     "rdm_graph", "rdm_ir",
-    "energy_from_rdm_graph", "energy_from_rdm_ir",
-    "orbital_gradient_graph", "orbital_gradient_ir",
-    "orbital_hessian_graph", "orbital_hessian_ir", "orbital_hessian_diag_ir",
+    "energy_from_rdm_ir",
+    "orbital_gradient_ir",
+    "orbital_hessian_ir", "orbital_hessian_diag_ir",
 ]
 
 # Conjugate (de-excitation) projection per amplitude: all-occ then all-vir,
@@ -282,32 +282,65 @@ def rdm_ir(name, operator, df=True, opt_level=6, label="D"):
     return rdm_graph(name, operator, df=df, opt_level=opt_level, label=label).to_strings("ir")
 
 
-def energy_from_rdm_graph(name, df=True, opt_level=6, label="E"):
-    """Optimized pq_graph for the ground-state energy ``<H>`` written as the trace
-    of the integrals against the RDMs -- ``E = h.D1 + (1/4)<pq||rs>.D2`` (electronic;
-    pdaggerq expresses ``h`` as ``f`` minus its mean-field), plus ``f.D1_n`` and
-    ``g.D2_ep`` for NEO. Built on the true vacuum with ``use_rdms`` so the density
-    operators are left as the RDM tensors (``D1``, ``D2``, ``D1_n``, ``D2_ep``) in
-    pdaggerq's own e1/e2 convention; neocc supplies those RDMs and the integrals and
-    evaluates the contraction. The D2 index-order / sign / factor convention thus
-    lives entirely in pdaggerq and matches :func:`rdm_graph`.
+# --- explicit occ/vir-block RDM contractions -----------------------------------
+# The true-vacuum use_rdms trace E = h.D1 + 1/2 g.D2 has *general* orbital indices
+# (all MOs). pdaggerq has no "general" orbital class, so pq_graph collapses them to
+# the virtual block and silently drops the occupied contributions. Instead we emit
+# the trace explicitly, enumerating every orbital index over its species' occ/vir
+# blocks: the sum over blocks *is* the full general sum, exactly (validated to
+# machine precision against h.D1 + 1/2 g.D2). Each RDM/integral block carries proper
+# o/v (electron) / O/V (proton) classes, so neocc sizes and slices them directly;
+# the D2 index-order matches :func:`rdm_graph` (D2["pqsr"] = <p+ q+ r s>).
+_RDM_LAB = {("e", "o"): "ijkl", ("e", "v"): "abcd", ("p", "o"): "IJKL", ("p", "v"): "ABCD"}
+_RDM_CLS = {("e", "o"): "o", ("e", "v"): "v", ("p", "o"): "O", ("p", "v"): "V"}
 
-    Uses the model's Hamiltonian (``model(name).H``) so the energy is consistent
-    with the residual/RDM equations. Returns the total ``<H>``; subtract the
-    reference energy for the correlation contribution.
+
+def _emit_block_terms(terms, target):
+    """Enumerate each contraction term over occ/vir blocks of its slots.
+
+    ``terms``  : list of ``(coeff, species_per_slot, [(tensor, [slot_idx, ...]), ...])``
+                 where ``species_per_slot`` is a string of ``e``/``p`` (one per slot)
+                 and each operand references shared slot indices.
+    ``target`` : ``(tensor, [slot_idx, ...])`` for the LHS (``[]`` for a scalar); its
+                 slots are the open indices, block-enumerated so every block is emitted.
     """
-    m = model(name)
-    pq = pq_helper("true")
-    pq.set_use_rdms(True)
-    for h in m.H:
-        pq.add_operator_product(1.0, [h])
-    pq.simplify()
-    return _optimized(pq, label, df, opt_level)
+    import itertools
+    out = []
+    seen_assign = set()
+    for coeff, species, operands in terms:
+        for combo in itertools.product("ov", repeat=len(species)):
+            def vertex(nm, slots, intermediate=False):
+                blk = "".join(_RDM_CLS[(species[s], combo[s])] for s in slots)
+                lab = [_RDM_LAB[(species[s], combo[s])][s] for s in slots]
+                cls = [_RDM_CLS[(species[s], combo[s])] for s in slots]
+                name = f'{nm}["{blk}"]' if slots else nm
+                return {"name": name, "indices": lab, "classes": cls, "is_intermediate": intermediate}
+            tname, tslots = target
+            tgt = vertex(tname, tslots) if tslots else \
+                {"name": tname, "indices": [], "classes": [], "is_intermediate": False}
+            key = tgt["name"]
+            out.append(json.dumps({
+                "target": tgt, "is_assignment": key not in seen_assign, "coeff": coeff,
+                "operands": [vertex(nm, sl) for nm, sl in operands]}))
+            seen_assign.add(key)
+    return out
 
 
-def energy_from_rdm_ir(name, df=True, opt_level=6, label="E"):
-    """The energy-from-RDM contraction as ``to_strings("ir")`` JSONL lines."""
-    return energy_from_rdm_graph(name, df=df, opt_level=opt_level, label=label).to_strings("ir")
+# E = h.D1 + 1/2 g.D2 (electron) [+ hp.D1_n proton one-body + gep.D2_ep e-p, for NEO].
+# hp is the *bare* proton core (not the proton Fock) so no electron mean-field is
+# double-counted; the e-p coupling is carried entirely by gep.D2_ep (factor 1).
+_ENERGY_ELEC = [(1.0, "ee", [("h", [0, 1]), ("D1", [0, 1])]),
+                (0.5, "eeee", [("g", [0, 1, 2, 3]), ("D2", [0, 1, 2, 3])])]
+_ENERGY_NEO = _ENERGY_ELEC + [(1.0, "pp", [("hp", [0, 1]), ("D1_n", [0, 1])]),
+                              (1.0, "epep", [("gep", [0, 1, 2, 3]), ("D2_ep", [1, 0, 2, 3])])]
+
+
+def energy_from_rdm_ir(name, label="E"):
+    """The ground-state energy ``<H> = h.D1 + 1/2 g.D2`` (+ NEO proton/e-p terms) as
+    explicit occ/vir-block JSONL IR (see the block-contraction note above). Returns
+    the total ``<H>``; subtract the reference energy for the correlation part."""
+    is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    return _emit_block_terms(_ENERGY_NEO if is_neo else _ENERGY_ELEC, (label, []))
 
 
 # vir-occ rotation generators E_ai - E_ia per species. Row and column use distinct
@@ -315,87 +348,149 @@ def energy_from_rdm_ir(name, df=True, opt_level=6, label="E"):
 _ROT_ROW = {"electron": ("e1(a,i)", "e1(i,a)"), "proton": ("e1(na,ni)", "e1(ni,na)")}
 _ROT_COL = {"electron": ("e1(b,j)", "e1(j,b)"), "proton": ("e1(nb,nj)", "e1(nj,nb)")}
 
+# The orbital gradient/Hessian are, like the energy, integrals contracted with the
+# RDMs -- but with the *general* internal indices from those contractions. We
+# generate the bare-form commutators (H = h + 1/2 g [+ gep for NEO], the mean-field-
+# free operator equal to f+v), then block-enumerate each general internal index over
+# occ/vir exactly as the energy does. The external rotation indices a,i (b,j) stay
+# vir/occ, so the target is the physical vir-occ block. Validated block-sum ==
+# full contraction to ~1e-14 for both gradient and Hessian.
+_OCC_LET, _VIR_LET = set("ijklmno"), set("abcdefgh")
 
-def orbital_gradient_graph(name, species="electron", df=True, opt_level=6, label="g"):
-    """Fixed-RDM orbital-rotation gradient ``g_pq = <[H, E_pq - E_qp]>`` over the
-    vir-occ block of ``species`` ("electron" or "proton") -- the antisymmetrized
-    generalized Fock ``2(F_pq - F_qp)``. The RDMs are treated as given tensors (true
-    vacuum + use_rdms) and contracted with the integrals; neocc supplies D1/D2 (and
-    D1_n/D2_ep for NEO) and evaluates. For NEO the electron-proton coupling enters
-    automatically through gep, so the electron gradient sees the mixed RDM and vice
-    versa. Same e1/e2 convention as rdm_graph/energy_from_rdm."""
+
+def _classify_letter(letter):
+    """(species, fixed-class) for a pdaggerq index letter; general -> fixed None."""
+    species = "p" if letter.startswith("n") else "e"
+    core = letter[1:] if species == "p" else letter
+    fixed = "o" if core in _OCC_LET else "v" if core in _VIR_LET else None
+    if species == "p" and fixed:
+        fixed = fixed.upper()
+    return species, fixed
+
+
+def _bare_H(name, species):
+    """(operator, coeff) list for the mean-field-free Hamiltonian entering the
+    ``species`` orbital-rotation commutator. Operators that commute with the rotation
+    contribute nothing, so they may be omitted."""
+    is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    if species == "electron":
+        return [("h", 1.0), ("g", 0.5)] + ([("gep", 1.0)] if is_neo else [])
+    if species == "proton":
+        raise NotImplementedError(
+            "proton-species orbital gradient/Hessian needs the bare proton core "
+            "(pdaggerq's 'fp' is the proton Fock and would double-count the e-p "
+            "mean-field); electron-species and the e-p cross block are the follow-up")
+    raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+
+
+def _block_resolve(terms, target_name, target_letters):
+    """Enumerate each bare-form term over occ/vir blocks of its general indices,
+    keeping the fixed (external rotation) indices. Kronecker deltas ``d`` become the
+    identity ``Id`` and vanish when their two indices land in different blocks. The
+    einsum label is the pdaggerq letter (proton ``nX`` -> uppercase ``X``)."""
+    import itertools
+    out, seen = [], set()
+    for term in terms:
+        coeff, tensors = _parse_rdm_term(term)
+        letters = {}
+        for _, idx in tensors:
+            for l in idx:
+                letters.setdefault(l, _classify_letter(l))
+        gen = [l for l, (sp, fx) in letters.items() if fx is None]
+        for combo in itertools.product("ov", repeat=len(gen)):
+            cls = {l: (fx if fx else (combo[gen.index(l)].upper() if sp == "p" else combo[gen.index(l)]))
+                   for l, (sp, fx) in letters.items()}
+            if any(nm == "d" and cls[idx[0]] != cls[idx[1]] for nm, idx in tensors):
+                continue
+            lab = {l: (l if len(l) == 1 else l[1:].upper()) for l in letters}
+
+            def vtx(nm, idx):                                          # operand: block-suffixed
+                # pdaggerq names RDMs by species (D1_n/D2_ep) but not integrals; give
+                # the integrals a species-tagged name too (all-proton h/f/g -> hp/fp/gpp,
+                # mixed e-p g -> gep) so neocc's distinct tensors don't collide on "g".
+                if nm in ("h", "f", "g"):
+                    sp = {("p" if l.startswith("n") else "e") for l in idx}
+                    out_nm = nm if sp == {"e"} else \
+                        {"h": "hp", "f": "fp", "g": "gpp"}[nm] if sp == {"p"} else "gep"
+                else:
+                    out_nm = "Id" if nm == "d" else nm
+                return {"name": f'{out_nm}["{"".join(cls[l] for l in idx)}"]',
+                        "indices": [lab[l] for l in idx], "classes": [cls[l] for l in idx],
+                        "is_intermediate": False}
+            tgt = {"name": target_name, "indices": [lab[l] for l in target_letters],   # single block
+                   "classes": [cls[l] for l in target_letters], "is_intermediate": False}
+            out.append(json.dumps({
+                "target": tgt, "is_assignment": tgt["name"] not in seen, "coeff": coeff,
+                "operands": [vtx(nm, idx) for nm, idx in tensors]}))
+            seen.add(tgt["name"])
+    return out
+
+
+def _parse_rdm_term(term):
+    """A pq.strings() line -> (coeff, [(tensor, [index, ...]), ...])."""
+    import re
+    toks = term.split()
+    return float(toks[0]), [(m.group(1), m.group(2).split(","))
+                            for m in re.finditer(r"([A-Za-z_0-9]+)\(([^)]+)\)", " ".join(toks[1:]))]
+
+
+def orbital_gradient_ir(name, species="electron", label="grad"):
+    """Fixed-RDM orbital-rotation gradient ``g_ai = <[H, E_ai - E_ia]>`` over the
+    vir-occ block of ``species`` -- the antisymmetrized generalized Fock -- as
+    explicit occ/vir-block JSONL IR. The RDMs are given tensors (true vacuum +
+    use_rdms) contracted with the integrals; neocc supplies D1/D2 (and D2_ep for
+    NEO) and evaluates. Same e1/e2 convention as rdm_graph/energy_from_rdm."""
     if species not in _ROT_ROW:
         raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
-    m = model(name)
+    ai, ia = _ROT_ROW[species]
     pq = pq_helper("true")
     pq.set_use_rdms(True)
-    ai, ia = _ROT_ROW[species]
-    for h in m.H:
-        pq.add_commutator(1.0, [h], [ai])
-        pq.add_commutator(-1.0, [h], [ia])
+    for op, c in _bare_H(name, species):
+        pq.add_commutator(c, [op], [ai])
+        pq.add_commutator(-c, [op], [ia])
     pq.simplify()
-    return _optimized(pq, label, df, opt_level)
+    return _block_resolve([" ".join(t) for t in pq.strings()], label, ["a", "i"])
 
 
-def orbital_gradient_ir(name, species="electron", df=True, opt_level=6, label="g"):
-    """The fixed-RDM orbital gradient as ``to_strings("ir")`` JSONL lines."""
-    return orbital_gradient_graph(name, species, df=df, opt_level=opt_level, label=label).to_strings("ir")
-
-
-def orbital_hessian_graph(name, row_species="electron", col_species=None,
-                          df=True, opt_level=6, label="H"):
+def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"):
     """Fixed-RDM orbital Hessian block
-    ``H_pq,rs = <[[H, E_pq - E_qp], E_rs - E_sr]>`` coupling ``row_species``
-    rotations (indices p,q) to ``col_species`` rotations (r,s); ``col_species``
-    defaults to ``row_species``. The RDMs are given tensors contracted with the
-    integrals. For NEO, ``row_species != col_species`` is the electron-proton
-    off-diagonal block. The diagonal preconditioner is the (p,q,p,q) slice of the
-    same-species block -- neocc extracts it (pdaggerq sums repeated labels, so it
-    cannot emit the rank-2 diagonal directly)."""
+    ``H_ai,bj = <[[H, E_ai - E_ia], E_bj - E_jb]>`` (rows a,i; columns b,j) as
+    explicit occ/vir-block JSONL IR. ``col_species`` defaults to ``row_species``;
+    the electron same-species block is supported (electron-proton cross block and
+    proton rows are the follow-up, pending the bare proton core)."""
     if col_species is None:
         col_species = row_species
     if row_species not in _ROT_ROW or col_species not in _ROT_COL:
         raise ValueError("row/col species must be 'electron' or 'proton'")
-    m = model(name)
-    pq = pq_helper("true")
-    pq.set_use_rdms(True)
+    if row_species != col_species:
+        raise NotImplementedError("electron-proton cross Hessian block is the follow-up")
     ai, ia = _ROT_ROW[row_species]
     bj, jb = _ROT_COL[col_species]
-    for h in m.H:
+    pq = pq_helper("true")
+    pq.set_use_rdms(True)
+    for op, c in _bare_H(name, row_species):
         for x, sx in ((ai, 1.0), (ia, -1.0)):
             for y, sy in ((bj, 1.0), (jb, -1.0)):
-                pq.add_double_commutator(sx * sy, [h], [x], [y])
+                pq.add_double_commutator(c * sx * sy, [op], [x], [y])
     pq.simplify()
-    return _optimized(pq, label, df, opt_level)
-
-
-def orbital_hessian_ir(name, row_species="electron", col_species=None,
-                       df=True, opt_level=6, label="H"):
-    """The fixed-RDM orbital Hessian block as ``to_strings("ir")`` JSONL lines."""
-    return orbital_hessian_graph(name, row_species, col_species,
-                                 df=df, opt_level=opt_level, label=label).to_strings("ir")
+    return _block_resolve([" ".join(t) for t in pq.strings()], label, ["a", "b", "i", "j"])
 
 
 # einsum-char relabel taking the column rotation indices onto the row (the diagonal)
 _HESS_DIAG_RELABEL = {"electron": {"b": "a", "j": "i"}, "proton": {"B": "A", "J": "I"}}
 
 
-def orbital_hessian_diag_ir(name, species="electron", df=True, label="h"):
-    """The diagonal orbital-Hessian preconditioner ``h_pq = H_pq,pq`` over the
-    vir-occ block of ``species``, as JSONL IR.
+def orbital_hessian_diag_ir(name, species="electron", label="hdiag"):
+    """The diagonal orbital-Hessian preconditioner ``h_ai = H_ai,ai`` over the
+    vir-occ block of ``species``, as explicit occ/vir-block JSONL IR.
 
     pdaggerq sums repeated generator labels, so it cannot emit the rank-2 diagonal
-    directly. Instead this generates the UNFUSED same-species Hessian (opt_level 0,
-    one statement per term) and relabels the column rotation indices onto the row
-    (electron b->a, j->i; proton B->A, J->I): the diagonal of a sum is the sum of
-    the per-term diagonals, and each term drops to rank-2. Verified to reproduce
-    diag(orbital_hessian_ir) to ~1e-14. The result is unfused (fine for a
-    preconditioner built once per macro-iteration); neocc supplies D1/D2 + integrals."""
-    if species not in _HESS_DIAG_RELABEL:
-        raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+    directly. Instead this relabels the column rotation indices of the (unfused,
+    block-resolved) same-species Hessian onto the row (electron b->a, j->i): the
+    diagonal of a sum is the sum of the per-term diagonals, and each term drops to
+    rank-2. Verified against diag(orbital_hessian_ir) to ~1e-14."""
     colrow = _HESS_DIAG_RELABEL[species]
-    full = einsums.parse_ir(
-        orbital_hessian_ir(name, species, species, df=df, opt_level=0, label=label))
+    full = einsums.parse_ir(orbital_hessian_ir(name, species, species, label=label))
     out = []
     for st in full:
         st = dict(st)

@@ -144,37 +144,83 @@ def test_rdm():
 
 
 def test_energy_from_rdm():
-    assert {"energy_from_rdm_graph", "energy_from_rdm_ir"} <= set(models.__all__)
-    # electronic: E is a scalar contracting the electron RDMs D1/D2 with integrals
+    import itertools
+    import numpy as np
+    assert "energy_from_rdm_ir" in models.__all__
+    # electronic: E is a scalar tracing the electron RDM blocks D1/D2 against integrals
     e = einsums.parse_ir(models.energy_from_rdm_ir("ccsd"))
     assert e and einsums.target_shape(e, "E") == (0, [])          # scalar energy
-    ops = {o["name"] for st in e for o in st["operands"]}
-    assert {"D1", "D2"} <= ops, ops
+    bases = {o["name"].split('["')[0] for st in e for o in st["operands"]}
+    assert {"h", "g", "D1", "D2"} <= bases, bases
+    assert len(e) == 4 + 16                                       # all 1- and 2-body o/v blocks
     # NEO also traces the proton (D1_n) and mixed e-p (D2_ep) RDMs
-    ep = {o["name"] for st in einsums.parse_ir(models.energy_from_rdm_ir("neo-ccd(ep)"))
-          for o in st["operands"]}
-    assert {"D1", "D2", "D1_n", "D2_ep"} <= ep, ep
+    ep = {o["name"].split('["')[0]
+          for st in einsums.parse_ir(models.energy_from_rdm_ir("neo-ccd(ep)")) for o in st["operands"]}
+    assert {"D1", "D2", "hp", "D1_n", "gep", "D2_ep"} <= ep, ep
+
+    # numeric: the block sum reproduces the full trace E = h.D1 + 1/2 g.D2 exactly
+    no, nv = 2, 3
+    nmo = no + nv
+    SL = {"o": slice(0, no), "v": slice(no, nmo)}
+    rng = np.random.default_rng(0)
+    full = {n: rng.standard_normal((nmo,) * r) for n, r in (("h", 2), ("g", 4), ("D1", 2), ("D2", 4))}
+    E = 0.0
+    for st in e:
+        arrs = []
+        for op in st["operands"]:
+            nm, blk = op["name"].split('["')
+            arrs.append(full[nm][tuple(SL[c] for c in blk.rstrip('"]'))])
+        subs = ",".join("".join(op["indices"]) for op in st["operands"])
+        E += st["coeff"] * np.einsum(f"{subs}->", *arrs, optimize=True)
+    ref = np.einsum("pq,pq->", full["h"], full["D1"]) + 0.5 * np.einsum("pqsr,pqsr->", full["g"], full["D2"])
+    assert abs(E - ref) < 1e-10, (E, ref)
     print("test_energy_from_rdm OK")
 
 
+# interpret block-named IR (D1["ov"], g["vovo"], Id["oo"], ...) on random full tensors
+def _interp_block(ir, full, no, nv):
+    import numpy as np
+    SL = {"o": slice(0, no), "v": slice(no, no + nv)}
+    DIM = {"o": no, "v": nv}
+    store = {}
+    for st in ir:
+        t = st["target"]
+        if st["is_assignment"] or t["name"] not in store:
+            store[t["name"]] = np.zeros(tuple(DIM[c] for c in t["classes"]))
+        arrs = []
+        for op in st["operands"]:
+            base, blk = op["name"].split('["')
+            arrs.append(full[base][tuple(SL[c] for c in blk.rstrip('"]'))])
+        subs = ",".join("".join(op["indices"]) for op in st["operands"])
+        store[t["name"]] = store[t["name"]] + st["coeff"] * np.einsum(
+            f"{subs}->{''.join(t['indices'])}", *arrs, optimize=True)
+    return store
+
+
 def test_orbital_gradient_hessian():
+    import numpy as np
     assert {"orbital_gradient_ir", "orbital_hessian_ir"} <= set(models.__all__)
-    # fixed-RDM gradient: vir-occ block per species, traced against the RDMs
     g = einsums.parse_ir(models.orbital_gradient_ir("ccsd", "electron"))
-    assert einsums.target_shape(g, "g") == (2, ["v", "o"])
-    assert {"D1", "D2"} <= {o["name"] for st in g for o in st["operands"]}
-    gp = einsums.parse_ir(models.orbital_gradient_ir("neo-ccd(ep)", "proton"))
-    assert einsums.target_shape(gp, "g") == (2, ["V", "O"])   # proton block
-    # full Hessian: same-species rank-4, and the NEO electron-proton cross block
+    assert einsums.target_shape(g, "grad") == (2, ["v", "o"])       # vir-occ gradient block
+    bases = {o["name"].split('["')[0] for st in g for o in st["operands"]}
+    assert {"h", "g", "D1", "D2"} <= bases
+    # the previously-truncated occ blocks are now present (the fix)
+    assert any(o["name"] == 'D1["oo"]' for st in g for o in st["operands"])
+    # NEO electron gradient also sees the e-p coupling (gep, D2_ep)
+    gneo = {o["name"].split('["')[0]
+            for st in einsums.parse_ir(models.orbital_gradient_ir("neo-ccd(ep)", "electron"))
+            for o in st["operands"]}
+    assert {"gep", "D2_ep"} <= gneo, gneo
+    # electron Hessian: rank-4 vir-vir-occ-occ block
     hee = einsums.parse_ir(models.orbital_hessian_ir("ccsd"))
     assert einsums.target_shape(hee, "H") == (4, ["v", "v", "o", "o"])
-    hep = einsums.parse_ir(models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"))
-    assert einsums.target_shape(hep, "H") == (4, ["v", "o", "V", "O"])
-    try:
-        models.orbital_gradient_graph("ccsd", "muon")
-        assert False, "expected ValueError for a bad species"
-    except ValueError:
-        pass
+    for bad, exc in ((lambda: models.orbital_gradient_ir("ccsd", "muon"), ValueError),
+                     (lambda: models.orbital_gradient_ir("neo-ccd(ep)", "proton"), NotImplementedError),
+                     (lambda: models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"), NotImplementedError)):
+        try:
+            bad(); assert False, "expected an error"
+        except exc:
+            pass
     print("test_orbital_gradient_hessian OK")
 
 
@@ -182,34 +228,19 @@ def test_orbital_hessian_diag():
     import numpy as np
     assert "orbital_hessian_diag_ir" in models.__all__
     diag = einsums.parse_ir(models.orbital_hessian_diag_ir("ccsd", "electron"))
-    assert einsums.target_shape(diag, "h") == (2, ["v", "o"])            # rank-2 diagonal
+    assert einsums.target_shape(diag, "hdiag") == (2, ["v", "o"])        # rank-2 diagonal
     assert not any(l in ("b", "j")                                       # no leftover column labels
                    for st in diag for v in [st["target"], *st["operands"]] for l in v["indices"])
 
-    # numeric: the relabel-diagonal reproduces diag(full unfused Hessian) on random tensors
-    full = einsums.parse_ir(models.orbital_hessian_ir("ccsd", "electron", "electron", opt_level=0))
-    sizes = {"o": 3, "v": 3, "O": 4, "V": 4, "Q": 6}   # o=v so general dummy indices are consistent
+    # numeric (self-contained): the relabel-diagonal == diag of the block Hessian
+    no, nv = 3, 4
+    nmo = no + nv
     rng = np.random.default_rng(0)
-    flat = {}
-    for st in full:
-        for op in st["operands"]:
-            if not op["is_intermediate"] and op["name"] not in flat:
-                flat[op["name"]] = rng.standard_normal(tuple(sizes[c] for c in op["classes"]))
-
-    def run(ir, tgt):
-        store = {}
-        for st in ir:
-            t = st["target"]
-            if st["is_assignment"] or t["name"] not in store:
-                store[t["name"]] = np.zeros(tuple(sizes[c] for c in t["classes"]))
-            subs = ",".join("".join(o["indices"]) for o in st["operands"])
-            arrs = [store[o["name"]] if o["is_intermediate"] else flat[o["name"]] for o in st["operands"]]
-            store[t["name"]] = store[t["name"]] + st["coeff"] * np.einsum(
-                f"{subs}->{''.join(t['indices'])}", *arrs, optimize=True)
-        return store[tgt]
-
-    err = float(np.max(np.abs(run(diag, "h") - np.einsum("aaii->ai", run(full, "H")))))
-    assert err < 1e-10, err
+    full = {n: rng.standard_normal((nmo,) * r) for n, r in (("h", 2), ("g", 4), ("D1", 2), ("D2", 4))}
+    full["Id"] = np.eye(nmo)
+    H4 = _interp_block(einsums.parse_ir(models.orbital_hessian_ir("ccsd")), full, no, nv)["H"]
+    h = _interp_block(diag, full, no, nv)["hdiag"]
+    assert float(np.max(np.abs(h - np.einsum("aaii->ai", H4)))) < 1e-10
     print("test_orbital_hessian_diag OK")
 
 
