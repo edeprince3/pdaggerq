@@ -161,7 +161,9 @@ def test_single_operand():
           "is_assignment": True, "coeff": 1.0,
           "operands": [{"name": 'f["vo"]', "indices": ["a", "i"], "classes": ["v", "o"],
                         "is_intermediate": False}]}
-    l1 = einsums.lower([s1], _operand_cxx, DIM)
+    code = lambda st: [l for l in einsums.lower([st], _operand_cxx, DIM)
+                       if not l.strip().startswith("//")]   # drop the // [i] comment
+    l1 = code(s1)
     assert len(l1) == 1 and l1[0].strip().startswith("permute(0.0,"), l1
     assert "&R" in l1[0] and "1.0" in l1[0]
 
@@ -171,12 +173,36 @@ def test_single_operand():
           "is_assignment": False, "coeff": -1.0,
           "operands": [{"name": 'tmps_["p"]', "indices": ["b", "a", "i", "j"],
                         "classes": ["v", "v", "o", "o"], "is_intermediate": True}]}
-    l2 = einsums.lower([s2], _operand_cxx, DIM)
+    l2 = code(s2)
     assert l2[0].strip().startswith("permute(1.0,"), l2   # cpref 1.0 = accumulate
     assert "-1.0" in l2[0]
     # no einsum/axpy for a unary op -- it's a permute
     assert not any("einsum(" in x for x in l1 + l2)
     print("test_single_operand OK")
+
+
+def test_outer_product():
+    # 2-RDM reference R[i,j,k,l] = Id[i,k] * Id[j,l]: a pure outer product (no
+    # contracted index). einsums only treats it as an outer product when each
+    # operand's indices are contiguous in the einsum output, so it must be emitted
+    # into concatenated [i,k,j,l] order + a permute to the interleaved target
+    # [i,j,k,l] -- NOT a single einsum straight into [i,j,k,l] (which einsums would
+    # mis-handle: right only when a factor is 1x1).
+    st = {"target": {"name": "R", "indices": ["i", "j", "k", "l"],
+                     "classes": ["o", "o", "o", "o"], "is_intermediate": False},
+          "is_assignment": True, "coeff": 1.0,
+          "operands": [{"name": 'Id["oo"]', "indices": ["i", "k"], "classes": ["o", "o"],
+                        "is_intermediate": False},
+                       {"name": 'Id["oo"]', "indices": ["j", "l"], "classes": ["o", "o"],
+                        "is_intermediate": False}]}
+    lines = einsums.lower([st], _operand_cxx, DIM)
+    einsum_calls = [l for l in lines if "einsum(" in l]
+    permutes = [l for l in lines if l.strip().startswith("permute(")]
+    assert len(einsum_calls) == 1, lines
+    out_idx = einsum_calls[0].split("Indices{")[1].split("}")[0]
+    assert out_idx == "index::i, index::k, index::j, index::l", out_idx   # A-block then B-block
+    assert any("index::i, index::j, index::k, index::l" in p for p in permutes), permutes
+    print("test_outer_product OK")
 
 
 if __name__ == "__main__":
@@ -186,4 +212,5 @@ if __name__ == "__main__":
     test_ttgt_ladder()
     test_target_shape()
     test_single_operand()
+    test_outer_product()
     print("\nall einsums dispatch tests passed")

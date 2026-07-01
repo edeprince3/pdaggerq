@@ -229,9 +229,9 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
             fb = [l for l in b_idx if l in out_set]            # B's free (B order)
             gemm_order = fa + fb
 
-            if batch or not kset:
-                # batch index (or pure outer product): not a plain GEMM -- keep the
-                # generic einsum (correct; rare -- none in CCD(ep)).
+            if batch:
+                # a batch index (appears in A, B and the output): not a plain
+                # GEMM/outer product -- keep the generic einsum (rare).
                 if last:
                     o_ptr, o_idx, ocp, op = "&" + tgt_cxx, tgt_idx, cpref, dbl(coeff)
                 else:
@@ -250,31 +250,42 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
                     acc_cxx, acc_idx = o_ptr[1:], o_idx
                 continue
 
-            # choose the K order that lets an operand stay put (prefer B -- often
-            # the larger amplitude); permute the other into matrix layout.
-            korder = _kblock(b_idx, kset) or _kblock(acc_idx, kset) \
-                or [l for l in acc_idx if l in kset]
+            if kset:
+                # a genuine contraction: permute so the contracted block K is
+                # contiguous at one end of each operand (choose the K order that
+                # lets an operand stay put -- prefer B, often the larger amplitude).
+                korder = _kblock(b_idx, kset) or _kblock(acc_idx, kset) \
+                    or [l for l in acc_idx if l in kset]
 
-            if _kblock(acc_idx, kset) == korder:
-                a_use, a_idx = acc_cxx, acc_idx                 # already [free,K]/[K,free]
+                if _kblock(acc_idx, kset) == korder:
+                    a_use, a_idx = acc_cxx, acc_idx             # already [free,K]/[K,free]
+                else:
+                    a_idx = fa + korder
+                    a_use = f"a{si}_{k}"
+                    w(temp_decl(a_use, dims(a_idx)))
+                    w(f"permute(Indices{{{indices(a_idx)}}}, &{a_use}, "
+                      f"Indices{{{indices(acc_idx)}}}, {acc_cxx});")
+
+                if _kblock(b_idx, kset) == korder:
+                    b_use_, b_use_idx = b_cxx, b_idx
+                else:
+                    b_use_idx = korder + fb
+                    b_use_ = f"b{si}_{k}"
+                    w(temp_decl(b_use_, dims(b_use_idx)))
+                    w(f"permute(Indices{{{indices(b_use_idx)}}}, &{b_use_}, "
+                      f"Indices{{{indices(b_idx)}}}, {b_cxx});")
             else:
-                a_idx = fa + korder
-                a_use = f"a{si}_{k}"
-                w(temp_decl(a_use, dims(a_idx)))
-                w(f"permute(Indices{{{indices(a_idx)}}}, &{a_use}, "
-                  f"Indices{{{indices(acc_idx)}}}, {acc_cxx});")
-
-            if _kblock(b_idx, kset) == korder:
+                # pure outer product (no contracted index): operands go in as-is.
+                # The einsum below writes the concatenated [fa, fb] order -- each
+                # operand's indices contiguous in the output -- which is the ONLY
+                # layout einsums recognizes as a real outer product (Dispatch.hpp
+                # einsum_is_outer_product). The final permute reorders to the target.
+                a_use, a_idx = acc_cxx, acc_idx
                 b_use_, b_use_idx = b_cxx, b_idx
-            else:
-                b_use_idx = korder + fb
-                b_use_ = f"b{si}_{k}"
-                w(temp_decl(b_use_, dims(b_use_idx)))
-                w(f"permute(Indices{{{indices(b_use_idx)}}}, &{b_use_}, "
-                  f"Indices{{{indices(b_idx)}}}, {b_cxx});")
 
             if not last:
-                # intermediate stored in natural GEMM order [fa, fb]; becomes acc
+                # result stored in natural [fa, fb] order (GEMM / outer product);
+                # becomes the accumulator for the next fold step
                 wname = f"w{si}_{k}"
                 w(temp_decl(wname, dims(gemm_order)))
                 w(f"einsum(0.0, Indices{{{indices(gemm_order)}}}, &{wname}, 1.0, "
