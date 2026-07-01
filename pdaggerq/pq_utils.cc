@@ -1733,7 +1733,7 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
 }
 
 /// apply delta functions to amplitude and integral labels
-void gobble_deltas(std::shared_ptr<pq_string> &in) {
+void gobble_deltas_slow(std::shared_ptr<pq_string> &in) {
     if (in->deltas.empty()) return;
     
     std::vector<std::string> tmp_delta1;
@@ -1856,7 +1856,7 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         in->deltas.push_back(deltas);
     }
 }
-void gobble_deltas_fast(std::shared_ptr<pq_string> &in) {
+void gobble_deltas(std::shared_ptr<pq_string> &in) {
     if (in->deltas.empty()) return;
 
     std::unordered_map<std::string, std::string> substitution_map;
