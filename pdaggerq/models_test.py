@@ -112,6 +112,18 @@ def test_rdm():
     d_pOO = einsums.parse_ir(models.rdm_ir("neo-ccd(ep)", "e1(ni,nj)"))
     assert d_pOO and einsums.target_shape(d_pOO, "D") == (2, ["O", "O"])
 
+    # regression: a nuclear index whose letter is a reserved sigma label (L/R/X/Y)
+    # must classify as proton occ, not an excited-state line. e2(nI,nJ,nL,nK) was
+    # rank-3 with a bogus 'L'-typed identity before the Line-ctor fix; it must now
+    # match the lowercase block's structure and carry no sig ('L') class.
+    up = einsums.parse_ir(models.rdm_ir("neo-ccd(ep)", "e2(nI,nJ,nL,nK)"))
+    lo = einsums.parse_ir(models.rdm_ir("neo-ccd(ep)", "e2(ni,nj,nl,nk)"))
+    up_ranks = sorted(len(st["target"]["indices"]) for st in up)
+    up_cls = {c for st in up for o in st["operands"] for c in o["classes"]}
+    assert 4 in up_ranks, up_ranks
+    assert up_ranks == sorted(len(st["target"]["indices"]) for st in lo)
+    assert "L" not in up_cls, up_cls
+
     # the construction matches examples/ccsd_d2.py for a 2-RDM block
     def strs(setup):
         pq = pdaggerq.pq_helper("fermi")

@@ -106,14 +106,26 @@ namespace pdaggerq {
                 auto virt_it = find(virt_labels_.begin(), virt_labels_.end(), line_char);
 
                 if (virt_it == virt_labels_.end()) { // not found in virtual lines
-                    auto sig_it = find(sig_labels_.begin(), sig_labels_.end(), line_char);
-                    sig_ = sig_it != sig_labels_.end();
+                    if (nuc_) {
+                        // A nuclear line is occupied or virtual only -- never a
+                        // sigma/DF line. The electron sigma/aux letters (L,R,X,Y)
+                        // are perfectly valid *nuclear* index letters (e.g. "nL"),
+                        // so classify a nuclear label case-insensitively against the
+                        // occupied table and never set sig_/den_ for it; otherwise
+                        // it falls through to virtual like any other letter.
+                        char lc = (line_char >= 'A' && line_char <= 'Z')
+                                  ? (char)(line_char + ('a' - 'A')) : line_char;
+                        o_ = find(occ_labels_.begin(), occ_labels_.end(), lc) != occ_labels_.end();
+                    } else {
+                        auto sig_it = find(sig_labels_.begin(), sig_labels_.end(), line_char);
+                        sig_ = sig_it != sig_labels_.end();
 
-                    if (!sig_) { // not found in excited lines
-                        auto den_it = find(den_labels_.begin(), den_labels_.end(), line_char);
-                        den_ = den_it != den_labels_.end();
+                        if (!sig_) { // not found in excited lines
+                            auto den_it = find(den_labels_.begin(), den_labels_.end(), line_char);
+                            den_ = den_it != den_labels_.end();
 
-                        // could not find in any lines. defaults to virtual
+                            // could not find in any lines. defaults to virtual
+                        }
                     }
                 }
             }
