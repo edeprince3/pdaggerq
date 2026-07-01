@@ -6,7 +6,7 @@ the full/hybrid NEO triples/quadruples -- are correct but slow to build, so they
 are covered by the dedicated examples, not here). Run: python -m pdaggerq.models_test
 """
 
-from pdaggerq import models
+from pdaggerq import einsums, models
 
 
 def test_models_present_and_projected():
@@ -73,9 +73,36 @@ def test_spin_axis():
     print("test_spin_axis OK")
 
 
+def test_lambda_and_gradient():
+    # de-excitation naming (leading t -> l) and full excitation-operator coverage
+    assert models.lambda_amps("neo-ccsd") == ["l1", "l2", "lp1", "lep11"]
+    assert models.lambda_amps("ccd") == ["l2"]
+    for m in models.MODELS.values():
+        for amp in m.T:
+            assert amp in models.EXCITATION, f"{m.name}: no excitation for {amp}"
+    # generation on the cheapest model: Lambda is rank-4, gradient rank-2 per species
+    lam = einsums.parse_ir(models.lambda_ir("neo-ccd(ep)", "tep11"))
+    assert lam and einsums.target_shape(lam, "R")[0] == 4, len(lam)
+    gp = einsums.parse_ir(models.gradient_ir("neo-ccd(ep)", "proton"))
+    assert gp and einsums.target_shape(gp, "R") == (2, ["V", "O"]), einsums.target_shape(gp, "R")
+    # error paths
+    try:
+        models.gradient_graph("neo-ccd(ep)", "muon")
+        assert False, "expected ValueError for a bad species"
+    except ValueError:
+        pass
+    try:
+        models.lambda_graph("ccd", "t1")     # ccd has no singles
+        assert False, "expected ValueError for a missing amplitude"
+    except ValueError:
+        pass
+    print("test_lambda_and_gradient OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
     test_cheap_models_generate()
     test_spin_axis()
+    test_lambda_and_gradient()
     print("\nall model tests passed")

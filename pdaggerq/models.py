@@ -54,6 +54,19 @@ PROJECTION = {
     "tep31": "e4(i,j,k,ni,a,b,c,na)",
 }
 
+# The excitation operator tau for each amplitude -- its projection with the occ and
+# vir index halves swapped. Used to build Lambda residuals and orbital gradients.
+EXCITATION = {
+    "t1":    "e1(a,i)",
+    "t2":    "e2(a,b,i,j)",
+    "t3":    "e3(a,b,c,i,j,k)",
+    "t4":    "e4(a,b,c,d,i,j,k,l)",
+    "tp1":   "e1(na,ni)",
+    "tep11": "e2(a,na,i,ni)",
+    "tep21": "e3(a,b,na,i,j,ni)",
+    "tep31": "e4(a,b,c,na,i,j,k,ni)",
+}
+
 H_ELEC = ("f", "v")
 H_NEO = ("f", "v", "fp", "gep")  # single proton: nuclear-nuclear vp is a constant
 
@@ -98,6 +111,12 @@ def model(name):
         return MODELS[name]
     except KeyError:
         raise KeyError(f"unknown model {name!r}; choose from {sorted(MODELS)}")
+
+
+def lambda_amps(name):
+    """The de-excitation (Lambda) amplitude names of a model: leading t -> l
+    (t2 -> l2, tp1 -> lp1, tep11 -> lep11, ...)."""
+    return [a.replace("t", "l", 1) for a in model(name).T]
 
 
 def _optimized(pq, label, df, opt_level):
@@ -173,3 +192,51 @@ def residual_blocks(name, amplitude, df=True, opt_level=6, label="R",
     return {c: residual_ir(name, amplitude, df=df, opt_level=opt_level, label=label,
                            spin_case=c, nuclear_spin=nuclear_spin)
             for c in spin_cases(amplitude, nuclear_spin)}
+
+
+def lambda_graph(name, amplitude, df=True, opt_level=6, label="R"):
+    """Optimized pq_graph for the Lambda residual ``<(1+L) [Hbar, tau_amplitude]>``,
+    the equation whose root is the de-excitation amplitude for ``amplitude``."""
+    m = model(name)
+    if amplitude not in m.T:
+        raise ValueError(f"model {name!r} has no amplitude {amplitude!r}; T={list(m.T)}")
+    if amplitude not in EXCITATION:
+        raise KeyError(f"no excitation operator defined for amplitude {amplitude!r}")
+    pq = pq_helper("fermi")
+    pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])   # (1 + Lambda)
+    tau = EXCITATION[amplitude]
+    for h in m.H:
+        pq.add_st_operator(1.0, [h, tau], list(m.T))                    # [Hbar, tau]
+        pq.add_st_operator(-1.0, [tau, h], list(m.T))
+    pq.simplify()
+    return _optimized(pq, label, df, opt_level)
+
+
+def lambda_ir(name, amplitude, df=True, opt_level=6, label="R"):
+    """The Lambda residual as ``to_strings("ir")`` JSONL lines."""
+    return lambda_graph(name, amplitude, df=df, opt_level=opt_level, label=label).to_strings("ir")
+
+
+def gradient_graph(name, species, df=True, opt_level=6, label="R"):
+    """Optimized pq_graph for the per-species orbital-rotation gradient
+    ``<(1+L) [Hbar, E_ai - E_ia]>`` (species = "electron" or "proton"). The
+    generalized-Fock orbital gradient neocc rotates the orbitals with."""
+    if species not in ("electron", "proton"):
+        raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+    m = model(name)
+    pq = pq_helper("fermi")
+    pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])
+    ai, ia = (("e1(a,i)", "e1(i,a)") if species == "electron"
+              else ("e1(na,ni)", "e1(ni,na)"))
+    for h in m.H:
+        pq.add_st_operator(1.0, [h, ai], list(m.T))
+        pq.add_st_operator(-1.0, [ai, h], list(m.T))
+        pq.add_st_operator(-1.0, [h, ia], list(m.T))
+        pq.add_st_operator(1.0, [ia, h], list(m.T))
+    pq.simplify()
+    return _optimized(pq, label, df, opt_level)
+
+
+def gradient_ir(name, species, df=True, opt_level=6, label="R"):
+    """The per-species orbital-rotation gradient as ``to_strings("ir")`` lines."""
+    return gradient_graph(name, species, df=df, opt_level=opt_level, label=label).to_strings("ir")
