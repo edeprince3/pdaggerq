@@ -49,6 +49,8 @@ __all__ = [
     "gradient_graph", "gradient_ir",
     "rdm_graph", "rdm_ir",
     "energy_from_rdm_graph", "energy_from_rdm_ir",
+    "orbital_gradient_graph", "orbital_gradient_ir",
+    "orbital_hessian_graph", "orbital_hessian_ir",
 ]
 
 # Conjugate (de-excitation) projection per amplitude: all-occ then all-vir,
@@ -303,3 +305,69 @@ def energy_from_rdm_graph(name, df=True, opt_level=6, label="E"):
 def energy_from_rdm_ir(name, df=True, opt_level=6, label="E"):
     """The energy-from-RDM contraction as ``to_strings("ir")`` JSONL lines."""
     return energy_from_rdm_graph(name, df=df, opt_level=opt_level, label=label).to_strings("ir")
+
+
+# vir-occ rotation generators E_ai - E_ia per species. Row and column use distinct
+# label sets so a Hessian block H_(row),(col) keeps four open indices.
+_ROT_ROW = {"electron": ("e1(a,i)", "e1(i,a)"), "proton": ("e1(na,ni)", "e1(ni,na)")}
+_ROT_COL = {"electron": ("e1(b,j)", "e1(j,b)"), "proton": ("e1(nb,nj)", "e1(nj,nb)")}
+
+
+def orbital_gradient_graph(name, species="electron", df=True, opt_level=6, label="g"):
+    """Fixed-RDM orbital-rotation gradient ``g_pq = <[H, E_pq - E_qp]>`` over the
+    vir-occ block of ``species`` ("electron" or "proton") -- the antisymmetrized
+    generalized Fock ``2(F_pq - F_qp)``. The RDMs are treated as given tensors (true
+    vacuum + use_rdms) and contracted with the integrals; neocc supplies D1/D2 (and
+    D1_n/D2_ep for NEO) and evaluates. For NEO the electron-proton coupling enters
+    automatically through gep, so the electron gradient sees the mixed RDM and vice
+    versa. Same e1/e2 convention as rdm_graph/energy_from_rdm."""
+    if species not in _ROT_ROW:
+        raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+    m = model(name)
+    pq = pq_helper("true")
+    pq.set_use_rdms(True)
+    ai, ia = _ROT_ROW[species]
+    for h in m.H:
+        pq.add_commutator(1.0, [h], [ai])
+        pq.add_commutator(-1.0, [h], [ia])
+    pq.simplify()
+    return _optimized(pq, label, df, opt_level)
+
+
+def orbital_gradient_ir(name, species="electron", df=True, opt_level=6, label="g"):
+    """The fixed-RDM orbital gradient as ``to_strings("ir")`` JSONL lines."""
+    return orbital_gradient_graph(name, species, df=df, opt_level=opt_level, label=label).to_strings("ir")
+
+
+def orbital_hessian_graph(name, row_species="electron", col_species=None,
+                          df=True, opt_level=6, label="H"):
+    """Fixed-RDM orbital Hessian block
+    ``H_pq,rs = <[[H, E_pq - E_qp], E_rs - E_sr]>`` coupling ``row_species``
+    rotations (indices p,q) to ``col_species`` rotations (r,s); ``col_species``
+    defaults to ``row_species``. The RDMs are given tensors contracted with the
+    integrals. For NEO, ``row_species != col_species`` is the electron-proton
+    off-diagonal block. The diagonal preconditioner is the (p,q,p,q) slice of the
+    same-species block -- neocc extracts it (pdaggerq sums repeated labels, so it
+    cannot emit the rank-2 diagonal directly)."""
+    if col_species is None:
+        col_species = row_species
+    if row_species not in _ROT_ROW or col_species not in _ROT_COL:
+        raise ValueError("row/col species must be 'electron' or 'proton'")
+    m = model(name)
+    pq = pq_helper("true")
+    pq.set_use_rdms(True)
+    ai, ia = _ROT_ROW[row_species]
+    bj, jb = _ROT_COL[col_species]
+    for h in m.H:
+        for x, sx in ((ai, 1.0), (ia, -1.0)):
+            for y, sy in ((bj, 1.0), (jb, -1.0)):
+                pq.add_double_commutator(sx * sy, [h], [x], [y])
+    pq.simplify()
+    return _optimized(pq, label, df, opt_level)
+
+
+def orbital_hessian_ir(name, row_species="electron", col_species=None,
+                       df=True, opt_level=6, label="H"):
+    """The fixed-RDM orbital Hessian block as ``to_strings("ir")`` JSONL lines."""
+    return orbital_hessian_graph(name, row_species, col_species,
+                                 df=df, opt_level=opt_level, label=label).to_strings("ir")

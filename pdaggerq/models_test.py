@@ -157,6 +157,27 @@ def test_energy_from_rdm():
     print("test_energy_from_rdm OK")
 
 
+def test_orbital_gradient_hessian():
+    assert {"orbital_gradient_ir", "orbital_hessian_ir"} <= set(models.__all__)
+    # fixed-RDM gradient: vir-occ block per species, traced against the RDMs
+    g = einsums.parse_ir(models.orbital_gradient_ir("ccsd", "electron"))
+    assert einsums.target_shape(g, "g") == (2, ["v", "o"])
+    assert {"D1", "D2"} <= {o["name"] for st in g for o in st["operands"]}
+    gp = einsums.parse_ir(models.orbital_gradient_ir("neo-ccd(ep)", "proton"))
+    assert einsums.target_shape(gp, "g") == (2, ["V", "O"])   # proton block
+    # full Hessian: same-species rank-4, and the NEO electron-proton cross block
+    hee = einsums.parse_ir(models.orbital_hessian_ir("ccsd"))
+    assert einsums.target_shape(hee, "H") == (4, ["v", "v", "o", "o"])
+    hep = einsums.parse_ir(models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"))
+    assert einsums.target_shape(hep, "H") == (4, ["v", "o", "V", "O"])
+    try:
+        models.orbital_gradient_graph("ccsd", "muon")
+        assert False, "expected ValueError for a bad species"
+    except ValueError:
+        pass
+    print("test_orbital_gradient_hessian OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -165,4 +186,5 @@ if __name__ == "__main__":
     test_lambda_and_gradient()
     test_rdm()
     test_energy_from_rdm()
+    test_orbital_gradient_hessian()
     print("\nall model tests passed")
