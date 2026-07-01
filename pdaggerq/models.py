@@ -37,7 +37,10 @@ script; ``neo-ccsdt``/``neo-ccsdtq`` and the ``(eep)``/``(eeep)`` hybrids are
 defined here only.
 """
 
+import json
+
 from ._pdaggerq import pq_helper, pq_graph
+from . import einsums
 from .spin import get_spin_labels
 
 __all__ = [
@@ -50,7 +53,7 @@ __all__ = [
     "rdm_graph", "rdm_ir",
     "energy_from_rdm_graph", "energy_from_rdm_ir",
     "orbital_gradient_graph", "orbital_gradient_ir",
-    "orbital_hessian_graph", "orbital_hessian_ir",
+    "orbital_hessian_graph", "orbital_hessian_ir", "orbital_hessian_diag_ir",
 ]
 
 # Conjugate (de-excitation) projection per amplitude: all-occ then all-vir,
@@ -371,3 +374,39 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None,
     """The fixed-RDM orbital Hessian block as ``to_strings("ir")`` JSONL lines."""
     return orbital_hessian_graph(name, row_species, col_species,
                                  df=df, opt_level=opt_level, label=label).to_strings("ir")
+
+
+# einsum-char relabel taking the column rotation indices onto the row (the diagonal)
+_HESS_DIAG_RELABEL = {"electron": {"b": "a", "j": "i"}, "proton": {"B": "A", "J": "I"}}
+
+
+def orbital_hessian_diag_ir(name, species="electron", df=True, label="h"):
+    """The diagonal orbital-Hessian preconditioner ``h_pq = H_pq,pq`` over the
+    vir-occ block of ``species``, as JSONL IR.
+
+    pdaggerq sums repeated generator labels, so it cannot emit the rank-2 diagonal
+    directly. Instead this generates the UNFUSED same-species Hessian (opt_level 0,
+    one statement per term) and relabels the column rotation indices onto the row
+    (electron b->a, j->i; proton B->A, J->I): the diagonal of a sum is the sum of
+    the per-term diagonals, and each term drops to rank-2. Verified to reproduce
+    diag(orbital_hessian_ir) to ~1e-14. The result is unfused (fine for a
+    preconditioner built once per macro-iteration); neocc supplies D1/D2 + integrals."""
+    if species not in _HESS_DIAG_RELABEL:
+        raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+    colrow = _HESS_DIAG_RELABEL[species]
+    full = einsums.parse_ir(
+        orbital_hessian_ir(name, species, species, df=df, opt_level=0, label=label))
+    out = []
+    for st in full:
+        st = dict(st)
+        st["operands"] = [{**o, "indices": [colrow.get(l, l) for l in o["indices"]]}
+                          for o in st["operands"]]
+        t = st["target"]
+        seen, cls = [], []
+        for lab, c in zip((colrow.get(l, l) for l in t["indices"]), t["classes"]):
+            if lab not in seen:            # dedupe [a,a,i,i] -> [a,i]
+                seen.append(lab)
+                cls.append(c)
+        st["target"] = {**t, "indices": seen, "classes": cls}
+        out.append(json.dumps(st))
+    return out

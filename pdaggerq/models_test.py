@@ -178,6 +178,41 @@ def test_orbital_gradient_hessian():
     print("test_orbital_gradient_hessian OK")
 
 
+def test_orbital_hessian_diag():
+    import numpy as np
+    assert "orbital_hessian_diag_ir" in models.__all__
+    diag = einsums.parse_ir(models.orbital_hessian_diag_ir("ccsd", "electron"))
+    assert einsums.target_shape(diag, "h") == (2, ["v", "o"])            # rank-2 diagonal
+    assert not any(l in ("b", "j")                                       # no leftover column labels
+                   for st in diag for v in [st["target"], *st["operands"]] for l in v["indices"])
+
+    # numeric: the relabel-diagonal reproduces diag(full unfused Hessian) on random tensors
+    full = einsums.parse_ir(models.orbital_hessian_ir("ccsd", "electron", "electron", opt_level=0))
+    sizes = {"o": 3, "v": 3, "O": 4, "V": 4, "Q": 6}   # o=v so general dummy indices are consistent
+    rng = np.random.default_rng(0)
+    flat = {}
+    for st in full:
+        for op in st["operands"]:
+            if not op["is_intermediate"] and op["name"] not in flat:
+                flat[op["name"]] = rng.standard_normal(tuple(sizes[c] for c in op["classes"]))
+
+    def run(ir, tgt):
+        store = {}
+        for st in ir:
+            t = st["target"]
+            if st["is_assignment"] or t["name"] not in store:
+                store[t["name"]] = np.zeros(tuple(sizes[c] for c in t["classes"]))
+            subs = ",".join("".join(o["indices"]) for o in st["operands"])
+            arrs = [store[o["name"]] if o["is_intermediate"] else flat[o["name"]] for o in st["operands"]]
+            store[t["name"]] = store[t["name"]] + st["coeff"] * np.einsum(
+                f"{subs}->{''.join(t['indices'])}", *arrs, optimize=True)
+        return store[tgt]
+
+    err = float(np.max(np.abs(run(diag, "h") - np.einsum("aaii->ai", run(full, "H")))))
+    assert err < 1e-10, err
+    print("test_orbital_hessian_diag OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -187,4 +222,5 @@ if __name__ == "__main__":
     test_rdm()
     test_energy_from_rdm()
     test_orbital_gradient_hessian()
+    test_orbital_hessian_diag()
     print("\nall model tests passed")
