@@ -133,8 +133,11 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in);
 /// apply delta functions to amplitude and integral labels
 void gobble_deltas(std::shared_ptr<pq_string> &in);
 
+/// sort amplitudes topologically before replacing internal labels with conventional ones
+void sort_amplitudes_topologically(std::vector<amplitudes> &amps_vec, std::shared_ptr<pq_string> &track);
+
 /// replace internal labels with conventional ones (o1 -> i, etc.)
-void use_conventional_labels(std::shared_ptr<pq_string> &in);
+void canonicalize_labels(std::shared_ptr<pq_string> &in);
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
 void add_new_string_true_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators);
