@@ -1301,34 +1301,11 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
         pq_str->sort();
     }
 
-    // prune list so it only contains non-skipped pq_strings
-    std::vector< std::shared_ptr<pq_string> > pruned;
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
-
-        if ( pq_str->skip ) continue;
-
-        // for normal order relative to fermi vacuum, i doubt anyone will care 
-        // about terms that aren't fully contracted. so, skip those because this
-        // function is time consuming
-        if (pq_str->vacuum == "FERMI" ) {
-            if ( !pq_str->symbol.empty() ) continue;
-            if ( !pq_str->is_boson_dagger.empty() ) continue;
-        }
-
-        pruned.push_back(pq_str);
-    }
-    ordered.clear();
-    for (const std::shared_ptr<pq_string> & pq_str : pruned) {
-        ordered.push_back(pq_str);
-    }
-    pruned.clear();
-
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
 
     // TODO: the operator portions are not considered in the comparisons below. not sure this matters for future use cases
-
     consolidate_permutations_plus_swaps(ordered, {});
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
@@ -1352,42 +1329,37 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     if ( ordered.empty() ) return;
 
     // probably only relevant for vacuum = fermi
-    if ( ordered[0]->vacuum != "FERMI" ) return;
+    if ( ordered[0]->vacuum == "FERMI" ) {
 
-    // look for paired permutations of non-summed labels:
-    if ( find_paired_permutations ) {
+        // look for paired permutations of non-summed labels:
+        if ( find_paired_permutations ) {
 
-        // a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
-        consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 6);
+            // a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
+            consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 6);
 
-        // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
-        consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 3);
+            // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+            consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 3);
+        }
+
+        consolidate_permutations_non_summed(ordered, occ_labels);
+        consolidate_permutations_non_summed(ordered, vir_labels);
     }
 
-    consolidate_permutations_non_summed(ordered, occ_labels);
-    consolidate_permutations_non_summed(ordered, vir_labels);
-
-    // re-prune
-    pruned.clear();
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
-
+    // prune list so it only contains non-skipped pq_strings
+    std::vector<std::shared_ptr<pq_string> > pruned;
+    pruned.reserve(ordered.size());
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
         if ( pq_str->skip ) continue;
-
-        // for normal order relative to fermi vacuum, pq_str doubt anyone will care 
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
         if (pq_str->vacuum == "FERMI" ) {
             if ( !pq_str->symbol.empty() ) continue;
             if ( !pq_str->is_boson_dagger.empty() ) continue;
         }
-
         pruned.push_back(pq_str);
     }
-    ordered.clear();
-    for (std::shared_ptr<pq_string> & pq_str : pruned) {
-        ordered.push_back(pq_str);
-    }
-    pruned.clear();
+    ordered = pruned;
 }
 
 // re-classify fluctuation potential terms
@@ -1855,8 +1827,185 @@ void gobble_deltas_slow(std::shared_ptr<pq_string> &in) {
         //deltas.sort();
         in->deltas.push_back(deltas);
     }
+
 }
+
 void gobble_deltas(std::shared_ptr<pq_string> &in) {
+    if (in->deltas.empty()) return;
+
+    // Grab flat local references to bypass the shared_ptr wrapper entirely
+    auto& deltas = in->deltas;
+    auto& ints = in->ints;
+    auto& amps = in->amps;
+
+    // ====================================================================
+    // ALLOCATION-FREE PRE-SCAN
+    // Bypasses the entire function instantly if there are no dummy deltas
+    // ====================================================================
+    bool has_gobbleable_delta = false;
+    for (const auto & delta : deltas) {
+        const std::string& l0 = delta.labels[0];
+        const std::string& l1 = delta.labels[1];
+        
+        if (l0.rfind("o", 0) == 0 || l0.rfind("v", 0) == 0 ||
+            l1.rfind("o", 0) == 0 || l1.rfind("v", 0) == 0) {
+            has_gobbleable_delta = true;
+            break;
+        }
+    }
+    if (!has_gobbleable_delta) return;
+
+    // Use an unordered_map to build fully collapsed, direct single-hop lookups
+    std::unordered_map<std::string, std::string> substitution_map;
+    std::vector<delta_functions> remaining_deltas;
+    remaining_deltas.reserve(deltas.size());
+
+    for (const auto & delta : deltas) {
+        std::string l0 = delta.labels[0];
+        std::string l1 = delta.labels[1];
+
+        // Collapse delta chains completely in memory
+        while (substitution_map.find(l0) != substitution_map.end()) l0 = substitution_map[l0];
+        while (substitution_map.find(l1) != substitution_map.end()) l1 = substitution_map[l1];
+
+        if (l0 == l1) continue; 
+
+        bool l0_is_dummy = (l0.rfind("o", 0) == 0 || l0.rfind("v", 0) == 0);
+        bool l1_is_dummy = (l1.rfind("o", 0) == 0 || l1.rfind("v", 0) == 0);
+
+        if (!l0_is_dummy && !l1_is_dummy) {
+            remaining_deltas.push_back(delta);
+            continue;
+        }
+
+        if (l0_is_dummy && l1_is_dummy) {
+            if (l0 > l1) std::swap(l0, l1);
+            substitution_map[l0] = l1;
+        } else if (l0_is_dummy) {
+            substitution_map[l0] = l1;
+        } else {
+            substitution_map[l1] = l0;
+        }
+    }
+
+    if (substitution_map.empty()) return;
+
+    // Fully flatten the map so EVERY key points directly to its final destination.
+    // This turns our deep loops into a single O(1) hash check!
+    for (auto& pair : substitution_map) {
+        std::string final_dest = pair.second;
+        while (substitution_map.find(final_dest) != substitution_map.end()) {
+            final_dest = substitution_map[final_dest];
+        }
+        pair.second = final_dest;
+    }
+
+    // Helper lambda to apply substitutions with ZERO redundant string assignments
+    auto apply_subs = [&](std::string &label) {
+        auto it = substitution_map.find(label);
+        if (it != substitution_map.end()) {
+            // ONLY copy memory if the label is actually different!
+            if (label != it->second) {
+                label = it->second;
+            }
+        }
+    };
+
+    // 1. Direct iteration over integrals
+    for (auto & int_pair : ints) {
+        for (auto & integral : int_pair.second) {
+            for (auto & label : integral.labels) apply_subs(label);
+        }
+    }
+
+    // 2. Direct iteration over amplitudes
+    for (auto & amp_pair : amps) {
+        for (auto & amp : amp_pair.second) {
+            for (auto & label : amp.labels) apply_subs(label);
+        }
+    }
+
+    // 3. Update remaining deltas
+    for (auto & delta : remaining_deltas) {
+        for (auto & label : delta.labels) apply_subs(label);
+    }
+
+    deltas = std::move(remaining_deltas);
+}
+
+void gobble_deltas_gemini_v2(std::shared_ptr<pq_string> &in) {
+    if (in->deltas.empty()) return;
+
+    // Use a flat local vector to avoid heavy heap allocation/hashing overhead
+    std::vector<std::pair<std::string, std::string>> substitution_list;
+    std::vector<delta_functions> remaining_deltas;
+    substitution_list.reserve(in->deltas.size());
+
+    for (const auto & delta : in->deltas) {
+        std::string l0 = delta.labels[0];
+        std::string l1 = delta.labels[1];
+
+        // Resolve existing delta chains in our flat vector
+        for (const auto& sub : substitution_list) {
+            if (l0 == sub.first) l0 = sub.second;
+            if (l1 == sub.first) l1 = sub.second;
+        }
+
+        if (l0 == l1) continue; 
+
+        bool l0_is_dummy = (l0.rfind("o", 0) == 0 || l0.rfind("v", 0) == 0);
+        bool l1_is_dummy = (l1.rfind("o", 0) == 0 || l1.rfind("v", 0) == 0);
+
+        if (!l0_is_dummy && !l1_is_dummy) {
+            remaining_deltas.push_back(delta);
+            continue;
+        }
+
+        if (l0_is_dummy && l1_is_dummy) {
+            if (l0 > l1) std::swap(l0, l1);
+            substitution_list.push_back({l0, l1});
+        } else if (l0_is_dummy) {
+            substitution_list.push_back({l0, l1});
+        } else {
+            substitution_list.push_back({l1, l0});
+        }
+    }
+
+    if (substitution_list.empty()) return;
+
+    // Helper lambda to apply the flat substitution sequence
+    auto apply_subs = [&](std::string &label) {
+        for (const auto& sub : substitution_list) {
+            if (label == sub.first) {
+                label = sub.second;
+            }
+        }
+    };
+
+    // 1. Direct iteration over integrals map without type lookup keys
+    for (auto & int_pair : in->ints) {
+        for (auto & integral : int_pair.second) {
+            for (auto & label : integral.labels) apply_subs(label);
+        }
+    }
+
+    // 2. CRITICAL FLATTENING: Direct iteration over the amps map layers 
+    // loops through the underlying buckets directly without touching in->amplitude_types
+    for (auto & amp_pair : in->amps) {
+        for (auto & amp : amp_pair.second) {
+            for (auto & label : amp.labels) apply_subs(label);
+        }
+    }
+
+    // 3. Update remaining deltas
+    for (auto & delta : remaining_deltas) {
+        for (auto & label : delta.labels) apply_subs(label);
+    }
+
+    in->deltas = std::move(remaining_deltas);
+}
+
+void gobble_deltas_gemini_v1(std::shared_ptr<pq_string> &in) {
     if (in->deltas.empty()) return;
 
     std::unordered_map<std::string, std::string> substitution_map;

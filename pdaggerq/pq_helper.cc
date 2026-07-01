@@ -906,14 +906,7 @@ void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
 
 void pq_helper::consolidate_running_terms() {
 
-    // apply delta functions and canonicalize labels so that equivalent terms
-    // acquire matching signatures (mirrors the per-string portion of simplify()).
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        if ( pq_str->skip ) continue;
-        gobble_deltas(pq_str);
-        reclassify_integrals(pq_str);
-        canonicalize_labels(pq_str);
-    }
+    //return;
 
     // keep only fully contracted, non-skipped strings (mirrors the FERMI prune
     // in cleanup(); terms that are not fully contracted never survive simplify()).
@@ -923,10 +916,21 @@ void pq_helper::consolidate_running_terms() {
         if ( pq_str->skip ) continue;
         if ( !pq_str->symbol.empty() ) continue;
         if ( !pq_str->is_boson_dagger.empty() ) continue;
-        pq_str->sort(); // sets the key used by consolidate_permutations_plus_swaps
         pruned.push_back(pq_str);
     }
     ordered = pruned;
+
+    // apply delta functions and canonicalize labels so that equivalent terms
+    // acquire matching signatures (mirrors the per-string portion of simplify()).
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        gobble_deltas(pq_str);
+        reclassify_integrals(pq_str);
+        canonicalize_labels(pq_str);
+    }
+
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        pq_str->sort(); // sets the key used by consolidate_permutations_plus_swaps
+    }
 
     // combine terms that are equal up to swaps of (up to two) summed labels.
     // this is the same sequence cleanup() uses, but without the subsequent
@@ -935,7 +939,6 @@ void pq_helper::consolidate_running_terms() {
     static const std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
     consolidate_permutations_plus_swaps(ordered, {});
-
 /*
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels});
@@ -1969,11 +1972,18 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
 #include<time.h>
 void pq_helper::simplify() {
 
-    // eliminate strings based on delta functions and use delta functions to alter integral / amplitude labels
+    // prune list so it only contains non-skipped pq_strings
     std::vector<std::shared_ptr<pq_string> > pruned;
     pruned.reserve(ordered.size());
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
         if ( pq_str->skip ) continue;
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
+        // about terms that aren't fully contracted. so, skip those because this
+        // function is time consuming
+        if (pq_str->vacuum == "FERMI" ) {
+            if ( !pq_str->symbol.empty() ) continue;
+            if ( !pq_str->is_boson_dagger.empty() ) continue;
+        }
         pruned.push_back(pq_str);
     }
     ordered = pruned;
@@ -2044,6 +2054,7 @@ void pq_helper::simplify() {
 
     // try to cancel similar terms
     cleanup(ordered, find_paired_permutations, is_unitary_cc);
+
 }
 
 // block labels by orbital spaces
