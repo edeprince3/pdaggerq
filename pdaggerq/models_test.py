@@ -99,10 +99,43 @@ def test_lambda_and_gradient():
     print("test_lambda_and_gradient OK")
 
 
+def test_rdm():
+    import pdaggerq
+
+    assert {"rdm_ir", "rdm_graph"} <= set(models.__all__)
+
+    # blocks generate with the right rank; proton n-labels pick up O/V classes
+    d_oo = einsums.parse_ir(models.rdm_ir("ccsd", "e1(i,j)"))
+    assert d_oo and einsums.target_shape(d_oo, "D") == (2, ["o", "o"])
+    d_vvoo = einsums.parse_ir(models.rdm_ir("ccsd", "e2(a,b,i,j)"))
+    assert d_vvoo and einsums.target_shape(d_vvoo, "D") == (4, ["v", "v", "o", "o"])
+    d_pOO = einsums.parse_ir(models.rdm_ir("neo-ccd(ep)", "e1(ni,nj)"))
+    assert d_pOO and einsums.target_shape(d_pOO, "D") == (2, ["O", "O"])
+
+    # the construction matches examples/ccsd_d2.py for a 2-RDM block
+    def strs(setup):
+        pq = pdaggerq.pq_helper("fermi")
+        setup(pq)
+        pq.simplify()
+        return sorted(" ".join(t) for t in pq.strings())
+
+    def ref(pq):
+        pq.set_left_operators([["1"], ["l1"], ["l2"]])
+        pq.add_st_operator(1.0, ["e2(i,a,l,k)"], ["t1", "t2"])
+
+    def mine(pq):
+        pq.set_left_operators([["1"]] + [[l] for l in models.lambda_amps("ccsd")])
+        pq.add_st_operator(1.0, ["e2(i,a,l,k)"], list(models.model("ccsd").T))
+
+    assert strs(ref) == strs(mine)
+    print("test_rdm OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
     test_cheap_models_generate()
     test_spin_axis()
     test_lambda_and_gradient()
+    test_rdm()
     print("\nall model tests passed")

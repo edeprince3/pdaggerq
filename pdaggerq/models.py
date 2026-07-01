@@ -40,6 +40,16 @@ defined here only.
 from ._pdaggerq import pq_helper, pq_graph
 from .spin import get_spin_labels
 
+__all__ = [
+    "Model", "MODELS", "PROJECTION", "EXCITATION", "H_ELEC", "H_NEO",
+    "model", "lambda_amps",
+    "energy_graph",
+    "residual_graph", "residual_ir", "spin_cases", "residual_blocks",
+    "lambda_graph", "lambda_ir",
+    "gradient_graph", "gradient_ir",
+    "rdm_graph", "rdm_ir",
+]
+
 # Conjugate (de-excitation) projection per amplitude: all-occ then all-vir,
 # electrons before the proton within each group (the proton carries pq_helper's
 # nuclear 'n' prefix: ni/nj occ, na/nb vir).
@@ -240,3 +250,27 @@ def gradient_graph(name, species, df=True, opt_level=6, label="R"):
 def gradient_ir(name, species, df=True, opt_level=6, label="R"):
     """The per-species orbital-rotation gradient as ``to_strings("ir")`` lines."""
     return gradient_graph(name, species, df=df, opt_level=opt_level, label=label).to_strings("ir")
+
+
+def rdm_graph(name, operator, df=True, opt_level=6, label="D"):
+    """Optimized pq_graph for a reduced-density-matrix block
+    ``<(1+L) e^-T operator e^T>``.
+
+    operator : a density-operator string -- ``e1(p,q)`` for a 1-RDM block,
+               ``e2(p,q,s,r)`` for a 2-RDM block (note the last index pair is
+               swapped, as in examples/ccsd_d2.py). The index letters pick occ/vir
+               (o/v); an 'n' prefix picks the proton classes (O/V), same convention
+               as gradient_graph's e1(na,ni). Examples: "e1(i,j)" (D_oo),
+               "e1(a,b)" (D_vv), "e2(a,b,i,j)" (D_vvoo), "e1(ni,nj)" (proton D_OO),
+               "e2(a,na,ni,i)" (mixed e-p 2-RDM block)."""
+    m = model(name)
+    pq = pq_helper("fermi")
+    pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])   # (1 + Lambda)
+    pq.add_st_operator(1.0, [operator], list(m.T))
+    pq.simplify()
+    return _optimized(pq, label, df, opt_level)
+
+
+def rdm_ir(name, operator, df=True, opt_level=6, label="D"):
+    """An RDM block as ``to_strings("ir")`` JSONL lines."""
+    return rdm_graph(name, operator, df=df, opt_level=opt_level, label=label).to_strings("ir")
