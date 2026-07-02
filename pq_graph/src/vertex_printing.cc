@@ -273,10 +273,10 @@ namespace pdaggerq {
                 string left_labels, right_labels;
                 for (const auto &line: left_->lines())
                     if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else left_labels += line.label_[0];
+                    else left_labels += line.einsum_char();
                 for (const auto &line: right_->lines())
                     if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else right_labels += line.label_[0];
+                    else right_labels += line.einsum_char();
 
                 output = left_->str() + " + ";
 
@@ -303,7 +303,7 @@ namespace pdaggerq {
                     string label;
                     for (const auto &line: op->lines())
                         if (line.sig_ && !Vertex::use_trial_index) continue;
-                        else label += line.label_[0];
+                        else label += line.einsum_char();
                     indices.push_back(label);
                 }
             }
@@ -322,7 +322,7 @@ namespace pdaggerq {
                 output += "->";
                 for (const auto &line: lines_)
                     if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else output += line.label_[0];
+                    else output += line.einsum_char();
                 output += "',";
 
                 for (const auto &tensor: tensors) {

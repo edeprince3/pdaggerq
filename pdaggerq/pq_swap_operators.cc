@@ -55,7 +55,14 @@ bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
 
         bool daggers_differ = ( in->is_dagger[i] != in->is_dagger[i+1] );
 
-        if ( swap && daggers_differ ) {
+        // operators of different species (e.g. electron vs nuclear) live in
+        // disjoint orbital spaces: they never contract, and -- in the commuting
+        // convention for distinct particle types -- they swap without a sign
+        // change. only same-species creator/annihilator pairs contract.
+        bool same_species = ( is_nuclear(in->symbol[i]) == is_nuclear(in->symbol[i+1]) );
+        bool can_contract = daggers_differ && same_species;
+
+        if ( swap && can_contract ) {
 
             // we're going to have two new strings
             n_new_strings = 2;
@@ -89,12 +96,13 @@ bool swap_operators_fermi_vacuum(const std::shared_ptr<pq_string> &in, std::vect
             }
             break;
 
-        }else if ( swap && !daggers_differ )  {
+        }else if ( swap )  {
 
-            // we're only going to have one new string, with a different sign
+            // a swap with no contraction: same-species same-kind pairs (** or --)
+            // anticommute (sign change); distinct-species pairs commute (no change)
             n_new_strings = 1;
 
-            s1->sign = -s1->sign;
+            if ( same_species ) s1->sign = -s1->sign;
             s1->symbol.push_back(in->symbol[i+1]);
             s1->symbol.push_back(in->symbol[i]);
             s1->is_dagger.push_back(in->is_dagger[i+1]);

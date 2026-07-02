@@ -141,6 +141,15 @@ std::string amplitudes::to_string(char symbol) const {
 
     val = symbol_s + std::to_string(order);
 
+    // multicomponent amplitudes are distinguished by the species of their indices:
+    // a pure-nuclear amplitude gets the suffix "_n", a mixed electron-nuclear one
+    // "_ep" (nuclear labels carry the 'n' prefix, e.g. "ni"/"na").
+    {
+        size_t n_nuc = 0;
+        for (const std::string & l : labels) if (l.size() > 1 && l[0] == 'n') n_nuc++;
+        if (n_nuc > 0) val += (n_nuc == labels.size()) ? "_n" : "_ep";
+    }
+
     if ( n_ph > 0 ) {
         val += "_" + std::to_string(n_ph) + "p";
     }

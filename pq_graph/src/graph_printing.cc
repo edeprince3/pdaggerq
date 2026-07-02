@@ -75,8 +75,11 @@ namespace pdaggerq {
         } else if (Vertex::print_type_ == "c++" || Vertex::print_type_ == "cpp") {
             Vertex::print_type_ = "c++";
             cout << "Formatting equations for c++" << endl;
+        } else if (Vertex::print_type_ == "ir") {
+            Vertex::print_type_ = "ir";
+            cout << "Formatting equations as codegen IR (JSONL)" << endl;
         } else {
-            cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
+            cout << "WARNING: output must be one of: python, einsum, c++, cpp, or ir" << endl;
             cout << "         Setting output to c++" << endl;
         }
         cout << endl;
@@ -91,6 +94,11 @@ namespace pdaggerq {
         } else if (Vertex::print_type_ == "c++") {
             h1 = "///////////////////";
             h2 = "/////";
+        } else if (Vertex::print_type_ == "ir") {
+            // IR is JSONL: every real line is one JSON object starting with '{'.
+            // Banners/declarations/comments are emitted as non-'{' lines that the
+            // consumer filters out, so their exact text does not matter here.
+            h1 = "#"; h2 = "#";
         } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
         
         sout << h1 << " PQ GRAPH Output " << h1 << endl << endl;
@@ -308,6 +316,9 @@ namespace pdaggerq {
             return newterm;
         };
 
+        // destructor insertion frees each tmp after its last use (python `del` /
+        // c++ `~TArrayD()`); the IR has no such notion, so skip it for "ir".
+        if (Vertex::print_type_ != "ir") {
         set<long> destroy_ids;
         map<size_t, vector<Term>, std::greater<>> destruct_terms;
         for (auto &tempterm: copy.equations_["temp"]) {
@@ -389,6 +400,7 @@ namespace pdaggerq {
             }
             cout << endl;
         }
+        } // end destructor insertion (skipped for "ir")
 
         sout << h1 << " Evaluate Equations " << h1 << endl << endl;
 
@@ -648,6 +660,9 @@ namespace pdaggerq {
         if (Vertex::print_type_ == "python")
             return einsum_str();
 
+        if (Vertex::print_type_ == "ir")
+            return ir_str();
+
         // get lhs vertex string
         output = lhs_->str();
 
@@ -739,14 +754,14 @@ namespace pdaggerq {
         // get string of lines from lhs vertex
         for (auto & line : lhs_->lines())
             if (line.sig_ && !Vertex::use_trial_index) continue;
-            else lhs_string += line.label_.front();
+            else lhs_string += line.einsum_char();
 
         string rhs_string;
 
         // get string of lines from the term linkage
         for (auto & line : term_linkage(true)->lines())
             if (line.sig_ && !Vertex::use_trial_index) continue;
-            else rhs_string += line.label_.front();
+            else rhs_string += line.einsum_char();
 
         // make einsum string
         string einsum_string;
@@ -771,6 +786,137 @@ namespace pdaggerq {
         }
 
         return output;
+    }
+
+    // JSON-escape a string (names like tmps_["12_vvoo"] contain quotes).
+    static string ir_jesc(const string &s) {
+        string o; o.reserve(s.size() + 2);
+        for (char c : s) {
+            if (c == '\\' || c == '"') o += '\\';
+            o += c;
+        }
+        return o;
+    }
+
+    // Whether a vertex is a generated intermediate (routes to the intermediate
+    // store, not inputs/outputs). is_temp() catches fusion intermediates (which
+    // are Linkages with an id), but permutation tmps are plain Vertices named
+    // "tmps_"; match those (and reused_/scalars_) by name prefix too.
+    static bool ir_is_intermediate(const VertexPtr &v) {
+        if (v->is_temp()) return true;
+        const string &n = v->name();
+        return n.rfind("tmps_", 0) == 0 || n.rfind("perm_tmps", 0) == 0
+            || n.rfind("reused_", 0) == 0 || n.rfind("scalars_", 0) == 0;
+    }
+
+    // Serialize {name, indices, classes, is_intermediate} from a name + lines.
+    // indices = einsum subscript chars (excited-state lines skipped, matching the
+    // python printer); classes = Line::type() (o/v electron, O/V proton, Q aux,
+    // L excited) for the dims lookup.
+    static string ir_vertex_json_core(const string &name, const line_vector &lines,
+                                      bool is_intermediate) {
+        string istr = "[", cstr = "[";
+        bool first = true;
+        for (const auto &line : lines) {
+            if (line.sig_ && !Vertex::use_trial_index) continue;
+            if (!first) { istr += ","; cstr += ","; }
+            first = false;
+            istr += string("\"") + line.einsum_char() + "\"";
+            cstr += string("\"") + line.type() + "\"";
+        }
+        istr += "]"; cstr += "]";
+        return string("{\"name\":\"") + ir_jesc(name) + "\""
+             + ",\"indices\":" + istr
+             + ",\"classes\":" + cstr
+             + ",\"is_intermediate\":" + (is_intermediate ? "true" : "false") + "}";
+    }
+
+    static string ir_vertex_json(const VertexPtr &v) {
+        return ir_vertex_json_core(v->name(), v->lines(), ir_is_intermediate(v));
+    }
+
+    // Fresh names for synthetic hoisted intermediates (see ir_emit). Monotonic, so
+    // unique within an export; deterministic across fresh processes (like the
+    // optimizer's own tmp ids).
+    static long ir_hoist_counter = 0;
+
+    // Emit one-or-more JSONL statements for "target [assign] coeff * <rhs_link>",
+    // the target given as (tname, tlines, tinterm) so synthetic temps can be
+    // targets too. A top-level addition A+B is split into "target = c*A" then
+    // "target += c*B"; contractions become one statement over the linkage's
+    // link_vector. An operand that is itself an inline (un-named) non-temp linkage
+    // -- the (A+B)/nested-contraction sub-expressions the expression backends
+    // inline but einsums cannot -- is HOISTED: it gets a synthetic tmps_ name, its
+    // defining statement(s) are emitted first, and the operand is replaced by a
+    // reference to that temp. So the IR carries every operand's definition.
+    static string ir_emit(const string &tname, const line_vector &tlines, bool tinterm,
+                          bool assign, double coeff, const VertexPtr &rhs_link,
+                          const std::set<string> &conds) {
+
+        // split additions (a named temp used as an operand is left intact)
+        if (rhs_link->is_linked() && as_link(rhs_link)->is_addition() && !rhs_link->is_temp()) {
+            LinkagePtr al = as_link(rhs_link);
+            return ir_emit(tname, tlines, tinterm, assign, coeff, al->left(), conds)
+                 + "\n" + ir_emit(tname, tlines, tinterm, false, coeff, al->right(), conds);
+        }
+
+        // gather operands (contraction order, mirroring the python printer's walk)
+        vertex_vector ops;
+        if (rhs_link->is_linked() && !rhs_link->is_temp())
+            ops = as_link(rhs_link)->link_vector();
+        else
+            ops = { rhs_link };
+
+        string prefix;                     // hoisted temp definitions, emitted first
+        std::vector<string> operand_jsons;
+        for (const auto &op : ops) {
+            if (op->empty()) continue;
+            if (op->is_linked() && !ir_is_intermediate(op)) {
+                // inline (A+B)/nested-contraction operand -> materialise into a temp
+                string tn = "tmps_[\"ir" + std::to_string(ir_hoist_counter++) + "\"]";
+                prefix += ir_emit(tn, op->lines(), true, true, 1.0, op, conds) + "\n";
+                operand_jsons.push_back(ir_vertex_json_core(tn, op->lines(), true));
+            } else {
+                operand_jsons.push_back(ir_vertex_json(op));
+            }
+        }
+
+        string out = string("{\"target\":") + ir_vertex_json_core(tname, tlines, tinterm);
+        out += string(",\"is_assignment\":") + (assign ? "true" : "false");
+        { std::ostringstream cs; cs.precision(17); cs << coeff;
+          out += ",\"coeff\":" + cs.str(); }
+
+        // term-level spin-block / state conditions, if any (NEO spin blocking)
+        if (!conds.empty()) {
+            out += ",\"conditions\":[";
+            bool first = true;
+            for (const auto &c : conds) {
+                if (!first) out += ",";
+                first = false;
+                out += string("\"") + ir_jesc(c) + "\"";
+            }
+            out += "]";
+        }
+
+        out += ",\"operands\":[";
+        bool first = true;
+        for (const auto &oj : operand_jsons) {
+            if (!first) out += ",";
+            first = false;
+            out += oj;
+        }
+        out += "]}";
+        return prefix + out;
+    }
+
+    // Structured JSONL line(s) describing this term as flat codegen statement(s):
+    // target, assignment flag, coefficient, and ordered operands -- each with its
+    // index labels and orbital-class chars. Consumed by the einsums/codegen
+    // lowering (see neocc/codegen/einsums_printer_plan.md). Permutation operators
+    // are already expanded into separate terms by Term::str() before this point.
+    string Term::ir_str() const {
+        return ir_emit(lhs_->name(), lhs_->lines(), ir_is_intermediate(lhs_),
+                       is_assignment_, coefficient_, term_linkage(true), conditions());
     }
 
 }
