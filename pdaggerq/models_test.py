@@ -353,6 +353,52 @@ def test_orbital_hessian_diag():
     print("test_orbital_hessian_diag OK")
 
 
+def test_orbital_sigma():
+    import numpy as np
+    assert "orbital_sigma_ir" in models.__all__
+    no, nv, nO, nV = 2, 3, 1, 2
+    ne, npp = no + nv, nO + nV
+    SL = {"o": slice(0, no), "v": slice(no, ne), "O": slice(0, nO), "V": slice(nO, npp)}
+    rng = np.random.default_rng(3)
+    full = {n: rng.standard_normal((ne,) * r) for n, r in (("h", 2), ("g", 4), ("D1", 2), ("D2", 4))}
+    full.update({"gep": rng.standard_normal((ne, npp, ne, npp)), "D2_ep": rng.standard_normal((npp, ne, ne, npp)),
+                 "hp": rng.standard_normal((npp, npp)), "D1_n": rng.standard_normal((npp, npp)),
+                 "kappa": rng.standard_normal((ne, ne)), "kappa_n": rng.standard_normal((npp, npp))})
+
+    def interp(ir, shape):
+        out = np.zeros(shape)
+        for st in ir:
+            arrs = []
+            for op in st["operands"]:
+                base, blk = op["name"].split('["'); blk = blk.rstrip('"]')
+                arrs.append(np.eye(ne if blk.islower() else npp)[tuple(SL[c] for c in blk)] if base == "Id"
+                            else full[base][tuple(SL[c] for c in blk)])
+            subs = ",".join("".join(op["indices"]) for op in st["operands"])
+            out = out + st["coeff"] * np.einsum(f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+        return out
+
+    kap, kapn = full["kappa"][SL["v"], SL["o"]], full["kappa_n"][SL["V"], SL["O"]]
+    Hee = interp(einsums.parse_ir(models.orbital_hessian_ir("neo-ccd(ep)", "electron")), (nv, nv, no, no))
+    Hep = interp(einsums.parse_ir(models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton")), (nv, nV, no, nO))
+    Hpp = interp(einsums.parse_ir(models.orbital_hessian_ir("neo-ccd(ep)", "proton")), (nV, nV, nO, nO))
+    se_ir = einsums.parse_ir(models.orbital_sigma_ir("neo-ccd(ep)", "electron"))
+    sp_ir = einsums.parse_ir(models.orbital_sigma_ir("neo-ccd(ep)", "proton"))
+    assert einsums.target_shape(se_ir, "sigma") == (2, ["v", "o"])
+    assert einsums.target_shape(sp_ir, "sigma") == (2, ["V", "O"])
+    # sigma^e = H^ee.kappa^e + H^ep.kappa^p ;  sigma^p = H^pp.kappa^p + (H^ep)^T.kappa^e
+    assert np.max(np.abs(interp(se_ir, (nv, no))
+                         - np.einsum("abij,bj->ai", Hee, kap) - np.einsum("abij,bj->ai", Hep, kapn))) < 1e-10
+    assert np.max(np.abs(interp(sp_ir, (nV, nO))
+                         - np.einsum("abij,bj->ai", Hpp, kapn) - np.einsum("abij,ai->bj", Hep, kap))) < 1e-10
+    # electronic (non-NEO): sigma = H^ee.kappa, no cross term
+    assert einsums.target_shape(einsums.parse_ir(models.orbital_sigma_ir("ccsd")), "sigma") == (2, ["v", "o"])
+    try:
+        models.orbital_sigma_ir("ccsd", "proton"); assert False
+    except ValueError:
+        pass
+    print("test_orbital_sigma OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -363,4 +409,5 @@ if __name__ == "__main__":
     test_energy_from_rdm()
     test_orbital_gradient_hessian()
     test_orbital_hessian_diag()
+    test_orbital_sigma()
     print("\nall model tests passed")

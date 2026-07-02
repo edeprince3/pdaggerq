@@ -53,7 +53,7 @@ __all__ = [
     "rdm_graph", "rdm_ir",
     "energy_from_rdm_ir",
     "orbital_gradient_ir",
-    "orbital_hessian_ir", "orbital_hessian_diag_ir",
+    "orbital_hessian_ir", "orbital_hessian_diag_ir", "orbital_sigma_ir",
 ]
 
 # Conjugate (de-excitation) projection per amplitude: all-occ then all-vir,
@@ -654,4 +654,55 @@ def orbital_hessian_diag_ir(name, species="electron", label="hdiag"):
                 cls.append(c)
         st["target"] = {**t, "indices": seen, "classes": cls}
         out.append(json.dumps(st))
+    return out
+
+
+def _sigma_from_hessian(hess_lines, row_pos, col_pos, trial, label, seen):
+    """Turn a Hessian block H[.] into a sigma-vector contribution sigma[row] +=
+    coeff * (operands) * trial[col], by contracting the column rotation indices of
+    each term against the trial tensor instead of leaving them open. ``row_pos`` /
+    ``col_pos`` index into the Hessian target's four indices (row = sigma's open
+    indices, col = contracted with the trial)."""
+    out = []
+    for line in hess_lines:
+        st = json.loads(line)
+        t = st["target"]
+        row = {"name": label, "indices": [t["indices"][p] for p in row_pos],
+               "classes": [t["classes"][p] for p in row_pos], "is_intermediate": False}
+        col_cls = [t["classes"][p] for p in col_pos]
+        kap = {"name": f'{trial}["{"".join(col_cls)}"]', "indices": [t["indices"][p] for p in col_pos],
+               "classes": col_cls, "is_intermediate": False}
+        out.append(json.dumps({"target": row, "is_assignment": label not in seen,
+                               "coeff": st["coeff"], "operands": st["operands"] + [kap]}))
+        seen.add(label)
+    return out
+
+
+def orbital_sigma_ir(name, species="electron", label="sigma", trial="kappa", trial_n="kappa_n"):
+    """Matrix-free orbital Hessian-vector product (sigma = H . kappa) for ``species``,
+    as explicit occ/vir-block JSONL IR -- for trust-region OO that never materializes
+    H. The trial rotation is a given vir-occ tensor (electron ``kappa["vo"]``, proton
+    ``kappa_n["VO"]``); neocc supplies it each micro-iteration.
+
+    Built by contracting the closed-form Hessian's column indices against the trial:
+    the same-species block gives ``H^ss . kappa^s`` and, for NEO, the e-p cross block
+    couples in the other species -- sigma^e = H^ee.kappa^e + H^ep.kappa^p and
+    sigma^p = H^pp.kappa^p + (H^ep)^T.kappa^e (the transpose is the same cross tensor
+    contracted on its electron indices)."""
+    if species not in _ROT_ROW:
+        raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+    is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    seen, out = set(), []
+    if species == "electron":
+        out += _sigma_from_hessian(orbital_hessian_ir(name, "electron"), (0, 2), (1, 3), trial, label, seen)
+        if is_neo:                                        # + H^ep . kappa^p (contract proton column)
+            out += _sigma_from_hessian(orbital_hessian_ir(name, "electron", "proton"),
+                                       (0, 2), (1, 3), trial_n, label, seen)
+    else:
+        if not is_neo:
+            raise ValueError("proton-species sigma requires a NEO model")
+        out += _sigma_from_hessian(orbital_hessian_ir(name, "proton"), (0, 2), (1, 3), trial_n, label, seen)
+        # + (H^ep)^T . kappa^e: contract the cross block's ELECTRON indices, proton is sigma's row
+        out += _sigma_from_hessian(orbital_hessian_ir(name, "electron", "proton"),
+                                   (1, 3), (0, 2), trial, label, seen)
     return out
