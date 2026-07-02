@@ -643,6 +643,48 @@ def test_orbital_cross_sigma_active_space():
     print("test_orbital_cross_sigma_active_space OK")
 
 
+def test_neo_gep_normal_ordered():
+    import re
+    import pdaggerq
+    OCC = set("ijklmno")
+    amps = ("t1(", "t2(", "t3(", "t4(", "t1_n(", "t2_ep(", "t3_ep(", "t4_ep(")
+
+    def has_gep_trace(line):                               # gep integral with a repeated occupied label
+        for mm in re.finditer(r"g\(([^)]+)\)", line):
+            idx = mm.group(1).split(",")
+            if not any(i.startswith("n") for i in idx):
+                continue
+            for i in idx:
+                core = i[1:] if i.startswith("n") else i
+                if idx.count(i) >= 2 and core in OCC:
+                    return True
+        return False
+
+    def residual(name, amp):                               # generated exactly as _optimized does it
+        pq = pdaggerq.pq_helper("fermi")
+        pq.set_left_operators([[models.PROJECTION[amp]]])
+        m = models.model(name)
+        for h in m.H:
+            pq.add_st_operator(1.0, [h], list(m.T))
+        pq.simplify()
+        pq.remove_gep_reference_traces()
+        return [" ".join(t) for t in pq.strings()]
+
+    # cheap representative amplitudes (the strip is integral-structure-based, not
+    # amplitude-rank-specific): electron/proton singles, the mixed double, both hybrids
+    checks = {"neo-ccsd": ["t1", "tp1", "tep11"], "neo-ccd(ep)": ["tep11"]}
+    for name, to_check in checks.items():
+        for amp in to_check:
+            terms = residual(name, amp)
+            assert not any(has_gep_trace(t) for t in terms), (name, amp)   # no gep self-trace survives
+            if amp in ("t1", "tp1"):                       # singles at t=0 reduce to the Fock block only
+                af = [t for t in terms if not any(a in t for a in amps)]
+                assert len(af) == 1 and "f(" in af[0] and "g(" not in af[0], (name, amp, af)
+    # the strip removes only reference traces, never the genuine two-body driver
+    assert any("g(a,na,i,ni)" in t for t in residual("neo-ccd(ep)", "tep11"))
+    print("test_neo_gep_normal_ordered OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -659,4 +701,5 @@ if __name__ == "__main__":
     test_orbital_sigma_active_space()
     test_orbital_proton_gradient_active_space()
     test_orbital_cross_sigma_active_space()
+    test_neo_gep_normal_ordered()
     print("\nall model tests passed")

@@ -119,6 +119,7 @@ void export_pq_helper(py::module& m) {
                 self.block_by_range(label_ranges);
             },
             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+        .def("remove_gep_reference_traces", &pq_helper::remove_gep_reference_traces)
         .def("add_st_operator",
             [](pq_helper& self, double factor,
                                 const std::vector<std::string> &targets,
@@ -2259,6 +2260,41 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
             ordered_blocked.push_back(op);
         }
     }
+}
+
+// drop terms carrying a reference self-trace of the electron-nuclear (gep) two-body
+// operator. gep sets its integral under "two_body" (the electron fluctuation uses
+// "eri", which is fold-split into the Fock, so is unaffected). A self-trace is a
+// repeated occupied label within one such integral -- the one-body e-p mean-field
+// contraction (V_ep over the proton occupied, or V_pe over the electron occupied),
+// which lives in the dressed NEO-HF Fock and must not appear explicitly.
+void pq_helper::remove_gep_reference_traces() {
+    std::vector< std::shared_ptr<pq_string> > kept;
+    for (const auto & pq_str : ordered) {
+        bool self_trace = false;
+        auto it = pq_str->ints.find("two_body");
+        if ( it != pq_str->ints.end() ) {
+            for (const integrals & integral : it->second) {
+                const std::vector<std::string> & labels = integral.labels;
+                // gep couples an electron and a nuclear particle: require a nuclear label
+                bool has_nuclear = false;
+                for (const std::string & label : labels) {
+                    if ( is_nuclear(label) ) { has_nuclear = true; break; }
+                }
+                if ( !has_nuclear ) continue;
+                // a repeated occupied label within the integral is the reference trace
+                for (size_t a = 0; a < labels.size() && !self_trace; a++) {
+                    if ( !is_occ(labels[a]) ) continue;
+                    for (size_t b = a + 1; b < labels.size(); b++) {
+                        if ( labels[a] == labels[b] ) { self_trace = true; break; }
+                    }
+                }
+                if ( self_trace ) break;
+            }
+        }
+        if ( !self_trace ) kept.push_back(pq_str);
+    }
+    ordered = kept;
 }
 
 // block labels by spin

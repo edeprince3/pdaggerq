@@ -643,6 +643,19 @@ class pq_helper {
 
     /**
      *
+     * drop terms that carry a reference self-trace of the electron-nuclear (gep)
+     * two-body operator -- a "two_body" integral (which, unlike the electron
+     * fluctuation "eri", is not fold-split into the Fock) that has both an
+     * electron and a nuclear label and a repeated occupied label. Those are the
+     * one-body e-p mean-field contractions (V_ep / V_pe); they belong in the
+     * dressed NEO-HF Fock (f / fp) and must not appear explicitly in the residuals,
+     * else they double-count the dressed dump-Fock. No-op for non-NEO terms.
+     *
+     */
+    void remove_gep_reference_traces();
+
+    /**
+     *
      * get const reference to list of ordered strings
      * @param bool blocked: if true, return blocked strings
      *

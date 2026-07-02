@@ -136,6 +136,12 @@ def lambda_amps(name):
 
 
 def _optimized(pq, label, df, opt_level):
+    # Normal-order gep: the NEO integral dumps carry the dressed NEO-HF Fock (f/fp
+    # include the e-p mean field), so the one-body reference traces of gep must not
+    # appear explicitly in the equations or they double-count that field (a nonzero
+    # singles residual at t=0). No-op for non-NEO. Applied to every generated equation
+    # (residuals, energy, Lambda, amplitude gradient) via this shared helper.
+    pq.remove_gep_reference_traces()
     g = pq_graph({"opt_level": opt_level, "density_fitting": df})
     g.add(pq, label)
     g.optimize()
