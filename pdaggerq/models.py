@@ -449,6 +449,24 @@ _GEP_PROTON_HESS_TERMS = [
 ]
 
 
+# gep contribution to the electron-proton CROSS OO Hessian H_ai,nbNj: the mixed
+# derivative d^2 E_ep/dkappa^e_ai dkappa^p_nbNj (electron rotation on gep's electron
+# slots, proton on proton slots). Only gep contributes (h/g/h_p commute with the
+# other species' rotation) and there are no delta terms (different spaces): 16 well-
+# formed 2e2p terms = the electron gep gradient T1-T4 differentiated w.r.t. the proton
+# rotation. Validated to finite differences to ~1e-7. External a,i electron; nb,nj proton.
+_GEP_CROSS_HESS_TERMS = [
+    "+1.0 g(p,nb,a,nq) D2_ep(nj,p,i,nq)", "-1.0 g(p,nj,a,nq) D2_ep(nb,p,i,nq)",
+    "+1.0 g(p,np,a,nb) D2_ep(np,p,i,nj)", "-1.0 g(p,np,a,nj) D2_ep(np,p,i,nb)",
+    "-1.0 g(i,nb,q,nq) D2_ep(nj,a,q,nq)", "+1.0 g(i,nj,q,nq) D2_ep(nb,a,q,nq)",
+    "-1.0 g(i,np,q,nb) D2_ep(np,a,q,nj)", "+1.0 g(i,np,q,nj) D2_ep(np,a,q,nb)",
+    "-1.0 g(p,nb,i,nq) D2_ep(nj,p,a,nq)", "+1.0 g(p,nj,i,nq) D2_ep(nb,p,a,nq)",
+    "-1.0 g(p,np,i,nb) D2_ep(np,p,a,nj)", "+1.0 g(p,np,i,nj) D2_ep(np,p,a,nb)",
+    "+1.0 g(a,nb,q,nq) D2_ep(nj,i,q,nq)", "-1.0 g(a,nj,q,nq) D2_ep(nb,i,q,nq)",
+    "+1.0 g(a,np,q,nb) D2_ep(np,i,q,nj)", "-1.0 g(a,np,q,nj) D2_ep(np,i,q,nb)",
+]
+
+
 def _relabel_e2p(term):
     """A pq.strings() electron term -> proton by prefixing every index with 'n'
     (a->na, i->ni, p->np, ...). Tensor names are unchanged; _block_resolve then tags
@@ -571,9 +589,15 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"
         col_species = row_species
     if row_species not in _ROT_ROW or col_species not in _ROT_COL:
         raise ValueError("row/col species must be 'electron' or 'proton'")
-    if row_species != col_species:
-        raise NotImplementedError("electron-proton cross Hessian block is the follow-up")
     is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    if row_species != col_species:                     # e-p cross block (gep only)
+        if not is_neo:
+            raise ValueError("the electron-proton cross Hessian requires a NEO model")
+        if (row_species, col_species) != ("electron", "proton"):
+            raise NotImplementedError(
+                "only the (electron, proton) cross block is emitted; the "
+                "(proton, electron) block is its transpose")
+        return _block_resolve(_GEP_CROSS_HESS_TERMS, label, ["a", "nb", "i", "nj"])
     if row_species == "proton":                        # fully hand-derived (see terms)
         if not is_neo:
             raise ValueError("proton-species orbital Hessian requires a NEO model")

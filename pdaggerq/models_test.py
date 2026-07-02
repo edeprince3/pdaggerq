@@ -296,10 +296,36 @@ def test_orbital_gradient_hessian():
              - np.einsum("EPFY,PEFX->XY", G, D) + np.einsum("EXFQ,YEFQ->XY", G, D))
     assert np.max(np.abs(pgg - pform[nO:, :nO])) < 1e-10
 
-    # unsupported paths raise cleanly (bad species; e-p cross block)
+    # NEO e-p CROSS Hessian block H_ai,nbNj (gep only, no delta terms): well-formed
+    # and reproduces the finite-diff-validated closed form (16 terms).
+    ch = einsums.parse_ir(models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"))
+    assert einsums.target_shape(ch, "H") == (4, ["v", "V", "o", "O"])
+    Hc = np.zeros((nv, nV, no, nO))
+    for st in ch:
+        for op in st["operands"]:
+            if op["name"].split('["')[0] in ("gep", "D2_ep"):
+                assert ["p" if c in "OV" else "e" for c in op["classes"]] in (["e", "p", "e", "p"], ["p", "e", "e", "p"])
+        arrs = [full[op["name"].split('["')[0]][tuple(SLp[c] for c in op["name"].split('["')[1].rstrip('"]'))]
+                for op in st["operands"]]
+        subs = ",".join("".join(op["indices"]) for op in st["operands"])
+        Hc += st["coeff"] * np.einsum(f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+    vv, VV, oo, OO = SLp["v"], SLp["V"], SLp["o"], SLp["O"]
+    cf = np.zeros((nv, no, nV, nO))     # closed form, output (a,i,b,j)
+    cf += (ee("pbaQ,jpiQ->aibj", G[:, VV, vv, :], D[OO, :, oo, :]) - ee("pjaQ,bpiQ->aibj", G[:, OO, vv, :], D[VV, :, oo, :])
+           + ee("pPab,Ppij->aibj", G[:, :, vv, VV], D[:, :, oo, OO]) - ee("pPaj,Ppib->aibj", G[:, :, vv, OO], D[:, :, oo, VV])
+           - ee("ibqQ,jaqQ->aibj", G[oo, VV, :, :], D[OO, vv, :, :]) + ee("ijqQ,baqQ->aibj", G[oo, OO, :, :], D[VV, vv, :, :])
+           - ee("iPqb,Paqj->aibj", G[oo, :, :, VV], D[:, vv, :, OO]) + ee("iPqj,Paqb->aibj", G[oo, :, :, OO], D[:, vv, :, VV])
+           - ee("pbiQ,jpaQ->aibj", G[:, VV, oo, :], D[OO, :, vv, :]) + ee("pjiQ,bpaQ->aibj", G[:, OO, oo, :], D[VV, :, vv, :])
+           - ee("pPib,Ppaj->aibj", G[:, :, oo, VV], D[:, :, vv, OO]) + ee("pPij,Ppab->aibj", G[:, :, oo, OO], D[:, :, vv, VV])
+           + ee("abqQ,jiqQ->aibj", G[vv, VV, :, :], D[OO, oo, :, :]) - ee("ajqQ,biqQ->aibj", G[vv, OO, :, :], D[VV, oo, :, :])
+           + ee("aPqb,Piqj->aibj", G[vv, :, :, VV], D[:, oo, :, OO]) - ee("aPqj,Piqb->aibj", G[vv, :, :, OO], D[:, oo, :, VV]))
+    assert np.max(np.abs(Hc - cf.transpose(0, 2, 1, 3))) < 1e-10
+
+    # unsupported paths raise cleanly
     for bad, exc in ((lambda: models.orbital_gradient_ir("ccsd", "muon"), ValueError),
                      (lambda: models.orbital_gradient_ir("ccsd", "proton"), ValueError),
-                     (lambda: models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"), NotImplementedError)):
+                     (lambda: models.orbital_hessian_ir("neo-ccd(ep)", "proton", "electron"), NotImplementedError),
+                     (lambda: models.orbital_hessian_ir("ccsd", "electron", "proton"), ValueError)):
         try:
             bad(); assert False, "expected an error"
         except exc:
