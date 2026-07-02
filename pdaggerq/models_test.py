@@ -271,9 +271,34 @@ def test_orbital_gradient_hessian():
         ref -= 0.5 * ee("ij,ab->abij", M, ev)
     assert np.max(np.abs(HH - ref)) < 1e-10
 
-    # unsupported paths raise cleanly (proton rows; e-p cross block)
+    # NEO proton-row gradient & Hessian (bare proton core relabel + gep proton terms):
+    # well-formed, and the gep gradient part reproduces its finite-diff-validated form.
+    pg = einsums.parse_ir(models.orbital_gradient_ir("neo-ccd(ep)", "proton"))
+    ph = einsums.parse_ir(models.orbital_hessian_ir("neo-ccd(ep)", "proton"))
+    assert einsums.target_shape(pg, "grad") == (2, ["V", "O"])
+    assert einsums.target_shape(ph, "H") == (4, ["V", "V", "O", "O"])
+    for ir in (pg, ph):
+        for st in ir:
+            for op in st["operands"]:
+                b = op["name"].split('["')[0]
+                if b in ("gep", "D2_ep"):
+                    assert ["p" if c in "OV" else "e" for c in op["classes"]] in (["e", "p", "e", "p"], ["p", "e", "e", "p"])
+                if b in ("hp", "D1_n"):
+                    assert all(c in "OV" for c in op["classes"])
+    SLp = {"o": slice(0, no), "v": slice(no, ne), "O": slice(0, nO), "V": slice(nO, npp)}
+    pgg = np.zeros((nV, nO))
+    for st in (s for s in pg if any(op["name"].split('["')[0] in ("gep", "D2_ep") for op in s["operands"])):
+        arrs = [full[op["name"].split('["')[0]][tuple(SLp[c] for c in op["name"].split('["')[1].rstrip('"]'))]
+                for op in st["operands"]]
+        subs = ",".join("".join(op["indices"]) for op in st["operands"])
+        pgg += st["coeff"] * np.einsum(f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+    pform = (np.einsum("EPFX,PEFY->XY", G, D) - np.einsum("EYFQ,XEFQ->XY", G, D)
+             - np.einsum("EPFY,PEFX->XY", G, D) + np.einsum("EXFQ,YEFQ->XY", G, D))
+    assert np.max(np.abs(pgg - pform[nO:, :nO])) < 1e-10
+
+    # unsupported paths raise cleanly (bad species; e-p cross block)
     for bad, exc in ((lambda: models.orbital_gradient_ir("ccsd", "muon"), ValueError),
-                     (lambda: models.orbital_gradient_ir("neo-ccd(ep)", "proton"), NotImplementedError),
+                     (lambda: models.orbital_gradient_ir("ccsd", "proton"), ValueError),
                      (lambda: models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"), NotImplementedError)):
         try:
             bad(); assert False, "expected an error"

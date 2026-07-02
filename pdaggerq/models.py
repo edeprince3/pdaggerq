@@ -407,6 +407,57 @@ _GEP_HESS_TERMS = [
     "-0.5 d(a,b) g(p,np,j,nq) D2_ep(np,p,i,nq)",
 ]
 
+# PROTON-row orbital gradient. Two pieces, both hand-derived (pdaggerq has no bare
+# proton core, and its cross-species commutator mis-slots): (i) the proton
+# generalized Fock <[h_p, E^p_naNi - E^p_niNa]>, structurally identical to the
+# electron h gradient with electron->proton labels (h->hp, D1->D1_n); (ii) the gep
+# piece rotating gep's PROTON slots, the proton analog of _GEP_GRAD_TERMS. Validated
+# to finite differences to ~1e-9. External na (proton vir), ni (proton occ).
+_HP_GRAD_TERMS = [
+    "+1.0 h(np,na) D1(np,ni)",
+    "-1.0 h(ni,np) D1(na,np)",
+    "-1.0 h(np,ni) D1(np,na)",
+    "+1.0 h(na,np) D1(ni,np)",
+]
+_GEP_PROTON_GRAD_TERMS = [
+    "+1.0 g(p,np,q,na) D2_ep(np,p,q,ni)",
+    "-1.0 g(p,ni,q,nq) D2_ep(na,p,q,nq)",
+    "-1.0 g(p,np,q,ni) D2_ep(np,p,q,na)",
+    "+1.0 g(p,na,q,nq) D2_ep(ni,p,q,nq)",
+]
+
+# gep contribution to the PROTON-proton OO Hessian (proton analog of _GEP_HESS_TERMS,
+# rotating gep's proton slots). 8 cross terms + 8 delta terms; validated to ~1e-15
+# vs the Taylor Hessian and ~1e-7 vs finite differences.
+_GEP_PROTON_HESS_TERMS = [
+    "+1.0 g(p,na,q,nb) D2_ep(ni,p,q,nj)",
+    "-1.0 g(p,na,q,nj) D2_ep(ni,p,q,nb)",
+    "-1.0 g(p,ni,q,nb) D2_ep(na,p,q,nj)",
+    "+1.0 g(p,ni,q,nj) D2_ep(na,p,q,nb)",
+    "+1.0 g(p,nb,q,na) D2_ep(nj,p,q,ni)",
+    "-1.0 g(p,nb,q,ni) D2_ep(nj,p,q,na)",
+    "-1.0 g(p,nj,q,na) D2_ep(nb,p,q,ni)",
+    "+1.0 g(p,nj,q,ni) D2_ep(nb,p,q,na)",
+    "-0.5 d(ni,nj) g(p,na,q,nq) D2_ep(nb,p,q,nq)",
+    "-0.5 d(ni,nj) g(p,nb,q,nq) D2_ep(na,p,q,nq)",
+    "-0.5 d(ni,nj) g(p,np,q,na) D2_ep(np,p,q,nb)",
+    "-0.5 d(ni,nj) g(p,np,q,nb) D2_ep(np,p,q,na)",
+    "-0.5 d(na,nb) g(p,ni,q,nq) D2_ep(nj,p,q,nq)",
+    "-0.5 d(na,nb) g(p,nj,q,nq) D2_ep(ni,p,q,nq)",
+    "-0.5 d(na,nb) g(p,np,q,ni) D2_ep(np,p,q,nj)",
+    "-0.5 d(na,nb) g(p,np,q,nj) D2_ep(np,p,q,ni)",
+]
+
+
+def _relabel_e2p(term):
+    """A pq.strings() electron term -> proton by prefixing every index with 'n'
+    (a->na, i->ni, p->np, ...). Tensor names are unchanged; _block_resolve then tags
+    the all-proton h/D1 as hp/D1_n and the delta as Id. Used for the proton core
+    gradient/Hessian, whose 1-body algebra is identical to the electron h piece."""
+    coeff, tensors = _parse_rdm_term(term)
+    body = " ".join(f"{nm}({','.join('n' + l for l in idx)})" for nm, idx in tensors)
+    return f"{coeff} {body}"
+
 
 def _bare_H(name, species):
     """(operator, coeff) list for the mean-field-free Hamiltonian entering the
@@ -445,15 +496,21 @@ def _block_resolve(terms, target_name, target_letters):
             lab = {l: (l if len(l) == 1 else l[1:].upper()) for l in letters}
 
             def vtx(nm, idx):                                          # operand: block-suffixed
-                # pdaggerq names RDMs by species (D1_n/D2_ep) but not integrals; give
-                # the integrals a species-tagged name too (all-proton h/f/g -> hp/fp/gpp,
-                # mixed e-p g -> gep) so neocc's distinct tensors don't collide on "g".
-                if nm in ("h", "f", "g"):
-                    sp = {("p" if l.startswith("n") else "e") for l in idx}
-                    out_nm = nm if sp == {"e"} else \
-                        {"h": "hp", "f": "fp", "g": "gpp"}[nm] if sp == {"p"} else "gep"
+                # tag every integral/RDM by the species of its indices so neocc's
+                # distinct tensors don't collide: all-electron keeps the base name,
+                # all-proton -> hp/fp/gpp/D1_n/D2_n, mixed e-p -> gep/D2_ep. (pdaggerq
+                # already tags D1_n/D2_ep; strip any suffix first, then re-tag.)
+                if nm == "d":
+                    out_nm = "Id"
                 else:
-                    out_nm = "Id" if nm == "d" else nm
+                    base = nm[:-2] if nm.endswith("_n") else nm[:-3] if nm.endswith("_ep") else nm
+                    if base in ("h", "f", "g", "D1", "D2"):
+                        sp = {("p" if l.startswith("n") else "e") for l in idx}
+                        out_nm = base if sp == {"e"} else \
+                            {"h": "hp", "f": "fp", "g": "gpp", "D1": "D1_n", "D2": "D2_n"}[base] \
+                            if sp == {"p"} else {"g": "gep", "D2": "D2_ep"}[base]
+                    else:
+                        out_nm = nm
                 return {"name": f'{out_nm}["{"".join(cls[l] for l in idx)}"]',
                         "indices": [lab[l] for l in idx], "classes": [cls[l] for l in idx],
                         "is_intermediate": False}
@@ -485,16 +542,21 @@ def orbital_gradient_ir(name, species="electron", label="grad"):
     follow-up. Same e1/e2 convention as rdm_graph/energy_from_rdm."""
     if species not in _ROT_ROW:
         raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
-    ai, ia = _ROT_ROW[species]
+    is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    if species == "proton":                            # fully hand-derived (see terms)
+        if not is_neo:
+            raise ValueError("proton-species orbital gradient requires a NEO model")
+        return _block_resolve(_HP_GRAD_TERMS + _GEP_PROTON_GRAD_TERMS, label, ["na", "ni"])
+    ai, ia = _ROT_ROW["electron"]
     pq = pq_helper("true")
     pq.set_use_rdms(True)
-    for op, c in _bare_H(name, species):
+    for op, c in _bare_H(name, "electron"):
         pq.add_commutator(c, [op], [ai])
         pq.add_commutator(-c, [op], [ia])
     pq.simplify()
     terms = [" ".join(t) for t in pq.strings()]
-    if species == "electron" and any(op in model(name).H for op in ("fp", "gep")):
-        terms += _GEP_GRAD_TERMS                       # NEO: hand-derived e-p coupling
+    if is_neo:
+        terms += _GEP_GRAD_TERMS                        # NEO: hand-derived e-p coupling
     return _block_resolve(terms, label, ["a", "i"])
 
 
@@ -511,18 +573,32 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"
         raise ValueError("row/col species must be 'electron' or 'proton'")
     if row_species != col_species:
         raise NotImplementedError("electron-proton cross Hessian block is the follow-up")
-    ai, ia = _ROT_ROW[row_species]
-    bj, jb = _ROT_COL[col_species]
+    is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    if row_species == "proton":                        # fully hand-derived (see terms)
+        if not is_neo:
+            raise ValueError("proton-species orbital Hessian requires a NEO model")
+        ai, ia = _ROT_ROW["electron"]                  # h_p Hessian = electron h-only, relabeled
+        bj, jb = _ROT_COL["electron"]
+        pq = pq_helper("true")
+        pq.set_use_rdms(True)
+        for x, sx in ((ai, 1.0), (ia, -1.0)):
+            for y, sy in ((bj, 1.0), (jb, -1.0)):
+                pq.add_double_commutator(sx * sy, ["h"], [x], [y])
+        pq.simplify()
+        terms = [_relabel_e2p(" ".join(t)) for t in pq.strings()] + _GEP_PROTON_HESS_TERMS
+        return _block_resolve(terms, label, ["na", "nb", "ni", "nj"])
+    ai, ia = _ROT_ROW["electron"]
+    bj, jb = _ROT_COL["electron"]
     pq = pq_helper("true")
     pq.set_use_rdms(True)
-    for op, c in _bare_H(name, row_species):
+    for op, c in _bare_H(name, "electron"):
         for x, sx in ((ai, 1.0), (ia, -1.0)):
             for y, sy in ((bj, 1.0), (jb, -1.0)):
                 pq.add_double_commutator(c * sx * sy, [op], [x], [y])
     pq.simplify()
     terms = [" ".join(t) for t in pq.strings()]
-    if row_species == "electron" and any(op in model(name).H for op in ("fp", "gep")):
-        terms += _GEP_HESS_TERMS                       # NEO: hand-derived e-p coupling
+    if is_neo:
+        terms += _GEP_HESS_TERMS                        # NEO: hand-derived e-p coupling
     return _block_resolve(terms, label, ["a", "b", "i", "j"])
 
 
