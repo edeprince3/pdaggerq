@@ -492,12 +492,24 @@ def _bare_H(name, species):
     raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
 
 
-def _block_resolve(terms, target_name, target_letters):
+def _rdm_base(nm):
+    return nm[:-2] if nm.endswith("_n") else nm[:-3] if nm.endswith("_ep") else nm
+
+
+def _block_resolve(terms, target_name, target_letters, ext_classes=None, drop_inactive_rdm=False):
     """Enumerate each bare-form term over occ/vir blocks of its general indices,
     keeping the fixed (external rotation) indices. Kronecker deltas ``d`` become the
     identity ``Id`` and vanish when their two indices land in different blocks. The
-    einsum label is the pdaggerq letter (proton ``nX`` -> uppercase ``X``)."""
+    einsum label is the pdaggerq letter (proton ``nX`` -> uppercase ``X``).
+
+    ``ext_classes`` (letter -> class) overrides the class of external rotation letters
+    for the active-space OO split -- e.g. row ``a`` -> ``x`` (inactive-virtual) or
+    ``c`` (core); those letters are then not enumerated. ``drop_inactive_rdm`` drops
+    any term where an inactive index (c/x/C/X) lands in an RDM (which is active-only,
+    so that block does not exist) -- leaving every surviving term with the inactive
+    rotation index appearing only in an integral (one free inactive-virtual index)."""
     import itertools
+    ext_classes = ext_classes or {}
     out, seen = [], set()
     for term in terms:
         coeff, tensors = _parse_rdm_term(term)
@@ -505,11 +517,17 @@ def _block_resolve(terms, target_name, target_letters):
         for _, idx in tensors:
             for l in idx:
                 letters.setdefault(l, _classify_letter(l))
-        gen = [l for l, (sp, fx) in letters.items() if fx is None]
+        gen = [l for l, (sp, fx) in letters.items() if fx is None and l not in ext_classes]
         for combo in itertools.product("ov", repeat=len(gen)):
-            cls = {l: (fx if fx else (combo[gen.index(l)].upper() if sp == "p" else combo[gen.index(l)]))
-                   for l, (sp, fx) in letters.items()}
+            cls = {}
+            for l, (sp, fx) in letters.items():
+                cls[l] = ext_classes[l] if l in ext_classes else \
+                    fx if fx else (combo[gen.index(l)].upper() if sp == "p" else combo[gen.index(l)])
             if any(nm == "d" and cls[idx[0]] != cls[idx[1]] for nm, idx in tensors):
+                continue
+            if drop_inactive_rdm and any(
+                    _rdm_base(nm) in ("D1", "D2") and any(cls[l] in ("c", "x", "C", "X") for l in idx)
+                    for nm, idx in tensors):
                 continue
             lab = {l: (l if len(l) == 1 else l[1:].upper()) for l in letters}
 
@@ -549,22 +567,20 @@ def _parse_rdm_term(term):
                             for m in re.finditer(r"([A-Za-z_0-9]+)\(([^)]+)\)", " ".join(toks[1:]))]
 
 
-def orbital_gradient_ir(name, species="electron", label="grad"):
-    """Fixed-RDM orbital-rotation gradient ``g_ai = <[H, E_ai - E_ia]>`` over the
-    vir-occ block of ``species`` -- the antisymmetrized generalized Fock -- as
-    explicit occ/vir-block JSONL IR. The RDMs are given tensors (true vacuum +
-    use_rdms) contracted with the integrals; neocc supplies D1/D2 (and gep/D2_ep for
-    NEO) and evaluates. Electron species is supported for both electronic and NEO
-    models (the e-p coupling gep is added via the hand-derived _GEP_GRAD_TERMS, since
-    pdaggerq's cross-species commutator mis-slots the indices); proton rows are the
-    follow-up. Same e1/e2 convention as rdm_graph/energy_from_rdm."""
-    if species not in _ROT_ROW:
-        raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
-    is_neo = any(op in model(name).H for op in ("fp", "gep"))
-    if species == "proton":                            # fully hand-derived (see terms)
-        if not is_neo:
-            raise ValueError("proton-species orbital gradient requires a NEO model")
-        return _block_resolve(_HP_GRAD_TERMS + _GEP_PROTON_GRAD_TERMS, label, ["na", "ni"])
+# orbital classes ordered by occupation for the active-space OO rotation split:
+# core (inactive-occ) < active-occ < active-vir < inactive-vir (external).
+_CLASS_LEVEL = {"c": 0, "o": 1, "v": 2, "x": 3}
+
+
+def _rotation_blocks(rotation_classes):
+    """Non-redundant rotation blocks (row, col) -- row 'higher' than col -- from the
+    given classes. ('o','v') -> [('v','o')] (today's active-active block)."""
+    cs = list(rotation_classes)
+    return [(hi, lo) for hi in cs for lo in cs if _CLASS_LEVEL[hi] > _CLASS_LEVEL[lo]]
+
+
+def _electron_gradient_terms(name):
+    """Bare-form electron gradient algebra <[h + 1/2 g (+ gep), E_ai - E_ia]>."""
     ai, ia = _ROT_ROW["electron"]
     pq = pq_helper("true")
     pq.set_use_rdms(True)
@@ -573,9 +589,47 @@ def orbital_gradient_ir(name, species="electron", label="grad"):
         pq.add_commutator(-c, [op], [ia])
     pq.simplify()
     terms = [" ".join(t) for t in pq.strings()]
-    if is_neo:
+    if any(op in model(name).H for op in ("fp", "gep")):
         terms += _GEP_GRAD_TERMS                        # NEO: hand-derived e-p coupling
-    return _block_resolve(terms, label, ["a", "i"])
+    return terms
+
+
+def orbital_gradient_ir(name, species="electron", rotation_classes=("o", "v"),
+                        internal="active", factorize_inactive_virtual=True, label="grad"):
+    """Fixed-RDM orbital-rotation gradient ``g_pq = <[H, E_pq - E_qp]>`` (the
+    antisymmetrized generalized Fock) as explicit block JSONL IR.
+
+    Active-space OO: the **rotation** (row/col) indices range over ``rotation_classes``
+    -- core ``c``, active-occ ``o``, active-vir ``v``, inactive-vir/external ``x`` --
+    while the **internal** (RDM-contracted) indices stay active (``o/v``), since the
+    correlation RDM is active-only. Every non-redundant block (row 'higher' than col)
+    is emitted as its own target ``grad["<row><col>"]`` (e.g. ``grad["xo"]``); the
+    default ``("o","v")`` keeps the single active-active block as bare ``grad``
+    (byte-identical to before). Terms where an inactive (c/x) rotation index would land
+    in an RDM are dropped (that block is zero), so each surviving inactive-virtual index
+    appears only in an integral -- one free ``x`` per term, J/K-factorizable by neocc.
+
+    neocc supplies D1/D2 (active, and gep/D2_ep for NEO) plus the integral blocks
+    (with the ``x``/``c`` rows) and evaluates the ``x`` contributions density-driven."""
+    if species not in _ROT_ROW:
+        raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+    if internal != "active":
+        raise ValueError("internal indices are RDM-contracted and must be 'active'")
+    is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    single = tuple(rotation_classes) == ("o", "v")
+    if species == "proton":                            # fully hand-derived (see terms)
+        if not is_neo:
+            raise ValueError("proton-species orbital gradient requires a NEO model")
+        if not single:
+            raise NotImplementedError("proton-species active-space rotation split is the follow-up")
+        return _block_resolve(_HP_GRAD_TERMS + _GEP_PROTON_GRAD_TERMS, label, ["na", "ni"])
+    terms = _electron_gradient_terms(name)
+    out = []
+    for hi, lo in _rotation_blocks(rotation_classes):
+        suffix = "" if single else f'["{hi}{lo}"]'
+        out += _block_resolve(terms, label + suffix, ["a", "i"],
+                              ext_classes={"a": hi, "i": lo}, drop_inactive_rdm=True)
+    return out
 
 
 def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"):

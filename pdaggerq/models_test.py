@@ -399,6 +399,56 @@ def test_orbital_sigma():
     print("test_orbital_sigma OK")
 
 
+def test_orbital_gradient_active_space():
+    import re
+    import numpy as np
+    # default is unchanged (single active-active block, bare target)
+    assert einsums.target_shape(einsums.parse_ir(models.orbital_gradient_ir("ccsd")), "grad") == (2, ["v", "o"])
+
+    nc, no, nv, nx = 1, 2, 2, 4
+    nmo = nc + no + nv + nx
+    SL = {"c": slice(0, nc), "o": slice(nc, nc + no), "v": slice(nc + no, nc + no + nv), "x": slice(nc + no + nv, nmo)}
+    asl = slice(nc, nc + no + nv); na = no + nv
+    rng = np.random.default_rng(0)
+    h = rng.standard_normal((nmo, nmo)); h = h + h.T
+    grw = rng.standard_normal((nmo,) * 4); g = grw + grw.transpose(1, 0, 3, 2)
+    D1 = np.zeros((nmo, nmo)); D1[asl, asl] = rng.standard_normal((na, na))       # active-only
+    d2 = np.zeros((nmo,) * 4); d2[asl, asl, asl, asl] = rng.standard_normal((na,) * 4)
+    D2 = d2 - d2.transpose(1, 0, 2, 3); D2 = D2 - D2.transpose(0, 1, 3, 2)
+    FULL = {"h": h, "g": g, "D1": D1, "D2": D2}
+
+    # reference generalized-Fock gradient (full sums, active-only RDMs)
+    import pdaggerq
+    pq = pdaggerq.pq_helper("true"); pq.set_use_rdms(True)
+    for xg, s in (("e1(a,i)", 1.0), ("e1(i,a)", -1.0)):
+        pq.add_commutator(s, ["h"], [xg]); pq.add_commutator(0.5 * s, ["g"], [xg])
+    pq.simplify()
+    Gref = np.zeros((nmo, nmo))
+    for t in pq.strings():
+        c, ts = models._parse_rdm_term(" ".join(t))
+        Gref += c * np.einsum(",".join("".join(i) for _, i in ts) + "->ai", *[FULL[n] for n, _ in ts], optimize=True)
+
+    ir = einsums.parse_ir(models.orbital_gradient_ir("ccsd", "electron", rotation_classes=("c", "o", "v", "x")))
+    # every non-redundant block except the all-inactive x-c (which vanishes on the active RDM)
+    assert {st["target"]["name"] for st in ir} == {'grad["vo"]', 'grad["xo"]', 'grad["xv"]', 'grad["oc"]', 'grad["vc"]'}
+    # no inactive index ever lands in an RDM -> one free inactive-virtual index, J/K-shaped
+    assert not any(o["name"].split('["')[0] in ("D1", "D2") and any(c in "xcXC" for c in o["classes"])
+                   for st in ir for o in st["operands"])
+    by = {}
+    for st in ir:
+        by.setdefault(st["target"]["name"], []).append(st)
+    for name, sts in by.items():
+        rc, cc = re.search(r'\["(\w)(\w)"\]', name).groups()
+        out = np.zeros((SL[rc].stop - SL[rc].start, SL[cc].stop - SL[cc].start))
+        for st in sts:
+            arrs = [FULL[o["name"].split('["')[0]][tuple(SL[c] for c in o["name"].split('["')[1].rstrip('"]'))]
+                    for o in st["operands"]]
+            subs = ",".join("".join(o["indices"]) for o in st["operands"])
+            out += st["coeff"] * np.einsum(f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+        assert np.max(np.abs(out - Gref[SL[rc], SL[cc]])) < 1e-10, name
+    print("test_orbital_gradient_active_space OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -410,4 +460,5 @@ if __name__ == "__main__":
     test_orbital_gradient_hessian()
     test_orbital_hessian_diag()
     test_orbital_sigma()
+    test_orbital_gradient_active_space()
     print("\nall model tests passed")
