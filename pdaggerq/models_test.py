@@ -210,13 +210,39 @@ def test_orbital_gradient_hessian():
     for o in (o for st in g for o in st["operands"]):
         if o["name"].split('["')[0] in ("gep", "D2_ep"):
             assert ["p" if c in "OV" else "e" for c in o["classes"]] in (["e", "p", "e", "p"], ["p", "e", "e", "p"])
+    # NEO electron gradient: the hand-derived e-p (gep/D2_ep) terms are well-formed
+    # 2e2p and reproduce the finite-diff-validated formula g = T1 - T2 - T3 + T4.
+    gneo = einsums.parse_ir(models.orbital_gradient_ir("neo-ccd(ep)", "electron"))
+    gep_st = [st for st in gneo
+              if any(o["name"].split('["')[0] in ("gep", "D2_ep") for o in st["operands"])]
+    assert gep_st
+    for st in gep_st:
+        for o in st["operands"]:
+            if o["name"].split('["')[0] in ("gep", "D2_ep"):
+                assert ["p" if c in "OV" else "e" for c in o["classes"]] in (["e", "p", "e", "p"], ["p", "e", "e", "p"])
+    no, nv, nO, nV = 2, 3, 1, 2
+    ne, npp = no + nv, nO + nV
+    SL = {"o": slice(0, no), "v": slice(no, ne), "O": slice(0, nO), "V": slice(nO, npp)}
+    rng = np.random.default_rng(1)
+    full = {"gep": rng.standard_normal((ne, npp, ne, npp)), "D2_ep": rng.standard_normal((npp, ne, ne, npp))}
+    gg = np.zeros((nv, no))
+    for st in gep_st:
+        arrs = [full[o["name"].split('["')[0]][tuple(SL[c] for c in o["name"].split('["')[1].rstrip('"]'))]
+                for o in st["operands"]]
+        subs = ",".join("".join(o["indices"]) for o in st["operands"])
+        gg += st["coeff"] * np.einsum(f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+    G, D = full["gep"], full["D2_ep"]
+    form = (np.einsum("ePXQ,PeYQ->XY", G, D) - np.einsum("YPeQ,PXeQ->XY", G, D)
+            - np.einsum("ePYQ,PeXQ->XY", G, D) + np.einsum("XPeQ,PYeQ->XY", G, D))
+    assert np.max(np.abs(gg - form[no:, :no])) < 1e-10
+
     # electron Hessian: rank-4 vir-vir-occ-occ block
     hee = einsums.parse_ir(models.orbital_hessian_ir("ccsd"))
     assert einsums.target_shape(hee, "H") == (4, ["v", "v", "o", "o"])
-    # NEO OO (cross-species gep) and proton rows are not yet supported (raise cleanly)
+    # unsupported paths raise cleanly (proton rows; NEO Hessian gep; cross block)
     for bad, exc in ((lambda: models.orbital_gradient_ir("ccsd", "muon"), ValueError),
-                     (lambda: models.orbital_gradient_ir("neo-ccd(ep)", "electron"), NotImplementedError),
                      (lambda: models.orbital_gradient_ir("neo-ccd(ep)", "proton"), NotImplementedError),
+                     (lambda: models.orbital_hessian_ir("neo-ccd(ep)"), NotImplementedError),
                      (lambda: models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"), NotImplementedError)):
         try:
             bad(); assert False, "expected an error"

@@ -369,22 +369,25 @@ def _classify_letter(letter):
     return species, fixed
 
 
+# The gep (electron-proton) contribution to the ELECTRON gradient, hand-derived
+# because pdaggerq's cross-species commutator mis-slots the integral/RDM indices.
+# From <[gep, E_ai - E_ia]> with gep = sum gep(E,P,E',P') E_{E,E'} b+_P b_P' and the
+# energy's convention D2_ep(P,E,E',P') = <a+_E a_E' b+_P b_P'>, four well-formed
+# 2e2p terms (external a vir, i occ; internal electron p,q and proton np,nq).
+# Validated to finite differences of E_ep = gep.D2_ep to ~1e-9.
+_GEP_GRAD_TERMS = [
+    "+1.0 g(p,np,a,nq) D2_ep(np,p,i,nq)",
+    "-1.0 g(i,np,q,nq) D2_ep(np,a,q,nq)",
+    "-1.0 g(p,np,i,nq) D2_ep(np,p,a,nq)",
+    "+1.0 g(a,np,q,nq) D2_ep(np,i,q,nq)",
+]
+
+
 def _bare_H(name, species):
     """(operator, coeff) list for the mean-field-free Hamiltonian entering the
     ``species`` orbital-rotation commutator. Operators that commute with the rotation
-    contribute nothing, so they may be omitted."""
-    is_neo = any(op in model(name).H for op in ("fp", "gep"))
-    if is_neo:
-        # pdaggerq's cross-species (gep) commutator does not preserve the e/p slot
-        # structure of the integral/RDM: <[gep, E_ai]> yields terms whose gep/D2_ep
-        # index pattern is not the canonical [e,p,e,p]/[p,e,e,p] (e.g. gep["oOov"]),
-        # so they cannot be sliced from neocc's 2e2p tensors. The pure-electron part
-        # alone is an incomplete (wrong) NEO gradient, so refuse rather than mislead.
-        raise NotImplementedError(
-            "NEO orbital gradient/Hessian: pdaggerq's cross-species gep commutator "
-            "mis-slots the electron/proton integral indices (malformed 2e2p terms); "
-            "the e-p coupling contribution can't be generated correctly yet. "
-            "Pure-electron models work; NEO cross-species OO is the follow-up.")
+    contribute nothing, so they may be omitted. The NEO gep contribution to the
+    electron rotation is added separately (see ``_GEP_GRAD_TERMS``)."""
     if species == "electron":
         return [("h", 1.0), ("g", 0.5)]
     if species == "proton":
@@ -450,9 +453,11 @@ def orbital_gradient_ir(name, species="electron", label="grad"):
     """Fixed-RDM orbital-rotation gradient ``g_ai = <[H, E_ai - E_ia]>`` over the
     vir-occ block of ``species`` -- the antisymmetrized generalized Fock -- as
     explicit occ/vir-block JSONL IR. The RDMs are given tensors (true vacuum +
-    use_rdms) contracted with the integrals; neocc supplies D1/D2 and evaluates.
-    Pure-electron models only (NEO cross-species OO is not yet supported -- see
-    _bare_H). Same e1/e2 convention as rdm_graph/energy_from_rdm."""
+    use_rdms) contracted with the integrals; neocc supplies D1/D2 (and gep/D2_ep for
+    NEO) and evaluates. Electron species is supported for both electronic and NEO
+    models (the e-p coupling gep is added via the hand-derived _GEP_GRAD_TERMS, since
+    pdaggerq's cross-species commutator mis-slots the indices); proton rows are the
+    follow-up. Same e1/e2 convention as rdm_graph/energy_from_rdm."""
     if species not in _ROT_ROW:
         raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
     ai, ia = _ROT_ROW[species]
@@ -462,21 +467,29 @@ def orbital_gradient_ir(name, species="electron", label="grad"):
         pq.add_commutator(c, [op], [ai])
         pq.add_commutator(-c, [op], [ia])
     pq.simplify()
-    return _block_resolve([" ".join(t) for t in pq.strings()], label, ["a", "i"])
+    terms = [" ".join(t) for t in pq.strings()]
+    if species == "electron" and any(op in model(name).H for op in ("fp", "gep")):
+        terms += _GEP_GRAD_TERMS                       # NEO: hand-derived e-p coupling
+    return _block_resolve(terms, label, ["a", "i"])
 
 
 def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"):
     """Fixed-RDM orbital Hessian block
     ``H_ai,bj = <[[H, E_ai - E_ia], E_bj - E_jb]>`` (rows a,i; columns b,j) as
-    explicit occ/vir-block JSONL IR. ``col_species`` defaults to ``row_species``;
-    the electron same-species block is supported (electron-proton cross block and
-    proton rows are the follow-up, pending the bare proton core)."""
+    explicit occ/vir-block JSONL IR. ``col_species`` defaults to ``row_species``.
+    Pure-electron same-species only: the NEO gep contribution to the Hessian (unlike
+    the gradient) is not yet hand-derived -- the double commutator's symmetrization
+    is still open -- so NEO models and cross/proton blocks raise."""
     if col_species is None:
         col_species = row_species
     if row_species not in _ROT_ROW or col_species not in _ROT_COL:
         raise ValueError("row/col species must be 'electron' or 'proton'")
     if row_species != col_species:
         raise NotImplementedError("electron-proton cross Hessian block is the follow-up")
+    if any(op in model(name).H for op in ("fp", "gep")):
+        raise NotImplementedError(
+            "NEO orbital Hessian: the gep contribution is not yet hand-derived "
+            "(the gep gradient is; the Hessian double commutator is the follow-up)")
     ai, ia = _ROT_ROW[row_species]
     bj, jb = _ROT_COL[col_species]
     pq = pq_helper("true")
