@@ -350,11 +350,12 @@ _ROT_COL = {"electron": ("e1(b,j)", "e1(j,b)"), "proton": ("e1(nb,nj)", "e1(nj,n
 
 # The orbital gradient/Hessian are, like the energy, integrals contracted with the
 # RDMs -- but with the *general* internal indices from those contractions. We
-# generate the bare-form commutators (H = h + 1/2 g [+ gep for NEO], the mean-field-
-# free operator equal to f+v), then block-enumerate each general internal index over
-# occ/vir exactly as the energy does. The external rotation indices a,i (b,j) stay
-# vir/occ, so the target is the physical vir-occ block. Validated block-sum ==
-# full contraction to ~1e-14 for both gradient and Hessian.
+# generate the bare-form commutators (H = h + 1/2 g, the mean-field-free operator
+# equal to f+v), then block-enumerate each general internal index over occ/vir
+# exactly as the energy does. The external rotation indices a,i (b,j) stay vir/occ,
+# so the target is the physical vir-occ block. Validated block-sum == full
+# contraction to ~1e-14. Pure-electron only: the NEO cross-species (gep) commutator
+# mis-slots the e/p integral indices in pdaggerq, so NEO OO is not yet supported.
 _OCC_LET, _VIR_LET = set("ijklmno"), set("abcdefgh")
 
 
@@ -373,13 +374,24 @@ def _bare_H(name, species):
     ``species`` orbital-rotation commutator. Operators that commute with the rotation
     contribute nothing, so they may be omitted."""
     is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    if is_neo:
+        # pdaggerq's cross-species (gep) commutator does not preserve the e/p slot
+        # structure of the integral/RDM: <[gep, E_ai]> yields terms whose gep/D2_ep
+        # index pattern is not the canonical [e,p,e,p]/[p,e,e,p] (e.g. gep["oOov"]),
+        # so they cannot be sliced from neocc's 2e2p tensors. The pure-electron part
+        # alone is an incomplete (wrong) NEO gradient, so refuse rather than mislead.
+        raise NotImplementedError(
+            "NEO orbital gradient/Hessian: pdaggerq's cross-species gep commutator "
+            "mis-slots the electron/proton integral indices (malformed 2e2p terms); "
+            "the e-p coupling contribution can't be generated correctly yet. "
+            "Pure-electron models work; NEO cross-species OO is the follow-up.")
     if species == "electron":
-        return [("h", 1.0), ("g", 0.5)] + ([("gep", 1.0)] if is_neo else [])
+        return [("h", 1.0), ("g", 0.5)]
     if species == "proton":
         raise NotImplementedError(
             "proton-species orbital gradient/Hessian needs the bare proton core "
             "(pdaggerq's 'fp' is the proton Fock and would double-count the e-p "
-            "mean-field); electron-species and the e-p cross block are the follow-up")
+            "mean-field); electron-species is supported")
     raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
 
 
@@ -438,8 +450,9 @@ def orbital_gradient_ir(name, species="electron", label="grad"):
     """Fixed-RDM orbital-rotation gradient ``g_ai = <[H, E_ai - E_ia]>`` over the
     vir-occ block of ``species`` -- the antisymmetrized generalized Fock -- as
     explicit occ/vir-block JSONL IR. The RDMs are given tensors (true vacuum +
-    use_rdms) contracted with the integrals; neocc supplies D1/D2 (and D2_ep for
-    NEO) and evaluates. Same e1/e2 convention as rdm_graph/energy_from_rdm."""
+    use_rdms) contracted with the integrals; neocc supplies D1/D2 and evaluates.
+    Pure-electron models only (NEO cross-species OO is not yet supported -- see
+    _bare_H). Same e1/e2 convention as rdm_graph/energy_from_rdm."""
     if species not in _ROT_ROW:
         raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
     ai, ia = _ROT_ROW[species]

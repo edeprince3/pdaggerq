@@ -206,15 +206,16 @@ def test_orbital_gradient_hessian():
     assert {"h", "g", "D1", "D2"} <= bases
     # the previously-truncated occ blocks are now present (the fix)
     assert any(o["name"] == 'D1["oo"]' for st in g for o in st["operands"])
-    # NEO electron gradient also sees the e-p coupling (gep, D2_ep)
-    gneo = {o["name"].split('["')[0]
-            for st in einsums.parse_ir(models.orbital_gradient_ir("neo-ccd(ep)", "electron"))
-            for o in st["operands"]}
-    assert {"gep", "D2_ep"} <= gneo, gneo
+    # any well-formed cross term (none here) must keep the canonical e/p slot pattern
+    for o in (o for st in g for o in st["operands"]):
+        if o["name"].split('["')[0] in ("gep", "D2_ep"):
+            assert ["p" if c in "OV" else "e" for c in o["classes"]] in (["e", "p", "e", "p"], ["p", "e", "e", "p"])
     # electron Hessian: rank-4 vir-vir-occ-occ block
     hee = einsums.parse_ir(models.orbital_hessian_ir("ccsd"))
     assert einsums.target_shape(hee, "H") == (4, ["v", "v", "o", "o"])
+    # NEO OO (cross-species gep) and proton rows are not yet supported (raise cleanly)
     for bad, exc in ((lambda: models.orbital_gradient_ir("ccsd", "muon"), ValueError),
+                     (lambda: models.orbital_gradient_ir("neo-ccd(ep)", "electron"), NotImplementedError),
                      (lambda: models.orbital_gradient_ir("neo-ccd(ep)", "proton"), NotImplementedError),
                      (lambda: models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"), NotImplementedError)):
         try:
