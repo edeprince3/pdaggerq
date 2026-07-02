@@ -575,6 +575,74 @@ def test_orbital_sigma_active_space():
     print("test_orbital_sigma_active_space OK")
 
 
+def _interp_terms(terms, out_letters, shape, F):
+    import numpy as np
+    G = np.zeros(shape)
+    for term in terms:
+        coeff, tensors = models._parse_rdm_term(term)
+        lab = {}
+        for _, idx in tensors:
+            for l in idx:
+                lab.setdefault(l, chr(ord("A") + len(lab)))
+        subs = ",".join("".join(lab[l] for l in idx) for _, idx in tensors)
+        G += coeff * np.einsum(f"{subs}->{''.join(lab[l] for l in out_letters)}",
+                               *[F[n] for n, _ in tensors], optimize=True)
+    return G
+
+
+def test_orbital_proton_gradient_active_space():
+    import re
+    import numpy as np
+    ne = 4                                                 # electron all active (o=0:2, v=2:4)
+    nC, nO, nV, nX = 1, 1, 2, 2
+    npp = nC + nO + nV + nX
+    SL = {"o": slice(0, 2), "v": slice(2, 4), "C": slice(0, nC), "O": slice(nC, nC + nO),
+          "V": slice(nC + nO, nC + nO + nV), "X": slice(nC + nO + nV, npp)}
+    pasl = slice(nC, nC + nO + nV)
+    rng = np.random.default_rng(4)
+    hp = rng.standard_normal((npp, npp)); hp = hp + hp.T
+    D1n = np.zeros((npp, npp)); D1n[pasl, pasl] = rng.standard_normal((nO + nV, nO + nV))
+    gw = rng.standard_normal((ne, npp, ne, npp)); gep = gw + gw.transpose(2, 3, 0, 1)
+    D2 = rng.standard_normal((npp, ne, ne, npp)); D2ep = np.zeros_like(D2); D2ep[pasl, :, :, pasl] = D2[pasl, :, :, pasl]
+    F = {"g": gep, "h": hp, "D1": D1n, "D2_ep": D2ep, "gep": gep, "hp": hp, "D1_n": D1n}
+    Gp = _interp_terms(models._HP_GRAD_TERMS + models._GEP_PROTON_GRAD_TERMS, ["na", "ni"], (npp, npp), F)
+    g = einsums.parse_ir(models.orbital_gradient_ir("neo-ccd(ep)", "proton", rotation_classes=("c", "o", "v", "x")))
+    assert {st["target"]["name"] for st in g} == {'grad["VO"]', 'grad["XO"]', 'grad["XV"]', 'grad["OC"]', 'grad["VC"]'}
+    assert not any(o["name"].split('["')[0] in ("D1_n", "D2_ep") and any(c in "CX" for c in o["classes"])
+                   for st in g for o in st["operands"])
+    for name, out in _interp_blocks(g, F, SL).items():
+        hi, lo = re.search(r'\["(\w)(\w)"\]', name).groups()
+        assert np.max(np.abs(out - Gp[SL[hi], SL[lo]])) < 1e-10, name
+    print("test_orbital_proton_gradient_active_space OK")
+
+
+def test_orbital_cross_sigma_active_space():
+    import re
+    import numpy as np
+    nc, no, nv, nx = 1, 2, 1, 2
+    nC, nO, nV, nX = 1, 1, 2, 1
+    nme, nmp = nc + no + nv + nx, nC + nO + nV + nX
+    SL = {"c": slice(0, nc), "o": slice(nc, nc + no), "v": slice(nc + no, nc + no + nv), "x": slice(nc + no + nv, nme),
+          "C": slice(0, nC), "O": slice(nC, nC + nO), "V": slice(nC + nO, nC + nO + nV), "X": slice(nC + nO + nV, nmp)}
+    ae, ap = slice(nc, nc + no + nv), slice(nC, nC + nO + nV)
+    rng = np.random.default_rng(7)
+    gw = rng.standard_normal((nme, nmp, nme, nmp)); gep = gw + gw.transpose(2, 3, 0, 1)
+    D2 = rng.standard_normal((nmp, nme, nme, nmp)); D2ep = np.zeros_like(D2); D2ep[ap, ae, ae, ap] = D2[ap, ae, ae, ap]
+    kp = rng.standard_normal((nmp, nmp))
+    F = {"g": gep, "gep": gep, "D2_ep": D2ep, "kappa_n": kp}
+    Hep = _interp_terms(models._GEP_CROSS_HESS_TERMS, ["a", "nb", "i", "nj"], (nme, nmp, nme, nmp), F)
+    ir = einsums.parse_ir(models.orbital_sigma_ir("neo-ccd(ep)", "electron", rotation_classes=("c", "o", "v", "x")))
+    cross = [st for st in ir if any(o["name"].split('["')[0] == "kappa_n" for o in st["operands"])]
+    assert cross and all(sum(c in "xX" for c in st["target"]["classes"]) <= 1 for st in cross)
+    pblk = [(hi, lo) for hi in "COVX" for lo in "COVX" if models._CLASS_LEVEL[hi] > models._CLASS_LEVEL[lo]]
+    for name, out in _interp_blocks(cross, F, SL).items():
+        ehi, elo = re.search(r'\["(\w)(\w)"\]', name).groups()
+        ref = sum(np.einsum("abij,bj->ai", Hep[SL[ehi], SL[phi], SL[elo], SL[plo]], kp[SL[phi], SL[plo]])
+                  for phi, plo in pblk)
+        assert np.max(np.abs(out - ref)) < 1e-10, name
+    print("test_orbital_cross_sigma_active_space OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -589,4 +657,6 @@ if __name__ == "__main__":
     test_orbital_gradient_active_space()
     test_orbital_diag_active_space()
     test_orbital_sigma_active_space()
+    test_orbital_proton_gradient_active_space()
+    test_orbital_cross_sigma_active_space()
     print("\nall model tests passed")

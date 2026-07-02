@@ -568,14 +568,17 @@ def _parse_rdm_term(term):
 
 
 # orbital classes ordered by occupation for the active-space OO rotation split:
-# core (inactive-occ) < active-occ < active-vir < inactive-vir (external).
-_CLASS_LEVEL = {"c": 0, "o": 1, "v": 2, "x": 3}
+# core (inactive-occ) < active-occ < active-vir < inactive-vir (external). Electron
+# classes are lowercase, proton uppercase; rotation_classes is given lowercase and
+# mapped to the species' case.
+_CLASS_LEVEL = {"c": 0, "o": 1, "v": 2, "x": 3, "C": 0, "O": 1, "V": 2, "X": 3}
 
 
-def _rotation_blocks(rotation_classes):
+def _rotation_blocks(rotation_classes, species="electron"):
     """Non-redundant rotation blocks (row, col) -- row 'higher' than col -- from the
-    given classes. ('o','v') -> [('v','o')] (today's active-active block)."""
-    cs = list(rotation_classes)
+    given (lowercase) classes, cased for the species. ('o','v') -> [('v','o')] electron
+    or [('V','O')] proton (today's active-active block)."""
+    cs = [c.upper() if species == "proton" else c for c in rotation_classes]
     return [(hi, lo) for hi in cs for lo in cs if _CLASS_LEVEL[hi] > _CLASS_LEVEL[lo]]
 
 
@@ -620,9 +623,13 @@ def orbital_gradient_ir(name, species="electron", rotation_classes=("o", "v"),
     if species == "proton":                            # fully hand-derived (see terms)
         if not is_neo:
             raise ValueError("proton-species orbital gradient requires a NEO model")
-        if not single:
-            raise NotImplementedError("proton-species active-space rotation split is the follow-up")
-        return _block_resolve(_HP_GRAD_TERMS + _GEP_PROTON_GRAD_TERMS, label, ["na", "ni"])
+        pterms = _HP_GRAD_TERMS + _GEP_PROTON_GRAD_TERMS
+        out = []
+        for hi, lo in _rotation_blocks(rotation_classes, "proton"):
+            suffix = "" if single else f'["{hi}{lo}"]'
+            out += _block_resolve(pterms, label + suffix, ["na", "ni"],
+                                  ext_classes={"na": hi, "ni": lo}, drop_inactive_rdm=True)
+        return out
     terms = _electron_gradient_terms(name)
     out = []
     for hi, lo in _rotation_blocks(rotation_classes):
@@ -705,19 +712,19 @@ def orbital_hessian_diag_ir(name, species="electron", rotation_classes=("o", "v"
         raise ValueError("internal indices are RDM-contracted and must be 'active'")
     single = tuple(rotation_classes) == ("o", "v")
     colrow = _HESS_DIAG_RELABEL[species]
-    is_neo = any(op in model(name).H for op in ("fp", "gep"))
-    if not single and (species == "proton" or is_neo):
-        raise NotImplementedError("proton / NEO-cross active-space diagonal is the follow-up")
+    if species == "proton" and not any(op in model(name).H for op in ("fp", "gep")):
+        raise ValueError("proton-species diagonal requires a NEO model")
 
-    def block_hessian(hi, lo):
+    def block_hessian(hi, lo):                            # diagonal: row = col = (hi, lo)
         if species == "proton":
-            return einsums.parse_ir(orbital_hessian_ir(name, "proton", label="H"))
-        return einsums.parse_ir(_block_resolve(
-            _electron_hessian_terms(name), "H", ["a", "b", "i", "j"],
-            ext_classes={"a": hi, "i": lo, "b": hi, "j": lo}, drop_inactive_rdm=True))
+            terms, letters = _proton_hessian_terms(name), ["na", "nb", "ni", "nj"]
+        else:
+            terms, letters = _electron_hessian_terms(name), ["a", "b", "i", "j"]
+        ext = {letters[0]: hi, letters[1]: hi, letters[2]: lo, letters[3]: lo}
+        return einsums.parse_ir(_block_resolve(terms, "H", letters, ext_classes=ext, drop_inactive_rdm=True))
 
     out, seen = [], set()
-    for hi, lo in _rotation_blocks(rotation_classes):
+    for hi, lo in _rotation_blocks(rotation_classes, species):
         tgt = label + ("" if single else f'["{hi}{lo}"]')
         for st in block_hessian(hi, lo):
             ops = [{**o, "indices": [colrow.get(l, l) for l in o["indices"]]} for o in st["operands"]]
@@ -773,6 +780,20 @@ def _electron_hessian_terms(name):
     return terms
 
 
+def _proton_hessian_terms(name):
+    """Bare-form proton-proton Hessian algebra: the proton core piece (electron h-only
+    Hessian relabeled e->p) plus the gep proton-rotation terms (rows na,ni; cols nb,nj)."""
+    ai, ia = _ROT_ROW["electron"]
+    bj, jb = _ROT_COL["electron"]
+    pq = pq_helper("true")
+    pq.set_use_rdms(True)
+    for x, sx in ((ai, 1.0), (ia, -1.0)):
+        for y, sy in ((bj, 1.0), (jb, -1.0)):
+            pq.add_double_commutator(sx * sy, ["h"], [x], [y])
+    pq.simplify()
+    return [_relabel_e2p(" ".join(t)) for t in pq.strings()] + _GEP_PROTON_HESS_TERMS
+
+
 def orbital_sigma_ir(name, species="electron", rotation_classes=("o", "v"), internal="active",
                      label="sigma", trial="kappa", trial_n="kappa_n"):
     """Matrix-free orbital Hessian-vector product (``sigma = H . kappa``) for ``species``
@@ -799,24 +820,41 @@ def orbital_sigma_ir(name, species="electron", rotation_classes=("o", "v"), inte
     is_neo = any(op in model(name).H for op in ("fp", "gep"))
     single = tuple(rotation_classes) == ("o", "v")
     seen, out = set(), []
-    if species == "proton":
+
+    def same_species(sp):                                 # H^ss . kappa^s over row x col blocks
+        terms = _proton_hessian_terms(name) if sp == "proton" else _electron_hessian_terms(name)
+        lets = ["na", "nb", "ni", "nj"] if sp == "proton" else ["a", "b", "i", "j"]
+        tr = trial_n if sp == "proton" else trial
+        res = []
+        for rhi, rlo in _rotation_blocks(rotation_classes, sp):
+            rsuf = "" if single else f'["{rhi}{rlo}"]'
+            for chi, clo in _rotation_blocks(rotation_classes, sp):
+                hess = _block_resolve(terms, "H", lets, drop_inactive_rdm=True,
+                                      ext_classes={lets[0]: rhi, lets[1]: chi, lets[2]: rlo, lets[3]: clo})
+                res += _sigma_from_hessian(hess, (0, 2), (1, 3), tr, label + rsuf, seen)
+        return res
+
+    def cross(row_sp):                                    # H^ep coupling: sigma^e += H^ep.kappa^p
+        res = []                                          #                sigma^p += (H^ep)^T.kappa^e
+        for ehi, elo in _rotation_blocks(rotation_classes, "electron"):
+            for phi, plo in _rotation_blocks(rotation_classes, "proton"):
+                cr = _block_resolve(_GEP_CROSS_HESS_TERMS, "H", ["a", "nb", "i", "nj"], drop_inactive_rdm=True,
+                                    ext_classes={"a": ehi, "i": elo, "nb": phi, "nj": plo})
+                if row_sp == "electron":                  # row = electron (a,i); contract proton col (nb,nj)
+                    rsuf = "" if single else f'["{ehi}{elo}"]'
+                    res += _sigma_from_hessian(cr, (0, 2), (1, 3), trial_n, label + rsuf, seen)
+                else:                                     # row = proton (nb,nj); contract electron col (a,i)
+                    rsuf = "" if single else f'["{phi}{plo}"]'
+                    res += _sigma_from_hessian(cr, (1, 3), (0, 2), trial, label + rsuf, seen)
+        return res
+
+    if species == "electron":
+        out += same_species("electron")
+        if is_neo:
+            out += cross("electron")
+    else:
         if not is_neo:
             raise ValueError("proton-species sigma requires a NEO model")
-        if not single:
-            raise NotImplementedError("proton-species active-space sigma is the follow-up")
-        out += _sigma_from_hessian(orbital_hessian_ir(name, "proton"), (0, 2), (1, 3), trial_n, label, seen)
-        out += _sigma_from_hessian(orbital_hessian_ir(name, "electron", "proton"), (1, 3), (0, 2), trial, label, seen)
-        return out
-    if is_neo and not single:
-        raise NotImplementedError("NEO electron active-space sigma cross (H^ep.kappa^p) is the follow-up")
-    hterms = _electron_hessian_terms(name)                # H^ee (+ gep-in-ee for NEO)
-    for rhi, rlo in _rotation_blocks(rotation_classes):   # sigma row block
-        rsuf = "" if single else f'["{rhi}{rlo}"]'
-        for chi, clo in _rotation_blocks(rotation_classes):   # kappa column block
-            hess = _block_resolve(hterms, "H", ["a", "b", "i", "j"],
-                                  ext_classes={"a": rhi, "i": rlo, "b": chi, "j": clo}, drop_inactive_rdm=True)
-            out += _sigma_from_hessian(hess, (0, 2), (1, 3), trial, label + rsuf, seen)
-    if is_neo:                                            # + H^ep . kappa^p (default rotation)
-        out += _sigma_from_hessian(orbital_hessian_ir(name, "electron", "proton"),
-                                   (0, 2), (1, 3), trial_n, label, seen)
+        out += same_species("proton")
+        out += cross("proton")
     return out
