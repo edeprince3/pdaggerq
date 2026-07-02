@@ -732,31 +732,68 @@ def _sigma_from_hessian(hess_lines, row_pos, col_pos, trial, label, seen):
     return out
 
 
-def orbital_sigma_ir(name, species="electron", label="sigma", trial="kappa", trial_n="kappa_n"):
-    """Matrix-free orbital Hessian-vector product (sigma = H . kappa) for ``species``,
-    as explicit occ/vir-block JSONL IR -- for trust-region OO that never materializes
-    H. The trial rotation is a given vir-occ tensor (electron ``kappa["vo"]``, proton
-    ``kappa_n["VO"]``); neocc supplies it each micro-iteration.
+def _electron_hessian_terms(name):
+    """Bare-form electron-electron Hessian algebra <[[h + 1/2 g (+ gep), E_ai - E_ia],
+    E_bj - E_jb]> (rows a,i; columns b,j)."""
+    ai, ia = _ROT_ROW["electron"]
+    bj, jb = _ROT_COL["electron"]
+    pq = pq_helper("true")
+    pq.set_use_rdms(True)
+    for op, c in _bare_H(name, "electron"):
+        for x, sx in ((ai, 1.0), (ia, -1.0)):
+            for y, sy in ((bj, 1.0), (jb, -1.0)):
+                pq.add_double_commutator(c * sx * sy, [op], [x], [y])
+    pq.simplify()
+    terms = [" ".join(t) for t in pq.strings()]
+    if any(op in model(name).H for op in ("fp", "gep")):
+        terms += _GEP_HESS_TERMS
+    return terms
 
-    Built by contracting the closed-form Hessian's column indices against the trial:
-    the same-species block gives ``H^ss . kappa^s`` and, for NEO, the e-p cross block
-    couples in the other species -- sigma^e = H^ee.kappa^e + H^ep.kappa^p and
-    sigma^p = H^pp.kappa^p + (H^ep)^T.kappa^e (the transpose is the same cross tensor
-    contracted on its electron indices)."""
+
+def orbital_sigma_ir(name, species="electron", rotation_classes=("o", "v"), internal="active",
+                     label="sigma", trial="kappa", trial_n="kappa_n"):
+    """Matrix-free orbital Hessian-vector product (``sigma = H . kappa``) for ``species``
+    as explicit block JSONL IR -- the primitive for trust-region OO in a large basis,
+    which never materializes H.
+
+    Active-space + large ``N_vir``: the sigma **row** (output) rotation index ranges
+    over ``rotation_classes`` (core c, active o/v, external x); the trial ``kappa``
+    spans the same rotation blocks. Each block is built by contracting the class-split
+    Hessian's **column** against ``kappa["<col>"]``, so the column's external (x) index
+    is *folded* (density-driven, O(N_vir)) and only the row's external index stays free
+    -- one free inactive-virtual index per term, the J/K shape neocc's engine consumes.
+    The ``x-x`` Hessian block is never formed; it enters sigma only as this folded
+    contraction. Default ``("o","v")`` reproduces the plain active-active sigma.
+
+    NEO: ``sigma^e = H^ee.kappa^e + H^ep.kappa^p`` and ``sigma^p = H^pp.kappa^p +
+    (H^ep)^T.kappa^e`` (default rotation only for now; the cross-block active-space
+    split is the follow-up). neocc supplies D1/D2 (active), the integral blocks, and the
+    trial each micro-iteration."""
     if species not in _ROT_ROW:
         raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+    if internal != "active":
+        raise ValueError("internal indices are RDM-contracted and must be 'active'")
     is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    single = tuple(rotation_classes) == ("o", "v")
     seen, out = set(), []
-    if species == "electron":
-        out += _sigma_from_hessian(orbital_hessian_ir(name, "electron"), (0, 2), (1, 3), trial, label, seen)
-        if is_neo:                                        # + H^ep . kappa^p (contract proton column)
-            out += _sigma_from_hessian(orbital_hessian_ir(name, "electron", "proton"),
-                                       (0, 2), (1, 3), trial_n, label, seen)
-    else:
+    if species == "proton":
         if not is_neo:
             raise ValueError("proton-species sigma requires a NEO model")
+        if not single:
+            raise NotImplementedError("proton-species active-space sigma is the follow-up")
         out += _sigma_from_hessian(orbital_hessian_ir(name, "proton"), (0, 2), (1, 3), trial_n, label, seen)
-        # + (H^ep)^T . kappa^e: contract the cross block's ELECTRON indices, proton is sigma's row
+        out += _sigma_from_hessian(orbital_hessian_ir(name, "electron", "proton"), (1, 3), (0, 2), trial, label, seen)
+        return out
+    if is_neo and not single:
+        raise NotImplementedError("NEO electron active-space sigma cross (H^ep.kappa^p) is the follow-up")
+    hterms = _electron_hessian_terms(name)                # H^ee (+ gep-in-ee for NEO)
+    for rhi, rlo in _rotation_blocks(rotation_classes):   # sigma row block
+        rsuf = "" if single else f'["{rhi}{rlo}"]'
+        for chi, clo in _rotation_blocks(rotation_classes):   # kappa column block
+            hess = _block_resolve(hterms, "H", ["a", "b", "i", "j"],
+                                  ext_classes={"a": rhi, "i": rlo, "b": chi, "j": clo}, drop_inactive_rdm=True)
+            out += _sigma_from_hessian(hess, (0, 2), (1, 3), trial, label + rsuf, seen)
+    if is_neo:                                            # + H^ep . kappa^p (default rotation)
         out += _sigma_from_hessian(orbital_hessian_ir(name, "electron", "proton"),
-                                   (1, 3), (0, 2), trial, label, seen)
+                                   (0, 2), (1, 3), trial_n, label, seen)
     return out

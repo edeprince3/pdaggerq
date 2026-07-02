@@ -449,6 +449,62 @@ def test_orbital_gradient_active_space():
     print("test_orbital_gradient_active_space OK")
 
 
+def test_orbital_sigma_active_space():
+    import re
+    import numpy as np
+    import pdaggerq
+    # default unchanged
+    assert einsums.target_shape(einsums.parse_ir(models.orbital_sigma_ir("ccsd")), "sigma") == (2, ["v", "o"])
+
+    nc, no, nv, nx = 1, 2, 2, 3
+    nmo = nc + no + nv + nx
+    SL = {"c": slice(0, nc), "o": slice(nc, nc + no), "v": slice(nc + no, nc + no + nv), "x": slice(nc + no + nv, nmo)}
+    asl = slice(nc, nc + no + nv); na = no + nv
+    rng = np.random.default_rng(1)
+    h = rng.standard_normal((nmo, nmo)); h = h + h.T
+    grw = rng.standard_normal((nmo,) * 4); g = grw + grw.transpose(1, 0, 3, 2)
+    D1 = np.zeros((nmo, nmo)); D1[asl, asl] = rng.standard_normal((na, na))
+    d2 = np.zeros((nmo,) * 4); d2[asl, asl, asl, asl] = rng.standard_normal((na,) * 4)
+    D2 = d2 - d2.transpose(1, 0, 2, 3); D2 = D2 - D2.transpose(0, 1, 3, 2)
+    kap = rng.standard_normal((nmo, nmo))
+    FULL = {"h": h, "g": g, "D1": D1, "D2": D2, "Id": np.eye(nmo), "kappa": kap}
+    RC = ("c", "o", "v", "x")
+    blocks = [(hi, lo) for hi in RC for lo in RC if models._CLASS_LEVEL[hi] > models._CLASS_LEVEL[lo]]
+
+    # reference full Hessian H4 over nmo (active-only RDMs)
+    pq = pdaggerq.pq_helper("true"); pq.set_use_rdms(True)
+    for op, c in (("h", 1.0), ("g", 0.5)):
+        for xg, sx in (("e1(a,i)", 1.0), ("e1(i,a)", -1.0)):
+            for yg, sy in (("e1(b,j)", 1.0), ("e1(j,b)", -1.0)):
+                pq.add_double_commutator(c * sx * sy, [op], [xg], [yg])
+    pq.simplify()
+    H4 = np.zeros((nmo,) * 4)
+    for t in pq.strings():
+        coeff, ts = models._parse_rdm_term(" ".join(t))
+        arrs = [FULL["Id"] if nm == "d" else FULL[nm] for nm, _ in ts]
+        H4 += coeff * np.einsum(",".join("".join(i) for _, i in ts) + "->abij", *arrs, optimize=True)
+
+    ir = einsums.parse_ir(models.orbital_sigma_ir("ccsd", "electron", rotation_classes=RC))
+    assert all(sum(c in "xX" for c in st["target"]["classes"]) <= 1 for st in ir)   # one free x per term
+    by = {}
+    for st in ir:
+        by.setdefault(st["target"]["name"], []).append(st)
+    for rhi, rlo in blocks:
+        name = f'sigma["{rhi}{rlo}"]'
+        if name not in by:
+            continue
+        out = np.zeros((SL[rhi].stop - SL[rhi].start, SL[rlo].stop - SL[rlo].start))
+        for st in by[name]:
+            arrs = [FULL[o["name"].split('["')[0]][tuple(SL[c] for c in o["name"].split('["')[1].rstrip('"]'))]
+                    for o in st["operands"]]
+            subs = ",".join("".join(o["indices"]) for o in st["operands"])
+            out += st["coeff"] * np.einsum(f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+        ref = sum(np.einsum("abij,bj->ai", H4[SL[rhi], SL[chi], SL[rlo], SL[clo]], kap[SL[chi], SL[clo]])
+                  for chi, clo in blocks)
+        assert np.max(np.abs(out - ref)) < 1e-10, name
+    print("test_orbital_sigma_active_space OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -461,4 +517,5 @@ if __name__ == "__main__":
     test_orbital_hessian_diag()
     test_orbital_sigma()
     test_orbital_gradient_active_space()
+    test_orbital_sigma_active_space()
     print("\nall model tests passed")
