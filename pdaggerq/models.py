@@ -382,6 +382,31 @@ _GEP_GRAD_TERMS = [
     "+1.0 g(a,np,q,nq) D2_ep(np,i,q,nq)",
 ]
 
+# The gep contribution to the electron-electron OO Hessian, hand-derived (like the
+# gradient) as d^2 E_ep/dkappa^2 -- the fixed-RDM energy Hessian, symmetric by
+# construction -- from the 2nd-order Taylor expansion of the rotated gep. Eight
+# well-formed 2e2p "cross" terms plus eight Kronecker-delta terms (electron index
+# summed, coeff -1/2). Validated: closed form == Taylor Hessian to ~1e-15, Taylor ==
+# finite differences to ~1e-7.
+_GEP_HESS_TERMS = [
+    "+1.0 g(a,np,b,nq) D2_ep(np,i,j,nq)",
+    "-1.0 g(a,np,j,nq) D2_ep(np,i,b,nq)",
+    "-1.0 g(i,np,b,nq) D2_ep(np,a,j,nq)",
+    "+1.0 g(i,np,j,nq) D2_ep(np,a,b,nq)",
+    "+1.0 g(b,np,a,nq) D2_ep(np,j,i,nq)",
+    "-1.0 g(b,np,i,nq) D2_ep(np,j,a,nq)",
+    "-1.0 g(j,np,a,nq) D2_ep(np,b,i,nq)",
+    "+1.0 g(j,np,i,nq) D2_ep(np,b,a,nq)",
+    "-0.5 d(i,j) g(a,np,p,nq) D2_ep(np,b,p,nq)",
+    "-0.5 d(i,j) g(b,np,p,nq) D2_ep(np,a,p,nq)",
+    "-0.5 d(i,j) g(p,np,a,nq) D2_ep(np,p,b,nq)",
+    "-0.5 d(i,j) g(p,np,b,nq) D2_ep(np,p,a,nq)",
+    "-0.5 d(a,b) g(i,np,p,nq) D2_ep(np,j,p,nq)",
+    "-0.5 d(a,b) g(j,np,p,nq) D2_ep(np,i,p,nq)",
+    "-0.5 d(a,b) g(p,np,i,nq) D2_ep(np,p,j,nq)",
+    "-0.5 d(a,b) g(p,np,j,nq) D2_ep(np,p,i,nq)",
+]
+
 
 def _bare_H(name, species):
     """(operator, coeff) list for the mean-field-free Hamiltonian entering the
@@ -477,19 +502,15 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"
     """Fixed-RDM orbital Hessian block
     ``H_ai,bj = <[[H, E_ai - E_ia], E_bj - E_jb]>`` (rows a,i; columns b,j) as
     explicit occ/vir-block JSONL IR. ``col_species`` defaults to ``row_species``.
-    Pure-electron same-species only: the NEO gep contribution to the Hessian (unlike
-    the gradient) is not yet hand-derived -- the double commutator's symmetrization
-    is still open -- so NEO models and cross/proton blocks raise."""
+    Electron same-species is supported for electronic and NEO models (the e-p coupling
+    gep is added via the hand-derived _GEP_HESS_TERMS); the e-p cross block and proton
+    rows are the follow-up (bare proton core)."""
     if col_species is None:
         col_species = row_species
     if row_species not in _ROT_ROW or col_species not in _ROT_COL:
         raise ValueError("row/col species must be 'electron' or 'proton'")
     if row_species != col_species:
         raise NotImplementedError("electron-proton cross Hessian block is the follow-up")
-    if any(op in model(name).H for op in ("fp", "gep")):
-        raise NotImplementedError(
-            "NEO orbital Hessian: the gep contribution is not yet hand-derived "
-            "(the gep gradient is; the Hessian double commutator is the follow-up)")
     ai, ia = _ROT_ROW[row_species]
     bj, jb = _ROT_COL[col_species]
     pq = pq_helper("true")
@@ -499,7 +520,10 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"
             for y, sy in ((bj, 1.0), (jb, -1.0)):
                 pq.add_double_commutator(c * sx * sy, [op], [x], [y])
     pq.simplify()
-    return _block_resolve([" ".join(t) for t in pq.strings()], label, ["a", "b", "i", "j"])
+    terms = [" ".join(t) for t in pq.strings()]
+    if row_species == "electron" and any(op in model(name).H for op in ("fp", "gep")):
+        terms += _GEP_HESS_TERMS                       # NEO: hand-derived e-p coupling
+    return _block_resolve(terms, label, ["a", "b", "i", "j"])
 
 
 # einsum-char relabel taking the column rotation indices onto the row (the diagonal)

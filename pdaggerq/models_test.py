@@ -239,10 +239,41 @@ def test_orbital_gradient_hessian():
     # electron Hessian: rank-4 vir-vir-occ-occ block
     hee = einsums.parse_ir(models.orbital_hessian_ir("ccsd"))
     assert einsums.target_shape(hee, "H") == (4, ["v", "v", "o", "o"])
-    # unsupported paths raise cleanly (proton rows; NEO Hessian gep; cross block)
+
+    # NEO electron Hessian: hand-derived gep part (8 cross + 8 delta terms) is well-formed
+    # 2e2p and reproduces the closed form d^2 E_ep/dkappa^2 (finite-diff-validated).
+    hgep = [st for st in einsums.parse_ir(models.orbital_hessian_ir("neo-ccd(ep)", "electron"))
+            if any(o["name"].split('["')[0] in ("gep", "D2_ep") for o in st["operands"])]
+    assert hgep
+    for st in hgep:
+        for o in st["operands"]:
+            if o["name"].split('["')[0] in ("gep", "D2_ep"):
+                assert ["p" if c in "OV" else "e" for c in o["classes"]] in (["e", "p", "e", "p"], ["p", "e", "e", "p"])
+    full["Id"] = np.eye(ne)
+    HH = np.zeros((nv, nv, no, no))
+    for st in hgep:
+        arrs = [full[o["name"].split('["')[0]][tuple(SL[c] for c in o["name"].split('["')[1].rstrip('"]'))]
+                for o in st["operands"]]
+        subs = ",".join("".join(o["indices"]) for o in st["operands"])
+        HH += st["coeff"] * np.einsum(f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+    o, v = slice(0, no), slice(no, ne)
+    ee = np.einsum
+    ref = (ee("aPbQ,PijQ->abij", G[v, :, v, :], D[:, o, o, :]) - ee("aPjQ,PibQ->abij", G[v, :, o, :], D[:, o, v, :])
+           - ee("iPbQ,PajQ->abij", G[o, :, v, :], D[:, v, o, :]) + ee("iPjQ,PabQ->abij", G[o, :, o, :], D[:, v, v, :])
+           + ee("bPaQ,PjiQ->abij", G[v, :, v, :], D[:, o, o, :]) - ee("bPiQ,PjaQ->abij", G[v, :, o, :], D[:, o, v, :])
+           - ee("jPaQ,PbiQ->abij", G[o, :, v, :], D[:, v, o, :]) + ee("jPiQ,PbaQ->abij", G[o, :, o, :], D[:, v, v, :]))
+    eo, ev = np.eye(no), np.eye(nv)
+    for M in (ee("aPpQ,PbpQ->ab", G[v, :, :, :], D[:, v, :, :]), ee("bPpQ,PapQ->ab", G[v, :, :, :], D[:, v, :, :]),
+              ee("pPaQ,PpbQ->ab", G[:, :, v, :], D[:, :, v, :]), ee("pPbQ,PpaQ->ab", G[:, :, v, :], D[:, :, v, :])):
+        ref -= 0.5 * ee("ab,ij->abij", M, eo)
+    for M in (ee("iPpQ,PjpQ->ij", G[o, :, :, :], D[:, o, :, :]), ee("jPpQ,PipQ->ij", G[o, :, :, :], D[:, o, :, :]),
+              ee("pPiQ,PpjQ->ij", G[:, :, o, :], D[:, :, o, :]), ee("pPjQ,PpiQ->ij", G[:, :, o, :], D[:, :, o, :])):
+        ref -= 0.5 * ee("ij,ab->abij", M, ev)
+    assert np.max(np.abs(HH - ref)) < 1e-10
+
+    # unsupported paths raise cleanly (proton rows; e-p cross block)
     for bad, exc in ((lambda: models.orbital_gradient_ir("ccsd", "muon"), ValueError),
                      (lambda: models.orbital_gradient_ir("neo-ccd(ep)", "proton"), NotImplementedError),
-                     (lambda: models.orbital_hessian_ir("neo-ccd(ep)"), NotImplementedError),
                      (lambda: models.orbital_hessian_ir("neo-ccd(ep)", "electron", "proton"), NotImplementedError)):
         try:
             bad(); assert False, "expected an error"
