@@ -449,6 +449,76 @@ def test_orbital_gradient_active_space():
     print("test_orbital_gradient_active_space OK")
 
 
+def _active_space_H4(FULL, nmo):
+    """Reference full electron Hessian H4[a,b,i,j] over nmo with active-only RDMs."""
+    import pdaggerq
+    import numpy as np
+    pq = pdaggerq.pq_helper("true"); pq.set_use_rdms(True)
+    for op, c in (("h", 1.0), ("g", 0.5)):
+        for xg, sx in (("e1(a,i)", 1.0), ("e1(i,a)", -1.0)):
+            for yg, sy in (("e1(b,j)", 1.0), ("e1(j,b)", -1.0)):
+                pq.add_double_commutator(c * sx * sy, [op], [xg], [yg])
+    pq.simplify()
+    H4 = np.zeros((nmo,) * 4)
+    for t in pq.strings():
+        coeff, ts = models._parse_rdm_term(" ".join(t))
+        arrs = [FULL["Id"] if nm == "d" else FULL[nm] for nm, _ in ts]
+        H4 += coeff * np.einsum(",".join("".join(i) for _, i in ts) + "->abij", *arrs, optimize=True)
+    return H4
+
+
+def _active_space_tensors(seed):
+    import numpy as np
+    nc, no, nv, nx = 1, 2, 2, 3
+    nmo = nc + no + nv + nx
+    SL = {"c": slice(0, nc), "o": slice(nc, nc + no), "v": slice(nc + no, nc + no + nv), "x": slice(nc + no + nv, nmo)}
+    asl = slice(nc, nc + no + nv); na = no + nv
+    rng = np.random.default_rng(seed)
+    h = rng.standard_normal((nmo, nmo)); h = h + h.T
+    grw = rng.standard_normal((nmo,) * 4); g = grw + grw.transpose(1, 0, 3, 2)
+    D1 = np.zeros((nmo, nmo)); D1[asl, asl] = rng.standard_normal((na, na))
+    d2 = np.zeros((nmo,) * 4); d2[asl, asl, asl, asl] = rng.standard_normal((na,) * 4)
+    D2 = d2 - d2.transpose(1, 0, 2, 3); D2 = D2 - D2.transpose(0, 1, 3, 2)
+    FULL = {"h": h, "g": g, "D1": D1, "D2": D2, "Id": np.eye(nmo)}
+    RC = ("c", "o", "v", "x")
+    blocks = [(hi, lo) for hi in RC for lo in RC if models._CLASS_LEVEL[hi] > models._CLASS_LEVEL[lo]]
+    return nmo, SL, FULL, RC, blocks
+
+
+def _interp_blocks(ir, FULL, SL):
+    import numpy as np
+    by = {}
+    for st in ir:
+        by.setdefault(st["target"]["name"], []).append(st)
+    res = {}
+    for name, sts in by.items():
+        shp = tuple(SL[c].stop - SL[c].start for c in sts[0]["target"]["classes"])
+        out = np.zeros(shp)
+        for st in sts:
+            arrs = [FULL[o["name"].split('["')[0]][tuple(SL[c] for c in o["name"].split('["')[1].rstrip('"]'))]
+                    for o in st["operands"]]
+            subs = ",".join("".join(o["indices"]) for o in st["operands"])
+            out += st["coeff"] * np.einsum(f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+        res[name] = out
+    return res
+
+
+def test_orbital_diag_active_space():
+    import numpy as np
+    assert einsums.target_shape(einsums.parse_ir(models.orbital_hessian_diag_ir("ccsd")), "hdiag") == (2, ["v", "o"])
+    nmo, SL, FULL, RC, blocks = _active_space_tensors(2)
+    H4 = _active_space_H4(FULL, nmo)
+    got = _interp_blocks(einsums.parse_ir(models.orbital_hessian_diag_ir("ccsd", "electron", rotation_classes=RC)), FULL, SL)
+    for hi, lo in blocks:
+        name = f'hdiag["{hi}{lo}"]'
+        ref = np.einsum("aaii->ai", H4[SL[hi], SL[hi], SL[lo], SL[lo]])
+        if name in got:
+            assert np.max(np.abs(got[name] - ref)) < 1e-10, name
+        else:                                              # not emitted => zero active-RDM contribution
+            assert np.max(np.abs(ref)) < 1e-12, name
+    print("test_orbital_diag_active_space OK")
+
+
 def test_orbital_sigma_active_space():
     import re
     import numpy as np
@@ -517,5 +587,6 @@ if __name__ == "__main__":
     test_orbital_hessian_diag()
     test_orbital_sigma()
     test_orbital_gradient_active_space()
+    test_orbital_diag_active_space()
     test_orbital_sigma_active_space()
     print("\nall model tests passed")

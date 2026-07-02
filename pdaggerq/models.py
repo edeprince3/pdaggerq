@@ -684,30 +684,53 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"
 _HESS_DIAG_RELABEL = {"electron": {"b": "a", "j": "i"}, "proton": {"B": "A", "J": "I"}}
 
 
-def orbital_hessian_diag_ir(name, species="electron", label="hdiag"):
-    """The diagonal orbital-Hessian preconditioner ``h_ai = H_ai,ai`` over the
-    vir-occ block of ``species``, as explicit occ/vir-block JSONL IR.
+def orbital_hessian_diag_ir(name, species="electron", rotation_classes=("o", "v"),
+                            internal="active", label="hdiag"):
+    """The diagonal orbital-Hessian preconditioner ``h_pq = H_pq,pq`` over the rotation
+    blocks of ``species``, as explicit block JSONL IR.
 
     pdaggerq sums repeated generator labels, so it cannot emit the rank-2 diagonal
-    directly. Instead this relabels the column rotation indices of the (unfused,
-    block-resolved) same-species Hessian onto the row (electron b->a, j->i): the
-    diagonal of a sum is the sum of the per-term diagonals, and each term drops to
-    rank-2. Verified against diag(orbital_hessian_ir) to ~1e-14."""
+    directly. Instead this relabels the column rotation indices of the (unfused, block-
+    resolved) same-block Hessian onto the row (electron b->a, j->i): the diagonal of a
+    sum is the sum of the per-term diagonals, and each term drops to rank-2.
+
+    Active-space: the exact diagonal of each rotation block (``rotation_classes`` over
+    c/o/v/x, internal active). An x-active block's diagonal carries the *diagonal* of
+    the x-block integral (g[x,.,x,.]) -- one repeated x, O(N_vir), which neocc builds
+    as a J/K diagonal. Per-block targets ``hdiag["<row><col>"]``; default ("o","v")
+    stays bare ``hdiag``. Verified against diag(orbital_hessian_ir) to ~1e-14."""
+    if species not in _ROT_ROW:
+        raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+    if internal != "active":
+        raise ValueError("internal indices are RDM-contracted and must be 'active'")
+    single = tuple(rotation_classes) == ("o", "v")
     colrow = _HESS_DIAG_RELABEL[species]
-    full = einsums.parse_ir(orbital_hessian_ir(name, species, species, label=label))
-    out = []
-    for st in full:
-        st = dict(st)
-        st["operands"] = [{**o, "indices": [colrow.get(l, l) for l in o["indices"]]}
-                          for o in st["operands"]]
-        t = st["target"]
-        seen, cls = [], []
-        for lab, c in zip((colrow.get(l, l) for l in t["indices"]), t["classes"]):
-            if lab not in seen:            # dedupe [a,a,i,i] -> [a,i]
-                seen.append(lab)
-                cls.append(c)
-        st["target"] = {**t, "indices": seen, "classes": cls}
-        out.append(json.dumps(st))
+    is_neo = any(op in model(name).H for op in ("fp", "gep"))
+    if not single and (species == "proton" or is_neo):
+        raise NotImplementedError("proton / NEO-cross active-space diagonal is the follow-up")
+
+    def block_hessian(hi, lo):
+        if species == "proton":
+            return einsums.parse_ir(orbital_hessian_ir(name, "proton", label="H"))
+        return einsums.parse_ir(_block_resolve(
+            _electron_hessian_terms(name), "H", ["a", "b", "i", "j"],
+            ext_classes={"a": hi, "i": lo, "b": hi, "j": lo}, drop_inactive_rdm=True))
+
+    out, seen = [], set()
+    for hi, lo in _rotation_blocks(rotation_classes):
+        tgt = label + ("" if single else f'["{hi}{lo}"]')
+        for st in block_hessian(hi, lo):
+            ops = [{**o, "indices": [colrow.get(l, l) for l in o["indices"]]} for o in st["operands"]]
+            t = st["target"]
+            dseen, cls = [], []
+            for lb, c in zip((colrow.get(l, l) for l in t["indices"]), t["classes"]):
+                if lb not in dseen:        # dedupe [a,a,i,i] -> [a,i]
+                    dseen.append(lb)
+                    cls.append(c)
+            out.append(json.dumps({
+                "target": {"name": tgt, "indices": dseen, "classes": cls, "is_intermediate": False},
+                "is_assignment": tgt not in seen, "coeff": st["coeff"], "operands": ops}))
+            seen.add(tgt)
     return out
 
 
