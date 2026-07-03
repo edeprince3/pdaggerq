@@ -840,6 +840,31 @@ namespace pdaggerq {
     // optimizer's own tmp ids).
     static long ir_hoist_counter = 0;
 
+    // Binary contraction tree of a linkage over the flat operand list ir_emit
+    // gathers from link_vector(), as a nested JSON array of operand indices --
+    // e.g. ((0*1)*(2*3)) -> [[0,1],[2,3]]. The optimizer chose this pairing for
+    // cost; without it the IR consumer had to re-derive a contraction order from
+    // the flat operand list. The walk mirrors link_vector()'s traversal exactly:
+    // non-expandable linkages (temps/additions/scalars) and plain vertices are
+    // leaves; expandable linkages recurse left then right; empty vertices and
+    // literal scalar-1 constants contribute nothing (link_vector skips them).
+    static string ir_pairing_walk(const VertexPtr &node, long &leaf_idx) {
+        if (node == nullptr || node->empty()) return "";
+        if (node->is_linked()) {
+            LinkagePtr ln = as_link(node);
+            if (!ln->is_expandable())
+                return std::to_string(leaf_idx++);      // kept as a single operand
+            string l = ir_pairing_walk(ln->left(), leaf_idx);
+            string r = ir_pairing_walk(ln->right(), leaf_idx);
+            if (l.empty()) return r;
+            if (r.empty()) return l;
+            return "[" + l + "," + r + "]";
+        }
+        // plain vertex: link_vector() pushes it unless it is an implicit scalar 1
+        if (fabs(node->value() - 1.0) > 1e-8) return std::to_string(leaf_idx++);
+        return "";
+    }
+
     // Emit one-or-more JSONL statements for "target [assign] coeff * <rhs_link>",
     // the target given as (tname, tlines, tinterm) so synthetic temps can be
     // targets too. A top-level addition A+B is split into "target = c*A" then
@@ -905,7 +930,20 @@ namespace pdaggerq {
             first = false;
             out += oj;
         }
-        out += "]}";
+        out += "]";
+
+        // the optimizer's binary contraction order over the operands (only
+        // meaningful for 3+ operands; consumers without support ignore the field).
+        // emitted only when the walk's leaf count matches the operand list, so the
+        // indices are guaranteed to align.
+        if (operand_jsons.size() >= 3 && rhs_link->is_linked() && !rhs_link->is_temp()) {
+            long leaf_idx = 0;
+            string tree = ir_pairing_walk(rhs_link, leaf_idx);
+            if ((size_t) leaf_idx == operand_jsons.size() && !tree.empty() && tree.front() == '[')
+                out += ",\"pairing\":" + tree;
+        }
+
+        out += "}";
         return prefix + out;
     }
 

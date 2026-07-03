@@ -205,6 +205,52 @@ def test_outer_product():
     print("test_outer_product OK")
 
 
+def test_pairing_tree():
+    # a 4-operand statement whose IR carries the optimizer's binary contraction
+    # tree ((0*1)*(2*3)) as "pairing": the fold must follow the tree -- steps for
+    # (0,1) and (2,3) first, then their results combined into the target -- not
+    # the default left fold. Without "pairing" the same statement left-folds.
+    ops = [
+        {"name": 'B["Qvv"]', "indices": ["Q", "a", "b"], "classes": ["Q", "v", "v"],
+         "is_intermediate": False},
+        {"name": 't["vv"]', "indices": ["b", "c"], "classes": ["v", "v"],
+         "is_intermediate": False},
+        {"name": 'u["Qoo"]', "indices": ["Q", "j", "i"], "classes": ["Q", "o", "o"],
+         "is_intermediate": False},
+        {"name": 'v["oo"]', "indices": ["j", "k"], "classes": ["o", "o"],
+         "is_intermediate": False},
+    ]
+    st = {"target": {"name": "R", "indices": ["a", "c", "i", "k"],
+                     "classes": ["v", "v", "o", "o"], "is_intermediate": False},
+          "is_assignment": True, "coeff": 1.0,
+          "operands": ops, "pairing": [[0, 1], [2, 3]]}
+
+    lines = einsums.lower([st], _operand_cxx, DIM)
+    einsum_calls = [l for l in lines if "einsum(" in l]
+    assert len(einsum_calls) == 3, lines                    # n-1 = 3 binary steps
+    # tree fold: step 2 (ops 2*3) is INDEPENDENT of step 1's result w0_1 (operands
+    # may appear via TTGT-aligned temps, so assert on the step structure, not names)
+    assert "w0_1" not in einsum_calls[1], einsum_calls[1]
+    # the final step combines the two step results (references both w-temps)
+    assert "w0_1" in einsum_calls[2] and "w0_2" in einsum_calls[2], einsum_calls[2]
+
+    # fallback: same statement without pairing left-folds (step 2 consumes the
+    # step-1 intermediate)
+    st_nofold = dict(st)
+    del st_nofold["pairing"]
+    lines_lf = einsums.lower([st_nofold], _operand_cxx, DIM)
+    einsum_lf = [l for l in lines_lf if "einsum(" in l]
+    assert len(einsum_lf) == 3, lines_lf
+    assert "w0_1" in einsum_lf[1], einsum_lf[1]
+
+    # a malformed pairing (wrong leaf count) is ignored -> left fold
+    st_bad = dict(st)
+    st_bad["pairing"] = [[0, 1], 2]
+    lines_bad = einsums.lower([st_bad], _operand_cxx, DIM)
+    assert len([l for l in lines_bad if "einsum(" in l]) == 3, lines_bad
+    print("test_pairing_tree OK")
+
+
 if __name__ == "__main__":
     test_binary_leftfold()
     test_split_repeats_diagonal()
@@ -213,4 +259,5 @@ if __name__ == "__main__":
     test_target_shape()
     test_single_operand()
     test_outer_product()
+    test_pairing_tree()
     print("\nall einsums dispatch tests passed")

@@ -8,9 +8,12 @@ This is the einsums *dispatch*: it lowers the flat IR statement list
 into a sequence of einsums ``einsum(...)`` calls. Two things are einsums-specific
 and handled here:
 
-* ``einsum()`` is **binary** (one A, one B). An n-operand contraction is left-
-  folded into n-1 pairwise einsums in pq_graph's (optimised) operand order,
-  materialising one small intermediate per step.
+* ``einsum()`` is **binary** (one A, one B). An n-operand contraction is folded
+  into n-1 pairwise einsums, materialising one small intermediate per step. The
+  fold order follows the IR statement's optional ``pairing`` field -- the
+  optimizer's cost-optimal binary contraction tree as nested operand indices
+  (e.g. ``[[0,1],[2,3]]``) -- and falls back to a left fold in pq_graph's
+  (optimised) operand order when the field is absent (older IR).
 * einsums only GEMM-dispatches a binary contraction when each operand is laid out
   ``[free…, K…]`` or ``[K…, free…]`` with the contracted block ``K`` **contiguous
   at one end** (same K order in both) and the output is ``[freeA…, freeB…]`` --
@@ -152,6 +155,33 @@ def _kblock(idx, kset):
     return [idx[i] for i in kpos] if (contiguous and at_end) else None
 
 
+def _fold_steps(pairing, n):
+    """The binary fold plan for an n-operand contraction: a list of
+    ``(left_ref, right_ref)`` steps where each ref is ``("op", operand_index)`` or
+    ``("step", earlier_step_index)``. When the IR statement carries the optimizer's
+    ``pairing`` tree (nested operand-index lists, e.g. ``[[0,1],[2,3]]``), the plan
+    follows it; otherwise the operands are left-folded in list order."""
+    if pairing is not None and n >= 3:
+        steps = []
+
+        def rec(node):
+            if isinstance(node, int):
+                return ("op", node)
+            l, r = rec(node[0]), rec(node[1])
+            steps.append((l, r))
+            return ("step", len(steps) - 1)
+
+        root = rec(pairing)
+        # a valid tree over n operands has exactly n-1 steps and ends at the root
+        if len(steps) == n - 1 and root == ("step", len(steps) - 1):
+            return steps
+    # default: left fold in operand order
+    steps = [(("op", 0), ("op", 1))]
+    for k in range(2, n):
+        steps.append((("step", len(steps) - 1), ("op", k)))
+    return steps
+
+
 def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="    "):
     """Lower an IR statement list to einsums C++ contraction-body lines (TTGT).
 
@@ -206,20 +236,42 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
               f"{dbl(coeff)}, Indices{{{indices(op_idx[0])}}}, {op_cxx[0]});")
             continue
 
-        # left-fold the n operands into n-1 pairwise binary einsums, each emitted
-        # as a TTGT (permute-align operands -> GEMM -> permute output if needed)
-        acc_cxx, acc_idx = op_cxx[0], op_idx[0]
-        for k in range(1, n):
-            last = (k == n - 1)
-            b_cxx, b_idx = op_cxx[k], op_idx[k]
+        # fold the n operands into n-1 pairwise binary einsums, each emitted as a
+        # TTGT (permute-align operands -> GEMM -> permute output if needed). The
+        # fold ORDER comes from the IR's "pairing" field when present -- the nested
+        # operand-index tree of the optimizer's cost-optimal binary contraction
+        # (e.g. [[0,1],[2,3]]) -- else the operands are left-folded in list order.
+        steps = _fold_steps(st.get("pairing"), n)
+        step_res = [None] * len(steps)                 # (cxx, idx) per step result
+        step_cover = []                                # operand indices per step
+        for a_ref, b_ref in steps:
+            cov = set()
+            for ref in (a_ref, b_ref):
+                cov |= {ref[1]} if ref[0] == "op" else step_cover[ref[1]]
+            step_cover.append(cov)
+        all_op_labels = [set(ix) for ix in op_idx]
 
-            # output index set of this pairwise step
+        for k, (a_ref, b_ref) in enumerate(steps):
+            last = (k == len(steps) - 1)
+            kk = k + 1                                 # 1-based in temp names
+
+            def resolve(ref):
+                if ref[0] == "op":
+                    return op_cxx[ref[1]], op_idx[ref[1]]
+                return step_res[ref[1]]
+            acc_cxx, acc_idx = resolve(a_ref)
+            b_cxx, b_idx = resolve(b_ref)
+
+            # output index set of this pairwise step: the labels this step's
+            # operands share with everything still outside it (uncovered operands
+            # and the target)
             if last:
                 out_set = set(tgt_idx)
             else:
                 downstream = set(tgt_idx)
-                for o in op_idx[k + 1:]:
-                    downstream |= set(o)
+                for j in range(n):
+                    if j not in step_cover[k]:
+                        downstream |= all_op_labels[j]
                 out_set = (set(acc_idx) | set(b_idx)) & downstream
 
             common = set(acc_idx) & set(b_idx)
@@ -240,14 +292,14 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
                         if l in out_set and l not in seen:
                             seen.add(l)
                             keep.append(l)
-                    wname = f"w{si}_{k}"
+                    wname = f"w{si}_{kk}"
                     w(temp_decl(wname, dims(keep)))
                     o_ptr, o_idx, ocp, op = "&" + wname, keep, "0.0", "1.0"
                 w(f"einsum({ocp}, Indices{{{indices(o_idx)}}}, {o_ptr}, {op}, "
                   f"Indices{{{indices(acc_idx)}}}, {acc_cxx}, "
                   f"Indices{{{indices(b_idx)}}}, {b_cxx});")
                 if not last:
-                    acc_cxx, acc_idx = o_ptr[1:], o_idx
+                    step_res[k] = (o_ptr[1:], o_idx)
                 continue
 
             if kset:
@@ -261,7 +313,7 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
                     a_use, a_idx = acc_cxx, acc_idx             # already [free,K]/[K,free]
                 else:
                     a_idx = fa + korder
-                    a_use = f"a{si}_{k}"
+                    a_use = f"a{si}_{kk}"
                     w(temp_decl(a_use, dims(a_idx)))
                     w(f"permute(Indices{{{indices(a_idx)}}}, &{a_use}, "
                       f"Indices{{{indices(acc_idx)}}}, {acc_cxx});")
@@ -270,7 +322,7 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
                     b_use_, b_use_idx = b_cxx, b_idx
                 else:
                     b_use_idx = korder + fb
-                    b_use_ = f"b{si}_{k}"
+                    b_use_ = f"b{si}_{kk}"
                     w(temp_decl(b_use_, dims(b_use_idx)))
                     w(f"permute(Indices{{{indices(b_use_idx)}}}, &{b_use_}, "
                       f"Indices{{{indices(b_idx)}}}, {b_cxx});")
@@ -286,12 +338,12 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
             if not last:
                 # result stored in natural [fa, fb] order (GEMM / outer product);
                 # becomes the accumulator for the next fold step
-                wname = f"w{si}_{k}"
+                wname = f"w{si}_{kk}"
                 w(temp_decl(wname, dims(gemm_order)))
                 w(f"einsum(0.0, Indices{{{indices(gemm_order)}}}, &{wname}, 1.0, "
                   f"Indices{{{indices(a_idx)}}}, {a_use}, "
                   f"Indices{{{indices(b_use_idx)}}}, {b_use_});")
-                acc_cxx, acc_idx = wname, gemm_order
+                step_res[k] = (wname, gemm_order)
             elif gemm_order == tgt_idx:
                 # GEMM straight into the target (accumulating with cpref)
                 w(f"einsum({cpref}, Indices{{{indices(tgt_idx)}}}, &{tgt_cxx}, {dbl(coeff)}, "
@@ -299,7 +351,7 @@ def lower(statements, operand_cxx, dim_of, temp_decl=default_temp_decl, indent="
                   f"Indices{{{indices(b_use_idx)}}}, {b_use_});")
             else:
                 # GEMM into natural order, then accumulate-permute into the target
-                gname = f"g{si}_{k}"
+                gname = f"g{si}_{kk}"
                 w(temp_decl(gname, dims(gemm_order)))
                 w(f"einsum(0.0, Indices{{{indices(gemm_order)}}}, &{gname}, 1.0, "
                   f"Indices{{{indices(a_idx)}}}, {a_use}, "
