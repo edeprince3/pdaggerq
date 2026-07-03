@@ -135,6 +135,27 @@ def lambda_amps(name):
     return [a.replace("t", "l", 1) for a in model(name).T]
 
 
+def _opt_level_for(name, opt_level):
+    """Resolve the pq_graph optimization level for a model.
+
+    ``opt_level=None`` (the default) picks a *safe* level per model: **5** for models
+    that carry a triple or higher excitation (t3/t4/tep21/tep31), else **6**. At
+    ``opt_level=6`` pq_graph's intermediate-*fusion* pass mis-optimizes t3-involving
+    residuals -- e.g. ``neo-ccsdt(eep)`` ``tep11`` (the t2_ep residual, which contracts
+    the tep21/t3_ep triple) evaluates to a residual that disagrees with opt_level 0-5
+    (all mutually consistent to ~1e-13) by ~8-20% on antisymmetric amplitudes, both in
+    ``to_strings("python")`` and ``to_strings("ir")`` (so the emitters are faithful; the
+    optimizer is at fault). opt_level 5 (reordering/substitution/separation/pruning/
+    merging, *without* fusion) is correct. Doubles-only models are unaffected and keep 6
+    so their codegen is byte-identical. An explicit ``opt_level`` always wins.
+    """
+    if opt_level is not None:
+        return opt_level
+    has_triples = any(PROJECTION.get(a, "").startswith(("e3", "e4"))
+                      for a in model(name).T)
+    return 5 if has_triples else 6
+
+
 def _optimized(pq, label, df, opt_level):
     # Normal-order gep: the NEO integral dumps carry the dressed NEO-HF Fock (f/fp
     # include the e-p mean field), so the one-body reference traces of gep must not
@@ -148,8 +169,9 @@ def _optimized(pq, label, df, opt_level):
     return g
 
 
-def energy_graph(name, df=True, opt_level=6):
+def energy_graph(name, df=True, opt_level=None):
     """Optimized pq_graph for the correlation energy ``<0| e^-T H e^T |0>``."""
+    opt_level = _opt_level_for(name, opt_level)
     m = model(name)
     pq = pq_helper("fermi")
     pq.set_left_operators([["1"]])
@@ -159,7 +181,7 @@ def energy_graph(name, df=True, opt_level=6):
     return _optimized(pq, "energy", df, opt_level)
 
 
-def residual_graph(name, amplitude, df=True, opt_level=6, label="R",
+def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
                    spin_case=None, nuclear_spin="high-spin"):
     """Optimized pq_graph for the amplitude residual
     ``<proj(amplitude)| e^-T H e^T |0> = 0``.
@@ -170,6 +192,7 @@ def residual_graph(name, amplitude, df=True, opt_level=6, label="R",
     nuclear_spin : "high-spin" (single nuclear channel) or "full" -- see
                 :mod:`pdaggerq.spin`.
     """
+    opt_level = _opt_level_for(name, opt_level)
     m = model(name)
     if amplitude not in m.T:
         raise ValueError(f"model {name!r} has no amplitude {amplitude!r}; T={list(m.T)}")
@@ -189,7 +212,7 @@ def residual_graph(name, amplitude, df=True, opt_level=6, label="R",
     return _optimized(pq, label, df, opt_level)
 
 
-def residual_ir(name, amplitude, df=True, opt_level=6, label="R",
+def residual_ir(name, amplitude, df=True, opt_level=None, label="R",
                 spin_case=None, nuclear_spin="high-spin"):
     """The amplitude residual as ``to_strings("ir")`` JSONL lines."""
     g = residual_graph(name, amplitude, df=df, opt_level=opt_level, label=label,
@@ -205,7 +228,7 @@ def spin_cases(amplitude, nuclear_spin="high-spin"):
     return sorted(get_spin_labels([[PROJECTION[amplitude]]], nuclear_spin))
 
 
-def residual_blocks(name, amplitude, df=True, opt_level=6, label="R",
+def residual_blocks(name, amplitude, df=True, opt_level=None, label="R",
                     nuclear_spin="high-spin"):
     """``{spin_case: ir_lines}`` for every spin block of the amplitude's residual
     (the full unrestricted set). Spin-orbital is ``residual_ir(..., spin_case=None)``;
@@ -216,9 +239,10 @@ def residual_blocks(name, amplitude, df=True, opt_level=6, label="R",
             for c in spin_cases(amplitude, nuclear_spin)}
 
 
-def lambda_graph(name, amplitude, df=True, opt_level=6, label="R"):
+def lambda_graph(name, amplitude, df=True, opt_level=None, label="R"):
     """Optimized pq_graph for the Lambda residual ``<(1+L) [Hbar, tau_amplitude]>``,
     the equation whose root is the de-excitation amplitude for ``amplitude``."""
+    opt_level = _opt_level_for(name, opt_level)
     m = model(name)
     if amplitude not in m.T:
         raise ValueError(f"model {name!r} has no amplitude {amplitude!r}; T={list(m.T)}")
@@ -234,15 +258,16 @@ def lambda_graph(name, amplitude, df=True, opt_level=6, label="R"):
     return _optimized(pq, label, df, opt_level)
 
 
-def lambda_ir(name, amplitude, df=True, opt_level=6, label="R"):
+def lambda_ir(name, amplitude, df=True, opt_level=None, label="R"):
     """The Lambda residual as ``to_strings("ir")`` JSONL lines."""
     return lambda_graph(name, amplitude, df=df, opt_level=opt_level, label=label).to_strings("ir")
 
 
-def gradient_graph(name, species, df=True, opt_level=6, label="R"):
+def gradient_graph(name, species, df=True, opt_level=None, label="R"):
     """Optimized pq_graph for the per-species orbital-rotation gradient
     ``<(1+L) [Hbar, E_ai - E_ia]>`` (species = "electron" or "proton"). The
     generalized-Fock orbital gradient neocc rotates the orbitals with."""
+    opt_level = _opt_level_for(name, opt_level)
     if species not in ("electron", "proton"):
         raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
     m = model(name)
@@ -259,12 +284,12 @@ def gradient_graph(name, species, df=True, opt_level=6, label="R"):
     return _optimized(pq, label, df, opt_level)
 
 
-def gradient_ir(name, species, df=True, opt_level=6, label="R"):
+def gradient_ir(name, species, df=True, opt_level=None, label="R"):
     """The per-species orbital-rotation gradient as ``to_strings("ir")`` lines."""
     return gradient_graph(name, species, df=df, opt_level=opt_level, label=label).to_strings("ir")
 
 
-def rdm_graph(name, operator, df=True, opt_level=6, label="D"):
+def rdm_graph(name, operator, df=True, opt_level=None, label="D"):
     """Optimized pq_graph for a reduced-density-matrix block
     ``<(1+L) e^-T operator e^T>``.
 
@@ -275,6 +300,7 @@ def rdm_graph(name, operator, df=True, opt_level=6, label="D"):
                as gradient_graph's e1(na,ni). Examples: "e1(i,j)" (D_oo),
                "e1(a,b)" (D_vv), "e2(a,b,i,j)" (D_vvoo), "e1(ni,nj)" (proton D_OO),
                "e2(a,na,ni,i)" (mixed e-p 2-RDM block)."""
+    opt_level = _opt_level_for(name, opt_level)
     m = model(name)
     pq = pq_helper("fermi")
     pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])   # (1 + Lambda)
@@ -283,7 +309,7 @@ def rdm_graph(name, operator, df=True, opt_level=6, label="D"):
     return _optimized(pq, label, df, opt_level)
 
 
-def rdm_ir(name, operator, df=True, opt_level=6, label="D"):
+def rdm_ir(name, operator, df=True, opt_level=None, label="D"):
     """An RDM block as ``to_strings("ir")`` JSONL lines."""
     return rdm_graph(name, operator, df=df, opt_level=opt_level, label=label).to_strings("ir")
 

@@ -685,6 +685,84 @@ def test_neo_gep_normal_ordered():
     print("test_neo_gep_normal_ordered OK")
 
 
+def test_opt_level_triples_correct():
+    """pq_graph opt_level=6 (intermediate *fusion*) mis-optimizes t3-involving
+    residuals: ``neo-ccsdt(eep)`` ``tep11`` (which contracts the tep21/t3_ep triple)
+    disagrees with opt_level 0-5 by ~8-20% on antisymmetric amplitudes. So
+    ``models._optimized`` defaults triples-containing models to opt_level 5. Verify (1)
+    the level mapping and (2) that the default residual matches the un-optimized (opt0)
+    residual on antisymmetric amplitudes, where opt6 does not."""
+    import re, itertools
+    import numpy as np
+    from collections import defaultdict
+
+    # (1) resolver: any t3/t4/tep21/tep31 -> opt5; doubles-only -> opt6; explicit wins
+    assert models._opt_level_for("ccsd", None) == 6
+    assert models._opt_level_for("neo-ccsd", None) == 6
+    assert models._opt_level_for("neo-ccd(ep)", None) == 6
+    assert models._opt_level_for("ccsdt", None) == 5
+    assert models._opt_level_for("ccsdtq", None) == 5
+    assert models._opt_level_for("neo-ccsdt(eep)", None) == 5
+    assert models._opt_level_for("neo-ccsdtq(eeep)", None) == 5
+    assert models._opt_level_for("neo-ccsdt(eep)", 6) == 6      # explicit override wins
+
+    # (2) numerical: default (resolved opt5) == opt0; opt6 is the bug the default avoids
+    DIM = {"o": 3, "v": 4, "O": 1, "V": 4, "Q": 6}
+    VIR, OCC = {"v", "V"}, {"o", "O"}
+    is_amp = lambda nm: re.fullmatch(r"t\d+(_n|_ep)?", nm) is not None
+
+    def antisym(a, cl):                        # CC antisymmetry over same-class vir/occ axes
+        out = a.copy()
+        groups = defaultdict(list)
+        for ax, c in enumerate(cl):
+            groups[c].append(ax)
+        for c, axes in groups.items():
+            if len(axes) >= 2 and (c in VIR or c in OCC):
+                perms = list(itertools.permutations(range(len(axes))))
+                acc = np.zeros_like(out)
+                for p in perms:
+                    par = sum(1 for i in range(len(p)) for j in range(i + 1, len(p))
+                              if p[i] > p[j]) & 1
+                    src = list(range(out.ndim))
+                    for k, ax in enumerate(axes):
+                        src[ax] = axes[p[k]]
+                    acc += (-1 if par else 1) * np.transpose(out, src)
+                out = acc / len(perms)
+        return out
+
+    def interp(ir, inp):                       # evaluate a residual IR statement list
+        st = {}
+        val = lambda o: st[o["name"]] if o["name"] in st else inp[o["name"]]
+        for s in ir:
+            subs = ",".join("".join(o["indices"]) for o in s["operands"])
+            out = "".join(s["target"]["indices"])
+            c = s["coeff"] * np.einsum(subs + "->" + out,
+                                       *[val(o) for o in s["operands"]], optimize=True)
+            t = s["target"]["name"]
+            st[t] = c.copy() if s["is_assignment"] else st[t] + c
+        return st["R"]
+
+    ir0 = einsums.parse_ir(models.residual_graph("neo-ccsdt(eep)", "tep11",
+                                                 opt_level=0).to_strings("ir"))
+    produced = {s["target"]["name"] for s in ir0}
+    names = {o["name"]: tuple(o["classes"]) for s in ir0 for o in s["operands"]
+             if o["name"] not in produced}
+    rng = np.random.default_rng(7)
+    inp = {}
+    for nm, cl in sorted(names.items()):
+        a = rng.standard_normal(tuple(DIM[c] for c in cl))
+        inp[nm] = antisym(a, cl) if is_amp(nm) else a
+    truth = interp(ir0, inp)
+    default = interp(einsums.parse_ir(models.residual_ir("neo-ccsdt(eep)", "tep11")), inp)
+    assert np.max(np.abs(default - truth)) < 1e-9, np.max(np.abs(default - truth))
+    # tripwire: if this stops holding, pq_graph's opt6 fusion was fixed upstream and the
+    # triples->opt5 workaround in _opt_level_for can be removed.
+    buggy = interp(einsums.parse_ir(models.residual_ir("neo-ccsdt(eep)", "tep11",
+                                                        opt_level=6)), inp)
+    assert np.max(np.abs(buggy - truth)) > 1e-3, "opt6 fusion no longer mis-optimizes eep tep11"
+    print("test_opt_level_triples_correct OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -702,4 +780,5 @@ if __name__ == "__main__":
     test_orbital_proton_gradient_active_space()
     test_orbital_cross_sigma_active_space()
     test_neo_gep_normal_ordered()
+    test_opt_level_triples_correct()
     print("\nall model tests passed")
