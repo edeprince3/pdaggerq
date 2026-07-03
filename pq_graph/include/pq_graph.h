@@ -326,8 +326,11 @@ namespace pdaggerq {
 
         /**
          * reindex the intermediates in the equations
+         * @param passes number of reindex passes to perform (the repeat lets the
+         *               id assignment settle; previously tracked in a function-local
+         *               static shared across all PQGraph instances)
          */
-        void reindex();
+        void reindex(size_t passes = 3);
 
         /**
          * deep copy of the pq_graph

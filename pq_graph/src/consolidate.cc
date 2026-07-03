@@ -159,7 +159,10 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         cout << endl; //185
     }
 
-    static size_t total_num_merged = 0;
+    // per-call accumulator: as a function-local `static` this was shared across every
+    // substitute() invocation and every PQGraph instance in the process, so the printed
+    // totals reflected global history rather than this optimization.
+    size_t total_num_merged = 0;
     size_t num_merged = merge_terms();
     total_num_merged += num_merged;
 
@@ -182,7 +185,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     bool first_pass = true;
     scaling_map best_flop_map = flop_map_;
-    static size_t totalSubs = 0;
+    size_t totalSubs = 0; // per-call (was a cross-instance `static`; see total_num_merged)
     string temp_type = format_sigma ? "reused" : "temp"; // type of temporary to substitute
     temp_type = only_scalars ? "scalar" : temp_type; // type of equation to substitute into
 
@@ -250,8 +253,12 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 continue;
             }
 
-            // check if this linkage is in the ignore set
-            if (ignore_linkages.find(linkage) != ignore_linkages.end()) {
+            // check if this linkage is in the ignore set. contains() does the whole
+            // membership test under one lock: the previous find() != end() took the
+            // linkage_set mutex twice, so a concurrent (mutex-guarded) insert from
+            // another thread of this parallel region could rehash the underlying
+            // unordered_set between the two calls and invalidate both iterators.
+            if (ignore_linkages.contains(linkage)) {
                 linkage->forget(); // clear linkage history
                 continue;
             }
@@ -673,7 +680,7 @@ PQGraph PQGraph::clone() const {
     return copy;
 }
 
-void PQGraph::reindex() {
+void PQGraph::reindex(size_t passes) {
 
     print_guard guard;
     if (print_level_ <= 1)
@@ -799,11 +806,13 @@ void PQGraph::reindex() {
         }
     }
 
-    // reindex again for good measure
-    static int reindex_count = 0;
-    reindex_count = ++reindex_count % 3;
-    if (reindex_count != 0)
-        reindex();
+    // reindex again for good measure (multiple passes let the id assignment settle).
+    // the pass count is an explicit parameter: it was previously tracked in a
+    // function-local `static`, so the number of passes any given call performed
+    // depended on how often reindex() had run before -- across all PQGraph
+    // instances in the process -- rather than on this graph.
+    if (passes > 1)
+        reindex(passes - 1);
 }
 
 size_t PQGraph::get_num_terms() const {

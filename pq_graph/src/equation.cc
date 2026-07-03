@@ -180,37 +180,41 @@ namespace pdaggerq {
         vector<Term> new_terms; // new terms
 
 
-        // iterate over the map, adding each term to the new_terms vector
-        // map of terms to their associated coefficients
-        std::unordered_map<Term, double, TermHash, TermEqual> term_count;
+        // deduplicate terms while preserving first-occurrence order. Iterating the
+        // unordered_map itself made both the coefficient accumulation order (floating
+        // point, non-associative) and the surviving-term order depend on hash-bucket
+        // layout, which is not reproducible run to run.
+        vector<Term> unique_terms;      unique_terms.reserve(terms_.size());
+        vector<double> merged_coeffs;   merged_coeffs.reserve(terms_.size());
+        std::unordered_map<Term, size_t, TermHash, TermEqual> term_index;
         for (auto &term : terms_) {
-            string term_str = term.str(); // get term string
             // check if term is in map
-            auto it = term_count.find(term);
-            if (it != term_count.end()) {
-                string unique_term_str = it->first.str(); // get unique term string
-                // if term is in map, increment coefficient
-                it->second += term.coefficient_;
+            auto it = term_index.find(term);
+            if (it != term_index.end()) {
+                // if term was seen, increment its coefficient
+                merged_coeffs[it->second] += term.coefficient_;
 
                 // add original pq to unique term
+                Term &unique_term = unique_terms[it->second];
                 if (Vertex::print_type_ == "python")
-                    it->first.original_pq_ += "\n    # ";
+                    unique_term.original_pq_ += "\n    # ";
                 else if (Vertex::print_type_ == "c++")
-                    it->first.original_pq_ += "\n    // ";
+                    unique_term.original_pq_ += "\n    // ";
 
-                it->first.original_pq_ += string(term.lhs()->name().size(), ' ');
-                it->first.original_pq_ += " += " + term.original_pq_;
+                unique_term.original_pq_ += string(term.lhs()->name().size(), ' ');
+                unique_term.original_pq_ += " += " + term.original_pq_;
             } else {
-                // if term is not in map, add term to map
-                term_count[term] = term.coefficient_;
+                // if term is not in map, remember its slot in first-occurrence order
+                term_index[term] = unique_terms.size();
+                unique_terms.push_back(term);
+                merged_coeffs.push_back(term.coefficient_);
             }
         }
 
+        for (size_t i = 0; i < unique_terms.size(); ++i) {
 
-        for (auto &[unique_term, coeff] : term_count) {
-
-            Term new_term = unique_term; // copy term
-            new_term.coefficient_ = coeff; // set coefficient
+            Term &new_term = unique_terms[i];
+            new_term.coefficient_ = merged_coeffs[i]; // set merged coefficient
 
             // skip terms with zero coefficients
             if (fabs(new_term.coefficient_) <= 1e-12)
@@ -302,11 +306,17 @@ namespace pdaggerq {
                 return a_term->is_assignment_;
             else if (same_id && !a_term->is_assignment_) return a_idx < b_idx;
 
-            // if the max rhs id is larger than the max lhs id, then do not consider rhs
-            long a_max_rhs = *std::max_element(a_rhs_ids.begin(), a_rhs_ids.end());
-            long a_max_lhs = *std::max_element(a_lhs_ids.begin(), a_lhs_ids.end());
-            long b_max_rhs = *std::max_element(b_rhs_ids.begin(), b_rhs_ids.end());
-            long b_max_lhs = *std::max_element(b_lhs_ids.begin(), b_lhs_ids.end());
+            // if the max rhs id is larger than the max lhs id, then do not consider rhs.
+            // an empty id set has no maximum: dereferencing max_element(end()) is UB and
+            // reads garbage, making this comparator violate strict weak ordering (and the
+            // emitted term order non-reproducible). Use -1 as the "no ids" sentinel.
+            auto max_or_none = [](const idset &ids) -> long {
+                return ids.empty() ? -1L : *std::max_element(ids.begin(), ids.end());
+            };
+            long a_max_rhs = max_or_none(a_rhs_ids);
+            long a_max_lhs = max_or_none(a_lhs_ids);
+            long b_max_rhs = max_or_none(b_rhs_ids);
+            long b_max_lhs = max_or_none(b_lhs_ids);
             long a_max = std::max(a_max_rhs, a_max_lhs);
             long b_max = std::max(b_max_rhs, b_max_lhs);
 

@@ -708,6 +708,18 @@ namespace pdaggerq {
             return;
         }
 
+        // pin the print format for the duration of the optimization: candidate
+        // ordering keys are built from str()/tot_str(), which branch on
+        // Vertex::print_type_ -- a process-wide static that to_strings() overwrites.
+        // without pinning, the optimization result depends on which output format
+        // was last printed in this process (so the first optimize() in a process
+        // could differ from every later one).
+        struct print_type_pin {
+            string saved = Vertex::print_type_;
+            print_type_pin() { Vertex::print_type_ = "c++"; }
+            ~print_type_pin() { Vertex::print_type_ = saved; }
+        } pin;
+
         print_guard guard;
         if (print_level_ < 1) {
             guard.lock();
