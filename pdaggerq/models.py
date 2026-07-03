@@ -135,25 +135,28 @@ def lambda_amps(name):
     return [a.replace("t", "l", 1) for a in model(name).T]
 
 
-def _opt_level_for(name, opt_level):
-    """Resolve the pq_graph optimization level for a model.
+#: safe default pq_graph optimization level. pq_graph's opt_level=6 intermediate
+#: *fusion* pass (the opt5->opt6 step) is NONDETERMINISTIC and occasionally emits an
+#: INCORRECT equation: repeated emissions of the same graph give distinct output text,
+#: and a fraction of them disagree with opt_level 0-5 (which are all mutually consistent
+#: and deterministic) by O(1) on random amplitudes. The wrongness is silent -- every
+#: output format (python / ir / c++) of a given emission agrees with itself, so
+#: cross-format validation cannot catch it; only comparison against a lower opt_level
+#: does. It strikes ALL models (residuals, RDMs, ...), not just triples. Root cause is
+#: address-dependent container ordering (``set<Term*>`` &c.) in ``pq_graph/src/fusion.cc``
+#: driving an order-sensitive merge. Until that is fixed upstream, cap at opt_level 5:
+#: reordering / substitution / separation / pruning / merging, WITHOUT fusion -- proven
+#: deterministic and correct. Reproduce: emit any residual/RDM at opt_level 6 several
+#: times and diff / evaluate the outputs.
+_SAFE_OPT_LEVEL = 5
 
-    ``opt_level=None`` (the default) picks a *safe* level per model: **5** for models
-    that carry a triple or higher excitation (t3/t4/tep21/tep31), else **6**. At
-    ``opt_level=6`` pq_graph's intermediate-*fusion* pass mis-optimizes t3-involving
-    residuals -- e.g. ``neo-ccsdt(eep)`` ``tep11`` (the t2_ep residual, which contracts
-    the tep21/t3_ep triple) evaluates to a residual that disagrees with opt_level 0-5
-    (all mutually consistent to ~1e-13) by ~8-20% on antisymmetric amplitudes, both in
-    ``to_strings("python")`` and ``to_strings("ir")`` (so the emitters are faithful; the
-    optimizer is at fault). opt_level 5 (reordering/substitution/separation/pruning/
-    merging, *without* fusion) is correct. Doubles-only models are unaffected and keep 6
-    so their codegen is byte-identical. An explicit ``opt_level`` always wins.
-    """
-    if opt_level is not None:
-        return opt_level
-    has_triples = any(PROJECTION.get(a, "").startswith(("e3", "e4"))
-                      for a in model(name).T)
-    return 5 if has_triples else 6
+
+def _opt_level_for(name, opt_level):
+    """Resolve the pq_graph optimization level for a model. ``opt_level=None`` (the
+    default for every generated equation) returns :data:`_SAFE_OPT_LEVEL` (5), avoiding
+    the broken opt_level-6 fusion pass. An explicit ``opt_level`` always wins (pass
+    ``opt_level=6`` only to reproduce the fusion bug)."""
+    return _SAFE_OPT_LEVEL if opt_level is None else opt_level
 
 
 def _optimized(pq, label, df, opt_level):

@@ -685,26 +685,24 @@ def test_neo_gep_normal_ordered():
     print("test_neo_gep_normal_ordered OK")
 
 
-def test_opt_level_triples_correct():
-    """pq_graph opt_level=6 (intermediate *fusion*) mis-optimizes t3-involving
-    residuals: ``neo-ccsdt(eep)`` ``tep11`` (which contracts the tep21/t3_ep triple)
-    disagrees with opt_level 0-5 by ~8-20% on antisymmetric amplitudes. So
-    ``models._optimized`` defaults triples-containing models to opt_level 5. Verify (1)
-    the level mapping and (2) that the default residual matches the un-optimized (opt0)
-    residual on antisymmetric amplitudes, where opt6 does not."""
+def test_opt_level_safe_default():
+    """pq_graph opt_level=6 (intermediate *fusion*) is nondeterministic and occasionally
+    emits an incorrect equation (repeated emissions disagree; a fraction differ from
+    opt_level 0-5 by O(1) on random amplitudes). It strikes every model. So
+    ``models._optimized`` defaults all generated equations to opt_level 5 (no fusion),
+    which is deterministic and correct. Verify (1) the resolver caps at 5 and (2) the
+    default eep tep11 residual matches the un-optimized (opt0) residual on antisymmetric
+    amplitudes, while opt_level 6 (still) can diverge."""
     import re, itertools
     import numpy as np
     from collections import defaultdict
 
-    # (1) resolver: any t3/t4/tep21/tep31 -> opt5; doubles-only -> opt6; explicit wins
-    assert models._opt_level_for("ccsd", None) == 6
-    assert models._opt_level_for("neo-ccsd", None) == 6
-    assert models._opt_level_for("neo-ccd(ep)", None) == 6
-    assert models._opt_level_for("ccsdt", None) == 5
-    assert models._opt_level_for("ccsdtq", None) == 5
-    assert models._opt_level_for("neo-ccsdt(eep)", None) == 5
-    assert models._opt_level_for("neo-ccsdtq(eeep)", None) == 5
-    assert models._opt_level_for("neo-ccsdt(eep)", 6) == 6      # explicit override wins
+    # (1) resolver: None -> the safe cap (5) for every model; explicit wins
+    for m in ("ccsd", "neo-ccsd", "neo-ccd(ep)", "ccsdt", "ccsdtq",
+              "neo-ccsdt(eep)", "neo-ccsdtq(eeep)"):
+        assert models._opt_level_for(m, None) == 5, m
+    assert models._opt_level_for("ccsd", 6) == 6                # explicit override wins
+    assert models._opt_level_for("ccsd", 0) == 0
 
     # (2) numerical: default (resolved opt5) == opt0; opt6 is the bug the default avoids
     DIM = {"o": 3, "v": 4, "O": 1, "V": 4, "Q": 6}
@@ -755,12 +753,17 @@ def test_opt_level_triples_correct():
     truth = interp(ir0, inp)
     default = interp(einsums.parse_ir(models.residual_ir("neo-ccsdt(eep)", "tep11")), inp)
     assert np.max(np.abs(default - truth)) < 1e-9, np.max(np.abs(default - truth))
-    # tripwire: if this stops holding, pq_graph's opt6 fusion was fixed upstream and the
-    # triples->opt5 workaround in _opt_level_for can be removed.
-    buggy = interp(einsums.parse_ir(models.residual_ir("neo-ccsdt(eep)", "tep11",
-                                                        opt_level=6)), inp)
-    assert np.max(np.abs(buggy - truth)) > 1e-3, "opt6 fusion no longer mis-optimizes eep tep11"
-    print("test_opt_level_triples_correct OK")
+    # tripwire: opt_level 6 is still broken -- across several emissions it is either
+    # nondeterministic (distinct output text) or numerically wrong (differs from opt0).
+    # If this stops holding, pq_graph's fusion was fixed upstream and the opt5 cap in
+    # _opt_level_for can be lifted.
+    texts, worst = set(), 0.0
+    for _ in range(4):
+        ir6 = models.residual_ir("neo-ccsdt(eep)", "tep11", opt_level=6)
+        texts.add("\n".join(l for l in ir6 if l.strip().startswith("{")))
+        worst = max(worst, float(np.max(np.abs(interp(einsums.parse_ir(ir6), inp) - truth))))
+    assert len(texts) > 1 or worst > 1e-3, "opt6 fusion appears fixed (deterministic + correct)"
+    print("test_opt_level_safe_default OK")
 
 
 def test_rdm_block_ir():
@@ -857,6 +860,6 @@ if __name__ == "__main__":
     test_orbital_proton_gradient_active_space()
     test_orbital_cross_sigma_active_space()
     test_neo_gep_normal_ordered()
-    test_opt_level_triples_correct()
+    test_opt_level_safe_default()
     test_rdm_block_ir()
     print("\nall model tests passed")
