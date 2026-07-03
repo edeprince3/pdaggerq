@@ -763,6 +763,83 @@ def test_opt_level_triples_correct():
     print("test_opt_level_triples_correct OK")
 
 
+def test_rdm_block_ir():
+    """rdm_block_ir emits each RDM block with the TARGET named + index-ordered exactly
+    as energy_from_rdm_ir / orbital_*_ir consume it. Checks (1) every block the energy
+    trace references is reproduced with matching name/classes; (2) single-species blocks
+    evaluate to the genuine rdm_graph block (permuted to consumer order); (3) a block the
+    model cannot populate returns []."""
+    import numpy as np
+    assert "rdm_block_ir" in models.__all__
+
+    # (1) structural: cover every RDM block energy_from_rdm_ir(neo-ccsd) references,
+    # including the mixed D2_ep (whose consumer layout is (P,E,E',P'), e.g. "OovV").
+    refs = {}
+    for st in einsums.parse_ir(models.energy_from_rdm_ir("neo-ccsd")):
+        for o in st["operands"]:
+            base = o["name"].split('["')[0]
+            if base in ("D1", "D2", "D1_n", "D2_ep"):
+                refs[o["name"]] = (base, o["name"].split('["')[1].rstrip('"]'), o["classes"])
+    assert any(b == "D2_ep" for _, (b, _, _) in refs.items())        # mixed blocks present
+    for full_name, (base, block, classes) in refs.items():
+        ir = einsums.parse_ir(models.rdm_block_ir("neo-ccsd", base, block))
+        assert ir, (full_name, "unexpectedly empty")
+        tgt = next(s["target"] for s in reversed(ir) if s["target"]["name"] == full_name)
+        assert tgt["classes"] == classes, (full_name, tgt["classes"], classes)   # consumer order
+
+    # (2) numeric: single-species blocks == the genuine rdm_graph block, consumer order.
+    DIM = {"o": 3, "v": 4, "O": 2, "V": 3}
+    rng = np.random.default_rng(11)
+
+    def interp(ir, inp):
+        st = {}
+        val = lambda o: st[o["name"]] if o["name"] in st else inp[o["name"]]
+        for s in ir:
+            subs = ",".join("".join(o["indices"]) for o in s["operands"])
+            out = "".join(s["target"]["indices"])
+            c = s["coeff"] * np.einsum(subs + "->" + out, *[val(o) for o in s["operands"]],
+                                       optimize=True)
+            t = s["target"]["name"]
+            st[t] = c.copy() if s["is_assignment"] else st[t] + c
+        return st
+
+    blocks = [("D1", "oo"), ("D1", "ov"), ("D1", "vv"),
+              ("D2", "oovv"), ("D2", "ovvo"), ("D2", "vvoo"),
+              ("D1_n", "OO"), ("D1_n", "OV"), ("D1_n", "VV")]
+    # opt_level=0 for the numeric comparison: both calls must lower the SAME graph, and
+    # pq_graph's optimized (>=5) intermediate ordering is not guaranteed identical across
+    # two independent invocations -- opt0 is deterministic and always correct.
+    bir = {(t, b): einsums.parse_ir(models.rdm_block_ir("neo-ccsd", t, b, opt_level=0))
+           for t, b in blocks}
+    dir_ = {(t, b): einsums.parse_ir(
+                models.rdm_ir("neo-ccsd", models._rdm_block_spec(t, b)[0], opt_level=0))
+            for t, b in blocks}
+    inp = {}
+    for ir in list(bir.values()) + list(dir_.values()):
+        produced = {s["target"]["name"] for s in ir}
+        for s in ir:
+            for o in s["operands"]:
+                n = o["name"]
+                if n in produced or n in inp:
+                    continue
+                a = rng.standard_normal(tuple(DIM[c] for c in o["classes"]))
+                if n in ("t2", "l2") and len(o["classes"]) == 4:     # electron doubles: antisym
+                    a = a - a.transpose(1, 0, 2, 3)
+                    a = a - a.transpose(0, 1, 3, 2)
+                inp[n] = a
+    for t, b in blocks:
+        op, consumer = models._rdm_block_spec(t, b)
+        blk = interp(bir[(t, b)], inp)[f'{t}["{b}"]']
+        native = interp(dir_[(t, b)], inp)["D"]
+        final = next(s["target"] for s in reversed(dir_[(t, b)]) if s["target"]["name"] == "D")
+        perm = [list(final["indices"]).index(L) for L, _ in consumer]
+        assert np.max(np.abs(blk - np.transpose(native, perm))) < 1e-10, (t, b)
+
+    # (3) unpopulatable block -> empty (consumer zero-fills)
+    assert models.rdm_block_ir("neo-ccd(ep)", "D1", "ov") == []
+    print("test_rdm_block_ir OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_bad_lookups_raise()
@@ -781,4 +858,5 @@ if __name__ == "__main__":
     test_orbital_cross_sigma_active_space()
     test_neo_gep_normal_ordered()
     test_opt_level_triples_correct()
+    test_rdm_block_ir()
     print("\nall model tests passed")

@@ -50,7 +50,7 @@ __all__ = [
     "residual_graph", "residual_ir", "spin_cases", "residual_blocks",
     "lambda_graph", "lambda_ir",
     "gradient_graph", "gradient_ir",
-    "rdm_graph", "rdm_ir",
+    "rdm_graph", "rdm_ir", "rdm_block_ir",
     "energy_from_rdm_ir",
     "orbital_gradient_ir",
     "orbital_hessian_ir", "orbital_hessian_diag_ir", "orbital_sigma_ir",
@@ -312,6 +312,117 @@ def rdm_graph(name, operator, df=True, opt_level=None, label="D"):
 def rdm_ir(name, operator, df=True, opt_level=None, label="D"):
     """An RDM block as ``to_strings("ir")`` JSONL lines."""
     return rdm_graph(name, operator, df=df, opt_level=opt_level, label=label).to_strings("ir")
+
+
+# distinct pdaggerq index letters per (species, class) -- one per slot, so a block's
+# slots stay individually trackable through rdm_graph's relabelling (needed to permute
+# the mixed e-p RDM into the consumer layout even when classes repeat, e.g. "OooO").
+_BLK_LETTERS = {("e", "o"): "ijkl", ("e", "v"): "abcd",
+                ("p", "o"): "IJKL", ("p", "v"): "ABCD"}
+
+
+def _rdm_block_spec(tensor, block):
+    """(operator string, consumer-order [(letter, class), ...]) for an RDM block.
+
+    ``tensor`` in {D1, D1_n, D2, D2_ep}; ``block`` is the class string in the exact
+    order the consumers (energy_from_rdm_ir / orbital_*_ir) annotate the operand
+    (e.g. "ov", "OO", "ovvo", "OovV"). The operator is built with distinct letters so
+    each slot is trackable; the D2 last-pair-swap and the D2_ep (P,E,E',P') layout
+    match rdm_graph / the energy convention (validated by :func:`energy_from_rdm_ir`)."""
+    species = {"D1": "e", "D1_n": "p", "D2": "e", "D2_ep": "ep"}[tensor]
+    used = {"e": {"o": 0, "v": 0}, "p": {"o": 0, "v": 0}}
+
+    def take(sp, cls):                                   # next distinct letter of (sp,cls)
+        low = "o" if cls in "oO" else "v"
+        L = _BLK_LETTERS[(sp, low)][used[sp][low]]
+        used[sp][low] += 1
+        return L
+
+    def cls_low(ch):
+        return "o" if ch in "oO" else "v"
+
+    if tensor in ("D1", "D1_n"):
+        sp = "e" if tensor == "D1" else "p"
+        c0, c1 = block[0], block[1]
+        L0, L1 = take(sp, c0), take(sp, c1)
+        pre = "" if sp == "e" else "n"
+        op = f"e1({pre}{L0},{pre}{L1})"
+        consumer = [(L0, c0), (L1, c1)]                  # D1[pq] = <p+ q>, direct order
+        return op, consumer
+
+    if tensor == "D2":
+        cs = list(block)
+        Ls = [take("e", c) for c in cs]
+        op = f"e2({Ls[0]},{Ls[1]},{Ls[2]},{Ls[3]})"     # D2[pqsr] matches rdm_graph
+        return op, list(zip(Ls, cs))
+
+    if tensor == "D2_ep":
+        # consumer layout D2_ep(P, E, E', P') = <a+_E a_E' b+_P b_P'>; the operator that
+        # yields this block is e2(E, P, P', E') (the validated e2(a,na,ni,i) pattern:
+        # electron-vir/occ + proton-vir/occ, last pair swapped). The rdm_graph target
+        # comes out electron-grouped; the caller permutes it back to consumer order.
+        cP, cE, cE2, cP2 = block[0], block[1], block[2], block[3]
+        LE = take("e", cE); LP = take("p", cP); LP2 = take("p", cP2); LE2 = take("e", cE2)
+        op = f"e2({LE},n{LP},n{LP2},{LE2})"
+        consumer = [(LP, cP), (LE, cE), (LE2, cE2), (LP2, cP2)]
+        return op, consumer
+
+    raise ValueError(f"unknown RDM tensor {tensor!r}; choose D1/D1_n/D2/D2_ep")
+
+
+def rdm_block_ir(name, tensor, block, df=True, opt_level=None):
+    """JSONL IR for one reduced-density-matrix block, with the TARGET named exactly
+    ``tensor["block"]`` and indexed in the order :func:`energy_from_rdm_ir` and the
+    ``orbital_*_ir`` builders consume it -- so a neocc driver can pipe rdm-block IR
+    (inputs: amplitudes + B/f/Id) straight into the energy/gradient/sigma IR through
+    one contraction engine, with zero convention knowledge outside pdaggerq.
+
+    ``tensor`` in {"D1", "D1_n", "D2", "D2_ep"}; ``block`` is the class string in the
+    consumer's index order (e.g. ``rdm_block_ir("neo-ccsd", "D2_ep", "OovV")``). A block
+    the model cannot populate (e.g. ``D1["ov"]`` for a singles-free model) returns an
+    empty list -- the consumer zero-fills.
+    """
+    op, consumer = _rdm_block_spec(tensor, block)
+    try:
+        ir = rdm_graph(name, op, df=df, opt_level=opt_level, label="D").to_strings("ir")
+    except ValueError as exc:                            # pq_graph raises on a term-free equation
+        if "Empty terms" in str(exc):
+            return []                                    # model cannot populate this block
+        raise
+    stmts = [json.loads(l) for l in ir if l.strip().startswith("{")]
+    if not stmts:                                        # (belt and suspenders)
+        return []
+    tgt_name = f'{tensor}["{block}"]'
+    final = next(s["target"] for s in reversed(stmts) if s["target"]["name"] == "D")
+    # letters as they appear in the emitted IR (rdm_graph strips the proton 'n' prefix)
+    rdm_letters = list(final["indices"])
+    want = [L for L, _ in consumer]
+    cls = {L: c for L, c in consumer}
+    out = [l for l in ir if l.strip().startswith("{")]
+    if rdm_letters == want:                              # already consumer order -> rename D
+        return [json.dumps({**json.loads(l),
+                            "target": {**json.loads(l)["target"],
+                                       "name": tgt_name}} if json.loads(l)["target"]["name"] == "D"
+                           else json.loads(l))
+                for l in out]
+    # otherwise: rename D -> a temp, then append one permute into the named block
+    temp = f'tmps_["rdmblk_{tensor}_{block}"]'
+    renamed = []
+    for l in out:
+        s = json.loads(l)
+        if s["target"]["name"] == "D":
+            s["target"] = {**s["target"], "name": temp}
+        for o in s["operands"]:
+            if o["name"] == "D":
+                o["name"] = temp
+        renamed.append(json.dumps(s))
+    permute = {
+        "target": {"name": tgt_name, "indices": want, "classes": [cls[L] for L in want],
+                   "is_intermediate": False},
+        "is_assignment": True, "coeff": 1.0,
+        "operands": [{"name": temp, "indices": rdm_letters,
+                      "classes": [cls[L] for L in rdm_letters], "is_intermediate": True}]}
+    return renamed + [json.dumps(permute)]
 
 
 # --- explicit occ/vir-block RDM contractions -----------------------------------
