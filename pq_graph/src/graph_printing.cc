@@ -346,14 +346,10 @@ namespace pdaggerq {
                 // check if tmp is the lhs of the term
                 if (term.lhs()->same_temp(temp)) { declare_pos = i; break; }
 
-                string term_str = term.str();
-                if (term.lhs()->is_temp()) {
-                    bool test = true;
-                }
-
                 // check if tmp is in the rhs of the term
+                // (this loop previously built a full term.str()/op->str() rendering
+                // per iteration and discarded it -- pure wasted work in an O(n^2) scan)
                 for (const auto &op : term.rhs()) {
-                    string op_str = op->str();
                     if (op->is_linked() && as_link(op)->has_temp(temp, false)) {
                         found = true; break;
                     }

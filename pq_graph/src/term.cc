@@ -529,17 +529,22 @@ namespace pdaggerq {
             return "";
 
         string comment;
-        for (const auto &vertex: rhs_) {
-            if (vertex->is_linked())
-                comment += as_link(vertex)->tot_str(true);
-            else
-                comment += vertex->str();
-            if (vertex != rhs_.back())
-                comment += " * ";
+        if (!only_flop) {
+            // the operator string is expensive (tot_str fully expands every linked
+            // operand); skip building it when only the flop/mem lines are wanted
+            // (it was previously assembled and then cleared at the only_flop check)
+            for (const auto &vertex: rhs_) {
+                if (vertex->is_linked())
+                    comment += as_link(vertex)->tot_str(true);
+                else
+                    comment += vertex->str();
+                if (vertex != rhs_.back())
+                    comment += " * ";
+            }
         }
 
         // add permutations to comment if there are any
-        if (!term_perms_.empty()) {
+        if (!only_flop && !term_perms_.empty()) {
             string perm_str;
             int count;
             switch (perm_type_) {
@@ -585,26 +590,25 @@ namespace pdaggerq {
             comment = perm_str + comment;
         }
 
-        // get coefficient
-        double coeff = coefficient_;
-        bool is_negative = coeff < 0;
+        string assign_str = is_assignment_ ? "  = " : " += ";   // also used by the flop/mem lines below
 
-        string assign_str = is_assignment_ ? "  = " : " += ";
+        if (!only_flop) {
+            // get coefficient
+            double coeff = coefficient_;
+            bool is_negative = coeff < 0;
 
-        int precision = minimum_precision(coefficient_);
-        string coeff_str = to_string_with_precision(fabs(coefficient_), precision);
-        if (is_negative) coeff_str.insert(coeff_str.begin(), '-');
-        coeff_str += ' ';
+            int precision = minimum_precision(coefficient_);
+            string coeff_str = to_string_with_precision(fabs(coefficient_), precision);
+            if (is_negative) coeff_str.insert(coeff_str.begin(), '-');
+            coeff_str += ' ';
 
-        if (original_pq_.empty()) {
-            // add lhs to comment
-            comment = "// " + lhs_->str() + assign_str + coeff_str + comment;
-        } else {
-            comment = "// " + lhs_->name() + assign_str + original_pq_;
+            if (original_pq_.empty()) {
+                // add lhs to comment
+                comment = "// " + lhs_->str() + assign_str + coeff_str + comment;
+            } else {
+                comment = "// " + lhs_->name() + assign_str + original_pq_;
+            }
         }
-
-        if (only_flop) // clear comment if only flop is requested
-            comment.clear();
 
         // remove all quotes from comment
         comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());

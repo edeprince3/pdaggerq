@@ -204,6 +204,16 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
         vector<pair<scaling_map, MutableLinkagePtr>> test_data(n_linkages);
 
 
+        // snapshot the candidate set into a vector: linkage_set::operator[](i) walks
+        // the underlying unordered_set from begin() under a mutex, so indexing every
+        // i in the parallel loop below was O(n^2) in the candidate count AND fully
+        // serialized on the lock. One O(n) copy here makes the loop's candidate
+        // access lock-free and O(1) per iteration.
+        vector<LinkagePtr> candidates;
+        candidates.reserve(n_linkages);
+        for (const auto &linkage : test_linkages.linkages())
+            candidates.push_back(linkage);
+
         // print ratio for showing progress
         size_t print_ratio = n_linkages / 20;
         bool print_progress = n_linkages > 2000;
@@ -216,13 +226,13 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
          * If they can, save the flop map for each equation.
          * If the flop map is better than the current best flop map, save the linkage.
          */
-#pragma omp parallel for schedule(guided) default(none) shared(test_linkages, test_data, \
+#pragma omp parallel for schedule(guided) default(none) shared(candidates, test_data, \
             ignore_linkages, equations_, stdout) firstprivate(n_linkages, temp_counts_, temp_type, allow_equality, \
             format_sigma, print_ratio, print_progress, only_scalars, separate_sigma_)
         for (int i = 0; i < n_linkages; ++i) {
 
             // copy linkage
-            MutableLinkagePtr linkage = as_link(test_linkages[i]->shallow());
+            MutableLinkagePtr linkage = as_link(candidates[i]->shallow());
             bool is_scalar = linkage->is_scalar(); // check if linkage is a scalar
             bool is_sigma = linkage->is_sigma_;
 

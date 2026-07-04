@@ -290,6 +290,9 @@ namespace pdaggerq {
 
 
     void Linkage::set_properties() {
+        // base_name_ is about to be rebuilt: invalidate its cached hash
+        base_hash_ = 0;
+
         // determine the depth of the linkage
         depth_ = 1;
         size_t left_depth = left_->depth(), right_depth = right_->depth();
@@ -464,15 +467,23 @@ namespace pdaggerq {
         right_ = other.right_;
         depth_ = other.depth_;
 
-        // copy vectors that keep track of the graph structure
-        all_vert_     = other.all_vert_;
-        link_vector_  = other.link_vector_;
-        permutations_ = other.permutations_;
+        // do NOT copy the lazy memoization caches (all_vert_, link_vector_,
+        // permutations_): they regenerate on demand (link_vector()/permutations()
+        // rebuild when empty), permutations_ alone can hold up to depth! full
+        // subtrees, and shallow() copies are made pervasively -- duplicating the
+        // caches (and atomically bumping every contained shared_ptr refcount)
+        // was a dominant source of allocation churn in the optimizer.
+        all_vert_.clear();
+        link_vector_.clear();
+        permutations_.clear();
 
         // copy root linkage connectivity and scales
         connec_map_ = other.connec_map_;
         flop_scale_ = other.flop_scale_;
         mem_scale_  = other.mem_scale_;
+
+        // the cached hash tracks base_name_, which Vertex::operator= just copied
+        base_hash_ = other.base_hash_;
 
         // copy misc properties
         copy_misc(other);

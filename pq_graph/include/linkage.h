@@ -108,7 +108,22 @@ namespace pdaggerq {
         mutable vertex_vector link_vector_; // all non-intermediate vertices from linkages
         mutable linkage_vector permutations_; // all permutations of the linkage
 
+        // cached std::hash of base_name_ (the recursive structural string, whose
+        // length grows with the subtree -- rehashing it on every container lookup
+        // was a top optimizer cost). 0 = not yet computed; set_properties() resets
+        // it whenever base_name_ is rebuilt, and copy_link() copies it alongside
+        // base_name_. concurrent lazy computation is a benign same-value race.
+        mutable size_t base_hash_ = 0;
+
     public:
+        size_t base_hash() const {
+            if (base_hash_ == 0) {
+                size_t h = std::hash<string>{}(base_name_);
+                base_hash_ = (h == 0) ? 1 : h;   // reserve 0 for "not computed"
+            }
+            return base_hash_;
+        }
+
         long id_ = -1; // id of the linkage (default to -1 if not set)
         size_t depth_{}; // number of vertices in the linkage
         bool addition_ = false; // whether the linkage is an addition; else it is a contraction
