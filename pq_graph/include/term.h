@@ -75,6 +75,9 @@ namespace pdaggerq {
         bool generated_linkages_ = false; // flag for if term has generated linkages (default is false)
         bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
         string print_override_; // string to override print function
+        string ir_perm_json_;  // optional "perm" JSON fragment for the IR export: set on the
+                               // expanded copies of a permuted term so each emitted statement
+                               // carries its originating antisymmetrizer (type + index pairs)
 
         static inline size_t max_depth_ = -1; // maximum number of rhs in a linkage (no limit by default)
         static inline shape max_shape_; // maximum shape of a linkage

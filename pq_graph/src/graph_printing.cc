@@ -22,6 +22,7 @@
 //
 
 #include <cmath>
+#include <numeric>
 #include <map>
 #include <algorithm>
 #include <iostream>
@@ -568,6 +569,23 @@ namespace pdaggerq {
         bool has_permutations = !term_perms_.empty() && perm_type_ != 0;
         if (has_permutations) { // if there are permutations
 
+            // for the IR export, carry the antisymmetrizer that generated the expanded
+            // statements: every statement of this group (the unpermuted definition and
+            // each permuted accumulate) is annotated with the perm type and index pairs,
+            // so a consumer can recognize "target is (anti)symmetrized under P(...)"
+            // instead of seeing unrelated accumulates.
+            string perm_json;
+            if (Vertex::print_type_ == "ir") {
+                perm_json = "\"perm\":{\"type\":" + std::to_string(perm_type_) + ",\"pairs\":[";
+                bool first = true;
+                for (const auto &p : term_perms_) {
+                    if (!first) perm_json += ",";
+                    first = false;
+                    perm_json += "[\"" + p.first + "\",\"" + p.second + "\"]";
+                }
+                perm_json += "]}";
+            }
+
             // make intermediate vertex for the permutation
             MutableVertexPtr perm_vertex;
 
@@ -594,6 +612,7 @@ namespace pdaggerq {
                 perm_term.reset_perm();
                 perm_term.is_assignment_ = true; // set term as assignment
                 perm_term.coefficient_ = fabs(coefficient_); // set coefficient to absolute value of coefficient
+                perm_term.ir_perm_json_ = perm_json; // annotate the group's definition (IR only)
 
                 // add string to output
                 output += perm_term.str();
@@ -604,6 +623,7 @@ namespace pdaggerq {
             // initialize term to permute
             Term perm_term = *this; // copy term
             perm_term.rhs_ = {perm_vertex};
+            perm_term.ir_perm_json_ = perm_json; // inherited by every expanded copy (IR only)
             perm_term.compute_scaling(true);  // recomputes scaling
 
             // remove comments from term
@@ -876,13 +896,13 @@ namespace pdaggerq {
     // reference to that temp. So the IR carries every operand's definition.
     static string ir_emit(const string &tname, const line_vector &tlines, bool tinterm,
                           bool assign, double coeff, const VertexPtr &rhs_link,
-                          const std::set<string> &conds) {
+                          const std::set<string> &conds, const string &extra = "") {
 
         // split additions (a named temp used as an operand is left intact)
         if (rhs_link->is_linked() && as_link(rhs_link)->is_addition() && !rhs_link->is_temp()) {
             LinkagePtr al = as_link(rhs_link);
-            return ir_emit(tname, tlines, tinterm, assign, coeff, al->left(), conds)
-                 + "\n" + ir_emit(tname, tlines, tinterm, false, coeff, al->right(), conds);
+            return ir_emit(tname, tlines, tinterm, assign, coeff, al->left(), conds, extra)
+                 + "\n" + ir_emit(tname, tlines, tinterm, false, coeff, al->right(), conds, extra);
         }
 
         // gather operands (contraction order, mirroring the python printer's walk)
@@ -910,6 +930,27 @@ namespace pdaggerq {
         out += string(",\"is_assignment\":") + (assign ? "true" : "false");
         { std::ostringstream cs; cs.precision(17); cs << coeff;
           out += ",\"coeff\":" + cs.str(); }
+
+        // exact small-rational annotation: repeating fractions print as 17-digit
+        // decimals above (e.g. 1/3 -> 0.33333333333333331); when the coefficient is a
+        // small p/q, also emit it exactly so consumers can recover the factor.
+        if (std::fabs(coeff - std::round(coeff)) > 1e-12) {          // non-integer only
+            for (long q : {2L, 3L, 4L, 6L, 8L, 12L, 16L, 24L, 32L, 48L, 64L}) {
+                double pd = coeff * (double) q;
+                double pr = std::round(pd);
+                if (std::fabs(pd - pr) < 1e-12) {
+                    long p = (long) pr;
+                    long g = std::gcd(std::labs(p), q);
+                    out += ",\"coeff_rational\":\"" + std::to_string(p / g) + "/"
+                         + std::to_string(q / g) + "\"";
+                    break;
+                }
+            }
+        }
+
+        // caller-supplied annotation (e.g. the originating antisymmetrizer group)
+        if (!extra.empty())
+            out += "," + extra;
 
         // term-level spin-block / state conditions, if any (NEO spin blocking)
         if (!conds.empty()) {
@@ -954,7 +995,8 @@ namespace pdaggerq {
     // are already expanded into separate terms by Term::str() before this point.
     string Term::ir_str() const {
         return ir_emit(lhs_->name(), lhs_->lines(), ir_is_intermediate(lhs_),
-                       is_assignment_, coefficient_, term_linkage(true), conditions());
+                       is_assignment_, coefficient_, term_linkage(true), conditions(),
+                       ir_perm_json_);
     }
 
 }
