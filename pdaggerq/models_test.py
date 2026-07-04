@@ -689,19 +689,20 @@ def test_opt_level_safe_default():
     """pq_graph opt_level=6 (intermediate *fusion*) was nondeterministic and emitted
     IR that consumers misread (fusion-created constant-scalar vertices as index-less
     operands). Both are fixed on this fork (canonical fusion ordering in fusion.cc +
-    constant folding in ir_emit), but generated equations keep the opt_level-5 default
-    until consumers revalidate at 6. Verify (1) the resolver default, (2) the default
-    residual matches opt0, and (3) the fusion fix holds: opt_level 6 now ALSO matches
-    opt0 on the equation that used to break (the reverse of the old tripwire)."""
+    constant folding in ir_emit) and generation defaults to full opt6 again. Verify
+    (1) the resolver default, (2) the default residual matches opt0, and (3) the
+    fusion fix holds on the equation that used to break: opt6 is deterministic and
+    correct (the reverse of the old tripwire; if this fails, re-cap to 5)."""
     import re, itertools
     import numpy as np
     from collections import defaultdict
 
-    # (1) resolver: None -> the safe cap (5) for every model; explicit wins
+    # (1) resolver: None -> the default (full opt6, fusion fixed) for every model;
+    # explicit wins
     for m in ("ccsd", "neo-ccsd", "neo-ccd(ep)", "ccsdt", "ccsdtq",
               "neo-ccsdt(eep)", "neo-ccsdtq(eeep)"):
-        assert models._opt_level_for(m, None) == 5, m
-    assert models._opt_level_for("ccsd", 6) == 6                # explicit override wins
+        assert models._opt_level_for(m, None) == 6, m
+    assert models._opt_level_for("ccsd", 5) == 5                # explicit override wins
     assert models._opt_level_for("ccsd", 0) == 0
 
     # (2) numerical: default (resolved opt5) == opt0; opt6 is the bug the default avoids

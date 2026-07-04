@@ -135,27 +135,23 @@ def lambda_amps(name):
     return [a.replace("t", "l", 1) for a in model(name).T]
 
 
-#: safe default pq_graph optimization level. pq_graph's opt_level=6 intermediate
-#: *fusion* pass (the opt5->opt6 step) is NONDETERMINISTIC and occasionally emits an
-#: INCORRECT equation: repeated emissions of the same graph give distinct output text,
-#: and a fraction of them disagree with opt_level 0-5 (which are all mutually consistent
-#: and deterministic) by O(1) on random amplitudes. The wrongness is silent -- every
-#: output format (python / ir / c++) of a given emission agrees with itself, so
-#: cross-format validation cannot catch it; only comparison against a lower opt_level
-#: does. It strikes ALL models (residuals, RDMs, ...), not just triples. Root cause is
-#: address-dependent container ordering (``set<Term*>`` &c.) in ``pq_graph/src/fusion.cc``
-#: driving an order-sensitive merge. Until that is fixed upstream, cap at opt_level 5:
-#: reordering / substitution / separation / pruning / merging, WITHOUT fusion -- proven
-#: deterministic and correct. Reproduce: emit any residual/RDM at opt_level 6 several
-#: times and diff / evaluate the outputs.
-_SAFE_OPT_LEVEL = 5
+#: default pq_graph optimization level for every generated equation. Full opt_level 6
+#: (reordering / substitution / separation / pruning / merging / intermediate fusion).
+#: History: the fusion pass used to be nondeterministic (hash-ordered LinkMerger
+#: decisions) and its constant-scalar vertices were mis-emitted by the IR export, which
+#: made opt6 output unreproducible and made consumers read wrong numbers -- generation
+#: was capped at 5 while that stood (see edeprince3/pdaggerq#114). Both defects are
+#: fixed (canonical fusion ordering in fusion.cc; constant folding in ir_emit), opt6 is
+#: byte-reproducible and validated against opt_level 0 numerically, and
+#: ``models_test.test_opt_level_safe_default`` guards exactly that -- if it trips,
+#: re-cap to 5 here.
+_SAFE_OPT_LEVEL = 6
 
 
 def _opt_level_for(name, opt_level):
     """Resolve the pq_graph optimization level for a model. ``opt_level=None`` (the
-    default for every generated equation) returns :data:`_SAFE_OPT_LEVEL` (5), avoiding
-    the broken opt_level-6 fusion pass. An explicit ``opt_level`` always wins (pass
-    ``opt_level=6`` only to reproduce the fusion bug)."""
+    default for every generated equation) returns :data:`_SAFE_OPT_LEVEL`. An explicit
+    ``opt_level`` always wins."""
     return _SAFE_OPT_LEVEL if opt_level is None else opt_level
 
 
