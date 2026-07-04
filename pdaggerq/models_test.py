@@ -686,13 +686,13 @@ def test_neo_gep_normal_ordered():
 
 
 def test_opt_level_safe_default():
-    """pq_graph opt_level=6 (intermediate *fusion*) is nondeterministic and occasionally
-    emits an incorrect equation (repeated emissions disagree; a fraction differ from
-    opt_level 0-5 by O(1) on random amplitudes). It strikes every model. So
-    ``models._optimized`` defaults all generated equations to opt_level 5 (no fusion),
-    which is deterministic and correct. Verify (1) the resolver caps at 5 and (2) the
-    default eep tep11 residual matches the un-optimized (opt0) residual on antisymmetric
-    amplitudes, while opt_level 6 (still) can diverge."""
+    """pq_graph opt_level=6 (intermediate *fusion*) was nondeterministic and emitted
+    IR that consumers misread (fusion-created constant-scalar vertices as index-less
+    operands). Both are fixed on this fork (canonical fusion ordering in fusion.cc +
+    constant folding in ir_emit), but generated equations keep the opt_level-5 default
+    until consumers revalidate at 6. Verify (1) the resolver default, (2) the default
+    residual matches opt0, and (3) the fusion fix holds: opt_level 6 now ALSO matches
+    opt0 on the equation that used to break (the reverse of the old tripwire)."""
     import re, itertools
     import numpy as np
     from collections import defaultdict
@@ -753,16 +753,17 @@ def test_opt_level_safe_default():
     truth = interp(ir0, inp)
     default = interp(einsums.parse_ir(models.residual_ir("neo-ccsdt(eep)", "tep11")), inp)
     assert np.max(np.abs(default - truth)) < 1e-9, np.max(np.abs(default - truth))
-    # tripwire: opt_level 6 is still broken -- across several emissions it is either
-    # nondeterministic (distinct output text) or numerically wrong (differs from opt0).
-    # If this stops holding, pq_graph's fusion was fixed upstream and the opt5 cap in
-    # _opt_level_for can be lifted.
+    # (3) the fusion fix holds: opt_level 6 is deterministic (identical text across
+    # emissions) AND correct (matches opt0) on the equation that used to break.
+    # If this fails, the fusion regression is back -- re-cap generation and see
+    # edeprince3/pdaggerq#114.
     texts, worst = set(), 0.0
-    for _ in range(4):
+    for _ in range(3):
         ir6 = models.residual_ir("neo-ccsdt(eep)", "tep11", opt_level=6)
         texts.add("\n".join(l for l in ir6 if l.strip().startswith("{")))
         worst = max(worst, float(np.max(np.abs(interp(einsums.parse_ir(ir6), inp) - truth))))
-    assert len(texts) > 1 or worst > 1e-3, "opt6 fusion appears fixed (deterministic + correct)"
+    assert len(texts) == 1, f"opt6 emission nondeterministic again ({len(texts)} variants)"
+    assert worst < 1e-9, f"opt6 numerically wrong again (err {worst})"
     print("test_opt_level_safe_default OK")
 
 

@@ -47,6 +47,8 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 
 namespace pdaggerq {
 
+    void reset_ir_hoist_counter(); // defined with the counter, below
+
     string PQGraph::str(const string &print_type) const {
 
         constexpr auto to_lower = [](string str) {
@@ -78,6 +80,10 @@ namespace pdaggerq {
             cout << "Formatting equations for c++" << endl;
         } else if (Vertex::print_type_ == "ir") {
             Vertex::print_type_ = "ir";
+            reset_ir_hoist_counter(); // fresh irN names per export: the counter is
+                                      // otherwise monotonic across the process, so
+                                      // repeated exports of the same graph differed
+                                      // in synthetic temp names only
             cout << "Formatting equations as codegen IR (JSONL)" << endl;
         } else {
             cout << "WARNING: output must be one of: python, einsum, c++, cpp, or ir" << endl;
@@ -859,6 +865,7 @@ namespace pdaggerq {
     // unique within an export; deterministic across fresh processes (like the
     // optimizer's own tmp ids).
     static long ir_hoist_counter = 0;
+    void reset_ir_hoist_counter() { ir_hoist_counter = 0; }
 
     // Binary contraction tree of a linkage over the flat operand list ir_emit
     // gathers from link_vector(), as a nested JSON array of operand indices --
@@ -880,7 +887,10 @@ namespace pdaggerq {
             if (r.empty()) return l;
             return "[" + l + "," + r + "]";
         }
-        // plain vertex: link_vector() pushes it unless it is an implicit scalar 1
+        // plain vertex: link_vector() pushes it unless it is an implicit scalar 1;
+        // constant scalars are folded into the statement coefficient by ir_emit,
+        // so they are not operands and must not consume a leaf index here.
+        if (node->is_constant()) return "";
         if (fabs(node->value() - 1.0) > 1e-8) return std::to_string(leaf_idx++);
         return "";
     }
@@ -916,6 +926,14 @@ namespace pdaggerq {
         std::vector<string> operand_jsons;
         for (const auto &op : ops) {
             if (op->empty()) continue;
+            if (!op->is_linked() && op->is_constant()) {
+                // constant-scalar vertex (created by intermediate fusion's
+                // ratio*vertex): fold into the statement coefficient instead of
+                // emitting an operand named "0.500000000000" with no indices,
+                // which every IR consumer would misread as an input tensor.
+                coeff *= op->value();
+                continue;
+            }
             if (op->is_linked() && !ir_is_intermediate(op)) {
                 // inline (A+B)/nested-contraction operand -> materialise into a temp
                 string tn = "tmps_[\"ir" + std::to_string(ir_hoist_counter++) + "\"]";
