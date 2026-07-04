@@ -119,50 +119,59 @@ namespace pdaggerq {
             return;
         }
 
-        // create a map of lines to their corresponding indicies
-        unordered_map<const Line*, std::array<int_fast8_t, 2>, LineHash, LineEqual>
-                line_populations;
+        // match left and right lines with a flat small-buffer scan. line counts are
+        // tensor ranks (tiny), so a linear equality scan beats hashing -- and the
+        // unordered_map this replaces heap-allocated for every Linkage ever
+        // constructed, which perf showed dominating the optimizer's allocator
+        // traffic. semantics are identical to the map version, including duplicate
+        // collapse: one entry per distinct line value, last left/right index wins.
+        const size_t max_entries = (size_t) left_size + (size_t) right_size;
+        const Line *entry_line[max_entries];
+        std::array<int_fast8_t, 2> entry_connec[max_entries];
+        size_t n_entries = 0;
 
-        // populate left lines
+        // populate left lines (a duplicate left line overwrites its entry, as the
+        // map's operator[] did)
         for (uint_fast8_t i = 0; i < left_size; i++) {
-            auto &[left_id, right_id] = line_populations[&left_lines[i]];
-            left_id = static_cast<int_fast8_t>(i);
-            right_id = -1;
+            size_t e = 0;
+            while (e < n_entries && !(*entry_line[e] == left_lines[i])) ++e;
+            if (e == n_entries) entry_line[n_entries++] = &left_lines[i];
+            entry_connec[e] = {static_cast<int_fast8_t>(i), -1};
         }
 
-        // populate right lines and track index
+        // populate right lines and track index (a match updates right_id, last wins)
         for (uint_fast8_t i = 0; i < right_size; i++) {
-
-            // attempt to insert right line into map
-            auto [pos, inserted] = line_populations.try_emplace(&right_lines[i], std::array<int_fast8_t, 2>{-1, static_cast<int_fast8_t>(i)});
-
-            if (!inserted) {
-                // if line already exists, update right_id
-                auto &[left_id, right_id] = pos->second;
-                right_id = (int_fast8_t) i; // add index to right_id
+            size_t e = 0;
+            while (e < n_entries && !(*entry_line[e] == right_lines[i])) ++e;
+            if (e == n_entries) {
+                entry_line[n_entries++] = &right_lines[i];
+                entry_connec[e] = {-1, static_cast<int_fast8_t>(i)};
+            } else {
+                entry_connec[e][1] = static_cast<int_fast8_t>(i);
             }
         }
 
-        // now we have a map of lines to their corresponding indices
+        // now we have the distinct lines with their corresponding indices
         // determine which lines are internal and external and store their indices
         bool left_ext_idx[left_size], right_ext_idx[right_size];
         memset( left_ext_idx, '\0',  left_size);
         memset(right_ext_idx, '\0', right_size);
 
         // reserve lines for indices
-        connec_map_.reserve(line_populations.size());
+        connec_map_.reserve(n_entries);
 
         // populate connec_map_, rank, memory and flop scaling
-        for (auto &[line_ptr, line_connec] : line_populations) {
+        for (size_t e = 0; e < n_entries; e++) {
 
             // get indices
+            const auto &line_connec = entry_connec[e];
             const auto &[left_idx, right_idx] = line_connec;
 
             // add to connection map
             connec_map_.push_back(line_connec);
 
             // get line
-            const Line &line = *line_ptr;
+            const Line &line = *entry_line[e];
 
             // check if line is external and should be added
             bool left_external  = right_idx < 0;
