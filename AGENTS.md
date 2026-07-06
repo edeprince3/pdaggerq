@@ -92,17 +92,17 @@ The suite collects **46 tests** across two files:
 
 A successful run looks like:
 ```
-=================== 45 passed, 1 failed in ~628s (0:10:27) ===================
+=================== 46 passed in ~628s (0:10:27) ===================
 ```
 
 ### Known Test Status
 
 - **`test/pq_test.py`** — all 37 tests pass ✅
-- **`test/numerical_test.py`** — 8/9 pass; `ccsdt_with_spin` has a known faulty assertion and can be ignored ✅
+- **`test/numerical_test.py`** — all 9 tests pass ✅
 
 ### Test Logs
 
-Numerical tests write detailed output (generated equations, intermediate code, tracebacks) to `numerical_test.log` in the repository root. Check this file to monitor progress of long-running numerical tests.
+Numerical tests write detailed output (generated equations, intermediate code, tracebacks) to `numerical_test.log`. Check this file to monitor progress of long-running numerical tests.
 
 > The numerical tests invoke psi4 quantum chemistry calculations and take **~10 minutes** to complete in total.
 
