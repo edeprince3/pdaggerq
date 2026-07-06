@@ -31,6 +31,7 @@
 
 #include "../include/pq_graph.h"
 #include "../include/term.h"
+#include "../include/code_printer.h"
 
 
 // include omp only if defined
@@ -156,7 +157,7 @@ namespace pdaggerq {
 
     string Vertex::str() const {
         string name = name_;
-        if (print_type_ == "c++")
+        if (printer_->include_line_indices())
             name += line_str();
         return name;
     }
@@ -192,7 +193,7 @@ namespace pdaggerq {
 
         generic_str += "\"]";
 
-        if (include_lines && print_type_ == "c++") // if lines are included, add them to the generic name (default)
+        if (include_lines && printer_->include_line_indices()) // if lines are included, add them to the generic name (default)
             generic_str += line_str(); // sorts print order
 
         // create a generic vertex that has the same lines as this linkage.
@@ -214,9 +215,6 @@ namespace pdaggerq {
         if (left_->empty())  return right_->str();
         if (right_->empty()) return left_->str();
 
-        // prepare output string
-        string output, left_string, right_string;
-
         // get link vector
         vertex_vector link_vector = this->link_vector();
 
@@ -234,222 +232,64 @@ namespace pdaggerq {
             link_vector = link_vector_no_trial;
         }
 
-        if (print_type_ == "c++") {
+        const CodePrinter* printer = Vertex::printer_;
 
-            if (is_addition()) {
-                return left_->str() + " + " + right_->str();
+        // helper: wrap an addition sub-expression in parens unless it is a temp
+        auto wrap = [](const VertexPtr& op) -> string {
+            string s = op->str();
+            if (op->is_addition() && !op->is_temp())
+                s = "(" + s + ")";
+            return s;
+        };
+
+        if (is_addition()) {
+            // build labels and types directly from children (before link_vector filtering)
+            string left_labels, right_labels, left_types, right_types;
+            for (const auto &line: left_->lines()) {
+                if (line.sig_ && !Vertex::use_trial_index) continue;
+                left_labels += line.label_[0];
+                left_types  += line.type();
             }
-
-            vertex_vector scalars;
-            vertex_vector tensors;
-            for (const auto &op: link_vector) {
-                if (op->empty()) continue;
-                if (op->is_scalar()) {
-                    // pure scalars should be added first
-                    if (!op->is_linked()) scalars.insert(scalars.begin(), op);
-                    else scalars.push_back(op);
-                }
-                else {
-                    tensors.push_back(op);
-                }
+            for (const auto &line: right_->lines()) {
+                if (line.sig_ && !Vertex::use_trial_index) continue;
+                right_labels += line.label_[0];
+                right_types  += line.type();
             }
-
-            if (scalars.empty() && tensors.empty()) return "1.0";
-
-            // first add scalars
-            for (const auto &scalar: scalars) {
-                string scalar_str = scalar->str();
-                if (scalar->is_addition() && !scalar->is_temp())
-                    scalar_str = "(" + scalar_str + ")";
-                output += scalar_str + " * ";
-            }
-
-            if (tensors.empty()) {
-                output.pop_back(); output.pop_back(); output.pop_back();
-                return output;
-            }
-
-            bool format_dot = is_scalar() && tensors.size() > 1;
-            format_dot = false;
-
-            // this is a scalar, so we need to format as a dot product
-            if (format_dot) output += "1.00 * dot(";
-
-            // add tensors
-            for (size_t i = 0; i < tensors.size(); i++) {
-                string tensor_string = tensors[i]->str();
-                if (tensors[i]->is_addition() && !tensors[i]->is_temp())
-                    tensor_string = "(" + tensor_string + ")";
-                output += tensor_string;
-                if (format_dot && i == tensors.size() - 2)
-                    output += ", ";
-                else if (i < tensors.size() - 1)
-                    output += " * ";
-            }
-            if (format_dot) output += ")";
-
+            return printer->format_addition(
+                left_->str(), right_->str(),
+                left_labels, right_labels, left_types, right_types);
         }
-        else if (print_type_ == "python") {
-            if (is_addition()) {
-                // we need to permute the right to match the left
-                string left_labels, right_labels;
-                for (const auto &line: left_->lines())
-                    if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else left_labels += line.label_[0];
-                for (const auto &line: right_->lines())
-                    if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else right_labels += line.label_[0];
 
-                output = left_->str() + " + ";
-
-                if (left_labels != right_labels) {
-                    // check if labels are a permutation (same character set)
-                    string sorted_left = left_labels, sorted_right = right_labels;
-                    std::sort(sorted_left.begin(), sorted_left.end());
-                    std::sort(sorted_right.begin(), sorted_right.end());
-                    if (sorted_left == sorted_right) {
-                        // same characters, different order: einsum permutation is valid
-                        output += "einsum('";
-                        output += right_labels + "->" + left_labels + "',";
-                    } else {
-                        // different character sets - check if positional types match
-                        string left_types, right_types;
-                        for (const auto &line: left_->lines())
-                            if (!(line.sig_ && !Vertex::use_trial_index)) left_types += line.type();
-                        for (const auto &line: right_->lines())
-                            if (!(line.sig_ && !Vertex::use_trial_index)) right_types += line.type();
-
-                        if (left_types != right_types && left_types.size() == right_types.size()) {
-                            // types differ positionally - need np.transpose
-                            output += "np.transpose(";
-                        }
-                        // else: same positional types - direct addition is valid (no permutation needed)
-                    }
-                }
-                output += right_->str();
-                if (left_labels != right_labels) {
-                    string sorted_left = left_labels, sorted_right = right_labels;
-                    std::sort(sorted_left.begin(), sorted_left.end());
-                    std::sort(sorted_right.begin(), sorted_right.end());
-                    if (sorted_left == sorted_right)
-                        output += ")";
-                    else {
-                        // check if types differ and close transpose
-                        string left_types, right_types;
-                        for (const auto &line: left_->lines())
-                            if (!(line.sig_ && !Vertex::use_trial_index)) left_types += line.type();
-                        for (const auto &line: right_->lines())
-                            if (!(line.sig_ && !Vertex::use_trial_index)) right_types += line.type();
-                        if (left_types != right_types && left_types.size() == right_types.size()) {
-                            // build axis permutation
-                            string perm = ", (";
-                            vector<bool> used(right_types.size(), false);
-                            for (size_t i = 0; i < left_types.size(); i++) {
-                                for (size_t j = 0; j < right_types.size(); j++) {
-                                    if (!used[j] && left_types[i] == right_types[j]) {
-                                        perm += to_string(j) + ",";
-                                        used[j] = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            perm.pop_back();
-                            perm += "))";
-                            output += perm;
-                        }
-                    }
-                }
-                return output;
-            }
-
-            vector<string> indices;
-            vertex_vector scalars;
-            vertex_vector tensors;
-            for (const auto &op: link_vector) {
-                if (op->empty()) continue;
-                if (op->is_scalar())
-                    scalars.push_back(op);
-                else {
-                    tensors.push_back(op);
-                    string label;
-                    for (const auto &line: op->lines())
-                        if (line.sig_ && !Vertex::use_trial_index) continue;
-                        else label += line.label_[0];
-                    indices.push_back(label);
-                }
-            }
-
-            for (const auto &scalar: scalars) {
-                string scalar_str = scalar->str();
-                if (scalar->is_addition() && !scalar->is_temp())
-                    scalar_str = "(" + scalar_str + ")";
-                output += scalar_str + " * ";
-            }
-            if (!tensors.empty()) {
-                // build output subscript string
-                string output_labels;
-                for (const auto &line: lines_)
-                    if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else output_labels += line.label_[0];
-
-                // check if this is a single-tensor case with incompatible label rename
-                bool skip_einsum = false;
-                if (tensors.size() == 1) {
-                    string sorted_input = indices[0], sorted_output = output_labels;
-                    std::sort(sorted_input.begin(), sorted_input.end());
-                    std::sort(sorted_output.begin(), sorted_output.end());
-                    if (sorted_input != sorted_output) {
-                        // different character sets - check positional types
-                        string input_types, output_types;
-                        for (const auto &line: tensors[0]->lines())
-                            if (!(line.sig_ && !Vertex::use_trial_index)) input_types += line.type();
-                        for (const auto &line: lines_)
-                            if (!(line.sig_ && !Vertex::use_trial_index)) output_types += line.type();
-
-                        if (input_types == output_types) {
-                            // same positional types - just a notational rename, skip einsum
-                            skip_einsum = true;
-                        }
-                        // else: types differ - would need np.transpose (handled below)
-                    }
-                    // also skip if input == output (identity - no permutation needed)
-                    if (indices[0] == output_labels) skip_einsum = true;
-                }
-
-                if (skip_einsum) {
-                    string tensor_str = tensors[0]->str();
-                    if (tensors[0]->is_addition() && !tensors[0]->is_temp())
-                        tensor_str = "(" + tensor_str + ")";
-                    output += tensor_str;
-                } else {
-                    output += "einsum('";
-                    for (const auto &index: indices)
-                        output += index + ",";
-                    output.pop_back();
-                    output += "->";
-                    output += output_labels;
-                    output += "',";
-
-                    for (const auto &tensor: tensors) {
-                        string tensor_str = tensor->str();
-                        if (tensor->is_addition() && !tensor->is_temp())
-                            tensor_str = "(" + tensor_str + ")";
-                        output += tensor_str + ",";
-                    }
-
-                    if (tensors.size() > 2)
-                        output += "optimize='optimal'";
-                    else output.pop_back();
-
-                    output += ")";
-                }
-
+        // partition link_vector into scalars and tensors
+        vector<string> scalar_strs;
+        vector<TensorEntry> tensor_entries;
+        for (const auto &op: link_vector) {
+            if (op->empty()) continue;
+            if (op->is_scalar()) {
+                scalar_strs.push_back(wrap(op));
             } else {
-                output.pop_back(); output.pop_back(); output.pop_back();
+                TensorEntry entry;
+                entry.str = wrap(op);
+                for (const auto &line: op->lines()) {
+                    if (line.sig_ && !Vertex::use_trial_index) continue;
+                    entry.index_labels += line.label_[0];
+                    entry.index_types  += line.type();
+                }
+                tensor_entries.push_back(entry);
             }
         }
 
-        return output;
+        if (scalar_strs.empty() && tensor_entries.empty()) return "1.0";
+
+        // build output index labels and types (used by EinsumPrinter)
+        string output_labels, output_types;
+        for (const auto &line: lines_) {
+            if (line.sig_ && !Vertex::use_trial_index) continue;
+            output_labels += line.label_[0];
+            output_types  += line.type();
+        }
+
+        return printer->format_contraction(scalar_strs, tensor_entries, output_labels, output_types);
     }
 
 }

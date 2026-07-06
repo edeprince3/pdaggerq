@@ -24,6 +24,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 #include "../include/pq_graph.h"
+#include "../include/code_printer.h"
 
 // include omp only if defined
 #ifdef _OPENMP
@@ -93,14 +94,8 @@ namespace pdaggerq {
     }
 
     void PQGraph::set_options(const pybind11::dict& options) {
-        string h1, h2; // header 1 and header 2 padding
-        if (Vertex::print_type_ == "python") {
-            h1 = "####################";
-            h2 = "#####";
-        } else if (Vertex::print_type_ == "c++") {
-            h1 = "///////////////////";
-            h2 = "/////";
-        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+        const string h1 = Vertex::printer_->banner_h1();
+        const string h2 = Vertex::printer_->banner_h2();
 
         cout << endl << h1 << " PQ GRAPH " << h1 << endl << endl;
 
@@ -723,14 +718,8 @@ namespace pdaggerq {
     }
 
     void PQGraph::analysis() const {
-        string h1, h2; // header 1 and header 2 padding
-        if (Vertex::print_type_ == "python") {
-            h1 = "####################";
-            h2 = "#####";
-        } else if (Vertex::print_type_ == "c++") {
-            h1 = "///////////////////";
-            h2 = "/////";
-        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+        const string h1 = Vertex::printer_->banner_h1();
+        const string h2 = Vertex::printer_->banner_h2();
 
         cout << h1 << " PQ GRAPH Analysis " << h1 << endl << endl;
 

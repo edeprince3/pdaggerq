@@ -29,6 +29,7 @@
 #include <memory>
 
 #include "../include/term.h"
+#include "../include/code_printer.h"
 
 using std::next_permutation;
 using std::string;
@@ -526,13 +527,14 @@ namespace pdaggerq {
         // remove all quotes from comment
         comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
 
-        // format comment for python if needed
-        if (Vertex::print_type_ == "python"){
-            // turn '//' into '#'
+        const string cp = Vertex::printer_->comment_prefix();
+
+        // convert "//" comment markers to the current backend's prefix
+        {
             size_t pos = comment.find("//");
             while (pos != std::string::npos) {
-                comment.replace(pos, 2, "#");
-                pos = comment.find("//", pos + 2);
+                comment.replace(pos, 2, cp);
+                pos = comment.find("//", pos + cp.size());
             }
         }
 
@@ -541,7 +543,7 @@ namespace pdaggerq {
         if (only_comment) return comment;
 
         if (!comment.empty()) comment += "\n    ";
-        comment += "// flops: " + lhs_->dim().str() + assign_str;
+        comment += cp + " flops: " + lhs_->dim().str() + assign_str;
         for (const auto & flop : flop_scales)
             comment += flop.str() + " ";
 
@@ -549,24 +551,13 @@ namespace pdaggerq {
         if (!flop_scales.empty())
             comment.pop_back();
 
-
-        comment += "\n    //  mems: " + lhs_->dim().str() + assign_str;
+        comment += "\n    " + cp + "  mems: " + lhs_->dim().str() + assign_str;
         for (const auto & mem : mem_scales)
             comment += mem.str() + " ";
 
         // remove last space
         if (!mem_scales.empty())
             comment.pop_back();
-
-        // format comment for python if needed
-        if (Vertex::print_type_ == "python"){
-            // turn '//' into '#'
-            size_t pos = comment.find("//");
-            while (pos != std::string::npos) {
-                comment.replace(pos, 2, "#");
-                pos = comment.find("//", pos + 2);
-            }
-        }
 
         return comment;
     }

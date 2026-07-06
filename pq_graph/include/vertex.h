@@ -43,9 +43,10 @@ using std::shared_ptr;
 
 namespace pdaggerq {
 
-    // forward declaration of Vertex and Linkage
+    // forward declarations
     struct Vertex;
     class Linkage;
+    class CodePrinter;
 
     // typedef for shared pointer to Vertex and Linkage
     typedef shared_ptr<Vertex> MutableVertexPtr;
@@ -99,8 +100,9 @@ namespace pdaggerq {
         // whether to use trial index for sigma vertices (e.g., L and R) when printing
         static inline bool use_trial_index = false;
 
-        // default print type is c++
-        static inline string print_type_ = "c++"; 
+        // polymorphic syntax backend — defined in code_printer.cc, set by set_printer()
+        static const CodePrinter* printer_;
+        static void set_printer(const string& type);
 
         /****** Constructors ******/
 

@@ -22,6 +22,7 @@
 //
 
 #include "../include/equation.h"
+#include "../include/code_printer.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -193,10 +194,7 @@ namespace pdaggerq {
                 it->second += term.coefficient_;
 
                 // add original pq to unique term
-                if (Vertex::print_type_ == "python")
-                    it->first.original_pq_ += "\n    # ";
-                else if (Vertex::print_type_ == "c++")
-                    it->first.original_pq_ += "\n    // ";
+                it->first.original_pq_ += "\n    " + Vertex::printer_->comment_prefix() + " ";
 
                 it->first.original_pq_ += string(term.lhs()->name().size(), ' ');
                 it->first.original_pq_ += " += " + term.original_pq_;

@@ -30,6 +30,7 @@
 
 #include "../include/pq_graph.h"
 #include "../include/term.h"
+#include "../include/code_printer.h"
 
 
 // include omp only if defined
@@ -48,50 +49,21 @@ namespace pdaggerq {
 
     string PQGraph::str(const string &print_type) const {
 
-        constexpr auto to_lower = [](string str) {
-            // map uppercase to lowercase for output
-            for (auto &letter : str) {
-                static unordered_map<char, char>
-                        lowercase_map = {{'A', 'a'}, {'B', 'b'}, {'C', 'c'}, {'D', 'd'}, {'E', 'e'},
-                                         {'F', 'f'}, {'G', 'g'}, {'H', 'h'}, {'I', 'i'}, {'J', 'j'},
-                                         {'K', 'k'}, {'L', 'l'}, {'M', 'm'}, {'N', 'n'}, {'O', 'o'},
-                                         {'P', 'p'}, {'Q', 'q'}, {'R', 'r'}, {'S', 's'}, {'T', 't'},
-                                         {'U', 'u'}, {'V', 'v'}, {'W', 'w'}, {'X', 'x'}, {'Y', 'y'},
-                                         {'Z', 'z'}};
+        Vertex::set_printer(print_type);
 
-                if (lowercase_map.find(letter) != lowercase_map.end())
-                    letter = lowercase_map[letter];
-            }
-
-            // return lowercase string
-            return str;
-        };
-
-        Vertex::print_type_ = to_lower(print_type);
-
-        if (Vertex::print_type_ == "python" || Vertex::print_type_ == "einsum") {
-            Vertex::print_type_ = "python";
+        if (Vertex::printer_->is_einsum()) {
             cout << "Formatting equations for python" << endl;
-        } else if (Vertex::print_type_ == "c++" || Vertex::print_type_ == "cpp" || Vertex::print_type_ == "tamm" || Vertex::print_type_ == "tiledarray") {
-            Vertex::print_type_ = "c++";
-            cout << "Formatting equations for c++" << endl;
         } else {
-            cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
-            cout << "         Setting output to c++" << endl;
+            cout << "Formatting equations for c++" << endl;
         }
         cout << endl;
 
         stringstream sout; // string stream to hold output
 
         // add banner for PQ GRAPH results
-        string h1, h2; // header 1 and header 2 padding
-        if (Vertex::print_type_ == "python") {
-            h1 = "####################";
-            h2 = "#####";
-        } else if (Vertex::print_type_ == "c++") {
-            h1 = "///////////////////";
-            h2 = "/////";
-        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+        const CodePrinter* printer = Vertex::printer_;
+        const string h1 = printer->banner_h1();
+        const string h2 = printer->banner_h2();
         
         sout << h1 << " PQ GRAPH Output " << h1 << endl << endl;
         
@@ -182,11 +154,7 @@ namespace pdaggerq {
         // declare a map for each base name
         sout << h2 << " Declarations " << h2 << endl << endl;
         for (const auto &name: names) {
-            if (Vertex::print_type_ == "c++")
-                 sout << "// initialize -> ";
-            else if (Vertex::print_type_ == "python") 
-                sout << "## initialize -> ";
-            
+            sout << printer->decl_comment();
             sout << name << ";" << endl;
         }
         sout << endl;
@@ -288,13 +256,13 @@ namespace pdaggerq {
                         found_any = true;
 
                         // We need to allocate the tmp when using c++ or cpp
-                        if (Vertex::print_type_ == "c++" && Term::deallocate_) {
-                            string allocatename;
-                            string lhs_name = temp->str(true, false);
-                            allocatename = ".allocate(" + lhs_name + ")";
-                            Term allocateterm(tempterm);
-                            allocateterm.print_override_ = allocatename;
-                            all_terms.insert(all_terms.begin() + (int) last_pos_idx, allocateterm);
+                        if (Term::deallocate_) {
+                            string allocatename = printer->allocate(temp->str(true, false));
+                            if (!allocatename.empty()) {
+                                Term allocateterm(tempterm);
+                                allocateterm.print_override_ = allocatename;
+                                all_terms.insert(all_terms.begin() + (int) last_pos_idx, allocateterm);
+                            }
                         }
 
                         break;
@@ -307,13 +275,13 @@ namespace pdaggerq {
                     found_any = true;
 
                     // We need to allocate the tmp when using c++ or cpp
-                    if (Vertex::print_type_ == "c++" && Term::deallocate_) {
-                        string allocatename;
-                        string lhs_name = temp->str(true, false);
-                        allocatename = ".allocate(" + lhs_name + ")";
-                        Term allocateterm(tempterm);
-                        allocateterm.print_override_ = allocatename;
-                        all_terms.insert(all_terms.begin() + (int) last_pos_idx, allocateterm);
+                    if (Term::deallocate_) {
+                        string allocatename = printer->allocate(temp->str(true, false));
+                        if (!allocatename.empty()) {
+                            Term allocateterm(tempterm);
+                            allocateterm.print_override_ = allocatename;
+                            all_terms.insert(all_terms.begin() + (int) last_pos_idx, allocateterm);
+                        }
                     }
 
                 }
@@ -322,15 +290,8 @@ namespace pdaggerq {
 
 
         // add a term to destroy the tmp after its last use
-        auto make_destructor = [](const Term &tempterm, const LinkagePtr &temp) -> Term {
-            // create vertex with only the linkage's name
-            string newname;
-            string lhs_name = temp->str(true, false);
-
-            if (Vertex::print_type_ == "python")
-                newname = "del " + lhs_name;
-            else if (Vertex::print_type_ == "c++")
-                newname = ".deallocate(" + lhs_name + ")";
+        auto make_destructor = [&printer](const Term &tempterm, const LinkagePtr &temp) -> Term {
+            string newname = printer->deallocate(temp->str(true, false));
 
             Term newterm(tempterm);
             newterm.print_override_ = newname;
@@ -479,8 +440,8 @@ namespace pdaggerq {
 
                 if (had_condition && !closed_condition) {
                     // if the previous condition was not closed, close it
-                    if (Vertex::print_type_ == "c++")
-                        output.emplace_back("}");
+                    const string closer = Vertex::printer_->condition_closer();
+                    if (!closer.empty()) output.emplace_back(closer);
                     closed_condition = true; // indicate that the condition is closed
                 }
 
@@ -546,34 +507,18 @@ namespace pdaggerq {
             output.push_back(term_string);
         }
 
-        if (!closed_condition && Vertex::print_type_ == "c++" && !current_conditions.empty()) {
+        if (!closed_condition && !current_conditions.empty()) {
             // if the final condition was not closed, close it
-            output.emplace_back("}");
+            const string closer = Vertex::printer_->condition_closer();
+            if (!closer.empty()) output.emplace_back(closer);
         }
 
         return output;
     }
 
     string Equation::condition_string(std::set<string> &conditions) {
-
-        // if no conditions, return empty string
         if (conditions.empty()) return "";
-
-        string if_block;
-        if (Vertex::print_type_ == "c++") {
-            if_block = "if (";
-            for (const string &condition: conditions)
-                if_block += "includes_[\"" + condition + "\"] && ";
-            if_block.resize(if_block.size() - 4);
-            if_block += ") {";
-        } else if (Vertex::print_type_ == "python") {
-            if_block = "if ";
-            for (const string &condition: conditions)
-                if_block += "includes_[\"" + condition + "\"] and ";
-            if_block.resize(if_block.size() - 5);
-            if_block += ":";
-        }
-        return "\n    " + if_block;
+        return Vertex::printer_->condition_open(conditions);
     }
 
     string Term::str() const {
@@ -644,14 +589,8 @@ namespace pdaggerq {
 
             // if an intermediate vertex was created, delete it
             if (!perm_as_rhs && Term::deallocate_) {
-                // delete the permutation vertex
-//                if (Vertex::print_type_ == "c++")
-//                    output += ".deallocate(" + perm_vertex->name() + ")";
-//                else
-                if (Vertex::print_type_ == "python") {
-                    output += "del " + perm_vertex->name();
-                    output += "\n";
-                }
+                string del = Vertex::printer_->perm_delete(perm_vertex->name());
+                if (!del.empty()) output += del;
             }
 
             if (!perm_terms.empty())
@@ -762,7 +701,7 @@ namespace pdaggerq {
             } // else we continue to print the original term
         }
 
-        if (Vertex::print_type_ == "python")
+        if (Vertex::printer_->is_einsum())
             return einsum_str();
 
         // get lhs vertex string
@@ -801,11 +740,11 @@ namespace pdaggerq {
         output += term_link->str();
 
         // ensure the last character is a semicolon (might not be there if no rhs vertices)
-        if (output.back() != ';' && Vertex::print_type_ == "c++")
+        if (output.back() != ';' && !Vertex::printer_->is_einsum())
             output += ';';
 
         // nevermind, remove the semicolon
-        if (Vertex::print_type_ == "c++")
+        if (!Vertex::printer_->is_einsum())
             output.pop_back();
 
         size_t pos = 0;

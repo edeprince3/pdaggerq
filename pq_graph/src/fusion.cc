@@ -25,6 +25,7 @@
 #include <iostream>
 
 #include "../include/pq_graph.h"
+#include "../include/code_printer.h"
 
 // include omp only if defined
 #ifdef _OPENMP
@@ -606,8 +607,7 @@ struct LinkMerger {
                     else merged_vertex = merged_vertex + target_vertex;
 
                     // add the pq string to track evaluation
-                    if (Vertex::print_type_ == "python")   merged_pq += "\n    # ";
-                    else if (Vertex::print_type_ == "c++") merged_pq += "\n    // ";
+                    merged_pq += "\n    " + Vertex::printer_->comment_prefix() + " ";
                     merged_pq += string(merge_term->lhs()->name().size(), ' ');
                     merged_pq += " += " + merge_term->original_pq_;
                 }
