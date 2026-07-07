@@ -24,8 +24,13 @@ def test_models_present_and_projected():
     assert "t3" not in models.model("neo-ccsdt(eep)").T   # eep, no electron t3
     assert "t4" not in models.model("neo-ccsdtq(eeep)").T  # eeep, no electron t4
     assert models.model("neo-ccd(ep)").T == ("tep11",)     # minimal e-p model
-    # NEO models carry the proton + cross-species Hamiltonian
-    assert models.model("neo-ccsd").H == ("f", "v", "fp", "gep")
+    # NEO models are general in the proton count: proton doubles (tp2) and the
+    # proton-proton fluctuation (vp) are present wherever the rank allows (they vanish
+    # for a single proton). neo-ccd(ep) stays the minimal single-proton model.
+    assert "tp2" in models.model("neo-ccsd").T
+    assert "tp2" in models.model("neo-ccsdt(eep)").T
+    assert models.model("neo-ccsd").H == ("f", "v", "fp", "gep", "vp")
+    assert models.model("neo-ccd(ep)").H == ("f", "v", "fp", "gep")   # single-proton
     assert models.model("ccsd").H == ("f", "v")
     print("test_models_present_and_projected OK")
 
@@ -75,7 +80,7 @@ def test_spin_axis():
 
 def test_lambda_and_gradient():
     # de-excitation naming (leading t -> l) and full excitation-operator coverage
-    assert models.lambda_amps("neo-ccsd") == ["l1", "l2", "lp1", "lep11"]
+    assert models.lambda_amps("neo-ccsd") == ["l1", "l2", "lp1", "lp2", "lep11"]
     assert models.lambda_amps("ccd") == ["l2"]
     for m in models.MODELS.values():
         for amp in m.T:
@@ -647,7 +652,11 @@ def test_neo_gep_normal_ordered():
     import re
     import pdaggerq
     OCC = set("ijklmno")
-    amps = ("t1(", "t2(", "t3(", "t4(", "t1_n(", "t2_ep(", "t3_ep(", "t4_ep(")
+    # every cluster-amplitude head in pq_helper's naming: electron t<n>, proton t<n>_n
+    # (tp<n>), and mixed t<n>_ep (tep<..>). A term is amplitude-free iff it contains none.
+    amps = ("t1(", "t2(", "t3(", "t4(",
+            "t1_n(", "t2_n(", "t3_n(", "t4_n(",
+            "t2_ep(", "t3_ep(", "t4_ep(")
 
     def has_gep_trace(line):                               # gep integral with a repeated occupied label
         for mm in re.finditer(r"g\(([^)]+)\)", line):

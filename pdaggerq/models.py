@@ -9,25 +9,40 @@ the one canonical place each CC method's generation input lives; consumers
 
 Excitation conventions
 ----------------------
-Amplitudes are named by electron/proton excitation rank::
+Amplitudes are named by electron/proton excitation rank -- ``tp<M>`` is a pure
+M-proton excitation, ``tep<N><M>`` is a mixed N-electron/M-proton one::
 
-    t1..t4   electron 1..4-fold          tp1      proton single
-    tep11    1 electron + 1 proton (the mixed "ep" double)
-    tep21    2e1p  ("eep" triple)        tep31    3e1p  ("eeep" quadruple)
+    t1..t4   electron 1..4-fold          tp1..tp4  proton 1..4-fold
+    tep11    1e1p  ("ep" double)         tep21     2e1p  ("eep" triple)
+    tep12    1e2p  ("epp" triple)        tep31     3e1p  ("eeep" quadruple)
+    tep22    2e2p  ("eepp" quadruple)    tep13     1e3p  ("eppp" quadruple)
 
-Truncation is by rank in the *combined* electron+proton Fock space. With a single
-quantum proton the protonic rank is capped at one, so tp2 / tep12 / ... vanish and
-are omitted.
+Truncation is by rank in the *combined* electron+proton Fock space, and the models
+are **general in the number of quantum protons**: the proton doubles/triples/... and
+the proton-proton fluctuation ``vp`` are included wherever the combined rank allows.
+
+For a single quantum proton the proton *correlation* vanishes identically -- every
+proton-rank >= 2 amplitude is antisymmetric in the one occupied proton, and ``vp``'s
+two-body part annihilates the lone proton (two proton annihilators on a one-proton
+state). ``vp`` still contributes its one-body mean-field fold, which cancels the
+proton-proton mean field carried by the dressed proton Fock. So the single-proton
+limit is the correct self-interaction-free NEO-CC **provided ``fp`` is the fully-
+dressed Fock** -- it must include the proton-proton mean field that ``vp``'s fold
+cancels, the same dressed-Fock convention already required for ``f`` (electron ``v``)
+and the ``gep`` traces. (A consumer must therefore supply the p-p mean field in ``fp``
+before adding ``vp``; the two must be kept consistent, exactly as for ``f``/``v``.)
 
 Method families
 ---------------
 * traditional electronic: ``ccd``, ``ccsd``, ``ccsdt``, ``ccsdtq``  (H = f, v)
 * full NEO: ``neo-ccd``, ``neo-ccsd``, ``neo-ccsdt``, ``neo-ccsdtq`` -- electron CC
-  + proton single + the full mixed hierarchy through that rank  (H = f, v, fp, gep)
-* hybrid NEO: ``neo-ccd(ep)``, ``neo-ccsdt(eep)``, ``neo-ccsdtq(eeep)`` -- add one
-  targeted mixed excitation (ep / eep / eeep) on top of a lower base *without* the
-  matching pure-electron excitation. ``neo-ccsdt(eep)`` is the published Pavoševic
-  cluster (no electron t3). ``neo-ccd(ep)`` is the minimal e-p model (tep11 only).
+  + the complete proton and mixed hierarchy through that combined rank
+  (H = f, v, fp, gep, vp)
+* hybrid NEO: ``neo-ccd(ep)``, ``neo-ccsdt(eep)``, ``neo-ccsdtq(eeep)`` -- a complete
+  doubles base plus one targeted higher mixed excitation (ep / eep / eeep), *without*
+  the matching pure-electron excitation. ``neo-ccsdt(eep)`` is the Pavoševic-style
+  cluster (no electron t3). ``neo-ccd(ep)`` stays the minimal single-proton e-p model
+  (tep11 only, no proton correlation).
 
 The runnable tutorial counterparts (raw pdaggerq API, with derivations) live in
 ``examples/`` -- e.g. ``ccsd.py``, ``ccsdt.py``, ``ccsdtq.py``, ``neo_ccd.py``,
@@ -44,7 +59,7 @@ from . import einsums
 from .spin import get_spin_labels
 
 __all__ = [
-    "Model", "MODELS", "PROJECTION", "EXCITATION", "H_ELEC", "H_NEO",
+    "Model", "MODELS", "PROJECTION", "EXCITATION", "H_ELEC", "H_NEO", "H_NEO_PP",
     "model", "lambda_amps",
     "energy_graph",
     "residual_graph", "residual_ir", "spin_cases", "residual_blocks",
@@ -65,9 +80,15 @@ PROJECTION = {
     "t3":    "e3(i,j,k,a,b,c)",
     "t4":    "e4(i,j,k,l,a,b,c,d)",
     "tp1":   "e1(ni,na)",
+    "tp2":   "e2(ni,nj,na,nb)",
+    "tp3":   "e3(ni,nj,nk,na,nb,nc)",
+    "tp4":   "e4(ni,nj,nk,nl,na,nb,nc,nd)",
     "tep11": "e2(i,ni,a,na)",
     "tep21": "e3(i,j,ni,a,b,na)",
     "tep31": "e4(i,j,k,ni,a,b,c,na)",
+    "tep12": "e3(i,ni,nj,a,na,nb)",
+    "tep22": "e4(i,j,ni,nj,a,b,na,nb)",
+    "tep13": "e4(i,ni,nj,nk,a,na,nb,nc)",
 }
 
 # The excitation operator tau for each amplitude -- its projection with the occ and
@@ -78,13 +99,20 @@ EXCITATION = {
     "t3":    "e3(a,b,c,i,j,k)",
     "t4":    "e4(a,b,c,d,i,j,k,l)",
     "tp1":   "e1(na,ni)",
+    "tp2":   "e2(na,nb,ni,nj)",
+    "tp3":   "e3(na,nb,nc,ni,nj,nk)",
+    "tp4":   "e4(na,nb,nc,nd,ni,nj,nk,nl)",
     "tep11": "e2(a,na,i,ni)",
     "tep21": "e3(a,b,na,i,j,ni)",
     "tep31": "e4(a,b,c,na,i,j,k,ni)",
+    "tep12": "e3(a,na,nb,i,ni,nj)",
+    "tep22": "e4(a,b,na,nb,i,j,ni,nj)",
+    "tep13": "e4(a,na,nb,nc,i,ni,nj,nk)",
 }
 
 H_ELEC = ("f", "v")
-H_NEO = ("f", "v", "fp", "gep")  # single proton: nuclear-nuclear vp is a constant
+H_NEO    = ("f", "v", "fp", "gep")        # single-proton NEO (no proton-proton term)
+H_NEO_PP = ("f", "v", "fp", "gep", "vp")  # + proton-proton fluctuation (multi-proton)
 
 
 class Model:
@@ -109,15 +137,24 @@ MODELS = dict([
     _m("ccsd",   H_ELEC, ["t1", "t2"]),
     _m("ccsdt",  H_ELEC, ["t1", "t2", "t3"]),
     _m("ccsdtq", H_ELEC, ["t1", "t2", "t3", "t4"]),
-    # --- full NEO CC: electron CC + proton single + full mixed hierarchy ---
-    _m("neo-ccd",    H_NEO, ["t2", "tep11"]),
-    _m("neo-ccsd",   H_NEO, ["t1", "t2", "tp1", "tep11"]),
-    _m("neo-ccsdt",  H_NEO, ["t1", "t2", "t3", "tp1", "tep11", "tep21"]),
-    _m("neo-ccsdtq", H_NEO, ["t1", "t2", "t3", "t4", "tp1", "tep11", "tep21", "tep31"]),
-    # --- hybrid NEO: a targeted mixed excitation without the pure-electron one ---
-    _m("neo-ccd(ep)",      H_NEO, ["tep11"]),
-    _m("neo-ccsdt(eep)",   H_NEO, ["t1", "t2", "tp1", "tep11", "tep21"]),
-    _m("neo-ccsdtq(eeep)", H_NEO, ["t1", "t2", "tp1", "tep11", "tep21", "tep31"]),
+    # --- full NEO CC: the complete electron + proton + mixed hierarchy through the
+    #     combined excitation rank, general in the proton count. The proton doubles/
+    #     triples/... and the proton-proton fluctuation vp vanish for a single proton,
+    #     so single-proton results are unchanged. ---
+    _m("neo-ccd",    H_NEO_PP, ["t2", "tp2", "tep11"]),
+    _m("neo-ccsd",   H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11"]),
+    _m("neo-ccsdt",  H_NEO_PP, ["t1", "t2", "t3",
+                                "tp1", "tp2", "tp3",
+                                "tep11", "tep21", "tep12"]),
+    _m("neo-ccsdtq", H_NEO_PP, ["t1", "t2", "t3", "t4",
+                                "tp1", "tp2", "tp3", "tp4",
+                                "tep11", "tep21", "tep31", "tep12", "tep22", "tep13"]),
+    # --- hybrid NEO: complete doubles base + one targeted higher mixed excitation
+    #     (eep / eeep), without the matching pure-electron excitation. neo-ccd(ep) is
+    #     the minimal single-proton e-p model (tep11 only). ---
+    _m("neo-ccd(ep)",      H_NEO,    ["tep11"]),
+    _m("neo-ccsdt(eep)",   H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11", "tep21"]),
+    _m("neo-ccsdtq(eeep)", H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11", "tep21", "tep31"]),
 ])
 
 
