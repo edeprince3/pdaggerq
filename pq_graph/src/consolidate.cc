@@ -91,7 +91,7 @@ size_t PQGraph::prune(bool keep_single_use) {
             for (auto &term: terms) {
                 if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
                 for (auto &vertex: term->rhs()) {
-                    num_occurrences += as_link(vertex)->count(temp, true);
+                    num_occurrences += as_link(vertex)->count(temp, false);
                 }
                 used_term = term;
             }
@@ -106,13 +106,13 @@ size_t PQGraph::prune(bool keep_single_use) {
                 if (temp->is_scalar()) continue;
 
                 // multiplications between additions require the temp to be kept
-                if (
-                    !temp->is_addition() && 
-                    (
-                        (temp->left()->is_addition() && !temp->left()->is_temp())  || 
-                        (temp->right()->is_addition() && !temp->right()->is_temp())
-                    )
-                ) continue;
+                // if (
+                //     !temp->is_addition() && 
+                //     (
+                //         (temp->left()->is_addition() && !temp->left()->is_temp())  || 
+                //         (temp->right()->is_addition() && !temp->right()->is_temp())
+                //     )
+                // ) continue;
 
                 // we keep reused temps if it is used in an equation
                 if (temp->is_reused() && used_term && !used_term->lhs()->is_temp()) continue;
@@ -511,9 +511,13 @@ void PQGraph::reindex() {
         MutableLinkagePtr new_temp = as_link(temp->clone());
         new_temp->id() = id;
         saved_linkages_[new_temp->type()].insert(new_temp);
-        stringstream ss;
-        ss << temp->str() << " -> " << new_temp->str();
 
+
+        stringstream ss;
+        string old_tmp_str = temp->str(), new_tmp_str = new_temp->str();
+        if (old_tmp_str == new_tmp_str) continue;
+
+        ss << old_tmp_str << " -> " << new_tmp_str;
         print_map.emplace_back(id, ss.str());
     }
 
