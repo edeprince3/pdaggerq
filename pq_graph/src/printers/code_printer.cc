@@ -26,10 +26,10 @@
 #include <vector>
 #include <set>
 
-#include "../include/code_printer.h"
-#include "../include/vertex.h"
-#include "../include/tamm_printer.h"
-#include "../include/einsum_printer.h"
+#include "../../include/vertex.h"
+#include "../../include/printers/code_printer.h"
+#include "../../include/printers/tamm_printer.h"
+#include "../../include/printers/einsum_printer.h"
 
 using std::string;
 using std::vector;

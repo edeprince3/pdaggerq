@@ -22,7 +22,7 @@
 //
 
 #include "../include/equation.h"
-#include "../include/code_printer.h"
+#include "../include/printers/code_printer.h"
 
 #ifdef _OPENMP
 #include <omp.h>

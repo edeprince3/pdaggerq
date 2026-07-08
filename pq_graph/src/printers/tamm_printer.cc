@@ -1,6 +1,6 @@
-#include "../include/tamm_printer.h"
-#include "../include/term.h"
-#include "../../pdaggerq/pq_string.h"
+#include "../../include/printers/tamm_printer.h"
+#include "../../include/term.h"
+#include "../../../pdaggerq/pq_string.h"
 
 using std::string;
 using std::vector;

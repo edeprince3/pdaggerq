@@ -24,7 +24,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 #include "../include/pq_graph.h"
-#include "../include/code_printer.h"
+#include "../include/printers/code_printer.h"
 
 // include omp only if defined
 #ifdef _OPENMP

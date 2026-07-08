@@ -1,6 +1,6 @@
-#include "../include/einsum_printer.h"
-#include "../include/term.h"
-#include "../../pdaggerq/pq_string.h"
+#include "../../include/printers/einsum_printer.h"
+#include "../../include/term.h"
+#include "../../../pdaggerq/pq_string.h"
 
 using std::string;
 using std::vector;

@@ -82,9 +82,9 @@ pybind11_add_module(_pdaggerq
         pq_graph/src/consolidate.cc
         pq_graph/src/fusion.cc
         pq_graph/src/graph_printing.cc
-        pq_graph/src/code_printer.cc
-        pq_graph/src/tamm_printer.cc
-        pq_graph/src/einsum_printer.cc
+        pq_graph/src/printers/code_printer.cc
+        pq_graph/src/printers/tamm_printer.cc
+        pq_graph/src/printers/einsum_printer.cc
         pq_graph/src/vertex_printing.cc
         pq_graph/src/dot_generator.cc
         pq_graph/src/timer.cc

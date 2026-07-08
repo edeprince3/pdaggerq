@@ -29,7 +29,7 @@
 #include <memory>
 
 #include "../include/term.h"
-#include "../include/code_printer.h"
+#include "../include/printers/code_printer.h"
 
 using std::next_permutation;
 using std::string;
