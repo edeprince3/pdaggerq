@@ -1313,9 +1313,9 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     consolidate_permutations_plus_swaps(ordered, {});
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
-/*
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
+/*
 
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels});
