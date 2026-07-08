@@ -34,6 +34,14 @@
 
 namespace pdaggerq {
 
+// Fast look-ahead structure to characterize an unmapped label's environment
+struct ConnectivitySignature {
+    // We sort based on: (1) Operator Type priority, (2) Size of the tensor, (3) Sorted peer pool index
+    size_t operator_rank = 0;
+    int operator_type_weight = 0; // T vs L vs R vs Integral
+    size_t pool_position = 0;     // Index inside the sorted symmetry block of that downstream tensor
+};
+
 // concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops) {
 
@@ -1301,21 +1309,38 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
         pq_str->sort();
     }
 
-    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
-    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
-
-
     // TODO: the operator portions are not considered in the comparisons below. not sure this matters for future use cases
     consolidate_permutations_plus_swaps(ordered, {});
 
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
 /*
+    std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
+    std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
+
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels});
 
     consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
+
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels});
+
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels});
+
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
 */
 
     if (is_unitary_cc) {
@@ -1536,6 +1561,7 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
         }
     };
 
+/*
     // Follow the exact macro-order of sorted amplitude vector
     for (auto & type : in->amplitude_types) {
         if (in->amps.find(type) == in->amps.end()) continue;
@@ -1556,6 +1582,121 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
             std::sort(local_raw_vir.begin(), local_raw_vir.end());
     
             // Map them sequentially
+            for (const auto& label : local_raw_occ) {
+                if (occ_map.find(label) == occ_map.end()) {
+                    filter_pool(occ_pool, occ_counter);
+                    if (occ_counter < occ_pool.size()) occ_map[label] = occ_pool[occ_counter++];
+                    else occ_map[label] = "o_" + std::to_string(occ_counter++);
+                }
+            }
+            for (const auto& label : local_raw_vir) {
+                if (vir_map.find(label) == vir_map.end()) {
+                    filter_pool(vir_pool, vir_counter);
+                    if (vir_counter < vir_pool.size()) vir_map[label] = vir_pool[vir_counter++];
+                    else vir_map[label] = "v_" + std::to_string(vir_counter++);
+                }
+            }
+        }
+    }
+*/
+
+    // Macro-order map creation loop
+    for (auto & type : in->amplitude_types) {
+        if (in->amps.find(type) == in->amps.end()) continue;
+        for (auto & amp : in->amps[type]) {
+            
+            std::vector<std::string> local_raw_occ;
+            std::vector<std::string> local_raw_vir;
+    
+            for (const auto & label : amp.labels) {
+                if (label.rfind("o", 0) == 0) local_raw_occ.push_back(label);
+                if (label.rfind("v", 0) == 0) local_raw_vir.push_back(label);
+            }
+
+            // ====================================================================
+            // CONNECTIVITY-BASED TIE BREAKING OVERRIDES
+            // ====================================================================
+            auto get_downstream_signature = [&](const std::string& target, bool is_virtual) {
+                ConnectivitySignature sig{999, 999, 999};
+
+                // Look downstream through ALL amplitudes to find where this label lands
+                for (const auto& next_type : in->amplitude_types) {
+                    if (in->amps.find(next_type) == in->amps.end()) continue;
+                    for (const auto& downstream_amp : in->amps[next_type]) {
+                        // Skip the current tensor we are currently assigning maps for
+                        if (&downstream_amp == &amp) continue;
+
+                        // Build an on-the-fly sorted symmetry pool for this downstream operator
+                        std::vector<std::string_view> pool;
+                        for (const auto& lbl : downstream_amp.labels) {
+                            if (is_virtual && lbl.rfind("v", 0) == 0) pool.push_back(lbl);
+                            if (!is_virtual && lbl.rfind("o", 0) == 0) pool.push_back(lbl);
+                        }
+                        std::sort(pool.begin(), pool.end());
+
+                        // Look up the label's slot index inside the layout-independent sorted pool!
+                        for (size_t p = 0; p < pool.size(); ++p) {
+                            if (pool[p] == target) {
+                                sig.operator_rank = downstream_amp.labels.size();
+                                sig.pool_position = p;
+                                sig.operator_type_weight = 1; // Prioritize Amplitudes over Integrals
+                                return sig;
+                            }
+                        }
+                    }
+                }
+
+                // If not found in Amplitudes, check Integrals downstream
+                for (const auto& next_type : in->integral_types) {
+                    if (in->ints.find(next_type) == in->ints.end()) continue;
+                    for (const auto& downstream_int : in->ints[next_type]) {
+                        std::vector<std::string_view> pool;
+                        for (const auto& lbl : downstream_int.labels) {
+                            if (is_virtual && lbl.rfind("v", 0) == 0) pool.push_back(lbl);
+                            if (!is_virtual && lbl.rfind("o", 0) == 0) pool.push_back(lbl);
+                        }
+                        std::sort(pool.begin(), pool.end());
+
+                        for (size_t p = 0; p < pool.size(); ++p) {
+                            if (pool[p] == target) {
+                                sig.operator_rank = downstream_int.labels.size();
+                                sig.pool_position = p;
+                                sig.operator_type_weight = 2; // Integrals secondary
+                                return sig;
+                            }
+                        }
+                    }
+                }
+                return sig;
+            };
+
+            // Instead of blind alphabetical sorting, sort based on the downstream graph pools!
+            std::sort(local_raw_occ.begin(), local_raw_occ.end(), [&](const std::string& a, const std::string& b) {
+                auto sig_a = get_downstream_signature(a, false);
+                auto sig_b = get_downstream_signature(b, false);
+                if (sig_a.operator_type_weight != sig_b.operator_type_weight)
+                    return sig_a.operator_type_weight < sig_b.operator_type_weight;
+                if (sig_a.operator_rank != sig_b.operator_rank)
+                    return sig_a.operator_rank < sig_b.operator_rank;
+                if (sig_a.pool_position != sig_b.pool_position)
+                    return sig_a.pool_position < sig_b.pool_position;
+                return a < b; // Alphabetical fallback if completely identical downstream environments
+            });
+
+            std::sort(local_raw_vir.begin(), local_raw_vir.end(), [&](const std::string& a, const std::string& b) {
+                auto sig_a = get_downstream_signature(a, true);
+                auto sig_b = get_downstream_signature(b, true);
+                if (sig_a.operator_type_weight != sig_b.operator_type_weight)
+                    return sig_a.operator_type_weight < sig_b.operator_type_weight;
+                if (sig_a.operator_rank != sig_b.operator_rank)
+                    return sig_a.operator_rank < sig_b.operator_rank;
+                if (sig_a.pool_position != sig_b.pool_position)
+                    return sig_a.pool_position < sig_b.pool_position;
+                return a < b;
+            });
+            // ====================================================================
+
+            // Map them sequentially (Rest of your original mapping logic remains completely unchanged)
             for (const auto& label : local_raw_occ) {
                 if (occ_map.find(label) == occ_map.end()) {
                     filter_pool(occ_pool, occ_counter);
