@@ -31,6 +31,7 @@
 #include "../include/pq_graph.h"
 #include "../include/term.h"
 #include "../include/code_printer.h"
+#include "../include/einsum_printer.h"
 
 
 // include omp only if defined
@@ -49,14 +50,7 @@ namespace pdaggerq {
 
     string PQGraph::str(const string &print_type) const {
 
-        Vertex::set_printer(print_type);
-
-        if (Vertex::printer_->is_einsum()) {
-            cout << "Formatting equations for python" << endl;
-        } else {
-            cout << "Formatting equations for c++" << endl;
-        }
-        cout << endl;
+        Vertex::set_printer(print_type);        
 
         stringstream sout; // string stream to hold output
 
@@ -701,174 +695,7 @@ namespace pdaggerq {
             } // else we continue to print the original term
         }
 
-        if (Vertex::printer_->is_einsum())
-            return einsum_str();
-
-        // get lhs vertex string
-        output = lhs_->str();
-
-        // get sign of coefficient
-        bool is_negative = coefficient_ < 0;
-        if (is_assignment_) output += "  = ";
-        else if (is_negative) output += " -= ";
-        else output += " += ";
-
-        // get absolute value of coefficient
-        double abs_coeff = fabs(coefficient_);
-
-        // if the coefficient is not 1, add it to the string
-        bool is_empty = rhs_.empty() || term_link->empty();
-
-        bool added_coeff = false;
-        bool negative_assignment = (is_assignment_ && is_negative);
-        bool needs_coeff = fabs(abs_coeff - 1) >= 1e-8 || is_empty || negative_assignment;
-
-        if (needs_coeff) {
-            // add coefficient to string
-            added_coeff = true;
-            if (negative_assignment)
-                output += "-";
-
-            int precision = minimum_precision(abs_coeff);
-            output += to_string_with_precision(abs_coeff, precision);
-
-            // add multiplication sign if there are rhs vertices
-            if (!is_empty)
-                output += " * ";
-        }
-
-        output += term_link->str();
-
-        // ensure the last character is a semicolon (might not be there if no rhs vertices)
-        if (output.back() != ';' && !Vertex::printer_->is_einsum())
-            output += ';';
-
-        // nevermind, remove the semicolon
-        if (!Vertex::printer_->is_einsum())
-            output.pop_back();
-
-        size_t pos = 0;
-        while (pos != string::npos) {
-            pos = output.find("* 1.00 *", pos);
-            if (pos != string::npos) {
-                output = output.replace(pos, 8, "*");
-                pos += 1;
-            }
-        }
-
-//        return output;
-        return "( " + output + " )";
-    }
-
-    string Term::einsum_str() const {
-        string output;
-
-        // get left hand side vertex name
-        if (lhs_->is_linked())
-             output = as_link(lhs_)->str(true, false);
-        else output = lhs_->name();
-
-        // get sign of coefficient
-        bool is_negative = coefficient_ < 0;
-        if (is_assignment_) output += "  = ";
-        else if (is_negative) output += " -= ";
-        else output += " += ";
-
-        // get absolute value of coefficient
-        double abs_coeff = fabs(coefficient_);
-
-        // if the coefficient is not 1, add it to the string
-        bool needs_coeff = fabs(abs_coeff - 1) >= 1e-8 || rhs_.empty() || is_assignment_;
-
-        if (needs_coeff) {
-            // add coefficient to string
-            if (is_assignment_ && is_negative)
-                output += "-";
-
-            int precision = minimum_precision(abs_coeff);
-            output += to_string_with_precision(abs_coeff, precision);
-
-            // add multiplication sign if there are rhs vertices
-            if (!rhs_.empty())
-                output += " * ";
-        }
-
-        // get string of lines
-        line_vector link_lines;
-        string lhs_string;
-
-        // get string of lines from lhs vertex
-        for (auto & line : lhs_->lines())
-            if (line.sig_ && !Vertex::use_trial_index) continue;
-            else lhs_string += line.label_.front();
-
-        string rhs_string;
-
-        // get string of lines from the term linkage
-        for (auto & line : term_linkage(true)->lines())
-            if (line.sig_ && !Vertex::use_trial_index) continue;
-            else rhs_string += line.label_.front();
-
-        // make einsum string
-        string einsum_string;
-
-        // get einsum string from term linkage
-        einsum_string = term_linkage(true)->str();
-
-        // permute tensors if needed
-        if (lhs_string != rhs_string) {
-            // check if this is a valid permutation (same character set) vs a label rename (different chars)
-            string sorted_lhs = lhs_string, sorted_rhs = rhs_string;
-            std::sort(sorted_lhs.begin(), sorted_lhs.end());
-            std::sort(sorted_rhs.begin(), sorted_rhs.end());
-
-            if (sorted_lhs == sorted_rhs) {
-                // same character set, different order: valid einsum permutation
-                einsum_string = "einsum('" + rhs_string + "->" + lhs_string + "', " + einsum_string + " )";
-            } else {
-                // different character sets - compare line types positionally
-                const auto &lhs_lines = lhs_->lines();
-                const auto &rhs_lines = term_linkage(true)->lines();
-
-                string lhs_types, rhs_types;
-                for (const auto &line : lhs_lines)
-                    if (!(line.sig_ && !Vertex::use_trial_index)) lhs_types += line.type();
-                for (const auto &line : rhs_lines)
-                    if (!(line.sig_ && !Vertex::use_trial_index)) rhs_types += line.type();
-
-                if (lhs_types != rhs_types && lhs_types.size() == rhs_types.size()) {
-                    // types differ positionally - need axis permutation via np.transpose
-                    string perm = "np.transpose(" + einsum_string + ", (";
-                    vector<bool> used(rhs_types.size(), false);
-                    for (size_t i = 0; i < lhs_types.size(); i++) {
-                        for (size_t j = 0; j < rhs_types.size(); j++) {
-                            if (!used[j] && lhs_types[i] == rhs_types[j]) {
-                                perm += to_string(j) + ",";
-                                used[j] = true;
-                                break;
-                            }
-                        }
-                    }
-                    perm.pop_back();
-                    perm += "))";
-                    einsum_string = perm;
-                }
-                // else: types match positionally - no permutation needed (just label rename)
-            }
-        }
-        output += einsum_string;
-
-        // formatting issue needs to replace "* 1.00 *" with "*"
-        size_t pos = 0;
-        while (pos != string::npos) {
-            pos = output.find("* 1.00 *", pos);
-            if (pos != string::npos) {
-                output = output.replace(pos, 8, "*");
-                pos += 1;
-            }
-        }
-
-        return output;
+        return Vertex::printer_->format_term(*this);
     }
 
 }

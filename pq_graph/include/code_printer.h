@@ -35,6 +35,8 @@ using std::set;
 
 namespace pdaggerq {
 
+class Term;
+
 // Per-operand data extracted by Linkage::tot_str() before invoking the printer.
 // Only index_labels and index_types are used by EinsumPrinter; TammPrinter
 // uses only str (which already contains line indices in TAMM mode).
@@ -57,7 +59,6 @@ public:
     virtual string banner_h2()            const = 0; // "/////" or "#####"
     virtual string decl_comment()         const = 0; // "// initialize -> " or "## initialize -> "
     virtual bool   include_line_indices() const = 0; // append "(i,j,...)" to vertex names?
-    virtual bool   is_einsum()            const = 0; // route Term::str() to einsum_str()?
     virtual string condition_closer()     const = 0; // "}" or ""
 
     // ── Statement generators ──────────────────────────────────────────────
@@ -79,79 +80,13 @@ public:
         const string& left_str,    const string& right_str,
         const string& left_labels, const string& right_labels,
         const string& left_types,  const string& right_types) const = 0;
+
+    // Format a complete term into a target language specific syntax.
+    virtual string format_term(const Term& t) const = 0;
 };
-
-// C++/TAMM backend
-class TammPrinter final : public CodePrinter {
-public:
-    static const TammPrinter& instance() {
-        static TammPrinter inst;
-        return inst;
-    }
-
-    string comment_prefix()       const override { return "//"; }
-    string banner_h1()            const override { return "///////////////////"; }
-    string banner_h2()            const override { return "/////"; }
-    string decl_comment()         const override { return "// initialize -> "; }
-    bool   include_line_indices() const override { return true; }
-    bool   is_einsum()            const override { return false; }
-    string condition_closer()     const override { return "}"; }
-
-    string allocate(const string& name)    const override;
-    string deallocate(const string& name)  const override;
-    string perm_delete(const string& name) const override { return ""; }
-    string condition_open(const set<string>& conds) const override;
-
-    string format_contraction(
-        const vector<string>&      scalar_strs,
-        const vector<TensorEntry>& tensor_entries,
-        const string& output_labels,
-        const string& output_types) const override;
-
-    string format_addition(
-        const string& left_str,    const string& right_str,
-        const string& left_labels, const string& right_labels,
-        const string& left_types,  const string& right_types) const override;
-
-private:
-    TammPrinter() = default;
-};
-
-// Python/einsum backend
-class EinsumPrinter final : public CodePrinter {
-public:
-    static const EinsumPrinter& instance() {
-        static EinsumPrinter inst;
-        return inst;
-    }
-
-    string comment_prefix()       const override { return "#"; }
-    string banner_h1()            const override { return "####################"; }
-    string banner_h2()            const override { return "#####"; }
-    string decl_comment()         const override { return "## initialize -> "; }
-    bool   include_line_indices() const override { return false; }
-    bool   is_einsum()            const override { return true; }
-    string condition_closer()     const override { return ""; }
-
-    string allocate(const string& name)    const override { return ""; }
-    string deallocate(const string& name)  const override;
-    string perm_delete(const string& name) const override;
-    string condition_open(const set<string>& conds) const override;
-
-    string format_contraction(
-        const vector<string>&      scalar_strs,
-        const vector<TensorEntry>& tensor_entries,
-        const string& output_labels,
-        const string& output_types) const override;
-
-    string format_addition(
-        const string& left_str,    const string& right_str,
-        const string& left_labels, const string& right_labels,
-        const string& left_types,  const string& right_types) const override;
-
-private:
-    EinsumPrinter() = default;
-};
+// The concrete printer implementations are now defined in separate headers
+// (tamm_printer.h and einsum_printer.h). They provide the actual formatting logic
+// for TAMM C++ code and Python einsum expressions, respectively.
 
 } // namespace pdaggerq
 

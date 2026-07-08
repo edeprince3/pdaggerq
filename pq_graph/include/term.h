@@ -426,7 +426,6 @@ namespace pdaggerq {
          * @return string representation of the term
          */
         string str() const;
-        string einsum_str() const;
 
         string operator+(const string &other) const{ return str() + other; }
         friend string operator+(const string &other, const Term &term){ return other + term.str(); }
