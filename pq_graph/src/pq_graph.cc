@@ -225,9 +225,9 @@ namespace pdaggerq {
             Linkage::cache_elements_ = options["cache_elements"].cast<bool>();
         }
 
-	if (options.contains("cache_depth")) {
-	    Linkage::cache_depth_ = options["cache_depth"].cast<size_t>();
-	}
+        if (options.contains("cache_depth")) {
+            Linkage::cache_depth_ = options["cache_depth"].cast<size_t>();
+        }
 
         if (options.contains("expand_permutations")) {
             expand_permutations_ = options["expand_permutations"].cast<bool>();
