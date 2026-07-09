@@ -37,8 +37,7 @@ string TiledArrayPrinter::format_lines(const line_vector& lines) const {
     }
 
     // loop over lines
-    // string line_str = "(\"";
-    string line_str = "(";
+    string line_str = "(\"";
     for (const Line &line : lines) {
         if (!Vertex::use_trial_index && line.sig_) continue;
         line_str += line.label_;
@@ -48,8 +47,7 @@ string TiledArrayPrinter::format_lines(const line_vector& lines) const {
         line_str += ",";
     }
     line_str.pop_back(); // remove last comma
-    // line_str += "\")";
-    line_str += ")";
+    line_str += "\")";
     return line_str;
 }
 
@@ -70,16 +68,19 @@ string TiledArrayPrinter::format_contraction(
         return output;
     }
 
+    bool format_as_dot = output_labels.empty() && tensor_entries.size() >= 2;
     for (size_t i = 0; i < tensor_entries.size(); i++) {
         output += tensor_entries[i].str;
         if (i < tensor_entries.size() - 1)
             output += " * ";
+        if (format_as_dot && i == tensor_entries.size() - 2) {
+            output.pop_back(); output.pop_back(); output.pop_back(); // remove trailing " * "
+            output += ", ";
+        }
     }
 
-    if (output_labels.empty() && !tensor_entries.empty()) {
-        output = "dot(" + output + ")"; // TODO: replace last " * " with ", "
-        
-    }
+    if (format_as_dot)
+        output = "dot(" + output + ")";
 
 
     return output;

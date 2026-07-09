@@ -30,6 +30,7 @@
 #include "../../include/printers/code_printer.h"
 #include "../../include/printers/tamm_printer.h"
 #include "../../include/printers/einsum_printer.h"
+#include "../../include/printers/tiledarray_printer.h"
 
 using std::string;
 using std::vector;
@@ -41,7 +42,7 @@ namespace pdaggerq {
 // ── Vertex static member definitions ─────────────────────────────────────────
 
 // Initialize to TAMM (C++) backend by default — must be set before any print call
-const CodePrinter* Vertex::printer_ = &TammPrinter::instance();
+const CodePrinter* Vertex::printer_ = &TiledArrayPrinter::instance();
 
 void Vertex::set_printer(const string& type) {
     string t = type;
@@ -52,9 +53,15 @@ void Vertex::set_printer(const string& type) {
     if (t == "python" || t == "einsum") {
         printer_ = &EinsumPrinter::instance();
         std::cout << "Setting printer to Einsum (Python) format" << std::endl;
-    } else {
+    } else if (t == "tiledarray" || t == "c++" || t == "cpp") {
+        printer_ = &TiledArrayPrinter::instance();
+        std::cout << "Setting printer to TiledArray (C++) format" << std::endl;
+    } else if (t == "tamm") {
         printer_ = &TammPrinter::instance();
+        Term::binarize_ = true;
         std::cout << "Setting printer to TAMM (C++) format" << std::endl;
+    } else {
+        std::cout << "Unknown printer type: " << type << std::endl;
     }
     std::cout << std::endl;
 }
