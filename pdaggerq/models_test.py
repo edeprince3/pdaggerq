@@ -35,6 +35,39 @@ def test_models_present_and_projected():
     print("test_models_present_and_projected OK")
 
 
+def test_single_proton_models():
+    # every vp-model has an auto-derived "<name>-1p" single-proton counterpart: vp
+    # stripped from H, all >=2-proton amplitudes dropped. Numerically bit-for-bit with
+    # the full model at one proton (verified separately to ~1e-14/energy exact).
+    assert models._proton_count("t2") == 0
+    assert models._proton_count("tp1") == 1 and models._proton_count("tp4") == 4
+    assert models._proton_count("tep11") == 1 and models._proton_count("tep21") == 1
+    assert models._proton_count("tep12") == 2 and models._proton_count("tep13") == 3
+
+    expect = {
+        "neo-ccd-1p":          ("t2", "tep11"),
+        "neo-ccsd-1p":         ("t1", "t2", "tp1", "tep11"),
+        "neo-ccsdt-1p":        ("t1", "t2", "t3", "tp1", "tep11", "tep21"),
+        "neo-ccsdtq-1p":       ("t1", "t2", "t3", "t4", "tp1", "tep11", "tep21", "tep31"),
+        "neo-ccsdt(eep)-1p":   ("t1", "t2", "tp1", "tep11", "tep21"),
+        "neo-ccsdtq(eeep)-1p": ("t1", "t2", "tp1", "tep11", "tep21", "tep31"),
+    }
+    for name, T in expect.items():
+        m = models.model(name)
+        assert m.T == T, (name, m.T)
+        assert m.H == ("f", "v", "fp", "gep"), (name, m.H)   # H_NEO, no vp
+        assert "vp" not in m.H and not any(models._proton_count(a) >= 2 for a in m.T)
+    # models already at/below one proton gain nothing -> no -1p entry
+    assert "neo-ccd(ep)-1p" not in models.MODELS
+    assert "ccsd-1p" not in models.MODELS
+    # lambda names follow the trimmed set; the reduced model still generates
+    assert models.lambda_amps("neo-ccsd-1p") == ["l1", "l2", "lp1", "lep11"]
+    assert any(l.strip().startswith("{") for l in models.energy_graph("neo-ccsd-1p").to_strings("ir"))
+    assert any(l.strip().startswith("{")
+               for l in models.residual_ir("neo-ccsd-1p", "tep11"))
+    print("test_single_proton_models OK")
+
+
 def test_cheap_models_generate():
     # cheap residuals must be non-empty (and, implicitly, generate without error)
     for name, amp in [("ccd", "t2"), ("neo-ccd(ep)", "tep11")]:
@@ -856,6 +889,7 @@ def test_rdm_block_ir():
 
 if __name__ == "__main__":
     test_models_present_and_projected()
+    test_single_proton_models()
     test_bad_lookups_raise()
     test_cheap_models_generate()
     test_spin_axis()

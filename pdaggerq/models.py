@@ -43,6 +43,12 @@ Method families
   the matching pure-electron excitation. ``neo-ccsdt(eep)`` is the Pavoševic-style
   cluster (no electron t3). ``neo-ccd(ep)`` stays the minimal single-proton e-p model
   (tep11 only, no proton correlation).
+* single-proton NEO: every ``vp`` model has a ``<name>-1p`` counterpart (e.g.
+  ``neo-ccsd-1p``) auto-derived by dropping ``vp`` and the >=2-proton amplitudes -- the
+  exact equations for one quantum proton. Bit-for-bit with the full model there (the
+  dropped pieces are identically zero) but cheaper, and, having no ``vp``, it takes the
+  plain SI-free proton Fock (no dressing). A consumer dispatches on the proton count:
+  1 -> ``-1p``, >=2 -> the full ``vp`` model.
 
 The runnable tutorial counterparts (raw pdaggerq API, with derivations) live in
 ``examples/`` -- e.g. ``ccsd.py``, ``ccsdt.py``, ``ccsdtq.py``, ``neo_ccd.py``,
@@ -156,6 +162,36 @@ MODELS = dict([
     _m("neo-ccsdt(eep)",   H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11", "tep21"]),
     _m("neo-ccsdtq(eeep)", H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11", "tep21", "tep31"]),
 ])
+
+
+def _proton_count(amp):
+    """Proton excitation rank encoded in an amplitude name: ``tp<M>`` -> M,
+    ``tep<N><M>`` -> M, pure-electron ``t<n>`` -> 0."""
+    if amp.startswith("tep"):
+        return int(amp[4:])          # tep<N><M>: N at index 3, M is the remainder
+    if amp.startswith("tp"):
+        return int(amp[2:])
+    return 0
+
+
+def _single_proton(m):
+    """The one-quantum-proton reduction of a NEO model: drop ``vp`` and every amplitude
+    that needs >=2 protons. Both are identically zero for a single proton (``vp``'s two-
+    body part annihilates the lone proton; a proton-rank>=2 amplitude is antisymmetric in
+    the one occupied proton), so the reduced model is bit-for-bit with the full one for a
+    single proton -- but cheaper (no ``vp`` terms, fewer amplitudes) and, without ``vp``,
+    it wants the plain SI-free proton Fock rather than the dressed one."""
+    H = tuple(h for h in m.H if h != "vp")
+    T = [a for a in m.T if _proton_count(a) <= 1]
+    return Model(m.name + "-1p", H, T)
+
+
+# Register a "<name>-1p" single-proton counterpart for every model that actually carries
+# vp (the multi-proton content). neo-ccd(ep) and the electronic models are already at or
+# below one proton, so they gain nothing and are skipped.
+for _mp in [m for m in list(MODELS.values()) if "vp" in m.H]:
+    _sp = _single_proton(_mp)
+    MODELS[_sp.name] = _sp
 
 
 def model(name):
