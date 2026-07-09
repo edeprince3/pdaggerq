@@ -121,38 +121,18 @@ namespace pdaggerq {
     }
 
     string Vertex::line_str(bool sort) const{
-        if (size() == 0) return ""; // if rank is 0, return empty string
-        if (size() == 1) {
-            // do not print sigma lines if use_trial_index is false for otherwise scalar vertices
-            if (lines_[0].sig_ && !use_trial_index)
-                return "";
-        }
 
         // make a copy of lines that is sorted if sort is true
         line_vector lines;
         if (!sort) lines = lines_;
-        else {
+        else if (!lines_.empty()) {
             lines.reserve(lines_.size());
             for (const Line &line : lines_)
                 lines.insert(
                         std::lower_bound(lines.begin(), lines.end(), line, line_compare()), line);
         }
 
-        // loop over lines
-//        string line_str = "(\"";
-        string line_str = "(";
-        for (const Line &line : lines) {
-            if (!use_trial_index && line.sig_) continue;
-            line_str += line.label_;
-            if (line.has_blk()) {
-                line_str += line.block();
-            }
-            line_str += ",";
-        }
-        line_str.pop_back(); // remove last comma
-//        line_str += "\")";
-        line_str += ")";
-        return line_str;
+        return printer_->format_lines(lines);
     }
 
     string Vertex::str() const {

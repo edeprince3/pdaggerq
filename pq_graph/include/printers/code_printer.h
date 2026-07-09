@@ -29,13 +29,13 @@
 #include <vector>
 #include <set>
 
+#include "../term.h"
+
 using std::string;
 using std::vector;
 using std::set;
 
 namespace pdaggerq {
-
-class Term;
 
 // Per-operand data extracted by Linkage::tot_str() before invoking the printer.
 // Only index_labels and index_types are used by EinsumPrinter; TammPrinter
@@ -67,6 +67,11 @@ public:
     virtual string deallocate(const string& name)           const = 0;
     virtual string perm_delete(const string& name)          const = 0;
     virtual string condition_open(const set<string>& conds) const = 0;
+
+    // ── Vertex formatters ─────────────────────────────────────────────
+
+    virtual string format_lines(const line_vector& lines) const = 0;
+
 
     // ── Expression formatters ─────────────────────────────────────────────
 

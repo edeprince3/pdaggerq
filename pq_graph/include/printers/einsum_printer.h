@@ -22,6 +22,8 @@ public:
     string perm_delete(const string& name) const override;
     string condition_open(const set<string>& conds) const override;
 
+    string format_lines(const line_vector& lines) const override { return ""; }
+
     string format_contraction(
         const vector<string>&      scalar_strs,
         const vector<TensorEntry>& tensor_entries,

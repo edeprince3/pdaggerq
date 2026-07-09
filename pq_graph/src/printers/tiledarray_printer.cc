@@ -1,6 +1,7 @@
-#include "../../include/printers/tamm_printer.h"
+#include "../../include/printers/tiledarray_printer.h"
 #include "../../include/term.h"
 #include "../../../pdaggerq/pq_string.h"
+#include "../../include/line.hpp"
 
 using std::string;
 using std::vector;
@@ -8,17 +9,17 @@ using std::set;
 
 namespace pdaggerq {
 
-// ── TammPrinter implementations ───────────────────────────────────────────────
+// ── TiledArrayPrinter implementations ───────────────────────────────────────────────
 
-string TammPrinter::allocate(const string& name) const {
-    return ".allocate(" + name + ")";
+string TiledArrayPrinter::deallocate(const string& name) const {
+    return name + ".~TArrayD();";
 }
 
-string TammPrinter::deallocate(const string& name) const {
-    return ".deallocate(" + name + ")";
+string TiledArrayPrinter::perm_delete(const string& name) const {
+    return name + ".~TArrayD();\n";
 }
 
-string TammPrinter::condition_open(const set<string>& conds) const {
+string TiledArrayPrinter::condition_open(const set<string>& conds) const {
     string s = "if (";
     for (const auto& c : conds)
         s += "includes_[\"" + c + "\"] && ";
@@ -27,7 +28,7 @@ string TammPrinter::condition_open(const set<string>& conds) const {
     return "\n    " + s;
 }
 
-string TammPrinter::format_lines(const line_vector& lines) const {
+string TiledArrayPrinter::format_lines(const line_vector& lines) const {
     if (lines.empty()) return ""; // if rank is 0, return empty string
     if (lines.size() == 1) {
         // do not print sigma lines if use_trial_index is false for otherwise scalar vertices
@@ -36,6 +37,7 @@ string TammPrinter::format_lines(const line_vector& lines) const {
     }
 
     // loop over lines
+    // string line_str = "(\"";
     string line_str = "(";
     for (const Line &line : lines) {
         if (!Vertex::use_trial_index && line.sig_) continue;
@@ -46,14 +48,15 @@ string TammPrinter::format_lines(const line_vector& lines) const {
         line_str += ",";
     }
     line_str.pop_back(); // remove last comma
+    // line_str += "\")";
     line_str += ")";
     return line_str;
 }
 
-string TammPrinter::format_contraction(
+string TiledArrayPrinter::format_contraction(
     const vector<string>&      scalar_strs,
     const vector<TensorEntry>& tensor_entries,
-    const string& /*output_labels*/,
+    const string& output_labels,
     const string& /*output_types*/) const
 {
     if (scalar_strs.empty() && tensor_entries.empty()) return "1.0";
@@ -72,10 +75,17 @@ string TammPrinter::format_contraction(
         if (i < tensor_entries.size() - 1)
             output += " * ";
     }
+
+    if (output_labels.empty() && !tensor_entries.empty()) {
+        output = "dot(" + output + ")"; // TODO: replace last " * " with ", "
+        
+    }
+
+
     return output;
 }
 
-string TammPrinter::format_addition(
+string TiledArrayPrinter::format_addition(
     const string& left_str, const string& right_str,
     const string& /*left_labels*/,  const string& /*right_labels*/,
     const string& /*left_types*/,   const string& /*right_types*/) const
@@ -83,7 +93,7 @@ string TammPrinter::format_addition(
     return left_str + " + " + right_str;
 }
 
-string TammPrinter::format_term(const Term& t) const {
+string TiledArrayPrinter::format_term(const Term& t) const {
     // Get lhs vertex string
     string output = t.lhs()->str();
 
@@ -115,11 +125,11 @@ string TammPrinter::format_term(const Term& t) const {
 
     output += term_link->str();
 
-    // Remove trailing semicolon
-    if (output.back() == ';')
-        output.pop_back();
+    // Add trailing semicolon if missing
+    if (output.back() != ';')
+        output += ';';
 
-    return "( " + output + " )";
+    return output;
 }
 
 } // namespace pdaggerq

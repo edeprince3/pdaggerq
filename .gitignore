@@ -98,3 +98,4 @@ pq_graph/tests/*code.py
 test/*.log
 numerical_test.log
 pq_test.log
+.vscode/c_cpp_properties.json

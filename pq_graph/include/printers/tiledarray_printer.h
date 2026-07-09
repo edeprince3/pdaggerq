@@ -3,10 +3,10 @@
 
 namespace pdaggerq {
 
-class TammPrinter final : public CodePrinter {
+class TiledArrayPrinter final : public CodePrinter {
 public:
-    static const TammPrinter& instance() {
-        static TammPrinter inst;
+    static const TiledArrayPrinter& instance() {
+        static TiledArrayPrinter inst;
         return inst;
     }
 
@@ -17,10 +17,11 @@ public:
     bool   include_line_indices() const override { return true; }
     string condition_closer()     const override { return "}"; }
 
-    string allocate(const string& name)    const override;
+    string allocate(const string& name)    const override { return ""; }
     string deallocate(const string& name)  const override;
-    string perm_delete(const string& name) const override { return ""; }
+    string perm_delete(const string& name) const override;
     string condition_open(const set<string>& conds) const override;
+
 
     string format_lines(const line_vector& lines) const override;
 
@@ -38,7 +39,7 @@ public:
     string format_term(const Term& t) const override;
 
 private:
-    TammPrinter() = default;
+    TiledArrayPrinter() = default;
 };
 
 } // namespace pdaggerq
