@@ -1249,10 +1249,17 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             // non-antisymmetrized two-body operator coupling one electron and one
             // nuclear particle: a^+(e) a^+(n) a(n) a(e). electrons and nuclei do not
             // exchange, so this integral has no antisymmetrizer between the species.
-            // the electron-proton Coulomb interaction is attractive: the NEO
-            // Hamiltonian carries it as -g^{pP}_{qQ} a^{qQ}_{pP} (Pavosevic, Culpitt,
-            // Hammes-Schiffer, J. Chem. Theory Comput. 2019, 15, 338, eq 1).
-            factor *= -1.0;
+            //
+            // CHARGE CONVENTION: gep carries NO built-in sign. The integral "g" IS the
+            // signed interaction, g = q_e q_x V_ex (V_ex = bare positive Coulomb, q in
+            // units of e). The caller therefore supplies
+            //     g = -Z_x V_ex      (Z_x = second species' charge; q_e = -1)
+            // so the equations are charge-independent and serve protons (Z=+1, attractive),
+            // positrons (Z=+1, attractive) and negative muons (Z=-1, repulsive) alike --
+            // the sign is a property of the integral, not of the derivation.
+            // (Previously this multiplied by -1, hardcoding Z_x = +1 and forcing an
+            // attractive e-p interaction; cf. Pavosevic, Culpitt, Hammes-Schiffer,
+            // J. Chem. Theory Comput. 2019, 15, 338, eq 1, which writes the proton case.)
 
             std::string e1 =                              "p" + std::to_string(gen_label_count++);
             std::string n1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);

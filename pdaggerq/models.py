@@ -35,6 +35,8 @@ before adding ``vp``; the two must be kept consistent, exactly as for ``f``/``v`
 Method families
 ---------------
 * traditional electronic: ``ccd``, ``ccsd``, ``ccsdt``, ``ccsdtq``  (H = f, v)
+  (the "proton" naming below is historical -- see *Charge convention*: the second
+  quantized species may equally be a positron or a negative muon)
 * full NEO: ``neo-ccd``, ``neo-ccsd``, ``neo-ccsdt``, ``neo-ccsdtq`` -- electron CC
   + the complete proton and mixed hierarchy through that combined rank
   (H = f, v, fp, gep, vp)
@@ -49,6 +51,28 @@ Method families
   dropped pieces are identically zero) but cheaper, and, having no ``vp``, it takes the
   plain SI-free proton Fock (no dressing). A consumer dispatches on the proton count:
   1 -> ``-1p``, >=2 -> the full ``vp`` model.
+
+Charge convention
+-----------------
+The derivation is **charge-independent**: nothing in the equations knows the second
+species' charge or mass. Both enter only through the integrals the consumer supplies,
+so the same generated code serves protons, positrons and negative muons.
+
+With ``q_e = -1`` and ``Z_x`` the second species' charge in units of e::
+
+    gep = q_e q_x V_ex = -Z_x V_ex     cross-species two-body (V = bare positive Coulomb)
+    vp  = Z_x^2 V_xx                    same-species two-body (always repulsive)
+    fp  = kinetic(m_x) + Z_x * (nuclear attraction) + mean fields
+
+``gep`` carries **no built-in sign** -- it *is* the signed interaction. So a proton or a
+positron (``Z_x = +1``) is fed ``gep = -V_ex`` (attractive), a negative muon
+(``Z_x = -1``) is fed ``gep = +V_ex`` (repulsive), and ``|Z_x| != 1`` just scales. The
+energy is ``E_ep = +gep.D2_ep`` (see :func:`energy_from_rdm_ir`), which also agrees in
+sign with the hand-derived OO gradient/Hessian gep terms.
+
+(Historically pq_helper's ``gep`` multiplied by ``-1``, hardcoding ``Z_x = +1``; that has
+been removed, so a consumer that used to feed the bare positive Coulomb ``V_ex`` must now
+feed ``-V_ex`` for a proton/positron.)
 
 The runnable tutorial counterparts (raw pdaggerq API, with derivations) live in
 ``examples/`` -- e.g. ``ccsd.py``, ``ccsdt.py``, ``ccsdtq.py``, ``neo_ccd.py``,
@@ -424,8 +448,8 @@ def _rdm_block_spec(tensor, block):
 
     if tensor == "D2_ep":
         # consumer layout D2_ep(P, E, E', P'); operator e2(P, E, P', E') -- the convention
-        # validated in pq_graph/tests/neo_rdm_energy_test.py. The compensating cross-species
-        # sign lives in the gep.D2_ep term of energy_from_rdm_ir (coeff -1).
+        # validated in pq_graph/tests/neo_rdm_energy_test.py. The e-p energy is
+        # E_ep = +gep.D2_ep (gep carries the charge sign; see energy_from_rdm_ir).
         cP, cE, cE2, cP2 = block[0], block[1], block[2], block[3]
         LE = take("e", cE); LP = take("p", cP); LP2 = take("p", cP2); LE2 = take("e", cE2)
         return f"e2({LP},{LE},{LP2},{LE2})", [(LP, cP), (LE, cE), (LE2, cE2), (LP2, cP2)]
@@ -580,12 +604,15 @@ def _emit_block_terms(terms, target):
 
 # E = h.D1 + 1/2 g.D2 (electron) [+ hp.D1_n proton one-body + gep.D2_ep e-p, for NEO].
 # hp is the *bare* proton core (not the proton Fock) so no electron mean-field is
-# double-counted; the e-p coupling is carried entirely by gep.D2_ep. The e-p term has a
-# **-1** coefficient: the mixed 2-RDM built from e2(P,E,P',E') is minus the physical e-p
-# density (the cross-species reordering sign), so E_ep = -gep.D2_ep -- exactly the
-# convention validated in pq_graph/tests/neo_rdm_energy_test.py and produced by
-# _mixed_block_ir. (If this flips, the RDM<->energy identity breaks; see
-# models_test.test_rdm_block_ir.)
+# double-counted; the e-p coupling is carried entirely by E_ep = +gep.D2_ep.
+#
+# CHARGE CONVENTION: gep carries no built-in sign (pq_helper does not negate it), so the
+# consumer supplies the SIGNED interaction integral gep = -Z_x V_ex (Z_x = second species'
+# charge in units of e; V_ex = bare positive Coulomb). Attractive for protons/positrons
+# (Z=+1), repulsive for negative muons (Z=-1) -- see the gep block in pq_helper.cc. This
+# also makes E_ep here agree in sign with the hand-derived OO gradient/Hessian terms below,
+# which were derived as d^n(gep.D2_ep). Guarded by the full-energy identity in
+# models_test.test_energy_from_rdm.
 # NOTE on the g.D2 pairing: rdm_block_ir builds D2["pqsr"] from e2(p,q,s,r), i.e.
 # D2[p,q,c,d] = <p+ q+ d c>. The two-electron energy is E_2e = 1/2 sum <pq|rs> <p+ q+ s r>,
 # so g's LAST TWO slots must pair with D2's last two *swapped* -- ("D2", [0,1,3,2]). Pairing
@@ -595,7 +622,7 @@ def _emit_block_terms(terms, target):
 _ENERGY_ELEC = [(1.0, "ee", [("h", [0, 1]), ("D1", [0, 1])]),
                 (0.5, "eeee", [("g", [0, 1, 2, 3]), ("D2", [0, 1, 3, 2])])]
 _ENERGY_NEO = _ENERGY_ELEC + [(1.0, "pp", [("hp", [0, 1]), ("D1_n", [0, 1])]),
-                              (-1.0, "epep", [("gep", [0, 1, 2, 3]), ("D2_ep", [1, 0, 2, 3])])]
+                              (1.0, "epep", [("gep", [0, 1, 2, 3]), ("D2_ep", [1, 0, 2, 3])])]
 # proton-proton two-body, present only when the model's H carries vp (>=2 quantum protons).
 # Same-species, so it mirrors the electron g.D2 term exactly (plain vp, coeff 1/2, and the
 # D2_n last-two slots swapped against vp's).

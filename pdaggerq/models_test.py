@@ -223,7 +223,7 @@ def test_energy_from_rdm():
     # wrong gep sign, or a pq_graph-corrupted D1_n all show up here and nowhere else).
     #
     # Ground truth needs no HF reconstruction: with the RAW H (no gep-trace removal),
-    #     <(1+L)(f + v + fp + gep)> == h.D1 + 1/2 g.D2 + hp.D1_n - gep.D2_ep
+    #     <(1+L)(f + v + fp + gep)> == h.D1 + 1/2 g.D2 + hp.D1_n + gep.D2_ep
     # when h = f - mf_ee (mf_ee[p,q] = sum_i <p,i||q,i>), hp = fp, g = plain <pq|rs>.
     # f/fp are arbitrary symmetric matrices. Holds at ARBITRARY amplitudes.
     import pdaggerq
@@ -1007,9 +1007,9 @@ def test_rdm_block_ir():
         assert np.max(np.abs(blk - np.transpose(native, perm))) < 1e-10, (t, b)
 
     # (4) numeric end-to-end (mixed e-p): the RDM chain reproduces the e-p energy.
-    #     -sum_blocks gep.D2_ep  ==  <(1+L) e^-T gep e^T>.  Guards both the D2_ep emission
+    #     sum_blocks gep.D2_ep  ==  <(1+L) e^-T gep e^T>.  Guards both the D2_ep emission
     #     (pq_graph collapses a mixed density's internal proton indices onto the open ones;
-    #     _mixed_block_ir bypasses it) and the -1 sign of the gep.D2_ep energy term. The
+    #     the string emitter bypasses it) and the sign of the gep.D2_ep energy term. The
     #     identity holds at ARBITRARY amplitudes, so random (unconverged) inputs suffice.
     import itertools as _it
     import pdaggerq
@@ -1068,7 +1068,7 @@ def test_rdm_block_ir():
                         minp[o["name"]] = getamp(o["name"], o["classes"])
             D = interp(ir, minp)[f'D2_ep["{dcls}"]']
             g = gep[np.ix_(erg[c4[0]], prg[NV[c4[1]]], erg[c4[2]], prg[NV[c4[3]]])]
-            E_rdm += -float(np.einsum("ijcd,jicd->", g, D, optimize=True))   # -gep.D2_ep
+            E_rdm += float(np.einsum("ijcd,jicd->", g, D, optimize=True))    # +gep.D2_ep
         assert abs(E_dir - E_rdm) < 1e-9, (mdl, E_dir, E_rdm)
 
     # (3) unpopulatable block -> empty (consumer zero-fills)

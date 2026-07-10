@@ -9,7 +9,7 @@ use_rdms machinery fixes the contraction convention:
 
     v   :  E = -<p,i||q,i> D1(p,q)         + 1/4 <p,q||s,r> D2(p,q,s,r)
     vp  :  E = -<nP,nI||nQ,nI> D1_n(nP,nQ) + 1/4 <nP,nQ||nS,nR> D2_n(nP,nQ,nS,nR)
-    gep :  E = +g(p,nP,q,nQ) D2_ep(nP,p,q,nQ)
+    gep :  E = +g(p,nP,q,nQ) D2_ep(nP,p,q,nQ)   (g is the SIGNED interaction, g = -Z_x V_ex)
 
 For each two-body piece we evaluate the energy <0|(1+L) e^-T h e^T|0> from the
 amplitudes and, independently, assemble the RDM blocks and contract them with
@@ -21,7 +21,7 @@ Conventions that make this work (all verified):
   * the antisymmetrized eri carries full <pq||rs> = <rs||pq> symmetry;
   * e2(A,B,C,D) = <A^ B^ C D>, so D2(p,q,r,s)=<p^q^sr> comes from e2(p,q,s,r);
   * the e2 mixed 2-RDM orders cross-species creators <nP^ p^ ..> = -<p^ nP^ ..>,
-    i.e. it is minus the use_rdms D2_ep (hence the overall sign on the gep term).
+    i.e. it is minus the use_rdms D2_ep; gep carries no built-in sign (the charge does).
 """
 import re
 import itertools
@@ -166,7 +166,7 @@ def test_mixed_rdm_energy():
         lab = _labels([Pn, pe, qe, Qn]); st = _gen("e2(%s,%s,%s,%s)" % (lab[0], lab[1], lab[3], lab[2]))
         if st:
             Dep[slc[Pn], slc[pe], slc[qe], slc[Qn]] = ev(st, lab)
-    E_rdm = -np.einsum("pmqn,mpqn->", gep, Dep, optimize=True)   # minus: e2-density cross-species sign
+    E_rdm = np.einsum("pmqn,mpqn->", gep, Dep, optimize=True)    # gep carries the charge sign
     assert np.isclose(E, E_rdm), (E, E_rdm)
     print("OK  mixed   : E_gep == g(p,nP,q,nQ) D2_ep(nP,p,q,nQ)  (%.6f)" % E)
 
