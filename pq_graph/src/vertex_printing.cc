@@ -49,7 +49,7 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 namespace pdaggerq {
 
     void Vertex::format_name() {
-        name_ = printer_->format_name(shared_from_this());
+        name_ = printer_->format_name(this);
     }
 
     string Vertex::dimstring() const {
@@ -123,7 +123,7 @@ namespace pdaggerq {
             return tot_str(false);
         }
 
-        return Vertex::printer_->format_intermediate_name(as_link(shared_from_this()), include_lines);
+        return Vertex::printer_->format_intermediate_name(this, include_lines);
     }
 
     string Linkage::tot_str(bool fully_expand) const {

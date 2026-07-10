@@ -64,8 +64,8 @@ public:
 
     // ── Vertex formatters ─────────────────────────────────────────────
 
-    virtual string format_name(const VertexPtr& vertex) const;
-    virtual string format_intermediate_name(const LinkagePtr &link, bool include_lines) const;
+    virtual string format_name(const Vertex* vertex) const;
+    virtual string format_intermediate_name(const Linkage* link, bool include_lines) const;
     virtual string format_lines(const line_vector& lines) const = 0;
 
     // ── Binarization ────────────────────────────────────────────────────────

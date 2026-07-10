@@ -163,7 +163,7 @@ string CodePrinter::condition_open(const set<string>& conds) const {
     return "\n    " + s;
 }
 
-string CodePrinter::format_name(const VertexPtr &v) const {
+string CodePrinter::format_name(const Vertex* v) const {
         // scalars have no dimension
         if (v->rank() == 0) return v->base_name();
 
@@ -183,12 +183,12 @@ string CodePrinter::format_name(const VertexPtr &v) const {
                     return v->base_name() + "[\"bin" + v->vertex_type() + '_' + v->dimstring() + "\"]";
                 break;
         }
-        
+
         // default format name without any special indexing
         return v->base_name(); 
     }
 
-string CodePrinter::format_intermediate_name(const LinkagePtr &link, bool include_lines) const {
+string CodePrinter::format_intermediate_name(const Linkage* link, bool include_lines) const {
     string generic_str;
     if (link->is_scalar())
         generic_str = "scalars_";
