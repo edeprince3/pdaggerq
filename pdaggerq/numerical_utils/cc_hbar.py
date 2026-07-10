@@ -98,7 +98,6 @@ class HbarOperator:
         # antisymmetrized eom-cc beta-beta doubles amplitudes
         r2_bbbb = self.unpack_antisym(R[start:], self.a_idx_b, self.b_idx_b, self.i_idx_b, self.j_idx_b, self.ccsd.nvb, self.ccsd.nob)
 
-
         return r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb
 
     def unpack_left_amplitudes(self, L):

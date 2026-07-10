@@ -132,7 +132,10 @@ def test_eomccsd_codegen():
         "t2_residual",
         "right_sigma0",
         "right_sigma1",
-        "right_sigma2"
+        "right_sigma2",
+        "left_sigma0",
+        "left_sigma1",
+        "left_sigma2"
     ]
     loaded_modules = {}
 
@@ -162,7 +165,10 @@ def test_eomccsd_codegen():
     eomcc = eom_ccsd(mycc, 
         right_sigma0_func=loaded_modules["right_sigma0"].right_sigma0,
         right_sigma1_func=loaded_modules["right_sigma1"].right_sigma1,
-        right_sigma2_func=loaded_modules["right_sigma2"].right_sigma2
+        right_sigma2_func=loaded_modules["right_sigma2"].right_sigma2,
+        left_sigma0_func=loaded_modules["left_sigma0"].left_sigma0,
+        left_sigma1_func=loaded_modules["left_sigma1"].left_sigma1,
+        left_sigma2_func=loaded_modules["left_sigma2"].left_sigma2
      )
 
     ref_energies = [0.000000000000,
@@ -176,7 +182,9 @@ def test_eomccsd_codegen():
 
     assert np.allclose(ref_energies, eomcc.eom_cc_energy, rtol=1e-8, atol=1e-8)
 
-    #eomcc.left_solver()
+    eomcc.left_solver()
+
+    assert np.allclose(ref_energies, eomcc.eom_cc_energy, rtol=1e-8, atol=1e-8)
 
 def main():
     #test_ccsd_spin_orbital_codegen()
