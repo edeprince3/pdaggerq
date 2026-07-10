@@ -472,6 +472,12 @@ namespace pdaggerq {
         return output;
     }
 
+    ostream &operator<<(ostream &os, const Equation &eq) {
+        for (const string &s : eq.to_strings())
+            os << Vertex::printer_->padding(1) << s << endl;
+        return os;
+    }
+
     string Equation::condition_string(std::set<string> &conditions) {
         if (conditions.empty()) return "";
         return Vertex::printer_->condition_open(conditions);
@@ -507,7 +513,7 @@ namespace pdaggerq {
                 string perm_name;
                 perm_vertex->vertex_type_ = 'p'; // sets printing for permutation vertex
                 perm_vertex->sort(); // sort permutation vertex
-                perm_vertex->update_name("tmps_"); // set name of permutation vertex
+                perm_vertex->update_name(Vertex::printer_->scratch_prefix('t')); // set name of permutation vertex
 
                 // initialize initial permutation term
                 Term perm_term = *this; // copy term

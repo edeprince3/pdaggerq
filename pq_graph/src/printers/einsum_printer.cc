@@ -34,10 +34,10 @@ string EinsumPrinter::condition_open(const set<string>& conds) const {
 string EinsumPrinter::format_intermediate_name(const Linkage* link, bool /*include_lines*/) const {
     string generic_str;
     if (link->is_scalar())
-        generic_str = "scalars_";
+        generic_str = scratch_prefix('s');
     else if (link->is_reused())
-        generic_str = "reused_";
-    else generic_str = "tmps_";
+        generic_str = scratch_prefix('r');
+    else generic_str = scratch_prefix();
     generic_str += "[\"";
 
     string dimstring = link->dimstring();

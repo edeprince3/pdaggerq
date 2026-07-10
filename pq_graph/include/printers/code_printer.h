@@ -99,6 +99,12 @@ public:
     // Emit the closing banner (triple h1).
     virtual string format_closing_banner() const;
 
+    // ── Intermediate naming ──────────────────────────────────────────────
+
+    // Return prefix for internally-generated temporaries. type is 't' (tmps_),
+    // 's' (scalars_), or 'r' (reused_).
+    virtual string scratch_prefix(char type = 't') const;
+
     // ── Line-level formatters ────────────────────────────────────────────
 
     // Return indent string: level 0 → "", level 1 → "    ", level 2 → "        "

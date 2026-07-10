@@ -75,6 +75,14 @@ void Vertex::set_printer(const string& type) {
 
 // ── Default virtual implementations ──────────────────────────────────────────
 
+string CodePrinter::scratch_prefix(char type) const {
+    switch (type) {
+        case 's': return "scalars_";
+        case 'r': return "reused_";
+        default:  return "tmps_";
+    }
+}
+
 string CodePrinter::binarize_term(const Term& t) const {
     if (!binarize_) return "";
 
@@ -87,9 +95,9 @@ string CodePrinter::binarize_term(const Term& t) const {
     auto make_interm = [&](const vector<VertexPtr> &verts, size_t erase_pos, size_t erase_count, size_t insert_pos) {
         MutableVertexPtr interm_vertex;
         if (verts.size() == 2)
-            interm_vertex = make_shared<Vertex>("tmps_", (verts[0] * verts[1])->lines());
+            interm_vertex = make_shared<Vertex>(scratch_prefix(), (verts[0] * verts[1])->lines());
         else
-            interm_vertex = make_shared<Vertex>("tmps_", verts[0]->lines());
+            interm_vertex = make_shared<Vertex>(scratch_prefix(), verts[0]->lines());
 
         interm_vertex->vertex_type_ = (char)count + '0';
         interm_vertex->sort();
@@ -192,10 +200,10 @@ string CodePrinter::format_name(const Vertex* v) const {
 string CodePrinter::format_intermediate_name(const Linkage* link, bool include_lines) const {
     string generic_str;
     if (link->is_scalar())
-        generic_str = "scalars_";
+        generic_str = scratch_prefix('s');
     else if (link->is_reused())
-        generic_str = "reused_";
-    else generic_str = "tmps_";
+        generic_str = scratch_prefix('r');
+    else generic_str = scratch_prefix();
     generic_str += "[\"";
 
     string dimstring = link->dimstring();
