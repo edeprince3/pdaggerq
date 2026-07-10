@@ -259,7 +259,18 @@ def _optimized(pq, label, df, opt_level):
     # singles residual at t=0). No-op for non-NEO. Applied to every generated equation
     # (residuals, energy, Lambda, amplitude gradient) via this shared helper.
     pq.remove_gep_reference_traces()
-    g = pq_graph({"opt_level": opt_level, "density_fitting": df})
+    # nthreads=1: the pq_graph optimizer's substitution/fusion passes race on the
+    # lazy caches (link_vector_, flop_scale_, base_hash_, ...) of Linkage objects that
+    # are shared by shared_ptr across candidate intermediates -- forget()/compute_scaling()
+    # mutate them mid-flight. At >1 thread this makes the *chosen* substitutions, and thus
+    # the emitted code, nondeterministic (all variants are numerically identical; it is a
+    # byte-reproducibility bug, not a math one -- ThreadSanitizer flags consolidate.cc /
+    # substitute.cc / linkage.cc). Model codegen must be byte-reproducible (neocc freezes
+    # it), so pin the optimizer to a single thread here; omp_set_num_threads(nthreads_)
+    # then serializes every optimizer loop regardless of OMP_NUM_THREADS. Drop this once
+    # the Linkage caches are made thread-safe (guard each getter/forget with Linkage::mtx_).
+    # Guarded by models_test.test_opt_level_safe_default.
+    g = pq_graph({"opt_level": opt_level, "density_fitting": df, "nthreads": 1})
     g.add(pq, label)
     g.optimize()
     return g

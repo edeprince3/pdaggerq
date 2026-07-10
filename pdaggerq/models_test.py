@@ -996,29 +996,25 @@ def test_opt_level_safe_default():
     truth = interp(ir0, inp)
     default = interp(einsums.parse_ir(models.residual_ir("neo-ccsdt(eep)", "tep11")), inp)
     assert np.max(np.abs(default - truth)) < 1e-9, np.max(np.abs(default - truth))
-    # (3) opt_level 6 must stay numerically CORRECT (matches opt0) on the equation that
-    # used to break. Byte-determinism is checked too, but only as a tracked warning:
-    # ThreadSanitizer showed the opt6 emission still has a data race in the pq_graph
-    # candidate-scoring loop (consolidate.cc reads unguarded lazy caches on shared Linkage
-    # objects), so at >1 thread it can emit >1 distinct text -- all numerically identical.
-    # This is a byte-reproducibility gap, not a math bug (the `worst` check guards the math).
-    # Deterministic at OMP_NUM_THREADS=1; for reproducible frozen codegen, generate single-
-    # threaded. Flip the determinism check back to a hard assert once the race is fixed
-    # (edeprince3/pdaggerq#114 tail).
+    # (3) opt_level 6 must be BYTE-DETERMINISTIC and numerically correct (matches opt0) on
+    # the equation that used to break. The pq_graph optimizer's substitution/fusion passes
+    # race on the lazy caches of shared Linkage objects (ThreadSanitizer flags consolidate.cc
+    # / substitute.cc / linkage.cc), so at >1 thread the *chosen* substitutions -- hence the
+    # emitted text -- would vary run to run. models._optimized therefore pins the optimizer to
+    # a single thread (nthreads=1), which makes codegen byte-reproducible at any OMP_NUM_THREADS
+    # (neocc relies on this for frozen codegen). This assertion exercises that pin: run under
+    # OMP_NUM_THREADS>1 (CI does) so >1 thread is *available* and the pin is what forces
+    # determinism. If it trips, either the pin was dropped or the race otherwise resurfaced
+    # (edeprince3/pdaggerq#114).
     texts, worst = set(), 0.0
     for _ in range(3):
         ir6 = models.residual_ir("neo-ccsdt(eep)", "tep11", opt_level=6)
         texts.add("\n".join(l for l in ir6 if l.strip().startswith("{")))
         worst = max(worst, float(np.max(np.abs(interp(einsums.parse_ir(ir6), inp) - truth))))
-    assert worst < 1e-9, f"opt6 numerically wrong again (err {worst})"   # hard: correctness
-    if len(texts) != 1:                                                   # soft: known race
-        import warnings
-        warnings.warn(f"opt6 emission nondeterministic ({len(texts)} variants) -- known "
-                      "pq_graph candidate-loop race (edeprince3/pdaggerq#114 tail); all "
-                      "variants numerically correct. Generate single-threaded for "
-                      "byte-reproducible codegen.")
-    print("test_opt_level_safe_default OK"
-          + ("" if len(texts) == 1 else f"  [warn: {len(texts)} opt6 texts, race]"))
+    assert len(texts) == 1, (f"opt6 emission nondeterministic ({len(texts)} variants) -- "
+                             "codegen single-thread pin lost or race resurfaced (#114)")
+    assert worst < 1e-9, f"opt6 numerically wrong again (err {worst})"
+    print("test_opt_level_safe_default OK")
 
 
 def test_rdm_block_ir():
