@@ -57,10 +57,7 @@ public:
     virtual string allocate(const string& name)             const { return ""; }
     virtual string deallocate(const string& name)           const = 0;
     virtual string perm_delete(const string& name)          const = 0;
-    virtual string condition_open(const set<string>& conds) const;
-
-    // binarization flag (user-settable; default true for C++ printers)
-    static inline bool binarize_ = true;
+    virtual string condition_open(const set<string>& conds) const;    
 
     // ── Vertex formatters ─────────────────────────────────────────────
 
@@ -69,6 +66,9 @@ public:
     virtual string format_lines(const line_vector& lines) const = 0;
 
     // ── Binarization ────────────────────────────────────────────────────────
+
+    // binarization flag
+    static inline bool binarize_ = false;
 
     // Decompose a term into a tree of binary operations.
     // Returns the binarized output (including intermediate term strings)

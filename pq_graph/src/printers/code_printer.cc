@@ -65,6 +65,7 @@ void Vertex::set_printer(const string& type) {
         std::cout << "Setting printer to TiledArray (C++) format" << std::endl;
     } else if (t == "tamm") {
         printer_ = &TammPrinter::instance();
+        CodePrinter::binarize_ = true; // enable binarization for TAMM printer
         std::cout << "Setting printer to TAMM (C++) format" << std::endl;
     } else {
         std::cout << "Unknown printer type: " << type << std::endl;
