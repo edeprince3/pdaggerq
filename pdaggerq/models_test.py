@@ -137,6 +137,87 @@ def test_lambda_and_gradient():
     print("test_lambda_and_gradient OK")
 
 
+def test_lambda_consistency():
+    """The Lambda equations are LINEAR in the multipliers, and the true CC Lambda system
+    is consistent: some lambda makes every residual block exactly zero. Assemble the full
+    coupled system A.lambda + b from lambda_ir (evaluating its residual at lambda = 0 and at
+    unit vectors), solve, and assert the residual at the solution is ~0. A dropped / mispaired
+    / duplicated term makes the emitted system INCONSISTENT (no lambda gives R = 0) -- which
+    is exactly what a non-converging Jacobi/DIIS solve on a linear system means. Also assert
+    the optimized (opt6) emission reproduces the opt0 solution, so opt6 is not just internally
+    consistent but computes the SAME system (a wrong-but-consistent variant is caught too)."""
+    import itertools
+    import numpy as np
+    from collections import defaultdict
+
+    DIM = {"o": 2, "v": 3, "O": 1, "V": 2, "Q": 5}
+    VIR, OCC = {"v", "V"}, {"o", "O"}
+
+    def antisym(a, cl):
+        out = a.copy(); groups = defaultdict(list)
+        for ax, c in enumerate(cl): groups[c].append(ax)
+        for c, axes in groups.items():
+            if len(axes) >= 2 and (c in VIR or c in OCC):
+                perms = list(itertools.permutations(range(len(axes)))); acc = np.zeros_like(out)
+                for p in perms:
+                    par = sum(1 for i in range(len(p)) for j in range(i + 1, len(p)) if p[i] > p[j]) & 1
+                    src = list(range(out.ndim))
+                    for k, ax in enumerate(axes): src[ax] = axes[p[k]]
+                    acc += (-1 if par else 1) * np.transpose(out, src)
+                out = acc / len(perms)
+        return out
+
+    def interp(ir, inp):
+        st = {}
+        val = lambda o: st[o["name"]] if o["name"] in st else inp[o["name"]]
+        for s in ir:
+            sub = ",".join("".join(o["indices"]) for o in s["operands"])
+            out = "".join(s["target"]["indices"])
+            c = s["coeff"] * np.einsum(sub + "->" + out, *[val(o) for o in s["operands"]], optimize=True)
+            t = s["target"]["name"]; st[t] = c.copy() if s["is_assignment"] else st[t] + c
+        return st["R"]
+
+    def assemble(name, opt, base=None):
+        amps = list(models.model(name).T)                 # one residual block per t-amplitude
+        irs = {a: einsums.parse_ir(models.lambda_ir(name, a, opt_level=opt)) for a in amps}
+        names = {}
+        for ir in irs.values():
+            produced = {s["target"]["name"] for s in ir}
+            for s in ir:
+                for o in s["operands"]:
+                    if o["name"] not in produced:
+                        names[o["name"]] = tuple(o["classes"])
+        if base is None:                                  # integrals + t-amplitudes (fixed inputs)
+            rng = np.random.default_rng(1); base = {}
+            for n, c in sorted(names.items()):
+                if n.startswith("l"): continue
+                a = rng.standard_normal(tuple(DIM[x] for x in c))
+                base[n] = antisym(a, c) if (n.startswith("t") and len(c) >= 4) else a
+        lnames = sorted(n for n in names if n.startswith("l"))   # the multipliers = unknowns
+        shp = {n: [DIM[x] for x in names[n]] for n in lnames}
+        siz = {n: int(np.prod(shp[n])) for n in lnames}
+        off = {}; tot = 0
+        for n in lnames: off[n] = tot; tot += siz[n]
+
+        def R(lvec):
+            inp = dict(base)
+            for n in lnames: inp[n] = lvec[off[n]:off[n] + siz[n]].reshape(shp[n])
+            return np.concatenate([interp(irs[a], inp).flatten() for a in amps])
+
+        b = R(np.zeros(tot)); A = np.zeros((b.size, tot))
+        for k in range(tot):
+            e = np.zeros(tot); e[k] = 1.0; A[:, k] = R(e) - b
+        return A, b, base, R
+
+    for name in ("ccsd", "neo-ccd(ep)", "neo-ccsd-1p"):
+        A0, b0, base, R0 = assemble(name, 0)
+        x0, *_ = np.linalg.lstsq(A0, -b0, rcond=None)
+        assert np.abs(A0 @ x0 + b0).max() < 1e-9, (name, "opt0 Lambda system INCONSISTENT")
+        _, _, _, R6 = assemble(name, 6, base=base)        # opt6 residual, same inputs
+        assert np.abs(R6(x0)).max() < 1e-9, (name, "opt6 Lambda disagrees with opt0")
+    print("test_lambda_consistency OK")
+
+
 def test_rdm():
     import pdaggerq
 
@@ -1083,6 +1164,7 @@ if __name__ == "__main__":
     test_cheap_models_generate()
     test_spin_axis()
     test_lambda_and_gradient()
+    test_lambda_consistency()
     test_rdm()
     test_energy_from_rdm()
     test_orbital_gradient_hessian()
