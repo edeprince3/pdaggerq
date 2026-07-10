@@ -882,6 +882,71 @@ def test_rdm_block_ir():
         perm = [list(final["indices"]).index(L) for L, _ in consumer]
         assert np.max(np.abs(blk - np.transpose(native, perm))) < 1e-10, (t, b)
 
+    # (4) numeric end-to-end (mixed e-p): the RDM chain reproduces the e-p energy.
+    #     -sum_blocks gep.D2_ep  ==  <(1+L) e^-T gep e^T>.  Guards both the D2_ep emission
+    #     (pq_graph collapses a mixed density's internal proton indices onto the open ones;
+    #     _mixed_block_ir bypasses it) and the -1 sign of the gep.D2_ep energy term. The
+    #     identity holds at ARBITRARY amplitudes, so random (unconverged) inputs suffice.
+    import itertools as _it
+    import pdaggerq
+    ne, npr = DIM["o"] + DIM["v"], DIM["O"] + DIM["V"]
+    erg = {"o": list(range(DIM["o"])), "v": list(range(DIM["o"], ne))}
+    prg = {"O": list(range(DIM["O"])), "V": list(range(DIM["O"], npr))}
+    NV = {"o": "O", "v": "V"}
+
+    def _sp(l):
+        nuc = len(l) > 1 and l[0] == "n"
+        base = l[1] if nuc else l[0]
+        occ = base in "ijklmno"
+        return ("O" if occ else "V") if nuc else ("o" if occ else "v")
+
+    for mdl in ("neo-ccd(ep)", "neo-ccsd", "neo-ccsdt(eep)"):
+        rng2 = np.random.default_rng(7)
+        gep = rng2.standard_normal((ne, npr, ne, npr))
+        amp = {}                                          # random tensor per amplitude name
+
+        def getamp(name, classes):
+            classes = tuple(classes)
+            if name not in amp:
+                amp[name] = rng2.standard_normal(tuple(DIM[c] for c in classes))
+            assert amp[name].shape == tuple(DIM[c] for c in classes), name
+            return amp[name]
+
+        pq = pdaggerq.pq_helper("fermi")
+        pq.set_left_operators([["1"]] + [[l] for l in models.lambda_amps(mdl)])
+        pq.add_st_operator(1.0, ["gep"], list(models.model(mdl).T))
+        pq.simplify()
+
+        def gblk(idx):
+            return gep[np.ix_(*[(erg if _sp(i) in "ov" else prg)[_sp(i)] for i in idx])]
+
+        E_dir = 0.0                                       # <(1+L) e^-T gep e^T>
+        for term in pq.strings():
+            c = float(term[0]); ops = []; subs = []; lts = {}
+            for tok in term[1:]:
+                nm = tok[:tok.index("(")]; idx = tok[tok.index("(") + 1:-1].split(",")
+                ops.append(gblk(idx) if nm == "g" else getamp(nm, [_sp(i) for i in idx]))
+                subs.append("".join(lts.setdefault(i, chr(65 + len(lts))) for i in idx))
+            E_dir += c * (float(np.einsum(",".join(subs) + "->", *ops, optimize=True)) if ops else 1.0)
+
+        E_rdm = 0.0                                        # -sum gep.D2_ep via rdm_block_ir
+        for c4 in _it.product("ov", repeat=4):
+            dcls = "".join([NV[c4[1]], c4[0], c4[2], NV[c4[3]]])
+            ir = einsums.parse_ir(models.rdm_block_ir(mdl, "D2_ep", dcls))
+            if not ir:
+                continue
+            minp = {}
+            for s in ir:
+                for o in s["operands"]:
+                    if o["name"].startswith("Id["):
+                        minp[o["name"]] = np.eye(DIM[o["classes"][0]])
+                    else:
+                        minp[o["name"]] = getamp(o["name"], o["classes"])
+            D = interp(ir, minp)[f'D2_ep["{dcls}"]']
+            g = gep[np.ix_(erg[c4[0]], prg[NV[c4[1]]], erg[c4[2]], prg[NV[c4[3]]])]
+            E_rdm += -float(np.einsum("ijcd,jicd->", g, D, optimize=True))   # -gep.D2_ep
+        assert abs(E_dir - E_rdm) < 1e-9, (mdl, E_dir, E_rdm)
+
     # (3) unpopulatable block -> empty (consumer zero-fills)
     assert models.rdm_block_ir("neo-ccd(ep)", "D1", "ov") == []
     print("test_rdm_block_ir OK")
