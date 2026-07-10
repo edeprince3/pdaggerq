@@ -212,6 +212,47 @@ def test_energy_from_rdm():
         E += st["coeff"] * np.einsum(f"{subs}->", *arrs, optimize=True)
     ref = np.einsum("pq,pq->", full["h"], full["D1"]) + 0.5 * np.einsum("pqsr,pqsr->", full["g"], full["D2"])
     assert abs(E - ref) < 1e-10, (E, ref)
+
+    # physics normalization: the electron two-body energy 0.5 * <pq|rs>_plain . D2 (the
+    # convention energy_from_rdm uses -- plain g, coeff 0.5) must equal the antisymmetrized
+    # form 0.25 * <pq||sr> . D2 validated in pq_graph/tests/neo_rdm_energy_test.py. Checked
+    # on the *genuine* rdm_block_ir D2 (not random), so a wrong coeff/convention (e.g. 0.5
+    # with an antisymmetrized g, which double-counts) is caught. Together with the gep-family
+    # identity in test_rdm_block_ir this pins both two-body families; the one-body h.D1 /
+    # hp.D1_n are direct density traces and D1_n is emitted for NEO (asserted above).
+    import pdaggerq
+    no2, nv2 = 2, 3; n2 = no2 + nv2; SL2 = {"o": slice(0, no2), "v": slice(no2, n2)}
+    rng2 = np.random.default_rng(5)
+    c = rng2.standard_normal((n2, n2, n2, n2))
+    c = c + c.transpose(1, 0, 2, 3); c = c + c.transpose(0, 1, 3, 2); c = c + c.transpose(2, 3, 0, 1)
+    phys = c.transpose(0, 2, 1, 3); g_anti = phys - phys.transpose(0, 1, 3, 2); g_plain = phys
+
+    def interp2(ir, tgt, amp):
+        prod = {s["target"]["name"] for s in ir}; st = {}
+        def val(op):
+            nm = op["name"]
+            if nm in prod and nm in st: return st[nm]
+            if nm.startswith("Id["): return np.eye({"o": no2, "v": nv2}[op["classes"][0]])
+            if nm not in amp:
+                a = rng2.standard_normal(tuple({"o": no2, "v": nv2}[cc] for cc in op["classes"]))
+                if nm in ("t2", "l2"):
+                    a = a - a.transpose(1, 0, 2, 3); a = a - a.transpose(0, 1, 3, 2)
+                amp[nm] = a
+            return amp[nm]
+        for s in ir:
+            oi = "".join(s["target"]["indices"]); subs = ",".join("".join(x["indices"]) for x in s["operands"])
+            cc = s["coeff"] * np.einsum(subs + "->" + oi, *[val(x) for x in s["operands"]], optimize=True)
+            st[s["target"]["name"]] = cc.copy() if s["is_assignment"] else st[s["target"]["name"]] + cc
+        return st[tgt]
+
+    amp = {}; D2f = np.zeros((n2, n2, n2, n2))
+    for b in ("".join(x) for x in itertools.product("ov", repeat=4)):
+        ir = einsums.parse_ir(models.rdm_block_ir("ccsd", "D2", b, opt_level=0))
+        if ir:
+            D2f[SL2[b[0]], SL2[b[1]], SL2[b[2]], SL2[b[3]]] = interp2(ir, f'D2["{b}"]', amp)
+    e_plain = 0.5 * np.einsum("pqsr,pqsr->", g_plain, D2f)      # energy_from_rdm convention
+    e_anti = 0.25 * np.einsum("pqsr,pqsr->", g_anti, D2f)       # validated (neo_rdm_energy_test)
+    assert abs(e_plain - e_anti) < 1e-9, (e_plain, e_anti)
     print("test_energy_from_rdm OK")
 
 
