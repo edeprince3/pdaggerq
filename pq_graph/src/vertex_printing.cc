@@ -123,7 +123,7 @@ namespace pdaggerq {
             return tot_str(false);
         }
 
-        return Vertex::printer_->format_intermediate_name(this, include_lines);
+        return Vertex::printer_->format_intermediate_name(as_link(shared_from_this()), include_lines);
     }
 
     string Linkage::tot_str(bool fully_expand) const {
