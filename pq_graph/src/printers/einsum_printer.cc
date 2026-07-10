@@ -1,8 +1,12 @@
+#include <sstream>
+#include <iomanip>
+
 #include "../../include/printers/einsum_printer.h"
 #include "../../include/term.h"
 #include "../../../pdaggerq/pq_string.h"
 
 using std::string;
+using std::stringstream;
 using std::vector;
 using std::set;
 
@@ -27,42 +31,91 @@ string EinsumPrinter::condition_open(const set<string>& conds) const {
     return "\n    " + s;
 }
 
+string EinsumPrinter::format_intermediate_name(const Linkage* link, bool /*include_lines*/) const {
+    string generic_str;
+    if (link->is_scalar())
+        generic_str = "scalars_";
+    else if (link->is_reused())
+        generic_str = "reused_";
+    else generic_str = "tmps_";
+    generic_str += "[\"";
+
+    string dimstring = link->dimstring();
+    if (link->id() >= 0) {
+        stringstream ss;
+        ss << std::setfill('0') << std::setw(4) << link->id();
+        generic_str += ss.str();
+    }
+    if (!dimstring.empty())
+        generic_str += "_" + dimstring;
+    generic_str += "\"]";
+
+    return generic_str;
+}
+
 string EinsumPrinter::format_contraction(
-    const vector<string>&      scalar_strs,
-    const vector<TensorEntry>& tensor_entries,
-    const string& output_labels,
-    const string& output_types) const
+    const vertex_vector& operators,
+    const line_vector&   output_lines) const
 {
     string output;
-    for (const auto& s : scalar_strs)
-        output += s + " * ";
+    vector<string> tensor_strs;
+    vector<string> tensor_labels;
+    vector<string> tensor_types;
 
-    if (!tensor_entries.empty()) {
+    for (const auto& op : operators) {
+        if (op->empty()) continue;
+        string s = op->str();
+        if (op->is_addition() && !op->is_temp())
+            s = "(" + s + ")";
+
+        if (op->is_scalar()) {
+            output += s + " * ";
+        } else {
+            tensor_strs.push_back(std::move(s));
+            string labels, types;
+            for (const auto& line : op->lines()) {
+                labels += line.label_[0];
+                types  += line.type();
+            }
+            tensor_labels.push_back(std::move(labels));
+            tensor_types.push_back(std::move(types));
+        }
+    }
+
+    // build output labels and types from output_lines
+    string output_labels, output_types;
+    for (const auto& line : output_lines) {
+        if (line.sig_ && !Vertex::use_trial_index) continue;
+        output_labels += line.label_[0];
+        output_types  += line.type();
+    }
+
+    if (!tensor_strs.empty()) {
         bool skip_einsum = false;
-        if (tensor_entries.size() == 1) {
-            string sorted_input  = tensor_entries[0].index_labels;
+        if (tensor_strs.size() == 1) {
+            string sorted_input  = tensor_labels[0];
             string sorted_output = output_labels;
             std::sort(sorted_input.begin(),  sorted_input.end());
             std::sort(sorted_output.begin(), sorted_output.end());
             if (sorted_input != sorted_output) {
-                if (tensor_entries[0].index_types == output_types)
+                if (tensor_types[0] == output_types)
                     skip_einsum = true;
             }
-            if (tensor_entries[0].index_labels == output_labels)
+            if (tensor_labels[0] == output_labels)
                 skip_einsum = true;
         }
 
         if (skip_einsum) {
-            output += tensor_entries[0].str;
+            output += tensor_strs[0];
         } else {
             output += "einsum('";
-            for (const auto& entry : tensor_entries)
-                output += entry.index_labels + ",";
+            for (size_t i = 0; i < tensor_strs.size(); i++)
+                output += tensor_labels[i] + ",";
             output.pop_back();
             output += "->" + output_labels + "',";
-            for (const auto& entry : tensor_entries)
-                output += entry.str + ",";
-            if (tensor_entries.size() > 2)
+            for (size_t i = 0; i < tensor_strs.size(); i++)
+                output += tensor_strs[i] + ",";
+            if (tensor_strs.size() > 2)
                 output += "optimize='optimal'";
             else
                 output.pop_back();
@@ -76,22 +129,31 @@ string EinsumPrinter::format_contraction(
 }
 
 string EinsumPrinter::format_addition(
-    const string& left_str,    const string& right_str,
-    const string& left_labels, const string& right_labels,
-    const string& left_types,  const string& right_types) const
+    const VertexPtr& left,
+    const VertexPtr& right) const
 {
-    string output = left_str + " + ";
+    // Extract labels from both sides
+    string left_labels, right_labels;
+    for (const auto& line : left->lines()) {
+        if (line.sig_ && !Vertex::use_trial_index) continue;
+        left_labels += line.label_[0];
+    }
+    for (const auto& line : right->lines()) {
+        if (line.sig_ && !Vertex::use_trial_index) continue;
+        right_labels += line.label_[0];
+    }
+
+    string output = left->str() + " + ";
 
     // Determine if we need to permute the rhs tensor via einsum to match the lhs labels
     bool requires_einsum = left_labels != right_labels;
     if (requires_einsum)
         output += "einsum('" + right_labels + "->" + left_labels + "',";
 
-    output += right_str;
+    output += right->str();
 
-    if (requires_einsum) 
+    if (requires_einsum)
         output += ')';
-    
 
     return output;
 }

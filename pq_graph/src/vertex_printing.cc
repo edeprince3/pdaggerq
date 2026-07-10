@@ -150,36 +150,7 @@ namespace pdaggerq {
             return tot_str(false);
         }
 
-        // prepare output string as a map of tmps, scalars, or reuse_tmps to a generic name
-        string generic_str;
-        if (is_scalar())
-            generic_str = "scalars_";
-        else if (reused_)
-            generic_str = "reused_";
-        else generic_str = "tmps_";
-        generic_str += "[\"";
-
-        // use id_ to create a generic name
-        string dimstring = this->dimstring();
-        if (id_ >= 0) {
-            // format the id as a string (%04d)
-            stringstream ss;
-            ss << std::setfill('0') << std::setw(4) << id_;
-            generic_str += ss.str();
-        }
-
-        if (!dimstring.empty())
-            generic_str += "_" + dimstring;
-
-        generic_str += "\"]";
-
-        if (include_lines && printer_->include_line_indices()) // if lines are included, add them to the generic name (default)
-            generic_str += line_str(); // sorts print order
-
-        // create a generic vertex that has the same lines as this linkage.
-        // this adds the spin and type strings to name
-        // return its string representation
-        return generic_str;
+        return Vertex::printer_->format_intermediate_name(this, include_lines);
     }
 
     string Linkage::tot_str(bool fully_expand) const {
@@ -212,64 +183,11 @@ namespace pdaggerq {
             link_vector = link_vector_no_trial;
         }
 
-        const CodePrinter* printer = Vertex::printer_;
-
-        // helper: wrap an addition sub-expression in parens unless it is a temp
-        auto wrap = [](const VertexPtr& op) -> string {
-            string s = op->str();
-            if (op->is_addition() && !op->is_temp())
-                s = "(" + s + ")";
-            return s;
-        };
-
         if (is_addition()) {
-            // build labels and types directly from children (before link_vector filtering)
-            string left_labels, right_labels, left_types, right_types;
-            for (const auto &line: left_->lines()) {
-                if (line.sig_ && !Vertex::use_trial_index) continue;
-                left_labels += line.label_[0];
-                left_types  += line.type();
-            }
-            for (const auto &line: right_->lines()) {
-                if (line.sig_ && !Vertex::use_trial_index) continue;
-                right_labels += line.label_[0];
-                right_types  += line.type();
-            }
-            return printer->format_addition(
-                left_->str(), right_->str(),
-                left_labels, right_labels, left_types, right_types);
+            return Vertex::printer_->format_addition(left_, right_);
         }
 
-        // partition link_vector into scalars and tensors
-        vector<string> scalar_strs;
-        vector<TensorEntry> tensor_entries;
-        for (const auto &op: link_vector) {
-            if (op->empty()) continue;
-            if (op->is_scalar()) {
-                scalar_strs.push_back(wrap(op));
-            } else {
-                TensorEntry entry;
-                entry.str = wrap(op);
-                for (const auto &line: op->lines()) {
-                    if (line.sig_ && !Vertex::use_trial_index) continue;
-                    entry.index_labels += line.label_[0];
-                    entry.index_types  += line.type();
-                }
-                tensor_entries.push_back(entry);
-            }
-        }
-
-        if (scalar_strs.empty() && tensor_entries.empty()) return "1.0";
-
-        // build output index labels and types (used by EinsumPrinter)
-        string output_labels, output_types;
-        for (const auto &line: lines_) {
-            if (line.sig_ && !Vertex::use_trial_index) continue;
-            output_labels += line.label_[0];
-            output_types  += line.type();
-        }
-
-        return printer->format_contraction(scalar_strs, tensor_entries, output_labels, output_types);
+        return Vertex::printer_->format_contraction(link_vector, lines_);
     }
 
 }

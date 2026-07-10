@@ -19,15 +19,6 @@ string TiledArrayPrinter::perm_delete(const string& name) const {
     return name + ".~TArrayD();\n";
 }
 
-string TiledArrayPrinter::condition_open(const set<string>& conds) const {
-    string s = "if (";
-    for (const auto& c : conds)
-        s += "includes_[\"" + c + "\"] && ";
-    s.resize(s.size() - 4);
-    s += ") {";
-    return "\n    " + s;
-}
-
 string TiledArrayPrinter::format_lines(const line_vector& lines) const {
     if (lines.empty()) return ""; // if rank is 0, return empty string
     if (lines.size() == 1) {
@@ -52,28 +43,37 @@ string TiledArrayPrinter::format_lines(const line_vector& lines) const {
 }
 
 string TiledArrayPrinter::format_contraction(
-    const vector<string>&      scalar_strs,
-    const vector<TensorEntry>& tensor_entries,
-    const string& output_labels,
-    const string& /*output_types*/) const
+    const vertex_vector& operators,
+    const line_vector&   output_lines) const
 {
-    if (scalar_strs.empty() && tensor_entries.empty()) return "1.0";
-
     string output;
-    for (const auto& s : scalar_strs)
-        output += s + " * ";
+    vector<string> tensor_strs;
 
-    if (tensor_entries.empty()) {
+    for (const auto& op : operators) {
+        if (op->empty()) continue;
+        string s = op->str();
+        if (op->is_addition() && !op->is_temp())
+            s = "(" + s + ")";
+
+        if (op->is_scalar()) {
+            output += s + " * ";
+        } else {
+            tensor_strs.push_back(std::move(s));
+        }
+    }
+
+    if (tensor_strs.empty()) {
+        if (output.empty()) return "1.0";
         output.pop_back(); output.pop_back(); output.pop_back(); // remove trailing " * "
         return output;
     }
 
-    bool format_as_dot = output_labels.empty() && tensor_entries.size() >= 2;
-    for (size_t i = 0; i < tensor_entries.size(); i++) {
-        output += tensor_entries[i].str;
-        if (i < tensor_entries.size() - 1)
+    bool format_as_dot = output_lines.empty() && tensor_strs.size() >= 2;
+    for (size_t i = 0; i < tensor_strs.size(); i++) {
+        output += tensor_strs[i];
+        if (i < tensor_strs.size() - 1)
             output += " * ";
-        if (format_as_dot && i == tensor_entries.size() - 2) {
+        if (format_as_dot && i == tensor_strs.size() - 2) {
             output.pop_back(); output.pop_back(); output.pop_back(); // remove trailing " * "
             output += ", ";
         }
@@ -81,54 +81,6 @@ string TiledArrayPrinter::format_contraction(
 
     if (format_as_dot)
         output = "dot(" + output + ")";
-
-
-    return output;
-}
-
-string TiledArrayPrinter::format_addition(
-    const string& left_str, const string& right_str,
-    const string& /*left_labels*/,  const string& /*right_labels*/,
-    const string& /*left_types*/,   const string& /*right_types*/) const
-{
-    return left_str + " + " + right_str;
-}
-
-string TiledArrayPrinter::format_term(const Term& t) const {
-    // Get lhs vertex string
-    string output = t.lhs()->str();
-
-    // Get sign of coefficient
-    bool is_negative = t.coefficient_ < 0;
-    if (t.is_assignment_) output += "  = ";
-    else if (is_negative) output += " -= ";
-    else output += " += ";
-
-    // Get absolute value of coefficient
-    double abs_coeff = std::fabs(t.coefficient_);
-
-    // Check if we need to include the coefficient
-    auto term_link = t.term_linkage();
-    bool is_empty = t.rhs().empty() || term_link->empty();
-    bool negative_assignment = (t.is_assignment_ && is_negative);
-    bool needs_coeff = std::fabs(abs_coeff - 1.0) >= 1e-8 || is_empty || negative_assignment;
-
-    if (needs_coeff) {
-        if (negative_assignment)
-            output += "-";
-
-        int precision = minimum_precision(abs_coeff);
-        output += to_string_with_precision(abs_coeff, precision);
-
-        if (!is_empty)
-            output += " * ";
-    }
-
-    output += term_link->str();
-
-    // Add trailing semicolon if missing
-    if (output.back() != ';')
-        output += ';';
 
     return output;
 }

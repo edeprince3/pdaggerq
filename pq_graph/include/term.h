@@ -77,7 +77,6 @@ namespace pdaggerq {
         string print_override_; // string to override print function
         static inline bool print_comments_ = true; // print comments in term string
         static inline bool deallocate_ = true; // deallocate temporary variables
-        static inline bool binarize_ = false; // deallocate temporary variables
 
         static inline size_t max_depth_ = -1; // maximum number of rhs in a linkage (no limit by default)
         static inline shape max_shape_; // maximum shape of a linkage

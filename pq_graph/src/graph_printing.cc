@@ -55,10 +55,8 @@ namespace pdaggerq {
 
         // add banner for PQ GRAPH results
         const CodePrinter* printer = Vertex::printer_;
-        const string h1 = printer->banner_h1();
-        const string h2 = printer->banner_h2();
         
-        sout << h1 << " PQ GRAPH Output " << h1 << endl << endl;
+        sout << printer->format_named_section(" PQ GRAPH Output ", true);
         
         PQGraph copy = this->clone(); // make a clone of pq_graph
 
@@ -145,11 +143,8 @@ namespace pdaggerq {
         }
 
         // declare a map for each base name
-        sout << h2 << " Declarations " << h2 << endl << endl;
-        for (const auto &name: names) {
-            sout << printer->decl_comment();
-            sout << name << ";" << endl;
-        }
+        sout << printer->format_named_section(" Declarations ", false);
+        sout << printer->format_declarations(names);
         sout << endl;
 
         // add scalar terms to the beginning of the equation
@@ -161,7 +156,7 @@ namespace pdaggerq {
 
         // print scalar declarations
         if (!copy.equations_["scalar"].empty()) {
-            sout << h2 << " Scalars " << h2 << endl << endl;
+            sout << printer->format_named_section(" Scalars ", false);
 
             // sort scalars in scalars equation
             vector<Term> scalar_terms = copy.equations_["scalar"].terms();
@@ -176,12 +171,12 @@ namespace pdaggerq {
 
             // print scalars
             sout << copy.equations_["scalar"] << endl;
-            sout << h2 << " End of Scalars " << h2 << endl << endl;
+            sout << printer->format_named_section(" End of Scalars ", false);
         }
 
         // print declarations for reuse_tmps
         if (!copy.equations_["reused"].empty()){
-            sout << h2 << " Shared  Operators " << h2 << endl << endl;
+            sout << printer->format_named_section(" Shared  Operators ", false);
 
             // sort reused in reused equation
             vector<Term> reused_terms = copy.equations_["reused"].terms();
@@ -196,7 +191,7 @@ namespace pdaggerq {
 
             // print reuse_tmps
             sout << copy.equations_["reused"] << endl;
-            sout << h2 << " End of Shared Operators " << h2 << endl << endl;
+            sout << printer->format_named_section(" End of Shared Operators ", false);
         }
 
         // for each term in tmps, add the term to the merged equation
@@ -375,7 +370,7 @@ namespace pdaggerq {
             cout << endl;
         }
 
-        sout << h1 << " Evaluate Equations " << h1 << endl << endl;
+        sout << printer->format_named_section(" Evaluate Equations ", true);
 
         // update terms in merged equation
         merged_eq.terms() = all_terms;
@@ -384,7 +379,7 @@ namespace pdaggerq {
         sout << merged_eq << endl;
 
         // add closing banner
-        sout << h1 << h1 << h1 << endl << endl;
+        sout << printer->format_closing_banner();
 
         // return string stream as string
         return sout.str();
@@ -611,87 +606,9 @@ namespace pdaggerq {
             return left_term.str() + '\n' + right_term.str();
         }
 
-        if (Term::binarize_) {
-            // we need binarization for c++ output.
-            // ensure only two operations within any term. create intermediates as needed.
-
-            // determine if binarization is needed
-            Term binarized_term = clone(); // copy of current term to modify
-            bool needs_binarization = binarized_term.rhs_.size() > 2;
-            bool made_any_change = false;
-
-            int count = 1;
-
-            // helper to create intermediate vertex/term and update binarized_term
-            auto make_interm = [&](const std::vector<VertexPtr> &verts, size_t erase_pos, size_t erase_count, size_t insert_pos) {
-                MutableVertexPtr interm_vertex;
-                if (verts.size() == 2) interm_vertex = make_shared<Vertex>("tmps_", (verts[0] * verts[1])->lines());
-                else interm_vertex = make_shared<Vertex>("tmps_", verts[0]->lines());
-
-                interm_vertex->vertex_type_ = (char)count + '0';
-                interm_vertex->sort();
-                interm_vertex->update_name();
-
-                Term interm_term = binarized_term;
-                interm_term.reset_perm();
-                interm_term.coefficient_ = 1.0;
-                interm_term.comments_.clear();
-                interm_term.is_assignment_ = true;
-
-                interm_term.lhs_ = interm_vertex;
-                interm_term.rhs_ = verts;
-                interm_term.compute_scaling(true);
-
-                output += interm_term.str();
-                output += "\n";
-
-                for (size_t e = 0; e < erase_count; ++e)
-                    binarized_term.rhs_.erase(binarized_term.rhs_.begin() + erase_pos);
-                binarized_term.rhs_.insert(binarized_term.rhs_.begin() + insert_pos, interm_vertex);
-                binarized_term.compute_scaling(true);
-
-                made_any_change = true;
-                ++count;
-            };
-
-            do {
-                size_t n = binarized_term.rhs_.size();
-                needs_binarization = n > 2;
-
-                if (needs_binarization) {
-                    VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
-
-                    // determine which intermediate is larger: first two or last two
-                    VertexPtr &left_end = binarized_term.rhs_[n - 2];
-                    VertexPtr &right_end = binarized_term.rhs_[n - 1];
-
-                    // prefer to binarize larger intermediate first. prefer left for ties
-                    bool first_smaller = (left*right)->shape_ <= (left_end*right_end)->shape_;
-
-                    // create intermediate from first two vertices
-                    if (first_smaller)
-                        make_interm({left, right}, 0, 2, 0);
-                    else make_interm({left_end, right_end}, n - 2, 2, n - 2);
-
-                } else if (binarized_term.rhs_.size() == 2) {
-                    // check if left or right is an addition that needs to be binarized
-                    VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
-                    bool left_is_add  =  left->is_expandable(false, true);
-                    bool right_is_add = right->is_expandable(false, true);
-
-                    if (left_is_add)
-                        make_interm({left}, 0, 1, 0);
-
-                    if (right_is_add)
-                        make_interm({right}, 1, 1, 1);
-                }
-            } while (needs_binarization);
-
-            // now print the final binarized term if a change was made
-            if (made_any_change) {
-                output += binarized_term.str();
-                return output;
-            } // else we continue to print the original term
+        {
+            string binarized = Vertex::printer_->binarize_term(*this);
+            if (!binarized.empty()) return binarized;
         }
 
         return Vertex::printer_->format_term(*this);

@@ -18,15 +18,6 @@ string TammPrinter::deallocate(const string& name) const {
     return ".deallocate(" + name + ")";
 }
 
-string TammPrinter::condition_open(const set<string>& conds) const {
-    string s = "if (";
-    for (const auto& c : conds)
-        s += "includes_[\"" + c + "\"] && ";
-    s.resize(s.size() - 4);
-    s += ") {";
-    return "\n    " + s;
-}
-
 string TammPrinter::format_lines(const line_vector& lines) const {
     if (lines.empty()) return ""; // if rank is 0, return empty string
     if (lines.size() == 1) {
@@ -51,36 +42,37 @@ string TammPrinter::format_lines(const line_vector& lines) const {
 }
 
 string TammPrinter::format_contraction(
-    const vector<string>&      scalar_strs,
-    const vector<TensorEntry>& tensor_entries,
-    const string& /*output_labels*/,
-    const string& /*output_types*/) const
+    const vertex_vector& operators,
+    const line_vector&   /*output_lines*/) const
 {
-    if (scalar_strs.empty() && tensor_entries.empty()) return "1.0";
-
     string output;
-    for (const auto& s : scalar_strs)
-        output += s + " * ";
+    vector<string> tensor_strs;
 
-    if (tensor_entries.empty()) {
+    for (const auto& op : operators) {
+        if (op->empty()) continue;
+        string s = op->str();
+        if (op->is_addition() && !op->is_temp())
+            s = "(" + s + ")";
+
+        if (op->is_scalar()) {
+            output += s + " * ";
+        } else {
+            tensor_strs.push_back(std::move(s));
+        }
+    }
+
+    if (tensor_strs.empty()) {
+        if (output.empty()) return "1.0";
         output.pop_back(); output.pop_back(); output.pop_back(); // remove trailing " * "
         return output;
     }
 
-    for (size_t i = 0; i < tensor_entries.size(); i++) {
-        output += tensor_entries[i].str;
-        if (i < tensor_entries.size() - 1)
+    for (size_t i = 0; i < tensor_strs.size(); i++) {
+        output += tensor_strs[i];
+        if (i < tensor_strs.size() - 1)
             output += " * ";
     }
     return output;
-}
-
-string TammPrinter::format_addition(
-    const string& left_str, const string& right_str,
-    const string& /*left_labels*/,  const string& /*right_labels*/,
-    const string& /*left_types*/,   const string& /*right_types*/) const
-{
-    return left_str + " + " + right_str;
 }
 
 string TammPrinter::format_term(const Term& t) const {

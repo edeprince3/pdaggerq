@@ -37,15 +37,6 @@ using std::set;
 
 namespace pdaggerq {
 
-// Per-operand data extracted by Linkage::tot_str() before invoking the printer.
-// Only index_labels and index_types are used by EinsumPrinter; TammPrinter
-// uses only str (which already contains line indices in TAMM mode).
-struct TensorEntry {
-    string str;           // fully printed operand: "t2(a,b,i,j)" or "t2"
-    string index_labels;  // first char of each non-sigma line label: "abij"
-    string index_types;   // Line::type() per non-sigma line: "vvoo"
-};
-
 // Abstract syntax backend — one instance per output language.
 // All methods are stateless; concrete classes are singletons.
 class CodePrinter {
@@ -63,31 +54,50 @@ public:
 
     // ── Statement generators ──────────────────────────────────────────────
 
-    virtual string allocate(const string& name)             const = 0;
+    virtual string allocate(const string& name)             const { return ""; }
     virtual string deallocate(const string& name)           const = 0;
     virtual string perm_delete(const string& name)          const = 0;
-    virtual string condition_open(const set<string>& conds) const = 0;
+    virtual string condition_open(const set<string>& conds) const;
+
+    // binarization flag (user-settable; default true for C++ printers)
+    static inline bool binarize_ = true;
 
     // ── Vertex formatters ─────────────────────────────────────────────
 
+    virtual string format_intermediate_name(const Linkage* link, bool include_lines) const;
+
     virtual string format_lines(const line_vector& lines) const = 0;
 
+    // ── Binarization ────────────────────────────────────────────────────────
+
+    // Decompose a term into a tree of binary operations.
+    // Returns the binarized output (including intermediate term strings)
+    // or "" if no binarization was needed.
+    virtual string binarize_term(const Term& t) const;
 
     // ── Expression formatters ─────────────────────────────────────────────
 
     virtual string format_contraction(
-        const vector<string>&      scalar_strs,
-        const vector<TensorEntry>& tensor_entries,
-        const string& output_labels,
-        const string& output_types) const = 0;
+        const vertex_vector& operators,
+        const line_vector&   output_lines) const = 0;
 
     virtual string format_addition(
-        const string& left_str,    const string& right_str,
-        const string& left_labels, const string& right_labels,
-        const string& left_types,  const string& right_types) const = 0;
+        const VertexPtr& left,
+        const VertexPtr& right) const { return left->str() + " + " + right->str(); }
 
     // Format a complete term into a target language specific syntax.
-    virtual string format_term(const Term& t) const = 0;
+    virtual string format_term(const Term& t) const;
+
+    // ── Structural formatters ───────────────────────────────────────────
+
+    // Emit declaration lines for a set of base names.
+    virtual string format_declarations(const set<string>& names) const;
+
+    // Emit a named section banner (major uses banner_h1, minor uses banner_h2).
+    virtual string format_named_section(const string& name, bool major) const;
+
+    // Emit the closing banner (triple h1).
+    virtual string format_closing_banner() const;
 };
 // The concrete printer implementations are now defined in separate headers
 // (tamm_printer.h and einsum_printer.h). They provide the actual formatting logic

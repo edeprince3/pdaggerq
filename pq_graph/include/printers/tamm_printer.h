@@ -20,20 +20,12 @@ public:
     string allocate(const string& name)    const override;
     string deallocate(const string& name)  const override;
     string perm_delete(const string& name) const override { return ""; }
-    string condition_open(const set<string>& conds) const override;
 
     string format_lines(const line_vector& lines) const override;
 
     string format_contraction(
-        const vector<string>&      scalar_strs,
-        const vector<TensorEntry>& tensor_entries,
-        const string& output_labels,
-        const string& output_types) const override;
-
-    string format_addition(
-        const string& left_str,    const string& right_str,
-        const string& left_labels, const string& right_labels,
-        const string& left_types,  const string& right_types) const override;
+        const vertex_vector& operators,
+        const line_vector&   output_lines) const override;
 
     string format_term(const Term& t) const override;
 
