@@ -258,4 +258,47 @@ string CodePrinter::format_closing_banner() const {
     return banner_h1() + banner_h1() + banner_h1() + "\n\n";
 }
 
+string CodePrinter::padding(int level) const {
+    return string(static_cast<size_t>(level) * 4, ' ');
+}
+
+string CodePrinter::format_comment(const string& raw_comment, int indent) const {
+    if (raw_comment.empty()) return "";
+
+    string comment = raw_comment;
+    string pad = padding(indent);
+    string extra_pad = padding(indent + 1);
+
+    comment.insert(0, extra_pad);
+
+    // remove quotes
+    size_t pos = 0;
+    while ((pos = comment.find('\"', pos)) != string::npos) {
+        comment = comment.replace(pos, 1, "");
+        pos += 1;
+    }
+
+    // replace newlines
+    pos = 0;
+    while ((pos = comment.find('\n', pos)) != string::npos) {
+        comment = comment.replace(pos, 1, '\n' + pad);
+        pos += 1;
+    }
+
+    return "\n" + comment;
+}
+
+string CodePrinter::format_term_line(const string& term_str, int indent) const {
+    string output = padding(indent) + term_str;
+    string extra_pad = padding(indent + 1);
+
+    size_t pos = 0;
+    while ((pos = output.find('\n', pos)) != string::npos) {
+        output = output.replace(pos, 1, "\n" + extra_pad);
+        pos += 1;
+    }
+
+    return output;
+}
+
 } // namespace pdaggerq

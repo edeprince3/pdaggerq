@@ -445,54 +445,22 @@ namespace pdaggerq {
 
             } // else do nothing
 
+            int indent = !conditions.empty() ? 1 : 0;
+
             // if override is set, print override
             bool override = !term.print_override_.empty();
             if (override) {
-                string padding = !conditions.empty() ? "    " : "";
-                output.push_back(padding + term.print_override_);
+                output.push_back(Vertex::printer_->padding(indent) + term.print_override_);
                 continue;
             }
 
-            string padding = !conditions.empty() ? "    " : "";
-            string extra_padding = padding + "    ";
-
             // add comments
-            bool temp_decl = term.lhs()->is_temp();
-            string comment = term.make_comments(temp_decl);
-            if (!comment.empty()) {
+            string comment = Vertex::printer_->format_comment(
+                term.make_comments(term.lhs()->is_temp()), indent);
+            if (!comment.empty()) output.push_back(comment);
 
-                comment.insert(0, extra_padding); // add newline to the beginning of the comment
-
-                // replace all '\"' with '' in comment
-                size_t pos = 0;
-                while ((pos = comment.find('\"', pos)) != string::npos) {
-                    comment = comment.replace(pos, 1, "");
-                    pos += 1;
-                }
-
-                // replace all "\n" with "\n    " in comment
-                pos = 0;
-                while ((pos = comment.find('\n', pos)) != string::npos) {
-                    comment = comment.replace(pos, 1, '\n' + padding);
-                    pos += 1;
-                }
-
-                output.push_back("\n" + comment); // add comment
-            }
-
-            // get string representation of term
-
-            string term_string;
-            term_string += padding + term.str();
-
-            // replace all "\n" with "\n    " in term_string
-            size_t pos = 0;
-            while ((pos = term_string.find('\n', pos)) != string::npos) {
-                term_string = term_string.replace(pos, 1, "\n" + extra_padding);
-                pos += 1;
-            }
-
-            output.push_back(term_string);
+            // add term line
+            output.push_back(Vertex::printer_->format_term_line(term.str(), indent));
         }
 
         if (!closed_condition && !current_conditions.empty()) {

@@ -98,6 +98,17 @@ public:
 
     // Emit the closing banner (triple h1).
     virtual string format_closing_banner() const;
+
+    // ── Line-level formatters ────────────────────────────────────────────
+
+    // Return indent string: level 0 → "", level 1 → "    ", level 2 → "        "
+    virtual string padding(int level) const;
+
+    // Wrap a raw comment for inline emission. Returns "" if raw_comment is empty.
+    virtual string format_comment(const string& raw_comment, int indent) const;
+
+    // Wrap a raw term string with padding and newline continuations.
+    virtual string format_term_line(const string& term_str, int indent) const;
 };
 // The concrete printer implementations are now defined in separate headers
 // (tamm_printer.h and einsum_printer.h). They provide the actual formatting logic
