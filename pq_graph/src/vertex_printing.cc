@@ -49,34 +49,7 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 namespace pdaggerq {
 
     void Vertex::format_name() {
-        name_ = base_name_;
-
-        // scalars have no dimension
-        if (rank_ == 0) return;
-
-        // format tensor block as a map if it is not an amplitude or if it has a block
-        if (vertex_type_ == 'v') {
-            name_ += "[\"";
-            name_ += dimstring();
-            name_ += "\"]";
-        } else if (vertex_type_ == 'a') {
-            if (has_blk_) {
-                name_ += "[\"";
-                name_ += blk_string();
-                name_ += "\"]";
-            }
-        } else if (vertex_type_ == 'p') {
-            name_ += "[\"";
-            name_ += "perm_" + dimstring();
-            name_ += "\"]";
-        } else if (vertex_type_ != '\0') {
-            name_ += "[\"";
-            name_ += "bin";
-            name_ += vertex_type_;
-            name_ += '_';
-            name_ += dimstring();
-            name_ += "\"]";
-        } // else prints without map
+        name_ = printer_->format_name(shared_from_this());
     }
 
     string Vertex::dimstring() const {

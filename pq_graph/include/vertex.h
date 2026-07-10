@@ -313,6 +313,12 @@ namespace pdaggerq {
         const string &base_name() const { return base_name_; }
 
         /**
+         * Get the vertex type
+         * @return character representing the vertex type
+         */
+        const char &vertex_type() const { return vertex_type_; }
+
+        /**
          * returns the rank of the vertex
          * @return rank of the vertex
          */

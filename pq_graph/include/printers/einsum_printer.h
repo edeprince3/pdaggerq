@@ -22,7 +22,7 @@ public:
     string perm_delete(const string& name) const override;
     string condition_open(const set<string>& conds) const override;
 
-    string format_intermediate_name(const Linkage* link, bool include_lines) const override;
+    string format_intermediate_name(const LinkagePtr &link, bool include_lines) const override;
 
     string format_lines(const line_vector& lines) const override { return ""; }
 

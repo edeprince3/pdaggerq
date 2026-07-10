@@ -31,7 +31,7 @@ string EinsumPrinter::condition_open(const set<string>& conds) const {
     return "\n    " + s;
 }
 
-string EinsumPrinter::format_intermediate_name(const Linkage* link, bool /*include_lines*/) const {
+string EinsumPrinter::format_intermediate_name(const LinkagePtr &link, bool /*include_lines*/) const {
     string generic_str;
     if (link->is_scalar())
         generic_str = "scalars_";
