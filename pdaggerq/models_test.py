@@ -182,7 +182,7 @@ def test_rdm():
 
 
 def test_energy_from_rdm():
-    import itertools
+    import itertools, json
     import numpy as np
     assert "energy_from_rdm_ir" in models.__all__
     # electronic: E is a scalar tracing the electron RDM blocks D1/D2 against integrals
@@ -210,49 +210,127 @@ def test_energy_from_rdm():
             arrs.append(full[nm][tuple(SL[c] for c in blk.rstrip('"]'))])
         subs = ",".join("".join(op["indices"]) for op in st["operands"])
         E += st["coeff"] * np.einsum(f"{subs}->", *arrs, optimize=True)
-    ref = np.einsum("pq,pq->", full["h"], full["D1"]) + 0.5 * np.einsum("pqsr,pqsr->", full["g"], full["D2"])
+    # the g.D2 pairing is ("D2", [0,1,3,2]): g's last two slots meet D2's last two swapped
+    ref = np.einsum("pq,pq->", full["h"], full["D1"]) + 0.5 * np.einsum("abcd,abdc->", full["g"], full["D2"])
     assert abs(E - ref) < 1e-10, (E, ref)
 
-    # physics normalization: the electron two-body energy 0.5 * <pq|rs>_plain . D2 (the
-    # convention energy_from_rdm uses -- plain g, coeff 0.5) must equal the antisymmetrized
-    # form 0.25 * <pq||sr> . D2 validated in pq_graph/tests/neo_rdm_energy_test.py. Checked
-    # on the *genuine* rdm_block_ir D2 (not random), so a wrong coeff/convention (e.g. 0.5
-    # with an antisymmetrized g, which double-counts) is caught. Together with the gep-family
-    # identity in test_rdm_block_ir this pins both two-body families; the one-body h.D1 /
-    # hp.D1_n are direct density traces and D1_n is emitted for NEO (asserted above).
+    # ---- FULL-ENERGY IDENTITY (the end-to-end guard) --------------------------------
+    # Contract EVERY rdm_block_ir block through energy_from_rdm_ir and assert the total
+    # equals the CC Lagrangian <(1+L) e^-T H e^T> built independently from pq.strings.
+    # This is what the per-block / per-family checks miss: rdm_block_ir and
+    # energy_from_rdm_ir are separate functions and only their MUTUAL consistency for the
+    # whole energy pins the coefficients + index pairings (a wrong g.D2 slot pairing, a
+    # wrong gep sign, or a pq_graph-corrupted D1_n all show up here and nowhere else).
+    #
+    # Ground truth needs no HF reconstruction: with the RAW H (no gep-trace removal),
+    #     <(1+L)(f + v + fp + gep)> == h.D1 + 1/2 g.D2 + hp.D1_n - gep.D2_ep
+    # when h = f - mf_ee (mf_ee[p,q] = sum_i <p,i||q,i>), hp = fp, g = plain <pq|rs>.
+    # f/fp are arbitrary symmetric matrices. Holds at ARBITRARY amplitudes.
     import pdaggerq
-    no2, nv2 = 2, 3; n2 = no2 + nv2; SL2 = {"o": slice(0, no2), "v": slice(no2, n2)}
-    rng2 = np.random.default_rng(5)
-    c = rng2.standard_normal((n2, n2, n2, n2))
-    c = c + c.transpose(1, 0, 2, 3); c = c + c.transpose(0, 1, 3, 2); c = c + c.transpose(2, 3, 0, 1)
-    phys = c.transpose(0, 2, 1, 3); g_anti = phys - phys.transpose(0, 1, 3, 2); g_plain = phys
+    from collections import defaultdict
+    no3, nv3, nO3, nV3 = 2, 2, 1, 2
+    ne3, np3 = no3 + nv3, nO3 + nV3
+    sle = {"o": slice(0, no3), "v": slice(no3, ne3)}
+    slp = {"O": slice(0, nO3), "V": slice(nO3, np3)}
+    D3 = {"o": no3, "v": nv3, "O": nO3, "V": nV3}
+    rg = np.random.default_rng(17)
+    fe = rg.standard_normal((ne3, ne3)); fe = fe + fe.T
+    fpp = rg.standard_normal((np3, np3)); fpp = fpp + fpp.T
+    cq = rg.standard_normal((ne3,) * 4)
+    cq = cq + cq.transpose(1, 0, 2, 3); cq = cq + cq.transpose(0, 1, 3, 2); cq = cq + cq.transpose(2, 3, 0, 1)
+    phs = cq.transpose(0, 2, 1, 3); eri3 = phs - phs.transpose(0, 1, 3, 2)   # antisym <pq||rs>
+    gp3 = rg.standard_normal((ne3, np3, ne3, np3)); gp3 = gp3 + gp3.transpose(2, 3, 0, 1)
+    mf_ee = np.einsum("piqi->pq", eri3[:, sle["o"], :, sle["o"]])
+    h3, hp3 = fe - mf_ee, fpp
 
-    def interp2(ir, tgt, amp):
+    def spc3(l):
+        nuc = len(l) > 1 and l[0] == "n"
+        b = l[1] if nuc else l[0]
+        occ = b.lower() in "ijklmno"
+        return ("O" if occ else "V") if nuc else ("o" if occ else "v")
+
+    def sl3(l):
+        return slp[spc3(l)] if spc3(l) in "OV" else sle[spc3(l)]
+
+    def asym3(a, cl):
+        out = a.copy(); grp = defaultdict(list)
+        for ax, c in enumerate(cl): grp[c].append(ax)
+        for c, axes in grp.items():
+            if len(axes) >= 2:
+                P = list(itertools.permutations(range(len(axes)))); acc = np.zeros_like(out)
+                for pm in P:
+                    par = sum(1 for i in range(len(pm)) for j in range(i + 1, len(pm)) if pm[i] > pm[j]) & 1
+                    src = list(range(out.ndim))
+                    for k, ax in enumerate(axes): src[ax] = axes[pm[k]]
+                    acc += (-1 if par else 1) * np.transpose(out, src)
+                out = acc / len(P)
+        return out
+
+    AM = {}
+    def amp3(nm, cls):
+        if nm not in AM:
+            AM[nm] = asym3(rg.standard_normal(tuple(D3[c] for c in cls)), list(cls))
+        return AM[nm]
+
+    def interp3(ir, tgt):
         prod = {s["target"]["name"] for s in ir}; st = {}
         def val(op):
             nm = op["name"]
             if nm in prod and nm in st: return st[nm]
-            if nm.startswith("Id["): return np.eye({"o": no2, "v": nv2}[op["classes"][0]])
-            if nm not in amp:
-                a = rng2.standard_normal(tuple({"o": no2, "v": nv2}[cc] for cc in op["classes"]))
-                if nm in ("t2", "l2"):
-                    a = a - a.transpose(1, 0, 2, 3); a = a - a.transpose(0, 1, 3, 2)
-                amp[nm] = a
-            return amp[nm]
+            if nm.startswith("Id["): return np.eye(D3[op["classes"][0]])
+            return amp3(nm, op["classes"])
         for s in ir:
-            oi = "".join(s["target"]["indices"]); subs = ",".join("".join(x["indices"]) for x in s["operands"])
-            cc = s["coeff"] * np.einsum(subs + "->" + oi, *[val(x) for x in s["operands"]], optimize=True)
+            oi = "".join(s["target"]["indices"]); sub = ",".join("".join(x["indices"]) for x in s["operands"])
+            cc = s["coeff"] * np.einsum(sub + "->" + oi, *[val(x) for x in s["operands"]], optimize=True)
             st[s["target"]["name"]] = cc.copy() if s["is_assignment"] else st[s["target"]["name"]] + cc
         return st[tgt]
 
-    amp = {}; D2f = np.zeros((n2, n2, n2, n2))
-    for b in ("".join(x) for x in itertools.product("ov", repeat=4)):
-        ir = einsums.parse_ir(models.rdm_block_ir("ccsd", "D2", b, opt_level=0))
-        if ir:
-            D2f[SL2[b[0]], SL2[b[1]], SL2[b[2]], SL2[b[3]]] = interp2(ir, f'D2["{b}"]', amp)
-    e_plain = 0.5 * np.einsum("pqsr,pqsr->", g_plain, D2f)      # energy_from_rdm convention
-    e_anti = 0.25 * np.einsum("pqsr,pqsr->", g_anti, D2f)       # validated (neo_rdm_energy_test)
-    assert abs(e_plain - e_anti) < 1e-9, (e_plain, e_anti)
+    for mdl in ("ccsd", "neo-ccd(ep)"):
+        m = models.model(mdl)
+        pq = pdaggerq.pq_helper("fermi")
+        pq.set_left_operators([["1"]] + [[l] for l in models.lambda_amps(mdl)])
+        for oper in m.H:                          # RAW H: no remove_gep_reference_traces
+            pq.add_st_operator(1.0, [oper], list(m.T))
+        pq.simplify()
+        L = 0.0
+        for term in pq.strings():
+            cf = float(term[0]); ops = []; sub = []; lts = {}
+            for tok in term[1:]:
+                if tok.startswith("<"):
+                    idx = tok[1:-1].replace("||", ",").split(","); arr = eri3[tuple(sl3(i) for i in idx)]
+                elif "(" in tok:
+                    nm = tok[:tok.index("(")]; idx = tok[tok.index("(") + 1:-1].split(",")
+                    if nm == "f":   arr = (fpp if spc3(idx[0]) in "OV" else fe)[tuple(sl3(i) for i in idx)]
+                    elif nm == "g": arr = gp3[tuple(sl3(i) for i in idx)]
+                    elif nm == "d": arr = np.eye(D3[spc3(idx[0])])
+                    else:           arr = amp3(nm, [spc3(i) for i in idx])
+                else:
+                    continue
+                ops.append(arr); sub.append("".join(lts.setdefault(i, chr(65 + len(lts))) for i in idx))
+            L += cf * (np.einsum(",".join(sub) + "->", *ops, optimize=True) if ops else 1.0)
+
+        cache = {}
+        def getD(base, blk, cls):
+            if (base, blk) not in cache:
+                ir = einsums.parse_ir(models.rdm_block_ir(mdl, base, blk))
+                cache[(base, blk)] = interp3(ir, f'{base}["{blk}"]') if ir \
+                    else np.zeros(tuple(D3[c] for c in cls))
+            return cache[(base, blk)]
+
+        E_rdm = 0.0
+        for line in models.energy_from_rdm_ir(mdl):
+            st = json.loads(line); ts = []
+            for op in st["operands"]:
+                base = op["name"].split('["')[0]; blk = op["name"].split('"')[1]
+                if base == "h":     ts.append(h3[sle[blk[0]], sle[blk[1]]])
+                elif base == "hp":  ts.append(hp3[slp[blk[0]], slp[blk[1]]])
+                elif base == "g":   ts.append(phs[tuple(sle[c] for c in blk)])
+                elif base == "gep": ts.append(gp3[sle[blk[0]], slp[blk[1]], sle[blk[2]], slp[blk[3]]])
+                else:               ts.append(getD(base, blk, op["classes"]))
+            sub = ",".join("".join(op["indices"]) for op in st["operands"])
+            E_rdm += st["coeff"] * float(np.einsum(sub + "->", *ts, optimize=True))
+        assert abs(L - E_rdm) < 1e-9, (mdl, L, E_rdm)
+
     print("test_energy_from_rdm OK")
 
 
@@ -891,9 +969,12 @@ def test_rdm_block_ir():
             st[t] = c.copy() if s["is_assignment"] else st[t] + c
         return st
 
+    # Only PURE-ELECTRON blocks may be cross-checked against rdm_graph: pq_graph collapses a
+    # block's internal proton indices onto its open ones, so its D1_n / D2_n / D2_ep are wrong
+    # (that is exactly why rdm_block_ir emits every block from pq.strings instead). The nuclear
+    # blocks are covered numerically by the full-energy identity in test_energy_from_rdm.
     blocks = [("D1", "oo"), ("D1", "ov"), ("D1", "vv"),
-              ("D2", "oovv"), ("D2", "ovvo"), ("D2", "vvoo"),
-              ("D1_n", "OO"), ("D1_n", "OV"), ("D1_n", "VV")]
+              ("D2", "oovv"), ("D2", "ovvo"), ("D2", "vvoo")]
     # opt_level=0 for the numeric comparison: both calls must lower the SAME graph, and
     # pq_graph's optimized (>=5) intermediate ordering is not guaranteed identical across
     # two independent invocations -- opt0 is deterministic and always correct.
@@ -920,7 +1001,9 @@ def test_rdm_block_ir():
         blk = interp(bir[(t, b)], inp)[f'{t}["{b}"]']
         native = interp(dir_[(t, b)], inp)["D"]
         final = next(s["target"] for s in reversed(dir_[(t, b)]) if s["target"]["name"] == "D")
-        perm = [list(final["indices"]).index(L) for L, _ in consumer]
+        # _rdm_block_spec returns pq labels (proton ones carry the nuclear 'n' prefix);
+        # rdm_graph's emitted IR strips it.
+        perm = [list(final["indices"]).index(L.lstrip("n")) for L, _ in consumer]
         assert np.max(np.abs(blk - np.transpose(native, perm))) < 1e-10, (t, b)
 
     # (4) numeric end-to-end (mixed e-p): the RDM chain reproduces the e-p energy.

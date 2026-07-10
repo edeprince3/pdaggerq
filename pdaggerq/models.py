@@ -394,110 +394,123 @@ _BLK_LETTERS = {("e", "o"): "ijkl", ("e", "v"): "abcd",
 
 
 def _rdm_block_spec(tensor, block):
-    """(operator string, consumer-order [(letter, class), ...]) for an RDM block.
+    """(operator string, consumer-order [(pq_label, class), ...]) for an RDM block.
 
-    ``tensor`` in {D1, D1_n, D2, D2_ep}; ``block`` is the class string in the exact
-    order the consumers (energy_from_rdm_ir / orbital_*_ir) annotate the operand
-    (e.g. "ov", "OO", "ovvo", "OovV"). The operator is built with distinct letters so
-    each slot is trackable; the D2 last-pair-swap and the D2_ep (P,E,E',P') layout
-    match rdm_graph / the energy convention (validated by :func:`energy_from_rdm_ir`)."""
-    species = {"D1": "e", "D1_n": "p", "D2": "e", "D2_ep": "ep"}[tensor]
+    ``tensor`` in {D1, D1_n, D2, D2_n, D2_ep}; ``block`` is the class string in the exact
+    order the consumers (energy_from_rdm_ir / orbital_*_ir) annotate the operand (e.g.
+    "ov", "OO", "ovvo", "OovV"). Each slot gets a distinct letter so it stays trackable;
+    proton labels carry pq_helper's nuclear ``n`` prefix. The D2 index order and the
+    D2_ep (P,E,E',P') layout match the energy convention in :func:`energy_from_rdm_ir`."""
     used = {"e": {"o": 0, "v": 0}, "p": {"o": 0, "v": 0}}
 
     def take(sp, cls):                                   # next distinct letter of (sp,cls)
         low = "o" if cls in "oO" else "v"
         L = _BLK_LETTERS[(sp, low)][used[sp][low]]
         used[sp][low] += 1
-        return L
-
-    def cls_low(ch):
-        return "o" if ch in "oO" else "v"
+        return ("n" + L) if sp == "p" else L
 
     if tensor in ("D1", "D1_n"):
         sp = "e" if tensor == "D1" else "p"
         c0, c1 = block[0], block[1]
         L0, L1 = take(sp, c0), take(sp, c1)
-        pre = "" if sp == "e" else "n"
-        op = f"e1({pre}{L0},{pre}{L1})"
-        consumer = [(L0, c0), (L1, c1)]                  # D1[pq] = <p+ q>, direct order
-        return op, consumer
+        return f"e1({L0},{L1})", [(L0, c0), (L1, c1)]    # D1[pq] = <p+ q>, direct order
 
-    if tensor == "D2":
+    if tensor in ("D2", "D2_n"):
+        sp = "e" if tensor == "D2" else "p"
         cs = list(block)
-        Ls = [take("e", c) for c in cs]
-        op = f"e2({Ls[0]},{Ls[1]},{Ls[2]},{Ls[3]})"     # D2[pqsr] matches rdm_graph
+        Ls = [take(sp, c) for c in cs]
+        op = f"e2({Ls[0]},{Ls[1]},{Ls[2]},{Ls[3]})"     # D2[p,q,s,r] = <p+ q+ r s>
         return op, list(zip(Ls, cs))
 
-    # D2_ep (mixed electron-proton 2-RDM) is emitted separately by _mixed_block_ir --
-    # it must bypass pq_graph (see that function); it is never routed here.
-    raise ValueError(f"unknown RDM tensor {tensor!r}; choose D1/D1_n/D2/D2_ep")
+    if tensor == "D2_ep":
+        # consumer layout D2_ep(P, E, E', P'); operator e2(P, E, P', E') -- the convention
+        # validated in pq_graph/tests/neo_rdm_energy_test.py. The compensating cross-species
+        # sign lives in the gep.D2_ep term of energy_from_rdm_ir (coeff -1).
+        cP, cE, cE2, cP2 = block[0], block[1], block[2], block[3]
+        LE = take("e", cE); LP = take("p", cP); LP2 = take("p", cP2); LE2 = take("e", cE2)
+        return f"e2({LP},{LE},{LP2},{LE2})", [(LP, cP), (LE, cE), (LE2, cE2), (LP2, cP2)]
+
+    raise ValueError(f"unknown RDM tensor {tensor!r}; choose D1/D1_n/D2/D2_n/D2_ep")
 
 
-def _mixed_block_ir(name, block):
-    """One mixed electron-proton 2-RDM block ``D2_ep["block"]`` (block = classes in the
-    consumer order P, E, E', P') emitted STRAIGHT from ``pq.strings()``, bypassing
-    ``pq_graph``.
+def _block_ir_from_strings(name, op, consumer, tgt):
+    """Emit one RDM block's IR straight from ``pq.strings()``, bypassing ``pq_graph``.
 
-    pq_graph's nuclear-index relabelling collapses the *internal* proton indices of a
-    mixed density onto the block's open proton indices -- it cannot keep two same-class
-    proton labels distinct -- which silently restricts the contraction and yields the
-    wrong density (the electron sectors are unaffected). Emitting the block from the
-    simplified strings keeps every index distinct. Convention matches
-    ``pq_graph/tests/neo_rdm_energy_test.py``: operator ``e2(P, E, P', E')`` with open
-    order [P, E, E', P']; the compensating cross-species sign lives in the ``gep.D2_ep``
-    term of :func:`energy_from_rdm_ir` (coeff -1). Kronecker deltas ``d(p,q)`` are emitted
-    as ``Id["cc"]`` so a consumer supplies an identity, exactly as for the all-occupied
-    reference term.
+    pq_graph's nuclear-index relabelling collapses a block's *internal* proton indices onto
+    its *open* ones -- it cannot keep two same-class proton labels distinct -- silently
+    restricting the contraction. That corrupts every block carrying both open and internal
+    proton indices (``D1_n``, ``D2_n``, ``D2_ep``); the pure-electron blocks are unaffected,
+    which is why it went unnoticed. Emitting from the simplified strings keeps every index
+    distinct, so all tensors go through here.
+
+    Kronecker deltas ``d(p,q)`` become ``Id["cc"]`` (the consumer supplies an identity);
+    ``P(i,j)`` antisymmetrizers are expanded into signed statements over the open indices.
     """
-    cP, cE, cE2, cP2 = block[0], block[1], block[2], block[3]
-    LP  = {"O": "nI", "V": "nA"}[cP];  LE  = {"o": "i", "v": "a"}[cE]
-    LE2 = {"o": "j", "v": "b"}[cE2];   LP2 = {"O": "nJ", "V": "nB"}[cP2]
-    op = f"e2({LP},{LE},{LP2},{LE2})"                 # e2(P, E, P', E')
-    out_pq  = [LP, LE, LE2, LP2]                       # open indices, consumer order [P,E,E',P']
-    out_cls = [cP, cE, cE2, cP2]
-
     pq = pq_helper("fermi")
     pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])
     pq.add_st_operator(1.0, [op], list(model(name).T))
     pq.simplify()
     strings = pq.strings()
     if not strings:
-        return []
+        return []                                        # model cannot populate this block
 
+    out_pq = [L for L, _ in consumer]
+    out_cls = [c for _, c in consumer]
     LET = {"o": "ijklmno", "v": "abcdefg", "O": "IJKLMNO", "V": "ABCDEFG"}
-    def cls_of(lab):                                  # occ-check case-insensitive: the open
-        nuc = len(lab) > 1 and lab[0] == "n"          # proton labels are nI/nA (upper), the
-        b = lab[1] if nuc else lab[0]                 # internal ones ni/na (lower)
+
+    def cls_of(lab):                                     # occ-check case-insensitive: open
+        nuc = len(lab) > 1 and lab[0] == "n"              # proton labels are nI/nA (upper),
+        b = lab[1] if nuc else lab[0]                     # internal ones ni/na (lower)
         occ = b.lower() in "ijklmno"
         return ("O" if occ else "V") if nuc else ("o" if occ else "v")
 
     base_used = {"o": 0, "v": 0, "O": 0, "V": 0}
     base_map = {}
-    for lab in out_pq:                                # open indices get fixed leading letters
+    for lab in out_pq:                                   # open indices get fixed leading letters
         c = cls_of(lab); base_map[lab] = LET[c][base_used[c]]; base_used[c] += 1
     out_idx = [base_map[lab] for lab in out_pq]
 
     stmts = []
-    for k, term in enumerate(strings):
-        assert not any(tok.startswith("P(") for tok in term[1:]), \
-            f"D2_ep[{block}] of {name!r} has an antisymmetrizer this emitter does not expand: {term}"
+    for term in strings:
+        coeff = float(term[0])
+        perms, factors = [], []
+        for tok in term[1:]:
+            if tok.startswith("P("):
+                perms.append(tok[2:-1].split(","))
+            elif "(" in tok:
+                factors.append(tok)
         used = dict(base_used); m = dict(base_map)
+
         def letter(lab):
             if lab not in m:
                 c = cls_of(lab); m[lab] = LET[c][used[c]]; used[c] += 1
             return m[lab]
+
         operands = []
-        for tok in term[1:]:
+        for tok in factors:
             nm = tok[:tok.index("(")]; idx = tok[tok.index("(") + 1:-1].split(",")
             letters = [letter(i) for i in idx]; classes = [cls_of(i) for i in idx]
-            if nm == "d":                             # Kronecker delta -> identity block
+            if nm == "d":                                # Kronecker delta -> identity block
                 nm = f'Id["{classes[0]}{classes[1]}"]'
             operands.append({"name": nm, "indices": letters, "classes": classes,
                              "is_intermediate": False})
-        stmts.append(json.dumps({
-            "target": {"name": f'D2_ep["{block}"]', "indices": out_idx, "classes": out_cls,
-                       "is_intermediate": False},
-            "is_assignment": k == 0, "coeff": float(term[0]), "operands": operands}))
+        if not operands:
+            raise ValueError(f"{tgt}: constant term with no factors: {term}")
+
+        variants = [(1.0, list(out_idx))]                 # expand P(i,j): A -> A - A(i<->j)
+        for a, b in perms:
+            la, lb = base_map.get(a), base_map.get(b)
+            nxt = []
+            for sgn, idxs in variants:
+                nxt.append((sgn, idxs))
+                nxt.append((-sgn, [lb if x == la else (la if x == lb else x) for x in idxs]))
+            variants = nxt
+
+        for sgn, idxs in variants:
+            stmts.append(json.dumps({
+                "target": {"name": tgt, "indices": idxs, "classes": out_cls,
+                           "is_intermediate": False},
+                "is_assignment": not stmts, "coeff": sgn * coeff, "operands": operands}))
     return stmts
 
 
@@ -505,57 +518,20 @@ def rdm_block_ir(name, tensor, block, df=True, opt_level=None):
     """JSONL IR for one reduced-density-matrix block, with the TARGET named exactly
     ``tensor["block"]`` and indexed in the order :func:`energy_from_rdm_ir` and the
     ``orbital_*_ir`` builders consume it -- so a neocc driver can pipe rdm-block IR
-    (inputs: amplitudes + B/f/Id) straight into the energy/gradient/sigma IR through
-    one contraction engine, with zero convention knowledge outside pdaggerq.
+    (inputs: amplitudes + Id) straight into the energy/gradient/sigma IR through one
+    contraction engine, with zero convention knowledge outside pdaggerq.
 
-    ``tensor`` in {"D1", "D1_n", "D2", "D2_ep"}; ``block`` is the class string in the
-    consumer's index order (e.g. ``rdm_block_ir("neo-ccsd", "D2_ep", "OovV")``). A block
-    the model cannot populate (e.g. ``D1["ov"]`` for a singles-free model) returns an
+    ``tensor`` in {"D1", "D1_n", "D2", "D2_n", "D2_ep"}; ``block`` is the class string in
+    the consumer's index order (e.g. ``rdm_block_ir("neo-ccsd", "D2_ep", "OovV")``). A
+    block the model cannot populate (e.g. ``D1["ov"]`` for a singles-free model) returns an
     empty list -- the consumer zero-fills.
+
+    Every block is emitted by :func:`_block_ir_from_strings` (pq_graph is bypassed -- see
+    that function for why), so ``df``/``opt_level`` are accepted for API compatibility and
+    ignored: an RDM block is a handful of amplitude contractions, not worth optimizing.
     """
-    if tensor == "D2_ep":
-        return _mixed_block_ir(name, block)          # bypasses pq_graph (see _mixed_block_ir)
     op, consumer = _rdm_block_spec(tensor, block)
-    try:
-        ir = rdm_graph(name, op, df=df, opt_level=opt_level, label="D").to_strings("ir")
-    except ValueError as exc:                            # pq_graph raises on a term-free equation
-        if "Empty terms" in str(exc):
-            return []                                    # model cannot populate this block
-        raise
-    stmts = [json.loads(l) for l in ir if l.strip().startswith("{")]
-    if not stmts:                                        # (belt and suspenders)
-        return []
-    tgt_name = f'{tensor}["{block}"]'
-    final = next(s["target"] for s in reversed(stmts) if s["target"]["name"] == "D")
-    # letters as they appear in the emitted IR (rdm_graph strips the proton 'n' prefix)
-    rdm_letters = list(final["indices"])
-    want = [L for L, _ in consumer]
-    cls = {L: c for L, c in consumer}
-    out = [l for l in ir if l.strip().startswith("{")]
-    if rdm_letters == want:                              # already consumer order -> rename D
-        return [json.dumps({**json.loads(l),
-                            "target": {**json.loads(l)["target"],
-                                       "name": tgt_name}} if json.loads(l)["target"]["name"] == "D"
-                           else json.loads(l))
-                for l in out]
-    # otherwise: rename D -> a temp, then append one permute into the named block
-    temp = f'tmps_["rdmblk_{tensor}_{block}"]'
-    renamed = []
-    for l in out:
-        s = json.loads(l)
-        if s["target"]["name"] == "D":
-            s["target"] = {**s["target"], "name": temp}
-        for o in s["operands"]:
-            if o["name"] == "D":
-                o["name"] = temp
-        renamed.append(json.dumps(s))
-    permute = {
-        "target": {"name": tgt_name, "indices": want, "classes": [cls[L] for L in want],
-                   "is_intermediate": False},
-        "is_assignment": True, "coeff": 1.0,
-        "operands": [{"name": temp, "indices": rdm_letters,
-                      "classes": [cls[L] for L in rdm_letters], "is_intermediate": True}]}
-    return renamed + [json.dumps(permute)]
+    return _block_ir_from_strings(name, op, consumer, f'{tensor}["{block}"]')
 
 
 # --- explicit occ/vir-block RDM contractions -----------------------------------
@@ -610,18 +586,32 @@ def _emit_block_terms(terms, target):
 # convention validated in pq_graph/tests/neo_rdm_energy_test.py and produced by
 # _mixed_block_ir. (If this flips, the RDM<->energy identity breaks; see
 # models_test.test_rdm_block_ir.)
+# NOTE on the g.D2 pairing: rdm_block_ir builds D2["pqsr"] from e2(p,q,s,r), i.e.
+# D2[p,q,c,d] = <p+ q+ d c>. The two-electron energy is E_2e = 1/2 sum <pq|rs> <p+ q+ s r>,
+# so g's LAST TWO slots must pair with D2's last two *swapped* -- ("D2", [0,1,3,2]). Pairing
+# them slot-for-slot instead would silently require the consumer to hand in an ERI whose last
+# two indices are transposed (Coulomb <-> exchange scrambled); with [0,1,3,2] a consumer feeds
+# the natural plain <pq|rs>. Guarded by the full-energy identity in test_energy_from_rdm.
 _ENERGY_ELEC = [(1.0, "ee", [("h", [0, 1]), ("D1", [0, 1])]),
-                (0.5, "eeee", [("g", [0, 1, 2, 3]), ("D2", [0, 1, 2, 3])])]
+                (0.5, "eeee", [("g", [0, 1, 2, 3]), ("D2", [0, 1, 3, 2])])]
 _ENERGY_NEO = _ENERGY_ELEC + [(1.0, "pp", [("hp", [0, 1]), ("D1_n", [0, 1])]),
                               (-1.0, "epep", [("gep", [0, 1, 2, 3]), ("D2_ep", [1, 0, 2, 3])])]
+# proton-proton two-body, present only when the model's H carries vp (>=2 quantum protons).
+# Same-species, so it mirrors the electron g.D2 term exactly (plain vp, coeff 1/2, and the
+# D2_n last-two slots swapped against vp's).
+_ENERGY_PP = [(0.5, "pppp", [("vp", [0, 1, 2, 3]), ("D2_n", [0, 1, 3, 2])])]
 
 
 def energy_from_rdm_ir(name, label="E"):
     """The ground-state energy ``<H> = h.D1 + 1/2 g.D2`` (+ NEO proton/e-p terms) as
     explicit occ/vir-block JSONL IR (see the block-contraction note above). Returns
     the total ``<H>``; subtract the reference energy for the correlation part."""
-    is_neo = any(op in model(name).H for op in ("fp", "gep"))
-    return _emit_block_terms(_ENERGY_NEO if is_neo else _ENERGY_ELEC, (label, []))
+    H = model(name).H
+    is_neo = any(op in H for op in ("fp", "gep"))
+    terms = _ENERGY_NEO if is_neo else _ENERGY_ELEC
+    if "vp" in H:                                     # >=2 quantum protons: p-p two-body
+        terms = terms + _ENERGY_PP
+    return _emit_block_terms(terms, (label, []))
 
 
 # vir-occ rotation generators E_ai - E_ia per species. Row and column use distinct
