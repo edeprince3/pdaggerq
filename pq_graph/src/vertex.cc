@@ -481,19 +481,29 @@ namespace pdaggerq {
             return blk_valid && candidate.lines_ < best_eri.lines_;
         };
 
+        auto set_best = [&](const Vertex &candidate, bool swap_sign) {
+            best_eri = candidate;
+            swap_sign_best = swap_sign;
+            best_blk_valid = valid_blks.find(candidate.blk_string()) != valid_blks.end();
+        };
+
         // Try all permutations and their conjugates to find the best valid ERI
         do {
             new_eri = permute(id++, swap_sign);
 
             // Prefer the permutation itself; fall back to its conjugate if allowed
             Vertex candidate = new_eri;
-            if (!is_better(candidate) && Vertex::has_symmetric_eri_)
-                candidate = new_eri.conj();
             if (is_better(candidate)) {
-                best_eri = candidate;
-                swap_sign_best = swap_sign;
-                best_blk_valid = valid_blks.find(candidate.blk_string()) != valid_blks.end();
+                set_best(candidate, swap_sign);
             }
+
+            if (Vertex::has_symmetric_eri_) {
+                candidate = new_eri.conj();
+                if (is_better(candidate)) {
+                    set_best(candidate, swap_sign);
+                }
+            }
+
         } while (!new_eri.empty());
 
         if (best_eri.empty())
