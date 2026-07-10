@@ -22,7 +22,7 @@ def derive_equation(eqs, proj_eqname, ops, coeffs, L = None, R = None, T = None,
     # determine if the projections should be applied to the right or left
     print("Deriving equation:", f"{proj_eqname} = <{L}| {ops} |{R}>", flush=True)
 
-    pq.set_left_operators( L)
+    pq.set_left_operators(L)
     pq.set_right_operators(R)
 
     for j, op in enumerate(ops):
