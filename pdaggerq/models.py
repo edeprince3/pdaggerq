@@ -252,13 +252,35 @@ def _opt_level_for(name, opt_level):
     return _SAFE_OPT_LEVEL if opt_level is None else opt_level
 
 
-def _optimized(pq, label, df, opt_level):
-    # Normal-order gep: the NEO integral dumps carry the dressed NEO-HF Fock (f/fp
-    # include the e-p mean field), so the one-body reference traces of gep must not
-    # appear explicitly in the equations or they double-count that field (a nonzero
-    # singles residual at t=0). No-op for non-NEO. Applied to every generated equation
-    # (residuals, energy, Lambda, amplitude gradient) via this shared helper.
-    pq.remove_gep_reference_traces()
+#: representative line-class sizes for the dimension-aware optimizer cost model
+#: (pq_graph option "dims"). pq_graph's default metric counts every summation line
+#: equally, so it mis-ranks NEO candidates badly: a nuclear-occupied line (O = number
+#: of quantum protons, typically 1!) is scored like an electronic virtual line. With
+#: dims set, candidate intermediates/orderings are ranked by numeric flop estimates at
+#: these sizes instead. The values are *ratios*, not real basis sizes -- chosen
+#: representative of NEO targets (v/o ~ 4, protonic basis ~ o, DF aux ~ 3v); codegen is
+#: frozen per model, so decisions are optimal near these ratios. "O" is filled in
+#: per-model by :func:`_dims_for` (1 for single-proton models, 2 when the model carries
+#: >=2-proton amplitudes). Electron-only models keep pq_graph's scale-safe default
+#: metric (no dims) so their codegen is unchanged.
+DIMS = {"o": 10.0, "v": 40.0, "V": 10.0, "L": 1.0, "Q": 120.0}
+
+
+def _dims_for(name):
+    """Dimension table for the optimizer cost model: :data:`DIMS` with the nuclear
+    occupied size set to the model's proton count, or None (dimension-blind legacy
+    metric) for electron-only models."""
+    protons = max((_proton_count(a) for a in model(name).T), default=0)
+    if protons == 0:
+        return None
+    return {**DIMS, "O": float(protons)}
+
+
+def _optimized(pq, label, df, opt_level, dims=None):
+    return _optimized_multi([(label, pq)], df, opt_level, dims)
+
+
+def _optimized_multi(labeled_pqs, df, opt_level, dims=None):
     # nthreads=1: the pq_graph optimizer's substitution/fusion passes race on the
     # lazy caches (link_vector_, flop_scale_, base_hash_, ...) of Linkage objects that
     # are shared by shared_ptr across candidate intermediates -- forget()/compute_scaling()
@@ -270,22 +292,38 @@ def _optimized(pq, label, df, opt_level):
     # then serializes every optimizer loop regardless of OMP_NUM_THREADS. Drop this once
     # the Linkage caches are made thread-safe (guard each getter/forget with Linkage::mtx_).
     # Guarded by models_test.test_opt_level_safe_default.
-    g = pq_graph({"opt_level": opt_level, "density_fitting": df, "nthreads": 1})
-    g.add(pq, label)
+    options = {"opt_level": opt_level, "density_fitting": df, "nthreads": 1}
+    if dims is not None:
+        options["dims"] = dims  # dimension-aware candidate ranking (see DIMS)
+    g = pq_graph(options)
+    for label, pq in labeled_pqs:
+        # Normal-order gep: the NEO integral dumps carry the dressed NEO-HF Fock (f/fp
+        # include the e-p mean field), so the one-body reference traces of gep must not
+        # appear explicitly in the equations or they double-count that field (a nonzero
+        # singles residual at t=0). No-op for non-NEO. Applied to every generated
+        # equation (residuals, energy, Lambda, amplitude gradient) via this shared helper.
+        pq.remove_gep_reference_traces()
+        g.add(pq, label)
     g.optimize()
     return g
+
+
+def _projected_pq(m, left):
+    """pq_helper holding ``<left| e^-T H e^T |0>`` for a model, simplified."""
+    pq = pq_helper("fermi")
+    pq.set_left_operators([left])
+    for h in m.H:
+        pq.add_st_operator(1.0, [h], list(m.T))
+    pq.simplify()
+    return pq
 
 
 def energy_graph(name, df=True, opt_level=None):
     """Optimized pq_graph for the correlation energy ``<0| e^-T H e^T |0>``."""
     opt_level = _opt_level_for(name, opt_level)
     m = model(name)
-    pq = pq_helper("fermi")
-    pq.set_left_operators([["1"]])
-    for h in m.H:
-        pq.add_st_operator(1.0, [h], list(m.T))
-    pq.simplify()
-    return _optimized(pq, "energy", df, opt_level)
+    pq = _projected_pq(m, ["1"])
+    return _optimized(pq, "energy", df, opt_level, _dims_for(name))
 
 
 def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
@@ -305,18 +343,14 @@ def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
         raise ValueError(f"model {name!r} has no amplitude {amplitude!r}; T={list(m.T)}")
     if amplitude not in PROJECTION:
         raise KeyError(f"no projection defined for amplitude {amplitude!r}")
-    pq = pq_helper("fermi")
-    pq.set_left_operators([[PROJECTION[amplitude]]])
-    for h in m.H:
-        pq.add_st_operator(1.0, [h], list(m.T))
-    pq.simplify()
+    pq = _projected_pq(m, [PROJECTION[amplitude]])
     if spin_case is not None:
         cases = get_spin_labels([[PROJECTION[amplitude]]], nuclear_spin)
         if spin_case not in cases:
             raise ValueError(f"unknown spin_case {spin_case!r} for {amplitude!r}; "
                              f"choose from {sorted(cases)}")
         pq.block_by_spin(cases[spin_case])
-    return _optimized(pq, label, df, opt_level)
+    return _optimized(pq, label, df, opt_level, _dims_for(name))
 
 
 def residual_ir(name, amplitude, df=True, opt_level=None, label="R",
@@ -325,6 +359,34 @@ def residual_ir(name, amplitude, df=True, opt_level=None, label="R",
     g = residual_graph(name, amplitude, df=df, opt_level=opt_level, label=label,
                        spin_case=spin_case, nuclear_spin=nuclear_spin)
     return g.to_strings("ir")
+
+
+def equations_graph(name, df=True, opt_level=None):
+    """One optimized pq_graph holding the correlation energy AND every amplitude
+    residual of a model. pq_graph's subexpression elimination scores candidate
+    intermediates across all equations it holds, so intermediates common to several
+    residuals (dressed one-body contractions, shared ladders, ...) are built once and
+    reused -- unlike the per-equation builders above, which re-derive them in every
+    equation. Use this to generate a model's full ground-state iteration workload.
+
+    Equation labels (the IR target names): ``energy`` for the correlation energy and
+    ``R_<amp>`` for each amplitude residual (e.g. ``R_t2``, ``R_tep11``). Spin-orbital
+    only (no spin blocking)."""
+    opt_level = _opt_level_for(name, opt_level)
+    m = model(name)
+    labeled = [("energy", _projected_pq(m, ["1"]))]
+    for amp in m.T:
+        if amp not in PROJECTION:
+            raise KeyError(f"no projection defined for amplitude {amp!r}")
+        labeled.append((f"R_{amp}", _projected_pq(m, [PROJECTION[amp]])))
+    return _optimized_multi(labeled, df, opt_level, _dims_for(name))
+
+
+def equations_ir(name, df=True, opt_level=None):
+    """The full ground-state equation set (energy + every residual, intermediates
+    shared across equations) as ``to_strings("ir")`` JSONL lines. Targets are named
+    ``energy`` and ``R_<amp>`` -- see :func:`equations_graph`."""
+    return equations_graph(name, df=df, opt_level=opt_level).to_strings("ir")
 
 
 def spin_cases(amplitude, nuclear_spin="high-spin"):
@@ -362,7 +424,7 @@ def lambda_graph(name, amplitude, df=True, opt_level=None, label="R"):
         pq.add_st_operator(1.0, [h, tau], list(m.T))                    # [Hbar, tau]
         pq.add_st_operator(-1.0, [tau, h], list(m.T))
     pq.simplify()
-    return _optimized(pq, label, df, opt_level)
+    return _optimized(pq, label, df, opt_level, _dims_for(name))
 
 
 def lambda_ir(name, amplitude, df=True, opt_level=None, label="R"):
@@ -388,7 +450,7 @@ def gradient_graph(name, species, df=True, opt_level=None, label="R"):
         pq.add_st_operator(-1.0, [h, ia], list(m.T))
         pq.add_st_operator(1.0, [ia, h], list(m.T))
     pq.simplify()
-    return _optimized(pq, label, df, opt_level)
+    return _optimized(pq, label, df, opt_level, _dims_for(name))
 
 
 def gradient_ir(name, species, df=True, opt_level=None, label="R"):
@@ -413,7 +475,7 @@ def rdm_graph(name, operator, df=True, opt_level=None, label="D"):
     pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])   # (1 + Lambda)
     pq.add_st_operator(1.0, [operator], list(m.T))
     pq.simplify()
-    return _optimized(pq, label, df, opt_level)
+    return _optimized(pq, label, df, opt_level, _dims_for(name))
 
 
 def rdm_ir(name, operator, df=True, opt_level=None, label="D"):

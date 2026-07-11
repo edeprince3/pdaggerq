@@ -72,10 +72,14 @@ jobs:
 
       - name: Generated-model library tests (pdaggerq/)
         working-directory: ${{ runner.temp }}
+        # --pyargs: these test modules live INSIDE the pdaggerq package, so collecting
+        # them by source path imports the source-tree package (whose __init__ needs the
+        # built _pdaggerq extension that only exists in site-packages) and fails with
+        # ModuleNotFoundError. --pyargs collects the installed copies instead, which
+        # pip install . built from this very checkout.
         run: |
-          python -m pytest -v --forked \
-            "$GITHUB_WORKSPACE/pdaggerq/models_test.py" \
-            "$GITHUB_WORKSPACE/pdaggerq/einsums_test.py"
+          python -m pytest -v --forked --pyargs \
+            pdaggerq.models_test pdaggerq.einsums_test
 
       # NOTE: pdaggerq/algebra_test.py and pdaggerq/parser_test.py are excluded --
       # they are stale (import T1amps, removed from pdaggerq/algebra.py) and fail

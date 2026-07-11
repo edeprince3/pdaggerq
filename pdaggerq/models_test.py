@@ -1164,6 +1164,97 @@ def test_rdm_block_ir():
     print("test_rdm_block_ir OK")
 
 
+def test_equations_ir():
+    """equations_ir emits the energy and every residual of a model in ONE pq_graph, so
+    intermediates are shared across equations (cross-equation CSE). Verify (1) every
+    target of the combined emission matches its per-equation opt0 ground truth
+    numerically, and (2) the combined emission is no larger than the sum of the
+    per-equation emissions (the sharing must not backfire)."""
+    import re, itertools
+    import numpy as np
+    from collections import defaultdict
+
+    DIM = {"o": 3, "v": 4, "O": 1, "V": 4, "Q": 6}
+    VIR, OCC = {"v", "V"}, {"o", "O"}
+    is_amp = lambda nm: re.fullmatch(r"t\d+(_n|_ep)?", nm) is not None
+
+    def antisym(a, cl):                        # CC antisymmetry over same-class vir/occ axes
+        out = a.copy()
+        groups = defaultdict(list)
+        for ax, c in enumerate(cl):
+            groups[c].append(ax)
+        for c, axes in groups.items():
+            if len(axes) >= 2 and (c in VIR or c in OCC):
+                perms = list(itertools.permutations(range(len(axes))))
+                acc = np.zeros_like(out)
+                for p in perms:
+                    par = sum(1 for i in range(len(p)) for j in range(i + 1, len(p))
+                              if p[i] > p[j]) & 1
+                    src = list(range(out.ndim))
+                    for k, ax in enumerate(axes):
+                        src[ax] = axes[p[k]]
+                    acc += (-1 if par else 1) * np.transpose(out, src)
+                out = acc / len(perms)
+        return out
+
+    def interp(ir, inp):                       # evaluate an IR statement list -> {target: value}
+        st = {}
+        val = lambda o: st[o["name"]] if o["name"] in st else inp[o["name"]]
+        for s in ir:
+            subs = ",".join("".join(o["indices"]) for o in s["operands"])
+            out = "".join(s["target"]["indices"])
+            c = s["coeff"] * np.einsum(subs + "->" + out,
+                                       *[val(o) for o in s["operands"]], optimize=True)
+            t = s["target"]["name"]
+            st[t] = c.copy() if s["is_assignment"] else st[t] + c
+        return st
+
+    for name in ("ccd", "neo-ccd(ep)"):
+        m = models.model(name)
+
+        # combined emission and per-equation opt0 ground truths
+        comb = einsums.parse_ir(models.equations_ir(name))
+        separate = {"energy": einsums.parse_ir(models.energy_graph(name, opt_level=0)
+                                               .to_strings("ir"))}
+        for amp in m.T:
+            separate[f"R_{amp}"] = einsums.parse_ir(
+                models.residual_graph(name, amp, opt_level=0).to_strings("ir"))
+
+        # inputs: every external operand name (not produced by any statement), from the
+        # union of the combined and separate emissions; amplitudes antisymmetrized
+        produced = {s["target"]["name"] for ir in [comb, *separate.values()] for s in ir}
+        names = {o["name"]: tuple(o["classes"])
+                 for ir in [comb, *separate.values()] for s in ir for o in s["operands"]
+                 if o["name"] not in produced}
+        rng = np.random.default_rng(11)
+        inp = {}
+        for nm, cl in sorted(names.items()):
+            if nm.startswith("Id["):
+                # Kronecker delta from reference traces: must be a TRUE identity. The
+                # optimizer reindexes through delta identities (sum_j Id(ij) X(j..) =
+                # X(i..)), which only hold for the actual identity matrix -- a random
+                # Id makes algebraically equal emissions evaluate differently.
+                inp[nm] = np.eye(DIM[cl[0]])
+                continue
+            a = rng.standard_normal(tuple(DIM[c] for c in cl))
+            inp[nm] = antisym(a, cl) if is_amp(nm) else a
+
+        # (1) each combined target reproduces its per-equation opt0 ground truth
+        st = interp(comb, inp)
+        for tgt, ir0 in separate.items():
+            truth = interp(ir0, inp)[tgt if tgt == "energy" else "R"]
+            err = float(np.max(np.abs(st[tgt] - truth)))
+            assert err < 1e-9, (name, tgt, err)
+
+        # (2) sharing must not backfire: combined no larger than the sum of separate
+        # default-opt emissions
+        sep_default = sum(len(einsums.parse_ir(models.residual_ir(name, amp)))
+                          for amp in m.T)
+        sep_default += len(einsums.parse_ir(models.energy_graph(name).to_strings("ir")))
+        assert len(comb) <= sep_default, (name, len(comb), sep_default)
+    print("test_equations_ir OK")
+
+
 if __name__ == "__main__":
     test_models_present_and_projected()
     test_single_proton_models()
@@ -1185,4 +1276,5 @@ if __name__ == "__main__":
     test_neo_gep_normal_ordered()
     test_opt_level_safe_default()
     test_rdm_block_ir()
+    test_equations_ir()
     print("\nall model tests passed")
