@@ -187,6 +187,43 @@ namespace pdaggerq {
         constexpr static int this_worse = -1;
 
         /**
+         * Optional dimension-aware cost model. When representative dimensions are set
+         * (PQGraph option "dims"), scaling maps are compared by their summed numeric
+         * flop estimate (shape::cost) instead of the lexicographic line-count metric.
+         * The lexicographic metric counts every line equally, so it badly mis-ranks
+         * candidates whose line classes have very different sizes -- e.g. NEO nuclear
+         * spaces (one proton: O=1) vs electronic spaces, or the DF auxiliary index.
+         * Exact numeric ties fall back to the lexicographic comparison, so the result
+         * remains a strict deterministic ordering. Process-wide static (like
+         * Vertex::print_type_ / Equation::nthreads_): set it per PQGraph before
+         * optimizing; concurrent PQGraphs with different dims are not supported.
+         */
+        static inline bool use_dims_ = false;
+        static inline double dim_o_ = 1.0, dim_v_ = 1.0;   // electronic occ/vir
+        static inline double dim_no_ = 1.0, dim_nv_ = 1.0; // nuclear occ/vir
+        static inline double dim_L_ = 1.0, dim_Q_ = 1.0;   // sigma (trial) / DF auxiliary
+
+        static void set_dims(double o, double v, double no, double nv, double L, double Q) {
+            dim_o_ = o; dim_v_ = v; dim_no_ = no; dim_nv_ = nv; dim_L_ = L; dim_Q_ = Q;
+            use_dims_ = true;
+        }
+        static void clear_dims() { use_dims_ = false; }
+
+        /**
+         * Summed numeric flop estimate of this map at the configured dimensions.
+         * Accumulated in map (descending-scaling) order, so the IEEE result is
+         * bit-deterministic. Signed counts (from map subtraction) are respected.
+         */
+        double total_cost() const {
+            double total = 0.0;
+            for (const auto &[term_shape, count] : map_) {
+                if (count == 0) continue;
+                total += (double) count * term_shape.cost(dim_o_, dim_v_, dim_no_, dim_nv_, dim_L_, dim_Q_);
+            }
+            return total;
+        }
+
+        /**
          * Compare scaling maps to determine best scaling term
          * @param this_map prior_links scaling map
          * @param other_map other scaling map
@@ -199,6 +236,17 @@ namespace pdaggerq {
          *      If all scaling is the same, the maps are considered equal and false is returned.
          */
         static int compare_scaling(const scaling_map& this_map, const scaling_map &other_map) {
+
+            // dimension-aware comparison: rank by numeric flop estimate when
+            // representative dimensions are configured. An exact tie falls through to
+            // the lexicographic comparison below so the ordering stays strict and
+            // deterministic (equal-structure maps still compare equal there).
+            if (use_dims_) {
+                double this_cost = this_map.total_cost();
+                double other_cost = other_map.total_cost();
+                if (this_cost < other_cost) return this_better;
+                if (this_cost > other_cost) return this_worse;
+            }
 
             // initialize this_map iterators
             auto this_begin = this_map.begin();

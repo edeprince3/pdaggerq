@@ -127,6 +127,26 @@ struct shape {
         a_ = oa_ + va_; b_ = ob_ + vb_;
     }
 
+    /**
+     * Numeric flop estimate of this shape given representative dimensions for each
+     * line class. Used by scaling_map's dimension-aware comparison (see
+     * scaling_map::set_dims); the default lexicographic comparison ignores this.
+     * Computed by repeated IEEE multiplication (no std::pow) so the value -- and
+     * therefore every optimizer decision based on it -- is bit-deterministic.
+     * @param o,v electronic occupied/virtual; no,nv nuclear (second-species)
+     *        occupied/virtual; L sigma (trial); Q density-fitting auxiliary
+     */
+    double cost(double o, double v, double no, double nv, double L, double Q) const {
+        double c = 1.0;
+        for (uint_fast8_t i = 0; i <  o_; i++) c *= o;
+        for (uint_fast8_t i = 0; i <  v_; i++) c *= v;
+        for (uint_fast8_t i = 0; i < no_; i++) c *= no;
+        for (uint_fast8_t i = 0; i < nv_; i++) c *= nv;
+        for (uint_fast8_t i = 0; i <  L_; i++) c *= L;
+        for (uint_fast8_t i = 0; i <  Q_; i++) c *= Q;
+        return c;
+    }
+
     bool operator==(const shape & other) const {
         return  n_ == other.n_
             &&  a_ == other.a_  &&  b_ == other.b_

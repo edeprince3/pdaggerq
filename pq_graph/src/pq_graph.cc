@@ -148,6 +148,38 @@ namespace pdaggerq {
                 cout << "'no_scalars' is set to true. Scalars will not be included in the final equations." << endl;
         }
 
+        if (options.contains("dims")) {
+            // representative dimension of each line class for the dimension-aware cost
+            // model (see scaling_map::set_dims). When given, optimizer decisions rank
+            // candidates by numeric flop estimates at these sizes instead of the
+            // dimension-blind lexicographic line-count metric. Keys: "o"/"v" electronic
+            // occupied/virtual, "O"/"V" nuclear (second-species) occupied/virtual,
+            // "L" sigma (trial vector), "Q" density-fitting auxiliary. Unspecified
+            // classes default to 1 (their lines then cost nothing, like O=1 protons).
+            std::map<string, double> dims;
+            try {
+                dims = options["dims"].cast<std::map<string, double>>();
+            } catch (const std::exception &e) {
+                throw invalid_argument("dims must be a map of 'o','v','O','V','L','Q' to numeric sizes");
+            }
+            for (const auto &[key, val] : dims) {
+                if (key != "o" && key != "v" && key != "O" && key != "V" && key != "L" && key != "Q")
+                    throw invalid_argument("dims keys must be one of 'o','v','O','V','L','Q'; found key: " + key);
+                if (val < 1.0)
+                    throw invalid_argument("dims values must be >= 1; found " + key + " = " + to_string(val));
+            }
+            auto dim_of = [&dims](const string &key) {
+                auto it = dims.find(key);
+                return it == dims.end() ? 1.0 : it->second;
+            };
+            scaling_map::set_dims(dim_of("o"), dim_of("v"), dim_of("O"), dim_of("V"),
+                                  dim_of("L"), dim_of("Q"));
+        } else {
+            // process-wide static: reset so a graph without dims is not affected by an
+            // earlier graph that set them
+            scaling_map::clear_dims();
+        }
+
 
         if (options.contains("max_shape_map")) {
             std::map<string, long> max_shape_map;
@@ -338,6 +370,15 @@ namespace pdaggerq {
         cout << "    nthreads: " << nthreads_
              << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
              << omp_get_max_threads() << ")" << endl;
+
+        if (scaling_map::use_dims_) {
+            cout << "    dims: o" << scaling_map::dim_o_ << " v" << scaling_map::dim_v_
+                 << " O" << scaling_map::dim_no_ << " V" << scaling_map::dim_nv_
+                 << " L" << scaling_map::dim_L_ << " Q" << scaling_map::dim_Q_
+                 << "  // representative line-class sizes: optimizer ranks candidates by numeric flops at these dims" << endl;
+        } else {
+            cout << "    dims: (unset)  // optimizer ranks candidates by the dimension-blind line-count metric (default)" << endl;
+        }
 
         cout << endl;
     }
