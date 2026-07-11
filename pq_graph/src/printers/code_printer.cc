@@ -37,6 +37,7 @@
 #include "../../include/printers/einsum_printer.h"
 #include "../../include/printers/tiledarray_printer.h"
 #include "../../include/printers/blas_printer.h"
+#include "../../include/printers/loop_printer.h"
 
 using std::string;
 using std::stringstream;
@@ -72,6 +73,10 @@ void Vertex::set_printer(const string& type) {
         printer_ = &BLASPrinter::instance();
         CodePrinter::binarize_ = true;
         std::cout << "Setting printer to BLAS (C) format" << std::endl;
+    } else if (t == "loop" || t == "loops" || t == "loop_c") {
+        printer_ = &LoopPrinter::instance();
+        CodePrinter::binarize_ = true;
+        std::cout << "Setting printer to Loop (C) format" << std::endl;
     } else {
         std::cout << "Unknown printer type: " << type << std::endl;
     }
