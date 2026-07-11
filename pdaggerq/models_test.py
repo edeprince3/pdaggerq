@@ -1164,6 +1164,90 @@ def test_rdm_block_ir():
     print("test_rdm_block_ir OK")
 
 
+def test_ir_pairing():
+    """Every emitted >=3-operand IR statement must carry a `pairing` field -- the
+    optimal binary contraction tree (subset DP in ir_emit, costed with the active
+    scaling metric) -- and following that plan must never form an avoidable outer
+    product (each binary step's sides share an index unless one side is a scalar).
+    Regression: fusion's LinkTracker canonicalises (name-sorts) rebuilt operand
+    lists, so the left fold of the emitted operand order can start with an outer
+    product (e.g. the combined neo-ccd(ep) t2_ep.t2_ep.tmps quadratics blew up an
+    o^2 v^2 O^2 V^2 intermediate); the DP-derived pairing is order-independent.
+    Also checks the plan is a valid tree (einsums._fold_steps accepts it) and that
+    evaluating VIA the plan reproduces the whole-statement einsum numerically."""
+    import numpy as np
+
+    DIM = {"o": 3, "v": 4, "O": 1, "V": 4, "Q": 6}
+    rng = np.random.default_rng(3)
+
+    def check(stmts, tag):
+        n_multi = 0
+        for s in stmts:
+            ops = s["operands"]
+            if len(ops) < 3:
+                continue
+            n_multi += 1
+            assert "pairing" in s, (tag, s["target"]["name"], "missing pairing")
+            steps = einsums._fold_steps(s["pairing"], len(ops))
+            assert len(steps) == len(ops) - 1, (tag, "invalid tree", s["pairing"])
+
+            names = [o["indices"] for o in ops]
+
+            # the leaf operands under a step's subtree (to decide kept indices)
+            def leaves(ref, out):
+                kind, i = ref
+                if kind == "op":
+                    out.add(i)
+                else:
+                    leaves(steps[i][0], out)
+                    leaves(steps[i][1], out)
+                return out
+
+            # (1) no avoidable outer product: each step's sides share an index
+            #     unless one side is a scalar (no indices)
+            step_sets = []
+            def idx_of(ref):
+                kind, i = ref
+                return set(names[i]) if kind == "op" else step_sets[i]
+            for li, ri in steps:
+                a, b = idx_of(li), idx_of(ri)
+                assert (a & b) or not a or not b, \
+                    (tag, s["target"]["name"], "outer-product step", s["pairing"])
+                step_sets.append(a | b)
+
+            # (2) numeric: evaluating via the plan == whole-statement einsum
+            vals = [rng.standard_normal(tuple(DIM[c] for c in o["classes"]))
+                    for o in ops]
+            whole = np.einsum(
+                ",".join("".join(o["indices"]) for o in ops)
+                + "->" + "".join(s["target"]["indices"]), *vals, optimize=True)
+            sv, si = [], []
+            def val_of(ref):
+                kind, i = ref
+                return (vals[i], names[i]) if kind == "op" else (sv[i], si[i])
+            for li, ri in steps:
+                (av, ai), (bv, bi) = val_of(li), val_of(ri)
+                sub = leaves(li, set()) | leaves(ri, set())
+                later = set(s["target"]["indices"])
+                for j in range(len(ops)):
+                    if j not in sub:
+                        later |= set(names[j])
+                out = [l for l in dict.fromkeys(list(ai) + list(bi)) if l in later]
+                sv.append(np.einsum(f'{"".join(ai)},{"".join(bi)}->{"".join(out)}',
+                                    av, bv))
+                si.append(out)
+            via_plan = np.einsum(f'{"".join(si[-1])}->{"".join(s["target"]["indices"])}',
+                                 sv[-1])
+            err = float(np.max(np.abs(via_plan - whole)))
+            assert err < 1e-10, (tag, s["target"]["name"], err)
+        return n_multi
+
+    n1 = check(einsums.parse_ir(models.equations_ir("neo-ccd(ep)")), "neo-ccd(ep)")
+    n2 = check(einsums.parse_ir(models.residual_ir("ccd", "t2")), "ccd/t2")
+    assert n1 >= 10 and n2 >= 1, (n1, n2)   # the check must actually exercise plans
+    print(f"test_ir_pairing OK ({n1}+{n2} multi-operand plans verified)")
+
+
 def test_equations_ir():
     """equations_ir emits the energy and every residual of a model in ONE pq_graph, so
     intermediates are shared across equations (cross-equation CSE). Verify (1) every
@@ -1277,4 +1361,5 @@ if __name__ == "__main__":
     test_opt_level_safe_default()
     test_rdm_block_ir()
     test_equations_ir()
+    test_ir_pairing()
     print("\nall model tests passed")

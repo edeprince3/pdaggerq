@@ -863,32 +863,99 @@ namespace pdaggerq {
     static long ir_hoist_counter = 0;
     void reset_ir_hoist_counter() { ir_hoist_counter = 0; }
 
-    // Binary contraction tree of a linkage over the flat operand list ir_emit
-    // gathers from link_vector(), as a nested JSON array of operand indices --
-    // e.g. ((0*1)*(2*3)) -> [[0,1],[2,3]]. The optimizer chose this pairing for
-    // cost; without it the IR consumer had to re-derive a contraction order from
-    // the flat operand list. The walk mirrors link_vector()'s traversal exactly:
-    // non-expandable linkages (temps/additions/scalars) and plain vertices are
-    // leaves; expandable linkages recurse left then right; empty vertices and
-    // literal scalar-1 constants contribute nothing (link_vector skips them).
-    static string ir_pairing_walk(const VertexPtr &node, long &leaf_idx) {
-        if (node == nullptr || node->empty()) return "";
-        if (node->is_linked()) {
-            LinkagePtr ln = as_link(node);
-            if (!ln->is_expandable())
-                return std::to_string(leaf_idx++);      // kept as a single operand
-            string l = ir_pairing_walk(ln->left(), leaf_idx);
-            string r = ir_pairing_walk(ln->right(), leaf_idx);
-            if (l.empty()) return r;
-            if (r.empty()) return l;
-            return "[" + l + "," + r + "]";
+    // Optimal binary contraction tree over the emitted operand list, as a nested
+    // JSON array of operand indices -- e.g. [[0,1],[2,3]]. Exact subset DP, costed
+    // with the same scaling_map comparison the optimizer uses (dimension-aware when
+    // "dims" is set, lexicographic line-count otherwise), with a deterministic
+    // string tie-break. Computed at emission from the operands' line sets rather
+    // than walked off the term's linkage tree: several passes leave rhs_ in a
+    // canonicalised (e.g. name-sorted, see fusion's LinkTracker) rather than
+    // cost-optimal order, and Term::ir_str refolds the linkage from rhs_ anyway --
+    // so the stored tree is always the left fold of the emitted operand order,
+    // which for a canonicalised order can start with an outer product (operands
+    // sharing no index). The DP guarantees every emitted plan is outer-product
+    // free and optimal under the active cost model regardless of upstream order.
+    // Consumers without pairing support simply left-fold in list order.
+    static string ir_optimal_pairing(const std::vector<line_vector> &op_lines,
+                                     const line_vector &tlines) {
+        const size_t n = op_lines.size();
+        if (n < 3 || n > 12) return "";  // 2 operands need no plan; cap the 3^n DP
+
+        // deduplicated line set per operand (a repeated line within one operand is
+        // a summed diagonal; one copy carries its class for costing)
+        std::vector<line_vector> ols(n);
+        auto contains = [](const line_vector &v, const Line &l) {
+            return std::find(v.begin(), v.end(), l) != v.end();
+        };
+        for (size_t i = 0; i < n; i++)
+            for (const Line &l : op_lines[i])
+                if (!contains(ols[i], l)) ols[i].push_back(l);
+        line_vector tset;
+        for (const Line &l : tlines)
+            if (!contains(tset, l)) tset.push_back(l);
+
+        const size_t full = (1ul << n) - 1;
+
+        // external lines of subset S: lines within S still needed by the target or
+        // by an operand outside S (everything else is summed out inside S)
+        auto kept = [&](size_t S) {
+            line_vector lines;
+            for (size_t i = 0; i < n; i++) {
+                if (!(S >> i & 1ul)) continue;
+                for (const Line &l : ols[i]) {
+                    if (contains(lines, l)) continue;
+                    bool needed = contains(tset, l);
+                    for (size_t j = 0; !needed && j < n; j++)
+                        if (!(S >> j & 1ul) && contains(ols[j], l)) needed = true;
+                    if (needed) lines.push_back(l);
+                }
+            }
+            return lines;
+        };
+
+        struct Best { scaling_map cost; string tree; line_vector ext; bool set = false; };
+        std::vector<Best> best(full + 1);
+        for (size_t i = 0; i < n; i++) {
+            Best &b = best[1ul << i];
+            b.set = true;
+            b.tree = std::to_string(i);
+            b.ext = kept(1ul << i);
         }
-        // plain vertex: link_vector() pushes it unless it is an implicit scalar 1;
-        // constant scalars are folded into the statement coefficient by ir_emit,
-        // so they are not operands and must not consume a leaf index here.
-        if (node->is_constant()) return "";
-        if (fabs(node->value() - 1.0) > 1e-8) return std::to_string(leaf_idx++);
-        return "";
+
+        // ascending mask order visits every proper subset before its superset
+        for (size_t S = 3; S <= full; S++) {
+            if (__builtin_popcountl(S) < 2) continue;
+            Best &b = best[S];
+            const size_t low = S & (~S + 1ul);
+            // enumerate splits S = A | B canonically (A holds the lowest bit)
+            for (size_t A = (S - 1) & S; A; A = (A - 1) & S) {
+                if (!(A & low)) continue;
+                const size_t B = S & ~A;
+                const Best &ba = best[A], &bb = best[B];
+
+                // flops of contracting the two results: all their external lines
+                shape s;
+                line_vector uni = ba.ext;
+                for (const Line &l : bb.ext)
+                    if (!contains(uni, l)) uni.push_back(l);
+                for (const Line &l : uni) s += l;
+
+                scaling_map cost = ba.cost;
+                cost += bb.cost;
+                cost[s] += 1;
+
+                string tree = "[" + ba.tree + "," + bb.tree + "]";
+                int cmp = b.set ? cost.compare(b.cost) : scaling_map::this_better;
+                if (cmp == scaling_map::this_better ||
+                    (cmp == scaling_map::this_same && tree < b.tree)) {
+                    b.set = true;
+                    b.cost = std::move(cost);
+                    b.tree = std::move(tree);
+                }
+            }
+            b.ext = kept(S);
+        }
+        return best[full].tree;
     }
 
     // Emit one-or-more JSONL statements for "target [assign] coeff * <rhs_link>",
@@ -920,6 +987,7 @@ namespace pdaggerq {
 
         string prefix;                     // hoisted temp definitions, emitted first
         std::vector<string> operand_jsons;
+        std::vector<line_vector> op_lines; // per emitted operand, for the pairing DP
         for (const auto &op : ops) {
             if (op->empty()) continue;
             if (!op->is_linked() && op->is_constant()) {
@@ -938,6 +1006,7 @@ namespace pdaggerq {
             } else {
                 operand_jsons.push_back(ir_vertex_json(op));
             }
+            op_lines.push_back(op->lines());
         }
 
         string out = string("{\"target\":") + ir_vertex_json_core(tname, tlines, tinterm);
@@ -987,14 +1056,15 @@ namespace pdaggerq {
         }
         out += "]";
 
-        // the optimizer's binary contraction order over the operands (only
-        // meaningful for 3+ operands; consumers without support ignore the field).
-        // emitted only when the walk's leaf count matches the operand list, so the
-        // indices are guaranteed to align.
-        if (operand_jsons.size() >= 3 && rhs_link->is_linked() && !rhs_link->is_temp()) {
-            long leaf_idx = 0;
-            string tree = ir_pairing_walk(rhs_link, leaf_idx);
-            if ((size_t) leaf_idx == operand_jsons.size() && !tree.empty() && tree.front() == '[')
+        // the optimal binary contraction order over the operands (only meaningful
+        // for 3+ operands; consumers without support ignore the field and left-fold
+        // in list order). Computed by ir_optimal_pairing's subset DP from the
+        // operands' line sets, so it is emitted for EVERY multi-operand statement
+        // (including temp/scalar declarations) and is guaranteed outer-product free
+        // even when an upstream pass canonicalised the operand order.
+        if (operand_jsons.size() >= 3) {
+            string tree = ir_optimal_pairing(op_lines, tlines);
+            if (!tree.empty() && tree.front() == '[')
                 out += ",\"pairing\":" + tree;
         }
 
