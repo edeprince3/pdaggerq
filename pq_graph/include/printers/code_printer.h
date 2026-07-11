@@ -99,6 +99,11 @@ public:
     // Emit the closing banner (triple h1).
     virtual string format_closing_banner() const;
 
+    // ── Dimension names ─────────────────────────────────────────────────
+
+    // Map index type character to symbolic dimension name (e.g., 'o' → "nocc").
+    virtual string dim_name(char type) const { return ""; }
+
     // ── Intermediate naming ──────────────────────────────────────────────
 
     // Return prefix for internally-generated temporaries. type is 't' (tmps_),

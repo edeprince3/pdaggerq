@@ -36,6 +36,7 @@
 #include "../../include/printers/tamm_printer.h"
 #include "../../include/printers/einsum_printer.h"
 #include "../../include/printers/tiledarray_printer.h"
+#include "../../include/printers/blas_printer.h"
 
 using std::string;
 using std::stringstream;
@@ -67,6 +68,10 @@ void Vertex::set_printer(const string& type) {
         printer_ = &TammPrinter::instance();
         CodePrinter::binarize_ = true; // enable binarization for TAMM printer
         std::cout << "Setting printer to TAMM (C++) format" << std::endl;
+    } else if (t == "blas" || t == "cblas") {
+        printer_ = &BLASPrinter::instance();
+        CodePrinter::binarize_ = true;
+        std::cout << "Setting printer to BLAS (C) format" << std::endl;
     } else {
         std::cout << "Unknown printer type: " << type << std::endl;
     }
