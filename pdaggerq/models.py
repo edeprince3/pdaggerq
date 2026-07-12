@@ -450,6 +450,36 @@ def gradient_graph(name, species, df=True, opt_level=None, label="R"):
     the same gradient -- verified to 4e-16 for electronic models -- but this one lets
     pq_graph factorise the whole contraction and avoids ever forming D2.
 
+    ONE-BODY INPUTS -- these DIFFER from the residual/energy equations, because the gep
+    reference traces are retained here (``gep_traces=False``, see below). The traces supply
+    the e-p mean field, so it must NOT also be carried by the Fock matrices::
+
+        f  = hcore_e + mf_ee          (electron mean field YES, e-p mean field NO)
+        fp = hcore_p                  (BARE proton core -- no mean field at all)
+
+    equivalently, starting from the dressed NEO-HF Focks, strip ONLY the e-p mean field::
+
+        f  = f_dressed  - mf_ep       mf_ep[p,q] = sum_{I in occ_p} gep[p,I,q,I]
+        fp = fp_dressed - mf_pe       mf_pe[P,Q] = sum_{i in occ_e} gep[i,P,i,Q]
+
+    The asymmetry (f keeps mf_ee, fp keeps nothing) is not a typo: pdaggerq's Fermi-vacuum
+    normal ordering already subtracts the ELECTRONIC mean field internally -- that is the
+    ``h = f - mf_ee`` relation in the RDM identity -- while the proton one-body has no such
+    subtraction (``hp = fp`` there). Feeding the fully dressed ``f``/``fp`` double-counts the
+    e-p mean field: the sign is right but the magnitude is off by a few percent.
+
+    Summary of the three conventions in this module:
+
+    ==========================================  =========================================
+    residual / energy / Lambda (gep_traces=True)  fully dressed f, fp
+    gradient_ir (gep_traces=False)                f = f_dressed - mf_ep, fp = fp_dressed - mf_pe
+    energy_from_rdm_ir / orbital_gradient_ir      BARE cores h = hcore_e, hp = hcore_p
+    ==========================================  =========================================
+
+    (The gradient's f differs from the RDM route's h by exactly mf_ee, as the identity
+    ``h = f - mf_ee`` requires; both routes agree to ~5e-16 -- see
+    models_test.test_gradient_ir_matches_orbital_gradient.)
+
     **The gep reference traces are NOT removed here** (``gep_traces=False``), unlike every
     other generated equation. Term-dropping does not commute with taking a commutator:
     removing trace-carrying terms FROM ``<[H, E-]>`` is not the same as forming
@@ -994,30 +1024,6 @@ _GEP_GRAD_TERMS = [
     "+1.0 g(a,np,q,nq) D2_ep(np,i,q,nq)",
 ]
 
-# The gep contribution to the electron-electron OO Hessian, hand-derived (like the
-# gradient) as d^2 E_ep/dkappa^2 -- the fixed-RDM energy Hessian, symmetric by
-# construction -- from the 2nd-order Taylor expansion of the rotated gep. Eight
-# well-formed 2e2p "cross" terms plus eight Kronecker-delta terms (electron index
-# summed, coeff -1/2). Validated: closed form == Taylor Hessian to ~1e-15, Taylor ==
-# finite differences to ~1e-7.
-_GEP_HESS_TERMS = [
-    "+1.0 g(a,np,b,nq) D2_ep(np,i,j,nq)",
-    "-1.0 g(a,np,j,nq) D2_ep(np,i,b,nq)",
-    "-1.0 g(i,np,b,nq) D2_ep(np,a,j,nq)",
-    "+1.0 g(i,np,j,nq) D2_ep(np,a,b,nq)",
-    "+1.0 g(b,np,a,nq) D2_ep(np,j,i,nq)",
-    "-1.0 g(b,np,i,nq) D2_ep(np,j,a,nq)",
-    "-1.0 g(j,np,a,nq) D2_ep(np,b,i,nq)",
-    "+1.0 g(j,np,i,nq) D2_ep(np,b,a,nq)",
-    "-0.5 d(i,j) g(a,np,p,nq) D2_ep(np,b,p,nq)",
-    "-0.5 d(i,j) g(b,np,p,nq) D2_ep(np,a,p,nq)",
-    "-0.5 d(i,j) g(p,np,a,nq) D2_ep(np,p,b,nq)",
-    "-0.5 d(i,j) g(p,np,b,nq) D2_ep(np,p,a,nq)",
-    "-0.5 d(a,b) g(i,np,p,nq) D2_ep(np,j,p,nq)",
-    "-0.5 d(a,b) g(j,np,p,nq) D2_ep(np,i,p,nq)",
-    "-0.5 d(a,b) g(p,np,i,nq) D2_ep(np,p,j,nq)",
-    "-0.5 d(a,b) g(p,np,j,nq) D2_ep(np,p,i,nq)",
-]
 
 # PROTON-row orbital gradient. Two pieces, both hand-derived (pdaggerq has no bare
 # proton core, and its cross-species commutator mis-slots): (i) the proton
@@ -1038,45 +1044,8 @@ _GEP_PROTON_GRAD_TERMS = [
     "+1.0 g(p,na,q,nq) D2_ep(ni,p,q,nq)",
 ]
 
-# gep contribution to the PROTON-proton OO Hessian (proton analog of _GEP_HESS_TERMS,
-# rotating gep's proton slots). 8 cross terms + 8 delta terms; validated to ~1e-15
-# vs the Taylor Hessian and ~1e-7 vs finite differences.
-_GEP_PROTON_HESS_TERMS = [
-    "+1.0 g(p,na,q,nb) D2_ep(ni,p,q,nj)",
-    "-1.0 g(p,na,q,nj) D2_ep(ni,p,q,nb)",
-    "-1.0 g(p,ni,q,nb) D2_ep(na,p,q,nj)",
-    "+1.0 g(p,ni,q,nj) D2_ep(na,p,q,nb)",
-    "+1.0 g(p,nb,q,na) D2_ep(nj,p,q,ni)",
-    "-1.0 g(p,nb,q,ni) D2_ep(nj,p,q,na)",
-    "-1.0 g(p,nj,q,na) D2_ep(nb,p,q,ni)",
-    "+1.0 g(p,nj,q,ni) D2_ep(nb,p,q,na)",
-    "-0.5 d(ni,nj) g(p,na,q,nq) D2_ep(nb,p,q,nq)",
-    "-0.5 d(ni,nj) g(p,nb,q,nq) D2_ep(na,p,q,nq)",
-    "-0.5 d(ni,nj) g(p,np,q,na) D2_ep(np,p,q,nb)",
-    "-0.5 d(ni,nj) g(p,np,q,nb) D2_ep(np,p,q,na)",
-    "-0.5 d(na,nb) g(p,ni,q,nq) D2_ep(nj,p,q,nq)",
-    "-0.5 d(na,nb) g(p,nj,q,nq) D2_ep(ni,p,q,nq)",
-    "-0.5 d(na,nb) g(p,np,q,ni) D2_ep(np,p,q,nj)",
-    "-0.5 d(na,nb) g(p,np,q,nj) D2_ep(np,p,q,ni)",
-]
 
 
-# gep contribution to the electron-proton CROSS OO Hessian H_ai,nbNj: the mixed
-# derivative d^2 E_ep/dkappa^e_ai dkappa^p_nbNj (electron rotation on gep's electron
-# slots, proton on proton slots). Only gep contributes (h/g/h_p commute with the
-# other species' rotation) and there are no delta terms (different spaces): 16 well-
-# formed 2e2p terms = the electron gep gradient T1-T4 differentiated w.r.t. the proton
-# rotation. Validated to finite differences to ~1e-7. External a,i electron; nb,nj proton.
-_GEP_CROSS_HESS_TERMS = [
-    "+1.0 g(p,nb,a,nq) D2_ep(nj,p,i,nq)", "-1.0 g(p,nj,a,nq) D2_ep(nb,p,i,nq)",
-    "+1.0 g(p,np,a,nb) D2_ep(np,p,i,nj)", "-1.0 g(p,np,a,nj) D2_ep(np,p,i,nb)",
-    "-1.0 g(i,nb,q,nq) D2_ep(nj,a,q,nq)", "+1.0 g(i,nj,q,nq) D2_ep(nb,a,q,nq)",
-    "-1.0 g(i,np,q,nb) D2_ep(np,a,q,nj)", "+1.0 g(i,np,q,nj) D2_ep(np,a,q,nb)",
-    "-1.0 g(p,nb,i,nq) D2_ep(nj,p,a,nq)", "+1.0 g(p,nj,i,nq) D2_ep(nb,p,a,nq)",
-    "-1.0 g(p,np,i,nb) D2_ep(np,p,a,nj)", "+1.0 g(p,np,i,nj) D2_ep(np,p,a,nb)",
-    "+1.0 g(a,nb,q,nq) D2_ep(nj,i,q,nq)", "-1.0 g(a,nj,q,nq) D2_ep(nb,i,q,nq)",
-    "+1.0 g(a,np,q,nb) D2_ep(np,i,q,nj)", "-1.0 g(a,np,q,nj) D2_ep(np,i,q,nb)",
-]
 
 
 def _relabel_e2p(term):
@@ -1283,26 +1252,19 @@ def orbital_gradient_ir(name, species="electron", rotation_classes=("o", "v"),
 
 
 def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"):
-    """Fixed-RDM orbital Hessian block
-    ``H_ai,bj = <[[H, E_ai - E_ia], E_bj - E_jb]>`` (rows a,i; columns b,j) as
-    explicit occ/vir-block JSONL IR. ``col_species`` defaults to ``row_species``.
-    Electron same-species is supported for electronic and NEO models (the e-p coupling
-    gep is added via the hand-derived _GEP_HESS_TERMS); the e-p cross block and proton
-    rows are the follow-up (bare proton core).
+    """Fixed-RDM orbital Hessian block ``H_ai,bj = d2E/dkappa_ai dkappa_bj`` (rows a,i;
+    columns b,j) as explicit occ/vir-block JSONL IR. ``col_species`` defaults to
+    ``row_species``. All three blocks are emitted for NEO -- electron-electron,
+    proton-proton, and the electron-proton cross block -- and all are
+    finite-difference-verified.
 
-    .. warning::
-       **This is NOT currently the second derivative of the energy -- do not use it.**
-       The orbital GRADIENT is now finite-difference-verified as the exact dE/dkappa
-       (see models_test.test_orbital_gradient_finite_difference), but the Hessian built
-       from the same double commutator disagrees with d2E/dkappa2: it is not even
-       symmetric under (a,i)<->(b,j), while the true fixed-RDM Hessian is exactly
-       symmetric, and no rescaling or symmetrization of it reproduces the
-       finite-difference Hessian. ``orbital_hessian_diag_ir`` does not reproduce the FD
-       diagonal either. This is a deeper defect than the D2 re-pairing that was fixed in
-       the gradient (see :func:`_d2_to_consumer`) -- most likely the unsymmetrized
-       ``<[[H, A], B]>`` needs the ``1/2 (<[[H,A],B]> + <[[H,B],A]>)`` symmetrization
-       plus the ``<[H, [A,B]]>`` term -- and is not yet diagnosed. ``orbital_sigma_ir``
-       comes from the same commutator and is presumed affected."""
+    The Hessian is the SECOND derivative of the fixed-RDM energy, obtained by rotation-
+    differentiating it twice (see :func:`_same_species_hessian`) -- NOT from pq_helper's
+    double commutator, whose two-body piece is wrong (the single commutator is fine) and
+    which emitted the UNSYMMETRIZED ``<[[H,A],B]>``: that is not symmetric under
+    (a,i)<->(b,j), while the true fixed-RDM Hessian is exactly symmetric. Finite-difference
+    verified (models_test.test_orbital_gradient_finite_difference), as are the diagonal and
+    the sigma product, which share this term source."""
     if col_species is None:
         col_species = row_species
     if row_species not in _ROT_ROW or col_species not in _ROT_COL:
@@ -1315,33 +1277,12 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"
             raise NotImplementedError(
                 "only the (electron, proton) cross block is emitted; the "
                 "(proton, electron) block is its transpose")
-        return _block_resolve(_GEP_CROSS_HESS_TERMS, label, ["a", "nb", "i", "nj"])
-    if row_species == "proton":                        # fully hand-derived (see terms)
+        return _block_resolve(_cross_hessian_terms(name), label, ["a", "nb", "i", "nj"])
+    if row_species == "proton":
         if not is_neo:
             raise ValueError("proton-species orbital Hessian requires a NEO model")
-        ai, ia = _ROT_ROW["electron"]                  # h_p Hessian = electron h-only, relabeled
-        bj, jb = _ROT_COL["electron"]
-        pq = pq_helper("true")
-        pq.set_use_rdms(True)
-        for x, sx in ((ai, 1.0), (ia, -1.0)):
-            for y, sy in ((bj, 1.0), (jb, -1.0)):
-                pq.add_double_commutator(sx * sy, ["h"], [x], [y])
-        pq.simplify()
-        terms = [_relabel_e2p(" ".join(t)) for t in pq.strings()] + _GEP_PROTON_HESS_TERMS
-        return _block_resolve(terms, label, ["na", "nb", "ni", "nj"])
-    ai, ia = _ROT_ROW["electron"]
-    bj, jb = _ROT_COL["electron"]
-    pq = pq_helper("true")
-    pq.set_use_rdms(True)
-    for op, c in _bare_H(name, "electron"):
-        for x, sx in ((ai, 1.0), (ia, -1.0)):
-            for y, sy in ((bj, 1.0), (jb, -1.0)):
-                pq.add_double_commutator(c * sx * sy, [op], [x], [y])
-    pq.simplify()
-    terms = _d2_to_consumer(" ".join(t) for t in pq.strings())
-    if is_neo:
-        terms += _GEP_HESS_TERMS                        # NEO: hand-derived e-p coupling
-    return _block_resolve(terms, label, ["a", "b", "i", "j"])
+        return _block_resolve(_proton_hessian_terms(name), label, ["na", "nb", "ni", "nj"])
+    return _block_resolve(_electron_hessian_terms(name), label, ["a", "b", "i", "j"])
 
 
 # einsum-char relabel taking the column rotation indices onto the row (the diagonal)
@@ -1419,36 +1360,119 @@ def _sigma_from_hessian(hess_lines, row_pos, col_pos, trial, label, seen):
     return out
 
 
-def _electron_hessian_terms(name):
-    """Bare-form electron-electron Hessian algebra <[[h + 1/2 g (+ gep), E_ai - E_ia],
-    E_bj - E_jb]> (rows a,i; columns b,j)."""
-    ai, ia = _ROT_ROW["electron"]
-    bj, jb = _ROT_COL["electron"]
-    pq = pq_helper("true")
-    pq.set_use_rdms(True)
-    for op, c in _bare_H(name, "electron"):
-        for x, sx in ((ai, 1.0), (ia, -1.0)):
-            for y, sy in ((bj, 1.0), (jb, -1.0)):
-                pq.add_double_commutator(c * sx * sy, [op], [x], [y])
-    pq.simplify()
-    terms = _d2_to_consumer(" ".join(t) for t in pq.strings())
+# ---------------------------------------------------------------------------------
+# Orbital gradient/Hessian by ROTATION-DIFFERENTIATING THE FIXED-RDM ENERGY.
+#
+# The orbital gradient and Hessian ARE the first and second derivatives of the energy
+# that energy_from_rdm_ir traces, taken at FIXED RDMs with the integrals rotated by
+# exp(kappa). Deriving them that way -- rather than from pq_helper's commutators --
+# gives h, g AND gep uniformly from one rule, and is what the finite-difference test
+# checks. It replaces (a) pq_helper's DOUBLE commutator, whose two-body piece is wrong
+# (the single one is fine), (b) the unsymmetrized <[[H,A],B]> that the Hessian used to
+# emit, and (c) the hand-derived _GEP_*_HESS_TERMS.
+#
+# Guarded by models_test.test_orbital_gradient_finite_difference.
+# ---------------------------------------------------------------------------------
+
+_ROT_INTEGRALS = ("h", "f", "g")     # these rotate; the RDMs (D*) are FIXED; d is a delta
+
+
+def _energy_bare_terms(name):
+    """The fixed-RDM energy in bare form -- the quantity the orbital gradient/Hessian
+    differentiate. _block_resolve maps the all-proton h/D1 to hp/D1_n and the mixed g/D2
+    to gep/D2_ep. The D2 pairing is the CONSUMER's (last two slots swapped vs g), i.e.
+    the same [0,1,3,2] pairing energy_from_rdm_ir uses. h/hp are the BARE cores (see the
+    contract on energy_from_rdm_ir): every mean field comes from the two-body terms."""
+    terms = ["1.0 h(p,q) D1(p,q)",
+             "0.5 g(p,q,r,s) D2(p,q,s,r)"]
     if any(op in model(name).H for op in ("fp", "gep")):
-        terms += _GEP_HESS_TERMS
+        terms += ["1.0 h(np,nq) D1(np,nq)",                 # -> hp . D1_n
+                  "1.0 g(p,np,q,nq) D2(np,p,q,nq)"]         # -> gep . D2_ep
     return terms
 
 
+def _rot_deriv(terms, vir, occ, species):
+    """d/dkappa^{species}_{vir,occ} of each bare-form term, at FIXED RDMs.
+
+    Only the INTEGRALS rotate. For an integral slot carrying an index ``l`` of this
+    species, the rotated tensor's derivative contributes::
+
+        + delta(l, occ) * [that slot -> vir]   - delta(l, vir) * [that slot -> occ]
+
+    A general (summed) ``l`` lets the delta collapse: every OTHER occurrence of ``l`` in
+    the term becomes the constrained index. An external ``l`` (the row's own a/i) keeps an
+    explicit Kronecker ``d(l, .)`` -- which is where the Hessian's delta terms come from.
+    Applying this twice gives the second derivative (chain rule through the slots)."""
+    out = []
+    for term in terms:
+        coeff, tensors = _parse_rdm_term(term)
+        for ti, (nm, idx) in enumerate(tensors):
+            if nm not in _ROT_INTEGRALS:
+                continue
+            for s, l in enumerate(idx):
+                sp, fx = _classify_letter(l)
+                if sp != species:
+                    continue
+                for sgn, put, cons in ((+1.0, vir, occ), (-1.0, occ, vir)):
+                    new = [(n, list(ix)) for n, ix in tensors]
+                    new[ti][1][s] = put
+                    extra = []
+                    if fx is None:                       # general -> collapse the delta
+                        for k, (n, ix) in enumerate(new):
+                            for m in range(len(ix)):
+                                if (k, m) != (ti, s) and ix[m] == l:
+                                    ix[m] = cons
+                    else:                                # external -> explicit Kronecker
+                        extra = [("d", [l, cons])]
+                    body = " ".join(f"{n}({','.join(ix)})" for n, ix in new + extra)
+                    out.append(f"{sgn * coeff} {body}")
+    return out
+
+
+def _swap_labels(terms, pairs):
+    """Swap index labels pairwise in every term (used to symmetrize the Hessian)."""
+    m = {}
+    for x, y in pairs:
+        m[x] = y
+        m[y] = x
+    out = []
+    for term in terms:
+        coeff, tensors = _parse_rdm_term(term)
+        body = " ".join(f"{n}({','.join(m.get(l, l) for l in ix)})" for n, ix in tensors)
+        out.append(f"{coeff} {body}")
+    return out
+
+
+def _halve(terms):
+    return [f"{0.5 * _parse_rdm_term(t)[0]} " + t.split(None, 1)[1] for t in terms]
+
+
+def _same_species_hessian(name, vir, occ, vir2, occ2, species):
+    """d2E/dkappa2 for one species. The two rotation generators do NOT commute, so the
+    second derivative of exp(kappa) is the SYMMETRIZED double derivative
+    1/2 (M + M^T) -- emitting M alone (as the old double-commutator route did) is not
+    the Hessian and is not even symmetric under (row)<->(col)."""
+    G = _rot_deriv(_energy_bare_terms(name), vir, occ, species)
+    M = _rot_deriv(G, vir2, occ2, species)
+    return _halve(M) + _halve(_swap_labels(M, [(vir, vir2), (occ, occ2)]))
+
+
+def _electron_hessian_terms(name):
+    """Fixed-RDM electron-electron orbital Hessian (rows a,i; cols b,j)."""
+    return _same_species_hessian(name, "a", "i", "b", "j", "e")
+
+
 def _proton_hessian_terms(name):
-    """Bare-form proton-proton Hessian algebra: the proton core piece (electron h-only
-    Hessian relabeled e->p) plus the gep proton-rotation terms (rows na,ni; cols nb,nj)."""
-    ai, ia = _ROT_ROW["electron"]
-    bj, jb = _ROT_COL["electron"]
-    pq = pq_helper("true")
-    pq.set_use_rdms(True)
-    for x, sx in ((ai, 1.0), (ia, -1.0)):
-        for y, sy in ((bj, 1.0), (jb, -1.0)):
-            pq.add_double_commutator(sx * sy, ["h"], [x], [y])
-    pq.simplify()
-    return [_relabel_e2p(" ".join(t)) for t in pq.strings()] + _GEP_PROTON_HESS_TERMS
+    """Fixed-RDM proton-proton orbital Hessian (rows na,ni; cols nb,nj)."""
+    return _same_species_hessian(name, "na", "ni", "nb", "nj", "p")
+
+
+def _cross_hessian_terms(name):
+    """Fixed-RDM electron-proton CROSS Hessian d2E/dkappa^e_ai dkappa^p_nbNj. The
+    electron and proton rotation generators act on different species and COMMUTE, so the
+    mixed partial needs no symmetrization. Only gep survives (h/g/hp carry one species)."""
+    G = _rot_deriv(_energy_bare_terms(name), "a", "i", "e")
+    return _rot_deriv(G, "nb", "nj", "p")
 
 
 def orbital_sigma_ir(name, species="electron", rotation_classes=("o", "v"), internal="active",
@@ -1495,7 +1519,8 @@ def orbital_sigma_ir(name, species="electron", rotation_classes=("o", "v"), inte
         res = []                                          #                sigma^p += (H^ep)^T.kappa^e
         for ehi, elo in _rotation_blocks(rotation_classes, "electron"):
             for phi, plo in _rotation_blocks(rotation_classes, "proton"):
-                cr = _block_resolve(_GEP_CROSS_HESS_TERMS, "H", ["a", "nb", "i", "nj"], drop_inactive_rdm=True,
+                cr = _block_resolve(_cross_hessian_terms(name), "H", ["a", "nb", "i", "nj"],
+                                    drop_inactive_rdm=True,
                                     ext_classes={"a": ehi, "i": elo, "nb": phi, "nj": plo})
                 if row_sp == "electron":                  # row = electron (a,i); contract proton col (nb,nj)
                     rsuf = "" if single else f'["{ehi}{elo}"]'
