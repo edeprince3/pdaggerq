@@ -296,121 +296,23 @@ def test_energy_from_rdm():
     assert abs(E - ref) < 1e-10, (E, ref)
 
     # ---- FULL-ENERGY IDENTITY (the end-to-end guard) --------------------------------
-    # Contract EVERY rdm_block_ir block through energy_from_rdm_ir and assert the total
-    # equals the CC Lagrangian <(1+L) e^-T H e^T> built independently from pq.strings.
-    # This is what the per-block / per-family checks miss: rdm_block_ir and
-    # energy_from_rdm_ir are separate functions and only their MUTUAL consistency for the
-    # whole energy pins the coefficients + index pairings (a wrong g.D2 slot pairing, a
-    # wrong gep sign, or a pq_graph-corrupted D1_n all show up here and nowhere else).
-    #
-    # Ground truth needs no HF reconstruction: with the RAW H (no gep-trace removal),
-    #     <(1+L)(f + v + fp + gep)> == h.D1 + 1/2 g.D2 + hp.D1_n + gep.D2_ep
-    # when h = f - mf_ee (mf_ee[p,q] = sum_i <p,i||q,i>), hp = fp, g = plain <pq|rs>.
-    # f/fp are arbitrary symmetric matrices. Holds at ARBITRARY amplitudes.
-    import pdaggerq
-    from collections import defaultdict
-    no3, nv3, nO3, nV3 = 2, 2, 1, 2
-    ne3, np3 = no3 + nv3, nO3 + nV3
-    sle = {"o": slice(0, no3), "v": slice(no3, ne3)}
-    slp = {"O": slice(0, nO3), "V": slice(nO3, np3)}
-    D3 = {"o": no3, "v": nv3, "O": nO3, "V": nV3}
-    rg = np.random.default_rng(17)
-    fe = rg.standard_normal((ne3, ne3)); fe = fe + fe.T
-    fpp = rg.standard_normal((np3, np3)); fpp = fpp + fpp.T
-    cq = rg.standard_normal((ne3,) * 4)
-    cq = cq + cq.transpose(1, 0, 2, 3); cq = cq + cq.transpose(0, 1, 3, 2); cq = cq + cq.transpose(2, 3, 0, 1)
-    phs = cq.transpose(0, 2, 1, 3); eri3 = phs - phs.transpose(0, 1, 3, 2)   # antisym <pq||rs>
-    gp3 = rg.standard_normal((ne3, np3, ne3, np3)); gp3 = gp3 + gp3.transpose(2, 3, 0, 1)
-    mf_ee = np.einsum("piqi->pq", eri3[:, sle["o"], :, sle["o"]])
-    h3, hp3 = fe - mf_ee, fpp
-
-    def spc3(l):
-        nuc = len(l) > 1 and l[0] == "n"
-        b = l[1] if nuc else l[0]
-        occ = b.lower() in "ijklmno"
-        return ("O" if occ else "V") if nuc else ("o" if occ else "v")
-
-    def sl3(l):
-        return slp[spc3(l)] if spc3(l) in "OV" else sle[spc3(l)]
-
-    def asym3(a, cl):
-        out = a.copy(); grp = defaultdict(list)
-        for ax, c in enumerate(cl): grp[c].append(ax)
-        for c, axes in grp.items():
-            if len(axes) >= 2:
-                P = list(itertools.permutations(range(len(axes)))); acc = np.zeros_like(out)
-                for pm in P:
-                    par = sum(1 for i in range(len(pm)) for j in range(i + 1, len(pm)) if pm[i] > pm[j]) & 1
-                    src = list(range(out.ndim))
-                    for k, ax in enumerate(axes): src[ax] = axes[pm[k]]
-                    acc += (-1 if par else 1) * np.transpose(out, src)
-                out = acc / len(P)
-        return out
-
-    AM = {}
-    def amp3(nm, cls):
-        if nm not in AM:
-            AM[nm] = asym3(rg.standard_normal(tuple(D3[c] for c in cls)), list(cls))
-        return AM[nm]
-
-    def interp3(ir, tgt):
-        prod = {s["target"]["name"] for s in ir}; st = {}
-        def val(op):
-            nm = op["name"]
-            if nm in prod and nm in st: return st[nm]
-            if nm.startswith("Id["): return np.eye(D3[op["classes"][0]])
-            return amp3(nm, op["classes"])
-        for s in ir:
-            oi = "".join(s["target"]["indices"]); sub = ",".join("".join(x["indices"]) for x in s["operands"])
-            cc = s["coeff"] * np.einsum(sub + "->" + oi, *[val(x) for x in s["operands"]], optimize=True)
-            st[s["target"]["name"]] = cc.copy() if s["is_assignment"] else st[s["target"]["name"]] + cc
-        return st[tgt]
-
+    # models.rdm_energy_reference IS the published consumer contract (its docstring
+    # together with energy_from_rdm_ir's): it builds h/hp/g/gep from raw randoms per
+    # the documented recipe (h = f - mf_ee so the e-p mean field stays in h; hp = fp
+    # dressed and unchanged; g plain physicist; gep the equations' own signed tensor),
+    # evaluates every rdm_block_ir block plus the energy_from_rdm_ir trace, and
+    # independently evaluates the raw <(1+L)H> Lagrangian from pq.strings. Asserting
+    # their agreement here pins the contract; a wrong g.D2 slot pairing, a wrong gep
+    # sign, or a pq_graph-corrupted D1_n all show up here and nowhere else.
     for mdl in ("ccsd", "neo-ccd(ep)"):
-        m = models.model(mdl)
-        pq = pdaggerq.pq_helper("fermi")
-        pq.set_left_operators([["1"]] + [[l] for l in models.lambda_amps(mdl)])
-        for oper in m.H:                          # RAW H: no remove_gep_reference_traces
-            pq.add_st_operator(1.0, [oper], list(m.T))
-        pq.simplify()
-        L = 0.0
-        for term in pq.strings():
-            cf = float(term[0]); ops = []; sub = []; lts = {}
-            for tok in term[1:]:
-                if tok.startswith("<"):
-                    idx = tok[1:-1].replace("||", ",").split(","); arr = eri3[tuple(sl3(i) for i in idx)]
-                elif "(" in tok:
-                    nm = tok[:tok.index("(")]; idx = tok[tok.index("(") + 1:-1].split(",")
-                    if nm == "f":   arr = (fpp if spc3(idx[0]) in "OV" else fe)[tuple(sl3(i) for i in idx)]
-                    elif nm == "g": arr = gp3[tuple(sl3(i) for i in idx)]
-                    elif nm == "d": arr = np.eye(D3[spc3(idx[0])])
-                    else:           arr = amp3(nm, [spc3(i) for i in idx])
-                else:
-                    continue
-                ops.append(arr); sub.append("".join(lts.setdefault(i, chr(65 + len(lts))) for i in idx))
-            L += cf * (np.einsum(",".join(sub) + "->", *ops, optimize=True) if ops else 1.0)
-
-        cache = {}
-        def getD(base, blk, cls):
-            if (base, blk) not in cache:
-                ir = einsums.parse_ir(models.rdm_block_ir(mdl, base, blk))
-                cache[(base, blk)] = interp3(ir, f'{base}["{blk}"]') if ir \
-                    else np.zeros(tuple(D3[c] for c in cls))
-            return cache[(base, blk)]
-
-        E_rdm = 0.0
-        for line in models.energy_from_rdm_ir(mdl):
-            st = json.loads(line); ts = []
-            for op in st["operands"]:
-                base = op["name"].split('["')[0]; blk = op["name"].split('"')[1]
-                if base == "h":     ts.append(h3[sle[blk[0]], sle[blk[1]]])
-                elif base == "hp":  ts.append(hp3[slp[blk[0]], slp[blk[1]]])
-                elif base == "g":   ts.append(phs[tuple(sle[c] for c in blk)])
-                elif base == "gep": ts.append(gp3[sle[blk[0]], slp[blk[1]], sle[blk[2]], slp[blk[3]]])
-                else:               ts.append(getD(base, blk, op["classes"]))
-            sub = ",".join("".join(op["indices"]) for op in st["operands"])
-            E_rdm += st["coeff"] * float(np.einsum(sub + "->", *ts, optimize=True))
-        assert abs(L - E_rdm) < 1e-9, (mdl, L, E_rdm)
+        ref = models.rdm_energy_reference(mdl)
+        assert abs(ref["E_lagrangian"] - ref["E_rdm"]) < 1e-9, \
+            (mdl, ref["E_lagrangian"], ref["E_rdm"])
+        # contract spot-checks a consumer can mirror byte-for-byte
+        assert np.allclose(ref["h"], ref["f"] - ref["mf_ee"])
+        if "hp" in ref:
+            assert np.allclose(ref["hp"], ref["fp"])          # dressed fp, unchanged
+            assert any(b == "D2_ep" for b, _ in ref["rdm"]), sorted(ref["rdm"])
 
     print("test_energy_from_rdm OK")
 

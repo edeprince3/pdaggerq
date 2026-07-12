@@ -96,7 +96,8 @@ __all__ = [
     "lambda_graph", "lambda_ir",
     "gradient_graph", "gradient_ir",
     "rdm_graph", "rdm_ir", "rdm_block_ir",
-    "energy_from_rdm_ir",
+    "energy_from_rdm_ir", "rdm_energy_reference",
+    "equations_graph", "equations_ir",
     "orbital_gradient_ir",
     "orbital_hessian_ir", "orbital_hessian_diag_ir", "orbital_sigma_ir",
 ]
@@ -705,13 +706,193 @@ _ENERGY_PP = [(0.5, "pppp", [("vp", [0, 1, 2, 3]), ("D2_n", [0, 1, 3, 2])])]
 def energy_from_rdm_ir(name, label="E"):
     """The ground-state energy ``<H> = h.D1 + 1/2 g.D2`` (+ NEO proton/e-p terms) as
     explicit occ/vir-block JSONL IR (see the block-contraction note above). Returns
-    the total ``<H>``; subtract the reference energy for the correlation part."""
+    the total ``<H>``; subtract the reference energy for the correlation part.
+
+    CONSUMER CONTRACT -- how to build the integral inputs from raw MO quantities so
+    this IR reproduces ``<(1+Lambda) H>`` exactly (guarded by
+    ``models_test.test_energy_from_rdm`` via :func:`rdm_energy_reference`). All
+    formulas are in SPIN-ORBITAL form; a spatial-orbital (restricted) consumer must
+    insert its own spin summation factors (e.g. the electron occupied sums below
+    become ``2 * sum_i(spatial)`` for closed shells).
+
+    Identity (holds at ARBITRARY amplitudes/multipliers, reference included)::
+
+        <(1+L) (f + v + fp + gep)>  ==  h.D1 + 1/2 g.D2 + hp.D1_n + gep.D2_ep
+
+    where f/v/fp/gep are the operators of the *generated equations* (the dressed
+    NEO-HF normal-ordered Hamiltonian, with gep's reference traces NOT removed on
+    the left side) and the right side uses:
+
+    * ``h  = f - mf_ee`` with ``mf_ee[p,q] = sum_{i in occ_e} <pi||qi>``
+      (ANTISYMMETRIZED electron mean field, exchange included).
+      Since the dressed ``f = hcore_e + mf_ee + mf_ep``, this means
+      ``h = hcore_e + mf_ep``: the electron-proton mean field STAYS in ``h``.
+      ``mf_ep[p,q] = sum_{I in occ_p} gep[p,I,q,I]`` (signed gep, see below; no
+      exchange between distinguishable species).
+    * ``hp = fp`` UNCHANGED -- the dressed proton Fock exactly as fed to the
+      equations: ``fp = hcore_p + mf_pe`` with
+      ``mf_pe[P,Q] = sum_{i in occ_e} gep[i,P,i,Q]`` (all occupied electron
+      spin-orbitals; for one quantum proton there is no proton-proton mean field).
+      The e-p mean field therefore appears in BOTH ``h`` and ``hp``; do NOT
+      hand-correct for double counting -- the compensation is inside the RDM
+      block coefficients and the identity above is exact as stated.
+    * ``g = plain physicist <pq|rs>`` (NOT antisymmetrized; the antisymmetry lives
+      in D2, hence the 1/2). Slot pairing as emitted: ``g[abcd] . D2[abdc]``
+      (D2's last two slots swapped), with ``D2[pqsr] = <p+ q+ r s>``.
+    * ``gep`` is the SAME tensor fed to the residual/energy equations, in slot
+      order ``(e, P, e', P')`` -- pdaggerq attaches no charge factor to it (the
+      equations are charge-agnostic), so the physical sign is the consumer's:
+      for electron-proton, ``gep[p,P,q,Q] = -(pq|PQ)`` (attractive; chemist
+      notation), i.e. ``-<pP|qQ>`` physicist; ``+`` for a negative muon. Whatever
+      sign convention the ground-state equations were converged with MUST be used
+      here too, including inside ``mf_ep``/``mf_pe`` above. ``E_ep`` enters as
+      ``+ gep . D2_ep`` with the pairing encoded in the emitted statement indices
+      (D2_ep consumer layout is ``(P, E, E', P')``).
+    """
     H = model(name).H
     is_neo = any(op in H for op in ("fp", "gep"))
     terms = _ENERGY_NEO if is_neo else _ENERGY_ELEC
     if "vp" in H:                                     # >=2 quantum protons: p-p two-body
         terms = terms + _ENERGY_PP
     return _emit_block_terms(terms, (label, []))
+
+
+def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
+    """Numeric byte-check reference for the RDM->energy consumer contract (see
+    :func:`energy_from_rdm_ir`). Builds random symmetric integrals and arbitrary
+    (antisymmetrized) amplitudes at tiny dimensions, evaluates every
+    :func:`rdm_block_ir` block and the :func:`energy_from_rdm_ir` trace, and
+    independently evaluates the CC Lagrangian ``<(1+Lambda) H>`` from the raw
+    ``pq.strings`` -- the two must agree to ~1e-9.
+
+    Returns a dict with every array a consumer needs to verify its own
+    construction step by step: ``f``, ``fp``, ``eri`` (antisym ``<pq||rs>``),
+    ``g`` (plain physicist ``<pq|rs>``), ``gep`` (``(e,P,e',P')``), ``mf_ee``,
+    ``h``, ``hp``, ``amps`` ({name: array}), ``rdm`` ({(base, block): array}),
+    and the scalars ``E_rdm`` / ``E_lagrangian``. Deterministic in ``seed``.
+    Note: electron-only models ignore ``nO``/``nV`` and the proton arrays are
+    absent from the result."""
+    import itertools, json
+    import numpy as np
+    from collections import defaultdict
+
+    m = model(name)
+    is_neo = any(op in m.H for op in ("fp", "gep"))
+    ne, npr = no + nv, nO + nV
+    sle = {"o": slice(0, no), "v": slice(no, ne)}
+    slp = {"O": slice(0, nO), "V": slice(nO, npr)}
+    D = {"o": no, "v": nv, "O": nO, "V": nV}
+    rg = np.random.default_rng(seed)
+
+    f = rg.standard_normal((ne, ne)); f = f + f.T
+    fp = rg.standard_normal((npr, npr)); fp = fp + fp.T
+    cq = rg.standard_normal((ne,) * 4)                     # chemist (pq|rs) symmetries
+    cq = cq + cq.transpose(1, 0, 2, 3); cq = cq + cq.transpose(0, 1, 3, 2)
+    cq = cq + cq.transpose(2, 3, 0, 1)
+    g = cq.transpose(0, 2, 1, 3)                           # physicist <pq|rs>
+    eri = g - g.transpose(0, 1, 3, 2)                      # antisym <pq||rs>
+    gep = rg.standard_normal((ne, npr, ne, npr))
+    gep = gep + gep.transpose(2, 3, 0, 1)                  # hermitian e-p tensor
+    mf_ee = np.einsum("piqi->pq", eri[:, sle["o"], :, sle["o"]])
+    h, hp = f - mf_ee, fp
+
+    def spc(l):
+        nuc = len(l) > 1 and l[0] == "n"
+        b = l[1] if nuc else l[0]
+        occ = b.lower() in "ijklmno"
+        return ("O" if occ else "V") if nuc else ("o" if occ else "v")
+
+    def sl(l):
+        return slp[spc(l)] if spc(l) in "OV" else sle[spc(l)]
+
+    def asym(a, cl):
+        out = a.copy(); grp = defaultdict(list)
+        for ax, c in enumerate(cl): grp[c].append(ax)
+        for c, axes in grp.items():
+            if len(axes) >= 2:
+                P = list(itertools.permutations(range(len(axes)))); acc = np.zeros_like(out)
+                for pm in P:
+                    par = sum(1 for i in range(len(pm)) for j in range(i + 1, len(pm))
+                              if pm[i] > pm[j]) & 1
+                    src = list(range(out.ndim))
+                    for k, ax in enumerate(axes): src[ax] = axes[pm[k]]
+                    acc += (-1 if par else 1) * np.transpose(out, src)
+                out = acc / len(P)
+        return out
+
+    amps = {}
+    def amp(nm, cls):
+        if nm not in amps:
+            amps[nm] = asym(rg.standard_normal(tuple(D[c] for c in cls)), list(cls))
+        return amps[nm]
+
+    def interp(ir, tgt):
+        prod = {s["target"]["name"] for s in ir}; st = {}
+        def val(op):
+            nm = op["name"]
+            if nm in prod and nm in st: return st[nm]
+            if nm.startswith("Id["): return np.eye(D[op["classes"][0]])
+            return amp(nm, op["classes"])
+        for s in ir:
+            oi = "".join(s["target"]["indices"])
+            sub = ",".join("".join(x["indices"]) for x in s["operands"])
+            cc = s["coeff"] * np.einsum(sub + "->" + oi,
+                                        *[val(x) for x in s["operands"]], optimize=True)
+            st[s["target"]["name"]] = cc.copy() if s["is_assignment"] else st[s["target"]["name"]] + cc
+        return st[tgt]
+
+    # left side: <(1+Lambda) H> from the RAW strings (gep traces NOT removed)
+    pq = pq_helper("fermi")
+    pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])
+    for oper in m.H:
+        pq.add_st_operator(1.0, [oper], list(m.T))
+    pq.simplify()
+    L = 0.0
+    for term in pq.strings():
+        cf = float(term[0]); ops = []; sub = []; lts = {}
+        for tok in term[1:]:
+            if tok.startswith("<"):
+                idx = tok[1:-1].replace("||", ",").split(","); arr = eri[tuple(sl(i) for i in idx)]
+            elif "(" in tok:
+                nm = tok[:tok.index("(")]; idx = tok[tok.index("(") + 1:-1].split(",")
+                if nm == "f":   arr = (fp if spc(idx[0]) in "OV" else f)[tuple(sl(i) for i in idx)]
+                elif nm == "g": arr = gep[tuple(sl(i) for i in idx)]
+                elif nm == "d": arr = np.eye(D[spc(idx[0])])
+                else:           arr = amp(nm, [spc(i) for i in idx])
+            else:
+                continue
+            ops.append(arr); sub.append("".join(lts.setdefault(i, chr(65 + len(lts))) for i in idx))
+        L += cf * (np.einsum(",".join(sub) + "->", *ops, optimize=True) if ops else 1.0)
+
+    # right side: every rdm_block_ir block traced through energy_from_rdm_ir
+    from . import einsums as _einsums
+    rdm = {}
+    def getD(base, blk, cls):
+        if (base, blk) not in rdm:
+            ir = _einsums.parse_ir(rdm_block_ir(name, base, blk))
+            rdm[(base, blk)] = interp(ir, f'{base}["{blk}"]') if ir \
+                else np.zeros(tuple(D[c] for c in cls))
+        return rdm[(base, blk)]
+
+    E_rdm = 0.0
+    for line in energy_from_rdm_ir(name):
+        st = json.loads(line); ts = []
+        for op in st["operands"]:
+            base = op["name"].split('["')[0]; blk = op["name"].split('"')[1]
+            if base == "h":     ts.append(h[sle[blk[0]], sle[blk[1]]])
+            elif base == "hp":  ts.append(hp[slp[blk[0]], slp[blk[1]]])
+            elif base == "g":   ts.append(g[tuple(sle[c] for c in blk)])
+            elif base == "gep": ts.append(gep[sle[blk[0]], slp[blk[1]], sle[blk[2]], slp[blk[3]]])
+            else:               ts.append(getD(base, blk, op["classes"]))
+        sub = ",".join("".join(op["indices"]) for op in st["operands"])
+        E_rdm += st["coeff"] * float(np.einsum(sub + "->", *ts, optimize=True))
+
+    out = {"f": f, "eri": eri, "g": g, "mf_ee": mf_ee, "h": h,
+           "amps": amps, "rdm": rdm, "E_rdm": E_rdm, "E_lagrangian": L,
+           "dims": {"o": no, "v": nv, "O": nO, "V": nV}}
+    if is_neo:
+        out.update({"fp": fp, "gep": gep, "hp": hp})
+    return out
 
 
 # vir-occ rotation generators E_ai - E_ia per species. Row and column use distinct
