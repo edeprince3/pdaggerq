@@ -108,6 +108,8 @@ def function_initialization_string(extra_class = ""):
         extra_class += "."
     ret_string = \
 f"""
+    import numpy as np
+    from numpy import einsum
     t1 = {{}}
     t1['aa'] = self.{extra_class}t1_aa
     t1['bb'] = self.{extra_class}t1_bb
@@ -186,7 +188,7 @@ f"""
 
     return ret_string
 
-def cc_residual(residual_name, T, L, function_name, spin_block = True):
+def cc_residual(residual_name, T, L, function_name, spin_block = True, write_function = False):
     """
     derive equations for CC residual
 
@@ -195,6 +197,7 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True):
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
     """
 
     if not spin_block:
@@ -239,8 +242,6 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True):
     # initialization statements
     generated_code_string = \
 f"""
-import numpy as np
-from numpy import einsum
 def {function_name}(self):
 """
     generated_code_string += function_initialization_string()
@@ -259,12 +260,15 @@ def {function_name}(self):
         generated_code_string += f"    return {residual_name}"
 
     # write function 
-    with open(f"generated_equations/{function_name}.py", "w") as file:
-        file.write(generated_code_string)
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
 
     del pq
 
-def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = True):
+    return generated_code_string
+
+def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = True, write_function = False):
     """
     derive equations for UCCSD singles residual, truncation based on perturbation order
 
@@ -273,6 +277,7 @@ def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = 
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
     """
 
     if not spin_block:
@@ -333,8 +338,6 @@ def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = 
     # initialization statements
     generated_code_string = \
 f"""
-import numpy as np
-from numpy import einsum
 def {function_name}(self):
 """
     generated_code_string += function_initialization_string()
@@ -346,12 +349,15 @@ def {function_name}(self):
     generated_code_string += f"    return {residual_name}_aa, {residual_name}_bb"
 
     # write function 
-    with open(f"generated_equations/{function_name}.py", "w") as file:
-        file.write(generated_code_string)
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
 
     del pq
 
-def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = True):
+    return generated_code_string
+
+def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = True, write_function = False):
     """
     derive equations for UCCSD doubles residual, truncation based on perturbation order
 
@@ -360,6 +366,7 @@ def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = 
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
     """
 
     if not spin_block:
@@ -426,8 +433,6 @@ def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = 
     # initialization statements 
     generated_code_string = \
 f"""
-import numpy as np
-from numpy import einsum
 def {function_name}(self):
 """ 
     generated_code_string += function_initialization_string()
@@ -439,12 +444,15 @@ def {function_name}(self):
     generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb"
     
     # write function 
-    with open(f"generated_equations/{function_name}.py", "w") as file:
-        file.write(generated_code_string)
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
 
     del pq
 
-def uccsd_energy(order, energy_name, function_name, spin_block = True):
+    return generated_code_string
+
+def uccsd_energy(order, energy_name, function_name, spin_block = True, write_function = False):
     """
     derive equations for UCCSD energy, truncation based on perturbation order
 
@@ -452,6 +460,7 @@ def uccsd_energy(order, energy_name, function_name, spin_block = True):
     :param energy_name: name for the variable representing the energy
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
     """
 
     if not spin_block:
@@ -525,8 +534,6 @@ def uccsd_energy(order, energy_name, function_name, spin_block = True):
     # initialization statements 
     generated_code_string = \
 f"""    
-import numpy as np
-from numpy import einsum
 def {function_name}(self):
 """
     generated_code_string += function_initialization_string()
@@ -538,12 +545,15 @@ def {function_name}(self):
     generated_code_string += f"    return {energy_name}"
     
     # write function 
-    with open(f"generated_equations/{function_name}.py", "w") as file:
-        file.write(generated_code_string)
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
 
     del pq
 
-def cc3_triples_residual(residual_name, L, function_name, spin_block = True):
+    return generated_code_string
+
+def cc3_triples_residual(residual_name, L, function_name, spin_block = True, write_function = False):
     """
     derive equations for the CC3 triples residual
 
@@ -551,6 +561,7 @@ def cc3_triples_residual(residual_name, L, function_name, spin_block = True):
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
     """
 
     if not spin_block:
@@ -611,8 +622,6 @@ def cc3_triples_residual(residual_name, L, function_name, spin_block = True):
     # initialization statements 
     generated_code_string = \
 f"""    
-import numpy as np
-from numpy import einsum
 def {function_name}(self):
 """
     generated_code_string += function_initialization_string()
@@ -624,12 +633,15 @@ def {function_name}(self):
     generated_code_string += f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb"
     
     # write function 
-    with open(f"generated_equations/{function_name}.py", "w") as file:
-        file.write(generated_code_string)
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
 
     del pq
 
-def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True):
+    return generated_code_string
+
+def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True, write_function = False):
     """
     derive equations for lambda CC residual
 
@@ -639,6 +651,7 @@ def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True)
     :param R: excitation operator defining the projection
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
     """
 
     if not spin_block:
@@ -695,8 +708,6 @@ def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True)
     # initialization statements 
     generated_code_string = \
 f"""    
-import numpy as np
-from numpy import einsum
 def {function_name}(self):
 """
     generated_code_string += function_initialization_string()
@@ -715,12 +726,15 @@ def {function_name}(self):
         generated_code_string += f"    return {residual_name}"
 
     # write function 
-    with open(f"generated_equations/{function_name}.py", "w") as file:
-        file.write(generated_code_string)
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
 
     del pq
 
-def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True):
+    return generated_code_string
+
+def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True, write_function = False):
     """
     derive equations for lambda CC pseudoenergy
 
@@ -730,6 +744,7 @@ def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True):
     :param R: excitation operator defining the projection
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
     """
 
     if not spin_block:
@@ -777,8 +792,6 @@ def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True):
     # initialization statements 
     generated_code_string = \
 f"""    
-import numpy as np
-from numpy import einsum
 def {function_name}(self):
 """         
     generated_code_string += function_initialization_string()
@@ -790,12 +803,15 @@ def {function_name}(self):
     generated_code_string += f"    return {energy_name}"
 
     # write function 
-    with open(f"generated_equations/{function_name}.py", "w") as file:
-        file.write(generated_code_string)
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
 
     del pq
 
-def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True):
+    return generated_code_string
+
+def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True, write_function = False):
     """
     derive equations for left/right EOMCC sigma equations
     
@@ -805,6 +821,7 @@ def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True):
     :param R: list of right-hand operators
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
     """ 
 
     if not spin_block:
@@ -859,13 +876,8 @@ def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True):
     graph.optimize()
 
     # initialization statements 
-    generated_code_string = \
-f"""    
-import numpy as np
-from numpy import einsum
-"""
     if is_right:
-        generated_code_string += \
+        generated_code_string = \
 f"""
 def {function_name}(self, r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb):
     r1 = {{}}
@@ -877,7 +889,7 @@ def {function_name}(self, r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb):
     r2['bbbb'] = r2_bbbb
 """
     else:
-        generated_code_string += f"def {function_name}(self, l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb):"
+        generated_code_string = f"def {function_name}(self, l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb):"
 
     generated_code_string += function_initialization_string("ccsd")
 
@@ -914,8 +926,10 @@ f"""
             generated_code_string += f"    return {sigma_name}"
 
     # write function 
-    with open(f"generated_equations/{function_name}.py", "w") as file:
-        file.write(generated_code_string)
-
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
 
     del pq
+
+    return generated_code_string
