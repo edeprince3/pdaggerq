@@ -103,6 +103,89 @@ def block_by_spin(pq, eqname, ops, eqs):
         for term in pq.strings():
             print(term, flush=True)
 
+def function_initialization_string(extra_class = ""):
+    if extra_class != "":
+        extra_class += "."
+    ret_string = \
+f"""
+    t1 = {{}}
+    t1['aa'] = self.{extra_class}t1_aa
+    t1['bb'] = self.{extra_class}t1_bb
+    t2 = {{}}
+    t2['aaaa'] = self.{extra_class}t2_aaaa
+    t2['abab'] = self.{extra_class}t2_abab
+    t2['bbbb'] = self.{extra_class}t2_bbbb
+    t3 = {{}}
+    t3['aaaaaa'] = self.{extra_class}t3_aaaaaa
+    t3['aabaab'] = self.{extra_class}t3_aabaab
+    t3['abbabb'] = self.{extra_class}t3_abbabb
+    t3['bbbbbb'] = self.{extra_class}t3_bbbbbb
+    l1 = {{}}
+    l1['aa'] = self.{extra_class}l1_aa
+    l1['bb'] = self.{extra_class}l1_bb
+    l2 = {{}}
+    l2['aaaa'] = self.{extra_class}l2_aaaa
+    l2['abab'] = self.{extra_class}l2_abab
+    l2['bbbb'] = self.{extra_class}l2_bbbb
+    oa = self.{extra_class}oa
+    ob = self.{extra_class}ob
+    va = self.{extra_class}va
+    vb = self.{extra_class}vb
+    f = {{}}
+    f['aa_oo'] = self.{extra_class}f_aa[oa, oa]
+    f['aa_ov'] = self.{extra_class}f_aa[oa, va]
+    f['aa_vo'] = self.{extra_class}f_aa[va, oa]
+    f['aa_vv'] = self.{extra_class}f_aa[va, va]
+    f['bb_oo'] = self.{extra_class}f_bb[ob, ob]
+    f['bb_ov'] = self.{extra_class}f_bb[ob, vb]
+    f['bb_vo'] = self.{extra_class}f_bb[vb, ob]
+    f['bb_vv'] = self.{extra_class}f_bb[vb, vb]
+    eri = {{}}
+    eri['aaaa_oooo'] = self.{extra_class}g_aaaa[oa, oa, oa, oa]
+    eri['aaaa_oovo'] = self.{extra_class}g_aaaa[oa, oa, va, oa]
+    eri['aaaa_oovv'] = self.{extra_class}g_aaaa[oa, oa, va, va]
+    eri['aaaa_vooo'] = self.{extra_class}g_aaaa[va, oa, oa, oa]
+    eri['aaaa_vovo'] = self.{extra_class}g_aaaa[va, oa, va, oa]
+    eri['aaaa_vovv'] = self.{extra_class}g_aaaa[va, oa, va, va]
+    eri['aaaa_vvoo'] = self.{extra_class}g_aaaa[va, va, oa, oa]
+    eri['aaaa_vvvo'] = self.{extra_class}g_aaaa[va, va, va, oa]
+    eri['aaaa_vvvv'] = self.{extra_class}g_aaaa[va, va, va, va]
+    eri['abab_oooo'] = self.{extra_class}g_abab[oa, ob, oa, ob]
+    eri['abab_oovo'] = self.{extra_class}g_abab[oa, ob, va, ob]
+    eri['abab_oovv'] = self.{extra_class}g_abab[oa, ob, va, vb]
+    eri['abab_vooo'] = self.{extra_class}g_abab[va, ob, oa, ob]
+    eri['abab_vovo'] = self.{extra_class}g_abab[va, ob, va, ob]
+    eri['abab_vovv'] = self.{extra_class}g_abab[va, ob, va, vb]
+    eri['abab_vvoo'] = self.{extra_class}g_abab[va, vb, oa, ob]
+    eri['abab_vvvo'] = self.{extra_class}g_abab[va, vb, va, ob]
+    eri['abab_vvvv'] = self.{extra_class}g_abab[va, vb, va, vb]
+    eri['abba_oovo'] = -self.{extra_class}g_abab[oa, ob, oa, vb].transpose(0,1,3,2)
+    eri['abba_vovo'] = -self.{extra_class}g_abab[va, ob, oa, vb].transpose(0,1,3,2)
+    eri['abba_vvvo'] = -self.{extra_class}g_abab[va, vb, oa, vb].transpose(0,1,3,2)
+    eri['baab_vooo'] = -self.{extra_class}g_abab[oa, vb, oa, ob].transpose(1,0,2,3)
+    eri['baab_vovo'] = -self.{extra_class}g_abab[oa, vb, va, ob].transpose(1,0,2,3)
+    eri['baab_vovv'] = -self.{extra_class}g_abab[oa, vb, va, vb].transpose(1,0,2,3)
+    eri['baba_vovo'] = self.{extra_class}g_abab[oa, vb, oa, vb].transpose(1,0,3,2)
+    eri['bbbb_oooo'] = self.{extra_class}g_bbbb[ob, ob, ob, ob]
+    eri['bbbb_oovo'] = self.{extra_class}g_bbbb[ob, ob, vb, ob]
+    eri['bbbb_oovv'] = self.{extra_class}g_bbbb[ob, ob, vb, vb]
+    eri['bbbb_vooo'] = self.{extra_class}g_bbbb[vb, ob, ob, ob]
+    eri['bbbb_vovo'] = self.{extra_class}g_bbbb[vb, ob, vb, ob]
+    eri['bbbb_vovv'] = self.{extra_class}g_bbbb[vb, ob, vb, vb]
+    eri['bbbb_vvoo'] = self.{extra_class}g_bbbb[vb, vb, ob, ob]
+    eri['bbbb_vvvo'] = self.{extra_class}g_bbbb[vb, vb, vb, ob]
+    eri['bbbb_vvvv'] = self.{extra_class}g_bbbb[vb, vb, vb, vb]
+    Id = {{}}
+    noa = t1['aa'].shape[1]
+    nob = t1['bb'].shape[1]
+    Id['aa_oo'] = np.eye(noa, noa)
+    Id['bb_oo'] = np.eye(nob, nob)
+    scalars_ = {{}}
+    tmps_ = {{}}
+"""
+
+    return ret_string
+
 def cc_residual(residual_name, T, L, function_name, spin_block = True):
     """
     derive equations for CC residual
@@ -153,97 +236,31 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True):
     # optimize the graph
     graph.optimize()
 
+    # initialization statements
+    generated_code_string = \
+f"""
+import numpy as np
+from numpy import einsum
+def {function_name}(self):
+"""
+    generated_code_string += function_initialization_string()
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    if '3' in residual_name:
+        generated_code_string += f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb"
+    elif '2' in residual_name:
+        generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, r2_bbbb"
+    elif '1' in residual_name:
+        generated_code_string += f"    return {residual_name}_aa, {residual_name}_bb"
+    else:
+        generated_code_string += f"    return {residual_name}"
+
     # write function 
     with open(f"generated_equations/{function_name}.py", "w") as file:
-
-        # initialize
-        file.write(f"import numpy as np\n")
-        file.write(f"from numpy import einsum\n")
-        file.write(f"def {function_name}(self):\n")
-        file.write(f"    t1 = {{}}\n")
-        file.write(f"    t1['aa'] = self.t1_aa\n")
-        file.write(f"    t1['bb'] = self.t1_bb\n")
-        file.write(f"    t2 = {{}}\n")
-        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
-        file.write(f"    t2['abab'] = self.t2_abab\n")
-        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
-        if 't3' in T or 'T3' in T:
-            file.write(f"    t3 = {{}}\n")
-            file.write(f"    t3['aaaaaa'] = self.t3_aaaaaa\n")
-            file.write(f"    t3['aabaab'] = self.t3_aabaab\n")
-            file.write(f"    t3['abbabb'] = self.t3_abbabb\n")
-            file.write(f"    t3['bbbbbb'] = self.t3_bbbbbb\n")
-        file.write(f"    oa = self.oa\n")
-        file.write(f"    ob = self.ob\n")
-        file.write(f"    va = self.va\n")
-        file.write(f"    vb = self.vb\n")
-
-        file.write(f"    f = {{}}\n")
-        for spin in ['a', 'b']:
-            for block1 in ['o', 'v']:
-                for block2 in ['o', 'v']:
-                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
-
-        file.write(f"    eri = {{}}\n")
-        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
-        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
-        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
-
-        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
-        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
-        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
-        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
-        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
-        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
-        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
-        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
-        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
-        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
-
-        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
-        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
-        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
-
-        # kronecker delta
-        file.write(f"    Id = {{}}\n")
-        file.write(f"    noa = t1['aa'].shape[1]\n")
-        file.write(f"    nob = t1['bb'].shape[1]\n")
-        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
-        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
-        # scalars
-        file.write(f"    scalars_ = {{}}\n")
-        # temporary arrays
-        file.write(f"    tmps_ = {{}}\n")
-
-        # pq graph output
-        file.write(graph.str("python"))
-
-        if '3' in residual_name:
-            file.write(f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb\n")
-        elif '2' in residual_name:
-            file.write(f"    return {residual_name}_aaaa, {residual_name}_abab, r2_bbbb\n")
-        elif '1' in residual_name:
-            file.write(f"    return {residual_name}_aa, {residual_name}_bb\n")
-        else:
-            file.write(f"    return {residual_name}\n")
+        file.write(generated_code_string)
 
     del pq
 
@@ -313,90 +330,24 @@ def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = 
     # optimize the graph
     graph.optimize()
 
+    # initialization statements
+    generated_code_string = \
+f"""
+import numpy as np
+from numpy import einsum
+def {function_name}(self):
+"""
+    generated_code_string += function_initialization_string()
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += f"    return {residual_name}_aa, {residual_name}_bb"
+
     # write function 
     with open(f"generated_equations/{function_name}.py", "w") as file:
-
-        # initialize
-        file.write(f"import numpy as np\n")
-        file.write(f"from numpy import einsum\n")
-        file.write(f"def {function_name}(self):\n")
-        file.write(f"    t1 = {{}}\n")
-        file.write(f"    t1['aa'] = self.t1_aa\n")
-        file.write(f"    t1['bb'] = self.t1_bb\n")
-        file.write(f"    t2 = {{}}\n")
-        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
-        file.write(f"    t2['abab'] = self.t2_abab\n")
-        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
-        if 't3' in T or 'T3' in T:
-            file.write(f"    t3 = {{}}\n")
-            file.write(f"    t3['aaaaaa'] = self.t3_aaaaaa\n")
-            file.write(f"    t3['aabaab'] = self.t3_aabaab\n")
-            file.write(f"    t3['abbabb'] = self.t3_abbabb\n")
-            file.write(f"    t3['bbbbbb'] = self.t3_bbbbbb\n")
-        file.write(f"    oa = self.oa\n")
-        file.write(f"    ob = self.ob\n")
-        file.write(f"    va = self.va\n")
-        file.write(f"    vb = self.vb\n")
-
-        file.write(f"    f = {{}}\n")
-        for spin in ['a', 'b']:
-            for block1 in ['o', 'v']:
-                for block2 in ['o', 'v']:
-                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
-
-        file.write(f"    eri = {{}}\n")
-        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
-        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
-        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
-
-        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
-        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
-        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
-        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
-        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
-        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
-        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
-        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
-        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
-        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
-
-        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
-        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
-        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
-
-        # kronecker delta
-        file.write(f"    Id = {{}}\n")
-        file.write(f"    noa = t1['aa'].shape[1]\n")
-        file.write(f"    nob = t1['bb'].shape[1]\n")
-        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
-        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
-        # scalars
-        file.write(f"    scalars_ = {{}}\n")
-        # temporary arrays
-        file.write(f"    tmps_ = {{}}\n")
-
-        # pq graph output
-        file.write(graph.str("python"))
-
-        file.write(f"    return {residual_name}_aa, {residual_name}_bb\n")
+        file.write(generated_code_string)
 
     del pq
 
@@ -472,90 +423,24 @@ def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = 
     # optimize the graph
     graph.optimize()
 
+    # initialization statements 
+    generated_code_string = \
+f"""
+import numpy as np
+from numpy import einsum
+def {function_name}(self):
+""" 
+    generated_code_string += function_initialization_string()
+    
+    # pq graph output
+    generated_code_string += graph.str("python")
+        
+    # return statement
+    generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb"
+    
     # write function 
     with open(f"generated_equations/{function_name}.py", "w") as file:
-
-        # initialize
-        file.write(f"import numpy as np\n")
-        file.write(f"from numpy import einsum\n")
-        file.write(f"def {function_name}(self):\n")
-        file.write(f"    t1 = {{}}\n")
-        file.write(f"    t1['aa'] = self.t1_aa\n")
-        file.write(f"    t1['bb'] = self.t1_bb\n")
-        file.write(f"    t2 = {{}}\n")
-        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
-        file.write(f"    t2['abab'] = self.t2_abab\n")
-        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
-        if 't3' in T or 'T3' in T:
-            file.write(f"    t3 = {{}}\n")
-            file.write(f"    t3['aaaaaa'] = self.t3_aaaaaa\n")
-            file.write(f"    t3['aabaab'] = self.t3_aabaab\n")
-            file.write(f"    t3['abbabb'] = self.t3_abbabb\n")
-            file.write(f"    t3['bbbbbb'] = self.t3_bbbbbb\n")
-        file.write(f"    oa = self.oa\n")
-        file.write(f"    ob = self.ob\n")
-        file.write(f"    va = self.va\n")
-        file.write(f"    vb = self.vb\n")
-
-        file.write(f"    f = {{}}\n")
-        for spin in ['a', 'b']:
-            for block1 in ['o', 'v']:
-                for block2 in ['o', 'v']:
-                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
-
-        file.write(f"    eri = {{}}\n")
-        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
-        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
-        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
-
-        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
-        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
-        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
-        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
-        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
-        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
-        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
-        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
-        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
-        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
-
-        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
-        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
-        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
-
-        # kronecker delta
-        file.write(f"    Id = {{}}\n")
-        file.write(f"    noa = t1['aa'].shape[1]\n")
-        file.write(f"    nob = t1['bb'].shape[1]\n")
-        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
-        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
-        # scalars
-        file.write(f"    scalars_ = {{}}\n")
-        # temporary arrays
-        file.write(f"    tmps_ = {{}}\n")
-
-        # pq graph output
-        file.write(graph.str("python"))
-
-        file.write(f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb\n")
+        file.write(generated_code_string)
 
     del pq
 
@@ -637,84 +522,24 @@ def uccsd_energy(order, energy_name, function_name, spin_block = True):
     # optimize the graph
     graph.optimize()
 
+    # initialization statements 
+    generated_code_string = \
+f"""    
+import numpy as np
+from numpy import einsum
+def {function_name}(self):
+"""
+    generated_code_string += function_initialization_string()
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+        
+    # return statement
+    generated_code_string += f"    return {energy_name}"
+    
     # write function 
     with open(f"generated_equations/{function_name}.py", "w") as file:
-
-        # initialize
-        file.write(f"import numpy as np\n")
-        file.write(f"from numpy import einsum\n")
-        file.write(f"def {function_name}(self):\n")
-        file.write(f"    t1 = {{}}\n")
-        file.write(f"    t1['aa'] = self.t1_aa\n")
-        file.write(f"    t1['bb'] = self.t1_bb\n")
-        file.write(f"    t2 = {{}}\n")
-        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
-        file.write(f"    t2['abab'] = self.t2_abab\n")
-        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
-        file.write(f"    oa = self.oa\n")
-        file.write(f"    ob = self.ob\n")
-        file.write(f"    va = self.va\n")
-        file.write(f"    vb = self.vb\n")
-
-        file.write(f"    f = {{}}\n")
-        for spin in ['a', 'b']:
-            for block1 in ['o', 'v']:
-                for block2 in ['o', 'v']:
-                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
-
-        file.write(f"    eri = {{}}\n")
-        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
-        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
-        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
-
-        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
-        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
-        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
-        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
-        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
-        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
-        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
-        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
-        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
-        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
-
-        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
-        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
-        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
-
-        # kronecker delta
-        file.write(f"    Id = {{}}\n")
-        file.write(f"    noa = t1['aa'].shape[1]\n")
-        file.write(f"    nob = t1['bb'].shape[1]\n")
-        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
-        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
-        # scalars
-        file.write(f"    scalars_ = {{}}\n")
-        # temporary arrays
-        file.write(f"    tmps_ = {{}}\n")
-
-        # pq graph output
-        file.write(graph.str("python"))
-
-        file.write(f"    return {energy_name}\n")
+        file.write(generated_code_string)
 
     del pq
 
@@ -783,89 +608,24 @@ def cc3_triples_residual(residual_name, L, function_name, spin_block = True):
     # optimize the graph
     graph.optimize()
 
+    # initialization statements 
+    generated_code_string = \
+f"""    
+import numpy as np
+from numpy import einsum
+def {function_name}(self):
+"""
+    generated_code_string += function_initialization_string()
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+        
+    # return statement
+    generated_code_string += f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb"
+    
     # write function 
     with open(f"generated_equations/{function_name}.py", "w") as file:
-
-        # initialize
-        file.write(f"import numpy as np\n")
-        file.write(f"from numpy import einsum\n")
-        file.write(f"def {function_name}(self):\n")
-        file.write(f"    t1 = {{}}\n")
-        file.write(f"    t1['aa'] = self.t1_aa\n")
-        file.write(f"    t1['bb'] = self.t1_bb\n")
-        file.write(f"    t2 = {{}}\n")
-        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
-        file.write(f"    t2['abab'] = self.t2_abab\n")
-        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
-        file.write(f"    t3 = {{}}\n")
-        file.write(f"    t3['aaaaaa'] = self.t3_aaaaaa\n")
-        file.write(f"    t3['aabaab'] = self.t3_aabaab\n")
-        file.write(f"    t3['abbabb'] = self.t3_abbabb\n")
-        file.write(f"    t3['bbbbbb'] = self.t3_bbbbbb\n")
-        file.write(f"    oa = self.oa\n")
-        file.write(f"    ob = self.ob\n")
-        file.write(f"    va = self.va\n")
-        file.write(f"    vb = self.vb\n")
-
-        file.write(f"    f = {{}}\n")
-        for spin in ['a', 'b']:
-            for block1 in ['o', 'v']:
-                for block2 in ['o', 'v']:
-                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
-
-        file.write(f"    eri = {{}}\n")
-        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
-        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
-        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
-
-        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
-        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
-        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
-        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
-        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
-        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
-        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
-        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
-        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
-        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
-
-        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
-        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
-        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
-
-        # kronecker delta
-        file.write(f"    Id = {{}}\n")
-        file.write(f"    noa = t1['aa'].shape[1]\n")
-        file.write(f"    nob = t1['bb'].shape[1]\n")
-        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
-        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
-        # scalars
-        file.write(f"    scalars_ = {{}}\n")
-        # temporary arrays
-        file.write(f"    tmps_ = {{}}\n")
-
-        # pq graph output
-        file.write(graph.str("python"))
-
-        file.write(f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb\n")
+        file.write(generated_code_string)
 
     del pq
 
@@ -932,104 +692,31 @@ def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True)
     # optimize the graph
     graph.optimize()
 
+    # initialization statements 
+    generated_code_string = \
+f"""    
+import numpy as np
+from numpy import einsum
+def {function_name}(self):
+"""
+    generated_code_string += function_initialization_string()
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+        
+    # return statement
+    if residual_name == 'r3':
+        generated_code_string += f"    return r3_aaaaaa.transpose.transpose(3,4,5,0,1,2), r3_aabaab.transpose(3,4,5,0,1,2), r3_abbabb.transpose(3,4,5,0,1,2), r3_bbbbbb.transpose(3,4,5,0,1,2)"
+    elif residual_name == 'r2':
+        generated_code_string += f"    return r2_aaaa.transpose(2,3,0,1), r2_abab.transpose(2,3,0,1), r2_bbbb.transpose(2,3,0,1)"
+    elif residual_name == 'r1':
+        generated_code_string += f"    return r1_aa.transpose(1,0), r1_bb.transpose(1,0)"
+    else:
+        generated_code_string += f"    return {residual_name}"
+
     # write function 
     with open(f"generated_equations/{function_name}.py", "w") as file:
-
-        # initialize
-        file.write(f"import numpy as np\n")
-        file.write(f"from numpy import einsum\n")
-        file.write(f"def {function_name}(self):\n")
-        file.write(f"    t1 = {{}}\n")
-        file.write(f"    t1['aa'] = self.t1_aa\n")
-        file.write(f"    t1['bb'] = self.t1_bb\n")
-        file.write(f"    t2 = {{}}\n")
-        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
-        file.write(f"    t2['abab'] = self.t2_abab\n")
-        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
-        if 't3' in T or 'T3' in T:
-            file.write(f"    t3 = {{}}\n")
-            file.write(f"    t3['aaaaaa'] = self.t3_aaaaaa\n")
-            file.write(f"    t3['aabaab'] = self.t3_aabaab\n")
-            file.write(f"    t3['abbabb'] = self.t3_abbabb\n")
-            file.write(f"    t3['bbbbbb'] = self.t3_bbbbbb\n")
-        file.write(f"    l1 = {{}}\n")
-        file.write(f"    l1['aa'] = self.l1_aa\n")
-        file.write(f"    l1['bb'] = self.l1_bb\n")
-        file.write(f"    l2 = {{}}\n")
-        file.write(f"    l2['aaaa'] = self.l2_aaaa\n")
-        file.write(f"    l2['abab'] = self.l2_abab\n")
-        file.write(f"    l2['bbbb'] = self.l2_bbbb\n")
-        file.write(f"    oa = self.oa\n")
-        file.write(f"    ob = self.ob\n")
-        file.write(f"    va = self.va\n")
-        file.write(f"    vb = self.vb\n")
-
-        file.write(f"    f = {{}}\n")
-        for spin in ['a', 'b']:
-            for block1 in ['o', 'v']:
-                for block2 in ['o', 'v']:
-                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
-
-        file.write(f"    eri = {{}}\n")
-        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
-        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
-        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
-
-        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
-        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
-        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
-        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
-        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
-        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
-        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
-        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
-        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
-        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
-
-        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
-        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
-        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
-
-        # kronecker delta
-        file.write(f"    Id = {{}}\n")
-        file.write(f"    noa = t1['aa'].shape[1]\n")
-        file.write(f"    nob = t1['bb'].shape[1]\n")
-        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
-        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
-        # scalars
-        file.write(f"    scalars_ = {{}}\n")
-        # temporary arrays
-        file.write(f"    tmps_ = {{}}\n")
-
-        # pq graph output
-        file.write(graph.str("python"))
-
-        if residual_name == 'r3':
-            file.write(f"    return r3_aaaaaa.transpose.transpose(3,4,5,0,1,2), r3_aabaab.transpose(3,4,5,0,1,2), r3_abbabb.transpose(3,4,5,0,1,2), r3_bbbbbb.transpose(3,4,5,0,1,2)\n")
-        elif residual_name == 'r2':
-            file.write(f"    return r2_aaaa.transpose(2,3,0,1), r2_abab.transpose(2,3,0,1), r2_bbbb.transpose(2,3,0,1)\n")
-        elif residual_name == 'r1':
-            file.write(f"    return r1_aa.transpose(1,0), r1_bb.transpose(1,0)\n")
-        else:
-            file.write(f"    return {residual_name}\n")
+        file.write(generated_code_string)
 
     del pq
 
@@ -1087,91 +774,24 @@ def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True):
     # optimize the graph
     graph.optimize()
 
+    # initialization statements 
+    generated_code_string = \
+f"""    
+import numpy as np
+from numpy import einsum
+def {function_name}(self):
+"""         
+    generated_code_string += function_initialization_string()
+        
+    # pq graph output
+    generated_code_string += graph.str("python")
+            
+    # return statement
+    generated_code_string += f"    return {energy_name}"
+
     # write function 
     with open(f"generated_equations/{function_name}.py", "w") as file:
-
-        # initialize
-        file.write(f"import numpy as np\n")
-        file.write(f"from numpy import einsum\n")
-        file.write(f"def {function_name}(self):\n")
-        file.write(f"    t1 = {{}}\n")
-        file.write(f"    t1['aa'] = self.t1_aa\n")
-        file.write(f"    t1['bb'] = self.t1_bb\n")
-        file.write(f"    t2 = {{}}\n")
-        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
-        file.write(f"    t2['abab'] = self.t2_abab\n")
-        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
-        file.write(f"    l1 = {{}}\n")
-        file.write(f"    l1['aa'] = self.l1_aa\n")
-        file.write(f"    l1['bb'] = self.l1_bb\n")
-        file.write(f"    l2 = {{}}\n")
-        file.write(f"    l2['aaaa'] = self.l2_aaaa\n")
-        file.write(f"    l2['abab'] = self.l2_abab\n")
-        file.write(f"    l2['bbbb'] = self.l2_bbbb\n")
-        file.write(f"    oa = self.oa\n")
-        file.write(f"    ob = self.ob\n")
-        file.write(f"    va = self.va\n")
-        file.write(f"    vb = self.vb\n")
-
-        file.write(f"    f = {{}}\n")
-        for spin in ['a', 'b']:
-            for block1 in ['o', 'v']:
-                for block2 in ['o', 'v']:
-                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
-
-        file.write(f"    eri = {{}}\n")
-        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
-        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
-        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
-
-        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
-        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
-        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
-        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
-        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
-        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
-        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
-        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
-        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
-        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
-
-        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
-        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
-        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
-
-        # kronecker delta
-        file.write(f"    Id = {{}}\n")
-        file.write(f"    noa = t1['aa'].shape[1]\n")
-        file.write(f"    nob = t1['bb'].shape[1]\n")
-        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
-        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
-        # scalars
-        file.write(f"    scalars_ = {{}}\n")
-        # temporary arrays
-        file.write(f"    tmps_ = {{}}\n")
-
-        # pq graph output
-        file.write(graph.str("python"))
-
-        file.write(f"    return {energy_name}\n")
+        file.write(generated_code_string)
 
     del pq
 
@@ -1238,115 +858,64 @@ def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True):
     # optimize the graph
     graph.optimize()
 
+    # initialization statements 
+    generated_code_string = \
+f"""    
+import numpy as np
+from numpy import einsum
+"""
+    if is_right:
+        generated_code_string += \
+f"""
+def {function_name}(self, r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb):
+    r1 = {{}}
+    r1['aa'] = r1_aa
+    r1['bb'] = r1_bb
+    r2 = {{}}
+    r2['aaaa'] = r2_aaaa
+    r2['abab'] = r2_abab
+    r2['bbbb'] = r2_bbbb
+"""
+    else:
+        generated_code_string += f"def {function_name}(self, l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb):"
+
+    generated_code_string += function_initialization_string("ccsd")
+
+    # need to redefine l1/l2 because they currently point to the ccsd ones
+    if not is_right:
+        generated_code_string += \
+f"""
+    l1 = {{}}
+    l1['aa'] = l1_aa
+    l1['bb'] = l1_bb
+    l2 = {{}}
+    l2['aaaa'] = l2_aaaa
+    l2['abab'] = l2_abab
+    l2['bbbb'] = l2_bbbb
+"""
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+        
+    # return statement
+    if is_right:
+        if '2' in sigma_name:
+            generated_code_string += f"    return {sigma_name}_aaaa, {sigma_name}_abab, {sigma_name}_bbbb"
+        elif '1' in sigma_name:
+            generated_code_string += f"    return {sigma_name}_aa, {sigma_name}_bb"
+        else:
+            generated_code_string += f"    return {sigma_name}"
+    else:
+        if '2' in sigma_name:
+            generated_code_string += f"    return {sigma_name}_aaaa.transpose(2,3,0,1), {sigma_name}_abab.transpose(2,3,0,1), {sigma_name}_bbbb.transpose(2,3,0,1)"
+        elif '1' in sigma_name:
+            generated_code_string += f"    return {sigma_name}_aa.transpose(1,0), {sigma_name}_bb.transpose(1,0)"
+        else:
+            generated_code_string += f"    return {sigma_name}"
+
     # write function 
     with open(f"generated_equations/{function_name}.py", "w") as file:
+        file.write(generated_code_string)
 
-        # initialize
-        file.write(f"import numpy as np\n")
-        file.write(f"from numpy import einsum\n")
-        if is_right:
-            file.write(f"def {function_name}(self, r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb):\n")
-        else:
-            file.write(f"def {function_name}(self, l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb):\n")
-        file.write(f"    t1 = {{}}\n")
-        file.write(f"    t1['aa'] = self.ccsd.t1_aa\n")
-        file.write(f"    t1['bb'] = self.ccsd.t1_bb\n")
-        file.write(f"    t2 = {{}}\n")
-        file.write(f"    t2['aaaa'] = self.ccsd.t2_aaaa\n")
-        file.write(f"    t2['abab'] = self.ccsd.t2_abab\n")
-        file.write(f"    t2['bbbb'] = self.ccsd.t2_bbbb\n")
-        if is_right:
-            file.write(f"    r1 = {{}}\n")
-            file.write(f"    r1['aa'] = r1_aa\n")
-            file.write(f"    r1['bb'] = r1_bb\n")
-            file.write(f"    r2 = {{}}\n")
-            file.write(f"    r2['aaaa'] = r2_aaaa\n")
-            file.write(f"    r2['abab'] = r2_abab\n")
-            file.write(f"    r2['bbbb'] = r2_bbbb\n")
-        else:
-            file.write(f"    l1 = {{}}\n")
-            file.write(f"    l1['aa'] = l1_aa\n")
-            file.write(f"    l1['bb'] = l1_bb\n")
-            file.write(f"    l2 = {{}}\n")
-            file.write(f"    l2['aaaa'] = l2_aaaa\n")
-            file.write(f"    l2['abab'] = l2_abab\n")
-            file.write(f"    l2['bbbb'] = l2_bbbb\n")
-        file.write(f"    oa = self.ccsd.oa\n")
-        file.write(f"    ob = self.ccsd.ob\n")
-        file.write(f"    va = self.ccsd.va\n")
-        file.write(f"    vb = self.ccsd.vb\n")
-
-        file.write(f"    f = {{}}\n")
-        for spin in ['a', 'b']:
-            for block1 in ['o', 'v']:
-                for block2 in ['o', 'v']:
-                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.ccsd.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
-
-        file.write(f"    eri = {{}}\n")
-        file.write(f"    eri['aaaa_oooo'] = self.ccsd.g_aaaa[oa, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_oovo'] = self.ccsd.g_aaaa[oa, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_oovv'] = self.ccsd.g_aaaa[oa, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vooo'] = self.ccsd.g_aaaa[va, oa, oa, oa]\n")
-        file.write(f"    eri['aaaa_vovo'] = self.ccsd.g_aaaa[va, oa, va, oa]\n")
-        file.write(f"    eri['aaaa_vovv'] = self.ccsd.g_aaaa[va, oa, va, va]\n")
-        file.write(f"    eri['aaaa_vvoo'] = self.ccsd.g_aaaa[va, va, oa, oa]\n")
-        file.write(f"    eri['aaaa_vvvo'] = self.ccsd.g_aaaa[va, va, va, oa]\n")
-        file.write(f"    eri['aaaa_vvvv'] = self.ccsd.g_aaaa[va, va, va, va]\n")
-
-        file.write(f"    eri['abab_oooo'] = self.ccsd.g_abab[oa, ob, oa, ob]\n")
-        file.write(f"    eri['abab_oovo'] = self.ccsd.g_abab[oa, ob, va, ob]\n")
-        file.write(f"    eri['abab_oovv'] = self.ccsd.g_abab[oa, ob, va, vb]\n")
-        file.write(f"    eri['abab_vooo'] = self.ccsd.g_abab[va, ob, oa, ob]\n")
-        file.write(f"    eri['abab_vovo'] = self.ccsd.g_abab[va, ob, va, ob]\n")
-        file.write(f"    eri['abab_vovv'] = self.ccsd.g_abab[va, ob, va, vb]\n")
-        file.write(f"    eri['abab_vvoo'] = self.ccsd.g_abab[va, vb, oa, ob]\n")
-        file.write(f"    eri['abab_vvvo'] = self.ccsd.g_abab[va, vb, va, ob]\n")
-        file.write(f"    eri['abab_vvvv'] = self.ccsd.g_abab[va, vb, va, vb]\n")
-        file.write(f"    eri['abba_oovo'] = -self.ccsd.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vovo'] = -self.ccsd.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['abba_vvvo'] = -self.ccsd.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
-        file.write(f"    eri['baab_vooo'] = -self.ccsd.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovo'] = -self.ccsd.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baab_vovv'] = -self.ccsd.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
-        file.write(f"    eri['baba_vovo'] = self.ccsd.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
-
-        file.write(f"    eri['bbbb_oooo'] = self.ccsd.g_bbbb[ob, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_oovo'] = self.ccsd.g_bbbb[ob, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_oovv'] = self.ccsd.g_bbbb[ob, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vooo'] = self.ccsd.g_bbbb[vb, ob, ob, ob]\n")
-        file.write(f"    eri['bbbb_vovo'] = self.ccsd.g_bbbb[vb, ob, vb, ob]\n")
-        file.write(f"    eri['bbbb_vovv'] = self.ccsd.g_bbbb[vb, ob, vb, vb]\n")
-        file.write(f"    eri['bbbb_vvoo'] = self.ccsd.g_bbbb[vb, vb, ob, ob]\n")
-        file.write(f"    eri['bbbb_vvvo'] = self.ccsd.g_bbbb[vb, vb, vb, ob]\n")
-        file.write(f"    eri['bbbb_vvvv'] = self.ccsd.g_bbbb[vb, vb, vb, vb]\n")
-
-        # kronecker delta
-        file.write(f"    Id = {{}}\n")
-        file.write(f"    noa = t1['aa'].shape[1]\n")
-        file.write(f"    nob = t1['bb'].shape[1]\n")
-        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
-        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
-        # scalars
-        file.write(f"    scalars_ = {{}}\n")
-        # temporary arrays
-        file.write(f"    tmps_ = {{}}\n")
-
-        # pq graph output
-        file.write(graph.str("python"))
-
-        if is_right:
-            if '2' in sigma_name:
-                file.write(f"    return {sigma_name}_aaaa, {sigma_name}_abab, {sigma_name}_bbbb\n")
-            elif '1' in sigma_name:
-                file.write(f"    return {sigma_name}_aa, {sigma_name}_bb\n")
-            else:
-                file.write(f"    return {sigma_name}\n")
-        else:
-            if '2' in sigma_name:
-                file.write(f"    return {sigma_name}_aaaa.transpose(2,3,0,1), {sigma_name}_abab.transpose(2,3,0,1), {sigma_name}_bbbb.transpose(2,3,0,1)\n")
-            elif '1' in sigma_name:
-                file.write(f"    return {sigma_name}_aa.transpose(1,0), {sigma_name}_bb.transpose(1,0)\n")
-            else:
-                file.write(f"    return {sigma_name}\n")
 
     del pq
