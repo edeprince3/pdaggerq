@@ -114,6 +114,9 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True):
     :param spin_block: do spin block the equations?
     """
 
+    if not spin_block:
+        raise Exception("spin-orbital cc residual equations not implemented")
+
     pq = pdaggerq.pq_helper("fermi")
 
     # set bra
@@ -244,6 +247,477 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True):
 
     del pq
 
+def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = True):
+    """
+    derive equations for UCCSD singles residual, truncation based on perturbation order
+
+    :param order: the order in perturbation theory used to truncate the BCH expansion
+    :param residual_name: name for the variable representing the left-hand side of the residual equation
+    :param L: left operator defining the bra / projection
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    """
+
+    if not spin_block:
+        raise Exception("spin-orbital uccsd singles residual equations not implemented")
+
+    pq = pdaggerq.pq_helper("fermi")
+
+    pq.set_unitary_cc(True)
+
+    # set bra
+    pq.set_left_operators(L)
+
+    # up to 2nd order
+
+    if order > 0:
+        pq.add_operator_product(1.0, ['f']) # 0
+
+    if order > 1:
+        pq.add_operator_product(1.0, ['v']) # 1
+        pq.add_commutator(1.0, ['f'],['t2']) # 1
+
+    if order > 2:
+        pq.add_commutator(1.0, ['f'],['t1']) # 2
+        pq.add_commutator(1.0, ['v'],['t2']) # 2
+        pq.add_double_commutator(0.5, ['f'],['t2'],['t2']) # 2
+
+    if order > 3:
+        raise Exception("uccsd singles residual implemented only up to 3rd order")
+
+    # cleanup
+    pq.simplify()
+
+    # dictionary to store the derived equations
+    eqs = {}
+
+    # spin blocking
+    if spin_block:
+        T = ['t1', 't2']
+        block_by_spin(pq, residual_name, L + T + ['f'] + ['v'], eqs)
+    else:
+        eqs[residual_name] = pq.clone()
+        # print the fully contracted strings
+        print(f"Equation {residual_name}:", flush=True)
+        for term in pq.strings():
+            print(term, flush=True)
+
+    # Enable and configure pq_graph
+    graph = configure_graph()
+
+    # Add equations to graph
+    for proj_eqname, eq in eqs.items():
+        print(f"Adding equation {proj_eqname} to the graph", flush=True)
+        graph.add(eq, proj_eqname)
+
+    # optimize the graph
+    graph.optimize()
+
+    # write function 
+    with open(f"generated_equations/{function_name}.py", "w") as file:
+
+        # initialize
+        file.write(f"import numpy as np\n")
+        file.write(f"from numpy import einsum\n")
+        file.write(f"def {function_name}(self):\n")
+        file.write(f"    t1 = {{}}\n")
+        file.write(f"    t1['aa'] = self.t1_aa\n")
+        file.write(f"    t1['bb'] = self.t1_bb\n")
+        file.write(f"    t2 = {{}}\n")
+        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
+        file.write(f"    t2['abab'] = self.t2_abab\n")
+        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
+        if 't3' in T or 'T3' in T:
+            file.write(f"    t3 = {{}}\n")
+            file.write(f"    t3['aaaaaa'] = self.t3_aaaaaa\n")
+            file.write(f"    t3['aabaab'] = self.t3_aabaab\n")
+            file.write(f"    t3['abbabb'] = self.t3_abbabb\n")
+            file.write(f"    t3['bbbbbb'] = self.t3_bbbbbb\n")
+        file.write(f"    oa = self.oa\n")
+        file.write(f"    ob = self.ob\n")
+        file.write(f"    va = self.va\n")
+        file.write(f"    vb = self.vb\n")
+
+        file.write(f"    f = {{}}\n")
+        for spin in ['a', 'b']:
+            for block1 in ['o', 'v']:
+                for block2 in ['o', 'v']:
+                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
+
+        file.write(f"    eri = {{}}\n")
+        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
+        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
+        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
+        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
+        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
+        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
+        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
+        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
+        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
+
+        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
+        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
+        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
+        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
+        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
+        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
+        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
+        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
+        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
+        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
+
+        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
+        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
+        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
+        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
+        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
+        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
+        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
+        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
+        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
+
+        # kronecker delta
+        file.write(f"    Id = {{}}\n")
+        file.write(f"    noa = t1['aa'].shape[1]\n")
+        file.write(f"    nob = t1['bb'].shape[1]\n")
+        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
+        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
+        # scalars
+        file.write(f"    scalars_ = {{}}\n")
+        # temporary arrays
+        file.write(f"    tmps_ = {{}}\n")
+
+        # pq graph output
+        file.write(graph.str("python"))
+
+        file.write(f"    return {residual_name}_aa, {residual_name}_bb\n")
+
+    del pq
+
+def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = True):
+    """
+    derive equations for UCCSD doubles residual, truncation based on perturbation order
+
+    :param order: the order in perturbation theory used to truncate the BCH expansion
+    :param residual_name: name for the variable representing the left-hand side of the residual equation
+    :param L: left operator defining the bra / projection
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    """
+
+    if not spin_block:
+        raise Exception("spin-orbital uccsd doubles residual equations not implemented")
+
+    pq = pdaggerq.pq_helper("fermi")
+
+    pq.set_unitary_cc(True)
+
+    # set bra
+    pq.set_left_operators(L)
+
+    # up to 3rd order
+
+    pq.add_operator_product(1.0, ['f']) # 0
+
+    if order > 0:
+        pq.add_operator_product(1.0, ['v']) # 1
+        pq.add_commutator(1.0, ['f'],['t2']) # 1
+
+    if order > 1:
+        pq.add_commutator(1.0, ['f'],['t1']) # 2
+        pq.add_commutator(1.0, ['v'],['t2']) # 2
+        pq.add_double_commutator(0.5, ['f'],['t2'],['t2']) # 2
+
+    if order > 2:
+        pq.add_commutator(1.0, ['v'],['t1']) # 3
+        pq.add_double_commutator(0.5, ['f'],['t1'],['t2']) # 3
+        pq.add_double_commutator(0.5, ['f'],['t2'],['t1']) # 3
+        pq.add_double_commutator(0.5, ['v'],['t2'],['t2']) # 3
+        pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t2'],['t2']) # 3
+
+    if order > 3:
+        raise Exception("uccsd doubles residual implemented only up to 3rd order")
+
+    # cleanup
+    pq.simplify()
+
+    # dictionary to store the derived equations
+    eqs = {}
+
+    # spin blocking
+    if spin_block:
+        T = ['t1', 't2']
+        block_by_spin(pq, residual_name, L + T + ['f'] + ['v'], eqs)
+    else:
+        eqs[residual_name] = pq.clone()
+        # print the fully contracted strings
+        print(f"Equation {residual_name}:", flush=True)
+        for term in pq.strings():
+            print(term, flush=True)
+
+    # Enable and configure pq_graph
+    graph = configure_graph()
+
+    # Add equations to graph
+    for proj_eqname, eq in eqs.items():
+        print(f"Adding equation {proj_eqname} to the graph", flush=True)
+        graph.add(eq, proj_eqname)
+
+    # optimize the graph
+    graph.optimize()
+
+    # write function 
+    with open(f"generated_equations/{function_name}.py", "w") as file:
+
+        # initialize
+        file.write(f"import numpy as np\n")
+        file.write(f"from numpy import einsum\n")
+        file.write(f"def {function_name}(self):\n")
+        file.write(f"    t1 = {{}}\n")
+        file.write(f"    t1['aa'] = self.t1_aa\n")
+        file.write(f"    t1['bb'] = self.t1_bb\n")
+        file.write(f"    t2 = {{}}\n")
+        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
+        file.write(f"    t2['abab'] = self.t2_abab\n")
+        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
+        if 't3' in T or 'T3' in T:
+            file.write(f"    t3 = {{}}\n")
+            file.write(f"    t3['aaaaaa'] = self.t3_aaaaaa\n")
+            file.write(f"    t3['aabaab'] = self.t3_aabaab\n")
+            file.write(f"    t3['abbabb'] = self.t3_abbabb\n")
+            file.write(f"    t3['bbbbbb'] = self.t3_bbbbbb\n")
+        file.write(f"    oa = self.oa\n")
+        file.write(f"    ob = self.ob\n")
+        file.write(f"    va = self.va\n")
+        file.write(f"    vb = self.vb\n")
+
+        file.write(f"    f = {{}}\n")
+        for spin in ['a', 'b']:
+            for block1 in ['o', 'v']:
+                for block2 in ['o', 'v']:
+                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
+
+        file.write(f"    eri = {{}}\n")
+        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
+        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
+        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
+        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
+        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
+        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
+        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
+        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
+        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
+
+        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
+        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
+        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
+        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
+        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
+        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
+        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
+        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
+        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
+        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
+
+        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
+        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
+        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
+        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
+        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
+        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
+        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
+        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
+        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
+
+        # kronecker delta
+        file.write(f"    Id = {{}}\n")
+        file.write(f"    noa = t1['aa'].shape[1]\n")
+        file.write(f"    nob = t1['bb'].shape[1]\n")
+        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
+        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
+        # scalars
+        file.write(f"    scalars_ = {{}}\n")
+        # temporary arrays
+        file.write(f"    tmps_ = {{}}\n")
+
+        # pq graph output
+        file.write(graph.str("python"))
+
+        file.write(f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb\n")
+
+    del pq
+
+def uccsd_energy(order, energy_name, function_name, spin_block = True):
+    """
+    derive equations for UCCSD energy, truncation based on perturbation order
+
+    :param order: the order in perturbation theory used to truncate the BCH expansion
+    :param energy_name: name for the variable representing the energy
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    """
+
+    if not spin_block:
+        raise Exception("spin-orbital uccsd energy equations not implemented")
+
+    pq = pdaggerq.pq_helper("fermi")
+
+    pq.set_unitary_cc(True)
+
+    # up to 4th-order
+
+    pq.add_operator_product(1.0, ['f']) # 0
+
+    if order > 0:
+        pq.add_operator_product(1.0, ['v']) # 1
+        pq.add_commutator(1.0, ['f'],['t2']) # 1
+
+    if order > 1:
+        pq.add_commutator(1.0, ['f'],['t1']) # 2
+        pq.add_commutator(1.0, ['v'],['t2']) # 2
+        pq.add_double_commutator(0.5, ['f'],['t2'],['t2']) # 2
+
+    if order > 2:
+        pq.add_commutator(1.0, ['v'],['t1']) # 3
+        pq.add_double_commutator(0.5, ['f'],['t1'],['t2']) # 3
+        pq.add_double_commutator(0.5, ['f'],['t2'],['t1']) # 3
+        pq.add_double_commutator(0.5, ['v'],['t2'],['t2']) # 3
+        pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t2'],['t2']) # 3
+
+    if order > 3:
+        pq.add_double_commutator(0.5, ['f'],['t1'],['t1']) # 4
+        pq.add_double_commutator(0.5, ['v'],['t1'],['t2']) # 4
+        pq.add_double_commutator(0.5, ['v'],['t2'],['t1']) # 4
+        pq.add_triple_commutator(1.0 / 6.0, ['f'],['t1'],['t2'],['t2']) # 4
+        pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t1'],['t2']) # 4
+        pq.add_triple_commutator(1.0 / 6.0, ['f'],['t2'],['t2'],['t1']) # 4
+        pq.add_triple_commutator(1.0 / 6.0, ['v'],['t2'],['t2'],['t2']) # 4
+        pq.add_quadruple_commutator(1.0 / 24.0, ['f'],['t2'],['t2'],['t2'],['t2']) # 4
+
+    if order > 4:
+        raise Exception("uccsd energy implemented only up to 4th order")
+
+    # cleanup
+    pq.simplify()
+
+    # dictionary to store the derived equations
+    eqs = {}
+
+    # spin blocking
+    if spin_block:
+        T = ['t1', 't2']
+        block_by_spin(pq, energy_name, T + ['f'] + ['v'], eqs)
+    else:
+        eqs[energy_name] = pq.clone()
+        # print the fully contracted strings
+        print(f"Equation {energy_name}:", flush=True)
+        for term in pq.strings():
+            print(term, flush=True)
+
+    # Enable and configure pq_graph
+    graph = configure_graph()
+
+    # Add equations to graph
+    for proj_eqname, eq in eqs.items():
+        print(f"Adding equation {proj_eqname} to the graph", flush=True)
+        graph.add(eq, proj_eqname)
+
+    # optimize the graph
+    graph.optimize()
+
+    # write function 
+    with open(f"generated_equations/{function_name}.py", "w") as file:
+
+        # initialize
+        file.write(f"import numpy as np\n")
+        file.write(f"from numpy import einsum\n")
+        file.write(f"def {function_name}(self):\n")
+        file.write(f"    t1 = {{}}\n")
+        file.write(f"    t1['aa'] = self.t1_aa\n")
+        file.write(f"    t1['bb'] = self.t1_bb\n")
+        file.write(f"    t2 = {{}}\n")
+        file.write(f"    t2['aaaa'] = self.t2_aaaa\n")
+        file.write(f"    t2['abab'] = self.t2_abab\n")
+        file.write(f"    t2['bbbb'] = self.t2_bbbb\n")
+        file.write(f"    oa = self.oa\n")
+        file.write(f"    ob = self.ob\n")
+        file.write(f"    va = self.va\n")
+        file.write(f"    vb = self.vb\n")
+
+        file.write(f"    f = {{}}\n")
+        for spin in ['a', 'b']:
+            for block1 in ['o', 'v']:
+                for block2 in ['o', 'v']:
+                    file.write(f"    f['{spin}{spin}_{block1}{block2}'] = self.f_{spin}{spin}[{block1}{spin}, {block2}{spin}]\n")
+
+        file.write(f"    eri = {{}}\n")
+        file.write(f"    eri['aaaa_oooo'] = self.g_aaaa[oa, oa, oa, oa]\n")
+        file.write(f"    eri['aaaa_oovo'] = self.g_aaaa[oa, oa, va, oa]\n")
+        file.write(f"    eri['aaaa_oovv'] = self.g_aaaa[oa, oa, va, va]\n")
+        file.write(f"    eri['aaaa_vooo'] = self.g_aaaa[va, oa, oa, oa]\n")
+        file.write(f"    eri['aaaa_vovo'] = self.g_aaaa[va, oa, va, oa]\n")
+        file.write(f"    eri['aaaa_vovv'] = self.g_aaaa[va, oa, va, va]\n")
+        file.write(f"    eri['aaaa_vvoo'] = self.g_aaaa[va, va, oa, oa]\n")
+        file.write(f"    eri['aaaa_vvvo'] = self.g_aaaa[va, va, va, oa]\n")
+        file.write(f"    eri['aaaa_vvvv'] = self.g_aaaa[va, va, va, va]\n")
+
+        file.write(f"    eri['abab_oooo'] = self.g_abab[oa, ob, oa, ob]\n")
+        file.write(f"    eri['abab_oovo'] = self.g_abab[oa, ob, va, ob]\n")
+        file.write(f"    eri['abab_oovv'] = self.g_abab[oa, ob, va, vb]\n")
+        file.write(f"    eri['abab_vooo'] = self.g_abab[va, ob, oa, ob]\n")
+        file.write(f"    eri['abab_vovo'] = self.g_abab[va, ob, va, ob]\n")
+        file.write(f"    eri['abab_vovv'] = self.g_abab[va, ob, va, vb]\n")
+        file.write(f"    eri['abab_vvoo'] = self.g_abab[va, vb, oa, ob]\n")
+        file.write(f"    eri['abab_vvvo'] = self.g_abab[va, vb, va, ob]\n")
+        file.write(f"    eri['abab_vvvv'] = self.g_abab[va, vb, va, vb]\n")
+        file.write(f"    eri['abba_oovo'] = -self.g_abab[oa, ob, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['abba_vovo'] = -self.g_abab[va, ob, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['abba_vvvo'] = -self.g_abab[va, vb, oa, vb].transpose(0,1,3,2)\n")
+        file.write(f"    eri['baab_vooo'] = -self.g_abab[oa, vb, oa, ob].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baab_vovo'] = -self.g_abab[oa, vb, va, ob].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baab_vovv'] = -self.g_abab[oa, vb, va, vb].transpose(1,0,2,3)\n")
+        file.write(f"    eri['baba_vovo'] = self.g_abab[oa, vb, oa, vb].transpose(1,0,3,2)\n")
+
+        file.write(f"    eri['bbbb_oooo'] = self.g_bbbb[ob, ob, ob, ob]\n")
+        file.write(f"    eri['bbbb_oovo'] = self.g_bbbb[ob, ob, vb, ob]\n")
+        file.write(f"    eri['bbbb_oovv'] = self.g_bbbb[ob, ob, vb, vb]\n")
+        file.write(f"    eri['bbbb_vooo'] = self.g_bbbb[vb, ob, ob, ob]\n")
+        file.write(f"    eri['bbbb_vovo'] = self.g_bbbb[vb, ob, vb, ob]\n")
+        file.write(f"    eri['bbbb_vovv'] = self.g_bbbb[vb, ob, vb, vb]\n")
+        file.write(f"    eri['bbbb_vvoo'] = self.g_bbbb[vb, vb, ob, ob]\n")
+        file.write(f"    eri['bbbb_vvvo'] = self.g_bbbb[vb, vb, vb, ob]\n")
+        file.write(f"    eri['bbbb_vvvv'] = self.g_bbbb[vb, vb, vb, vb]\n")
+
+        # kronecker delta
+        file.write(f"    Id = {{}}\n")
+        file.write(f"    noa = t1['aa'].shape[1]\n")
+        file.write(f"    nob = t1['bb'].shape[1]\n")
+        file.write(f"    Id['aa_oo'] = np.eye(noa, noa)\n")
+        file.write(f"    Id['bb_oo'] = np.eye(nob, nob)\n")
+        # scalars
+        file.write(f"    scalars_ = {{}}\n")
+        # temporary arrays
+        file.write(f"    tmps_ = {{}}\n")
+
+        # pq graph output
+        file.write(graph.str("python"))
+
+        file.write(f"    return {energy_name}\n")
+
+    del pq
+
 def cc3_triples_residual(residual_name, L, function_name, spin_block = True):
     """
     derive equations for the CC3 triples residual
@@ -253,6 +727,9 @@ def cc3_triples_residual(residual_name, L, function_name, spin_block = True):
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     """
+
+    if not spin_block:
+        raise Exception("spin-orbital cc3 triples residual equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
 
@@ -403,6 +880,9 @@ def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True)
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     """
+
+    if not spin_block:
+        raise Exception("spin-orbital ccsd lambda equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
 
@@ -565,6 +1045,9 @@ def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True):
     :param spin_block: do spin block the equations?
     """
 
+    if not spin_block:
+        raise Exception("spin-orbital ccsd lambda equations not implemented")
+
     pq = pdaggerq.pq_helper("fermi")
 
     # set bra
@@ -703,6 +1186,9 @@ def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True):
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
 
     # right- or left-hand sigma?
     is_right = True
