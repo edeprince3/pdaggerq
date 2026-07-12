@@ -39,7 +39,9 @@ class cc:
         t1_residual_func=None, 
         t2_residual_func=None,
         t3_residual_func=None,
-        t4_residual_func=None):
+        cc_pseudoenergy_func=None, 
+        l1_residual_func=None, 
+        l2_residual_func=None):
 
         """
         initialize CC class
@@ -52,6 +54,9 @@ class cc:
         :params t1_residual_func: python function for the t1 residual equations
         :params t2_residual_func: python function for the t2 residual equations
         :params t3_residual_func: python function for the t3 residual equations
+        :params cc_pseudoenergy_func: python function for evaluating the lambda cc pseudoenergy
+        :params l1_residual_func: python function for the l1 residual equations
+        :params l2_residual_func: python function for the l2 residual equations
         """
 
         self.wfn = wfn
@@ -86,9 +91,6 @@ class cc:
 
             if t3_residual_func is not None:
                 raise Exception("spin-orbital CCSDT is not implemented")
-
-            if t4_residual_func is not None:
-                raise Exception("spin-orbital CCSDTQ is not implemented")
 
             self.l1 = None
             self.l2 = None
@@ -187,9 +189,6 @@ class cc:
                 self.t3_abbabb = np.zeros((1))
                 self.t3_bbbbbb = np.zeros((1))
 
-            if t4_residual_func is not None:
-                raise Exception("CCSDTQ is not implemented")
-
             self.l1_aa = None
             self.l1_bb = None
             self.l2_aaaa = None
@@ -214,6 +213,18 @@ class cc:
             self.t3_residual = types.MethodType(t3_residual_func, self)
         else:
             self.t3_residual = None
+
+        if cc_pseudoenergy_func is not None:
+            self.cc_pseudoenergy = types.MethodType(cc_pseudoenergy_func, self)
+        if l1_residual_func is not None:
+            self.l1_residual = types.MethodType(l1_residual_func, self)
+        else:
+            self.l1_residual = None
+
+        if l2_residual_func is not None:
+            self.l2_residual = types.MethodType(l2_residual_func, self)
+        else:
+            self.l2_residual = None
 
     def t_solver(self):
         """
@@ -248,9 +259,10 @@ class cc:
         """
 
         if self.use_spin_orbital_basis:
-            self.ccsd_lambda_iterations(e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
-        else:
-            self.ccsd_lambda_iterations_with_spin(e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
+            raise Exception("spin-orbital CCSD lambda is not implemented")
+        self.ccsd_lambda_iterations_with_spin(e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
+
+        return self.cc_pseudoenergy() #+ self.nuclear_repulsion_energy + self.efzc
                         
     def cc_iterations_with_spin(self, max_iter=500,e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
 
@@ -467,9 +479,6 @@ class cc:
         else:
             raise ValueError("CCSD iterations did not converge")
     
-    def ccsd_lambda_iterations(self, max_iter=500,e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
-        raise Exception("spin-orbital CCSD lambda is not implemented")
-
     def ccsd_lambda_iterations_with_spin(self, max_iter=500,e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
 
         self.l1_aa = self.t1_aa.transpose(1, 0)
@@ -498,7 +507,7 @@ class cc:
         fock_e_bbbb_ijab = np.reciprocal(self.e_bbbb_abij).transpose(2, 3, 0, 1)
         fock_e_abab_ijab = np.reciprocal(self.e_abab_abij).transpose(2, 3, 0, 1)
     
-        old_energy = self.ccsd_lambda_pseudoenergy_with_spin()
+        old_energy = self.cc_pseudoenergy()
     
         print("")
         print("    ==> CCSD lambda amplitude equations <==")
@@ -506,12 +515,9 @@ class cc:
         print("     Iter         Pseudoenergy                 |dE|            |dlambda|")
         for idx in range(max_iter):
     
-            residual_l1_aa = self.l1_aa_residual()
-            residual_l1_bb = self.l1_bb_residual()
+            residual_l1_aa, residual_l1_bb = self.l1_residual()
     
-            residual_l2_aaaa = self.l2_aaaa_residual()
-            residual_l2_bbbb = self.l2_bbbb_residual()
-            residual_l2_abab = self.l2_abab_residual()
+            residual_l2_aaaa, residual_l2_abab, residual_l2_bbbb = self.l2_residual()
     
             res_norm = ( np.linalg.norm(residual_l1_aa)
                        + np.linalg.norm(residual_l1_bb)
@@ -556,7 +562,7 @@ class cc:
             self.l2_bbbb = new_l2_bbbb
             self.l2_abab = new_l2_abab
 
-            current_energy = self.ccsd_lambda_pseudoenergy_with_spin()
+            current_energy = self.cc_pseudoenergy()
     
             delta_e = np.abs(old_energy - current_energy)
     
