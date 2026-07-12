@@ -145,26 +145,20 @@ def block_by_spin(pq, eqname, ops, eqs):
         for term in pq.strings():
             print(term, flush=True)
 
-def cc_residual(residual_name, t_ops, l_ops, function_name):
+def cc_residual(residual_name, T, L, function_name):
+    """
+    derive equations for CC residual
+    """
 
     # hamiltonian
     ops = [['f'], ['v']]
     coeffs = [1.0, 1.0]
 
-    # cluster operators
-    T = t_ops 
-
-    # projection operators and residuals
-    proj = {
-        residual_name: l_ops
-    }
-
     # dictionary to store the derived equations
     eqs = {}
 
-    # residual equations
-    for proj_eqname, P in proj.items():
-        derive_equation(eqs, proj_eqname, ops, coeffs, L=P, T=T, spin_block = True)
+    # derive equations
+    derive_equation(eqs, residual_name, ops, coeffs, L = L, T = T, spin_block = True)
 
     # Enable and configure pq_graph
     graph = configure_graph()
@@ -271,26 +265,17 @@ def cc_residual(residual_name, t_ops, l_ops, function_name):
 
     #print("Code generation complete")
 
-def eomcc_right_sigma(residual_name, t_ops, l_ops, function_name):
+def eomcc_right_sigma(residual_name, T, L, function_name):
 
     # hamiltonian
     ops = [['f'], ['v']]
     coeffs = [1.0, 1.0]
 
-    # cluster operators
-    T = t_ops 
-
-    # projection operators and residuals
-    proj = {
-        residual_name: l_ops
-    }
-
     # dictionary to store the derived equations
     eqs = {}
 
-    # residual equations
-    for proj_eqname, P in proj.items():
-        derive_equation(eqs, proj_eqname, ops, coeffs, L=P, R=[['r0'], ['r1'], ['r2']], T=T, spin_block = True)
+    # derive equations
+    derive_equation(eqs, residual_name, ops, coeffs, L = L, T = T, R = [['r0'], ['r1'], ['r2']], spin_block = True)
 
     # Enable and configure pq_graph
     graph = configure_graph()
