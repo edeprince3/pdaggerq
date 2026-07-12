@@ -105,7 +105,7 @@ def test_uccsd_3_codegen():
     mycc = cc(
         wfn, 
         mol, 
-        nfzc=0, 
+        nfzc=1, 
         cc_energy_func=loaded_modules["cc_energy"].cc_energy,
         t1_residual_func=loaded_modules["t1_residual"].t1_residual,
         t2_residual_func=loaded_modules["t2_residual"].t2_residual
@@ -141,7 +141,7 @@ def test_uccsd_4_codegen():
     mycc = cc(
         wfn, 
         mol, 
-        nfzc=0, 
+        nfzc=1, 
         cc_energy_func=loaded_modules["cc_energy"].cc_energy,
         t1_residual_func=loaded_modules["t1_residual"].t1_residual,
         t2_residual_func=loaded_modules["t2_residual"].t2_residual
