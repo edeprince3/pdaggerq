@@ -106,6 +106,12 @@ def block_by_spin(pq, eqname, ops, eqs):
 def cc_residual(residual_name, T, L, function_name, spin_block = True):
     """
     derive equations for CC residual
+
+    :param residual_name: name for the variable representing the left-hand side of the residual equation
+    :param T: list of cluster operators
+    :param L: left operator defining the bra / projection
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
     """
 
     pq = pdaggerq.pq_helper("fermi")
@@ -227,12 +233,12 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True):
         # pq graph output
         file.write(graph.str("python"))
 
-        if residual_name == 'r3':
-            file.write(f"    return r3_aaaaaa, r3_aabaab, r3_abbabb, r3_bbbbbb\n")
-        elif residual_name == 'r2':
-            file.write(f"    return r2_aaaa, r2_abab, r2_bbbb\n")
-        elif residual_name == 'r1':
-            file.write(f"    return r1_aa, r1_bb\n")
+        if '3' in residual_name:
+            file.write(f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb\n")
+        elif '2' in residual_name:
+            file.write(f"    return {residual_name}_aaaa, {residual_name}_abab, r2_bbbb\n")
+        elif '1' in residual_name:
+            file.write(f"    return {residual_name}_aa, {residual_name}_bb\n")
         else:
             file.write(f"    return {residual_name}\n")
 
@@ -240,7 +246,12 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True):
 
 def cc3_triples_residual(residual_name, L, function_name, spin_block = True):
     """
-    derive equations for CC residual
+    derive equations for the CC3 triples residual
+
+    :param residual_name: name for the variable representing the left-hand side of the residual equation
+    :param L: left operator defining the bra / projection
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
     """
 
     pq = pdaggerq.pq_helper("fermi")
@@ -377,13 +388,20 @@ def cc3_triples_residual(residual_name, L, function_name, spin_block = True):
         # pq graph output
         file.write(graph.str("python"))
 
-        file.write(f"    return r3_aaaaaa, r3_aabaab, r3_abbabb, r3_bbbbbb\n")
+        file.write(f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb\n")
 
     del pq
 
 def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True):
     """
     derive equations for lambda CC residual
+
+    :param residual_name: name for the variable representing the left-hand side of the residual equation
+    :param T: list of cluster operators
+    :param L: list of lambda amplitudes
+    :param R: excitation operator defining the projection
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
     """
 
     pq = pdaggerq.pq_helper("fermi")
@@ -535,7 +553,17 @@ def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True)
 
     del pq
 
-def lambda_cc_pseudoenergy(sigma_name, L, R, function_name, spin_block = True):
+def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True):
+    """
+    derive equations for lambda CC pseudoenergy
+
+    :param name: name for the variable representing the pseudoenergy
+    :param T: list of cluster operators
+    :param L: list of lambda amplitudes
+    :param R: excitation operator defining the projection
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    """
 
     pq = pdaggerq.pq_helper("fermi")
 
@@ -557,7 +585,7 @@ def lambda_cc_pseudoenergy(sigma_name, L, R, function_name, spin_block = True):
 
     # spin blocking
     if spin_block:
-        block_by_spin(pq, sigma_name, L + R + ['f'] + ['v'], eqs)
+        block_by_spin(pq, energy_name, L + R + ['f'] + ['v'], eqs)
     else:
         eqs[sigma_eqname] = pq.clone()
         # print the fully contracted strings
@@ -660,11 +688,21 @@ def lambda_cc_pseudoenergy(sigma_name, L, R, function_name, spin_block = True):
         # pq graph output
         file.write(graph.str("python"))
 
-        file.write(f"    return {sigma_name}\n")
+        file.write(f"    return {energy_name}\n")
 
     del pq
 
 def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True):
+    """
+    derive equations for left/right EOMCC sigma equations
+    
+    :param sigma_name: name for the variable representing the left/right EOMCC sigma veector
+    :param T: list of cluster operators
+    :param L: list of left-hand operators
+    :param R: list of right-hand operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    """ 
 
     # right- or left-hand sigma?
     is_right = True
@@ -811,17 +849,17 @@ def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True):
         file.write(graph.str("python"))
 
         if is_right:
-            if sigma_name == 'sigma2':
-                file.write(f"    return sigma2_aaaa, sigma2_abab, sigma2_bbbb\n")
-            elif sigma_name == 'sigma1':
-                file.write(f"    return sigma1_aa, sigma1_bb\n")
+            if '2' in sigma_name:
+                file.write(f"    return {sigma_name}_aaaa, {sigma_name}_abab, {sigma_name}_bbbb\n")
+            elif '1' in sigma_name:
+                file.write(f"    return {sigma_name}_aa, {sigma_name}_bb\n")
             else:
                 file.write(f"    return {sigma_name}\n")
         else:
-            if sigma_name == 'sigma2':
-                file.write(f"    return sigma2_aaaa.transpose(2,3,0,1), sigma2_abab.transpose(2,3,0,1), sigma2_bbbb.transpose(2,3,0,1)\n")
-            elif sigma_name == 'sigma1':
-                file.write(f"    return sigma1_aa.transpose(1,0), sigma1_bb.transpose(1,0)\n")
+            if '2' in sigma_name:
+                file.write(f"    return {sigma_name}_aaaa.transpose(2,3,0,1), {sigma_name}_abab.transpose(2,3,0,1), {sigma_name}_bbbb.transpose(2,3,0,1)\n")
+            elif '1' in sigma_name:
+                file.write(f"    return {sigma_name}_aa.transpose(1,0), {sigma_name}_bb.transpose(1,0)\n")
             else:
                 file.write(f"    return {sigma_name}\n")
 
