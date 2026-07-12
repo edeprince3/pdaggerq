@@ -277,11 +277,11 @@ def _dims_for(name):
     return {**DIMS, "O": float(protons)}
 
 
-def _optimized(pq, label, df, opt_level, dims=None):
-    return _optimized_multi([(label, pq)], df, opt_level, dims)
+def _optimized(pq, label, df, opt_level, dims=None, gep_traces=True):
+    return _optimized_multi([(label, pq)], df, opt_level, dims, gep_traces)
 
 
-def _optimized_multi(labeled_pqs, df, opt_level, dims=None):
+def _optimized_multi(labeled_pqs, df, opt_level, dims=None, gep_traces=True):
     # nthreads=1: the pq_graph optimizer's substitution/fusion passes race on the
     # lazy caches (link_vector_, flop_scale_, base_hash_, ...) of Linkage objects that
     # are shared by shared_ptr across candidate intermediates -- forget()/compute_scaling()
@@ -301,9 +301,18 @@ def _optimized_multi(labeled_pqs, df, opt_level, dims=None):
         # Normal-order gep: the NEO integral dumps carry the dressed NEO-HF Fock (f/fp
         # include the e-p mean field), so the one-body reference traces of gep must not
         # appear explicitly in the equations or they double-count that field (a nonzero
-        # singles residual at t=0). No-op for non-NEO. Applied to every generated
-        # equation (residuals, energy, Lambda, amplitude gradient) via this shared helper.
-        pq.remove_gep_reference_traces()
+        # singles residual at t=0). No-op for non-NEO.
+        #
+        # NOT for the orbital-rotation gradient (gep_traces=False; see gradient_graph):
+        # dropping trace-carrying terms does NOT commute with taking the commutator --
+        # removing them FROM <[H, E-]> is not the same as forming <[H - T, E-]> -- so it
+        # does not yield the derivative of anything. With the removal the NEO gradient
+        # disagreed with the finite-difference-verified orbital_gradient_ir (electron rel
+        # 0.41, proton 0.73); without it the two routes agree to ~5e-16 for BOTH species.
+        # The gradient therefore lives in the same (no-removal) convention as the RDM
+        # energy that energy_from_rdm_ir traces and that orbital_gradient_ir differentiates.
+        if gep_traces:
+            pq.remove_gep_reference_traces()
         g.add(pq, label)
     g.optimize()
     return g
@@ -435,8 +444,25 @@ def lambda_ir(name, amplitude, df=True, opt_level=None, label="R"):
 
 def gradient_graph(name, species, df=True, opt_level=None, label="R"):
     """Optimized pq_graph for the per-species orbital-rotation gradient
-    ``<(1+L) [Hbar, E_ai - E_ia]>`` (species = "electron" or "proton"). The
-    generalized-Fock orbital gradient neocc rotates the orbitals with."""
+    ``<(1+L) [Hbar, E_ai - E_ia]>`` (species = "electron" or "proton"), in AMPLITUDE
+    form: the integrals are contracted with t/Lambda directly, so no RDMs need to be
+    materialised (unlike the fixed-RDM :func:`orbital_gradient_ir`). Both routes give
+    the same gradient -- verified to 4e-16 for electronic models -- but this one lets
+    pq_graph factorise the whole contraction and avoids ever forming D2.
+
+    **The gep reference traces are NOT removed here** (``gep_traces=False``), unlike every
+    other generated equation. Term-dropping does not commute with taking a commutator:
+    removing trace-carrying terms FROM ``<[H, E-]>`` is not the same as forming
+    ``<[H - T, E-]>``, so the removal does not yield the derivative of anything. It was
+    being applied blanket-style by ``_optimized`` and made the NEO gradient disagree with
+    the finite-difference-verified :func:`orbital_gradient_ir` (electron rel 0.41, proton
+    rel 0.73) -- a consumer saw a gradient that failed its FD check and, because the error
+    rode on gep, flipped when gep's charge sign flipped. Without the removal the two
+    routes agree to ~5e-16 for BOTH species, so the gradient lives in the same convention
+    as the RDM energy that :func:`energy_from_rdm_ir` traces.
+
+    Guarded by models_test.test_gradient_ir_matches_orbital_gradient (both routes, both
+    species, electronic and NEO)."""
     opt_level = _opt_level_for(name, opt_level)
     if species not in ("electron", "proton"):
         raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
@@ -451,7 +477,9 @@ def gradient_graph(name, species, df=True, opt_level=None, label="R"):
         pq.add_st_operator(-1.0, [h, ia], list(m.T))
         pq.add_st_operator(1.0, [ia, h], list(m.T))
     pq.simplify()
-    return _optimized(pq, label, df, opt_level, _dims_for(name))
+    # gep_traces=False: see the docstring -- the removal does not commute with the
+    # commutator, and applying it here broke the NEO gradient.
+    return _optimized(pq, label, df, opt_level, _dims_for(name), gep_traces=False)
 
 
 def gradient_ir(name, species, df=True, opt_level=None, label="R"):
@@ -708,37 +736,44 @@ def energy_from_rdm_ir(name, label="E"):
     explicit occ/vir-block JSONL IR (see the block-contraction note above). Returns
     the total ``<H>``; subtract the reference energy for the correlation part.
 
-    CONSUMER CONTRACT -- how to build the integral inputs from raw MO quantities so
-    this IR reproduces ``<(1+Lambda) H>`` exactly (guarded by
-    ``models_test.test_energy_from_rdm`` via :func:`rdm_energy_reference`). All
-    formulas are in SPIN-ORBITAL form; a spatial-orbital (restricted) consumer must
-    insert its own spin summation factors (e.g. the electron occupied sums below
-    become ``2 * sum_i(spatial)`` for closed shells).
+    CONSUMER CONTRACT -- how to build the integral inputs from raw MO quantities.
+    Guarded by ``models_test.test_energy_from_rdm``, which checks BOTH the algebraic
+    identity and the PHYSICAL one (E_rdm at zero amplitudes == the NEO-HF reference
+    energy). All formulas are SPIN-ORBITAL; a spatial-orbital (restricted) consumer
+    must insert its own spin factors (electron occupied sums become
+    ``2 * sum_i(spatial)`` for closed shells).
 
-    Identity (holds at ARBITRARY amplitudes/multipliers, reference included)::
+    **The one-body operators are the BARE cores.** This is the whole point of the RDM
+    form: every mean field emerges from the TWO-body terms contracted with the RDMs, so
+    feeding a dressed Fock double-counts it::
 
-        <(1+L) (f + v + fp + gep)>  ==  h.D1 + 1/2 g.D2 + hp.D1_n + gep.D2_ep
+        E = h.D1 + 1/2 g.D2 + hp.D1_n + gep.D2_ep          (the TOTAL energy)
 
-    where f/v/fp/gep are the operators of the *generated equations* (the dressed
-    NEO-HF normal-ordered Hamiltonian, with gep's reference traces NOT removed on
-    the left side) and the right side uses:
-
-    * ``h  = f - mf_ee`` with ``mf_ee[p,q] = sum_{i in occ_e} <pi||qi>``
-      (ANTISYMMETRIZED electron mean field, exchange included).
-      Since the dressed ``f = hcore_e + mf_ee + mf_ep``, this means
-      ``h = hcore_e + mf_ep``: the electron-proton mean field STAYS in ``h``.
-      ``mf_ep[p,q] = sum_{I in occ_p} gep[p,I,q,I]`` (signed gep, see below; no
-      exchange between distinguishable species).
-    * ``hp = fp`` UNCHANGED -- the dressed proton Fock exactly as fed to the
-      equations: ``fp = hcore_p + mf_pe`` with
+    * ``h  = hcore_e``  -- the BARE electron core (kinetic + nuclear attraction).
+      NOT the Fock matrix, and NOT ``f - mf_ee``: subtracting only the electronic mean
+      field leaves ``hcore_e + mf_ep`` behind, which together with ``hp`` and
+      ``gep.D2_ep`` counts the e-p mean field THREE times. If you start from the dressed
+      NEO-HF Fock, you must remove BOTH mean fields:
+      ``h = f - mf_ee - mf_ep`` with
+      ``mf_ee[p,q] = sum_{i in occ_e} <pi||qi>``  (ANTISYMMETRIZED -- exchange included)
+      ``mf_ep[p,q] = sum_{I in occ_p} gep[p,I,q,I]``  (signed gep; no exchange between
+      distinguishable species).
+    * ``hp = hcore_p`` -- the BARE proton core, i.e. ``fp - mf_pe`` with
       ``mf_pe[P,Q] = sum_{i in occ_e} gep[i,P,i,Q]`` (all occupied electron
-      spin-orbitals; for one quantum proton there is no proton-proton mean field).
-      The e-p mean field therefore appears in BOTH ``h`` and ``hp``; do NOT
-      hand-correct for double counting -- the compensation is inside the RDM
-      block coefficients and the identity above is exact as stated.
+      spin-orbitals). NOT the dressed ``fp``.
+    * Sanity check a consumer can run in one line: at ZERO amplitudes this E must equal
+      your NEO-HF reference energy exactly. If it is too high by ``2 * sum_{i,I}
+      gep(i,I,i,I)`` you have fed dressed Focks.
     * ``g = plain physicist <pq|rs>`` (NOT antisymmetrized; the antisymmetry lives
       in D2, hence the 1/2). Slot pairing as emitted: ``g[abcd] . D2[abdc]``
       (D2's last two slots swapped), with ``D2[pqsr] = <p+ q+ r s>``.
+
+    NB the *generated equations* (residual/energy/Lambda, via ``_optimized``) DO take the
+    dressed NEO-HF Fock -- ``remove_gep_reference_traces`` strips gep's mean-field traces
+    precisely because f/fp already carry them. The two routes therefore take DIFFERENT
+    one-body inputs, and their totals differ by the constant reference e-p energy
+    ``sum_{i,I} gep(i,I,i,I)`` (dropped by the trace removal), so they agree on E_corr.
+    Do not feed the same one-body matrices to both.
     * ``gep`` is the SAME tensor fed to the residual/energy equations, in slot
       order ``(e, P, e', P')`` -- pdaggerq attaches no charge factor to it (the
       equations are charge-agnostic), so the physical sign is the consumer's:
@@ -784,8 +819,10 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
     D = {"o": no, "v": nv, "O": nO, "V": nV}
     rg = np.random.default_rng(seed)
 
-    f = rg.standard_normal((ne, ne)); f = f + f.T
-    fp = rg.standard_normal((npr, npr)); fp = fp + fp.T
+    # BARE cores, then the PHYSICALLY CONSISTENT dressed Focks built from the same
+    # two-body integrals -- so a consumer can check either construction against the other.
+    hcore = rg.standard_normal((ne, ne)); hcore = hcore + hcore.T
+    hcore_p = rg.standard_normal((npr, npr)); hcore_p = hcore_p + hcore_p.T
     cq = rg.standard_normal((ne,) * 4)                     # chemist (pq|rs) symmetries
     cq = cq + cq.transpose(1, 0, 2, 3); cq = cq + cq.transpose(0, 1, 3, 2)
     cq = cq + cq.transpose(2, 3, 0, 1)
@@ -793,8 +830,21 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
     eri = g - g.transpose(0, 1, 3, 2)                      # antisym <pq||rs>
     gep = rg.standard_normal((ne, npr, ne, npr))
     gep = gep + gep.transpose(2, 3, 0, 1)                  # hermitian e-p tensor
-    mf_ee = np.einsum("piqi->pq", eri[:, sle["o"], :, sle["o"]])
-    h, hp = f - mf_ee, fp
+    mf_ee = np.einsum("piqi->pq", eri[:, sle["o"], :, sle["o"]])      # antisym e-e
+    mf_ep = np.einsum("pIqI->pq", gep[:, slp["O"], :, slp["O"]])      # e-p on the electron
+    mf_pe = np.einsum("iPiQ->PQ", gep[sle["o"], :, sle["o"], :])      # e-p on the proton
+
+    # The RDM energy takes the BARE cores -- every mean field must come from the TWO-body
+    # terms contracted with the RDMs, or it is counted twice (see energy_from_rdm_ir).
+    h, hp = hcore, hcore_p
+    # The raw-H Lagrangian's one-body operators, chosen so that the algebraic identity
+    # (h = f - mf_ee, hp = fp) and the PHYSICAL one (bare cores -> E_rdm(0) = E_HF) hold
+    # simultaneously: f carries only the ELECTRONIC mean field, never the e-p one.
+    f, fp = hcore + mf_ee, hcore_p
+    # What the GENERATED equations take instead: the fully dressed NEO-HF Focks (that is
+    # why _optimized strips gep's mean-field traces). Exposed so a consumer can see that
+    # the two routes take DIFFERENT one-body inputs.
+    f_dressed, fp_dressed = hcore + mf_ee + mf_ep, hcore_p + mf_pe
 
     def spc(l):
         nuc = len(l) > 1 and l[0] == "n"
@@ -887,11 +937,21 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
         sub = ",".join("".join(op["indices"]) for op in st["operands"])
         E_rdm += st["coeff"] * float(np.einsum(sub + "->", *ts, optimize=True))
 
-    out = {"f": f, "eri": eri, "g": g, "mf_ee": mf_ee, "h": h,
+    # PHYSICAL reference energy: the RDM trace at ZERO amplitudes must reproduce the
+    # (NEO-)HF energy built from the BARE cores. This is the check that catches a dressed
+    # Fock being fed to the RDM route (it comes out high by 2*sum_iI gep(i,I,i,I)).
+    o_, O_ = sle["o"], slp["O"]
+    E_hf = float(np.trace(hcore[o_, o_]) + 0.5 * np.einsum("ijij->", eri[o_, o_, o_, o_]))
+    if is_neo:
+        E_hf += float(np.trace(hcore_p[O_, O_]) + np.einsum("iIiI->", gep[o_, O_, o_, O_]))
+
+    out = {"f": f, "eri": eri, "g": g, "mf_ee": mf_ee, "h": h, "hcore": hcore,
+           "f_dressed": f_dressed, "E_hf": E_hf,
            "amps": amps, "rdm": rdm, "E_rdm": E_rdm, "E_lagrangian": L,
            "dims": {"o": no, "v": nv, "O": nO, "V": nV}}
     if is_neo:
-        out.update({"fp": fp, "gep": gep, "hp": hp})
+        out.update({"fp": fp, "gep": gep, "hp": hp, "hcore_p": hcore_p,
+                    "fp_dressed": fp_dressed, "mf_ep": mf_ep, "mf_pe": mf_pe})
     return out
 
 

@@ -262,6 +262,48 @@ def test_rdm():
     print("test_rdm OK")
 
 
+def _slices(ref):
+    d = ref["dims"]; ne = d["o"] + d["v"]; npr = d["O"] + d["V"]
+    return {"o": slice(0, d["o"]), "v": slice(d["o"], ne),
+            "O": slice(0, d["O"]), "V": slice(d["O"], npr)}
+
+
+def _integral_block(op, ref):
+    """The h/hp/g/gep block an energy_from_rdm_ir operand refers to."""
+    SL = _slices(ref)
+    base, blk = op["name"].split('["')[0], op["name"].split('"')[1]
+    src = {"h": ref["h"], "hp": ref.get("hp"), "g": ref["g"], "gep": ref.get("gep")}[base]
+    return src[tuple(SL[c] for c in blk)]
+
+
+def _rdm_at_zero_amps(ir, target, classes, ref):
+    """Evaluate an rdm_block_ir block at ZERO amplitudes: keep only the statements whose
+    operands are all reference quantities (Id / already-built intermediates); any term
+    touching an amplitude vanishes."""
+    import numpy as np
+    D = ref["dims"]
+    store = {}
+    for s in ir:
+        arrs, skip = [], False
+        for op in s["operands"]:
+            nm = op["name"]
+            if nm.startswith("Id["):
+                arrs.append(np.eye(D[op["classes"][0]]))
+            elif nm in store:
+                arrs.append(store[nm])
+            else:                        # an amplitude -> the whole term is zero at t=0
+                skip = True
+                break
+        if skip:
+            continue
+        out = "".join(s["target"]["indices"])
+        sub = ",".join("".join(o["indices"]) for o in s["operands"])
+        c = s["coeff"] * np.einsum(sub + "->" + out, *arrs, optimize=True)
+        t = s["target"]["name"]
+        store[t] = c.copy() if s["is_assignment"] else store[t] + c
+    return store.get(target, np.zeros(tuple(D[c] for c in classes)))
+
+
 def test_energy_from_rdm():
     import itertools, json
     import numpy as np
@@ -306,13 +348,39 @@ def test_energy_from_rdm():
     # sign, or a pq_graph-corrupted D1_n all show up here and nowhere else.
     for mdl in ("ccsd", "neo-ccd(ep)"):
         ref = models.rdm_energy_reference(mdl)
+        # (a) ALGEBRAIC identity: the RDM trace == the raw-H Lagrangian
         assert abs(ref["E_lagrangian"] - ref["E_rdm"]) < 1e-9, \
             (mdl, ref["E_lagrangian"], ref["E_rdm"])
-        # contract spot-checks a consumer can mirror byte-for-byte
         assert np.allclose(ref["h"], ref["f"] - ref["mf_ee"])
         if "hp" in ref:
-            assert np.allclose(ref["hp"], ref["fp"])          # dressed fp, unchanged
+            assert np.allclose(ref["hp"], ref["fp"])
             assert any(b == "D2_ep" for b, _ in ref["rdm"]), sorted(ref["rdm"])
+
+        # (b) PHYSICAL identity -- the check the algebraic one CANNOT make. (a) compares
+        # the RDM trace against the raw-H Lagrangian built from the SAME one-body inputs,
+        # so any mis-dressing of h/hp cancels on both sides and is invisible. It hid a
+        # real error: the contract used to say h = f - mf_ee (keeping the e-p mean field
+        # in h) and hp = fp, which counts the e-p mean field THREE times -- E(t=0) came
+        # out high by exactly 2*sum_iI gep(i,I,i,I). The one-body operators must be the
+        # BARE cores. Assert the RDM energy at ZERO amplitudes reproduces the (NEO-)HF
+        # reference energy built independently from those bare cores.
+        E0 = 0.0
+        for line in models.energy_from_rdm_ir(mdl):
+            st = json.loads(line)
+            arrs, skip = [], False
+            for op in st["operands"]:
+                base, blk = op["name"].split('["')[0], op["name"].split('"')[1]
+                if base in ("h", "hp", "g", "gep"):
+                    arrs.append(None)          # integral, filled below
+                else:                          # RDM block at t=0: reference part only
+                    ir = einsums.parse_ir(models.rdm_block_ir(mdl, base, blk))
+                    arrs.append(_rdm_at_zero_amps(ir, f'{base}["{blk}"]', op["classes"], ref))
+            arrs = [a if a is not None else _integral_block(op, ref)
+                    for a, op in zip(arrs, st["operands"])]
+            sub = ",".join("".join(op["indices"]) for op in st["operands"])
+            E0 += st["coeff"] * float(np.einsum(sub + "->", *arrs, optimize=True))
+        assert abs(E0 - ref["E_hf"]) < 1e-9, (
+            mdl, "E_rdm(t=0) != HF reference -- are h/hp the BARE cores?", E0, ref["E_hf"])
 
     print("test_energy_from_rdm OK")
 
@@ -471,6 +539,85 @@ def test_orbital_gradient_hessian():
         except exc:
             pass
     print("test_orbital_gradient_hessian OK")
+
+
+def test_gradient_ir_matches_orbital_gradient():
+    """The two orbital-gradient routes must give the SAME gradient:
+      * orbital_gradient_ir : fixed-RDM  <[H, E-]> contracted with D1/D2/D1_n/D2_ep
+                              (FD-verified by test_orbital_gradient_finite_difference)
+      * gradient_ir         : AMPLITUDE form <(1+L) e^-T [H_N, E-] e^T>, contracted with
+                              t/Lambda directly -- no RDMs materialised
+    H_N = H - E_ref and E_ref is a number, so [H_N, E-] == [H, E-]: same operator, and on
+    consistent inputs the two must agree exactly. They do, for ELECTRONIC models.
+
+    Regression: _optimized used to blanket-apply remove_gep_reference_traces() to the
+    gradient too. Term-dropping does not commute with taking a commutator (removing
+    trace-carrying terms FROM <[H,E-]> is not <[H-T,E-]>), so the NEO gradient came out
+    wrong (electron rel 0.41, proton rel 0.73) while the electron-only models were
+    unaffected -- a consumer saw a gradient failing its FD check that flipped with gep's
+    charge sign. gradient_graph now passes gep_traces=False; both routes then agree to
+    ~5e-16 for BOTH species. NB the ST cross-species commutator itself is FINE."""
+    import numpy as np
+
+    for name in ("ccsd", "neo-ccd(ep)"):
+        ref = models.rdm_energy_reference(name, seed=17)
+        d = ref["dims"]; no, nv, nO, nV = d["o"], d["v"], d["O"], d["V"]
+        ne, npr = no + nv, nO + nV
+        SL = {"o": slice(0, no), "v": slice(no, ne),
+              "O": slice(0, nO), "V": slice(nO, npr)}
+        D = {"o": no, "v": nv, "O": nO, "V": nV}
+        is_neo = "gep" in ref
+
+        def assemble(base, shape):
+            A = np.zeros(shape)
+            for (b, blk), arr in ref["rdm"].items():
+                if b == base:
+                    A[tuple(SL[c] for c in blk)] = arr
+            return A
+        FULL = {"h": ref["h"], "g": ref["g"], "D1": assemble("D1", (ne, ne)),
+                "D2": assemble("D2", (ne,) * 4), "Id": np.eye(max(ne, npr))}
+        if is_neo:
+            FULL.update({"hp": ref["hp"], "gep": ref["gep"],
+                         "D1_n": assemble("D1_n", (npr, npr)),
+                         "D2_ep": assemble("D2_ep", (npr, ne, ne, npr))})
+
+        # The emitted IR names tensors by BASE + block, and the base alone is ambiguous:
+        # f(ov) is the electron Fock while f(OV) is the PROTON Fock (fp) -- same name,
+        # distinguished only by the index classes. eri(..) is the antisymmetrized electron
+        # ERI; g(..) is the mixed e-p gep. Dispatch on the classes, not the name.
+        def named(base, classes):
+            proton = all(c in "OV" for c in classes)
+            if base == "f":   return ref["fp"] if proton else ref["f"]
+            if base in ("eri", "v"): return ref["eri"]
+            if base in ("g", "gep"): return ref["gep"]
+            return None
+
+        for species in (("electron",) if not is_neo else ("electron", "proton")):
+            (_, G_rdm), = _interp_blocks(
+                einsums.parse_ir(models.orbital_gradient_ir(name, species)), FULL, SL).items()
+
+            store = {}
+            def val(o):
+                nm = o["name"]
+                if nm in store: return store[nm]
+                if nm.startswith("Id["): return np.eye(D[o["classes"][0]])
+                arr = named(nm.split("[")[0], o["classes"])
+                if arr is not None:
+                    return arr[tuple(SL[c] for c in o["classes"])]
+                return ref["amps"][nm]
+            for s in einsums.parse_ir(
+                    models.gradient_ir(name, species, df=False, opt_level=0)):
+                subs = ",".join("".join(o["indices"]) for o in s["operands"])
+                out = "".join(s["target"]["indices"])
+                c = s["coeff"] * np.einsum(subs + "->" + out,
+                                           *[val(o) for o in s["operands"]], optimize=True)
+                t = s["target"]["name"]
+                store[t] = c.copy() if s["is_assignment"] else store[t] + c
+            G_amp = store["R"]
+
+            err = float(np.max(np.abs(G_amp - G_rdm))) / max(float(np.max(np.abs(G_rdm))), 1e-30)
+            assert err < 1e-10, (name, species, err, G_amp, G_rdm)
+    print("test_gradient_ir_matches_orbital_gradient OK")
 
 
 def test_orbital_gradient_finite_difference():
@@ -1351,6 +1498,7 @@ if __name__ == "__main__":
     test_rdm()
     test_energy_from_rdm()
     test_orbital_gradient_hessian()
+    test_gradient_ir_matches_orbital_gradient()
     test_orbital_gradient_finite_difference()
     test_orbital_hessian_diag()
     test_orbital_sigma()
