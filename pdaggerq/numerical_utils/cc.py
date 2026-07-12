@@ -17,7 +17,7 @@
 #   limitations under the License.
 
 """
-CCSD and CCSDT
+CCSD, CCSDT/CC3, and lambda CCSD
 """
 
 import numpy as np
@@ -90,7 +90,7 @@ class cc:
             self.t2 = np.zeros((self.nsvirt, self.nsvirt, self.nsocc, self.nsocc))
 
             if t3_residual_func is not None:
-                raise Exception("spin-orbital CCSDT is not implemented")
+                raise Exception("spin-orbital CCSDT and CC3 are not implemented")
 
             self.l1 = None
             self.l2 = None
@@ -243,8 +243,8 @@ class cc:
             energy = self.cc_energy()
                         
         print("")
-        print("    CCSD Correlation Energy: {: 20.12f}".format(energy - self.hf_energy))
-        print("    CCSD Total Energy:       {: 20.12f}".format(energy + self.nuclear_repulsion_energy + self.efzc))
+        print("    CC Correlation Energy: {: 20.12f}".format(energy - self.hf_energy))
+        print("    CC Total Energy:       {: 20.12f}".format(energy + self.nuclear_repulsion_energy + self.efzc))
         print("")
 
         self.energy = energy
@@ -259,7 +259,7 @@ class cc:
         """
 
         if self.use_spin_orbital_basis:
-            raise Exception("spin-orbital CCSD lambda is not implemented")
+            raise Exception("spin-orbital CC lambda is not implemented")
         self.ccsd_lambda_iterations_with_spin(e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
 
         return self.cc_pseudoenergy() #+ self.nuclear_repulsion_energy + self.efzc
@@ -312,7 +312,7 @@ class cc:
         old_energy = self.cc_energy()
     
         print("")
-        print("    ==> CCSD amplitude equations <==")
+        print("    ==> CC amplitude equations <==")
         print("")
         print("     Iter               Energy                 |dE|                 |dT|")
         for idx in range(max_iter):
@@ -420,7 +420,7 @@ class cc:
                 old_energy = current_energy
     
         else:
-            raise ValueError("CCSD iterations did not converge")
+            raise ValueError("CC iterations did not converge")
     
     def cc_iterations(self, max_iter=500, e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
                
@@ -437,7 +437,7 @@ class cc:
         old_energy = self.cc_energy()
     
         print("")
-        print("    ==> CCSD amplitude equations <==")
+        print("    ==> CC amplitude equations <==")
         print("")
         print("     Iter               Energy                 |dE|                 |dT|")
         for idx in range(max_iter):
@@ -477,7 +477,7 @@ class cc:
                 old_energy = current_energy
     
         else:
-            raise ValueError("CCSD iterations did not converge")
+            raise ValueError("CC iterations did not converge")
     
     def ccsd_lambda_iterations_with_spin(self, max_iter=500,e_convergence=1e-8,r_convergence=1e-8,diis_size=None, diis_start_cycle=4):
 
@@ -510,7 +510,7 @@ class cc:
         old_energy = self.cc_pseudoenergy()
     
         print("")
-        print("    ==> CCSD lambda amplitude equations <==")
+        print("    ==> CC lambda amplitude equations <==")
         print("")
         print("     Iter         Pseudoenergy                 |dE|            |dlambda|")
         for idx in range(max_iter):
@@ -573,9 +573,9 @@ class cc:
                 old_energy = current_energy
     
         else:
-            raise ValueError("CCSD lambda iterations did not converge")
+            raise ValueError("CC lambda iterations did not converge")
 
         print("")
-        print("    CCSD lambda pseudoenergy:       {: 20.12f}".format(current_energy))
+        print("    CC lambda pseudoenergy:       {: 20.12f}".format(current_energy))
         print("")
 
