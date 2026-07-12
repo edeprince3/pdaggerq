@@ -1119,6 +1119,37 @@ def _parse_rdm_term(term):
                             for m in re.finditer(r"([A-Za-z_0-9]+)\(([^)]+)\)", " ".join(toks[1:]))]
 
 
+def _d2_to_consumer(terms):
+    """Re-pair the 2-RDM of raw ``pq.strings()`` commutator terms into the CONSUMER's
+    D2 convention by swapping its last two slots.
+
+    pq_helper emits its own 2-RDM index order; the consumer's D2 -- the one
+    :func:`rdm_block_ir` produces and :func:`energy_from_rdm_ir` traces -- is
+    ``D2[pqsr] = <p+ q+ r s>``, which is why the energy pairs ``g[abcd] . D2[abdc]``
+    (the ``[0,1,3,2]`` swap added in 2da1c7e). The orbital gradient/Hessian/sigma are
+    built from the same ``pq.strings()`` commutators but never got that swap, so their
+    two-body terms contracted D2 with its last two slots in pq_helper's order. Because
+    D2 is antisymmetric in exactly those slots, that is an exact SIGN ERROR on every
+    g.D2 term -- the analytic electron gradient came out as MINUS the true dE/dkappa
+    (verified against finite differences of the energy: ratio -1.00000000). The
+    one-body h.D1 terms are unaffected (D1's convention already matches), and the
+    proton paths never touch pq_helper's D2 (they are hand-derived from h_p and gep),
+    which is why only the electron two-body piece was wrong.
+
+    Guarded by models_test.test_orbital_gradient_finite_difference.
+    """
+    out = []
+    for term in terms:
+        coeff, tensors = _parse_rdm_term(term)
+        body = []
+        for nm, idx in tensors:
+            if nm == "D2" and len(idx) == 4:
+                idx = [idx[0], idx[1], idx[3], idx[2]]      # <- consumer pairing
+            body.append(f"{nm}({','.join(idx)})")
+        out.append(f"{coeff} {' '.join(body)}")
+    return out
+
+
 # orbital classes ordered by occupation for the active-space OO rotation split:
 # core (inactive-occ) < active-occ < active-vir < inactive-vir (external). Electron
 # classes are lowercase, proton uppercase; rotation_classes is given lowercase and
@@ -1143,7 +1174,7 @@ def _electron_gradient_terms(name):
         pq.add_commutator(c, [op], [ai])
         pq.add_commutator(-c, [op], [ia])
     pq.simplify()
-    terms = [" ".join(t) for t in pq.strings()]
+    terms = _d2_to_consumer(" ".join(t) for t in pq.strings())
     if any(op in model(name).H for op in ("fp", "gep")):
         terms += _GEP_GRAD_TERMS                        # NEO: hand-derived e-p coupling
     return terms
@@ -1197,7 +1228,21 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"
     explicit occ/vir-block JSONL IR. ``col_species`` defaults to ``row_species``.
     Electron same-species is supported for electronic and NEO models (the e-p coupling
     gep is added via the hand-derived _GEP_HESS_TERMS); the e-p cross block and proton
-    rows are the follow-up (bare proton core)."""
+    rows are the follow-up (bare proton core).
+
+    .. warning::
+       **This is NOT currently the second derivative of the energy -- do not use it.**
+       The orbital GRADIENT is now finite-difference-verified as the exact dE/dkappa
+       (see models_test.test_orbital_gradient_finite_difference), but the Hessian built
+       from the same double commutator disagrees with d2E/dkappa2: it is not even
+       symmetric under (a,i)<->(b,j), while the true fixed-RDM Hessian is exactly
+       symmetric, and no rescaling or symmetrization of it reproduces the
+       finite-difference Hessian. ``orbital_hessian_diag_ir`` does not reproduce the FD
+       diagonal either. This is a deeper defect than the D2 re-pairing that was fixed in
+       the gradient (see :func:`_d2_to_consumer`) -- most likely the unsymmetrized
+       ``<[[H, A], B]>`` needs the ``1/2 (<[[H,A],B]> + <[[H,B],A]>)`` symmetrization
+       plus the ``<[H, [A,B]]>`` term -- and is not yet diagnosed. ``orbital_sigma_ir``
+       comes from the same commutator and is presumed affected."""
     if col_species is None:
         col_species = row_species
     if row_species not in _ROT_ROW or col_species not in _ROT_COL:
@@ -1233,7 +1278,7 @@ def orbital_hessian_ir(name, row_species="electron", col_species=None, label="H"
             for y, sy in ((bj, 1.0), (jb, -1.0)):
                 pq.add_double_commutator(c * sx * sy, [op], [x], [y])
     pq.simplify()
-    terms = [" ".join(t) for t in pq.strings()]
+    terms = _d2_to_consumer(" ".join(t) for t in pq.strings())
     if is_neo:
         terms += _GEP_HESS_TERMS                        # NEO: hand-derived e-p coupling
     return _block_resolve(terms, label, ["a", "b", "i", "j"])
@@ -1326,7 +1371,7 @@ def _electron_hessian_terms(name):
             for y, sy in ((bj, 1.0), (jb, -1.0)):
                 pq.add_double_commutator(c * sx * sy, [op], [x], [y])
     pq.simplify()
-    terms = [" ".join(t) for t in pq.strings()]
+    terms = _d2_to_consumer(" ".join(t) for t in pq.strings())
     if any(op in model(name).H for op in ("fp", "gep")):
         terms += _GEP_HESS_TERMS
     return terms
