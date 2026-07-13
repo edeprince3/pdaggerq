@@ -9,8 +9,8 @@ def configure_graph():
     """
     return pdaggerq.pq_graph({
         'batched': False,
-        'print_level': 3,
-        'opt_level': 1,
+        'print_level': 0,
+        'opt_level': 0,
         'nthreads': -1,
     })
 
@@ -240,10 +240,8 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True, write_fun
     graph.optimize()
 
     # initialization statements
-    generated_code_string = \
-f"""
-def {function_name}(self):
-"""
+    generated_code_string = f"""def {function_name}(self):"""
+
     generated_code_string += function_initialization_string()
 
     # pq graph output
@@ -336,10 +334,8 @@ def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = 
     graph.optimize()
 
     # initialization statements
-    generated_code_string = \
-f"""
-def {function_name}(self):
-"""
+    generated_code_string = f"""def {function_name}(self):"""
+
     generated_code_string += function_initialization_string()
 
     # pq graph output
@@ -431,10 +427,8 @@ def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = 
     graph.optimize()
 
     # initialization statements 
-    generated_code_string = \
-f"""
-def {function_name}(self):
-""" 
+    generated_code_string = f"""def {function_name}(self):""" 
+
     generated_code_string += function_initialization_string()
     
     # pq graph output
@@ -532,10 +526,8 @@ def uccsd_energy(order, energy_name, function_name, spin_block = True, write_fun
     graph.optimize()
 
     # initialization statements 
-    generated_code_string = \
-f"""    
-def {function_name}(self):
-"""
+    generated_code_string = f"""def {function_name}(self):"""
+
     generated_code_string += function_initialization_string()
 
     # pq graph output
@@ -620,10 +612,8 @@ def cc3_triples_residual(residual_name, L, function_name, spin_block = True, wri
     graph.optimize()
 
     # initialization statements 
-    generated_code_string = \
-f"""    
-def {function_name}(self):
-"""
+    generated_code_string = f"""def {function_name}(self):"""
+
     generated_code_string += function_initialization_string()
 
     # pq graph output
@@ -706,10 +696,8 @@ def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True,
     graph.optimize()
 
     # initialization statements 
-    generated_code_string = \
-f"""    
-def {function_name}(self):
-"""
+    generated_code_string = f"""def {function_name}(self):"""
+
     generated_code_string += function_initialization_string()
 
     # pq graph output
@@ -790,10 +778,8 @@ def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True, 
     graph.optimize()
 
     # initialization statements 
-    generated_code_string = \
-f"""    
-def {function_name}(self):
-"""         
+    generated_code_string = f"""def {function_name}(self):"""         
+
     generated_code_string += function_initialization_string()
         
     # pq graph output
