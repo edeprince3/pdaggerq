@@ -621,45 +621,29 @@ def test_gradient_ir_matches_orbital_gradient():
 
 
 def test_orbital_gradient_finite_difference():
-    """The orbital gradient (and Hessian) must be the EXACT derivative of the fixed-RDM
-    energy that energy_from_rdm_ir traces -- as an algebraic identity in the integrals,
-    hence for BOTH signs of gep (a consumer chooses gep's charge sign; see the charge
-    convention in the module docstring). Verified against finite differences of the
-    energy with the integrals rotated by exp(kappa).
+    """The orbital GRADIENT, HESSIAN, its DIAGONAL and the SIGMA product must be the exact
+    first/second derivatives of the fixed-RDM energy that energy_from_rdm_ir traces -- as an
+    algebraic identity in the integrals, hence for BOTH signs of gep (a consumer chooses
+    gep's charge sign). Verified against finite differences with the RDMs held FIXED and the
+    integrals rotated by exp(kappa).
 
-    This is the test that was missing: the block-structure tests below only check
-    block-sum == full-contraction, so they could not see that the two-body terms were
-    contracting D2 in pq_helper's slot order instead of the consumer's. D2 is
-    antisymmetric in exactly those slots, so the electron g.D2 gradient came out as
-    MINUS the true derivative (ratio -1.00000000) while h.D1 was right -- see
-    models._d2_to_consumer. The proton row was always correct (hand-derived from h_p and
-    gep; it never touches pq_helper's D2), including its gep sign tracking."""
+    Run in TWO regimes, and the second one is not optional:
+
+      * ONE quantum proton  -- the physical case for a single-proton NEO model.
+      * TWO quantum protons -- the ONLY regime in which the proton 2-RDM D2_n, and with it
+        every proton-proton two-body (vp) term, is nonzero. A 2-RDM needs two particles, so
+        at one proton the vp terms vanish from the energy AND from all of its derivatives:
+        analytic and FD agree perfectly whether or not vp is present. That blindness is
+        exactly how vp went missing from the OO quantities (reported by neocc) -- the bug
+        and the fix are BOTH unverifiable without this arm. Do not reduce this to one proton.
+
+    History: this test is what caught (a) the electron two-body gradient contracting D2 in
+    pq_helper's slot order instead of the consumer's -- an exact sign flip, since D2 is
+    antisymmetric in those slots -- and (b) the Hessian coming from pq_helper's DOUBLE
+    commutator, whose two-body piece is wrong and which was emitted unsymmetrized. The
+    block-structure tests below cannot see either: they only check block-sum ==
+    full-contraction, against a reference built from the same source the emitter used."""
     import numpy as np
-
-    ref = models.rdm_energy_reference("neo-ccd(ep)", seed=17)
-    d = ref["dims"]; no, nv, nO, nV = d["o"], d["v"], d["O"], d["V"]
-    ne, npr = no + nv, nO + nV
-    SL = {"o": slice(0, no), "v": slice(no, ne), "O": slice(0, nO), "V": slice(nO, npr)}
-
-    def assemble(base, shape):
-        A = np.zeros(shape)
-        for (b, blk), arr in ref["rdm"].items():
-            if b == base:
-                A[tuple(SL[c] for c in blk)] = arr
-        return A
-
-    D1 = assemble("D1", (ne, ne)); D2 = assemble("D2", (ne,) * 4)
-    D1n = assemble("D1_n", (npr, npr)); D2ep = assemble("D2_ep", (npr, ne, ne, npr))
-    h0, g0, hp0 = ref["h"], ref["g"], ref["hp"]
-
-    def energy(h, g, hp, gep):                       # the energy_from_rdm contract
-        return float(np.einsum("pq,pq->", h, D1)
-                     + 0.5 * np.einsum("abcd,abdc->", g, D2)
-                     + np.einsum("PQ,PQ->", hp, D1n)
-                     + np.einsum("ePfQ,PefQ->", gep, D2ep))
-
-    # the assembled trace must reproduce the library's own energy (pins the pairings)
-    assert abs(energy(h0, g0, hp0, ref["gep"]) - ref["E_rdm"]) < 1e-10
 
     def expm(A):                                     # A is tiny & antisymmetric
         R = np.eye(A.shape[0]); T = np.eye(A.shape[0])
@@ -668,131 +652,148 @@ def test_orbital_gradient_finite_difference():
             R = R + T
         return R
 
-    def rotated(species, t, a, i, h, g, hp, gep):
-        """Energy with the `species` orbitals rotated by kappa[vir a, occ i] = t."""
-        nocc, n = (nO, npr) if species == "proton" else (no, ne)
-        K = np.zeros((n, n)); K[nocc + a, i] = t; K[i, nocc + a] = -t
-        U = expm(K)
-        if species == "proton":
-            return energy(h, g, U.T @ hp @ U,
-                          np.einsum("ePfQ,PA,QB->eAfB", gep, U, U))
-        return energy(U.T @ h @ U,
-                      np.einsum("pqrs,pA,qB,rC,sD->ABCD", g, U, U, U, U),
-                      hp, np.einsum("ePfQ,eA,fB->APBQ", gep, U, U))
+    for name, nO in (("neo-ccd(ep)", 1), ("neo-ccsd", 2)):
+        ref = models.rdm_energy_reference(name, seed=17, no=2, nv=2, nO=nO, nV=2)
+        d = ref["dims"]; no, nv, nV = d["o"], d["v"], d["V"]
+        ne, npr = no + nv, nO + nV
+        SL = {"o": slice(0, no), "v": slice(no, ne),
+              "O": slice(0, nO), "V": slice(nO, npr)}
+        has_vp = "vp" in ref
 
-    def emitted(fn, species, h, g, hp, gep, **kw):
-        ir = einsums.parse_ir(fn("neo-ccd(ep)", species, **kw))
-        FULL = {"h": h, "g": g, "hp": hp, "gep": gep,
-                "D1": D1, "D2": D2, "D1_n": D1n, "D2_ep": D2ep}
-        return _interp_blocks(ir, FULL, SL)
+        def assemble(base, shape):
+            A = np.zeros(shape)
+            for (b, blk), arr in ref["rdm"].items():
+                if b == base:
+                    A[tuple(SL[c] for c in blk)] = arr
+            return A
 
-    eps = 1e-5
-    for sign in (+1.0, -1.0):                        # gep's charge sign must not matter
-        gep = sign * ref["gep"]
-        for species in ("electron", "proton"):
-            nocc, nvir = (nO, nV) if species == "proton" else (no, nv)
-            fd = np.zeros((nvir, nocc))
-            for a in range(nvir):
-                for i in range(nocc):
-                    fd[a, i] = (rotated(species, +eps, a, i, h0, g0, hp0, gep)
-                                - rotated(species, -eps, a, i, h0, g0, hp0, gep)) / (2 * eps)
-            (_, ana), = emitted(models.orbital_gradient_ir, species,
-                                h0, g0, hp0, gep).items()
-            err = float(np.max(np.abs(ana - fd)))
-            assert err / max(float(np.max(np.abs(fd))), 1e-30) < 1e-6, \
-                (species, "gep sign", sign, err, ana, fd)
+        D1 = assemble("D1", (ne, ne)); D2 = assemble("D2", (ne,) * 4)
+        D1n = assemble("D1_n", (npr, npr)); D2ep = assemble("D2_ep", (npr, ne, ne, npr))
+        D2n = assemble("D2_n", (npr,) * 4)
+        h0, g0, hp0 = ref["h"], ref["g"], ref["hp"]
+        vp0 = ref["vp"] if has_vp else np.zeros((npr,) * 4)
 
-    # ---- SECOND derivative: Hessian (all three blocks), its diagonal, and sigma -------
-    # These used to come from pq_helper's DOUBLE commutator, whose two-body piece is wrong
-    # (the single commutator is fine) and which emitted the UNSYMMETRIZED <[[H,A],B]> --
-    # not symmetric under (a,i)<->(b,j), while the true fixed-RDM Hessian is exactly
-    # symmetric. They are now rotation-derivatives of the same energy as the gradient
-    # (models._same_species_hessian / _cross_hessian_terms). Check every one against FD.
-    ZE, ZP = np.zeros((ne, ne)), np.zeros((npr, npr))
+        # the vp terms are only exercised if the proton 2-RDM is actually nonzero
+        if has_vp:
+            assert np.max(np.abs(D2n)) > 1e-6, (name, "D2_n is zero -- vp would be untested")
 
-    def kmat(sp, a, i, t):
-        n, nocc = (npr, nO) if sp == "p" else (ne, no)
-        A = np.zeros((n, n))
-        A[nocc + a, i] += t; A[i, nocc + a] -= t
-        return A
+        def energy(h, g, hp, gep, vp):               # the energy_from_rdm contract
+            E = (np.einsum("pq,pq->", h, D1)
+                 + 0.5 * np.einsum("abcd,abdc->", g, D2)
+                 + np.einsum("PQ,PQ->", hp, D1n)
+                 + np.einsum("ePfQ,PefQ->", gep, D2ep))
+            if has_vp:
+                E = E + 0.5 * np.einsum("ABCD,ABDC->", vp, D2n)
+            return float(E)
 
-    def energy_rot(ke, kp):
-        Ue, Up = expm(ke), expm(kp)
-        return energy(Ue.T @ h0 @ Ue,
-                      np.einsum("pqrs,pA,qB,rC,sD->ABCD", g0, Ue, Ue, Ue, Ue),
-                      Up.T @ hp0 @ Up,
-                      np.einsum("ePfQ,eA,fB,PC,QD->ACBD", gep, Ue, Ue, Up, Up))
+        # the assembled trace must reproduce the library's own energy (pins the pairings)
+        assert abs(energy(h0, g0, hp0, ref["gep"], vp0) - ref["E_rdm"]) < 1e-9, name
 
-    def fd_hess(rs, cs):
-        rnv, rno = (nV, nO) if rs == "p" else (nv, no)
-        cnv, cno = (nV, nO) if cs == "p" else (nv, no)
-        H = np.zeros((rnv, rno, cnv, cno))
-        for a in range(rnv):
-            for i in range(rno):
-                for b in range(cnv):
-                    for j in range(cno):
-                        def E2(ta, tb):
-                            ke = (kmat("e", a, i, ta) if rs == "e" else ZE) + \
-                                 (kmat("e", b, j, tb) if cs == "e" else ZE)
-                            kp = (kmat("p", a, i, ta) if rs == "p" else ZP) + \
-                                 (kmat("p", b, j, tb) if cs == "p" else ZP)
-                            return energy_rot(ke, kp)
-                        H[a, i, b, j] = (E2(eps, eps) - E2(eps, -eps)
-                                         - E2(-eps, eps) + E2(-eps, -eps)) / (4 * eps * eps)
-        return H
+        def rot(ke, kp, gep):
+            Ue, Up = expm(ke), expm(kp)
+            return (Ue.T @ h0 @ Ue,
+                    np.einsum("pqrs,pA,qB,rC,sD->ABCD", g0, Ue, Ue, Ue, Ue),
+                    Up.T @ hp0 @ Up,
+                    np.einsum("ePfQ,eA,fB,PC,QD->ACBD", gep, Ue, Ue, Up, Up),
+                    np.einsum("PQRS,PA,QB,RC,SD->ABCD", vp0, Up, Up, Up, Up))
 
-    gep = ref["gep"]
-    FULL = {"h": h0, "g": g0, "hp": hp0, "gep": gep, "D1": D1, "D2": D2,
-            "D1_n": D1n, "D2_ep": D2ep, "Id": np.eye(max(ne, npr))}
+        def kmat(sp, a, i, t):
+            n, nocc = (npr, nO) if sp == "p" else (ne, no)
+            A = np.zeros((n, n))
+            A[nocc + a, i] += t; A[i, nocc + a] -= t
+            return A
 
-    def ev(ir, extra=None):
-        F = dict(FULL, **(extra or {}))
-        by = {}
-        for st in ir:
-            by.setdefault(st["target"]["name"], []).append(st)
-        (_, sts), = by.items()
-        acc = np.zeros(tuple(SL[c].stop - SL[c].start for c in sts[0]["target"]["classes"]))
-        for st in sts:
-            arrs = [F[o["name"].split('["')[0]][
-                        tuple(SL[c] for c in o["name"].split('["')[1].rstrip('"]'))]
-                    if '["' in o["name"] else F[o["name"]] for o in st["operands"]]
-            subs = ",".join("".join(o["indices"]) for o in st["operands"])
-            acc += st["coeff"] * np.einsum(
-                f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
-        return acc
+        ZE, ZP = np.zeros((ne, ne)), np.zeros((npr, npr))
+        eps = 1e-4
 
-    H_ee, H_pp, H_ep = fd_hess("e", "e"), fd_hess("p", "p"), fd_hess("e", "p")
-    for tag, rs, cs, FD in (("ee", "electron", "electron", H_ee),
-                            ("pp", "proton", "proton", H_pp),
-                            ("ep", "electron", "proton", H_ep)):
-        M = ev(einsums.parse_ir(models.orbital_hessian_ir(
-            "neo-ccd(ep)", row_species=rs, col_species=cs))).transpose(0, 2, 1, 3)
-        err = float(np.max(np.abs(M - FD))) / max(float(np.max(np.abs(FD))), 1e-30)
-        assert err < 1e-5, ("hessian", tag, err)
-        # the same-species Hessian must be exactly symmetric under (a,i)<->(b,j)
-        if rs == cs:
-            assert np.max(np.abs(M - M.transpose(2, 3, 0, 1))) / \
-                   max(float(np.max(np.abs(M))), 1e-30) < 1e-10, ("hessian not symmetric", tag)
+        def fd_grad(sp, gep):
+            nvv, noo = (nV, nO) if sp == "p" else (nv, no)
+            G = np.zeros((nvv, noo))
+            for a in range(nvv):
+                for i in range(noo):
+                    def E(t):
+                        return energy(*rot(kmat("e", a, i, t) if sp == "e" else ZE,
+                                           kmat("p", a, i, t) if sp == "p" else ZP, gep))
+                    G[a, i] = (E(eps) - E(-eps)) / (2 * eps)
+            return G
 
-    for sp, FD in (("electron", H_ee), ("proton", H_pp)):
-        dg = ev(einsums.parse_ir(models.orbital_hessian_diag_ir("neo-ccd(ep)", sp)))
-        d_fd = np.einsum("aiai->ai", FD)
-        err = float(np.max(np.abs(dg - d_fd))) / max(float(np.max(np.abs(d_fd))), 1e-30)
-        assert err < 1e-5, ("hessian diag", sp, err)
+        def fd_hess(rs, cs, gep):
+            rnv, rno = (nV, nO) if rs == "p" else (nv, no)
+            cnv, cno = (nV, nO) if cs == "p" else (nv, no)
+            H = np.zeros((rnv, rno, cnv, cno))
+            for a in range(rnv):
+                for i in range(rno):
+                    for b in range(cnv):
+                        for j in range(cno):
+                            def E2(ta, tb):
+                                ke = (kmat("e", a, i, ta) if rs == "e" else ZE) + \
+                                     (kmat("e", b, j, tb) if cs == "e" else ZE)
+                                kp = (kmat("p", a, i, ta) if rs == "p" else ZP) + \
+                                     (kmat("p", b, j, tb) if cs == "p" else ZP)
+                                return energy(*rot(ke, kp, gep))
+                            H[a, i, b, j] = (E2(eps, eps) - E2(eps, -eps)
+                                             - E2(-eps, eps) + E2(-eps, -eps)) / (4 * eps * eps)
+            return H
 
-    rng2 = np.random.default_rng(9)
-    tr_e = rng2.standard_normal((nv, no)); tr_p = rng2.standard_normal((nV, nO))
-    Ke = np.zeros((ne, ne)); Ke[no:, :no] = tr_e
-    Kp = np.zeros((npr, npr)); Kp[nO:, :nO] = tr_p
-    # sigma carries the CROSS coupling too: s^e = H^ee.k^e + H^ep.k^p ; s^p = H^pp.k^p + (H^ep)^T.k^e
-    for sp, FD in (("electron", np.einsum("aibj,bj->ai", H_ee, tr_e)
-                                + np.einsum("aiBJ,BJ->ai", H_ep, tr_p)),
-                   ("proton",   np.einsum("AIBJ,BJ->AI", H_pp, tr_p)
-                                + np.einsum("aiAI,ai->AI", H_ep, tr_e))):
-        sg = ev(einsums.parse_ir(models.orbital_sigma_ir("neo-ccd(ep)", sp)),
-                {"kappa": Ke, "kappa_n": Kp})
-        err = float(np.max(np.abs(sg - FD))) / max(float(np.max(np.abs(FD))), 1e-30)
-        assert err < 1e-5, ("sigma", sp, err)
+        def ev(ir, gep, extra=None):
+            F = {"h": h0, "g": g0, "hp": hp0, "gep": gep, "vp": vp0, "D1": D1, "D2": D2,
+                 "D1_n": D1n, "D2_ep": D2ep, "D2_n": D2n, "Id": np.eye(max(ne, npr))}
+            F.update(extra or {})
+            by = {}
+            for st in ir:
+                by.setdefault(st["target"]["name"], []).append(st)
+            (_, sts), = by.items()
+            acc = np.zeros(tuple(SL[c].stop - SL[c].start
+                                 for c in sts[0]["target"]["classes"]))
+            for st in sts:
+                arrs = [F[o["name"].split('["')[0]][
+                            tuple(SL[c] for c in o["name"].split('["')[1].rstrip('"]'))]
+                        if '["' in o["name"] else F[o["name"]] for o in st["operands"]]
+                subs = ",".join("".join(o["indices"]) for o in st["operands"])
+                acc += st["coeff"] * np.einsum(
+                    f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+            return acc
+
+        def close(got, fd, *tag):
+            err = float(np.max(np.abs(got - fd))) / max(float(np.max(np.abs(fd))), 1e-30)
+            assert err < 1e-5, (name, *tag, err)
+
+        # ---- GRADIENT: both species, and BOTH SIGNS of gep (algebraic in the integrals)
+        for sign in (+1.0, -1.0):
+            gep = sign * ref["gep"]
+            for sp, s in (("electron", "e"), ("proton", "p")):
+                close(ev(einsums.parse_ir(models.orbital_gradient_ir(name, sp)), gep),
+                      fd_grad(s, gep), "gradient", sp, "gep sign", sign)
+
+        # ---- HESSIAN (all three blocks), its DIAGONAL, and SIGMA
+        gep = ref["gep"]
+        H_ee, H_pp, H_ep = (fd_hess("e", "e", gep), fd_hess("p", "p", gep),
+                            fd_hess("e", "p", gep))
+        for tag, rs, cs, FD in (("ee", "electron", "electron", H_ee),
+                                ("pp", "proton", "proton", H_pp),
+                                ("ep", "electron", "proton", H_ep)):
+            M = ev(einsums.parse_ir(models.orbital_hessian_ir(
+                name, row_species=rs, col_species=cs)), gep).transpose(0, 2, 1, 3)
+            close(M, FD, "hessian", tag)
+            if rs == cs:      # the true fixed-RDM Hessian is exactly symmetric
+                assert np.max(np.abs(M - M.transpose(2, 3, 0, 1))) / \
+                       max(float(np.max(np.abs(M))), 1e-30) < 1e-10, (name, "asym", tag)
+
+        for sp, FD in (("electron", H_ee), ("proton", H_pp)):
+            close(ev(einsums.parse_ir(models.orbital_hessian_diag_ir(name, sp)), gep),
+                  np.einsum("aiai->ai", FD), "hessian diag", sp)
+
+        rng2 = np.random.default_rng(9)
+        tr_e = rng2.standard_normal((nv, no)); tr_p = rng2.standard_normal((nV, nO))
+        Ke = np.zeros((ne, ne)); Ke[no:, :no] = tr_e
+        Kp = np.zeros((npr, npr)); Kp[nO:, :nO] = tr_p
+        # sigma carries the CROSS coupling: s^e = H^ee.k^e + H^ep.k^p (and transposed for p)
+        for sp, FD in (("electron", np.einsum("aibj,bj->ai", H_ee, tr_e)
+                                    + np.einsum("aiBJ,BJ->ai", H_ep, tr_p)),
+                       ("proton",   np.einsum("AIBJ,BJ->AI", H_pp, tr_p)
+                                    + np.einsum("aiAI,ai->AI", H_ep, tr_e))):
+            close(ev(einsums.parse_ir(models.orbital_sigma_ir(name, sp)), gep,
+                     {"kappa": Ke, "kappa_n": Kp}), FD, "sigma", sp)
 
     print("test_orbital_gradient_finite_difference OK")
 
@@ -881,22 +882,13 @@ def test_orbital_gradient_active_space():
     D2 = d2 - d2.transpose(1, 0, 2, 3); D2 = D2 - D2.transpose(0, 1, 3, 2)
     FULL = {"h": h, "g": g, "D1": D1, "D2": D2}
 
-    # reference generalized-Fock gradient (full sums, active-only RDMs)
-    import pdaggerq
-    pq = pdaggerq.pq_helper("true"); pq.set_use_rdms(True)
-    for xg, s in (("e1(a,i)", 1.0), ("e1(i,a)", -1.0)):
-        pq.add_commutator(s, ["h"], [xg]); pq.add_commutator(0.5 * s, ["g"], [xg])
-    pq.simplify()
-    Gref = np.zeros((nmo, nmo))
-    # NOTE: the reference must use the CONSUMER's D2 pairing, exactly as the emitter
-    # does (models._d2_to_consumer). Without this the reference is built from the same
-    # raw pq_helper D2 slot order the emitter used, so this test compared the emitter
-    # against its own source rather than against physics -- which is precisely how the
-    # two-body sign error survived. The physics is guarded by
-    # test_orbital_gradient_finite_difference.
-    for t in models._d2_to_consumer(" ".join(x) for x in pq.strings()):
-        c, ts = models._parse_rdm_term(t)
-        Gref += c * np.einsum(",".join("".join(i) for _, i in ts) + "->ai", *[FULL[n] for n, _ in ts], optimize=True)
+    # reference generalized-Fock gradient (full sums, active-only RDMs) from the
+    # FD-verified term source -- the first rotation-derivative of the fixed-RDM energy.
+    # It used to be rebuilt here from pq_helper's commutator, i.e. the same source the
+    # emitter used, so this test could not see a wrong emission. The physics is guarded by
+    # test_orbital_gradient_finite_difference; this only checks block-sum == full-contraction.
+    Gref = _interp_terms(models._rot_deriv(models._energy_bare_terms("ccsd"), "a", "i", "e"),
+                         ["a", "i"], (nmo, nmo), FULL)
 
     ir = einsums.parse_ir(models.orbital_gradient_ir("ccsd", "electron", rotation_classes=("c", "o", "v", "x")))
     # every non-redundant block except the all-inactive x-c (which vanishes on the active RDM)
@@ -1068,8 +1060,15 @@ def test_orbital_proton_gradient_active_space():
     D1n = np.zeros((npp, npp)); D1n[pasl, pasl] = rng.standard_normal((nO + nV, nO + nV))
     gw = rng.standard_normal((ne, npp, ne, npp)); gep = gw + gw.transpose(2, 3, 0, 1)
     D2 = rng.standard_normal((npp, ne, ne, npp)); D2ep = np.zeros_like(D2); D2ep[pasl, :, :, pasl] = D2[pasl, :, :, pasl]
-    F = {"g": gep, "h": hp, "D1": D1n, "D2_ep": D2ep, "gep": gep, "hp": hp, "D1_n": D1n}
-    Gp = _interp_terms(models._HP_GRAD_TERMS + models._GEP_PROTON_GRAD_TERMS, ["na", "ni"], (npp, npp), F)
+    # the derived terms use the GENERIC names h/g/D1/D2 (which _block_resolve renames to
+    # hp/gep/D1_n/D2_ep -- or vp/D2_n -- from the index species)
+    F = {"g": gep, "h": hp, "D1": D1n, "D2": D2ep,
+         "gep": gep, "hp": hp, "D1_n": D1n, "D2_ep": D2ep}
+    # from the FD-verified source (was the hand-derived _HP_GRAD_TERMS +
+    # _GEP_PROTON_GRAD_TERMS, which the rotation-derivative derivation supersedes)
+    Gp = _interp_terms(models._rot_deriv(models._energy_bare_terms("neo-ccd(ep)"),
+                                         "na", "ni", "p"),
+                       ["na", "ni"], (npp, npp), F)
     g = einsums.parse_ir(models.orbital_gradient_ir("neo-ccd(ep)", "proton", rotation_classes=("c", "o", "v", "x")))
     assert {st["target"]["name"] for st in g} == {'grad["VO"]', 'grad["XO"]', 'grad["XV"]', 'grad["OC"]', 'grad["VC"]'}
     assert not any(o["name"].split('["')[0] in ("D1_n", "D2_ep") and any(c in "CX" for c in o["classes"])

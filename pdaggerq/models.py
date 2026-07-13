@@ -860,6 +860,22 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
     eri = g - g.transpose(0, 1, 3, 2)                      # antisym <pq||rs>
     gep = rg.standard_normal((ne, npr, ne, npr))
     gep = gep + gep.transpose(2, 3, 0, 1)                  # hermitian e-p tensor
+    # proton-proton two-body (>=2 quantum protons only; identically absent otherwise).
+    # Plain physicist <PQ|RS> for the RDM energy (antisymmetry lives in D2_n, hence the
+    # 1/2), antisymmetrized <PQ||RS> for the Lagrangian strings -- exactly as g/eri for
+    # electrons.
+    has_vp = "vp" in m.H
+    if has_vp:
+        cp = rg.standard_normal((npr,) * 4)
+        cp = cp + cp.transpose(1, 0, 2, 3); cp = cp + cp.transpose(0, 1, 3, 2)
+        cp = cp + cp.transpose(2, 3, 0, 1)
+        vp = cp.transpose(0, 2, 1, 3)                      # plain <PQ|RS>
+        vp_anti = vp - vp.transpose(0, 1, 3, 2)            # antisym <PQ||RS>
+        mf_pp = np.einsum("PIQI->PQ", vp_anti[:, slp["O"], :, slp["O"]])   # antisym p-p
+    else:
+        vp = vp_anti = None
+        mf_pp = np.zeros((npr, npr))
+
     mf_ee = np.einsum("piqi->pq", eri[:, sle["o"], :, sle["o"]])      # antisym e-e
     mf_ep = np.einsum("pIqI->pq", gep[:, slp["O"], :, slp["O"]])      # e-p on the electron
     mf_pe = np.einsum("iPiQ->PQ", gep[sle["o"], :, sle["o"], :])      # e-p on the proton
@@ -868,13 +884,14 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
     # terms contracted with the RDMs, or it is counted twice (see energy_from_rdm_ir).
     h, hp = hcore, hcore_p
     # The raw-H Lagrangian's one-body operators, chosen so that the algebraic identity
-    # (h = f - mf_ee, hp = fp) and the PHYSICAL one (bare cores -> E_rdm(0) = E_HF) hold
-    # simultaneously: f carries only the ELECTRONIC mean field, never the e-p one.
-    f, fp = hcore + mf_ee, hcore_p
+    # (h = f - mf_ee, hp = fp - mf_pp) and the PHYSICAL one (bare cores -> E_rdm(0) = E_HF)
+    # hold simultaneously: each Fock carries only its OWN species' mean field (which the
+    # Fermi-vacuum normal ordering subtracts back out), never the cross-species one.
+    f, fp = hcore + mf_ee, hcore_p + mf_pp
     # What the GENERATED equations take instead: the fully dressed NEO-HF Focks (that is
     # why _optimized strips gep's mean-field traces). Exposed so a consumer can see that
     # the two routes take DIFFERENT one-body inputs.
-    f_dressed, fp_dressed = hcore + mf_ee + mf_ep, hcore_p + mf_pe
+    f_dressed, fp_dressed = hcore + mf_ee + mf_ep, hcore_p + mf_pp + mf_pe
 
     def spc(l):
         nuc = len(l) > 1 and l[0] == "n"
@@ -932,7 +949,11 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
         cf = float(term[0]); ops = []; sub = []; lts = {}
         for tok in term[1:]:
             if tok.startswith("<"):
-                idx = tok[1:-1].replace("||", ",").split(","); arr = eri[tuple(sl(i) for i in idx)]
+                # antisymmetrized two-body: <pq||rs> is the ELECTRON eri, <nP,nQ||nR,nS>
+                # the PROTON one (vp's fluctuation potential). Dispatch on the species.
+                idx = tok[1:-1].replace("||", ",").split(",")
+                src = vp_anti if all(spc(i) in "OV" for i in idx) else eri
+                arr = src[tuple(sl(i) for i in idx)]
             elif "(" in tok:
                 nm = tok[:tok.index("(")]; idx = tok[tok.index("(") + 1:-1].split(",")
                 if nm == "f":   arr = (fp if spc(idx[0]) in "OV" else f)[tuple(sl(i) for i in idx)]
@@ -963,6 +984,7 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
             elif base == "hp":  ts.append(hp[slp[blk[0]], slp[blk[1]]])
             elif base == "g":   ts.append(g[tuple(sle[c] for c in blk)])
             elif base == "gep": ts.append(gep[sle[blk[0]], slp[blk[1]], sle[blk[2]], slp[blk[3]]])
+            elif base == "vp":  ts.append(vp[tuple(slp[c] for c in blk)])   # plain <PQ|RS>
             else:               ts.append(getD(base, blk, op["classes"]))
         sub = ",".join("".join(op["indices"]) for op in st["operands"])
         E_rdm += st["coeff"] * float(np.einsum(sub + "->", *ts, optimize=True))
@@ -974,6 +996,8 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
     E_hf = float(np.trace(hcore[o_, o_]) + 0.5 * np.einsum("ijij->", eri[o_, o_, o_, o_]))
     if is_neo:
         E_hf += float(np.trace(hcore_p[O_, O_]) + np.einsum("iIiI->", gep[o_, O_, o_, O_]))
+    if has_vp:                                  # proton-proton reference energy (>=2 protons)
+        E_hf += float(0.5 * np.einsum("IJIJ->", vp_anti[O_, O_, O_, O_]))
 
     out = {"f": f, "eri": eri, "g": g, "mf_ee": mf_ee, "h": h, "hcore": hcore,
            "f_dressed": f_dressed, "E_hf": E_hf,
@@ -982,6 +1006,8 @@ def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
     if is_neo:
         out.update({"fp": fp, "gep": gep, "hp": hp, "hcore_p": hcore_p,
                     "fp_dressed": fp_dressed, "mf_ep": mf_ep, "mf_pe": mf_pe})
+    if has_vp:
+        out.update({"vp": vp, "vp_anti": vp_anti, "mf_pp": mf_pp})
     return out
 
 
@@ -1011,66 +1037,15 @@ def _classify_letter(letter):
     return species, fixed
 
 
-# The gep (electron-proton) contribution to the ELECTRON gradient, hand-derived
-# because pdaggerq's cross-species commutator mis-slots the integral/RDM indices.
-# From <[gep, E_ai - E_ia]> with gep = sum gep(E,P,E',P') E_{E,E'} b+_P b_P' and the
-# energy's convention D2_ep(P,E,E',P') = <a+_E a_E' b+_P b_P'>, four well-formed
-# 2e2p terms (external a vir, i occ; internal electron p,q and proton np,nq).
-# Validated to finite differences of E_ep = gep.D2_ep to ~1e-9.
-_GEP_GRAD_TERMS = [
-    "+1.0 g(p,np,a,nq) D2_ep(np,p,i,nq)",
-    "-1.0 g(i,np,q,nq) D2_ep(np,a,q,nq)",
-    "-1.0 g(p,np,i,nq) D2_ep(np,p,a,nq)",
-    "+1.0 g(a,np,q,nq) D2_ep(np,i,q,nq)",
-]
-
-
-# PROTON-row orbital gradient. Two pieces, both hand-derived (pdaggerq has no bare
-# proton core, and its cross-species commutator mis-slots): (i) the proton
-# generalized Fock <[h_p, E^p_naNi - E^p_niNa]>, structurally identical to the
-# electron h gradient with electron->proton labels (h->hp, D1->D1_n); (ii) the gep
-# piece rotating gep's PROTON slots, the proton analog of _GEP_GRAD_TERMS. Validated
-# to finite differences to ~1e-9. External na (proton vir), ni (proton occ).
-_HP_GRAD_TERMS = [
-    "+1.0 h(np,na) D1(np,ni)",
-    "-1.0 h(ni,np) D1(na,np)",
-    "-1.0 h(np,ni) D1(np,na)",
-    "+1.0 h(na,np) D1(ni,np)",
-]
-_GEP_PROTON_GRAD_TERMS = [
-    "+1.0 g(p,np,q,na) D2_ep(np,p,q,ni)",
-    "-1.0 g(p,ni,q,nq) D2_ep(na,p,q,nq)",
-    "-1.0 g(p,np,q,ni) D2_ep(np,p,q,na)",
-    "+1.0 g(p,na,q,nq) D2_ep(ni,p,q,nq)",
-]
 
 
 
 
 
-def _relabel_e2p(term):
-    """A pq.strings() electron term -> proton by prefixing every index with 'n'
-    (a->na, i->ni, p->np, ...). Tensor names are unchanged; _block_resolve then tags
-    the all-proton h/D1 as hp/D1_n and the delta as Id. Used for the proton core
-    gradient/Hessian, whose 1-body algebra is identical to the electron h piece."""
-    coeff, tensors = _parse_rdm_term(term)
-    body = " ".join(f"{nm}({','.join('n' + l for l in idx)})" for nm, idx in tensors)
-    return f"{coeff} {body}"
 
 
-def _bare_H(name, species):
-    """(operator, coeff) list for the mean-field-free Hamiltonian entering the
-    ``species`` orbital-rotation commutator. Operators that commute with the rotation
-    contribute nothing, so they may be omitted. The NEO gep contribution to the
-    electron rotation is added separately (see ``_GEP_GRAD_TERMS``)."""
-    if species == "electron":
-        return [("h", 1.0), ("g", 0.5)]
-    if species == "proton":
-        raise NotImplementedError(
-            "proton-species orbital gradient/Hessian needs the bare proton core "
-            "(pdaggerq's 'fp' is the proton Fock and would double-count the e-p "
-            "mean-field); electron-species is supported")
-    raise ValueError(f"species must be 'electron' or 'proton', not {species!r}")
+
+
 
 
 def _rdm_base(nm):
@@ -1123,8 +1098,10 @@ def _block_resolve(terms, target_name, target_letters, ext_classes=None, drop_in
                     base = nm[:-2] if nm.endswith("_n") else nm[:-3] if nm.endswith("_ep") else nm
                     if base in ("h", "f", "g", "D1", "D2"):
                         sp = {("p" if l.startswith("n") else "e") for l in idx}
+                        # all-proton two-body is "vp" -- the SAME name energy_from_rdm_ir
+                        # emits (_ENERGY_PP). It was "gpp" here, which no consumer knows.
                         out_nm = base if sp == {"e"} else \
-                            {"h": "hp", "f": "fp", "g": "gpp", "D1": "D1_n", "D2": "D2_n"}[base] \
+                            {"h": "hp", "f": "fp", "g": "vp", "D1": "D1_n", "D2": "D2_n"}[base] \
                             if sp == {"p"} else {"g": "gep", "D2": "D2_ep"}[base]
                     else:
                         out_nm = nm
@@ -1148,35 +1125,6 @@ def _parse_rdm_term(term):
                             for m in re.finditer(r"([A-Za-z_0-9]+)\(([^)]+)\)", " ".join(toks[1:]))]
 
 
-def _d2_to_consumer(terms):
-    """Re-pair the 2-RDM of raw ``pq.strings()`` commutator terms into the CONSUMER's
-    D2 convention by swapping its last two slots.
-
-    pq_helper emits its own 2-RDM index order; the consumer's D2 -- the one
-    :func:`rdm_block_ir` produces and :func:`energy_from_rdm_ir` traces -- is
-    ``D2[pqsr] = <p+ q+ r s>``, which is why the energy pairs ``g[abcd] . D2[abdc]``
-    (the ``[0,1,3,2]`` swap added in 2da1c7e). The orbital gradient/Hessian/sigma are
-    built from the same ``pq.strings()`` commutators but never got that swap, so their
-    two-body terms contracted D2 with its last two slots in pq_helper's order. Because
-    D2 is antisymmetric in exactly those slots, that is an exact SIGN ERROR on every
-    g.D2 term -- the analytic electron gradient came out as MINUS the true dE/dkappa
-    (verified against finite differences of the energy: ratio -1.00000000). The
-    one-body h.D1 terms are unaffected (D1's convention already matches), and the
-    proton paths never touch pq_helper's D2 (they are hand-derived from h_p and gep),
-    which is why only the electron two-body piece was wrong.
-
-    Guarded by models_test.test_orbital_gradient_finite_difference.
-    """
-    out = []
-    for term in terms:
-        coeff, tensors = _parse_rdm_term(term)
-        body = []
-        for nm, idx in tensors:
-            if nm == "D2" and len(idx) == 4:
-                idx = [idx[0], idx[1], idx[3], idx[2]]      # <- consumer pairing
-            body.append(f"{nm}({','.join(idx)})")
-        out.append(f"{coeff} {' '.join(body)}")
-    return out
 
 
 # orbital classes ordered by occupation for the active-space OO rotation split:
@@ -1194,19 +1142,6 @@ def _rotation_blocks(rotation_classes, species="electron"):
     return [(hi, lo) for hi in cs for lo in cs if _CLASS_LEVEL[hi] > _CLASS_LEVEL[lo]]
 
 
-def _electron_gradient_terms(name):
-    """Bare-form electron gradient algebra <[h + 1/2 g (+ gep), E_ai - E_ia]>."""
-    ai, ia = _ROT_ROW["electron"]
-    pq = pq_helper("true")
-    pq.set_use_rdms(True)
-    for op, c in _bare_H(name, "electron"):
-        pq.add_commutator(c, [op], [ai])
-        pq.add_commutator(-c, [op], [ia])
-    pq.simplify()
-    terms = _d2_to_consumer(" ".join(t) for t in pq.strings())
-    if any(op in model(name).H for op in ("fp", "gep")):
-        terms += _GEP_GRAD_TERMS                        # NEO: hand-derived e-p coupling
-    return terms
 
 
 def orbital_gradient_ir(name, species="electron", rotation_classes=("o", "v"),
@@ -1232,22 +1167,22 @@ def orbital_gradient_ir(name, species="electron", rotation_classes=("o", "v"),
         raise ValueError("internal indices are RDM-contracted and must be 'active'")
     is_neo = any(op in model(name).H for op in ("fp", "gep"))
     single = tuple(rotation_classes) == ("o", "v")
-    if species == "proton":                            # fully hand-derived (see terms)
+    # ONE rule for both species: the gradient is the first rotation-derivative of the
+    # fixed-RDM energy (the Hessian is the second; see _same_species_hessian). This
+    # replaces the pq_helper commutator + hand-derived _HP_GRAD_TERMS/_GEP_*_GRAD_TERMS,
+    # and -- crucially -- it picks up EVERY operator in the energy automatically, which is
+    # how the proton-proton two-body (vp) had gone missing from the OO quantities.
+    if species == "proton":
         if not is_neo:
             raise ValueError("proton-species orbital gradient requires a NEO model")
-        pterms = _HP_GRAD_TERMS + _GEP_PROTON_GRAD_TERMS
-        out = []
-        for hi, lo in _rotation_blocks(rotation_classes, "proton"):
-            suffix = "" if single else f'["{hi}{lo}"]'
-            out += _block_resolve(pterms, label + suffix, ["na", "ni"],
-                                  ext_classes={"na": hi, "ni": lo}, drop_inactive_rdm=True)
-        return out
-    terms = _electron_gradient_terms(name)
+        terms, letters, sp = _rot_deriv(_energy_bare_terms(name), "na", "ni", "p"), ["na", "ni"], "proton"
+    else:
+        terms, letters, sp = _rot_deriv(_energy_bare_terms(name), "a", "i", "e"), ["a", "i"], "electron"
     out = []
-    for hi, lo in _rotation_blocks(rotation_classes):
+    for hi, lo in _rotation_blocks(rotation_classes, sp):
         suffix = "" if single else f'["{hi}{lo}"]'
-        out += _block_resolve(terms, label + suffix, ["a", "i"],
-                              ext_classes={"a": hi, "i": lo}, drop_inactive_rdm=True)
+        out += _block_resolve(terms, label + suffix, letters,
+                              ext_classes={letters[0]: hi, letters[1]: lo}, drop_inactive_rdm=True)
     return out
 
 
@@ -1383,11 +1318,19 @@ def _energy_bare_terms(name):
     to gep/D2_ep. The D2 pairing is the CONSUMER's (last two slots swapped vs g), i.e.
     the same [0,1,3,2] pairing energy_from_rdm_ir uses. h/hp are the BARE cores (see the
     contract on energy_from_rdm_ir): every mean field comes from the two-body terms."""
+    H = model(name).H
     terms = ["1.0 h(p,q) D1(p,q)",
              "0.5 g(p,q,r,s) D2(p,q,s,r)"]
-    if any(op in model(name).H for op in ("fp", "gep")):
+    if any(op in H for op in ("fp", "gep")):
         terms += ["1.0 h(np,nq) D1(np,nq)",                 # -> hp . D1_n
                   "1.0 g(p,np,q,nq) D2(np,p,q,nq)"]         # -> gep . D2_ep
+    if "vp" in H:                                           # >=2 quantum protons: p-p two-body
+        # -> vp . D2_n, the proton analogue of the electron 1/2 g.D2 (same pairing).
+        # It vanishes identically for ONE quantum proton (a 2-RDM needs two particles), so
+        # a single-proton finite-difference test cannot see whether it is present -- which
+        # is exactly how it went missing from the OO quantities. Guarded by the two-proton
+        # arm of models_test.test_orbital_gradient_finite_difference.
+        terms += ["0.5 g(np,nq,nr,ns) D2(np,nq,ns,nr)"]     # -> vp . D2_n
     return terms
 
 
