@@ -1042,6 +1042,12 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
 
                         newguy->factor *= factor;
 
+                        // ensure factor is non-negative
+                        if (newguy->factor < 0.0){
+                            newguy->factor = fabs(newguy->factor);
+                            newguy->sign *= -1;
+                        } 
+
                         new_pq_strings.push_back(newguy);
 
                     }
