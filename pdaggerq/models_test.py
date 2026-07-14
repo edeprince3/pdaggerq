@@ -755,7 +755,9 @@ def test_orbital_gradient_finite_difference():
         return R
 
     for name, nO in (("neo-ccd(ep)", 1), ("neo-ccsd", 2)):
-        ref = models.rdm_energy_reference(name, seed=17, no=2, nv=2, nO=nO, nV=2)
+        # distinct extents: a mis-ordered index becomes a SHAPE error rather than a
+        # silent mis-compare (see the note on rdm_energy_reference)
+        ref = models.rdm_energy_reference(name, seed=17, no=2, nv=3, nO=nO, nV=4)
         d = ref["dims"]; no, nv, nV = d["o"], d["v"], d["V"]
         ne, npr = no + nv, nO + nV
         SL = {"o": slice(0, no), "v": slice(no, ne),

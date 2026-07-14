@@ -545,10 +545,17 @@ def hessian_graph(name, row_species="electron", col_species=None, df=True,
     the integrals against t/Lambda directly, so with ``df=True`` (the default) it is DF-native
     -- B factors, no ``g[vvvv]``, no ``D2[vvvv]`` -- and its largest object is t2 (o^2 v^2).
 
-    The emitted H is (vir,occ,vir,occ), i.e. o^2 v^2 -- the size of t2 -- so a consumer stores
-    it and gets the Hessian DIAGONAL (preconditioner) and the SIGMA product
-    ``sigma_ai = sum_bj H_(ai),(bj) kappa_bj`` from it directly, both trivially and with no
-    v^4 object anywhere. There is therefore no separate T,Lambda diag/sigma emitter.
+    **H is exactly the shape of t2** -- (vir,occ,vir,occ) -- so it can never be the binding
+    constraint: if H does not fit, neither does t2, and then there is no coupled-cluster
+    calculation to orbital-optimize in the first place. (Consumer-measured, FHF-/aug-cc-pVTZ:
+    t2 = 139.8 MB, all three H blocks together = 140.7 MB, D2[vvvv] = 15.6 GB. With one quantum
+    particle the proton-proton and cross blocks are noise, since O = 1.) A consumer therefore
+    stores H and takes the Hessian DIAGONAL (preconditioner) and the SIGMA product
+    ``sigma_ai = sum_bj H_(ai),(bj) kappa_bj`` from it directly -- the latter an o^2 v^2 matvec
+    that lands on GEMM. H is built ONCE per macro-iteration and reused across all 10-50 sigma
+    builds of a Newton solve, which strictly beats a matrix-free sigma repeating the O(N^6)
+    contraction every Krylov step. There is therefore no separate T,Lambda diag/sigma emitter,
+    and none is needed.
 
     NB the double commutator is expanded into operator PRODUCTS
     (``H A B - B H A - A H B + B A H``) fed to ``add_st_operator``, NOT built with
@@ -902,7 +909,13 @@ def energy_from_rdm_ir(name, label="E"):
     return _emit_block_terms(terms, (label, []))
 
 
-def rdm_energy_reference(name, seed=17, no=2, nv=2, nO=1, nV=2):
+def rdm_energy_reference(name, seed=17, no=2, nv=3, nO=1, nV=4):
+    # Every extent is DISTINCT on purpose (no != nv, nO != nV, and both pairs differ across
+    # species). With no == nv a mis-ordered index -- e.g. the Hessian's [a,b,i,j] read as
+    # [a,i,b,j] -- is SHAPE-COMPATIBLE, so a wrong transpose compares silently and the test
+    # cannot catch it, ever. With distinct extents the same mistake is a shape error and
+    # numpy raises. This bit twice here (the fixed-RDM Hessian, then the T,Lambda one) and
+    # once in the consumer; do not "simplify" these back to equal dims.
     """Numeric byte-check reference for the RDM->energy consumer contract (see
     :func:`energy_from_rdm_ir`). Builds random symmetric integrals and arbitrary
     (antisymmetrized) amplitudes at tiny dimensions, evaluates every
