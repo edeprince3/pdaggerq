@@ -67,15 +67,15 @@ void Vertex::set_printer(const string& type) {
         std::cout << "Setting printer to TiledArray (C++) format" << std::endl;
     } else if (t == "tamm") {
         printer_ = &TammPrinter::instance();
-        CodePrinter::binarize_ = true; // enable binarization for TAMM printer
+        Term::binarize_ = true; // enable binarization for TAMM printer
         std::cout << "Setting printer to TAMM (C++) format" << std::endl;
     } else if (t == "blas" || t == "cblas") {
         printer_ = &BLASPrinter::instance();
-        CodePrinter::binarize_ = true;
+        Term::binarize_ = true;
         std::cout << "Setting printer to BLAS (C) format" << std::endl;
     } else if (t == "loop" || t == "loops" || t == "loop_c") {
         printer_ = &LoopPrinter::instance();
-        CodePrinter::binarize_ = true;
+        Term::binarize_ = true;
         std::cout << "Setting printer to Loop (C) format" << std::endl;
     } else {
         std::cout << "Unknown printer type: " << type << std::endl;
@@ -91,86 +91,6 @@ string CodePrinter::scratch_prefix(char type) const {
         case 'r': return "reused_";
         default:  return "tmps_";
     }
-}
-
-string CodePrinter::binarize_term(const Term& t) const {
-    if (!binarize_) return "";
-
-    Term binarized_term = t.clone();
-    bool needs_binarization = binarized_term.size() > 2;
-    bool made_any_change = false;
-    string output;
-    int count = 1;
-
-    auto make_interm = [&](const vector<VertexPtr> &verts, size_t erase_pos, size_t erase_count, size_t insert_pos) {
-        MutableVertexPtr interm_vertex;
-        if (verts.size() == 2)
-            interm_vertex = make_shared<Vertex>(scratch_prefix(), (verts[0] * verts[1])->lines());
-        else
-            interm_vertex = make_shared<Vertex>(scratch_prefix(), verts[0]->lines());
-
-        interm_vertex->vertex_type_ = (char)count + '0';
-        interm_vertex->sort();
-        interm_vertex->update_name();
-
-        Term interm_term = binarized_term;
-        interm_term.reset_perm();
-        interm_term.coefficient_ = 1.0;
-        interm_term.comments() = {};
-        interm_term.is_assignment_ = true;
-
-        interm_term.lhs() = interm_vertex;
-        interm_term.rhs() = verts;
-        interm_term.compute_scaling(true);
-
-        output += interm_term.str();
-        output += "\n";
-
-        for (size_t e = 0; e < erase_count; ++e)
-            binarized_term.rhs().erase(binarized_term.rhs().begin() + (int)erase_pos);
-        binarized_term.rhs().insert(binarized_term.rhs().begin() + (int)insert_pos, interm_vertex);
-        binarized_term.compute_scaling(true);
-
-        made_any_change = true;
-        ++count;
-    };
-
-    do {
-        size_t n = binarized_term.size();
-        needs_binarization = n > 2;
-
-        if (needs_binarization) {
-            VertexPtr &left = binarized_term[0], &right = binarized_term[1];
-
-            VertexPtr &left_end = binarized_term[n - 2];
-            VertexPtr &right_end = binarized_term[n - 1];
-
-            bool first_smaller = (left*right)->shape_ <= (left_end*right_end)->shape_;
-
-            if (first_smaller)
-                make_interm({left, right}, 0, 2, 0);
-            else
-                make_interm({left_end, right_end}, n - 2, 2, n - 2);
-
-        } else if (binarized_term.size() == 2) {
-            VertexPtr &left = binarized_term[0], &right = binarized_term[1];
-            bool left_is_add  = left->is_expandable(false, true);
-            bool right_is_add = right->is_expandable(false, true);
-
-            if (left_is_add)
-                make_interm({left}, 0, 1, 0);
-
-            if (right_is_add)
-                make_interm({right}, 1, 1, 1);
-        }
-    } while (needs_binarization);
-
-    if (made_any_change) {
-        output += binarized_term.str();
-        return output;
-    }
-
-    return "";
 }
 
 string CodePrinter::condition_open(const set<string>& conds) const {

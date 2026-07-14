@@ -34,8 +34,6 @@ public:
         const VertexPtr& left,
         const VertexPtr& right) const override;
 
-    string binarize_term(const Term& t) const override { return ""; }
-
     string format_term(const Term& t) const override;
 
 private:

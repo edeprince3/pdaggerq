@@ -330,7 +330,7 @@ namespace pdaggerq {
             Term::deallocate_ = options["deallocate"].cast<bool>();
 
         if (options.contains("binarize"))
-            CodePrinter::binarize_ = options["binarize"].cast<bool>();
+            Term::binarize_ = options["binarize"].cast<bool>();
 
         cout << "Options:" << endl;
         cout << "--------" << endl;
@@ -372,7 +372,7 @@ namespace pdaggerq {
         cout << "    deallocate: " << (Term::deallocate_ ? "true" : "false")
              << "  // whether to insert deallocation statements for intermediates after last use (default: true)" << endl;
 
-        cout << "    binarize: " << (CodePrinter::binarize_ ? "true" : "false")
+        cout << "    binarize: " << (Term::binarize_ ? "true" : "false")
              << "  // whether to decompose contractions into binary operations (default: false)" << endl;
 
         cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")

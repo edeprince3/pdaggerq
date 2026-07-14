@@ -65,16 +65,6 @@ public:
     virtual string format_intermediate_name(const Linkage* link, bool include_lines) const;
     virtual string format_lines(const line_vector& lines) const = 0;
 
-    // ── Binarization ────────────────────────────────────────────────────────
-
-    // binarization flag
-    static inline bool binarize_ = false;
-
-    // Decompose a term into a tree of binary operations.
-    // Returns the binarized output (including intermediate term strings)
-    // or "" if no binarization was needed.
-    virtual string binarize_term(const Term& t) const;
-
     // ── Expression formatters ─────────────────────────────────────────────
 
     virtual string format_contraction(
