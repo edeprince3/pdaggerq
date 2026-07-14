@@ -583,7 +583,8 @@ namespace pdaggerq {
         // If user or printing method requires binarization or a multiplication of addition terms,
         // ensure only two operations within any term. create intermediates as needed.
         bool needs_binarization = Term::binarize_;
-        needs_binarization |= !term_link->is_temp() && (term_link->left()->is_addition() || term_link->right()->is_addition());
+        ///TODO: uncomment line below to prevent multiple in-line additions. Do so after chronusq parser is adjusted. 
+        // needs_binarization |= !term_link->is_temp() && (term_link->left()->is_addition() || term_link->right()->is_addition());
         if (needs_binarization) {
 
             // determine if binarization is still needed
