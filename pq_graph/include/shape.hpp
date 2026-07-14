@@ -161,19 +161,19 @@ struct shape {
     }
     bool operator<(const shape &other) const {
 
-        if (nvirt_ != 0 || nocc_ != 0) {
+        if (nvirt_ != 0 && nocc_ != 0) {
             // For non-zero numbers of virtual or occupied orbitals, use the below algorithm
             double this_size  = std::pow(nocc_, o_) * std::pow(nvirt_, v_);
             double other_size = std::pow(nocc_, other.o_) * std::pow(nvirt_, other.v_);
 
-            // this contraction is repeated L times for each sigma vector and k times for each iteration
-            // we approximate k as 30 arbitrarily (arbitrary choice for iteration count)
+            // Cholesky vectors are typically ~5 times the number of basis functions, so we approximate the scaling accordingly
+            if (Q_ > 0) this_size *= std::pow(5*(nocc_ + nvirt_), Q_);
+            if (other.Q_ > 0) other_size *= std::pow(5*(nocc_ + nvirt_), other.Q_);
+
+            // This contraction is repeated L times for each sigma vector and k times for each iteration
+            // we approximate k as 30 (arbitrary choice for ideal iteration count)
             if (L_ > 0) this_size *= L_*30;
             if (other.L_ > 0) other_size *= other.L_*30;
-
-            // Cholesky vectors is typically ~5 times the number of basis functions, so we approximate the scaling accordingly
-            if (Q_ > 0) this_size *= std::pow(5*(nocc_*nvirt_), Q_);
-            if (other.Q_ > 0) other_size *= std::pow(5*(other.nocc_*other.nvirt_), other.Q_);
 
             double diff = this_size - other_size;
             if (std::fabs(diff) > 1e-8) return this_size < other_size;
