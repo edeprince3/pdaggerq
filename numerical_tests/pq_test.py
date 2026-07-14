@@ -23,11 +23,16 @@ def setup_psi4_test():
     # set up job for psi4
     mol = psi4.geometry("""
     0 1
-    O
-    H 1 1.0
-    H 1 1.0 2 104.5
+    #O
+    #H 1 1.0
+    #H 1 1.0 2 104.5
+    O            0.000000000000     0.000000000000    -0.068516219320 
+    H            0.000000000000    -0.790689573744     0.543701060715 
+    H            0.000000000000     0.790689573744     0.543701060715 
     #H            0.000000000000     0.000000000000     0.000000000000 
     #F            0.000000000000     0.000000000000     1.6
+    no_reorient
+    nocom
     symmetry c1
     """)
 
@@ -35,6 +40,7 @@ def setup_psi4_test():
     psi4.set_options({'basis': 'sto-3g',
                       'scf_type': 'pk',
                       'reference': 'uhf',
+                      'r_convergence': 1e-12,
                       'e_convergence': 1e-12,
                       'd_convergence': 1e-12})
 
@@ -95,9 +101,53 @@ def test_ccsd_codegen_disk():
 
             en = mycc.t_solver()
 
-            assert np.isclose(en, -75.019641774768, rtol=1e-8, atol=1e-8)
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: CCSD (functions on disk)\n")    
+
+@pytest.mark.qed_ccsd
+def test_qed_ccsd_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running QED-CCSD-21 ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # Import pq codegen functions 
+            from pdaggerq.numerical_utils.autogen import cc_residual
+
+            # Create an empty dictionary to hold the pq-generated equations
+            local_namespace = {}
+
+            # Execute the code string in memory
+            exec(cc_residual('cc_energy', ['t1', 't2', 't0,1', 't1,1', 't2,1'], [['1']], 'cc_energy', is_qed = True), globals(), local_namespace)
+            exec(cc_residual('r1', ['t1', 't2', 't0,1', 't1,1', 't2,1'], [['e1(i,a)']], 't1_residual', is_qed = True), globals(), local_namespace)
+            exec(cc_residual('r2', ['t1', 't2', 't0,1', 't1,1', 't2,1'], [['e2(i,j,b,a)']], 't2_residual', is_qed = True), globals(), local_namespace)
+            exec(cc_residual('r0', ['t1', 't2', 't0,1', 't1,1', 't2,1'], [['B-']], 't0_1p_residual', is_qed = True), globals(), local_namespace)
+            exec(cc_residual('r1', ['t1', 't2', 't0,1', 't1,1', 't2,1'], [['B-', 'e1(i,a)']], 't1_1p_residual', is_qed = True), globals(), local_namespace)
+            exec(cc_residual('r2', ['t1', 't2', 't0,1', 't1,1', 't2,1'], [['B-', 'e2(i,j,b,a)']], 't2_1p_residual', is_qed = True), globals(), local_namespace)
+
+            # Pass pq-generated functions into the cc solver
+            mol, wfn = setup_psi4_test()
+            mycc = cc(
+                wfn,
+                mol,
+                nfzc=0,
+                cc_energy_func=local_namespace["cc_energy"],
+                t1_residual_func=local_namespace["t1_residual"],
+                t2_residual_func=local_namespace["t2_residual"],
+                t0_1p_residual_func=local_namespace["t0_1p_residual"],
+                t1_1p_residual_func=local_namespace["t1_1p_residual"],
+                t2_1p_residual_func=local_namespace["t2_1p_residual"],
+                cavity_lambda=[0.0, 0.0, 0.05],
+                cavity_frequency=0.07349864501573 # 2eV
+            )
+
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.015650410563, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: QED-CCSD-21\n")
 
 @pytest.mark.ccsd
 def test_ccsd_codegen():
@@ -131,7 +181,7 @@ def test_ccsd_codegen():
 
             en = mycc.t_solver()
 
-            assert np.isclose(en, -75.019641774768, rtol=1e-8, atol=1e-8)
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: CCSD\n")    
 
@@ -169,7 +219,7 @@ def test_uccsd_3_codegen():
 
             en = mycc.t_solver()
 
-            assert np.isclose(en, -75.020242934640, rtol=1e-8, atol=1e-8)
+            assert np.isclose(en, -75.020242934640, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: UCCSD(3)\n")    
 
@@ -207,7 +257,7 @@ def test_uccsd_4_codegen():
 
             en = mycc.t_solver()
 
-            assert np.isclose(en, -75.019695059108, rtol=1e-8, atol=1e-8)
+            assert np.isclose(en, -75.019695059108, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: UCCSD(4)\n")    
 
@@ -253,11 +303,11 @@ def test_lambda_ccsd_codegen():
             
             en = mycc.t_solver()
 
-            assert np.isclose(en, -75.019641774768, rtol=1e-8, atol=1e-8)
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
             pseudoen = mycc.lambda_solver()
 
-            assert np.isclose(pseudoen, -0.054046897553, rtol=1e-8, atol=1e-8)
+            assert np.isclose(pseudoen, -0.054046897553, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: lambda-CCSD\n")    
 
@@ -295,7 +345,7 @@ def test_ccsdt_codegen():
 
             en = mycc.t_solver()
 
-            assert np.isclose(en, -75.019746392571, rtol=1e-8, atol=1e-8)
+            assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: CCSDT\n")    
 
@@ -334,7 +384,7 @@ def test_cc3_codegen():
 
             en = mycc.t_solver()
 
-            assert np.isclose(en, -75.019717612241, rtol=1e-8, atol=1e-8)
+            assert np.isclose(en, -75.019717612241, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: CC3\n")    
 
@@ -379,7 +429,7 @@ def test_eomccsd_codegen():
 
             en = mycc.t_solver()
 
-            assert np.isclose(en, -75.019641774768, rtol=1e-8, atol=1e-8)
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
             eomcc = eom_ccsd(mycc, 
                 right_sigma0_func=local_namespace["right_sigma0"],
@@ -399,24 +449,25 @@ def test_eomccsd_codegen():
 
             eomcc.right_solver()
 
-            assert np.allclose(ref_energies, eomcc.eom_cc_energy, rtol=1e-8, atol=1e-8)
+            assert np.allclose(ref_energies, eomcc.eom_cc_energy, rtol=1e-10, atol=1e-10)
 
             eomcc.left_solver()
 
-            assert np.allclose(ref_energies, eomcc.eom_cc_energy, rtol=1e-8, atol=1e-8)
+            assert np.allclose(ref_energies, eomcc.eom_cc_energy, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: EOMCCSD\n")    
 
 def main():
     #test_ccsd_codegen_disk()
     #test_ccsd_codegen()
+    test_qed_ccsd_codegen()
     #test_ccsdt_codegen()
     #test_cc3_codegen()
     #test_eomccsd_codegen()
     #test_lambda_ccsd_codegen()
     #test_uccsd_3_codegen()
     #test_uccsd_4_codegen()
-    raise Exception("run with pytest")
+    #raise Exception("run with pytest")
 
 if __name__ == "__main__":
     main()

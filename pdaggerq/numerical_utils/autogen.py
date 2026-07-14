@@ -12,6 +12,7 @@ def configure_graph():
         'print_level': 0,
         'opt_level': 0,
         'nthreads': -1,
+        'no_scalars': False,
     })
 
 def get_spin_labels(ops):
@@ -103,7 +104,14 @@ def block_by_spin(pq, eqname, ops, eqs):
         for term in pq.strings():
             print(term, flush=True)
 
-def function_initialization_string(extra_class = ""):
+def function_initialization_string(extra_class = "", is_qed = False):
+    """
+    generate a string containing information required for function initialization
+
+    :param extra_class: do amplitudes live in self or self.extra_class?
+    :param is_qed: include qed-cc terms? 
+
+    """
     if extra_class != "":
         extra_class += "."
     ret_string = \
@@ -185,10 +193,39 @@ f"""
     scalars_ = {{}}
     tmps_ = {{}}
 """
+    if is_qed:
+        ret_string += \
+f"""
+    t0_1p = self.{extra_class}t0_1p
+    t1_1p = {{}}
+    t1_1p['aa'] = self.{extra_class}t1_1p_aa
+    t1_1p['bb'] = self.{extra_class}t1_1p_bb
+    t2_1p = {{}}
+    t2_1p['aaaa'] = self.{extra_class}t2_1p_aaaa
+    t2_1p['abab'] = self.{extra_class}t2_1p_abab
+    t2_1p['bbbb'] = self.{extra_class}t2_1p_bbbb
+    dp = {{}}
+    dp['aa_oo'] = self.{extra_class}dipole_aa[oa, oa]
+    dp['aa_ov'] = self.{extra_class}dipole_aa[oa, va]
+    dp['aa_vo'] = self.{extra_class}dipole_aa[va, oa]
+    dp['aa_vv'] = self.{extra_class}dipole_aa[va, va]
+    dp['bb_oo'] = self.{extra_class}dipole_bb[ob, ob]
+    dp['bb_ov'] = self.{extra_class}dipole_bb[ob, vb]
+    dp['bb_vo'] = self.{extra_class}dipole_bb[vb, ob]
+    dp['bb_vv'] = self.{extra_class}dipole_bb[vb, vb]
+    w0 = self.{extra_class}cavity_frequency
+"""
 
     return ret_string
 
-def cc_residual(residual_name, T, L, function_name, spin_block = True, write_function = False):
+def cc_residual(residual_name, 
+    T, 
+    L, 
+    function_name, 
+    spin_block = True, 
+    write_function = True,
+    is_qed = False):
+
     """
     derive equations for CC residual
 
@@ -198,6 +235,7 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True, write_fun
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
     """
 
     if not spin_block:
@@ -209,8 +247,17 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True, write_fun
     pq.set_left_operators(L)
 
     # add similarity-transformed Hamiltonian
+    ham_terms = [['f'], ['v']]
     pq.add_st_operator(1.0, ['f'], T)
     pq.add_st_operator(1.0, ['v'], T)
+
+    if is_qed:
+        ham_terms.append(['w0'])
+        ham_terms.append(['d+'])
+        ham_terms.append(['d-'])
+        pq.add_st_operator(1.0, ['w0'], T)
+        pq.add_st_operator(1.0, ['d+'], T)
+        pq.add_st_operator(1.0, ['d-'], T)
 
     # cleanup
     pq.simplify()
@@ -220,7 +267,7 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True, write_fun
 
     # spin blocking
     if spin_block:
-        block_by_spin(pq, residual_name, L + T + ['f'] + ['v'], eqs)
+        block_by_spin(pq, residual_name, L + T + ham_terms, eqs)
     else:
         eqs[residual_name] = pq.clone()
         # print the fully contracted strings
@@ -242,7 +289,7 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True, write_fun
     # initialization statements
     generated_code_string = f"""def {function_name}(self):"""
 
-    generated_code_string += function_initialization_string()
+    generated_code_string += function_initialization_string(is_qed = is_qed)
 
     # pq graph output
     generated_code_string += graph.str("python")
@@ -261,6 +308,8 @@ def cc_residual(residual_name, T, L, function_name, spin_block = True, write_fun
     if write_function:
         with open(f"generated_equations/{function_name}.py", "w") as file:
             file.write(generated_code_string)
+
+    pq.clear()
 
     del pq
 
@@ -348,6 +397,8 @@ def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = 
     if write_function:
         with open(f"generated_equations/{function_name}.py", "w") as file:
             file.write(generated_code_string)
+
+    pq.clear()
 
     del pq
 
@@ -441,6 +492,8 @@ def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = 
     if write_function:
         with open(f"generated_equations/{function_name}.py", "w") as file:
             file.write(generated_code_string)
+
+    pq.clear()
 
     del pq
 
@@ -541,6 +594,8 @@ def uccsd_energy(order, energy_name, function_name, spin_block = True, write_fun
         with open(f"generated_equations/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
+    pq.clear()
+
     del pq
 
     return generated_code_string
@@ -626,6 +681,8 @@ def cc3_triples_residual(residual_name, L, function_name, spin_block = True, wri
     if write_function:
         with open(f"generated_equations/{function_name}.py", "w") as file:
             file.write(generated_code_string)
+
+    pq.clear()
 
     del pq
 
@@ -718,6 +775,8 @@ def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True,
         with open(f"generated_equations/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
+    pq.clear()
+
     del pq
 
     return generated_code_string
@@ -792,6 +851,8 @@ def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True, 
     if write_function:
         with open(f"generated_equations/{function_name}.py", "w") as file:
             file.write(generated_code_string)
+
+    pq.clear()
 
     del pq
 
@@ -915,6 +976,8 @@ f"""
     if write_function:
         with open(f"generated_equations/{function_name}.py", "w") as file:
             file.write(generated_code_string)
+
+    pq.clear()
 
     del pq
 
