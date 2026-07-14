@@ -25,6 +25,7 @@
 #define PDAGGERQ_SHAPE_HPP
 
 #include <cstdint>
+#include <cmath>
 #include <sstream>
 #include <clocale>
 #include <stdexcept>
@@ -162,13 +163,9 @@ struct shape {
 
         if (nvirt_ != 0 || nocc_ != 0) {
             // For non-zero numbers of virtual or occupied orbitals, use the below algorithm
-            size_t this_size = 1, other_size = 1;
-            for (size_t i = 0; i < o_; ++i) this_size *= nocc_;
-            for (size_t i = 0; i < v_; ++i) this_size *= nvirt_;
-            for (size_t i = 0; i < other.o_; ++i) other_size *= nocc_;
-            for (size_t i = 0; i < other.v_; ++i) other_size *= nvirt_;
-            if (this_size != other_size) return this_size < other_size;
-            // else continue to generic comparison
+            double this_size  = std::pow(nocc_, o_) * std::pow(nvirt_, v_);
+            double other_size = std::pow(nocc_, other.o_) * std::pow(nvirt_, other.v_);
+            if (std::fabs(this_size - other_size) > 1e-8) return this_size < other_size;
         }
 
         // For arbitrary numbers of occupied and virtual orbitals, below algorithm is used
