@@ -51,7 +51,11 @@ namespace pdaggerq {
         if ( pq_str->skip ) return;
 
         // set coefficient
-        coefficient_ = pq_str->sign * fabs(pq_str->factor);
+        if ( pq_str->factor < 0.0 ) {
+            pq_str->factor = fabs(pq_str->factor);
+            pq_str->sign *= -1;
+        }
+        coefficient_ = pq_str->sign * pq_str->factor;
 
         // check the permutation type
         perm_type_ = 0; // assume no permutations
