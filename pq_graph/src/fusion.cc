@@ -23,6 +23,9 @@
 
 #include <memory>
 #include <iostream>
+#include <algorithm>
+#include <numeric>
+#include <cstdlib>
 
 #include "../include/pq_graph.h"
 #include "../include/printers/code_printer.h"
@@ -259,6 +262,28 @@ struct LinkMerger {
             }
         }
 
+        // deterministic candidate order: link_track_map_ is hash-ordered, so its
+        // iteration order -- and hence which of a mergeable pair the k<l loop below
+        // keeps as the retained representative -- varied run to run (part of the
+        // opt_level=6 nondeterminism, edeprince3/pdaggerq#114). sort by a canonical,
+        // id-independent key.
+        {
+            vector<size_t> order(all_links.size());
+            std::iota(order.begin(), order.end(), 0);
+            std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+                const string sa = all_links[a]->tot_str(true), sb = all_links[b]->tot_str(true);
+                return sa != sb ? sa < sb : all_links[a]->id() < all_links[b]->id();
+            });
+            linkage_vector links_sorted; links_sorted.reserve(all_links.size());
+            vector<vector<LinkInfo>> infos_sorted; infos_sorted.reserve(all_infos.size());
+            for (size_t idx : order) {
+                links_sorted.push_back(std::move(all_links[idx]));
+                infos_sorted.push_back(std::move(all_infos[idx]));
+            }
+            all_links = std::move(links_sorted);
+            all_infos = std::move(infos_sorted);
+        }
+
         // per-index results to avoid critical section
         vector<vector<pair<LinkagePtr, LinkagePtr>>> per_k_results(all_links.size());
 
@@ -376,6 +401,17 @@ struct LinkMerger {
                 merge->forget(true);
                 link_merge_map_[target].push_back(merge);
             }
+        }
+
+        // the parallel search pushes matches into each link_merge_map_ vector in
+        // thread-scheduling order; sort each list by the same canonical key so the
+        // merge composition is reproducible.
+        for (auto &entry : link_merge_map_) {
+            std::stable_sort(entry.second.begin(), entry.second.end(),
+                             [](const LinkagePtr &a, const LinkagePtr &b) {
+                const string sa = a->tot_str(true), sb = b->tot_str(true);
+                return sa != sb ? sa < sb : a->id() < b->id();
+            });
         }
     }
 
@@ -563,11 +599,50 @@ struct LinkMerger {
         // initialize new declarations
         vector<pair<string, Term>> new_declarations;
 
-        // merge the linkages
-        for (auto &[target, merge_links]: link_merge_map_) {
+        // deterministic processing order: link_merge_map_ is hash-ordered, and this
+        // loop both assigns sequential temp ids and rewrites the (possibly shared)
+        // target terms in place -- so the iteration order affects naming AND, when
+        // merges overlap, which rewrite wins. iterate targets in canonical key order.
+        vector<LinkagePtr> merge_targets;
+        merge_targets.reserve(link_merge_map_.size());
+        for (auto &entry : link_merge_map_) merge_targets.push_back(entry.first);
+        std::sort(merge_targets.begin(), merge_targets.end(), [](const LinkagePtr &a, const LinkagePtr &b) {
+            const string sa = a->tot_str(true), sb = b->tot_str(true);
+            return sa != sb ? sa < sb : a->id() < b->id();
+        });
 
-            // get target linkage
-            LinkagePtr target_link = target;
+        // debug instrument for bisecting invalid merges (edeprince3/pdaggerq#114):
+        // PQ_FUSION_MAX_MERGES caps the total number of merge groups applied in this
+        // process; unset or negative means unlimited. deterministic ordering above
+        // makes the cap reproducible.
+        static long fusion_budget = -2; // -2 = uninitialized
+        if (fusion_budget == -2) {
+            const char *env = std::getenv("PQ_FUSION_MAX_MERGES");
+            fusion_budget = env ? std::atol(env) : -1;
+        }
+
+        static const bool fusion_debug = std::getenv("PQ_FUSION_DEBUG") != nullptr;
+
+        // merge the linkages
+        for (auto &target_link : merge_targets) {
+
+            if (fusion_budget == 0) break;   // budget exhausted (debug instrument)
+            if (fusion_budget > 0) --fusion_budget;
+
+            auto &merge_links = link_merge_map_[target_link];
+
+            if (fusion_debug) {
+                std::cerr << "FUSION-GROUP target id=" << target_link->id()
+                          << " : " << target_link->tot_str(true) << "\n";
+                for (auto &ml : merge_links)
+                    std::cerr << "  merge-with id=" << ml->id() << " : " << ml->tot_str(true) << "\n";
+                for (auto &info : link_tracker_.link_track_map_[target_link])
+                    std::cerr << "  target-term: " << info.term->str() << "\n";
+                for (auto &ml : merge_links)
+                    for (auto &info : link_tracker_.link_track_map_[ml])
+                        std::cerr << "  merge-term:  " << info.term->str() << "\n";
+                std::cerr.flush();
+            }
 
             // update max id
             link_tracker_.max_ids_[target_link->type()]++;
@@ -660,8 +735,16 @@ struct LinkMerger {
 
             set<Term*> declare_term = link_tracker_.link_declare_map_[target_link];
             if (!declare_term.empty()) {
+                // pick the declaration template canonically: the set is ordered by
+                // pointer address, so *begin() varied run to run, and the chosen
+                // term seeds the merged definition.
+                Term *chosen_decl = nullptr;
+                for (Term *t : declare_term)
+                    if (!chosen_decl || t->original_pq_ < chosen_decl->original_pq_)
+                        chosen_decl = t;
+                        
                 // build new declaration
-                Term new_def = (*declare_term.begin())->shallow();
+                Term new_def = chosen_decl->shallow();
                 new_def.eq()  = merged_vertex_init;
                 new_def.lhs() = merged_vertex_init;
 
