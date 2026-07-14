@@ -95,6 +95,7 @@ __all__ = [
     "residual_graph", "residual_ir", "spin_cases", "residual_blocks",
     "lambda_graph", "lambda_ir",
     "gradient_graph", "gradient_ir",
+    "hessian_graph", "hessian_ir",
     "rdm_graph", "rdm_ir", "rdm_block_ir",
     "energy_from_rdm_ir", "rdm_energy_reference",
     "equations_graph", "equations_ir",
@@ -515,6 +516,85 @@ def gradient_graph(name, species, df=True, opt_level=None, label="R"):
 def gradient_ir(name, species, df=True, opt_level=None, label="R"):
     """The per-species orbital-rotation gradient as ``to_strings("ir")`` lines."""
     return gradient_graph(name, species, df=df, opt_level=opt_level, label=label).to_strings("ir")
+
+
+_ROT_GEN = {"electron": (("e1(a,i)", +1.0), ("e1(i,a)", -1.0)),
+            "proton":   (("e1(na,ni)", +1.0), ("e1(ni,na)", -1.0))}
+_ROT_GEN_COL = {"electron": (("e1(b,j)", +1.0), ("e1(j,b)", -1.0)),
+                "proton":   (("e1(nb,nj)", +1.0), ("e1(nj,nb)", -1.0))}
+
+
+def hessian_graph(name, row_species="electron", col_species=None, df=True,
+                  opt_level=None, label="H"):
+    """Optimized pq_graph for the orbital-rotation HESSIAN in AMPLITUDE-CONTRACTED (T,Lambda)
+    form -- the second derivative of the CC Lagrangian at fixed (t, Lambda)::
+
+        H_(ai),(bj) = 1/2 <(1+L) e^-T ( [[H, A], B] + [[H, B], A] ) e^T |0>
+        A = E_ai - E_ia   (row, `row_species`)      B = E_bj - E_jb   (col, `col_species`)
+
+    This is the amplitude-route counterpart of the fixed-RDM :func:`orbital_hessian_ir`, the
+    same way :func:`gradient_ir` is the counterpart of :func:`orbital_gradient_ir`. The two
+    routes are contraction paths to the SAME number (the RDMs are built from the same
+    t/Lambda) and agree elementwise to ~6e-16 -- guarded by
+    models_test.test_hessian_ir_matches_orbital_hessian.
+
+    **Why it exists: the fixed-RDM route has an unavoidable v^4 wall.** Its Hessian/diag/sigma
+    contract the 2-RDM block ``D2[vvvv]``, which is a WAVEFUNCTION quantity -- density fitting
+    cannot factorize it (it factorizes integrals, not RDMs). At v=400 spin-orbitals D2[vvvv] is
+    ~191 GB and the route is simply unavailable. This one never forms D2 at all: it contracts
+    the integrals against t/Lambda directly, so with ``df=True`` (the default) it is DF-native
+    -- B factors, no ``g[vvvv]``, no ``D2[vvvv]`` -- and its largest object is t2 (o^2 v^2).
+
+    The emitted H is (vir,occ,vir,occ), i.e. o^2 v^2 -- the size of t2 -- so a consumer stores
+    it and gets the Hessian DIAGONAL (preconditioner) and the SIGMA product
+    ``sigma_ai = sum_bj H_(ai),(bj) kappa_bj`` from it directly, both trivially and with no
+    v^4 object anywhere. There is therefore no separate T,Lambda diag/sigma emitter.
+
+    NB the double commutator is expanded into operator PRODUCTS
+    (``H A B - B H A - A H B + B A H``) fed to ``add_st_operator``, NOT built with
+    pq_helper's ``add_double_commutator``, whose two-body piece is wrong (see the note on
+    orbital_hessian_ir). It is symmetrized at the operator level, so the emitted H is
+    symmetric under (a,i)<->(b,j) by construction.
+
+    One-body inputs are the same as :func:`gradient_graph` (``gep_traces=False``):
+    ``f = f_dressed - mf_ep`` and ``fp = fp_dressed - mf_pe``. See that docstring."""
+    if col_species is None:
+        col_species = row_species
+    for sp in (row_species, col_species):
+        if sp not in _ROT_GEN:
+            raise ValueError(f"species must be 'electron' or 'proton', not {sp!r}")
+    m = model(name)
+    is_neo = any(op in m.H for op in ("fp", "gep"))
+    if not is_neo and "proton" in (row_species, col_species):
+        raise ValueError("proton-species orbital Hessian requires a NEO model")
+    opt_level = _opt_level_for(name, opt_level)
+
+    pq = pq_helper("fermi")
+    pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])
+    T = list(m.T)
+    for h in m.H:
+        for a_op, sa in _ROT_GEN[row_species]:
+            for b_op, sb in _ROT_GEN_COL[col_species]:
+                # 1/2 ( [[H,A],B] + [[H,B],A] ): the two rotation generators do not commute,
+                # so the second derivative of exp(kappa) is the SYMMETRIZED double derivative.
+                for x, y in ((a_op, b_op), (b_op, a_op)):
+                    c = 0.5 * sa * sb
+                    pq.add_st_operator(+c, [h, x, y], T)     #  H X Y
+                    pq.add_st_operator(-c, [y, h, x], T)     # -Y H X
+                    pq.add_st_operator(-c, [x, h, y], T)     # -X H Y
+                    pq.add_st_operator(+c, [y, x, h], T)     # +Y X H
+    pq.simplify()
+    # gep_traces=False, for the same reason as the gradient: term-dropping does not commute
+    # with taking a commutator, so the removal does not yield the derivative of anything.
+    return _optimized(pq, label, df, opt_level, _dims_for(name), gep_traces=False)
+
+
+def hessian_ir(name, row_species="electron", col_species=None, df=True,
+               opt_level=None, label="H"):
+    """The amplitude-contracted (T,Lambda) orbital Hessian as ``to_strings("ir")`` lines.
+    DF-native and free of any v^4 object -- see :func:`hessian_graph`."""
+    return hessian_graph(name, row_species, col_species, df=df, opt_level=opt_level,
+                         label=label).to_strings("ir")
 
 
 def rdm_graph(name, operator, df=True, opt_level=None, label="D"):

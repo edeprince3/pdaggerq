@@ -541,6 +541,108 @@ def test_orbital_gradient_hessian():
     print("test_orbital_gradient_hessian OK")
 
 
+def test_hessian_ir_matches_orbital_hessian():
+    """The AMPLITUDE-contracted (T,Lambda) orbital Hessian must equal the fixed-RDM one
+    elementwise: they are two contraction paths to the same number (the RDMs are built from
+    the same t/Lambda). The fixed-RDM route is finite-difference-verified, so this pins the
+    T,Lambda route exactly, with no finite differences needed.
+
+    Why the T,Lambda route exists: the fixed-RDM Hessian/diag/sigma contract D2[vvvv], a
+    WAVEFUNCTION quantity that density fitting cannot factorize (DF factorizes integrals).
+    At v=400 spin-orbitals that block is ~191 GB and the route is unavailable. This one never
+    forms D2 at all, so it is DF-native -- asserted below: B factors, zero g[vvvv], zero
+    D2[vvvv]. Its H is (v,o,v,o) = o^2 v^2 (t2-sized), from which a consumer gets the Hessian
+    diagonal and sigma = H.kappa directly.
+
+    NB the double commutator is expanded into operator PRODUCTS fed to add_st_operator, NOT
+    built with pq_helper's add_double_commutator, whose two-body piece is wrong."""
+    import numpy as np
+
+    name = "neo-ccd(ep)"
+    ref = models.rdm_energy_reference(name, seed=17)
+    d = ref["dims"]; no, nv, nO, nV = d["o"], d["v"], d["O"], d["V"]
+    ne, npr = no + nv, nO + nV
+    SL = {"o": slice(0, no), "v": slice(no, ne), "O": slice(0, nO), "V": slice(nO, npr)}
+    D = {"o": no, "v": nv, "O": nO, "V": nV}
+
+    def assemble(base, shape):
+        A = np.zeros(shape)
+        for (b, blk), arr in ref["rdm"].items():
+            if b == base:
+                A[tuple(SL[c] for c in blk)] = arr
+        return A
+    RDM = {"h": ref["h"], "g": ref["g"], "hp": ref["hp"], "gep": ref["gep"],
+           "D1": assemble("D1", (ne, ne)), "D2": assemble("D2", (ne,) * 4),
+           "D1_n": assemble("D1_n", (npr, npr)),
+           "D2_ep": assemble("D2_ep", (npr, ne, ne, npr)), "Id": np.eye(max(ne, npr))}
+
+    def ev_rdm(ir):
+        by = {}
+        for st in ir:
+            by.setdefault(st["target"]["name"], []).append(st)
+        (_, sts), = by.items()
+        acc = np.zeros(tuple(SL[c].stop - SL[c].start
+                             for c in sts[0]["target"]["classes"]))
+        for st in sts:
+            arrs = [RDM[o["name"].split('["')[0]][
+                        tuple(SL[c] for c in o["name"].split('["')[1].rstrip('"]'))]
+                    for o in st["operands"]]
+            subs = ",".join("".join(o["indices"]) for o in st["operands"])
+            acc += st["coeff"] * np.einsum(
+                f"{subs}->{''.join(st['target']['indices'])}", *arrs, optimize=True)
+        return acc
+
+    def ev_amp(ir):
+        # base names alone are ambiguous: f(ov) is the electron Fock, f(OV) the proton one
+        def named(base, classes):
+            proton = all(c in "OV" for c in classes)
+            if base == "f":          return ref["fp"] if proton else ref["f"]
+            if base in ("eri", "v"): return ref["eri"]
+            if base in ("g", "gep"): return ref["gep"]
+            return None
+        store = {}
+        def val(o):
+            nm = o["name"]
+            if nm in store: return store[nm]
+            if nm.startswith("Id["): return np.eye(D[o["classes"][0]])
+            arr = named(nm.split("[")[0], o["classes"])
+            if arr is not None:
+                return arr[tuple(SL[c] for c in o["classes"])]
+            return ref["amps"][nm]
+        for s in ir:
+            subs = ",".join("".join(o["indices"]) for o in s["operands"])
+            out = "".join(s["target"]["indices"])
+            c = s["coeff"] * np.einsum(subs + "->" + out,
+                                       *[val(o) for o in s["operands"]], optimize=True)
+            t = s["target"]["name"]
+            store[t] = c.copy() if s["is_assignment"] else store[t] + c
+        return store["H"]
+
+    for rs, cs in (("electron", "electron"), ("proton", "proton"), ("electron", "proton")):
+        # Emitted target index orders DIFFER and must be read from the IR:
+        #   same-species: both routes emit [a,b,i,j]
+        #   cross:  orbital_hessian_ir -> [a,nb,i,nj]   hessian_ir -> [a,i,nb,nj]
+        # They are shape-compatible when nv == no, so a wrong transpose mis-compares
+        # SILENTLY. Bring both to [a,i,b,j].
+        H_rdm = ev_rdm(einsums.parse_ir(
+            models.orbital_hessian_ir(name, rs, cs))).transpose(0, 2, 1, 3)
+        H_amp = ev_amp(einsums.parse_ir(
+            models.hessian_ir(name, rs, cs, df=False, opt_level=0)))
+        if rs == cs:
+            H_amp = H_amp.transpose(0, 2, 1, 3)
+        err = float(np.max(np.abs(H_amp - H_rdm))) / max(float(np.max(np.abs(H_rdm))), 1e-30)
+        assert err < 1e-9, (rs, cs, err)
+
+    # DF-native and free of every v^4 object -- the whole point of this route
+    ir = einsums.parse_ir(models.hessian_ir(name, "electron", "electron"))   # df=True
+    names = [o["name"] for s in ir for o in s["operands"]]
+    assert not any(n == 'g["vvvv"]' for n in names), "T,Lambda Hessian must not touch g[vvvv]"
+    assert not any(n.split("[")[0] in ("D1", "D2", "D2_ep", "D1_n") for n in names), \
+        "T,Lambda Hessian must not contract any RDM (D2[vvvv] is the v^4 wall)"
+    assert any(n.split("[")[0] == "B" for n in names), "df=True must give B factors"
+    print("test_hessian_ir_matches_orbital_hessian OK")
+
+
 def test_gradient_ir_matches_orbital_gradient():
     """The two orbital-gradient routes must give the SAME gradient:
       * orbital_gradient_ir : fixed-RDM  <[H, E-]> contracted with D1/D2/D1_n/D2_ep
@@ -1581,6 +1683,7 @@ if __name__ == "__main__":
     test_energy_from_rdm()
     test_orbital_gradient_hessian()
     test_gradient_ir_matches_orbital_gradient()
+    test_hessian_ir_matches_orbital_hessian()
     test_orbital_gradient_finite_difference()
     test_orbital_hessian_diag()
     test_orbital_sigma()
