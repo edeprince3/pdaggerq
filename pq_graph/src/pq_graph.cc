@@ -258,6 +258,11 @@ namespace pdaggerq {
         if (options.contains("den_labels"))
             Line::den_labels_ = options["den_labels"].cast<std::array<char, 32>>();
 
+        if (options.contains("nocc"))
+            shape::nocc_ = static_cast<size_t>(options["nocc"].cast<long>());
+        if (options.contains("nvirt"))
+            shape::nvirt_ = static_cast<size_t>(options["nvirt"].cast<long>());
+
 
         if (options.contains("nthreads")) {
             nthreads_ = options["nthreads"].cast<int>();
@@ -400,6 +405,11 @@ namespace pdaggerq {
 
         cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
                                                                "for no limit.): " << endl;
+
+        cout << "    nocc: " << (shape::nocc_ ? std::to_string(shape::nocc_) : "0")
+             << "  // number of occupied orbitals (default: 0 for arbitrary systems)" << endl;
+        cout << "    nvirt: " << (shape::nvirt_ ? std::to_string(shape::nvirt_) : "0")
+             << "  // number of virtual orbitals (default: 0 for arbitrary systems)" << endl;
 
         cout << "    cache_elements: " << (Linkage::cache_elements_ ? "true" : "false")
              << "  // whether to cache the elements and permutations of linkages for faster access (default: true)" << endl;

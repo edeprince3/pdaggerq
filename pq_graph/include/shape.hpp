@@ -34,6 +34,10 @@
 #include "line.hpp"
 
 struct shape {
+
+    static inline size_t nocc_  = 0;
+    static inline size_t nvirt_ = 0;
+
     uint_fast8_t n_ = 0; // number of lines
 
     //TODO: split this into two variables (oa, ob, va, vb); use a function to get their sum.
@@ -155,6 +159,20 @@ struct shape {
         return result;
     }
     bool operator<(const shape &other) const {
+
+        if (nvirt_ != 0 || nocc_ != 0) {
+            // For non-zero numbers of virtual or occupied orbitals, use the below algorithm
+            size_t this_size = 1, other_size = 1;
+            for (size_t i = 0; i < o_; ++i) this_size *= nocc_;
+            for (size_t i = 0; i < v_; ++i) this_size *= nvirt_;
+            for (size_t i = 0; i < other.o_; ++i) other_size *= nocc_;
+            for (size_t i = 0; i < other.v_; ++i) other_size *= nvirt_;
+            if (this_size != other_size) return this_size < other_size;
+            // else continue to generic comparison
+        }
+
+        // For arbitrary numbers of occupied and virtual orbitals, below algorithm is used
+
         // Compare total scaling (L+Q+v+o)
         uint_fast8_t total = n_, other_total = other.n_;
         if (total != other_total) return total < other_total;
