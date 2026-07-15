@@ -618,6 +618,20 @@ def test_hessian_ir_matches_orbital_hessian():
             store[t] = c.copy() if s["is_assignment"] else store[t] + c
         return store["H"]
 
+    def no_repeated_target(ir, tag):
+        # A repeated index on a TARGET is not expressible: T[i,j,I,I] = ... defines T on
+        # its nuclear diagonal only, and a consumer that allocates from the index classes
+        # writes the diagonal and silently leaves the rest zero. (Found downstream: a
+        # non-injective nuclear label->subscript map -- case-folding "ni"/"nI" onto one 'I'
+        # -- collapsed two distinct nuclear indices; fixed by the per-statement subscript
+        # pool in Line::assign_subscripts, with an emission-side assert in ir_emit.) Free to
+        # check here -- the IR is already parsed -- and this is the exact opt6 build where
+        # the bug lived (tmps_["20_ooOO"]).
+        for st in ir:
+            idx = st["target"]["indices"]
+            assert len(idx) == len(set(idx)), (
+                f"{tag}: repeated target index in {st['target']['name']}{idx}")
+
     for rs, cs in (("electron", "electron"), ("proton", "proton"), ("electron", "proton")):
         # Emitted target index orders DIFFER and must be read from the IR:
         #   same-species: both routes emit [a,b,i,j]
@@ -626,8 +640,9 @@ def test_hessian_ir_matches_orbital_hessian():
         # SILENTLY. Bring both to [a,i,b,j].
         H_rdm = ev_rdm(einsums.parse_ir(
             models.orbital_hessian_ir(name, rs, cs))).transpose(0, 2, 1, 3)
-        H_amp = ev_amp(einsums.parse_ir(
-            models.hessian_ir(name, rs, cs, df=False, opt_level=0)))
+        amp_ir = einsums.parse_ir(models.hessian_ir(name, rs, cs, df=False, opt_level=0))
+        no_repeated_target(amp_ir, f"hessian_ir[{rs},{cs}] opt0 nodf")
+        H_amp = ev_amp(amp_ir)
         if rs == cs:
             H_amp = H_amp.transpose(0, 2, 1, 3)
         err = float(np.max(np.abs(H_amp - H_rdm))) / max(float(np.max(np.abs(H_rdm))), 1e-30)
@@ -635,6 +650,8 @@ def test_hessian_ir_matches_orbital_hessian():
 
     # DF-native and free of every v^4 object -- the whole point of this route
     ir = einsums.parse_ir(models.hessian_ir(name, "electron", "electron"))   # df=True
+    # opt6 df electron-electron: the exact statement (tmps_["20_ooOO"]) that collided.
+    no_repeated_target(ir, "hessian_ir[electron,electron] opt6 df")
     names = [o["name"] for s in ir for o in s["operands"]]
     assert not any(n == 'g["vvvv"]' for n in names), "T,Lambda Hessian must not touch g[vvvv]"
     assert not any(n.split("[")[0] in ("D1", "D2", "D2_ep", "D1_n") for n in names), \

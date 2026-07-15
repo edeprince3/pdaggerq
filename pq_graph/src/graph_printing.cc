@@ -23,6 +23,7 @@
 
 #include <cmath>
 #include <numeric>
+#include <queue>
 #include <map>
 #include <algorithm>
 #include <iostream>
@@ -560,11 +561,38 @@ namespace pdaggerq {
         return "\n    " + if_block;
     }
 
+    // every line appearing anywhere in a statement -- the lhs plus the whole rhs linkage
+    // tree, contracted lines included, since those get subscripts too. Order is
+    // deterministic (lhs first, then a breadth-first walk), which is what makes the
+    // resulting subscript assignment reproducible.
+    static line_vector statement_lines(const VertexPtr &lhs, const VertexPtr &rhs) {
+        line_vector lines;
+        if (lhs) lines.insert(lines.end(), lhs->lines().begin(), lhs->lines().end());
+        if (!rhs) return lines;
+
+        std::queue<VertexPtr> queue;
+        queue.push(rhs);
+        while (!queue.empty()) {
+            VertexPtr cur = queue.front(); queue.pop();
+            if (!cur) continue;
+            lines.insert(lines.end(), cur->lines().begin(), cur->lines().end());
+            if (cur->is_linked()) {
+                queue.push(as_link(cur)->left());
+                queue.push(as_link(cur)->right());
+            }
+        }
+        return lines;
+    }
+
     string Term::str() const {
 
         if (!print_override_.empty())
             // return print override if it exists for custom printing
             return print_override_;
+
+        // give each distinct label in this statement its own subscript; the natural
+        // label->char map is not injective (see Line::natural_einsum_char).
+        Line::SubscriptScope subscripts(statement_lines(lhs_, term_linkage(true)));
 
         string output;
 
@@ -737,6 +765,10 @@ namespace pdaggerq {
     }
 
     string Term::einsum_str() const {
+        // as in Term::str(): the natural label->char map is not injective, so subscripts
+        // are assigned per statement.
+        Line::SubscriptScope subscripts(statement_lines(lhs_, term_linkage(true)));
+
         string output;
 
         // get left hand side vertex name
@@ -836,14 +868,27 @@ namespace pdaggerq {
     // python printer); classes = Line::type() (o/v electron, O/V proton, Q aux,
     // L excited) for the dims lookup.
     static string ir_vertex_json_core(const string &name, const line_vector &lines,
-                                      bool is_intermediate) {
+                                      bool is_intermediate, bool is_target = false) {
         string istr = "[", cstr = "[";
         bool first = true;
+        std::set<char> target_seen;
         for (const auto &line : lines) {
             if (line.sig_ && !Vertex::use_trial_index) continue;
             if (!first) { istr += ","; cstr += ","; }
             first = false;
-            istr += string("\"") + line.einsum_char() + "\"";
+            const char sub = line.einsum_char();
+            // A repeated subscript on the TARGET is not expressible: it would define the
+            // tensor on that diagonal only, leaving every off-diagonal element whatever the
+            // consumer's allocator happened to leave there. A repeat on an OPERAND is
+            // legitimate (a trace), which is why this is checked only for the target.
+            // Cheap invariant, and the bug it guards against is invisible downstream: a
+            // consumer writes the diagonal, reports no error, and returns a wrong answer.
+            if (is_target && !target_seen.insert(sub).second)
+                throw runtime_error(
+                    "ir_emit: repeated target index '" + string(1, sub) + "' in " + name
+                    + " -- two distinct lines were given the same subscript, which would "
+                      "define this tensor on its diagonal only.");
+            istr += string("\"") + sub + "\"";
             cstr += string("\"") + line.type() + "\"";
         }
         istr += "]"; cstr += "]";
@@ -985,9 +1030,13 @@ namespace pdaggerq {
         else
             ops = { rhs_link };
 
+        // Collect the operands BEFORE serializing any of them: a hoisted operand recurses
+        // into ir_emit, which assigns its own statement's subscripts, so nothing may be
+        // written out until every nested emission is done and this statement's own
+        // assignment is in scope.
+        struct IROperand { string name; line_vector lines; bool interm; };
         string prefix;                     // hoisted temp definitions, emitted first
-        std::vector<string> operand_jsons;
-        std::vector<line_vector> op_lines; // per emitted operand, for the pairing DP
+        std::vector<IROperand> operands;
         for (const auto &op : ops) {
             if (op->empty()) continue;
             if (!op->is_linked() && op->is_constant()) {
@@ -1002,14 +1051,28 @@ namespace pdaggerq {
                 // inline (A+B)/nested-contraction operand -> materialise into a temp
                 string tn = "tmps_[\"ir" + std::to_string(ir_hoist_counter++) + "\"]";
                 prefix += ir_emit(tn, op->lines(), true, true, 1.0, op, conds) + "\n";
-                operand_jsons.push_back(ir_vertex_json_core(tn, op->lines(), true));
+                operands.push_back({tn, op->lines(), true});
             } else {
-                operand_jsons.push_back(ir_vertex_json(op));
+                operands.push_back({op->name(), op->lines(), ir_is_intermediate(op)});
             }
-            op_lines.push_back(op->lines());
         }
 
-        string out = string("{\"target\":") + ir_vertex_json_core(tname, tlines, tinterm);
+        // Give every distinct label in this statement its own subscript. Without this the
+        // natural label->char map is not injective (see Line::natural_einsum_char) and two
+        // distinct nuclear lines can print as one index -- a silently wrong contraction.
+        line_vector stmt_lines = tlines;
+        for (const auto &op : operands)
+            stmt_lines.insert(stmt_lines.end(), op.lines.begin(), op.lines.end());
+        Line::SubscriptScope subscripts(stmt_lines);
+
+        std::vector<string> operand_jsons;
+        std::vector<line_vector> op_lines; // per emitted operand, for the pairing DP
+        for (const auto &op : operands) {
+            operand_jsons.push_back(ir_vertex_json_core(op.name, op.lines, op.interm));
+            op_lines.push_back(op.lines);
+        }
+
+        string out = string("{\"target\":") + ir_vertex_json_core(tname, tlines, tinterm, true);
         out += string(",\"is_assignment\":") + (assign ? "true" : "false");
         { std::ostringstream cs; cs.precision(17); cs << coeff;
           out += ",\"coeff\":" + cs.str(); }

@@ -30,6 +30,7 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <set>
 #include <algorithm>
 #include <cstring>
 #include <bitset>
@@ -234,19 +235,97 @@ namespace pdaggerq {
             return o_ ? 'o' : 'v';
         }
 
-        // single character used as an einsum subscript for this line. electron
-        // labels are single characters, so their first character is unique within
-        // a term; nuclear labels share the prefix, so use the uppercased base
-        // character to keep nuclear indices distinct from one another and from
-        // electron indices. (sufficient for typical NEO index counts; a fully
-        // general scheme would assign characters from a per-term pool.)
-        char einsum_char() const {
+        // the subscript this line WANTS: its own character (electron labels are single
+        // characters) or, for a nuclear label, the uppercased base character.
+        //
+        // This map is NOT injective, and must never be used on its own. The core's label
+        // pool is case-doubled -- pq_utils.cc builds the nuclear labels as "n" + {i,j,k,l,
+        // m,n,I,J,K,L,M,N}, so "ni" and "nI" are two DISTINCT nuclear indices -- while the
+        // uppercasing here case-folds them onto the same 'I'. An electron line labelled "I"
+        // collides with nuclear "ni" the same way. Two distinct lines sharing a subscript
+        // silently emits a wrong contraction: a fused NEO intermediate came out as
+        //     tmps_["20_ooOO"][i,j,I,I] = B["QOO"][Q,I,I] * B["Qoo"][Q,i,j]
+        // -- defined only on its nuclear diagonal, then consumed OFF it as [i,j,J,I].
+        // No crash, no warning, just a wrong Hessian.
+        //
+        // So printers assign subscripts per statement via assign_subscripts() below, and
+        // ask for them through einsum_char(). This is the per-term pool the old comment
+        // here described and did not implement.
+        char natural_einsum_char() const {
             if (nuc_ && label_.size() > 1) {
                 char c = label_[1];
                 return (c >= 'a' && c <= 'z') ? char(c - 'a' + 'A') : c;
             }
             return label_[0];
         }
+
+        // subscript assignment for the statement currently being printed, keyed by label.
+        // keyed by LABEL rather than by Line: two lines with the same label are the same
+        // index and must share a subscript (spin-blocked equations reuse a label across
+        // blocks, and those must not be split apart).
+        static inline thread_local std::unordered_map<std::string, char> subscript_map_{};
+
+        char einsum_char() const {
+            auto it = subscript_map_.find(label_);
+            if (it != subscript_map_.end()) return it->second;
+            return natural_einsum_char(); // no statement in scope (single-line/debug printing)
+        }
+
+        // Assign a distinct subscript to every distinct label in one statement. Each label
+        // keeps its natural character where that character is unclaimed -- so every
+        // statement that does not actually collide prints exactly as it did before -- and
+        // otherwise takes a fresh one from the free pool. Deterministic: labels are
+        // considered in order of first appearance.
+        static void assign_subscripts(const std::vector<Line> &lines) {
+            subscript_map_.clear();
+
+            std::vector<std::pair<std::string, char>> order; // label -> natural char
+            for (const auto &line : lines) {
+                if (line.label_.empty()) continue;
+                bool seen = false;
+                for (const auto &p : order)
+                    if (p.first == line.label_) { seen = true; break; }
+                if (!seen) order.emplace_back(line.label_, line.natural_einsum_char());
+            }
+
+            auto is_natural_of_some_label = [&order](char c) {
+                for (const auto &p : order)
+                    if (p.second == c) return true;
+                return false;
+            };
+
+            std::set<char> taken;
+            for (const auto &[label, nat] : order) {
+                if (!taken.count(nat)) { // natural char still free -- keep it (the common case)
+                    subscript_map_[label] = nat;
+                    taken.insert(nat);
+                    continue;
+                }
+                // collided with an earlier label: take a character that is neither already
+                // assigned nor the natural character of any OTHER label in this statement.
+                static constexpr char pool[] = "pqrstuwxyzPSTWZabcdefghijklmnovABCDEFGHIJKLMNOQRUVXY";
+                char fresh = '\0';
+                for (const char *c = pool; *c; ++c) {
+                    if (taken.count(*c) || is_natural_of_some_label(*c)) continue;
+                    fresh = *c;
+                    break;
+                }
+                if (fresh == '\0')
+                    throw std::runtime_error("Line::assign_subscripts: subscript pool exhausted for '"
+                                             + label + "' (statement has too many distinct indices)");
+                subscript_map_[label] = fresh;
+                taken.insert(fresh);
+            }
+        }
+
+        // clears the assignment when the statement goes out of scope, so a stale map can
+        // never leak into an unrelated print.
+        struct SubscriptScope {
+            explicit SubscriptScope(const std::vector<Line> &lines) { assign_subscripts(lines); }
+            ~SubscriptScope() { subscript_map_.clear(); }
+            SubscriptScope(const SubscriptScope &) = delete;
+            SubscriptScope &operator=(const SubscriptScope &) = delete;
+        };
 
         bool empty() const {
             return label_.empty();
