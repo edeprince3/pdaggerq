@@ -323,7 +323,7 @@ namespace pdaggerq {
         /**
          * reindex the intermediates in the equations
          */
-        void reindex();
+        void reindex(size_t passes = 3);
 
         /**
          * deep copy of the pq_graph

@@ -395,7 +395,7 @@ PQGraph PQGraph::clone() const {
     return copy;
 }
 
-void PQGraph::reindex() {
+void PQGraph::reindex(size_t passes) {
 
     print_guard guard;
     if (print_level_ <= 1)
@@ -534,11 +534,13 @@ void PQGraph::reindex() {
         }
     }
 
-    // reindex again for good measure
-    static int reindex_count = 0;
-    reindex_count = ++reindex_count % 3;
-    if (reindex_count != 0)
-        reindex();
+    // reindex again for good measure (multiple passes let the id assignment settle).
+    // the pass count is an explicit parameter: it was previously tracked in a
+    // function-local `static`, so the number of passes any given call performed
+    // depended on how often reindex() had run before -- across all PQGraph
+    // instances in the process -- rather than on this graph.
+    if (passes > 1)
+        reindex(passes - 1);
 }
 
 size_t PQGraph::get_num_terms() const {
