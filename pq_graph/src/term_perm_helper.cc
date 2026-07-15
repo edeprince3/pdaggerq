@@ -72,7 +72,7 @@ namespace pdaggerq {
 
         // helper functions to swap lines in vertices
         static auto swap2lines = [](const VertexPtr &reference_vertex, const string &p1_line, const string &p2_line){
-            std::unordered_map<Line, Line, LineHash> line_map;
+            LineMap line_map;
             MutableVertexPtr vertex = reference_vertex->clone();
             for (Line &line: vertex->lines()) {
                 if (line.label_ == p1_line){

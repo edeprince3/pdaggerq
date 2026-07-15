@@ -27,9 +27,11 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <iomanip>
 
 #include "../include/pq_graph.h"
 #include "../include/term.h"
+#include "../include/printers/code_printer.h"
 
 
 // include omp only if defined
@@ -47,26 +49,7 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 namespace pdaggerq {
 
     void Vertex::format_name() {
-        name_ = base_name_;
-
-        // scalars have no dimension
-        if (rank_ == 0) return;
-
-        // format tensor block as a map if it is not an amplitude or if it has a block
-        if (vertex_type_ == 'v') {
-            name_ += "[\"";
-            name_ += dimstring();
-            name_ += "\"]";
-        } else if (vertex_type_ == 'a' && has_blk_) {
-            name_ += "[\"";
-            name_ += blk_string();
-            name_ += "\"]";
-        } else if (vertex_type_ == 'p') {
-            name_ += "[\"";
-            name_ += "perm_" + dimstring();
-            name_ += "\"]";
-        }
-
+        name_ = printer_->format_name(this);
     }
 
     string Vertex::dimstring() const {
@@ -111,38 +94,23 @@ namespace pdaggerq {
     }
 
     string Vertex::line_str(bool sort) const{
-        if (size() == 0) return ""; // if rank is 0, return empty string
-        if (size() == 1) {
-            // do not print sigma lines if use_trial_index is false for otherwise scalar vertices
-            if (lines_[0].sig_ && !use_trial_index)
-                return "";
-        }
 
         // make a copy of lines that is sorted if sort is true
         line_vector lines;
         if (!sort) lines = lines_;
-        else {
+        else if (!lines_.empty()) {
             lines.reserve(lines_.size());
             for (const Line &line : lines_)
                 lines.insert(
                         std::lower_bound(lines.begin(), lines.end(), line, line_compare()), line);
         }
 
-        // loop over lines
-        string line_str = "(\"";
-        for (const Line &line : lines) {
-            if (!use_trial_index && line.sig_) continue;
-            line_str += line.label_;
-            line_str += ",";
-        }
-        line_str.pop_back(); // remove last comma
-        line_str += "\")";
-        return line_str;
+        return printer_->format_lines(lines);
     }
 
     string Vertex::str() const {
         string name = name_;
-        if (print_type_ == "c++")
+        if (printer_->include_line_indices())
             name += line_str();
         return name;
     }
@@ -155,32 +123,7 @@ namespace pdaggerq {
             return tot_str(false);
         }
 
-        // prepare output string as a map of tmps, scalars, or reuse_tmps to a generic name
-        string generic_str;
-        if (is_scalar())
-            generic_str = "scalars_";
-        else if (reused_)
-            generic_str = "reused_";
-        else generic_str = "tmps_";
-        generic_str += "[\"";
-
-        // use id_ to create a generic name
-        string dimstring = this->dimstring();
-        if (id_ >= 0)
-            generic_str += to_string(id_);
-
-        if (!dimstring.empty())
-            generic_str += "_" + dimstring;
-
-        generic_str += "\"]";
-
-        if (include_lines && print_type_ == "c++") // if lines are included, add them to the generic name (default)
-            generic_str += line_str(); // sorts print order
-
-        // create a generic vertex that has the same lines as this linkage.
-        // this adds the spin and type strings to name
-        // return its string representation
-        return generic_str;
+        return Vertex::printer_->format_intermediate_name(this, include_lines);
     }
 
     string Linkage::tot_str(bool fully_expand) const {
@@ -195,9 +138,6 @@ namespace pdaggerq {
 
         if (left_->empty())  return right_->str();
         if (right_->empty()) return left_->str();
-
-        // prepare output string
-        string output, left_string, right_string;
 
         // get link vector
         vertex_vector link_vector = this->link_vector();
@@ -216,134 +156,11 @@ namespace pdaggerq {
             link_vector = link_vector_no_trial;
         }
 
-        if (print_type_ == "c++") {
-
-            if (is_addition()) {
-                return left_->str() + " + " + right_->str();
-            }
-
-            vertex_vector scalars;
-            vertex_vector tensors;
-            for (const auto &op: link_vector) {
-                if (op->empty()) continue;
-                if (op->is_scalar())
-                    scalars.push_back(op);
-                else {
-                    tensors.push_back(op);
-                }
-            }
-
-            if (scalars.empty() && tensors.empty()) return "1.0";
-
-            // first add scalars
-            for (const auto &scalar: scalars) {
-                string scalar_str = scalar->str();
-                if (scalar->is_addition() && !scalar->is_temp())
-                    scalar_str = "(" + scalar_str + ")";
-                output += scalar_str + " * ";
-            }
-
-            if (tensors.empty()) {
-                output.pop_back(); output.pop_back(); output.pop_back();
-                return output;
-            }
-
-            bool format_dot = is_scalar() && tensors.size() > 1;
-
-            // this is a scalar, so we need to format as a dot product
-            if (format_dot) output += "1.00 * dot(";
-
-            // add tensors
-            for (size_t i = 0; i < tensors.size(); i++) {
-                string tensor_string = tensors[i]->str();
-                if (tensors[i]->is_addition() && !tensors[i]->is_temp())
-                    tensor_string = "(" + tensor_string + ")";
-                output += tensor_string;
-                if (format_dot && i == tensors.size() - 2)
-                    output += ", ";
-                else if (i < tensors.size() - 1)
-                    output += " * ";
-            }
-            if (format_dot) output += ")";
-
-        }
-        else if (print_type_ == "python") {
-            if (is_addition()) {
-                // we need to permute the right to match the left
-                string left_labels, right_labels;
-                for (const auto &line: left_->lines())
-                    if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else left_labels += line.label_[0];
-                for (const auto &line: right_->lines())
-                    if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else right_labels += line.label_[0];
-
-                output = left_->str() + " + ";
-
-                if (left_labels != right_labels) {
-                    // we need to permute the right to match the left
-                    output += "np.einsum('";
-                    output += right_labels + "->" + left_labels + "',";
-                }
-                output += right_->str();
-                if (left_labels != right_labels)
-                    output += ")";
-                return output;
-            }
-
-            vector<string> indices;
-            vertex_vector scalars;
-            vertex_vector tensors;
-            for (const auto &op: link_vector) {
-                if (op->empty()) continue;
-                if (op->is_scalar())
-                    scalars.push_back(op);
-                else {
-                    tensors.push_back(op);
-                    string label;
-                    for (const auto &line: op->lines())
-                        if (line.sig_ && !Vertex::use_trial_index) continue;
-                        else label += line.label_[0];
-                    indices.push_back(label);
-                }
-            }
-
-            for (const auto &scalar: scalars) {
-                string scalar_str = scalar->str();
-                if (scalar->is_addition() && !scalar->is_temp())
-                    scalar_str = "(" + scalar_str + ")";
-                output += scalar_str + " * ";
-            }
-            if (!tensors.empty()) {
-                output += "np.einsum('";
-                for (const auto &index: indices)
-                    output += index + ",";
-                output.pop_back();
-                output += "->";
-                for (const auto &line: lines_)
-                    if (line.sig_ && !Vertex::use_trial_index) continue;
-                    else output += line.label_[0];
-                output += "',";
-
-                for (const auto &tensor: tensors) {
-                    string tensor_str = tensor->str();
-                    if (tensor->is_addition() && !tensor->is_temp())
-                        tensor_str = "(" + tensor_str + ")";
-                    output += tensor_str + ",";
-                }
-
-                if (tensors.size() > 2)
-                    output += "optimize='optimal'";
-                else output.pop_back();
-
-                output += ")";
-
-            } else {
-                output.pop_back(); output.pop_back(); output.pop_back();
-            }
+        if (is_addition()) {
+            return Vertex::printer_->format_addition(left_, right_);
         }
 
-        return output;
+        return Vertex::printer_->format_contraction(link_vector, lines_);
     }
 
 }

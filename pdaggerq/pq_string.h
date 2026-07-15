@@ -75,12 +75,12 @@ template <typename T> int minimum_precision(T factor) {
     }
 
     // if the last repeating digit is zero, we can reduce the precision
-    if (precision >= repeat_count && last_digit == '0')
+    if (precision >= repeat_count && repeat_count >= 3 && last_digit == '0')
         precision -= repeat_count;
 
-    // we should always have at least two digits
-    if (precision < 12)
-        precision = 12;
+    // we should always have at least three digits
+    if (precision < 3)
+        precision = 3;
 
     return precision;
 }

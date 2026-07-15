@@ -43,9 +43,10 @@ using std::shared_ptr;
 
 namespace pdaggerq {
 
-    // forward declaration of Vertex and Linkage
+    // forward declarations
     struct Vertex;
     class Linkage;
+    class CodePrinter;
 
     // typedef for shared pointer to Vertex and Linkage
     typedef shared_ptr<Vertex> MutableVertexPtr;
@@ -91,9 +92,17 @@ namespace pdaggerq {
 
         // indicates whether the vertex is allowed to be permuted
         static inline bool allow_permute_ = true;
-        static inline bool use_trial_index = false;
         static inline bool permute_eri_ = true;
-        static inline string print_type_ = "c++"; // default print type is c++
+
+        // whether the eri has a symmetric ovstring (vvoo == oovv)
+        static inline bool has_symmetric_eri_ = false;
+
+        // whether to use trial index for sigma vertices (e.g., L and R) when printing
+        static inline bool use_trial_index = false;
+
+        // polymorphic syntax backend — defined in code_printer.cc, set by set_printer()
+        static const CodePrinter* printer_;
+        static void set_printer(const string& type);
 
         /****** Constructors ******/
 
@@ -170,7 +179,7 @@ namespace pdaggerq {
          * replaces the lines of the vertex with the lines in the argument
          * @param lines vector of lines
          */
-        virtual void replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name = true);
+        virtual void replace_lines(const LineMap &line_map, bool update_name = true);
 
         /**
          * relabels the lines within the vertex for generic string representation
@@ -200,9 +209,12 @@ namespace pdaggerq {
         /**
          * Sorts lines such that virtual lines come first; if the vertex is blocked, then
          * the blocked lines (alpha/active) come first, followed by the full lines (full/beta) for the same virtual/occupied block
+         * @param lines vector of lines to sort
+         * @param merge_braket do we sort the bra and ket indices separately? (default false)
+         * @param ignore_labels do we ignore the labels of the lines when sorting? (default false)
          */
+        static void sort(line_vector &lines, bool merge_braket = false, bool ignore_labels = false); // static version of sort
         void sort();
-        static void sort(line_vector &lines); // static version of sort
 
         /**
          * get the ovstring of from lines
@@ -230,6 +242,12 @@ namespace pdaggerq {
          * @return the permuted vertex
          */
         Vertex permute(size_t perm_id, bool &swap_sign) const;
+
+        /**
+         * conjugate the bra and ket of the vertex
+         * @return the conjugated vertex
+         */
+        Vertex conj() const;
 
         /**
          * bring vertex to a canonical form and determine if a sign change is needed
@@ -293,6 +311,12 @@ namespace pdaggerq {
          * @return string of the vertex base name
          */
         const string &base_name() const { return base_name_; }
+
+        /**
+         * Get the vertex type
+         * @return character representing the vertex type
+         */
+        const char &vertex_type() const { return vertex_type_; }
 
         /**
          * returns the rank of the vertex
@@ -415,7 +439,7 @@ namespace pdaggerq {
         virtual bool is_linked() const { return false; }
         virtual bool is_temp() const { return false; }
         virtual bool is_addition() const { return false; } // whether the linkage is an addition
-        virtual bool is_expandable() const { return false; } // whether the linkage is expandable
+        virtual bool is_expandable(bool expand_scalar = false, bool expand_addition = false) const { return false; } // whether the linkage is expandable
         virtual vertex_vector link_vector(bool regenerate = false, bool fully_expand = false) const { return {shared_from_this()}; }
         virtual bool is_reused() const { return false; } // whether the linkage is reused
         virtual size_t depth() const { return 0; }
@@ -426,6 +450,7 @@ namespace pdaggerq {
         virtual long &id() { static long null = -1; null = -1; return null; }
         virtual string type() const { return "vertex"; }
         virtual bool has_temp(const VertexPtr &other, bool enter_temp = true, long depth = -1) const { return false; }
+        virtual size_t count(const VertexPtr &other, bool enter_temp = true, bool enter_additions = true, long depth = -1) const { return (size_t) (*this == *other); }
         virtual bool has_link(const VertexPtr &other, bool enter_temp = true, long depth = -1) const { return *this == *other; }
         virtual bool same_temp(const VertexPtr &other) const { return false; }
         virtual bool has_any_temp() const { return false; }

@@ -24,6 +24,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 #include "../include/pq_graph.h"
+#include "../include/printers/code_printer.h"
 
 // include omp only if defined
 #ifdef _OPENMP
@@ -93,14 +94,8 @@ namespace pdaggerq {
     }
 
     void PQGraph::set_options(const pybind11::dict& options) {
-        string h1, h2; // header 1 and header 2 padding
-        if (Vertex::print_type_ == "python") {
-            h1 = "####################";
-            h2 = "#####";
-        } else if (Vertex::print_type_ == "c++") {
-            h1 = "///////////////////";
-            h2 = "/////";
-        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+        const string h1 = Vertex::printer_->banner_h1();
+        const string h2 = Vertex::printer_->banner_h2();
 
         cout << endl << h1 << " PQ GRAPH " << h1 << endl << endl;
 
@@ -137,8 +132,11 @@ namespace pdaggerq {
         if (options.contains("permute_eri"))
             Vertex::permute_eri_ = options["permute_eri"].cast<bool>();
 
-        if (options.contains("density_fitting"))
-            use_density_fitting_ = options["density_fitting"].cast<bool>();
+        if (options.contains("has_symmetric_eri"))
+            Vertex::has_symmetric_eri_ = options["has_symmetric_eri"].cast<bool>();
+
+        if (options.contains("decompose_eri"))
+            decompose_eri_ = options["decompose_eri"].cast<bool>();
 
         if (options.contains("no_scalars")) {
             Equation::no_scalars_ = options["no_scalars"].cast<bool>();
@@ -146,8 +144,15 @@ namespace pdaggerq {
                 cout << "'no_scalars' is set to true. Scalars will not be included in the final equations." << endl;
         }
 
+        if (options.contains("no_trace")) {
+            Equation::no_trace_ = options["no_trace"].cast<bool>();
+            if (Equation::no_trace_)
+                cout << "'no_trace' is set to true. Terms including a trace will not be included in the final equations." << endl;
+        }
 
-        if (options.contains("max_shape_map")) {
+
+        // set controls for the maximum shape of an intermediate
+        if (options.contains("max_shape_map")) { // define by using a map
             std::map<string, long> max_shape_map;
             try {
                 max_shape_map = options["max_shape_map"].cast<std::map<string, long>>();
@@ -179,7 +184,35 @@ namespace pdaggerq {
             Term::max_shape_.v_  = max_v;
             Term::max_shape_.va_ = max_v;
 
-        } else {
+        } else if (options.contains("max_shape")) { // define by parsing a string (e.g. o2v2 or o5v12 or o0v4)
+            string max_shape_str = options["max_shape"].cast<string>();
+
+            // check if the string is valid (must have an 'o' followed by a number and a 'v' followed by a number)
+            auto o_pos = max_shape_str.find('o');
+            auto v_pos = max_shape_str.find('v');
+            if (o_pos == string::npos || v_pos == string::npos || o_pos >= v_pos) {
+                throw invalid_argument("max_shape must be a string of the form 'oN' or 'oNvM' where N and M are integers.");
+            }
+            // extract the numbers after 'o' and 'v'
+            size_t max_o = 0, max_v = 0;
+            try {
+                max_o = std::stoul(max_shape_str.substr(o_pos + 1, v_pos - o_pos - 1));
+                max_v = std::stoul(max_shape_str.substr(v_pos + 1));
+            } catch (const std::exception &e) {
+                throw invalid_argument("max_shape must be a string of the form 'oN' or 'oNvM' where N and M are integers.");
+            }
+            // check if the numbers are valid
+            if (max_o > static_cast<size_t>(-1l)/2l || max_v > static_cast<size_t>(-1l)/2l) {
+                throw invalid_argument("max_shape values must be less than or equal to " + std::to_string(static_cast<size_t>(-1l)/2l));
+            }
+            // set the max shape
+            Term::max_shape_.n_  = max_o + max_v;
+            Term::max_shape_.o_  = max_o;
+            Term::max_shape_.oa_ = max_o;
+            Term::max_shape_.v_  = max_v;
+            Term::max_shape_.va_ = max_v;
+        }
+        else {
             auto n_max = static_cast<size_t>(-1l);
             Term::max_shape_.n_  = n_max;
             Term::max_shape_.o_  = n_max;
@@ -188,8 +221,16 @@ namespace pdaggerq {
             Term::max_shape_.va_ = n_max;
         }
 
-        if (options.contains("low_memory")) {
-            Linkage::low_memory_ = options["low_memory"].cast<bool>();
+        if (options.contains("cache_elements")) {
+            Linkage::cache_elements_ = options["cache_elements"].cast<bool>();
+        }
+
+        if (options.contains("cache_depth")) {
+            Linkage::cache_depth_ = options["cache_depth"].cast<size_t>();
+        }
+
+        if (options.contains("expand_permutations")) {
+            expand_permutations_ = options["expand_permutations"].cast<bool>();
         }
 
         if (options.contains("batch_size")) {
@@ -217,6 +258,11 @@ namespace pdaggerq {
         if (options.contains("den_labels"))
             Line::den_labels_ = options["den_labels"].cast<std::array<char, 32>>();
 
+        if (options.contains("nocc"))
+            shape::nocc_ = static_cast<size_t>(options["nocc"].cast<long>());
+        if (options.contains("nvirt"))
+            shape::nvirt_ = static_cast<size_t>(options["nvirt"].cast<long>());
+
 
         if (options.contains("nthreads")) {
             nthreads_ = options["nthreads"].cast<int>();
@@ -227,9 +273,7 @@ namespace pdaggerq {
             } else if (nthreads_ < 0) {
                 nthreads_ = (int) omp_get_max_threads();
             }
-            Equation::nthreads_ = nthreads_;
-            omp_set_num_threads(nthreads_);
-            
+            Equation::nthreads_ = nthreads_;            
         } else {
             // use OMP_NUM_THREADS if available
             char *omp_num_threads = getenv("OMP_NUM_THREADS");
@@ -240,10 +284,10 @@ namespace pdaggerq {
                             "Using the maximum number of threads instead." << endl;
                     nthreads_ = (int) omp_get_max_threads();
                 }
-                Equation::nthreads_ = nthreads_;
-                omp_set_num_threads(nthreads_);
+                Equation::nthreads_ = nthreads_;                
             }
         }
+        omp_set_num_threads(nthreads_);
 
         // set defined conditions
         if (options.contains("conditions")){
@@ -284,6 +328,15 @@ namespace pdaggerq {
         if (options.contains("separate_sigma"))
             separate_sigma_ = options["separate_sigma"].cast<bool>();
 
+        if (options.contains("print_comments"))
+            Term::print_comments_ = options["print_comments"].cast<bool>();
+
+        if (options.contains("deallocate"))
+            Term::deallocate_ = options["deallocate"].cast<bool>();
+
+        if (options.contains("binarize"))
+            Term::binarize_ = options["binarize"].cast<bool>();
+
         cout << "Options:" << endl;
         cout << "--------" << endl;
         cout << "    print_level: " << print_level_
@@ -292,17 +345,6 @@ namespace pdaggerq {
         cout << "                    // 1: print optimization steps without fusion or merging" << endl;
         cout << "                    // 2: print optimization steps with fusion and merging" << endl;
 
-        cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
-             << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
-
-        cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")
-             << "  // whether to skip the scalar terms in the final equations (default: false)" << endl;
-
-        cout << "    use_trial_index: " << (Vertex::use_trial_index ? "true" : "false")
-             << "  // whether to store trial vectors as an additional index/dimension for "
-             << "tensors in a sigma-vector build (default: false)" << endl;
-        cout << "    separate_sigma: " << (separate_sigma_ ? "true" : "false")
-                << "  // whether to separate reusable intermediates for sigma-vector build (default: false)" << endl;
         cout << "    opt_level: " << opt_level_
              << "  // optimization level:" << endl;
         cout << "                  // 0: no optimization" << endl;
@@ -312,6 +354,41 @@ namespace pdaggerq {
         cout << "                  // 4: reordering, substitution, and separation; unused intermediates are removed (pruning)" << endl;
         cout << "                  // 5: reordering, substitution, separation, pruning, and merging of equivalent terms" << endl;
         cout << "                  // 6: reordering, substitution, separation, pruning, merging, and fusion of intermediates (default)" << endl;
+        
+        cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
+             << "  // whether to permute two-electron integrals to common order (default: true)" << endl;
+
+        cout << "    has_symmetric_eri: " << (Vertex::has_symmetric_eri_ ? "true" : "false")
+             << "  // whether the two-electron integrals has bra/ket symmetry (default: false)" << endl;
+
+        cout << "    decompose_eri: " << (decompose_eri_ ? "true" : "false")
+             << "  // whether to decompose two-electron integrals into products (default: false)" << endl;
+
+        cout << "    no_trace: " << (Equation::no_trace_ ? "true" : "false")
+             << "  // whether to exclude terms containing a trace from the final equations (default: false)" << endl;
+
+        cout << "    expand_permutations: " << (expand_permutations_ ? "true" : "false")
+             << "  // whether to expand permutations of terms before optimization (default: true)" << endl
+             << "                       // generally leads to better optimization, but may be significantly slower." << endl;
+
+        cout << "    print_comments: " << (Term::print_comments_ ? "true" : "false")
+             << "  // whether to print comments alongside generated code (default: true)" << endl;
+
+        cout << "    deallocate: " << (Term::deallocate_ ? "true" : "false")
+             << "  // whether to insert deallocation statements for intermediates after last use (default: true)" << endl;
+
+        cout << "    binarize: " << (Term::binarize_ ? "true" : "false")
+             << "  // whether to decompose contractions into binary operations (default: false)" << endl;
+
+        cout << "    no_scalars: " << (Equation::no_scalars_ ? "true" : "false")
+             << "  // whether to skip the scalar terms in the final equations (default: false)" << endl;
+
+        cout << "    use_trial_index: " << (Vertex::use_trial_index ? "true" : "false")
+             << "  // whether to store trial vectors as an additional index/dimension for "
+             << "tensors in a sigma-vector build (default: false)" << endl;
+
+        cout << "    separate_sigma: " << (separate_sigma_ ? "true" : "false")
+                << "  // whether to separate reusable intermediates for sigma-vector build (default: false)" << endl;
 
         cout << "    batched: " << (batched_ ? "true" : "false")
              << "  // candidate substitutions are applied in batches rather than one at a time. (default: false)" << endl;
@@ -329,9 +406,16 @@ namespace pdaggerq {
         cout << "    max_shape: " << Term::max_shape_.str() << " // a map of maximum sizes for each line type in an intermediate (default: {o: 255, v: 255}, "
                                                                "for no limit.): " << endl;
 
-        cout << "    low_memory: " << (Linkage::low_memory_ ? "true" : "false")
-             << "  // whether to recompute or save all possible permutations of each term in memory (default: false)" << endl
-             << "                       // if true, permutations are recomputed on the fly. Recommended if memory runs out." << endl;
+        cout << "    nocc: " << (shape::nocc_ ? std::to_string(shape::nocc_) : "0")
+             << "  // number of occupied orbitals (default: 0 for arbitrary systems)" << endl;
+        cout << "    nvirt: " << (shape::nvirt_ ? std::to_string(shape::nvirt_) : "0")
+             << "  // number of virtual orbitals (default: 0 for arbitrary systems)" << endl;
+
+        cout << "    cache_elements: " << (Linkage::cache_elements_ ? "true" : "false")
+             << "  // whether to cache the elements and permutations of linkages for faster access (default: true)" << endl;
+	
+	    cout << "    cache_depth: " << Linkage::cache_depth_
+	         << "  // maximum depth of linkages to cache in memory (default: 16)" << endl;
 
         cout << "    nthreads: " << nthreads_
              << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
@@ -455,7 +539,7 @@ namespace pdaggerq {
             bool has_self_link = term.apply_self_links();
 
             // skip term if it has a self-link and scalars are not allowed
-            if (has_self_link && Equation::no_scalars_)
+            if ( has_self_link && (Equation::no_trace_ || Equation::no_scalars_) )
                 continue;
 
             // use the term to build the assignment vertex
@@ -483,14 +567,43 @@ namespace pdaggerq {
                 }
             }
 
-            if (use_density_fitting_){
-                vector<Term> density_fitted_terms = term.density_fitting();
-                terms.insert(terms.end(), density_fitted_terms.begin(), density_fitted_terms.end());
-            } else {
-                terms.push_back(term);
-            }
+
+            terms.push_back(term);
         }
 
+        if (decompose_eri_){
+            vector<Term> new_terms;
+            new_terms.reserve(4*terms.size());
+            std::cout << "Decomposing ERIs into 3-index integrals..." << std::endl;
+            for (const auto &term : terms){
+                vector<Term> decomposed_eri_terms = term.decompose_eri();
+                new_terms.insert(new_terms.end(), decomposed_eri_terms.begin(), decomposed_eri_terms.end());
+            }
+            terms = new_terms;
+        }
+
+        bool restricted_spin_ = false; // hard-coded for now. TODO: make an option
+        if (has_blocks && restricted_spin_) {
+            vector<Term> new_terms;
+            new_terms.reserve(4*terms.size());
+            std::cout << "Converting beta blocks to alpha blocks..." << std::endl;
+            for (const auto &term : terms){
+                vector<Term> alpha_terms = term.convert_beta_to_alpha();
+                new_terms.insert(new_terms.end(), alpha_terms.begin(), alpha_terms.end());
+            }
+            terms = new_terms;
+        }
+
+        if (expand_permutations_){
+            vector<Term> new_terms;
+            new_terms.reserve(4*terms.size());
+            std::cout << "Expanding permutations..." << std::endl;
+            for (const auto &term : terms){
+                vector<Term> permuted_terms = term.expand_perms();
+                new_terms.insert(new_terms.end(), permuted_terms.begin(), permuted_terms.end());
+            }
+            terms = new_terms;
+        }
 
         // build equation
         Equation& new_equation = equations_[assigment_name];
@@ -615,14 +728,8 @@ namespace pdaggerq {
     }
 
     void PQGraph::analysis() const {
-        string h1, h2; // header 1 and header 2 padding
-        if (Vertex::print_type_ == "python") {
-            h1 = "####################";
-            h2 = "#####";
-        } else if (Vertex::print_type_ == "c++") {
-            h1 = "///////////////////";
-            h2 = "/////";
-        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+        const string h1 = Vertex::printer_->banner_h1();
+        const string h2 = Vertex::printer_->banner_h2();
 
         cout << h1 << " PQ GRAPH Analysis " << h1 << endl << endl;
 
@@ -705,9 +812,7 @@ namespace pdaggerq {
         }
 
         print_guard guard;
-        if (print_level_ < 1) {
-            guard.lock();
-        }
+        if (print_level_ < 1) guard.lock();
 
         if (flop_map_init_.empty() || mem_map_init_.empty()) {
             flop_map_init_ = flop_map_;
@@ -737,7 +842,6 @@ namespace pdaggerq {
             cout << "----- Substituting scalars -----" << endl;
             substitute(false, true);
         }
-
         if (opt_level_ >= 2) {
 
             // find and substitute intermediate contractions
@@ -758,6 +862,7 @@ namespace pdaggerq {
         update_timer.start();
         prune(false);
         merge_terms();
+        reorder(true);
 
         // set optimized flag to true
         is_optimized_ = true;

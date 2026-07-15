@@ -30,6 +30,7 @@
 
 #include "../include/pq_graph.h"
 #include "../include/term.h"
+#include "../include/printers/code_printer.h"
 
 
 // include omp only if defined
@@ -48,52 +49,14 @@ namespace pdaggerq {
 
     string PQGraph::str(const string &print_type) const {
 
-        constexpr auto to_lower = [](string str) {
-            // map uppercase to lowercase for output
-            for (auto &letter : str) {
-                static unordered_map<char, char>
-                        lowercase_map = {{'A', 'a'}, {'B', 'b'}, {'C', 'c'}, {'D', 'd'}, {'E', 'e'},
-                                         {'F', 'f'}, {'G', 'g'}, {'H', 'h'}, {'I', 'i'}, {'J', 'j'},
-                                         {'K', 'k'}, {'L', 'l'}, {'M', 'm'}, {'N', 'n'}, {'O', 'o'},
-                                         {'P', 'p'}, {'Q', 'q'}, {'R', 'r'}, {'S', 's'}, {'T', 't'},
-                                         {'U', 'u'}, {'V', 'v'}, {'W', 'w'}, {'X', 'x'}, {'Y', 'y'},
-                                         {'Z', 'z'}};
-
-                if (lowercase_map.find(letter) != lowercase_map.end())
-                    letter = lowercase_map[letter];
-            }
-
-            // return lowercase string
-            return str;
-        };
-
-        Vertex::print_type_ = to_lower(print_type);
-
-        if (Vertex::print_type_ == "python" || Vertex::print_type_ == "einsum") {
-            Vertex::print_type_ = "python";
-            cout << "Formatting equations for python" << endl;
-        } else if (Vertex::print_type_ == "c++" || Vertex::print_type_ == "cpp") {
-            Vertex::print_type_ = "c++";
-            cout << "Formatting equations for c++" << endl;
-        } else {
-            cout << "WARNING: output must be one of: python, einsum, c++, or cpp" << endl;
-            cout << "         Setting output to c++" << endl;
-        }
-        cout << endl;
+        Vertex::set_printer(print_type);        
 
         stringstream sout; // string stream to hold output
 
         // add banner for PQ GRAPH results
-        string h1, h2; // header 1 and header 2 padding
-        if (Vertex::print_type_ == "python") {
-            h1 = "####################";
-            h2 = "#####";
-        } else if (Vertex::print_type_ == "c++") {
-            h1 = "///////////////////";
-            h2 = "/////";
-        } else throw invalid_argument("Invalid print type: " + Vertex::print_type_);
+        const CodePrinter* printer = Vertex::printer_;
         
-        sout << h1 << " PQ GRAPH Output " << h1 << endl << endl;
+        sout << printer->format_named_section(" PQ GRAPH Output ", true);
         
         PQGraph copy = this->clone(); // make a clone of pq_graph
 
@@ -107,16 +70,45 @@ namespace pdaggerq {
         // get all terms from all equations except the scalars, and reuse_tmps
         vector<Term> all_terms;
 
+        // make set of all unique base names (ignore linkages and scalars)
+        set<string> names;
+
         for (auto &[eq_name, equation] : copy.equations_) { // iterate over equations in serial
+
+            vector<Term> &terms = equation.terms();
+
+            for (const auto &term: terms) {
+                VertexPtr lhs = term.lhs();
+                if (!lhs->is_linked() && !lhs->is_constant())
+                    names.insert(lhs->name());
+                else if (lhs->is_temp())
+                    names.insert(as_link(lhs)->str(true, false));
+
+                for (const auto &op: term.rhs()) {
+                    if (!op->is_linked() && !op->is_constant())
+                        names.insert(op->name());
+                    else if (op->is_linked()){
+                        if (op->is_temp())
+                            names.insert(as_link(op)->str(true, false));
+
+                        vertex_vector vertices = as_link(op)->vertices();
+                        for (const auto &vertex: vertices)
+                            if (!vertex->is_linked() && !vertex->is_constant())
+                                names.insert(vertex->name());
+                    }
+                }
+
+                auto temps = as_link(lhs + term.term_linkage())->get_temps(true, false);
+                for (const auto &temp: temps)
+                    names.insert(as_link(temp)->str(true, false));
+
+            }
 
             // skip "temp" equation
             if (eq_name == "temp" || eq_name == "scalar" || eq_name == "reused")
                 continue;
 
-            vector<Term> &terms = equation.terms();
-
-            if (terms.empty())
-                continue;
+            if (terms.empty()) continue;
 
 //            if (!equation.is_temp_equation_) {
 //                has_tmps = true;
@@ -150,38 +142,9 @@ namespace pdaggerq {
             }
         }
 
-        // make set of all unique base names (ignore linkages and scalars)
-        set<string> names;
-        for (const auto &term: all_terms) {
-            VertexPtr lhs = term.lhs();
-            if (!lhs->is_linked() && !lhs->is_constant())
-                names.insert(lhs->name());
-            for (const auto &op: term.rhs()) {
-                if (!op->is_linked() && !op->is_constant())
-                    names.insert(op->name());
-                else {
-                    vertex_vector vertices = as_link(op)->vertices();
-                    for (const auto &vertex: vertices)
-                        if (!vertex->is_linked() && !vertex->is_constant())
-                            names.insert(vertex->name());
-                }
-            }
-        }
-
-        // add tmp declarations
-        names.insert("perm_tmps");
-        names.insert("tmps");
-
         // declare a map for each base name
-        sout << h2 << " Declarations " << h2 << endl << endl;
-        for (const auto &name: names) {
-            if (Vertex::print_type_ == "c++")
-                 sout << "// initialize -> ";
-            else if (Vertex::print_type_ == "python") 
-                sout << "## initialize -> ";
-            
-            sout << name << ";" << endl;
-        }
+        sout << printer->format_named_section(" Declarations ", false);
+        sout << printer->format_declarations(names);
         sout << endl;
 
         // add scalar terms to the beginning of the equation
@@ -193,7 +156,7 @@ namespace pdaggerq {
 
         // print scalar declarations
         if (!copy.equations_["scalar"].empty()) {
-            sout << h2 << " Scalars " << h2 << endl << endl;
+            sout << printer->format_named_section(" Scalars ", false);
 
             // sort scalars in scalars equation
             vector<Term> scalar_terms = copy.equations_["scalar"].terms();
@@ -208,12 +171,12 @@ namespace pdaggerq {
 
             // print scalars
             sout << copy.equations_["scalar"] << endl;
-            sout << h2 << " End of Scalars " << h2 << endl << endl;
+            sout << printer->format_named_section(" End of Scalars ", false);
         }
 
         // print declarations for reuse_tmps
         if (!copy.equations_["reused"].empty()){
-            sout << h2 << " Shared  Operators " << h2 << endl << endl;
+            sout << printer->format_named_section(" Shared  Operators ", false);
 
             // sort reused in reused equation
             vector<Term> reused_terms = copy.equations_["reused"].terms();
@@ -228,7 +191,7 @@ namespace pdaggerq {
 
             // print reuse_tmps
             sout << copy.equations_["reused"] << endl;
-            sout << h2 << " End of Shared Operators " << h2 << endl << endl;
+            sout << printer->format_named_section(" End of Shared Operators ", false);
         }
 
         // for each term in tmps, add the term to the merged equation
@@ -279,6 +242,17 @@ namespace pdaggerq {
 
                         // indicate that a tmp was found
                         found_any = true;
+
+                        // We need to allocate the tmp when using c++ or cpp
+                        if (Term::deallocate_) {
+                            string allocatename = printer->allocate(temp->str(true, false));
+                            if (!allocatename.empty()) {
+                                Term allocateterm(tempterm);
+                                allocateterm.print_override_ = allocatename;
+                                all_terms.insert(all_terms.begin() + (int) last_pos_idx, allocateterm);
+                            }
+                        }
+
                         break;
                     }
                 }
@@ -287,21 +261,25 @@ namespace pdaggerq {
                     all_terms.insert(all_terms.begin() + (int)last_pos_idx, tempterm);
                     declare_ids.insert(temp_id); // add tmp id to set
                     found_any = true;
+
+                    // We need to allocate the tmp when using c++ or cpp
+                    if (Term::deallocate_) {
+                        string allocatename = printer->allocate(temp->str(true, false));
+                        if (!allocatename.empty()) {
+                            Term allocateterm(tempterm);
+                            allocateterm.print_override_ = allocatename;
+                            all_terms.insert(all_terms.begin() + (int) last_pos_idx, allocateterm);
+                        }
+                    }
+
                 }
             }
         } while (found_any && ++attempts < copy.equations_["temp"].size());
 
 
         // add a term to destroy the tmp after its last use
-        auto make_destructor = [](const Term &tempterm, const LinkagePtr &temp) -> Term {
-            // create vertex with only the linkage's name
-            string newname;
-            string lhs_name = temp->str(true, false);
-
-            if (Vertex::print_type_ == "python")
-                newname = "del " + lhs_name;
-            else if (Vertex::print_type_ == "c++")
-                newname = lhs_name + ".~TArrayD();";
+        auto make_destructor = [&printer](const Term &tempterm, const LinkagePtr &temp) -> Term {
+            string newname = printer->deallocate(temp->str(true, false));
 
             Term newterm(tempterm);
             newterm.print_override_ = newname;
@@ -370,9 +348,11 @@ namespace pdaggerq {
         }
 
         // add destructor terms to all_terms
-        for (const auto &[idx, terms] : destruct_terms) {
-            for (const auto &term : terms) {
-                all_terms.insert(all_terms.begin() + (int) idx + 1, term);
+        if (Term::deallocate_) {
+            for (const auto &[idx, terms]: destruct_terms) {
+                for (const auto &term: terms) {
+                    all_terms.insert(all_terms.begin() + (int) idx + 1, term);
+                }
             }
         }
 
@@ -390,7 +370,7 @@ namespace pdaggerq {
             cout << endl;
         }
 
-        sout << h1 << " Evaluate Equations " << h1 << endl << endl;
+        sout << printer->format_named_section(" Evaluate Equations ", true);
 
         // update terms in merged equation
         merged_eq.terms() = all_terms;
@@ -399,7 +379,7 @@ namespace pdaggerq {
         sout << merged_eq << endl;
 
         // add closing banner
-        sout << h1 << h1 << h1 << endl << endl;
+        sout << printer->format_closing_banner();
 
         // return string stream as string
         return sout.str();
@@ -448,8 +428,8 @@ namespace pdaggerq {
 
                 if (had_condition && !closed_condition) {
                     // if the previous condition was not closed, close it
-                    if (Vertex::print_type_ == "c++")
-                        output.emplace_back("}");
+                    const string closer = Vertex::printer_->condition_closer();
+                    if (!closer.empty()) output.emplace_back(closer);
                     closed_condition = true; // indicate that the condition is closed
                 }
 
@@ -465,84 +445,42 @@ namespace pdaggerq {
 
             } // else do nothing
 
+            int indent = !conditions.empty() ? 1 : 0;
+
             // if override is set, print override
             bool override = !term.print_override_.empty();
             if (override) {
-                string padding = !conditions.empty() ? "    " : "";
-                output.push_back(padding + term.print_override_);
+                output.push_back(Vertex::printer_->padding(indent) + term.print_override_);
                 continue;
             }
 
-            string padding = !conditions.empty() ? "    " : "";
-            string extra_padding = padding + "    ";
-
             // add comments
-            bool temp_decl = term.lhs()->is_temp();
-            string comment = term.make_comments(temp_decl);
-            if (!comment.empty()) {
+            string comment = Vertex::printer_->format_comment(
+                term.make_comments(term.lhs()->is_temp()), indent);
+            if (!comment.empty()) output.push_back(comment);
 
-                comment.insert(0, extra_padding); // add newline to the beginning of the comment
-
-                // replace all '\"' with '' in comment
-                size_t pos = 0;
-                while ((pos = comment.find('\"', pos)) != string::npos) {
-                    comment = comment.replace(pos, 1, "");
-                    pos += 1;
-                }
-
-                // replace all "\n" with "\n    " in comment
-                pos = 0;
-                while ((pos = comment.find('\n', pos)) != string::npos) {
-                    comment = comment.replace(pos, 1, '\n' + padding);
-                    pos += 1;
-                }
-
-                output.push_back("\n" + comment); // add comment
-            }
-
-            // get string representation of term
-
-            string term_string;
-            term_string += padding + term.str();
-
-            // replace all "\n" with "\n    " in term_string
-            size_t pos = 0;
-            while ((pos = term_string.find('\n', pos)) != string::npos) {
-                term_string = term_string.replace(pos, 1, "\n" + extra_padding);
-                pos += 1;
-            }
-
-            output.push_back(term_string);
+            // add term line
+            output.push_back(Vertex::printer_->format_term_line(term.str(), indent));
         }
 
-        if (!closed_condition && Vertex::print_type_ == "c++" && !current_conditions.empty()) {
+        if (!closed_condition && !current_conditions.empty()) {
             // if the final condition was not closed, close it
-            output.emplace_back("}");
+            const string closer = Vertex::printer_->condition_closer();
+            if (!closer.empty()) output.emplace_back(closer);
         }
 
         return output;
     }
 
+    ostream &operator<<(ostream &os, const Equation &eq) {
+        for (const string &s : eq.to_strings())
+            os << Vertex::printer_->padding(1) << s << endl;
+        return os;
+    }
+
     string Equation::condition_string(std::set<string> &conditions) {
-
-        // if no conditions, return empty string
         if (conditions.empty()) return "";
-
-        string if_block;
-        if (Vertex::print_type_ == "c++") {
-            if_block = "if (";
-            for (const string &condition: conditions)
-                if_block += "includes_[\"" + condition + "\"] && ";
-            if_block.resize(if_block.size() - 4);
-            if_block += ") {";
-        } else if (Vertex::print_type_ == "python") {
-            if_block = "if ";
-            for (const string &condition: conditions)
-                if_block += "includes_[\"" + condition + "\"] and ";
-            if_block.resize(if_block.size() - 5);
-            if_block += ":";
-        }
-        return "\n    " + if_block;
+        return Vertex::printer_->condition_open(conditions);
     }
 
     string Term::str() const {
@@ -553,8 +491,9 @@ namespace pdaggerq {
 
         string output;
 
+        // format for permutations if any
         bool has_permutations = !term_perms_.empty() && perm_type_ != 0;
-        if (has_permutations) { // if there are permutations
+        if (has_permutations) {
 
             // make intermediate vertex for the permutation
             MutableVertexPtr perm_vertex;
@@ -574,7 +513,7 @@ namespace pdaggerq {
                 string perm_name;
                 perm_vertex->vertex_type_ = 'p'; // sets printing for permutation vertex
                 perm_vertex->sort(); // sort permutation vertex
-                perm_vertex->update_name("tmps_"); // set name of permutation vertex
+                perm_vertex->update_name(Vertex::printer_->scratch_prefix('t')); // set name of permutation vertex
 
                 // initialize initial permutation term
                 Term perm_term = *this; // copy term
@@ -611,13 +550,9 @@ namespace pdaggerq {
             }
 
             // if an intermediate vertex was created, delete it
-            if (!perm_as_rhs) {
-                // delete the permutation vertex
-                if (Vertex::print_type_ == "c++")
-                    output += perm_vertex->name() + ".~TArrayD();";
-                else if (Vertex::print_type_ == "python")
-                    output += "del " + perm_vertex->name();
-                output += "\n";
+            if (!perm_as_rhs && Term::deallocate_) {
+                string del = Vertex::printer_->perm_delete(perm_vertex->name());
+                if (!del.empty()) output += del;
             }
 
             if (!perm_terms.empty())
@@ -645,132 +580,95 @@ namespace pdaggerq {
             return left_term.str() + '\n' + right_term.str();
         }
 
-        if (Vertex::print_type_ == "python")
-            return einsum_str();
+        // If user or printing method requires binarization or a multiplication of addition terms,
+        // ensure only two operations within any term. create intermediates as needed.
+        bool needs_binarization = Term::binarize_;
+        ///TODO: uncomment line below to prevent multiple in-line additions. Do so after chronusq parser is adjusted. 
+        // needs_binarization |= !term_link->is_temp() && (term_link->left()->is_addition() || term_link->right()->is_addition());
+        if (needs_binarization) {
 
-        // get lhs vertex string
-        output = lhs_->str();
+            // determine if binarization is still needed
+            bool made_any_change = false;
+            Term binarized_term = clone(); // copy of current term to modify
+            needs_binarization = binarized_term.rhs_.size() > 2;            
 
-        // get sign of coefficient
-        bool is_negative = coefficient_ < 0;
-        if (is_assignment_) output += "  = ";
-        else if (is_negative) output += " -= ";
-        else output += " += ";
+            int count = 1;
 
-        // get absolute value of coefficient
-        double abs_coeff = fabs(coefficient_);
+            // helper to create intermediate vertex/term and update binarized_term
+            auto make_interm = [&](const std::vector<VertexPtr> &verts, size_t erase_pos, size_t erase_count, size_t insert_pos) {
+                MutableVertexPtr interm_vertex;
+                if (verts.size() == 2)
+                    interm_vertex = make_shared<Vertex>(Vertex::printer_->scratch_prefix(), (verts[0] * verts[1])->lines());
+                else
+                    interm_vertex = make_shared<Vertex>(Vertex::printer_->scratch_prefix(), verts[0]->lines());
 
-        // if the coefficient is not 1, add it to the string
-        bool is_empty = rhs_.empty() || term_link->empty();
+                interm_vertex->vertex_type_ = (char)count + '0';
+                interm_vertex->sort();
+                interm_vertex->update_name();
 
-        bool added_coeff = false;
-        bool negative_assignment = (is_assignment_ && is_negative);
-        bool needs_coeff = fabs(abs_coeff - 1) >= 1e-8 || is_empty || negative_assignment;
+                Term interm_term = binarized_term;
+                interm_term.reset_perm();
+                interm_term.coefficient_ = 1.0;
+                interm_term.comments_.clear();
+                interm_term.is_assignment_ = true;
 
-        if (needs_coeff) {
-            // add coefficient to string
-            added_coeff = true;
-            if (negative_assignment)
-                output += "-";
+                interm_term.lhs_ = interm_vertex;
+                interm_term.rhs_ = verts;
+                interm_term.compute_scaling(true);
 
-            int precision = minimum_precision(abs_coeff);
-            output += to_string_with_precision(abs_coeff, precision);
+                output += interm_term.str();
+                output += "\n";
 
-            // add multiplication sign if there are rhs vertices
-            if (!is_empty)
-                output += " * ";
+                for (size_t e = 0; e < erase_count; ++e)
+                    binarized_term.rhs_.erase(binarized_term.rhs_.begin() + erase_pos);
+                binarized_term.rhs_.insert(binarized_term.rhs_.begin() + insert_pos, interm_vertex);
+                binarized_term.compute_scaling(true);
+
+                made_any_change = true;
+                ++count;
+            };
+
+            do {
+                size_t n = binarized_term.rhs_.size();
+                needs_binarization = n > 2;
+
+                if (needs_binarization) {
+                    VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
+
+                    // determine which intermediate is larger: first two or last two
+                    VertexPtr &left_end = binarized_term.rhs_[n - 2];
+                    VertexPtr &right_end = binarized_term.rhs_[n - 1];
+
+                    // prefer to binarize larger intermediate first. prefer left for ties
+                    bool first_smaller = (left*right)->shape_ <= (left_end*right_end)->shape_;
+
+                    // create intermediate from first two vertices
+                    if (first_smaller)
+                        make_interm({left, right}, 0, 2, 0);
+                    else make_interm({left_end, right_end}, n - 2, 2, n - 2);
+
+                } else if (binarized_term.rhs_.size() == 2) {
+                    // check if left or right is an addition that needs to be binarized
+                    VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
+                    bool left_is_add  =  left->is_expandable(false, true);
+                    bool right_is_add = right->is_expandable(false, true);
+
+                    if (left_is_add)
+                        make_interm({left}, 0, 1, 0);
+
+                    if (right_is_add)
+                        make_interm({right}, 1, 1, 1);
+                }
+            } while (needs_binarization);
+
+            // now print the final binarized term if a change was made
+            if (made_any_change) {
+                output += binarized_term.str();
+                return output;
+            } // else we continue to print the original term
         }
 
-        output += term_link->str();
-
-        // ensure the last character is a semicolon (might not be there if no rhs vertices)
-        if (output.back() != ';' && Vertex::print_type_ == "c++")
-            output += ';';
-
-        size_t pos = 0;
-        while (pos != string::npos) {
-            pos = output.find("* 1.00 *", pos);
-            if (pos != string::npos) {
-                output = output.replace(pos, 8, "*");
-                pos += 1;
-            }
-        }
-
-        return output;
-    }
-
-    string Term::einsum_str() const {
-        string output;
-
-        // get left hand side vertex name
-        if (lhs_->is_linked())
-             output = as_link(lhs_)->str(true, false);
-        else output = lhs_->name();
-
-        // get sign of coefficient
-        bool is_negative = coefficient_ < 0;
-        if (is_assignment_) output += "  = ";
-        else if (is_negative) output += " -= ";
-        else output += " += ";
-
-        // get absolute value of coefficient
-        double abs_coeff = fabs(coefficient_);
-
-        // if the coefficient is not 1, add it to the string
-        bool needs_coeff = fabs(abs_coeff - 1) >= 1e-8 || rhs_.empty() || is_assignment_;
-
-        if (needs_coeff) {
-            // add coefficient to string
-            if (is_assignment_ && is_negative)
-                output += "-";
-
-            int precision = minimum_precision(abs_coeff);
-            output += to_string_with_precision(abs_coeff, precision);
-
-            // add multiplication sign if there are rhs vertices
-            if (!rhs_.empty())
-                output += " * ";
-        }
-
-        // get string of lines
-        line_vector link_lines;
-        string lhs_string;
-
-        // get string of lines from lhs vertex
-        for (auto & line : lhs_->lines())
-            if (line.sig_ && !Vertex::use_trial_index) continue;
-            else lhs_string += line.label_.front();
-
-        string rhs_string;
-
-        // get string of lines from the term linkage
-        for (auto & line : term_linkage(true)->lines())
-            if (line.sig_ && !Vertex::use_trial_index) continue;
-            else rhs_string += line.label_.front();
-
-        // make einsum string
-        string einsum_string;
-
-        // get einsum string from term linkage
-        einsum_string = term_linkage(true)->str();
-
-        // permute tensors if needed
-        if (lhs_string != rhs_string) {
-            einsum_string = "einsum('" + rhs_string + "->" + lhs_string + "', " + einsum_string + " )";
-        }
-        output += einsum_string;
-
-        // formatting issue needs to replace "* 1.00 *" with "*"
-        size_t pos = 0;
-        while (pos != string::npos) {
-            pos = output.find("* 1.00 *", pos);
-            if (pos != string::npos) {
-                output = output.replace(pos, 8, "*");
-                pos += 1;
-            }
-        }
-
-        return output;
+        return Vertex::printer_->format_term(*this);
     }
 
 }

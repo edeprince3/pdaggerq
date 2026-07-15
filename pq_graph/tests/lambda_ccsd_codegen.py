@@ -9,6 +9,7 @@ graph = pdaggerq.pq_graph({
     'print_level': 3,
     'use_trial_index': False,
     'opt_level': 6,
+    'deallocate': False,
     'nthreads': -1,
 })
 
@@ -85,7 +86,7 @@ graph.analysis()
 import os
 
 # Generate code generator from the graph output
-graph_string = graph.str("python")
+graph_string = graph.str("python").replace("_L","_")
 
 file_path = os.path.dirname(os.path.realpath(__file__))
 

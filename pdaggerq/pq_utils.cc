@@ -1726,7 +1726,6 @@ bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<st
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)
 void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &in, std::vector<std::shared_ptr<pq_string> > &ordered, int print_level, bool find_paired_permutations, bool keep_operators) {
-
         
     std::vector< std::shared_ptr<pq_string> > new_strings[in.size()];
     #pragma omp parallel for schedule(dynamic) default(none) shared(in, new_strings, keep_operators) firstprivate(print_level)
