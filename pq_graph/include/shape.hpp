@@ -170,10 +170,11 @@ struct shape {
             if (Q_ > 0) this_size *= std::pow(5*(nocc_ + nvirt_), Q_);
             if (other.Q_ > 0) other_size *= std::pow(5*(nocc_ + nvirt_), other.Q_);
 
-            // This contraction is repeated L times for each sigma vector and k times for each iteration
-            // we approximate k as 30 (arbitrary choice for ideal iteration count)
-            if (L_ > 0) this_size *= L_*30;
-            if (other.L_ > 0) other_size *= other.L_*30;
+            // This contraction is repeated M times for each root and k times for each iteration
+            // we approximate k as 30 and assume M = 10 for the number of roots
+            size_t nroot = 10; // make this a user parameter?
+            if (L_ > 0) this_size *= 30 * std::pow(nroot, L_);
+            if (other.L_ > 0) other_size *= 30 * std::pow(nroot, other.L_);
 
             double diff = this_size - other_size;
             if (std::fabs(diff) > 1e-8) return this_size < other_size;
