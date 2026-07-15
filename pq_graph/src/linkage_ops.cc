@@ -35,7 +35,7 @@ namespace pdaggerq {
     LinkagePtr Linkage::link(const vertex_vector &op_vec) {
         if (op_vec.empty()) return make_shared<Linkage>(); // return an empty linkage if the vector is empty
 
-        VertexPtr linkage = make_shared<Vertex>(); // initialize the linkage as an empty vertex
+        VertexPtr linkage;
         for (const auto & op : op_vec) {
 
             // skip empty vertices
@@ -47,22 +47,47 @@ namespace pdaggerq {
             }
 
             // set the first vertex as the linkage
-            if (linkage->empty()) {
+            if (!linkage) {
                 linkage = op;
                 continue;
             }
 
             //link the rest of the vertices
-            linkage = linkage * op;
+            linkage = std::move(linkage) * op;
         }
 
-        // if no linkage was made, return self
-        if (linkage->empty()) return as_link(linkage);
+        // if no linkage was made, return empty
+        if (!linkage) return make_shared<Linkage>();
 
         // vertex found, but not linked, so return a linkage with the vertex and one
         if (!linkage->is_linked()) return as_link(1.0 * linkage);
 
         // return the linkage
+        return as_link(linkage);
+    }
+
+    LinkagePtr Linkage::link(const vertex_vector &op_vec, const vector<size_t> &order) {
+        if (order.empty()) return make_shared<Linkage>();
+
+        VertexPtr linkage;
+        for (size_t idx : order) {
+            const auto &op = op_vec[idx];
+
+            if (op->empty()) continue;
+            if (op->is_constant()) {
+                if (fabs(op->value() - 1.0) < 1e-8) continue;
+            }
+
+            if (!linkage) {
+                linkage = op;
+                continue;
+            }
+
+            linkage = std::move(linkage) * op;
+        }
+
+        if (!linkage) return make_shared<Linkage>();
+        if (!linkage->is_linked()) return as_link(1.0 * linkage);
         return as_link(linkage);
     }
 
@@ -75,8 +100,8 @@ namespace pdaggerq {
             return {flops, mems};
 
         // use depth to reserve space for scaling
-        flops.reserve(depth_+1);
-        mems.reserve(depth_+1);
+        flops.reserve(depth()+1);
+        mems.reserve(depth()+1);
 
         // add the scaling of the left vertex
         if (left_->is_linked()) {
@@ -109,15 +134,23 @@ namespace pdaggerq {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             result = fully_expand ? all_vert_ : link_vector_;
-        }
+        
 
-        // if the link vector is already generated and does not need to be regenerated, return it
-        if (!regenerate && !result.empty())
-            return result;
+            // if the link vector is already generated and does not need to be regenerated, return it
+            if (!regenerate && !result.empty())
+                return result;
+	}
 
         // else regenerate the result vector
         result.clear();
-        result.reserve(2*(depth_+1));
+	
+        // determine depth to reserve space for the result vector (worst case is 2^(depth) permutations)
+        size_t depth = this->depth();
+        size_t reserve_size = 1ULL << std::min(cache_depth_, depth); // reserve space based on depth, but cap it at cache_depth_
+        result.reserve(reserve_size);
+        
+        // only cache permutations if caching is enabled and depth is less than or equal to cache_depth_ 
+        bool cache_permutations = cache_elements_ && cache_depth_ >= depth;
 
         // add operators from the left (excluding additions for now)
         if (left_->is_linked() && !left_->empty()) {
@@ -143,8 +176,8 @@ namespace pdaggerq {
             result.push_back(right_);
         }
 
-        // copy the result vector to the link_vector if the size is less than 32
-        bool store_vector = !low_memory_;
+        // copy the result vector to the link_vector if the size is less than cache size
+        bool store_vector = cache_elements_ && cache_depth_ >= depth;
         if (store_vector) {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
@@ -174,7 +207,8 @@ namespace pdaggerq {
         return false;
     }
 
-    vertex_vector  Linkage::find_links(const VertexPtr &target_vertex, long search_depth) const {
+    vertex_vector
+    Linkage::find_links(const VertexPtr &target_vertex, bool enter_temps, bool enter_additions, long search_depth) const {
 
         if (target_vertex == nullptr) return {}; // if the target vertex is null, return an empty vector
         if (this->depth() < target_vertex->depth()) return {}; // if the target vertex is deeper, it cannot be found
@@ -187,11 +221,13 @@ namespace pdaggerq {
         if (search_depth > 0 || search_depth == -1) {
             search_depth = search_depth == -1 ? -1 : search_depth - 1;
             if (left_->is_linked()) {
-                const auto &left_links = as_link(left_)->find_links(target_vertex, search_depth);
+                const auto &left_links =
+                        as_link(left_)->find_links(target_vertex, enter_temps, enter_additions, search_depth);
                 links.insert(links.end(), left_links.begin(), left_links.end());
             }
             if (right_->is_linked()) {
-                const auto &right_links = as_link(right_)->find_links(target_vertex, search_depth);
+                const auto &right_links =
+                        as_link(right_)->find_links(target_vertex, enter_temps, enter_additions, search_depth);
                 links.insert(links.end(), right_links.begin(), right_links.end());
             }
         }
@@ -233,7 +269,7 @@ namespace pdaggerq {
         bool replaced = *target_vertex == *this;
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
-        if (depth_ < target_vertex->depth())
+        if (depth() < target_vertex->depth())
             return {shallow(), false}; // if the target vertex is deeper, it cannot be replaced
 
         VertexPtr new_left = left_->shallow(), new_right = right_->shallow();
@@ -302,7 +338,7 @@ namespace pdaggerq {
         return {replacement, true};
     }
 
-    void Linkage::replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name) {
+    void Linkage::replace_lines(const LineMap &line_map, bool update_name) {
 
         // call the base class replace_lines to replace the lines of the root vertex
         Vertex::replace_lines(line_map, update_name);
@@ -324,7 +360,7 @@ namespace pdaggerq {
     }
 
     bool Linkage::has_temp(const VertexPtr &temp, bool enter_temps, long search_depth) const {
-        if (temp->is_linked() && depth_ < as_link(temp)->depth_)
+        if (depth() < temp->depth())
             return false; // if the depth of the temp is greater than this linkage, there cannot be a match
 
         if (same_temp(temp)) return true;
@@ -341,8 +377,28 @@ namespace pdaggerq {
         return false;
     }
 
+    size_t Linkage::count(const VertexPtr &target, bool enter_temps, bool enter_additions, long search_depth) const {
+
+
+        if (target == nullptr) return 0; // if the target vertex is null, return 0
+        if (this->depth() < target->depth()) return 0; // if the target vertex is deeper, it cannot be found
+
+        size_t cnt = 0;
+        bool found = *target == *this;
+        if (found) cnt++; // if this is the target vertex, increment the cnt
+        if (is_temp() && !enter_temps) return cnt; // do not enter temps if not allowed
+
+        // recursively check if left and right vertices have the target up to a certain search_depth
+        if (search_depth > 0 || search_depth == -1) {
+            search_depth = search_depth == -1 ? -1 : search_depth - 1;
+            cnt += left_->count(target, enter_temps, enter_additions, search_depth);
+            cnt += right_->count(target, enter_temps, enter_additions, search_depth);
+        }
+        return cnt;
+    }
+
     bool Linkage::has_link(const VertexPtr &link, bool enter_temps, long search_depth) const {
-        if (link->is_linked() && depth_ < as_link(link)->depth_)
+        if (depth() < link->depth())
             return false; // if the depth of the temp is greater than this linkage, there cannot be a match
 
         if (*this == *link) return true;
@@ -420,32 +476,35 @@ namespace pdaggerq {
         // initialize the result vector
 
         linkage_vector result;
-
         {
             // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             result = permutations_;
-        }
 
-        // if the result vector is already generated and does not need to be regenerated, return it
-        if (!regenerate && !result.empty())
-            return result;
+            // if the result vector is already generated and does not need to be regenerated, return it
+            if (!regenerate && !result.empty())
+                return result;
 
-        if (empty()) {
-            result.clear();
-            return result;
+            if (empty()) {
+                result.clear();
+                return result;
+            }
         }
 
 
         // initialize the result vector with the identity permutation
         result = {as_link(shallow())};
-        result.reserve(2*(depth_+1)); // reserve space for the result vector
+
+        // determine depth to reserve space for the result vector (worst case is 2^(depth) permutations)
+        size_t depth = this->depth();
+        size_t reserve_size = 1ULL << std::min(cache_depth_, depth); // reserve space based on depth, but cap it at cache_depth_
+        result.reserve(reserve_size);
+        
+        // only cache permutations if caching is enabled and depth is less than or equal to cache_depth_ 
+        bool cache_permutations = cache_elements_ && cache_depth_ >= depth;
 
         // do not generate permutations for temps (their structure is fixed)
         if (is_temp()) return result;
-
-        // do not store permutations if the depth is too large
-        bool store_permutations = !low_memory_;
 
         if (left_->empty() || right_->empty()) {
             if (left_->empty() && right_->is_linked()) {
@@ -475,8 +534,8 @@ namespace pdaggerq {
                 result.push_back(as_link(right_perm + left_perm));
             }
 
-            // copy the result vector to the permutations_ vector only if low memory mode is off
-            if (store_permutations) {
+            // copy the result vector to the permutations_ vector only if caching is enabled and the size is less than cache size
+            if (cache_permutations) {
                 // Lock the mutex for the scope
                 std::lock_guard<std::mutex> lock(mtx_);
                 permutations_ = result;
@@ -497,16 +556,11 @@ namespace pdaggerq {
         // generate all permutations of the link vector
         while (std::next_permutation(idxs.begin(), idxs.end())) {
             // generate this permutation
-            vertex_vector link_perm(link_vec.size());
-            std::transform(idxs.begin(), idxs.end(), link_perm.begin(), [&link_vec](size_t i) {
-                return link_vec[i];
-            });
-
-            result.push_back(link(link_perm));
+            result.push_back(link(link_vec, idxs));
         }
 
         // copy the result vector to the permutations_ vector only if low memory mode is off
-        if (store_permutations) {
+        if (cache_permutations) {
             // Lock the mutex for the scope
             std::lock_guard<std::mutex> lock(mtx_);
             permutations_ = result;
@@ -578,7 +632,7 @@ namespace pdaggerq {
 
         // build permutations of root vertex
         linkage_vector top_perms = {as_link(shallow())};
-        linkage_set unique_subgraphs; unique_subgraphs.reserve(4 * (depth_+1));
+        linkage_set unique_subgraphs; unique_subgraphs.reserve(4 * (depth()+1));
 
         // now add the subgraphs of the left and right vertices
         for (const auto &perm : top_perms) {

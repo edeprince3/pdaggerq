@@ -29,6 +29,7 @@
 #include <memory>
 
 #include "../include/term.h"
+#include "../include/printers/code_printer.h"
 
 using std::next_permutation;
 using std::string;
@@ -50,7 +51,11 @@ namespace pdaggerq {
         if ( pq_str->skip ) return;
 
         // set coefficient
-        coefficient_ = pq_str->sign * fabs(pq_str->factor);
+        if ( pq_str->factor < 0.0 ) {
+            pq_str->factor = fabs(pq_str->factor);
+            pq_str->sign *= -1;
+        }
+        coefficient_ = pq_str->sign * pq_str->factor;
 
         // check the permutation type
         perm_type_ = 0; // assume no permutations
@@ -257,7 +262,7 @@ namespace pdaggerq {
     void Term::expand_rhs(const VertexPtr &term_link) {
 
         // expand linkage into vector of vertices
-        if (term_link->is_expandable()) {
+        if (term_link->is_expandable(true)) {
             rhs_ = term_link->link_vector();
         } else if (term_link->is_linked() && !term_link->is_temp() && !term_link->is_addition()) {
             rhs_ = {as_link(term_link)->left(), as_link(term_link)->right()};
@@ -374,67 +379,6 @@ namespace pdaggerq {
         generated_linkages_ = false; // set term to not have generated linkages
     }
 
-    vector<Term> Term::density_fitting() {
-        // find every "eri" vertex and split it into two vertices and two terms using density fitting
-        // so <pq|rs> becomes (Q|pq)(Q|rs) - (Q|ps)(Q|qr)
-
-        vector<Term> new_terms; //
-        new_terms.reserve(rhs_.size()+1);
-
-        // iterate over all rhs and every time we see a vertex that is an eri,
-        // split it into two vertices and two terms using density fitting
-        if (rhs_.empty()) return {*this}; // if constant, return itself
-
-        for (int i = 0; i < rhs_.size(); i++) {
-            auto & op = rhs_[i];
-
-            // check if vertex is an eri
-            if (op->base_name() == "eri") {
-                // term with eri looks like <pq||rs>
-                // to do density fitting, we need to replace it with a product of two density fitting vertices within
-                // two terms, so we need to create two new vertices and two new terms
-                // <pq||rs> = <pq|rs> - <pq|sr> = (pr|qs) - (ps|qr) = (Q|pr)(Q|qs) - (Q|ps)(Q|qr)
-
-                // grab the lines from the eri
-                const line_vector &lines = op->lines();
-
-                // create lines for the density fitting vertices
-                Line den_line = Line("Q");
-
-                line_vector B1_lines{den_line, lines[0], lines[2]};
-                line_vector B2_lines{den_line, lines[1], lines[3]};
-                line_vector B3_lines{den_line, lines[0], lines[3]};
-                line_vector B4_lines{den_line, lines[1], lines[2]};
-
-                // create vertices
-                VertexPtr B1 = make_shared<const Vertex>("B", B1_lines);
-                VertexPtr B2 = make_shared<const Vertex>("B", B2_lines);
-                VertexPtr B3 = make_shared<const Vertex>("B", B3_lines);
-                VertexPtr B4 = make_shared<const Vertex>("B", B4_lines);
-
-                // create two new terms replacing the eri with the two new vertices
-                Term new_term1 = *this, new_term2 = *this;
-
-                // set new rhs of term1
-                new_term1.rhs_[i] = B1;
-                new_term1.rhs_.insert(new_term1.rhs_.begin() + (i+1), B2);
-
-                // set new rhs of term2
-                new_term2.rhs_[i] = B3;
-                new_term2.rhs_.insert(new_term2.rhs_.begin() + (i+1), B4);
-                new_term2.coefficient_ *= -1; // change sign of term2
-
-
-                // add new terms to vector
-                new_terms.push_back(new_term1);
-                new_terms.push_back(new_term2);
-            }
-        }
-
-        if (new_terms.empty()) return {*this}; // if no eris, return itself
-        return new_terms;
-    }
-
     Term Term::clone() const {
         Term new_term(*this);
 
@@ -503,7 +447,7 @@ namespace pdaggerq {
     }
 
     string Term::make_comments(bool only_flop, bool only_comment) const {
-        if (comments_.empty())
+        if (comments_.empty() || !print_comments_)
             return "";
 
         string comment;
@@ -587,13 +531,14 @@ namespace pdaggerq {
         // remove all quotes from comment
         comment.erase(std::remove(comment.begin(), comment.end(), '\"'), comment.end());
 
-        // format comment for python if needed
-        if (Vertex::print_type_ == "python"){
-            // turn '//' into '#'
+        const string cp = Vertex::printer_->comment_prefix();
+
+        // convert "//" comment markers to the current backend's prefix
+        {
             size_t pos = comment.find("//");
             while (pos != std::string::npos) {
-                comment.replace(pos, 2, "#");
-                pos = comment.find("//", pos + 2);
+                comment.replace(pos, 2, cp);
+                pos = comment.find("//", pos + cp.size());
             }
         }
 
@@ -602,7 +547,7 @@ namespace pdaggerq {
         if (only_comment) return comment;
 
         if (!comment.empty()) comment += "\n    ";
-        comment += "// flops: " + lhs_->dim().str() + assign_str;
+        comment += cp + " flops: " + lhs_->dim().str() + assign_str;
         for (const auto & flop : flop_scales)
             comment += flop.str() + " ";
 
@@ -610,24 +555,13 @@ namespace pdaggerq {
         if (!flop_scales.empty())
             comment.pop_back();
 
-
-        comment += "\n    //  mems: " + lhs_->dim().str() + assign_str;
+        comment += "\n    " + cp + "  mems: " + lhs_->dim().str() + assign_str;
         for (const auto & mem : mem_scales)
             comment += mem.str() + " ";
 
         // remove last space
         if (!mem_scales.empty())
             comment.pop_back();
-
-        // format comment for python if needed
-        if (Vertex::print_type_ == "python"){
-            // turn '//' into '#'
-            size_t pos = comment.find("//");
-            while (pos != std::string::npos) {
-                comment.replace(pos, 2, "#");
-                pos = comment.find("//", pos + 2);
-            }
-        }
 
         return comment;
     }
@@ -680,6 +614,246 @@ namespace pdaggerq {
 
         // return set of operator basenames that have conditions
         return conditions;
+    }
+
+    vector<Term> Term::decompose_eri() const {
+        // find every "eri" vertex and split it into two vertices and two terms using decomposed eris
+        // so <pq|rs> becomes (Q|pq)(Q|rs) - (Q|ps)(Q|qr)
+
+        vector<Term> new_terms; //
+        new_terms.reserve(rhs_.size()+1);
+
+        // iterate over all rhs and every time we see a vertex that is an eri,
+        // split it into two vertices and two terms using decomposed eris
+        if (rhs_.empty()) return {*this}; // if constant, return itself
+
+        for (int i = 0; i < rhs_.size(); i++) {
+            auto & op = rhs_[i];
+
+            // check if vertex is an eri
+            if (op->base_name() == "eri") {
+                // term with eri looks like <pq||rs>
+                // to do decomposed eris, we need to replace it with a product of two decomposed eris vertices within
+                // two terms, so we need to create two new vertices and two new terms
+
+                // <pq||rs> = <pq|rs> - <pq|sr> = (pr|qs) - (ps|qr) = (Q|pr)(Q|qs) - (Q|ps)(Q|qr)
+
+                // grab the lines from the eri
+                const line_vector &lines = op->lines();
+
+                // create lines for the decomposed eris vertices
+                Line den_line = Line("Q");
+
+                line_vector B1_lines{lines[0], lines[2], den_line}; // (Q|pr)
+                line_vector B2_lines{lines[1], lines[3], den_line}; // (Q|qs)
+                line_vector B3_lines{lines[0], lines[3], den_line}; // (Q|ps)
+                line_vector B4_lines{lines[1], lines[2], den_line}; // (Q|qr)
+
+
+                // create vertices
+                MutableVertexPtr B1 = make_shared<Vertex>("B", B1_lines);
+                MutableVertexPtr B2 = make_shared<Vertex>("B", B2_lines);
+                MutableVertexPtr B3 = make_shared<Vertex>("B", B3_lines);
+                MutableVertexPtr B4 = make_shared<Vertex>("B", B4_lines);
+
+                B1->vertex_type_ = 'v'; B1->has_blk_ = op->has_blk_; B1->update_name();
+                B2->vertex_type_ = 'v'; B2->has_blk_ = op->has_blk_; B2->update_name();
+                B3->vertex_type_ = 'v'; B3->has_blk_ = op->has_blk_; B3->update_name();
+                B4->vertex_type_ = 'v'; B4->has_blk_ = op->has_blk_; B4->update_name();
+
+
+                // create two new terms replacing the eri with the two new vertices
+                Term new_term1 = *this, new_term2 = *this;
+
+                // set new rhs of term1
+                new_term1.rhs_[i] = B1;
+                new_term1.rhs_.insert(new_term1.rhs_.begin() + (i+1), B2);
+
+                // set new rhs of term2
+                new_term2.rhs_[i] = B3;
+                new_term2.rhs_.insert(new_term2.rhs_.begin() + (i+1), B4);
+                new_term2.coefficient_ *= -1; // change sign of term2
+
+                new_term1.compute_scaling(true);
+                new_term2.compute_scaling(true); // recompute scaling of new terms
+
+                // the spins of the cholesky vectors need to be the same
+
+                bool keep_term1 = lines[0].a_ == lines[2].a_ && lines[1].a_ == lines[3].a_;
+                bool keep_term2 = lines[0].a_ == lines[3].a_ && lines[1].a_ == lines[2].a_;
+
+
+                // add new terms to vector
+                if (keep_term1) new_terms.push_back(new_term1);
+                if (keep_term2) new_terms.push_back(new_term2);
+
+                bool add_dse = false; // flag to add DSE terms with QED (hard-coded for now)
+                if (add_dse) {
+                    // add DSE terms with QED
+                    // <pq||rs> + dp(pr)dp(qs) - dp(ps)dp(qr)
+                    // (pr|qs) + dp(pr)dp(qs)
+
+                    // clone new_term1
+                    if (keep_term1) {
+                        Term dse_term1 = new_term1.clone();
+
+                        // replace B1 and B2 with product of dipole moments
+                        B1_lines.pop_back(); B2_lines.pop_back(); // remove Q lines
+                        MutableVertexPtr dp1 = make_shared<Vertex>("dp", B1_lines);
+                        MutableVertexPtr dp2 = make_shared<Vertex>("dp", B2_lines);
+                        MutableVertexPtr lam = make_shared<Vertex>("lam", line_vector{}); // create lambda vertex
+
+
+                        dp1->vertex_type_ = 'v'; dp1->has_blk_ = op->has_blk_; dp1->update_name();
+                        dp2->vertex_type_ = 'v'; dp2->has_blk_ = op->has_blk_; dp2->update_name();
+
+
+                        dse_term1.rhs_[i] = dp1;     // replace B1 with dp1
+                        dse_term1.rhs_[i + 1] = dp2; // replace B2 with dp2
+
+                        // add scalar to front of rhs
+//                        dse_term1.rhs_.insert(dse_term1.rhs_.begin(), lam);
+                        dse_term1.compute_scaling(true); // recompute scaling of new term
+                        new_terms.push_back(dse_term1);
+                    }
+
+                    // clone new_term2
+                    if (keep_term2) {
+                        Term dse_term2 = new_term2.clone();
+
+                        // replace B3 and B4 with product of dipole moments
+                        B3_lines.pop_back(); B4_lines.pop_back(); // remove Q lines
+                        MutableVertexPtr dp3 = make_shared<Vertex>("dp", B3_lines);
+                        MutableVertexPtr dp4 = make_shared<Vertex>("dp", B4_lines);
+                        MutableVertexPtr lam = make_shared<Vertex>("lam", line_vector{}); // create lambda vertex
+
+                        dp3->vertex_type_ = 'v'; dp3->has_blk_ = op->has_blk_; dp3->update_name();
+                        dp4->vertex_type_ = 'v'; dp4->has_blk_ = op->has_blk_; dp4->update_name();
+
+                        dse_term2.rhs_[i] = dp3;     // replace B3 with dp3
+                        dse_term2.rhs_[i + 1] = dp4; // replace B4 with dp4
+
+                        // add scalar to front of rhs
+//                        dse_term2.rhs_.insert(dse_term2.rhs_.begin(), lam);
+                        dse_term2.compute_scaling(true); // recompute scaling of new term
+                        new_terms.push_back(dse_term2);
+                    }
+                }
+
+            }
+        }
+
+        if (new_terms.empty()) return {*this}; // if no eris, return itself
+        return new_terms;
+    }
+
+    bool Term::is_valid() {
+        for (const auto & op : rhs_) {
+            // any 'ab' or 'ba' blocks for 1 body operators are invalid
+            if (op->rank() == 2 && op->shape_.a_ == 1 && op->shape_.b_ == 1) {
+                return false;
+            }
+
+            // should have same number of alpha and beta lines for 2 body operators
+            if (op->rank() == 4 && (op->shape_.a_ > 0 && op->shape_.b_ > 0) && (op->shape_.a_ != op->shape_.b_)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    void Term::replace_lines(const LineMap &line_map) {
+        //TODO: also replace lines in lhs and eq
+        if (line_map.empty()) return; // if map is empty, return
+        for (auto & op : rhs_) {
+            MutableVertexPtr new_op = op->clone();
+            new_op->replace_lines(line_map);
+            new_op->update_name();
+
+            if (new_op->base_name() == "eri") {
+                if (new_op->permute_eri())
+                    swap_sign(); // swap sign if eri is permuted with sign change
+            }
+
+            op = new_op;
+        }
+    }
+
+    vector<Term> Term::convert_beta_to_alpha() const {
+
+        // create a copy of the current term
+        Term alpha_term = *this;
+
+        return {alpha_term};
+
+        // initialize map to determine which lines to change.
+        LineMap beta_to_alpha;
+
+        // first we change lines associated with all beta amplitudes
+        for (auto & op : alpha_term.rhs_) {
+            if (op->vertex_type_ == 'a' && op->shape_.a_ == 0 && op->shape_.b_ > 0){
+                for (const auto & line : op->lines()){
+                    Line new_line = line;
+                    new_line.a_ = true;
+                    beta_to_alpha[line] = new_line;
+                }
+            }
+        }
+
+        // replace lines using the map
+        alpha_term.replace_lines(beta_to_alpha);
+
+        return {alpha_term};
+
+        // now we replace all t2-aa blocks with permutations of t2-ab blocks
+        LineMap t2abij_map, t2baij_map;
+        for (auto & op : alpha_term.rhs_) {
+            if (op->vertex_type_ == 'a' && op->shape_.a_ == 4){
+
+                // create alpha and beta lines
+                Line aa = op->lines()[0]; aa.a_ = true;
+                Line ba = op->lines()[1]; ba.a_ = true;
+                Line ia = op->lines()[2]; ia.a_ = true;
+                Line ja = op->lines()[3]; ja.a_ = true;
+
+                Line ab = aa, bb = ba, ib = ia, jb = ja;
+                ab.a_ = false; bb.a_ = false; ib.a_ = false; jb.a_ = false;
+
+
+                // generate the mappings
+                t2abij_map[aa] = aa;
+                t2abij_map[ba] = bb;
+                t2abij_map[ia] = ia;
+                t2abij_map[ja] = jb;
+
+                t2baij_map[aa] = ba;
+                t2baij_map[ba] = ab;
+                t2baij_map[ia] = ia;
+                t2baij_map[ja] = jb;
+            }
+        }
+
+        // create the terms
+        if (!t2abij_map.empty()) {
+            Term abij_term = alpha_term.clone();
+            Term baij_term = alpha_term.clone();
+
+            // replace lines using the maps
+            abij_term.replace_lines(t2abij_map);
+            baij_term.replace_lines(t2baij_map);
+
+            baij_term.coefficient_ *= -1;
+
+            vector<Term> new_terms;// = {abij_term, baij_term, abji_term, baji_term};
+            if (abij_term.is_valid()) new_terms.push_back(abij_term);
+            if (baij_term.is_valid()) new_terms.push_back(baij_term);
+            return new_terms;
+        } else if (alpha_term.is_valid()) {
+            return {alpha_term};
+        } else {
+            return {};
+        }
     }
 
 } // pdaggerq

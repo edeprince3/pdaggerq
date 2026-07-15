@@ -1,0 +1,7 @@
+# this file is used to install the requirements for the test suite
+pytest
+numpy
+pyscf
+openfermion
+openfermionpyscf
+# install psi4 from conda if available to run spin-trace tests
