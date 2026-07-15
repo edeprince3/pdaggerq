@@ -1,21 +1,25 @@
 import pdaggerq 
 
-def configure_graph():
+def configure_graph(options = None):
     """
     Configure and return the pq_graph with specific settings.
 
     Returns:
         graph (pq_graph): Configured pq_graph object.
     """
-    return pdaggerq.pq_graph({
-        'batched': False,
-        #'batched': True,
-        #'batch_number': 100,
-        'print_level': 0,
-        'opt_level': 0,
-        'nthreads': -1,
-        'no_scalars': False,
-    })
+
+    if options is None:
+        options = {
+            'batched': False,
+            #'batched': True,
+            #'batch_number': 100,
+            'print_level': 0,
+            'opt_level': 0,
+            'nthreads': -1,
+            'no_scalars': False,
+        }
+
+    return pdaggerq.pq_graph(options)
 
 def get_spin_labels(ops):
     """
@@ -226,7 +230,8 @@ def cc_residual(residual_name,
     function_name, 
     spin_block = True, 
     write_function = False,
-    is_qed = False):
+    is_qed = False,
+    pq_graph_options = None):
 
     """
     derive equations for CC residual
@@ -238,6 +243,7 @@ def cc_residual(residual_name,
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
     """
 
     if not spin_block:
@@ -278,7 +284,7 @@ def cc_residual(residual_name,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph()
+    graph = configure_graph(pq_graph_options)
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
@@ -322,7 +328,8 @@ def uccsd_singles_residual(order,
     L,
     function_name,
     spin_block = True, 
-    write_function = False):
+    write_function = False,
+    pq_graph_options = None):
 
     """
     derive equations for UCCSD singles residual, truncation based on perturbation order
@@ -333,6 +340,7 @@ def uccsd_singles_residual(order,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
     """
 
     if not spin_block:
@@ -380,7 +388,7 @@ def uccsd_singles_residual(order,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph()
+    graph = configure_graph(pq_graph_options)
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
@@ -417,7 +425,8 @@ def uccsd_doubles_residual(order,
     L,
     function_name,
     spin_block = True,
-    write_function = False):
+    write_function = False,
+    pq_graph_options = None):
 
     """
     derive equations for UCCSD doubles residual, truncation based on perturbation order
@@ -428,6 +437,7 @@ def uccsd_doubles_residual(order,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
     """
 
     if not spin_block:
@@ -481,7 +491,7 @@ def uccsd_doubles_residual(order,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph()
+    graph = configure_graph(pq_graph_options)
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
@@ -517,7 +527,8 @@ def uccsd_energy(order,
     energy_name,
     function_name,
     spin_block = True,
-    write_function = False):
+    write_function = False,
+    pq_graph_options = None):
 
     """
     derive equations for UCCSD energy, truncation based on perturbation order
@@ -527,6 +538,7 @@ def uccsd_energy(order,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
     """
 
     if not spin_block:
@@ -587,7 +599,7 @@ def uccsd_energy(order,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph()
+    graph = configure_graph(pq_graph_options)
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
@@ -623,7 +635,8 @@ def cc3_triples_residual(residual_name,
     L,
     function_name,
     spin_block = True,
-    write_function = False):
+    write_function = False,
+    pq_graph_options = None):
 
     """
     derive equations for the CC3 triples residual
@@ -633,6 +646,7 @@ def cc3_triples_residual(residual_name,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
     """
 
     if not spin_block:
@@ -680,7 +694,7 @@ def cc3_triples_residual(residual_name,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph()
+    graph = configure_graph(pq_graph_options)
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
@@ -718,7 +732,8 @@ def lambda_cc_residual(residual_name,
     R, 
     function_name, 
     spin_block = True, 
-    write_function = False):
+    write_function = False,
+    pq_graph_options = None):
 
     """
     derive equations for lambda CC residual
@@ -730,6 +745,7 @@ def lambda_cc_residual(residual_name,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
     """
 
     if not spin_block:
@@ -773,7 +789,7 @@ def lambda_cc_residual(residual_name,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph()
+    graph = configure_graph(pq_graph_options)
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
@@ -817,7 +833,8 @@ def lambda_cc_pseudoenergy(energy_name,
     R,
     function_name,
     spin_block = True,
-    write_function = False):
+    write_function = False,
+    pq_graph_options = None):
 
     """
     derive equations for lambda CC pseudoenergy
@@ -829,6 +846,7 @@ def lambda_cc_pseudoenergy(energy_name,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
     """
 
     if not spin_block:
@@ -863,7 +881,7 @@ def lambda_cc_pseudoenergy(energy_name,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph()
+    graph = configure_graph(pq_graph_options)
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
@@ -901,7 +919,8 @@ def eomcc_sigma(sigma_name,
     R, 
     function_name,
     spin_block = True,
-    write_function = False):
+    write_function = False,
+    pq_graph_options = None):
 
     """
     derive equations for left/right EOMCC sigma equations
@@ -913,6 +932,7 @@ def eomcc_sigma(sigma_name,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
     """ 
 
     if not spin_block:
@@ -956,7 +976,7 @@ def eomcc_sigma(sigma_name,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph()
+    graph = configure_graph(pq_graph_options)
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
