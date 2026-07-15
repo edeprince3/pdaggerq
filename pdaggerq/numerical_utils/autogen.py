@@ -306,7 +306,7 @@ def cc_residual(residual_name,
     if '3' in residual_name:
         generated_code_string += f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb"
     elif '2' in residual_name:
-        generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, r2_bbbb"
+        generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb"
     elif '1' in residual_name:
         generated_code_string += f"    return {residual_name}_aa, {residual_name}_bb"
     else:
@@ -808,12 +808,12 @@ def lambda_cc_residual(residual_name,
     generated_code_string += graph.str("python")
         
     # return statement
-    if residual_name == 'r3':
-        generated_code_string += f"    return r3_aaaaaa.transpose.transpose(3,4,5,0,1,2), r3_aabaab.transpose(3,4,5,0,1,2), r3_abbabb.transpose(3,4,5,0,1,2), r3_bbbbbb.transpose(3,4,5,0,1,2)"
-    elif residual_name == 'r2':
-        generated_code_string += f"    return r2_aaaa.transpose(2,3,0,1), r2_abab.transpose(2,3,0,1), r2_bbbb.transpose(2,3,0,1)"
-    elif residual_name == 'r1':
-        generated_code_string += f"    return r1_aa.transpose(1,0), r1_bb.transpose(1,0)"
+    if '3' in residual_name:
+        generated_code_string += f"    return {residual_name}_aaaaaa.transpose.transpose(3,4,5,0,1,2), {residual_name}_aabaab.transpose(3,4,5,0,1,2), {residual_name}_abbabb.transpose(3,4,5,0,1,2), {residual_name}_bbbbbb.transpose(3,4,5,0,1,2)"
+    elif '2' in residual_name:
+        generated_code_string += f"    return {residual_name}_aaaa.transpose(2,3,0,1), {residual_name}_abab.transpose(2,3,0,1), {residual_name}_bbbb.transpose(2,3,0,1)"
+    elif '1' in residual_name:
+        generated_code_string += f"    return {residual_name}_aa.transpose(1,0), {residual_name}_bb.transpose(1,0)"
     else:
         generated_code_string += f"    return {residual_name}"
 
