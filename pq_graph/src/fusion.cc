@@ -28,6 +28,7 @@
 #include <cstdlib>
 
 #include "../include/pq_graph.h"
+#include "../include/printers/code_printer.h"
 
 // include omp only if defined
 #ifdef _OPENMP
@@ -78,7 +79,7 @@ struct LinkTracker {
             // vertex in term is fusable only if it is linked. if linked, it must be a temp or not an addition
             bool fusable = vertex->has_any_temp();
             if (fusable) {
-                auto all_temps = as_link(vertex)->get_temps();
+                auto all_temps = as_link(vertex)->get_temps(true, false);
                 for (auto &temp: all_temps) {
                     LinkagePtr temp_link = as_link(temp);
                     max_ids_[temp_link->type()] = max(max_ids_[temp_link->type()], temp_link->id());
@@ -156,7 +157,12 @@ struct LinkTracker {
 
             vector<pair<string, size_t>> argsorted_infos;
             for (size_t i = 0; i < link_infos.size(); i++) {
-                argsorted_infos.emplace_back(link_infos[i].trunc_term.str(), i);
+                // use trunc_term.str() as primary key, and term's full str() as secondary
+                // to break ties consistently across different link info vectors
+                string sort_key = link_infos[i].trunc_term.str();
+                sort_key += "|";
+                sort_key += link_infos[i].term->str();
+                argsorted_infos.emplace_back(sort_key, i);
             }
             std::sort(argsorted_infos.begin(), argsorted_infos.end());
 
@@ -189,6 +195,31 @@ struct LinkTracker {
 
             // remove all linkages that have no track terms
             remove_link |= link_infos.empty();
+
+            // ensure that all tracked link infos for this linkage have consistent permutations of their lines so that connectivity can be compared meaningfully
+            perm_list ref_perms;
+            for (auto &info : link_infos) {
+                // ensure the lines within each tracked link info are consistently permuted
+                perm_list tracked_perms;
+                if (info.term->perm_type() != 0) {
+                    set<string> seen_lines;
+                    for (auto &line : info.link->lines()) {
+                        seen_lines.insert(line.label_);
+                    }                    
+                    for (auto &perm_pair : info.term->term_perms()) {
+                        if (seen_lines.find(perm_pair.first) != seen_lines.end()) {
+                            tracked_perms.push_back(perm_pair);
+                        } else if (seen_lines.find(perm_pair.second) != seen_lines.end()) {
+                            tracked_perms.emplace_back(perm_pair.second, perm_pair.first);
+                        }
+                    }
+                }
+
+                if (ref_perms.empty()) ref_perms = tracked_perms;
+                else if (ref_perms != tracked_perms) remove_link = true;
+                if (remove_link) break;
+            }
+            
 
             if (!remove_link) {
                 new_link_track_map.insert({link, link_infos});
@@ -253,7 +284,10 @@ struct LinkMerger {
             all_infos = std::move(infos_sorted);
         }
 
-        #pragma omp parallel for schedule(guided) default(none) shared(all_links, all_infos, link_merge_map_, dummy)
+        // per-index results to avoid critical section
+        vector<vector<pair<LinkagePtr, LinkagePtr>>> per_k_results(all_links.size());
+
+        #pragma omp parallel for schedule(guided) default(none) shared(all_links, all_infos, dummy, per_k_results)
         for (size_t k = 0; k < all_links.size(); k++) {
             auto &link1 = all_links[k];
             auto &link1_info = all_infos[k];
@@ -262,7 +296,7 @@ struct LinkMerger {
                 auto &link2 = all_links[l];
                 auto &link2_info = all_infos[l];
 
-                // skip does not have the same number of trunc terms 
+                // skip does not have the same number of trunc terms
                 if (link1_info.size() != link2_info.size()) continue;
 
                 // shapes must be the same
@@ -275,6 +309,7 @@ struct LinkMerger {
 
                 double link_ratio = 0.0;
                 set<string> ref_conditions;
+                perm_list ref_perms;
 
                 VertexPtr reflink1_2 = nullptr;
                 for (size_t i = 0; i < link1_info.size(); i++) {
@@ -288,7 +323,10 @@ struct LinkMerger {
                     auto &link2_term = link2_info[i].term;
                     auto &trunc_term2 = link2_info[i].trunc_term;
 
-                    // ensure link is not within an addition (cannot merge)
+                    // ensure both trunc links have the same exact lines
+                    if (link1_trunc->lines() != link2_trunc->lines()) { same_connectivity = false; break; }
+
+                    // ensure link is not within an addition (cannot merge, intermediate must be top level term)
                     auto term1_temps = link1_term->term_linkage()->get_temps(true, false);
                     auto term2_temps = link2_term->term_linkage()->get_temps(true, false);
 
@@ -304,13 +342,6 @@ struct LinkMerger {
                     }
                     if (!found2) { same_connectivity = false; break; }
 
-                    // ensure both trunc links have the same lines
-                    line_vector lines1_sorted = link1_trunc->lines();
-                    line_vector lines2_sorted = link2_trunc->lines();
-                    std::sort(lines1_sorted.begin(), lines1_sorted.end());
-                    std::sort(lines2_sorted.begin(), lines2_sorted.end());
-                    if (lines1_sorted != lines2_sorted) { same_connectivity = false; break; }
-
                     // ensure connectivity of the two trunc links are the same for all terms
                     VertexPtr link1_2 = link1_trunc + link2_trunc;
                     if (reflink1_2 == nullptr) reflink1_2 = link1_2;
@@ -319,6 +350,11 @@ struct LinkMerger {
                     // determine if permutation is the same
                     if (link1_term->perm_type()  != link2_term->perm_type())  { same_connectivity = false; break; }
                     if (link1_term->term_perms() != link2_term->term_perms()) { same_connectivity = false; break; }
+
+                    // check that the conditions of the full terms are the same
+                    auto term1_conditions = link1_term->conditions();
+                    auto term2_conditions = link2_term->conditions();
+                    if (term1_conditions != term2_conditions) { same_connectivity = false; break; }
 
                     // determine if coefficient ratio is the same (should be)
                     double cur_ratio = link2_term->coefficient_ / link1_term->coefficient_;
@@ -332,6 +368,9 @@ struct LinkMerger {
                     term1_link = link1_term->lhs() + term1_link;
                     term2_link = link2_term->lhs() + term2_link;
 
+                    // ensure both the links have the same exact lines
+                    if (term1_link->lines() != term2_link->lines()) { same_connectivity = false; break; }
+
                     if (*term1_link != *term2_link) { same_connectivity = false; break; }
 
                     // now check the other trunc term
@@ -341,24 +380,26 @@ struct LinkMerger {
                     term1_link = link1_term->lhs() + term1_link;
                     term2_link = link2_term->lhs() + term2_link;
 
-                    if (*term1_link != *term2_link) { same_connectivity = false; break; }
+                    // ensure both the links have the same exact lines
+                    if (term1_link->lines() != term2_link->lines()) { same_connectivity = false; break; }
 
-                    // check that the conditions of the full terms are the same
-                    auto term1_conditions = link1_term->conditions();
-                    auto term2_conditions = link2_term->conditions();
-                    if (term1_conditions != term2_conditions) { same_connectivity = false; break; }
+                    if (*term1_link != *term2_link) { same_connectivity = false; break; }
 
                 }
 
                 if (!same_connectivity) continue;
                 else {
-                    #pragma omp critical
-                    {
-                        link1->forget(true); // forget the link history for memory efficiency
-                        link2->forget(true); // forget the link history for memory efficiency
-                        link_merge_map_[link1].push_back(link2);
-                    }
+                    per_k_results[k].push_back({link1, link2});
                 }
+            }
+        }
+
+        // serial merge of per-index results into link_merge_map_
+        for (auto &results : per_k_results) {
+            for (auto &[target, merge] : results) {
+                target->forget(true);
+                merge->forget(true);
+                link_merge_map_[target].push_back(merge);
             }
         }
 
@@ -423,7 +464,7 @@ struct LinkMerger {
                             if (a_scales != b_scales) return a_scales > b_scales;
                             else return a.first->id() < b.first->id();
 
-                        }), merge_entry);
+                       }), merge_entry);
             }
 
         linkage_vector sorted_links;
@@ -551,32 +592,6 @@ struct LinkMerger {
                     pos = merge_str.find('\n', pos + 5);
                 }
             }
-            cout << "Target Terms: " << endl;
-            for (auto &link_info: link_tracker_.link_track_map_[target_link]) {
-                auto &term = link_info.term;
-                string term_str = term->str();
-                // replace all newlines with newlines and spaces
-                pos = term_str.find('\n');
-                while (pos != string::npos) {
-                    term_str.replace(pos, 1, "\n    ");
-                    pos = term_str.find('\n', pos + 5);
-                }
-                cout << "    " << term_str << endl;
-            }
-            for (auto &merge_link: merge_links) {
-                for (auto &link_info: link_tracker_.link_track_map_[merge_link]) {
-                    auto &term = link_info.term;
-                    string term_str = term->str();
-                    // replace all newlines with newlines and spaces
-                    pos = term_str.find('\n');
-                    while (pos != string::npos) {
-                        term_str.replace(pos, 1, "\n    ");
-                        pos = term_str.find('\n', pos + 5);
-                    }
-                    cout << "    " << term_str << endl;
-                }
-            }
-            cout << endl;
         }
     }
 
@@ -637,19 +652,17 @@ struct LinkMerger {
             vector<vector<LinkInfo>> merge_infos;
             for (auto &merge_link: merge_links) {
                 auto &merge_info = link_tracker_.link_track_map_[merge_link];
-                // sort merge infos by hash string of the link
-                std::sort(merge_info.begin(), merge_info.end(), [](const LinkInfo &a, const LinkInfo &b) {
-                        return a.link->base_name_ < b.link->base_name_;
-                        });
                 merge_infos.push_back(merge_info);
             }
 
             // merge the trunc terms
             vector<Term> new_terms(target_infos.size());
+            vector<MutableVertexPtr> merged_vertices(target_infos.size());
+            vector<long> max_ids(target_infos.size());
             MutableVertexPtr merged_vertex_init;
             string link_type = target_infos[0].link->type();
 
-            #pragma omp parallel for default(none) shared(target_infos, merge_infos, new_terms, merged_vertex_init, link_type, target_link)
+            #pragma omp parallel for schedule(guided) default(none) shared(target_infos, merge_infos, new_terms, merged_vertices, max_ids, merged_vertex_init, link_type, target_link, pq_graph_, link_tracker_)
             for (size_t i = 0; i < target_infos.size(); i++) {
                 // build merged vertex
                 MutableVertexPtr merged_vertex = target_infos[i].link->shallow();
@@ -669,9 +682,7 @@ struct LinkMerger {
                     else merged_vertex = merged_vertex + target_vertex;
 
                     // add the pq string to track evaluation
-                    // add original pq to unique term
-                    if (Vertex::print_type_ == "python")   merged_pq += "\n    # ";
-                    else if (Vertex::print_type_ == "c++") merged_pq += "\n    // ";
+                    merged_pq += "\n    " + Vertex::printer_->comment_prefix() + " ";
                     merged_pq += string(merge_term->lhs()->name().size(), ' ');
                     merged_pq += " += " + merge_term->original_pq_;
                 }
@@ -705,12 +716,15 @@ struct LinkMerger {
                 new_term.reorder();
                 new_terms[i] = new_term.shallow();
 
-                // add merged vertex to saved linkages
-                pq_graph_.saved_linkages()[link_type].insert(as_link(merged_vertex));
-                #pragma omp critical
-                {
-                    pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_id);
-                }
+                // store for batch update after parallel loop
+                merged_vertices[i] = as_link(merged_vertex);
+                max_ids[i] = max_id;
+            }
+
+            // batch update saved linkages and temp counts (no critical section needed)
+            for (size_t i = 0; i < merged_vertices.size(); i++) {
+                pq_graph_.saved_linkages()[link_type].insert(merged_vertices[i]);
+                pq_graph_.temp_counts()[link_type] = std::max(pq_graph_.temp_counts()[link_type], max_ids[i]);
             }
 
             // overwrite the target terms with the new terms
@@ -728,6 +742,7 @@ struct LinkMerger {
                 for (Term *t : declare_term)
                     if (!chosen_decl || t->original_pq_ < chosen_decl->original_pq_)
                         chosen_decl = t;
+                        
                 // build new declaration
                 Term new_def = chosen_decl->shallow();
                 new_def.eq()  = merged_vertex_init;
@@ -822,311 +837,4 @@ size_t PQGraph::merge_intermediates(){
     }
 
     return num_fused_total;
-}
-
-size_t PQGraph::prune(bool keep_single_use) {
-
-    if (opt_level_< 5)
-        return 0; // do not remove unused temps if pruning is disabled
-
-    print_guard guard;
-    if (print_level_ < 2) {
-        guard.lock();
-    }
-
-    // remove unused contractions (only used in one term and its assignment)
-
-    // get all temps in the equations
-    linkage_set all_temp_set; all_temp_set.reserve(10*(saved_linkages_["temp"].size()+1));
-    for (auto & [name, eq] : equations_) {
-        for (auto &term: eq.terms()) {
-            vertex_vector term_temps = (term.lhs() + term.term_linkage())->get_temps();
-            all_temp_set.insert(term_temps.begin(), term_temps.end());
-        }
-    }
-
-    // get all matching terms for each temp in saved_linkages
-    linkage_map<pair<set<Term*>,set<Term*>>> matching_terms;
-    matching_terms.reserve(all_temp_set.size());
-    for (const auto &linkage : all_temp_set) {
-
-        if (linkage->id() == -1) continue; // skip if id is -1
-        auto [tmp_terms, tmp_decls] = get_matching_terms(linkage);
-        if (tmp_terms.empty() && tmp_decls.empty()) continue; // occurs nowhere in the equations; skip
-
-        matching_terms[linkage] = {tmp_decls, tmp_terms};
-    }
-
-    // remove temps that are used in only one term or are not used at all
-
-    size_t num_removed = 0;
-    linkage_set to_remove;
-    for (const auto & [temp, terms_pair] : matching_terms) {
-
-        auto [tmp_decl_terms, terms] = terms_pair;
-
-        // remove (regardless of use) if temp has only one pure vertex or if never declared
-        if (!tmp_decl_terms.empty() && temp->vertices().size() > 1) {
-
-            // count number of occurrences of the temp in the terms
-            size_t num_occurrences = 0;
-            for (auto &term: terms) {
-                if (term->lhs() == nullptr) continue; // skip if term has no lhs (will be removed later)
-                for (auto &vertex: term->rhs()) {
-                    if (vertex->is_linked()) {
-                        auto all_temps = as_link(vertex)->find_links(temp);
-                        num_occurrences += all_temps.size();
-                    }
-                }
-            }
-
-            // skip if temp is used more than once
-            if (num_occurrences > 1) continue;
-
-            // skip if temp is used only once and is a scalar or if keep_single_use is enabled
-            if (num_occurrences == 1 && (keep_single_use || temp->is_scalar())) continue;
-
-        }
-
-        num_removed++;
-
-        // set lhs to a null pointer to mark for removal
-        if (!tmp_decl_terms.empty()) {
-            for (auto &term: tmp_decl_terms) {
-                term->lhs() = nullptr;
-            }
-        }
-
-        // add to the list of temps to remove
-        to_remove.insert(temp);
-    }
-
-    // remove all terms with lhs set to nullptr if any are found
-    for (auto &[name, eq]: equations_) {
-        vector<Term> new_terms;
-        for (auto &term: eq.terms()) {
-            if (term.lhs() != nullptr) {
-                term.reorder(true);
-                new_terms.push_back(term);
-            }
-        }
-        eq.terms() = new_terms;
-    }
-
-    // get all terms in the equations
-    vector<Term*> all_terms; all_terms.reserve(10*equations_.size());
-    for (auto &[name, eq]: equations_) {
-        for (auto &term: eq.terms()) {
-            all_terms.push_back(&term);
-        }
-    }
-
-    if (num_removed > 0) {
-
-        // sort to_remove by decreasing id
-        linkage_vector sorted_to_remove;
-        sorted_to_remove.reserve(to_remove.size());
-        sorted_to_remove.insert(sorted_to_remove.begin(), to_remove.begin(), to_remove.end());
-        std::sort(sorted_to_remove.begin(), sorted_to_remove.end(), [](const LinkagePtr &a, const LinkagePtr &b) {
-            // if types are different, sort by type
-            if (a->type() != b->type()) return a->type() > b->type();
-            // else sort by id for the same type
-            else return a->get_ids(a->type()) > b->get_ids(b->type());
-        });
-
-        auto remove_unused = [&sorted_to_remove](VertexPtr vertex){
-            bool made_replacement = false;
-            if (vertex->is_linked()) {
-                for (auto &temp: sorted_to_remove) {
-                    auto [new_vertex, replaced] = as_link(vertex)->replace_id(temp, -1);
-                    if (replaced) {
-                        vertex = new_vertex;
-                        made_replacement = true;
-                    }
-                }
-            }
-            return make_pair(vertex, made_replacement);
-        };
-
-        cout << "Removing unused temps:" << endl;
-        for (auto & temp : sorted_to_remove) {
-            cout << "    " << temp->str() << endl;
-        }
-
-        // unset the temp in saved_linkages
-        map<string, linkage_set> new_saved_linkages;
-        for (auto &[type, linkages]: saved_linkages_) {
-            for (const auto &link: linkages) {
-                if (link->id() == -1) continue; // skip if id is -1
-
-                auto [new_link, replaced] = remove_unused(link);
-                if (new_link->id() != -1)
-                    new_saved_linkages[type].insert(as_link(new_link));
-            }
-        }
-        saved_linkages_ = new_saved_linkages;
-
-        // unset the temp in all the terms
-        #pragma omp parallel for schedule(guided) shared(all_terms, remove_unused, sorted_to_remove) default(none)
-        for (auto &term_ptr: all_terms) {
-            Term &term = *term_ptr;
-            bool made_replacement = false;
-
-            // remove temps from the lhs
-            if (term.lhs() != nullptr && term.lhs()->is_temp()) {
-                auto [new_lhs, replaced] = remove_unused(term.lhs());
-
-                // replace only if found and the temp is not removed
-                if (replaced && new_lhs->is_temp()) {
-                    term.lhs() = new_lhs;
-                    made_replacement = true;
-                }
-            }
-
-            // remove temps from the eq
-            if (term.eq() != nullptr && term.eq()->is_temp()) {
-                auto [new_eq, replaced] = remove_unused(term.eq());
-                if (replaced && new_eq->is_temp()) {
-                    term.eq() = new_eq;
-                    made_replacement = true;
-                }
-            }
-
-            // // remove temps from the rhs
-            for (auto &op: term.rhs()) {
-                if (op != nullptr && op->is_linked()) {
-                    auto [new_op, replaced] = remove_unused(op);
-                    if (replaced) {
-                        op = new_op;
-                        made_replacement = true;
-                    }
-                }
-            }
-
-            if (made_replacement) {
-                term.request_update();
-                term.reorder();
-            }
-        }
-
-        // overwrite saved_linkages
-        cout << endl; // print newline after all removals
-    }
-
-    if (opt_level_ >= 6) {
-
-        #pragma omp parallel for schedule(guided) default(none) shared(all_terms)
-        for (Term *term_ptr: all_terms) {
-            Term &term = *term_ptr;
-            // factor the term linkage
-            MutableLinkagePtr term_link = as_link(term.term_linkage()->shallow());
-            if (!term_link->is_temp()) continue;
-            else term_link->factor();
-
-            term.expand_rhs(term_link);
-            term.reorder(true);
-        }
-    }
-
-    size_t num_removed_total = num_removed;
-    while (num_removed > 0) {
-        num_removed = prune(keep_single_use); // recursively prune until no more temps are removed
-        num_removed_total += num_removed;
-    }
-
-    return num_removed_total;
-}
-
-pair<set<Term *>, set<Term*>> PQGraph::get_matching_terms(const LinkagePtr &intermediate) {
-    // grab all terms with this tmp
-
-    // initialize vector of term pointers
-    set<Term*> tmp_terms;
-
-    vector<string> eq_keys = get_equation_keys();
-#pragma omp parallel for schedule(guided) default(none) shared(equations_, eq_keys, tmp_terms, intermediate)
-    for (const auto& eq_name : eq_keys) { // iterate over equations in parallel
-        // get equation
-        Equation &equation = equations_[eq_name]; // get equation
-
-        // get all terms with this tmp
-        set<Term*> tmp_terms_local = equation.get_temp_terms(intermediate);
-#pragma omp critical
-        {
-            // add terms to tmp_terms
-            tmp_terms.insert(tmp_terms_local.begin(), tmp_terms_local.end());
-        }
-
-    }
-
-    set<Term*> tmp_decl_terms;
-    set<Term*> pruned_tmp_terms;
-    for (auto &term : tmp_terms) {
-        if (term->lhs()->same_temp(intermediate) && term->is_assignment_)
-            tmp_decl_terms.insert(term);
-        else pruned_tmp_terms.insert(term);
-    }
-
-    return {pruned_tmp_terms, tmp_decl_terms};
-}
-
-size_t PQGraph::merge_terms() {
-
-    if (opt_level_< 5)
-        return 0; // do not merge terms if not allowed
-
-    print_guard guard;
-    if (print_level_ < 2) {
-        guard.lock();
-    }
-
-    // iterate over equations and merge terms
-    size_t num_merged = 0;
-    vector<string> eq_keys = get_equation_keys();
-#pragma omp parallel for reduction(+:num_merged) default(none) shared(equations_, eq_keys)
-    for (const auto &key: eq_keys) {
-        Equation &eq = equations_[key];
-        if (eq.is_temp_equation_) continue; // skip tmps equation
-
-        num_merged += eq.merge_terms(); // merge terms with same rhs up to a permutation
-    }
-    collect_scaling(); // collect new scalings
-
-    if (num_merged > 0) cout << "Merged " << num_merged << " terms" << endl;
-
-    return num_merged;
-}
-
-double PQGraph::common_coefficient(set<Term*> &terms) {
-
-    return 1.0; // do not modify coefficients for now
-
-/*    // make a count of the coefficients
-    map<string, size_t> coeff_counts;
-    for (Term* term_ptr: terms) {
-        Term& term = *term_ptr;
-
-        if ((fabs(term.coefficient_) - 1e-10) < 1e-10)
-            continue; // skip terms with coefficient of 0
-        size_t precision = minimum_precision(fabs(term.coefficient_));
-        string coeff_str = to_string_with_precision(precision);
-        coeff_counts[coeff_str]++;
-    }
-
-    // find the most common coefficient
-    string most_common_coeff = "1.00"; // default to 1
-    size_t most_common_coeff_count = 1;
-    for (const auto &[coeff, count]: coeff_counts) {
-        if (count > most_common_coeff_count) {
-            most_common_coeff = coeff;
-            most_common_coeff_count = count;
-        }
-    }
-
-    // get common coefficient
-    double common_coefficient = stod(most_common_coeff);
-    if (common_coefficient <= 1e-8)
-        return 1.0; // do not modify coefficients if any are close to 0
-
-    return common_coefficient;*/
 }

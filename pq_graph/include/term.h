@@ -79,6 +79,10 @@ namespace pdaggerq {
                                // expanded copies of a permuted term so each emitted statement
                                // carries its originating antisymmetrizer (type + index pairs)
 
+        static inline bool print_comments_ = true; // print comments in term string
+        static inline bool deallocate_ = true; // deallocate temporary variables
+        static inline bool binarize_ = false; // flag for whether to binarize terms
+
         static inline size_t max_depth_ = -1; // maximum number of rhs in a linkage (no limit by default)
         static inline shape max_shape_; // maximum shape of a linkage
 
@@ -91,7 +95,7 @@ namespace pdaggerq {
         Term() = default;
         ~Term() = default;
 
-        double coefficient_{}; // coefficient of the term
+        double coefficient_ = 1.0; // coefficient of the term
 
         /**
          * expand rhs of term using a linkage
@@ -426,8 +430,8 @@ namespace pdaggerq {
          * @return string representation of the term
          */
         string str() const;
-        string einsum_str() const;
-        string ir_str() const; // structured JSONL line for the einsums/codegen IR export
+        string ir_str() const;      // structured JSONL line for the einsums/codegen IR export
+        string ir_term_str() const; // full IR emission for a term (permutation-aware; see graph_printing.cc)
 
         string operator+(const string &other) const{ return str() + other; }
         friend string operator+(const string &other, const Term &term){ return other + term.str(); }
@@ -516,15 +520,34 @@ namespace pdaggerq {
         bool is_compatible(const LinkagePtr &linkage) const;
 
         /**
+         * determines if the term is valid (non-zero coefficient, non-empty lhs and rhs, valid spin blocks, etc)
+         * @return
+         */
+        bool is_valid();
+
+        /**
          * swaps the sign of the term
          */
         void swap_sign() { coefficient_ *= -1; }
 
         /**
-         * Replace all two-body operators with density fitting operators
-         * @return vector of terms with density fitting operators
+         * Replaces lines in the term given by a map of Line replacements
          */
-        vector<Term> density_fitting();
+        void replace_lines(const LineMap &line_map);
+
+        /**
+         * Replace all two-body operators with decomposed eris
+         * @return vector of terms with decomposed eris
+         */
+        vector<Term> decompose_eri() const;
+        vector<Term> density_fitting(); // NEO DF: B[Q,p,q] layout + cross-species g split
+
+        /**
+         * Convert a beta term to an alpha term by changing all lines to alpha or applying permutations from alpha-beta
+         * @return vector of converted terms
+         */
+        vector<Term> convert_beta_to_alpha() const;
+
 
     }; // end Term class
 

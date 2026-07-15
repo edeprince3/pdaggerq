@@ -22,6 +22,7 @@
 //
 
 #include "../include/equation.h"
+#include "../include/printers/code_printer.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -195,11 +196,11 @@ namespace pdaggerq {
                 merged_coeffs[it->second] += term.coefficient_;
 
                 // add original pq to unique term
+                // accumulate the comment on the RETAINED unique term in the vector, not
+                // on the map key (it->first): the key is a different object from the term
+                // we keep and emit. Use the refactor's comment_prefix().
                 Term &unique_term = unique_terms[it->second];
-                if (Vertex::print_type_ == "python")
-                    unique_term.original_pq_ += "\n    # ";
-                else if (Vertex::print_type_ == "c++")
-                    unique_term.original_pq_ += "\n    // ";
+                unique_term.original_pq_ += "\n    " + Vertex::printer_->comment_prefix() + " ";
 
                 unique_term.original_pq_ += string(term.lhs()->name().size(), ' ');
                 unique_term.original_pq_ += " += " + term.original_pq_;
@@ -238,7 +239,7 @@ namespace pdaggerq {
             bool found = false;
             for (auto &op : term) {
                 // check if this term has the temp
-                found = op->has_temp(linkage);
+                found = op->count(linkage, true);
                 if (found) { temp_terms.insert(&term); break; }
             }
 

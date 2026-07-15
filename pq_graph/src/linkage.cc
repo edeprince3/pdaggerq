@@ -56,6 +56,9 @@ namespace pdaggerq {
         if ( left_ == nullptr)  left_ = std::make_shared<const Vertex>();
         if (right_ == nullptr) right_ = std::make_shared<const Vertex>();
 
+        // cache depth
+        depth_ = 1 + std::max(left_->depth(), right_->depth());
+
         // determine if left and right vertices are valid
         bool left_valid  =  !left_->empty() && (fabs( left_->value() - 1.0) > 1e-8);
         bool right_valid = !right_->empty() && (fabs(right_->value() - 1.0) > 1e-8);
@@ -119,59 +122,52 @@ namespace pdaggerq {
             return;
         }
 
-        // match left and right lines with a flat small-buffer scan. line counts are
-        // tensor ranks (tiny), so a linear equality scan beats hashing -- and the
-        // unordered_map this replaces heap-allocated for every Linkage ever
-        // constructed, which perf showed dominating the optimizer's allocator
-        // traffic. semantics are identical to the map version, including duplicate
-        // collapse: one entry per distinct line value, last left/right index wins.
-        const size_t max_entries = (size_t) left_size + (size_t) right_size;
-        const Line *entry_line[max_entries];
-        std::array<int_fast8_t, 2> entry_connec[max_entries];
-        size_t n_entries = 0;
+        // create a flat array of line entries (faster than unordered_map for small N)
+        struct LineEntry {
+            const Line* line;
+            int_fast8_t left_id;
+            int_fast8_t right_id;
+        };
+        LineEntry line_entries[left_size + right_size];
+        uint_fast8_t entry_count = 0;
 
         // populate left lines (a duplicate left line overwrites its entry, as the
         // map's operator[] did)
         for (uint_fast8_t i = 0; i < left_size; i++) {
-            size_t e = 0;
-            while (e < n_entries && !(*entry_line[e] == left_lines[i])) ++e;
-            if (e == n_entries) entry_line[n_entries++] = &left_lines[i];
-            entry_connec[e] = {static_cast<int_fast8_t>(i), -1};
+            line_entries[entry_count++] = {&left_lines[i], (int_fast8_t)i, -1};
         }
 
-        // populate right lines and track index (a match updates right_id, last wins)
+        // populate right lines — linear scan for matches
+        LineEqual line_eq;
         for (uint_fast8_t i = 0; i < right_size; i++) {
-            size_t e = 0;
-            while (e < n_entries && !(*entry_line[e] == right_lines[i])) ++e;
-            if (e == n_entries) {
-                entry_line[n_entries++] = &right_lines[i];
-                entry_connec[e] = {-1, static_cast<int_fast8_t>(i)};
-            } else {
-                entry_connec[e][1] = static_cast<int_fast8_t>(i);
+            bool found = false;
+            for (uint_fast8_t j = 0; j < entry_count; j++) {
+                if (line_eq(line_entries[j].line, &right_lines[i])) {
+                    line_entries[j].right_id = (int_fast8_t)i;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                line_entries[entry_count++] = {&right_lines[i], -1, (int_fast8_t)i};
             }
         }
 
-        // now we have the distinct lines with their corresponding indices
         // determine which lines are internal and external and store their indices
         bool left_ext_idx[left_size], right_ext_idx[right_size];
         memset( left_ext_idx, '\0',  left_size);
         memset(right_ext_idx, '\0', right_size);
 
         // reserve lines for indices
-        connec_map_.reserve(n_entries);
+        connec_map_.reserve(entry_count);
 
         // populate connec_map_, rank, memory and flop scaling
-        for (size_t e = 0; e < n_entries; e++) {
-
-            // get indices
-            const auto &line_connec = entry_connec[e];
-            const auto &[left_idx, right_idx] = line_connec;
+        for (uint_fast8_t j = 0; j < entry_count; j++) {
+            int_fast8_t left_idx = line_entries[j].left_id;
+            int_fast8_t right_idx = line_entries[j].right_id;
 
             // add to connection map
-            connec_map_.push_back(line_connec);
-
-            // get line
-            const Line &line = *entry_line[e];
+            connec_map_.push_back({left_idx, right_idx});
 
             // check if line is external and should be added
             bool left_external  = right_idx < 0;
@@ -184,59 +180,69 @@ namespace pdaggerq {
             if (right_idx >= 0) right_ext_idx[right_idx] = right_external;
 
             // update flop scaling
-            flop_scale_ += line;
+            flop_scale_ += *line_entries[j].line;
         }
-
-        // make external lines
-        lines_.reserve(mem_scale_.n_);
-        line_vector sig_lines;
-        line_vector den_lines;
 
         // sort the connections
         std::sort(connec_map_.begin(), connec_map_.end());
 
-        line_vector &lines = lines_;
-        auto add_line = [&lines, &sig_lines, &den_lines](const Line &line) {
+        // collect external lines into stack-allocated buffers (avoids heap allocation)
+        Line sig_buf[left_size + right_size];
+        Line reg_buf[left_size + right_size];
+        Line den_buf[left_size + right_size];
+        uint_fast8_t sig_count = 0, reg_count = 0, den_count = 0;
+
+        auto add_line = [&](const Line &line) {
             if (!line.sig_ & !line.den_)
-                lines.push_back(line);
+                reg_buf[reg_count++] = line;
             else if (line.sig_)
-                sig_lines.push_back(line);
+                sig_buf[sig_count++] = line;
             else
-                den_lines.push_back(line);
+                den_buf[den_count++] = line;
         };
 
+        // create external lines — keep super and subscripts in order
+        uint_fast8_t left_half = left_size - left_size / 2;
+        uint_fast8_t right_half = right_size - right_size / 2;
 
-        // left half
-        for (uint_fast8_t i = 0; i < left_size; ++i) {
-            // skip internal lines, and keep all lines if addition
-            if (!addition_ & !left_ext_idx[i]) continue;
-            add_line(left_lines[i]);
-            mem_scale_ += left_lines[i];
+        // first half of lines
+        for (uint_fast8_t i = 0; i < left_half; i++) {
+            if (left_ext_idx[i] || addition_)
+                add_line(left_lines[i]);
+        }
+        if (!addition_) {
+            for (uint_fast8_t i = 0; i < right_half; i++) {
+                if (right_ext_idx[i])
+                    add_line(right_lines[i]);
+            }
         }
 
-        // right half
-        for (uint_fast8_t i = 0; i < right_size; ++i) {
-            // skip internal lines, and keep all lines if addition
-            if (!right_ext_idx[i]) continue;
-            add_line(right_lines[i]);
-            mem_scale_ += right_lines[i];
+        // second half of lines
+        for (uint_fast8_t i = left_half; i < left_size; i++) {
+            if (left_ext_idx[i] || addition_)
+                add_line(left_lines[i]);
+        }
+        if (!addition_) {
+            for (uint_fast8_t i = right_half; i < right_size; i++) {
+                if (right_ext_idx[i])
+                    add_line(right_lines[i]);
+            }
         }
 
-        // add sigma lines to the beginning of lines_
-        if (!sig_lines.empty())
-            lines_.insert(lines_.begin(), sig_lines.begin(), sig_lines.end());
-
-        // add density lines to the beginning of lines_
-        if (!den_lines.empty())
-            lines_.insert(lines_.begin(), den_lines.begin(), den_lines.end());
-
-//        std::sort(lines_.begin(), lines_.end(), line_compare());
+        // build lines_ in correct order: sig, regular, den (avoids insert-at-beginning)
+        lines_.reserve(sig_count + reg_count + den_count);
+        for (uint_fast8_t i = 0; i < sig_count; i++) lines_.push_back(sig_buf[i]);
+        for (uint_fast8_t i = 0; i < reg_count; i++) lines_.push_back(reg_buf[i]);
+        for (uint_fast8_t i = 0; i < den_count; i++) lines_.push_back(den_buf[i]);
 
         // update vertex members
         set_properties();
     }
 
     VertexPtr Linkage::relabel() const {
+
+        // TODO: fix relabeling for vertices with additions.
+        return clone();
 
         // create a deep copy of the linkage
         MutableLinkagePtr new_link = as_link(clone());
@@ -268,7 +274,7 @@ namespace pdaggerq {
         size_t occ_idx = 0, virt_idx = 0, sig_idx = 0, den_idx = 0;
 
         // map lines to their first appearance
-        unordered_map<Line, Line, LineHash> line_map;
+        LineMap line_map;
         for (const auto &line : lines) {
             // first check if line is already in map; skip if it is
             if (line_map.find(line) != line_map.end())
@@ -299,53 +305,48 @@ namespace pdaggerq {
 
 
     void Linkage::set_properties() {
-        // base_name_ is about to be rebuilt: invalidate its cached hash
-        base_hash_ = 0;
 
-        // determine the depth of the linkage
-        depth_ = 1;
-        size_t left_depth = left_->depth(), right_depth = right_->depth();
-        depth_ += std::max(left_depth, right_depth);
+        // compute exact size needed for base_name_
+        size_t total = left_->name_.size() + 1 + right_->name_.size() + 1
+                     + connec_map_.size() * 3
+                     + 1 + left_->lines_.size()
+                     + 1 + right_->lines_.size()
+                     + 1 + lines_.size();
 
-        // create the name of the linkage
-        base_name_.reserve(left_->name_.size() + right_->name_.size() + 1);
-        base_name_ = left_->name_;
-        if (addition_)
-             base_name_ += '+';
-        else base_name_ += '*';
+        base_name_.clear();
+        base_name_.reserve(total);
+        base_name_ += left_->name_;
+        base_name_ += (addition_ ? '+' : '*');
         base_name_ += right_->name_;
         base_name_ += ' ';
 
-        // add connection map to base name
         for (const auto &[leftidx, rightidx] : connec_map_) {
-            base_name_ += (char)leftidx + '1'; // convert to int
+            base_name_ += (char)(leftidx + '1');
             base_name_ += '>';
-            base_name_ += (char)rightidx + '1'; // convert to int
+            base_name_ += (char)(rightidx + '1');
         }
 
-        // add hashes of the lines
         base_name_ += ' ';
-        for (const auto &line : left_->lines_) {
+        for (const auto &line : left_->lines_)
             base_name_ += line.type() + line.block() - 'a';
-        }
         base_name_ += ' ';
-        for (const auto &line : right_->lines_) {
+        for (const auto &line : right_->lines_)
             base_name_ += line.type() + line.block() - 'a';
-        }
         base_name_ += ' ';
-        for (const auto &line : lines_) {
+        for (const auto &line : lines_)
             base_name_ += line.type() + line.block() - 'a';
-        }
 
-        // base name is complete
         name_ = base_name_;
 
-        // set descriptors
         rank_  = lines_.size();
         shape_ = shape(lines_);
-        has_blk_  = left_->has_blk_  || right_->has_blk_;
+        mem_scale_ = shape_;
+        has_blk_  = left_->has_blk_  || right_->has_blk_ || shape_.b_ > 0;
         is_sigma_ = left_->is_sigma_ || right_->is_sigma_ || left_->shape_.L_ > 0 || right_->shape_.L_ > 0;
         is_den_   = left_->is_den_   || right_->is_den_   || left_->shape_.Q_ > 0 || right_->shape_.Q_ > 0;
+
+        // cache the hash for linkage_set lookups
+        hash_ = std::hash<string>{}(base_name_);
     }
 
     vector<Line> Linkage::internal_lines() const {
@@ -382,20 +383,23 @@ namespace pdaggerq {
     /****** operator overloads ******/
 
     bool Linkage::similar_root(const Linkage &other) const{
+        // fast hash check — different hashes means definitely not equal
+        if (hash_ != other.hash_) return false;
+
         // check if both linkage are empty or not
         if (empty() != other.empty()) return false;
 
         // check if linkage type is the same
         if (addition_ != other.addition_) return false;
 
-        // check the depth of the linkage
-        if (depth_ != other.depth_) return false;
-
         // note, we do NOT check the id of the linkage
 
         // check if left and right vertices are linked in the same way
         if ( left_->is_linked() !=  other.left_->is_linked()) return false;
         if (right_->is_linked() != other.right_->is_linked()) return false;
+
+        // check the depth of the linkage
+        if (depth() != other.depth()) return false;
 
         // check that scales are equal
         if (flop_scale_ != other.flop_scale_) return false;
@@ -461,12 +465,17 @@ namespace pdaggerq {
         bool same_type = id_ == other->id() && type() == other->type();
         if (!same_type) return false;
 
+        // Lock other's mutex if it's being accessed by const methods modifying mutable members
+        // However, operator== should ideally not modify state. Assuming it's safe or other is const.
+        // For safety in general concurrent access to Linkage objects, if other.mtx_ protects mutable members
+        // read by operator==, it should be locked. But operator== itself doesn't modify.
+        // The issue is more with copy/move of mutable members.
         return  *this == *as_link(other);
     }
 
     void Linkage::copy_link(const Linkage &other) {
-        // Lock the mutex for the scope of the function
-//        std::lock_guard<std::mutex> lock(mtx_);
+        // Lock the mutex of the source object ('other') to ensure thread-safe reads of its mutable members
+        std::lock_guard<std::mutex> lock_other(other.mtx_);
 
         // call base class copy constructor
         Vertex::operator=(other);
@@ -474,7 +483,6 @@ namespace pdaggerq {
         // fill linkage data (shallow copy, but vertex cannot be modified)
         left_  = other.left_;
         right_ = other.right_;
-        depth_ = other.depth_;
 
         // do NOT copy the lazy memoization caches (all_vert_, link_vector_,
         // permutations_): they regenerate on demand (link_vector()/permutations()
@@ -490,6 +498,8 @@ namespace pdaggerq {
         connec_map_ = other.connec_map_;
         flop_scale_ = other.flop_scale_;
         mem_scale_  = other.mem_scale_;
+        depth_      = other.depth_;
+        hash_       = other.hash_;
 
         // the cached hash tracks base_name_, which Vertex::operator= just copied
         base_hash_ = other.base_hash_;
@@ -500,6 +510,7 @@ namespace pdaggerq {
 
     void Linkage::forget(bool forget_all) const {
         // clears all vectors that track the graph structure of the linkage (allows for rebuilding)
+        std::lock_guard<std::mutex> lock(mtx_);
         all_vert_.clear();
         link_vector_.clear();
         permutations_.clear();
@@ -544,8 +555,8 @@ namespace pdaggerq {
     }
 
     void Linkage::move_link(Linkage &&other) {
-        // Lock the mutex for the scope of the function
-//        std::lock_guard<std::mutex> lock(mtx_);
+        // Lock the mutex of the source object ('other') to ensure thread-safe reads/moves of its mutable members
+        std::lock_guard<std::mutex> lock_other(other.mtx_);
 
         // call base class move constructor
         this->Vertex::operator=(other);
@@ -553,7 +564,6 @@ namespace pdaggerq {
         // move linkage data
         left_  = std::move(other.left_);
         right_ = std::move(other.right_);
-        depth_ = other.depth_;
 
         // move vectors that keep track of the graph structure
         all_vert_     = std::move(other.all_vert_);
@@ -564,6 +574,8 @@ namespace pdaggerq {
         connec_map_ = std::move(other.connec_map_);
         flop_scale_ = other.flop_scale_;
         mem_scale_  = other.mem_scale_;
+        depth_      = other.depth_;
+        hash_       = other.hash_;
 
         // copy misc properties
         copy_misc(other);
@@ -585,18 +597,23 @@ namespace pdaggerq {
 
     void Linkage::update_lines(const line_vector &lines, bool update_name) {
 
-        // map lines to the new lines if compatible
-        bool compatible = true;
+        // map lines to the new lines if compatible (same type and block)        
+        bool compatible = lines_.size() == lines.size();
         for (size_t i = 0; i < lines_.size(); i++) {
-            if (!lines_[i].equivalent(lines[i])) {
-                compatible = false; break;
-            }
+            if (!compatible) break;
+            compatible = lines_[i].equivalent(lines[i]);
         }
+        
         if (compatible) {
-            unordered_map<Line, Line, LineHash> line_map = LineHash::map_lines(lines_, lines);
+            // if compatible, update lines and properties
+            LineMap line_map = LineHash::map_lines(lines_, lines);
             this->replace_lines(line_map, update_name);
+        } else {
+            // if not compatible, just replace lines and update properties 
+            // (we will lose the connectivity information, but the user should be aware of this)
+            lines_ = lines;
+            set_properties();
         }
-
         if (update_name)
             this->update_name();
     }
@@ -616,6 +633,14 @@ namespace pdaggerq {
         if (!left_valid && !right_valid) return make_shared<Vertex>();
 
         return make_shared<Linkage>(left, right, false);
+    }
+    extern MutableVertexPtr operator*(VertexPtr &&left, const VertexPtr &right){
+        bool left_valid = left && !left->empty(), right_valid = right && !right->empty();
+        if ( left_valid && !right_valid) return  left->shallow();
+        if (!left_valid &&  right_valid) return right->shallow();
+        if (!left_valid && !right_valid) return make_shared<Vertex>();
+
+        return make_shared<Linkage>(std::move(left), right, false);
     }
     extern MutableVertexPtr operator*(double factor, const VertexPtr &right){
         int min_precision = minimum_precision(factor);

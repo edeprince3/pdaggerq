@@ -34,12 +34,14 @@
 #include <algorithm>
 #include <cstring>
 #include <bitset>
+#include <cstdint>
 
 using std::runtime_error;
 using std::hash;
 using std::array;
 using std::find;
 using std::string;
+using std::uint_fast8_t;
 
 
 namespace pdaggerq {
@@ -184,22 +186,24 @@ namespace pdaggerq {
         }
 
         bool operator<(const Line& other) const {
-            // sort by sig, den, nuc, o, a, then label
+            // sort by sig, nuc, o, a, den, then label. nuc_ (electron before nuclear) only
+            // discriminates a nuclear line from an electron one -- among electron lines it
+            // is always false -- so inserting it leaves master's electron ordering exactly.
             if (sig_ ^ other.sig_) return sig_;
-            if (den_ ^ other.den_) return den_;
-            if (nuc_ ^ other.nuc_) return !nuc_; // electron lines before nuclear lines
+            if (nuc_ ^ other.nuc_) return !nuc_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
+            if (den_ ^ other.den_) return den_;
             return label_ < other.label_;
         }
 
         bool same_kind(const Line& other) const {
-            // sort by sig, den, nuc, o, a, but not label
+            // sort by sig, nuc, o, a, den, but not label (see operator<)
             if (sig_ ^ other.sig_) return sig_;
-            if (den_ ^ other.den_) return den_;
             if (nuc_ ^ other.nuc_) return !nuc_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
+            if (den_ ^ other.den_) return den_;
             if (sig_ & other.sig_) return label_ <= other.label_; // L should be first
             return true;
         }
@@ -360,6 +364,9 @@ namespace pdaggerq {
 
 // declare hash functions for Line class
 namespace pdaggerq {
+    struct LineHash;
+    typedef std::unordered_map<Line, Line, LineHash> LineMap;
+
     struct LineHash {
         uint_fast16_t operator()(const Line &line) const {
 
@@ -390,10 +397,10 @@ namespace pdaggerq {
          * @param new_lines the new lines
          * @return a map of the old lines to the new lines
          */
-        static std::unordered_map<Line, Line, LineHash> map_lines(const line_vector &old_lines,
+        static LineMap map_lines(const line_vector &old_lines,
                                                                   const line_vector &new_lines) {
 
-            std::unordered_map<Line, Line, LineHash> line_map;
+            LineMap line_map;
             line_map.reserve(old_lines.size() + new_lines.size());
 
             // we want to map the old lines to the new lines

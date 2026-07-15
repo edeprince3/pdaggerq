@@ -127,8 +127,15 @@ namespace pdaggerq {
         /// maximum number of temporary rhs (-1 for no limit by overflow)
         size_t max_temps_ = static_cast<size_t>(-1l);
 
-        /// whether to use density fitted integrals
-        bool use_density_fitting_ = false;
+        /// whether to decompose ERIs into their Cholesky or density-fitted form
+        bool decompose_eri_ = false;
+
+        /// NEO density fitting (aux index first, B[Q,p,q]; splits cross-species g). Kept
+        /// separate from decompose_eri_ because the B layout and cross-species handling differ.
+        bool density_fitting_ = false;
+
+        /// whether to expand permutations of terms before optimization
+        bool expand_permutations_ = false;
 
         /// whether the equations have any sigma vectors
         bool has_sigma_vecs_ = false;
@@ -295,13 +302,6 @@ namespace pdaggerq {
          * @note recomputes scaling after adding tmps
          */
         static Term &add_tmp(const LinkagePtr& precon, Equation &equation, double coeff = 1.0);
-
-        /**
-         * Find the common coefficient of a set of terms
-         * @param terms terms to find common coefficient of
-         * @return common coefficient
-         */
-        static double common_coefficient(set<Term*> &terms);
 
         /**
          * print the scaling of the current equations and difference from previous scalings
