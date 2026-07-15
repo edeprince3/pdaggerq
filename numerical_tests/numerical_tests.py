@@ -3,7 +3,7 @@ import os
 import contextlib
 
 # Initialize log file
-LOG_FILE = "pq_test.log"
+LOG_FILE = "numerical_tests.log"
 @pytest.fixture(scope="session", autouse=True)
 def initialize_log_file():
     with open(LOG_FILE, "w") as f:
@@ -460,14 +460,14 @@ def test_eomccsd_codegen():
 def main():
     #test_ccsd_codegen_disk()
     #test_ccsd_codegen()
-    test_qed_ccsd_codegen()
+    #test_qed_ccsd_codegen()
     #test_ccsdt_codegen()
     #test_cc3_codegen()
     #test_eomccsd_codegen()
     #test_lambda_ccsd_codegen()
     #test_uccsd_3_codegen()
     #test_uccsd_4_codegen()
-    #raise Exception("run with pytest")
+    raise Exception("run with pytest")
 
 if __name__ == "__main__":
     main()

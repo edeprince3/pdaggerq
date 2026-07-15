@@ -9,6 +9,8 @@ def configure_graph():
     """
     return pdaggerq.pq_graph({
         'batched': False,
+        #'batched': True,
+        #'batch_number': 100,
         'print_level': 0,
         'opt_level': 0,
         'nthreads': -1,
@@ -223,7 +225,7 @@ def cc_residual(residual_name,
     L, 
     function_name, 
     spin_block = True, 
-    write_function = True,
+    write_function = False,
     is_qed = False):
 
     """
@@ -315,7 +317,13 @@ def cc_residual(residual_name,
 
     return generated_code_string
 
-def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = True, write_function = False):
+def uccsd_singles_residual(order, 
+    residual_name, 
+    L,
+    function_name,
+    spin_block = True, 
+    write_function = False):
+
     """
     derive equations for UCCSD singles residual, truncation based on perturbation order
 
@@ -404,7 +412,13 @@ def uccsd_singles_residual(order, residual_name, L, function_name, spin_block = 
 
     return generated_code_string
 
-def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = True, write_function = False):
+def uccsd_doubles_residual(order, 
+    residual_name,
+    L,
+    function_name,
+    spin_block = True,
+    write_function = False):
+
     """
     derive equations for UCCSD doubles residual, truncation based on perturbation order
 
@@ -499,7 +513,12 @@ def uccsd_doubles_residual(order, residual_name, L, function_name, spin_block = 
 
     return generated_code_string
 
-def uccsd_energy(order, energy_name, function_name, spin_block = True, write_function = False):
+def uccsd_energy(order,
+    energy_name,
+    function_name,
+    spin_block = True,
+    write_function = False):
+
     """
     derive equations for UCCSD energy, truncation based on perturbation order
 
@@ -600,7 +619,12 @@ def uccsd_energy(order, energy_name, function_name, spin_block = True, write_fun
 
     return generated_code_string
 
-def cc3_triples_residual(residual_name, L, function_name, spin_block = True, write_function = False):
+def cc3_triples_residual(residual_name,
+    L,
+    function_name,
+    spin_block = True,
+    write_function = False):
+
     """
     derive equations for the CC3 triples residual
 
@@ -688,7 +712,14 @@ def cc3_triples_residual(residual_name, L, function_name, spin_block = True, wri
 
     return generated_code_string
 
-def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True, write_function = False):
+def lambda_cc_residual(residual_name,
+    T,
+    L,
+    R, 
+    function_name, 
+    spin_block = True, 
+    write_function = False):
+
     """
     derive equations for lambda CC residual
 
@@ -781,7 +812,13 @@ def lambda_cc_residual(residual_name, T, L, R, function_name, spin_block = True,
 
     return generated_code_string
 
-def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True, write_function = False):
+def lambda_cc_pseudoenergy(energy_name,
+    L,
+    R,
+    function_name,
+    spin_block = True,
+    write_function = False):
+
     """
     derive equations for lambda CC pseudoenergy
 
@@ -858,7 +895,14 @@ def lambda_cc_pseudoenergy(energy_name, L, R, function_name, spin_block = True, 
 
     return generated_code_string
 
-def eomcc_sigma(sigma_name, T, L, R, function_name, spin_block = True, write_function = False):
+def eomcc_sigma(sigma_name, 
+    T,
+    L,
+    R, 
+    function_name,
+    spin_block = True,
+    write_function = False):
+
     """
     derive equations for left/right EOMCC sigma equations
     

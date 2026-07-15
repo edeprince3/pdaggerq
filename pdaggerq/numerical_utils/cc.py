@@ -107,10 +107,13 @@ class cc:
 
             if t3_residual_func is not None:
                 raise Exception("spin-orbital CCSDT and CC3 are not implemented")
+
             if t0_1p_residual_func is not None:
                 raise Exception("spin-orbital QED-CC is not implemented")
+
             if t1_1p_residual_func is not None:
                 raise Exception("spin-orbital QED-CC is not implemented")
+
             if t2_1p_residual_func is not None:
                 raise Exception("spin-orbital QED-CC is not implemented")
 
@@ -230,10 +233,10 @@ class cc:
                                              + eps_b[n,  n,  n,  n, ob,  n]
                                              + eps_b[n,  n,  n,  n,  n, ob] )
             else:
-                self.e_aaaaaa_abcijk = np.zeros((1))
-                self.e_aabaab_abcijk = np.zeros((1))
-                self.e_abbabb_abcijk = np.zeros((1))
-                self.e_bbbbbb_abcijk = np.zeros((1))
+                self.e_aaaaaa_abcijk = np.ones((1))
+                self.e_aabaab_abcijk = np.ones((1))
+                self.e_abbabb_abcijk = np.ones((1))
+                self.e_bbbbbb_abcijk = np.ones((1))
 
             self.e_aa_ai = 1 / (-eps_a[va, n] + eps_a[n, oa])
             self.e_bb_ai = 1 / (-eps_b[vb, n] + eps_b[n, ob])
@@ -297,28 +300,34 @@ class cc:
    
         self.nuclear_repulsion_energy = self.mol.nuclear_repulsion_energy()
 
+        # residual functions
+
         # cc
+
         self.cc_energy = types.MethodType(cc_energy_func, self)
         self.t1_residual = types.MethodType(t1_residual_func, self)
         self.t2_residual = types.MethodType(t2_residual_func, self)
+
         if t3_residual_func is not None:
             self.t3_residual = types.MethodType(t3_residual_func, self)
         else:
-            self.t3_residual = None
+            self.t3_residual = lambda *args, **kwargs: (np.zeros((1)), np.zeros((1)), np.zeros((1)), np.zeros((1)))
 
         # qed-cc
         if t0_1p_residual_func is not None:
             self.t0_1p_residual = types.MethodType(t0_1p_residual_func, self)
         else:
-            self.t0_1p_residual = None
+            self.t0_1p_residual = lambda *args, **kwargs: (0.0)
+
         if t1_1p_residual_func is not None:
             self.t1_1p_residual = types.MethodType(t1_1p_residual_func, self)
         else:
-            self.t1_1p_residual = None
+            self.t1_1p_residual = lambda *args, **kwargs: (np.zeros((1)), np.zeros((1)))
+
         if t2_1p_residual_func is not None:
             self.t2_1p_residual = types.MethodType(t2_1p_residual_func, self)
         else:
-            self.t2_1p_residual = None
+            self.t2_1p_residual = lambda *args, **kwargs: (np.zeros((1)), np.zeros((1)), np.zeros((1)))
 
         # lambda CC
         if cc_pseudoenergy_func is not None:
@@ -420,16 +429,10 @@ class cc:
         fock_e_bbbb_abij = np.reciprocal(self.e_bbbb_abij)
         fock_e_abab_abij = np.reciprocal(self.e_abab_abij)
 
-        if self.t3_residual is not None:
-            fock_e_aaaaaa_abcijk = np.reciprocal(self.e_aaaaaa_abcijk)
-            fock_e_aabaab_abcijk = np.reciprocal(self.e_aabaab_abcijk)
-            fock_e_abbabb_abcijk = np.reciprocal(self.e_abbabb_abcijk)
-            fock_e_bbbbbb_abcijk = np.reciprocal(self.e_bbbbbb_abcijk)
-        else:
-            fock_e_aaaaaa_abcijk = np.zeros((1))
-            fock_e_aabaab_abcijk = np.zeros((1))
-            fock_e_abbabb_abcijk = np.zeros((1))
-            fock_e_bbbbbb_abcijk = np.zeros((1))
+        fock_e_aaaaaa_abcijk = np.reciprocal(self.e_aaaaaa_abcijk)
+        fock_e_aabaab_abcijk = np.reciprocal(self.e_aabaab_abcijk)
+        fock_e_abbabb_abcijk = np.reciprocal(self.e_abbabb_abcijk)
+        fock_e_bbbbbb_abcijk = np.reciprocal(self.e_bbbbbb_abcijk)
 
         old_energy = self.cc_energy()
     
@@ -440,35 +443,13 @@ class cc:
         for idx in range(max_iter):
     
             residual_t1_aa, residual_t1_bb = self.t1_residual()
-    
             residual_t2_aaaa, residual_t2_abab, residual_t2_bbbb = self.t2_residual()
-    
-            if self.t3_residual is not None:
-                residual_t3_aaaaaa, residual_t3_aabaab, residual_t3_abbabb, residual_t3_bbbbbb = self.t3_residual()
-            else:
-                residual_t3_aaaaaa = np.zeros((1))
-                residual_t3_aabaab = np.zeros((1))
-                residual_t3_abbabb = np.zeros((1))
-                residual_t3_bbbbbb = np.zeros((1))
+            residual_t3_aaaaaa, residual_t3_aabaab, residual_t3_abbabb, residual_t3_bbbbbb = self.t3_residual()
 
             # qed-cc
-            if self.t0_1p_residual is not None:
-                residual_t0_1p = self.t0_1p_residual()
-            else:
-                residual_t0_1p = 0.0
-
-            if self.t1_1p_residual is not None:
-                residual_t1_1p_aa, residual_t1_1p_bb = self.t1_1p_residual()
-            else:
-                residual_t1_1p_aa = np.zeros((1))
-                residual_t1_1p_bb = np.zeros((1))
-
-            if self.t2_1p_residual is not None:
-                residual_t2_1p_aaaa, residual_t2_1p_abab, residual_t2_1p_bbbb = self.t2_1p_residual()
-            else:
-                residual_t2_1p_aaaa = np.zeros((1))
-                residual_t2_1p_abab = np.zeros((1))
-                residual_t2_1p_bbbb = np.zeros((1))
+            residual_t0_1p = self.t0_1p_residual()
+            residual_t1_1p_aa, residual_t1_1p_bb = self.t1_1p_residual()
+            residual_t2_1p_aaaa, residual_t2_1p_abab, residual_t2_1p_bbbb = self.t2_1p_residual()
 
             res_norm = ( np.linalg.norm(residual_t1_aa)
                 + np.linalg.norm(residual_t1_bb)
@@ -503,115 +484,84 @@ class cc:
             #t0_1p_res = -residual_t0_1p / self.cavity_frequency
             t0_1p_res = residual_t0_1p - self.t0_1p * self.cavity_frequency
 
-            t1_1p_aa_res = residual_t1_1p_aa + fock_e_aa_ai * self.t1_1p_aa
-            t1_1p_bb_res = residual_t1_1p_bb + fock_e_bb_ai * self.t1_1p_bb
+            t1_1p_aa_res = residual_t1_1p_aa + (fock_e_aa_ai * self.t1_1p_aa if self.t1_1p_aa.ndim == 2 else 0.0)
+            t1_1p_bb_res = residual_t1_1p_bb + (fock_e_bb_ai * self.t1_1p_bb if self.t1_1p_bb.ndim == 2 else 0.0)
     
-            t2_1p_aaaa_res = residual_t2_1p_aaaa + fock_e_aaaa_abij * self.t2_1p_aaaa
-            t2_1p_abab_res = residual_t2_1p_abab + fock_e_abab_abij * self.t2_1p_abab
-            t2_1p_bbbb_res = residual_t2_1p_bbbb + fock_e_bbbb_abij * self.t2_1p_bbbb
+            t2_1p_aaaa_res = residual_t2_1p_aaaa + (fock_e_aaaa_abij * self.t2_1p_aaaa if self.t2_1p_aaaa.ndim == 4 else 0.0)
+            t2_1p_abab_res = residual_t2_1p_abab + (fock_e_abab_abij * self.t2_1p_abab if self.t2_1p_abab.ndim == 4 else 0.0)
+            t2_1p_bbbb_res = residual_t2_1p_bbbb + (fock_e_bbbb_abij * self.t2_1p_bbbb if self.t2_1p_bbbb.ndim == 4 else 0.0)
     
-            new_t1_aa = t1_aa_res * self.e_aa_ai
-            new_t1_bb = t1_bb_res * self.e_bb_ai
+            self.t1_aa = t1_aa_res * self.e_aa_ai
+            self.t1_bb = t1_bb_res * self.e_bb_ai
     
-            new_t2_aaaa = t2_aaaa_res * self.e_aaaa_abij
-            new_t2_abab = t2_abab_res * self.e_abab_abij
-            new_t2_bbbb = t2_bbbb_res * self.e_bbbb_abij
+            self.t2_aaaa = t2_aaaa_res * self.e_aaaa_abij
+            self.t2_abab = t2_abab_res * self.e_abab_abij
+            self.t2_bbbb = t2_bbbb_res * self.e_bbbb_abij
 
-            new_t3_aaaaaa = t3_aaaaaa_res * self.e_aaaaaa_abcijk
-            new_t3_aabaab = t3_aabaab_res * self.e_aabaab_abcijk
-            new_t3_abbabb = t3_abbabb_res * self.e_abbabb_abcijk
-            new_t3_bbbbbb = t3_bbbbbb_res * self.e_bbbbbb_abcijk
+            self.t3_aaaaaa = t3_aaaaaa_res * self.e_aaaaaa_abcijk
+            self.t3_aabaab = t3_aabaab_res * self.e_aabaab_abcijk
+            self.t3_abbabb = t3_abbabb_res * self.e_abbabb_abcijk
+            self.t3_bbbbbb = t3_bbbbbb_res * self.e_bbbbbb_abcijk
 
             # qed-cc
             # TODO: t0_1p
             #new_t0_1p = self.t0_1p + t0_1p_res 
-            new_t0_1p = -t0_1p_res / self.cavity_frequency
+            self.t0_1p = -t0_1p_res / self.cavity_frequency
 
-            if self.t1_1p_residual is not None:
-                new_t1_1p_aa = t1_1p_aa_res * self.e_aa_ai
-                new_t1_1p_bb = t1_1p_bb_res * self.e_bb_ai
-            else:
-                new_t1_1p_aa = np.zeros((1))
-                new_t1_1p_bb = np.zeros((1))
+            self.t1_1p_aa = t1_1p_aa_res * (self.e_aa_ai if self.t1_1p_aa.ndim == 2 else 1)
+            self.t1_1p_bb = t1_1p_bb_res * (self.e_bb_ai if self.t1_1p_bb.ndim == 2 else 1)
     
-            if self.t2_1p_residual is not None:
-                new_t2_1p_aaaa = t2_1p_aaaa_res * self.e_aaaa_abij
-                new_t2_1p_abab = t2_1p_abab_res * self.e_abab_abij
-                new_t2_1p_bbbb = t2_1p_bbbb_res * self.e_bbbb_abij
-            else:
-                new_t2_1p_aaaa = np.zeros((1))
-                new_t2_1p_bbbb = np.zeros((1))
-                new_t2_1p_abab = np.zeros((1))
+            self.t2_1p_aaaa = t2_1p_aaaa_res * (self.e_aaaa_abij if self.t2_1p_aaaa.ndim == 4 else 1)
+            self.t2_1p_abab = t2_1p_abab_res * (self.e_abab_abij if self.t2_1p_abab.ndim == 4 else 1)
+            self.t2_1p_bbbb = t2_1p_bbbb_res * (self.e_bbbb_abij if self.t2_1p_bbbb.ndim == 4 else 1)
 
             # diis update
             if diis_size is not None:
-                vectorized_iterate = np.hstack((new_t1_aa.flatten(),
-                    new_t1_bb.flatten(),
-                    new_t2_aaaa.flatten(),
-                    new_t2_abab.flatten(),
-                    new_t2_bbbb.flatten(),
-                    new_t3_aaaaaa.flatten(),
-                    new_t3_aabaab.flatten(),
-                    new_t3_abbabb.flatten(),
-                    new_t3_bbbbbb.flatten(),
-                    new_t0_1p,
-                    new_t1_1p_aa.flatten(),
-                    new_t1_1p_bb.flatten(),
-                    new_t2_1p_aaaa.flatten(),
-                    new_t2_1p_abab.flatten(),
-                    new_t2_1p_bbbb.flatten()
+                vectorized_iterate = np.hstack((self.t1_aa.flatten(),
+                    self.t1_bb.flatten(),
+                    self.t2_aaaa.flatten(),
+                    self.t2_abab.flatten(),
+                    self.t2_bbbb.flatten(),
+                    self.t3_aaaaaa.flatten(),
+                    self.t3_aabaab.flatten(),
+                    self.t3_abbabb.flatten(),
+                    self.t3_bbbbbb.flatten(),
+                    self.t0_1p,
+                    self.t1_1p_aa.flatten(),
+                    self.t1_1p_bb.flatten(),
+                    self.t2_1p_aaaa.flatten(),
+                    self.t2_1p_abab.flatten(),
+                    self.t2_1p_bbbb.flatten()
                 ))
 
                 error_vec = old_vec - vectorized_iterate
                 new_vectorized_iterate = diis_update.compute_new_vec(vectorized_iterate,
                     error_vec)
 
-                new_t1_aa = new_vectorized_iterate[:t1_aa_end].reshape(self.t1_aa.shape)
-                new_t1_bb = new_vectorized_iterate[t1_aa_end:t1_bb_end].reshape(self.t1_bb.shape)
+                self.t1_aa = new_vectorized_iterate[:t1_aa_end].reshape(self.t1_aa.shape)
+                self.t1_bb = new_vectorized_iterate[t1_aa_end:t1_bb_end].reshape(self.t1_bb.shape)
     
-                new_t2_aaaa = new_vectorized_iterate[t1_bb_end:t2_aaaa_end].reshape(self.t2_aaaa.shape)
-                new_t2_abab = new_vectorized_iterate[t2_aaaa_end:t2_abab_end].reshape(self.t2_abab.shape)
-                new_t2_bbbb = new_vectorized_iterate[t2_abab_end:t2_bbbb_end].reshape(self.t2_bbbb.shape)
+                self.t2_aaaa = new_vectorized_iterate[t1_bb_end:t2_aaaa_end].reshape(self.t2_aaaa.shape)
+                self.t2_abab = new_vectorized_iterate[t2_aaaa_end:t2_abab_end].reshape(self.t2_abab.shape)
+                self.t2_bbbb = new_vectorized_iterate[t2_abab_end:t2_bbbb_end].reshape(self.t2_bbbb.shape)
     
-                new_t3_aaaaaa = new_vectorized_iterate[t2_bbbb_end:t3_aaaaaa_end].reshape(self.t3_aaaaaa.shape)
-                new_t3_aabaab = new_vectorized_iterate[t3_aaaaaa_end:t3_aabaab_end].reshape(self.t3_aabaab.shape)
-                new_t3_abbabb = new_vectorized_iterate[t3_aabaab_end:t3_abbabb_end].reshape(self.t3_abbabb.shape)
-                new_t3_bbbbbb = new_vectorized_iterate[t3_abbabb_end:t3_bbbbbb_end].reshape(self.t3_bbbbbb.shape)
+                self.t3_aaaaaa = new_vectorized_iterate[t2_bbbb_end:t3_aaaaaa_end].reshape(self.t3_aaaaaa.shape)
+                self.t3_aabaab = new_vectorized_iterate[t3_aaaaaa_end:t3_aabaab_end].reshape(self.t3_aabaab.shape)
+                self.t3_abbabb = new_vectorized_iterate[t3_aabaab_end:t3_abbabb_end].reshape(self.t3_abbabb.shape)
+                self.t3_bbbbbb = new_vectorized_iterate[t3_abbabb_end:t3_bbbbbb_end].reshape(self.t3_bbbbbb.shape)
 
                 # qed-cc
-                new_t0_1p = new_vectorized_iterate[t3_bbbbbb_end]
+                self.t0_1p = new_vectorized_iterate[t3_bbbbbb_end]
 
-                new_t1_1p_aa = new_vectorized_iterate[t0_1p_end:t1_1p_aa_end].reshape(self.t1_1p_aa.shape)
-                new_t1_1p_bb = new_vectorized_iterate[t1_1p_aa_end:t1_1p_bb_end].reshape(self.t1_1p_bb.shape)
+                self.t1_1p_aa = new_vectorized_iterate[t0_1p_end:t1_1p_aa_end].reshape(self.t1_1p_aa.shape)
+                self.t1_1p_bb = new_vectorized_iterate[t1_1p_aa_end:t1_1p_bb_end].reshape(self.t1_1p_bb.shape)
     
-                new_t2_1p_aaaa = new_vectorized_iterate[t1_1p_bb_end:t2_1p_aaaa_end].reshape(self.t2_1p_aaaa.shape)
-                new_t2_1p_abab = new_vectorized_iterate[t2_1p_aaaa_end:t2_1p_abab_end].reshape(self.t2_1p_abab.shape)
-                new_t2_1p_bbbb = new_vectorized_iterate[t2_1p_abab_end:t2_1p_bbbb_end].reshape(self.t2_1p_bbbb.shape)
+                self.t2_1p_aaaa = new_vectorized_iterate[t1_1p_bb_end:t2_1p_aaaa_end].reshape(self.t2_1p_aaaa.shape)
+                self.t2_1p_abab = new_vectorized_iterate[t2_1p_aaaa_end:t2_1p_abab_end].reshape(self.t2_1p_abab.shape)
+                self.t2_1p_bbbb = new_vectorized_iterate[t2_1p_abab_end:t2_1p_bbbb_end].reshape(self.t2_1p_bbbb.shape)
 
                 old_vec = new_vectorized_iterate
     
-            self.t1_aa = new_t1_aa
-            self.t1_bb = new_t1_bb
-    
-            self.t2_aaaa = new_t2_aaaa
-            self.t2_abab = new_t2_abab
-            self.t2_bbbb = new_t2_bbbb
-
-            self.t3_aaaaaa = new_t3_aaaaaa
-            self.t3_aabaab = new_t3_aabaab
-            self.t3_abbabb = new_t3_abbabb
-            self.t3_bbbbbb = new_t3_bbbbbb
-
-            # qed-cc
-            self.t0_1p = new_t0_1p
-
-            self.t1_1p_aa = new_t1_1p_aa
-            self.t1_1p_bb = new_t1_1p_bb
-    
-            self.t2_1p_aaaa = new_t2_1p_aaaa
-            self.t2_1p_abab = new_t2_1p_abab
-            self.t2_1p_bbbb = new_t2_1p_bbbb
-
             current_energy = self.cc_energy()
     
             delta_e = np.abs(old_energy - current_energy)
