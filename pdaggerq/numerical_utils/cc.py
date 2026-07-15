@@ -17,7 +17,7 @@
 #   limitations under the License.
 
 """
-CCSD, CCSDT/CC3, and lambda CCSD
+Solvers for CCSD, CCSDT/CC3, QED-CCSD-21, and lambda CCSD
 """
 
 import numpy as np
@@ -176,8 +176,8 @@ class cc:
                 self.f_bb -= 0.5 * quadrupole_bb
 
                 # scale dipole integrals for the bilinear coupling term
-                self.dipole_aa = np.sqrt(self.cavity_frequency/2.0) * dipole_aa
-                self.dipole_bb = np.sqrt(self.cavity_frequency/2.0) * dipole_bb
+                self.dipole_aa = np.sqrt(0.5 * self.cavity_frequency) * dipole_aa
+                self.dipole_bb = np.sqrt(0.5 * self.cavity_frequency) * dipole_bb
                 
             # orbital energies
             row, col = self.f_aa.shape
@@ -432,7 +432,6 @@ class cc:
             fock_e_bbbbbb_abcijk = np.zeros((1))
 
         old_energy = self.cc_energy()
-        print('heyhey', old_energy + self.nuclear_repulsion_energy)
     
         print("")
         print("    ==> CC amplitude equations <==")
@@ -605,7 +604,6 @@ class cc:
 
             # qed-cc
             self.t0_1p = new_t0_1p
-            print(self.t0_1p)
 
             self.t1_1p_aa = new_t1_1p_aa
             self.t1_1p_bb = new_t1_1p_bb
