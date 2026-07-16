@@ -837,6 +837,12 @@ namespace pdaggerq {
     // "tmps_"; match those (and reused_/scalars_) by name prefix too.
     static bool ir_is_intermediate(const VertexPtr &v) {
         if (v->is_temp()) return true;
+        // A LINKAGE that is not a temp is an inline expression -- e.g. a fused ADDITION whose
+        // name() happens to start with its left temp's name ("tmps_[..] + einsum(..)"). It must
+        // be hoisted into its own temp, not referenced by name (there is no tensor of that
+        // name). Only non-linkage vertices (already-named temp references carried as plain
+        // vertices) are classified by the name prefix.
+        if (v->is_linked()) return false;
         const string &n = v->name();
         return n.rfind("tmps_", 0) == 0 || n.rfind("perm_tmps", 0) == 0
             || n.rfind("reused_", 0) == 0 || n.rfind("scalars_", 0) == 0;
@@ -877,8 +883,20 @@ namespace pdaggerq {
              + ",\"is_intermediate\":" + (is_intermediate ? "true" : "false") + "}";
     }
 
+    // Name for a vertex as it must appear in the IR. Vertex::name() for a merged/fused
+    // intermediate that is an ADDITION returns the expanded expression ("tmps_[...] +
+    // einsum(...)") rather than the temp's own name; str(true,false) always gives the temp
+    // identity (tmps_["id_shape"]). A temp DEFINITION target and every USE of it must agree
+    // on this identity -- if a use is named by name() it carries a stray einsum string and no
+    // tensor of that name exists. Input tensors (not intermediates) keep name().
+    static string ir_ident(const VertexPtr &v) {
+        if (v->is_linked() && ir_is_intermediate(v))
+            return as_link(v)->str(true, false);
+        return v->name();
+    }
+
     static string ir_vertex_json(const VertexPtr &v) {
-        return ir_vertex_json_core(v->name(), v->lines(), ir_is_intermediate(v));
+        return ir_vertex_json_core(ir_ident(v), v->lines(), ir_is_intermediate(v));
     }
 
     // Fresh names for synthetic hoisted intermediates (see ir_emit). Monotonic, so
@@ -1032,7 +1050,7 @@ namespace pdaggerq {
                 prefix += ir_emit(tn, op->lines(), true, true, 1.0, op, conds) + "\n";
                 operands.push_back({tn, op->lines(), true});
             } else {
-                operands.push_back({op->name(), op->lines(), ir_is_intermediate(op)});
+                operands.push_back({ir_ident(op), op->lines(), ir_is_intermediate(op)});
             }
         }
 
@@ -1120,7 +1138,7 @@ namespace pdaggerq {
     // lowering (see neocc/codegen/einsums_printer_plan.md). Permutation operators
     // are already expanded into separate terms by Term::str() before this point.
     string Term::ir_str() const {
-        return ir_emit(lhs_->name(), lhs_->lines(), ir_is_intermediate(lhs_),
+        return ir_emit(ir_ident(lhs_), lhs_->lines(), ir_is_intermediate(lhs_),
                        is_assignment_, coefficient_, term_linkage(true), conditions(),
                        ir_perm_json_);
     }
