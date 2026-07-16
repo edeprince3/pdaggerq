@@ -329,6 +329,103 @@ def cc_residual(residual_name,
 
     return generated_code_string
 
+def bernoulli_ucc_residual(rank, 
+    residual_name, 
+    T, 
+    L, 
+    function_name, 
+    spin_block = True, 
+    write_function = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for UCC, truncation based on Bernoulli expansion and commutator rank
+
+    :param residual_name: name for the variable representing the left-hand side of the residual equation
+    :param rank: commutator rank
+    :param T: list of cluster operators
+    :param L: left operator defining the bra / projection
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
+    """
+
+    if not spin_block:
+        raise Exception("spin-orbital cc residual equations not implemented")
+
+    pq = pdaggerq.pq_helper("fermi")
+
+    pq.set_unitary_cc(True)
+
+    # set bra
+    pq.set_left_operators(L)
+
+    # add similarity-transformed Hamiltonian
+    ham_terms = [['f'], ['v']]
+
+    pq.add_operator_product(1.0, ['f'])
+    for myT in T:
+        pq.add_commutator(1.0, ['f'], [myT])
+
+    pq.add_bernoulli_operator(1.0, ['v'], T, rank)
+
+    # cleanup
+    pq.simplify()
+
+    # dictionary to store the derived equations
+    eqs = {}
+
+    # spin blocking
+    if spin_block:
+        block_by_spin(pq, residual_name, L + T + ham_terms, eqs)
+    else:
+        eqs[residual_name] = pq.clone()
+        # print the fully contracted strings
+        print(f"Equation {residual_name}:", flush=True)
+        for term in pq.strings():
+            print(term, flush=True)
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    # Add equations to graph
+    for proj_eqname, eq in eqs.items():
+        print(f"Adding equation {proj_eqname} to the graph", flush=True)
+        graph.add(eq, proj_eqname)
+
+    # optimize the graph
+    graph.optimize()
+
+    # initialization statements
+    generated_code_string = f"""def {function_name}(self):"""
+
+    generated_code_string += function_initialization_string()
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    if '3' in residual_name:
+        generated_code_string += f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb"
+    elif '2' in residual_name:
+        generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb"
+    elif '1' in residual_name:
+        generated_code_string += f"    return {residual_name}_aa, {residual_name}_bb"
+    else:
+        generated_code_string += f"    return {residual_name}"
+
+    # write function 
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
+
+    pq.clear()
+
+    del pq
+
+    return generated_code_string
+
 def uccsd_singles_residual(order, 
     residual_name, 
     L,

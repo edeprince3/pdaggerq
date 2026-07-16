@@ -264,6 +264,80 @@ def test_uccsd_4_codegen():
 
         f.write(">>> TEST PASSED: UCCSD(4)\n")    
 
+@pytest.mark.quccsd
+def test_quccsd_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running QUCCSD ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # Import pq codegen functions 
+            from pdaggerq.numerical_utils.autogen import bernoulli_ucc_residual
+
+            # Create an empty dictionary to hold the pq-generated equations
+            local_namespace = {}
+
+            # Execute the code string in memory
+            T = ['t1', 't2']
+            exec(bernoulli_ucc_residual(3, 'cc_energy', T, [['1']], 'cc_energy'), globals(), local_namespace)
+            exec(bernoulli_ucc_residual(2, 'r1', T, [['e1(i,a)']], 't1_residual'), globals(), local_namespace)
+            exec(bernoulli_ucc_residual(2, 'r2', T, [['e2(i,j,b,a)']], 't2_residual'), globals(), local_namespace)
+
+            # Pass pq-generated functions into the cc solver
+            mol, wfn = setup_psi4_test()
+            mycc = cc(
+                wfn,
+                mol,
+                nfzc=1,
+                cc_energy_func=local_namespace["cc_energy"], 
+                t1_residual_func=local_namespace["t1_residual"],
+                t2_residual_func=local_namespace["t2_residual"]
+            )
+
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019629416631, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: QUCCSD\n")    
+
+#@pytest.mark.cuccsd
+#def test_cuccsd_codegen():
+#
+#    with open(LOG_FILE, "a") as f:
+#        f.write(">>> Running CUCCSD ...\n")
+#
+#        with contextlib.redirect_stdout(f):
+#
+#            # Import pq codegen functions 
+#            from pdaggerq.numerical_utils.autogen import bernoulli_ucc_residual
+#
+#            # Create an empty dictionary to hold the pq-generated equations
+#            local_namespace = {}
+#
+#            # Execute the code string in memory
+#            T = ['t1', 't2']
+#            exec(bernoulli_ucc_residual(4, 'cc_energy', T, [['1']], 'cc_energy'), globals(), local_namespace)
+#            exec(bernoulli_ucc_residual(3, 'r1', T, [['e1(i,a)']], 't1_residual'), globals(), local_namespace)
+#            exec(bernoulli_ucc_residual(3, 'r2', T, [['e2(i,j,b,a)']], 't2_residual'), globals(), local_namespace)
+#
+#            # Pass pq-generated functions into the cc solver
+#            mol, wfn = setup_psi4_test()
+#            mycc = cc(
+#                wfn,
+#                mol,
+#                nfzc=1,
+#                cc_energy_func=local_namespace["cc_energy"], 
+#                t1_residual_func=local_namespace["t1_residual"],
+#                t2_residual_func=local_namespace["t2_residual"]
+#            )
+#
+#            en = mycc.t_solver()
+#
+#            assert np.isclose(en, -75.019672668162, rtol=1e-10, atol=1e-10)
+#
+#        f.write(">>> TEST PASSED: CUCCSD\n")    
+
 @pytest.mark.lambda_ccsd
 def test_lambda_ccsd_codegen():
 
@@ -477,6 +551,8 @@ def main():
     #test_lambda_ccsd_codegen()
     #test_uccsd_3_codegen()
     #test_uccsd_4_codegen()
+    #test_quccsd_codegen()
+    #test_cuccsd_codegen()
     raise Exception("run with pytest")
 
 if __name__ == "__main__":
