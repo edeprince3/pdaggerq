@@ -91,6 +91,24 @@ namespace pdaggerq {
             do_sort_();
         }
 
+        // Insert keeping the CANONICAL representative among structural duplicates: dedup is
+        // label-invariant (LinkageEqual), so two structurally-equal candidates that differ
+        // only in their generic labels collide, and a plain unordered_set keeps whichever
+        // was inserted FIRST -- which, under the parallel candidate generation, depends on
+        // thread scheduling and makes the surviving labeling (and thus the generated code)
+        // nondeterministic. Keeping the lexicographically-smallest tot_str makes the survivor
+        // order-independent. Returns true if the set changed. Caller must hold mtx_.
+        bool insert_canonical_(const LinkagePtr &lk) {
+            auto result = linkages_.insert(lk);
+            if (result.second) return true;
+            if (lk->tot_str(true) < (*result.first)->tot_str(true)) {
+                linkages_.erase(result.first);
+                linkages_.insert(lk);
+                return true;
+            }
+            return false;
+        }
+
     public:
         typedef linkage_vector::const_iterator const_iterator;
 
@@ -133,23 +151,30 @@ namespace pdaggerq {
 
         auto insert(const VertexPtr &linkage) {
             std::lock_guard<std::mutex> lock(mtx_);
-            auto result = linkages_.insert(as_link(linkage));
-            if (result.second) dirty_.store(true, std::memory_order_release);
+            auto lk = as_link(linkage);
+            // capture result BEFORE any canonical swap so the returned iterator stays valid
+            auto result = linkages_.insert(lk);
+            if (result.second) {
+                dirty_.store(true, std::memory_order_release);
+            } else if (lk->tot_str(true) < (*result.first)->tot_str(true)) {
+                linkages_.erase(result.first);
+                result.first = linkages_.insert(lk).first;
+                dirty_.store(true, std::memory_order_release);
+            }
             return result;
         }
 
         void insert(const typename linkage_vector::const_iterator &begin, const typename linkage_vector::const_iterator &end) {
             std::lock_guard<std::mutex> lock(mtx_);
-            size_t old_size = linkages_.size();
-            linkages_.insert(begin, end);
-            if (linkages_.size() != old_size) dirty_.store(true, std::memory_order_release);
+            bool changed = false;
+            for (auto it = begin; it != end; ++it) changed |= insert_canonical_(*it);
+            if (changed) dirty_.store(true, std::memory_order_release);
         }
         void insert(const typename vertex_vector::const_iterator &begin, const typename vertex_vector::const_iterator &end) {
             std::lock_guard<std::mutex> lock(mtx_);
-            size_t old_size = linkages_.size();
-            for (auto it = begin; it != end; ++it)
-                linkages_.insert(as_link(*it));
-            if (linkages_.size() != old_size) dirty_.store(true, std::memory_order_release);
+            bool changed = false;
+            for (auto it = begin; it != end; ++it) changed |= insert_canonical_(as_link(*it));
+            if (changed) dirty_.store(true, std::memory_order_release);
         }
 
         size_t count(const LinkagePtr &linkage) const {
@@ -244,10 +269,10 @@ namespace pdaggerq {
         }
 
         linkage_set &operator+=(const linkage_set &other) {
-            std::lock_guard<std::mutex> lock(mtx_);
-            size_t old_size = linkages_.size();
-            linkages_.insert(other.linkages_.begin(), other.linkages_.end());
-            if (linkages_.size() != old_size) dirty_.store(true, std::memory_order_release);
+            std::scoped_lock lock(mtx_, other.mtx_);
+            bool changed = false;
+            for (const auto &lk : other.linkages_) changed |= insert_canonical_(lk);
+            if (changed) dirty_.store(true, std::memory_order_release);
             return *this;
         }
 

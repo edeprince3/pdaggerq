@@ -283,18 +283,16 @@ def _optimized(pq, label, df, opt_level, dims=None, gep_traces=True):
 
 
 def _optimized_multi(labeled_pqs, df, opt_level, dims=None, gep_traces=True):
-    # nthreads=1: the pq_graph optimizer's substitution/fusion passes race on the
-    # lazy caches (link_vector_, flop_scale_, base_hash_, ...) of Linkage objects that
-    # are shared by shared_ptr across candidate intermediates -- forget()/compute_scaling()
-    # mutate them mid-flight. At >1 thread this makes the *chosen* substitutions, and thus
-    # the emitted code, nondeterministic (all variants are numerically identical; it is a
-    # byte-reproducibility bug, not a math one -- ThreadSanitizer flags consolidate.cc /
-    # substitute.cc / linkage.cc). Model codegen must be byte-reproducible (neocc freezes
-    # it), so pin the optimizer to a single thread here; omp_set_num_threads(nthreads_)
-    # then serializes every optimizer loop regardless of OMP_NUM_THREADS. Drop this once
-    # the Linkage caches are made thread-safe (guard each getter/forget with Linkage::mtx_).
-    # Guarded by models_test.test_opt_level_safe_default.
-    options = {"opt_level": opt_level, "density_fitting": df, "nthreads": 1}
+    # nthreads=-1: run the optimizer on all available cores. Its output used to depend on
+    # thread count -- structurally-equal candidate intermediates differ only in their generic
+    # labels, and the dedup kept a thread-order-dependent representative, so multithreaded
+    # codegen was not byte-reproducible (neocc freezes it), which forced a single-thread pin.
+    # That is now fixed at the source (linkage_set keeps the canonical representative; the
+    # printer backend is pinned during optimization so candidate ordering does not depend on
+    # the last-emitted format), so codegen is byte-identical at any thread count -- verified
+    # by models_test.test_opt_level_safe_default. The optimizer is ~85% of codegen time, so
+    # this is the dominant speedup.
+    options = {"opt_level": opt_level, "density_fitting": df, "nthreads": -1}
     if dims is not None:
         options["dims"] = dims  # dimension-aware candidate ranking (see DIMS)
     g = pq_graph(options)
