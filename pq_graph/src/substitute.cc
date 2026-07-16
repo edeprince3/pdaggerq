@@ -201,7 +201,10 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
     cout << "    Number of threads used: " << nthreads_ << endl;
     cout << " ====================================================" << endl << endl;
 
-    static size_t total_num_merged = 0;
+    // per-call accumulator: as a function-local `static` this was shared across every
+    // substitute() invocation and every PQGraph instance in the process, so the printed
+    // totals reflected global history rather than this optimization.
+    size_t total_num_merged = 0;
     size_t num_merged = merge_terms();
     total_num_merged += num_merged;
 
@@ -224,7 +227,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
     bool first_pass = true;
     scaling_map best_flop_map = flop_map_;
-    static size_t totalSubs = 0;
+    size_t totalSubs = 0; // per-call (was a cross-instance `static`; see total_num_merged)
     string temp_type = format_sigma ? "reused" : "temp"; // type of temporary to substitute
     temp_type = only_scalars ? "scalar" : temp_type; // type of equation to substitute into
 

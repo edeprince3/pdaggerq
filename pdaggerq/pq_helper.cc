@@ -190,6 +190,13 @@ pq_helper::pq_helper(const std::string &vacuum_type)
     /// left operators type (EE, IP, EA)
     left_operators_type = "EE";
 
+    // is_spin_blocked / is_range_blocked are process-global (static on pq_string) but
+    // only reset by clear(); a fresh helper must start unblocked so that a prior
+    // block_by_spin/block_by_range on a *different* helper cannot leak in and make
+    // strings() read the (empty) blocked equations of this one.
+    pq_string::is_spin_blocked = false;
+    pq_string::is_range_blocked = false;
+
 }
 
 pq_helper::pq_helper(const pq_helper &other) {
