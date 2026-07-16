@@ -178,20 +178,20 @@ namespace pdaggerq {
 
         // copy the result vector to the link_vector if the size is less than cache size
         bool store_vector = cache_elements_ && cache_depth_ >= depth;
-        if (store_vector) {
-            // Lock the mutex for this scope
+        // all reads/writes of the cache members are under the lock: the previous
+        // `else if (... && !all_vert_.empty())` checks read the member OUTSIDE the lock,
+        // racing with a concurrent forget()/assignment on another thread.
+        {
             std::lock_guard<std::mutex> lock(mtx_);
-            if (fully_expand)
-                 all_vert_ = result;
-            else link_vector_ = result;
-        } else if (fully_expand && !all_vert_.empty()) {
-            // if not storing the vector, clear the all_vert_ vector
-            std::lock_guard<std::mutex> lock(mtx_);
-            all_vert_.clear();
-        } else if (!fully_expand && !link_vector_.empty()) {
-            // if not storing the vector, clear the link_vector_ vector
-            std::lock_guard<std::mutex> lock(mtx_);
-            link_vector_.clear();
+            if (store_vector) {
+                if (fully_expand)
+                     all_vert_ = result;
+                else link_vector_ = result;
+            } else {
+                // not storing (depth beyond cache_depth_): drop any stale cache
+                if (fully_expand) all_vert_.clear();
+                else link_vector_.clear();
+            }
         }
 
         // return the result vector
@@ -534,15 +534,11 @@ namespace pdaggerq {
                 result.push_back(as_link(right_perm + left_perm));
             }
 
-            // copy the result vector to the permutations_ vector only if caching is enabled and the size is less than cache size
-            if (cache_permutations) {
-                // Lock the mutex for the scope
+            // store or drop the cache -- all under the lock (see the general case below).
+            {
                 std::lock_guard<std::mutex> lock(mtx_);
-                permutations_ = result;
-            } else if (!permutations_.empty()) {
-                // if not storing permutations, clear the permutations_ vector
-                std::lock_guard<std::mutex> lock(mtx_);
-                permutations_.clear();
+                if (cache_permutations) permutations_ = result;
+                else permutations_.clear();
             }
 
             return result;
@@ -559,15 +555,12 @@ namespace pdaggerq {
             result.push_back(link(link_vec, idxs));
         }
 
-        // copy the result vector to the permutations_ vector only if low memory mode is off
-        if (cache_permutations) {
-            // Lock the mutex for the scope
+        // store or drop the cache -- all under the lock (the old `else if
+        // (!permutations_.empty())` read the member outside the lock, racing with forget()).
+        {
             std::lock_guard<std::mutex> lock(mtx_);
-            permutations_ = result;
-        } else if (!permutations_.empty()) {
-            // if not storing permutations, clear the permutations_ vector
-            std::lock_guard<std::mutex> lock(mtx_);
-            permutations_.clear();
+            if (cache_permutations) permutations_ = result;
+            else permutations_.clear();
         }
         return result;
 
