@@ -814,6 +814,22 @@ namespace pdaggerq {
         print_guard guard;
         if (print_level_ < 1) guard.lock();
 
+        // Pin the printer backend for the duration of optimization. Candidate ordering
+        // keys are built from str()/tot_str(), which branch on Vertex::printer_ -- a
+        // process-wide pointer that to_strings() overwrites (set_printer). Without pinning,
+        // the optimization result depends on which output format was last emitted in the
+        // process, so the FIRST optimize() in a process (printer_ at its default) differs
+        // from every later one (printer_ left at the last-emitted backend). Force a fixed
+        // backend here and restore it after. (Declared after the print_guard so
+        // set_printer's status line is suppressed, and destroyed before it so the restore
+        // is suppressed too.)
+        const CodePrinter *saved_printer = Vertex::printer_;
+        Vertex::set_printer("c++");
+        struct PrinterRestore {
+            const CodePrinter *p;
+            ~PrinterRestore() { Vertex::printer_ = p; }
+        } printer_restore{saved_printer};
+
         if (flop_map_init_.empty() || mem_map_init_.empty()) {
             flop_map_init_ = flop_map_;
             mem_map_init_ = mem_map_;
