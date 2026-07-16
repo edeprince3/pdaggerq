@@ -17,6 +17,7 @@ def configure_graph(options = None):
             'opt_level': 0,
             'nthreads': -1,
             'no_scalars': False,
+            #'permute_eri': False,
         }
 
     return pdaggerq.pq_graph(options)
@@ -220,6 +221,7 @@ f"""
     dp['bb_vo'] = self.{extra_class}dipole_bb[vb, ob]
     dp['bb_vv'] = self.{extra_class}dipole_bb[vb, vb]
     w0 = self.{extra_class}cavity_frequency
+    N0 = self.{extra_class}nuc_dip * np.sqrt(0.5 * self.{extra_class}cavity_frequency)
 """
 
     return ret_string
@@ -263,9 +265,13 @@ def cc_residual(residual_name,
         ham_terms.append(['w0'])
         ham_terms.append(['d+'])
         ham_terms.append(['d-'])
+
         pq.add_st_operator(1.0, ['w0'], T)
-        pq.add_st_operator(1.0, ['d+'], T)
-        pq.add_st_operator(1.0, ['d-'], T)
+        pq.add_st_operator(-1.0, ['d+'], T)
+        pq.add_st_operator(-1.0, ['d-'], T)
+
+        pq.add_st_operator(-1.0, ['ON', 'B+'], T) # nuclear part of bilinear coupling
+        pq.add_st_operator(-1.0, ['ON', 'B-'], T) # nuclear part of bilinear coupling
 
     # cleanup
     pq.simplify()

@@ -79,6 +79,9 @@ class cc:
         if t2_1p_residual_func is not None:
             self.is_qed = True
 
+        if self.is_qed and nfzc > 0:
+            raise Exception("QED-CCSD-21 does not work with frozen core")
+
         if self.use_spin_orbital_basis:
 
             self.nsocc, self.nsvirt, self.f, self.g, self.efzc = get_integrals(self.wfn, nfzc = nfzc)
@@ -177,6 +180,22 @@ class cc:
 
                 self.f_aa -= 0.5 * quadrupole_aa
                 self.f_bb -= 0.5 * quadrupole_bb
+
+                # nuclear dipole contribution to the Fock matrix
+                nuc_dip_x = 0.0;
+                nuc_dip_y = 0.0;
+                nuc_dip_z = 0.0;
+                for i in range (mol.natom()):
+                    nuc_dip_x += mol.Z(i) * mol.x(i);
+                    nuc_dip_y += mol.Z(i) * mol.y(i);
+                    nuc_dip_z += mol.Z(i) * mol.z(i);
+                self.nuc_dip = self.cavity_lambda[0] * nuc_dip_x \
+                    +  self.cavity_lambda[1] * nuc_dip_y \
+                    +  self.cavity_lambda[2] * nuc_dip_z
+                self.f_aa += self.nuc_dip * dipole_aa
+                self.f_bb += self.nuc_dip * dipole_bb
+
+                self.enuc_dse = 0.5 * self.nuc_dip**2
 
                 # scale dipole integrals for the bilinear coupling term
                 self.dipole_aa = np.sqrt(0.5 * self.cavity_frequency) * dipole_aa
@@ -357,9 +376,14 @@ class cc:
         else:
             self.cc_iterations_with_spin(e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
             energy = self.cc_energy()
-                        
+
         print("")
         print("    CC Correlation Energy: {: 20.12f}".format(energy - self.hf_energy))
+
+        # add nuclear part of dipole self-energy to the energy
+        if self.is_qed:
+            energy += self.enuc_dse
+
         print("    CC Total Energy:       {: 20.12f}".format(energy + self.nuclear_repulsion_energy + self.efzc))
         print("")
 
@@ -468,52 +492,50 @@ class cc:
                 + np.linalg.norm(residual_t2_1p_bbbb)
             )
     
-            t1_aa_res = residual_t1_aa + fock_e_aa_ai * self.t1_aa
-            t1_bb_res = residual_t1_bb + fock_e_bb_ai * self.t1_bb
+            residual_t1_aa += fock_e_aa_ai * self.t1_aa
+            residual_t1_bb += fock_e_bb_ai * self.t1_bb
     
-            t2_aaaa_res = residual_t2_aaaa + fock_e_aaaa_abij * self.t2_aaaa
-            t2_abab_res = residual_t2_abab + fock_e_abab_abij * self.t2_abab
-            t2_bbbb_res = residual_t2_bbbb + fock_e_bbbb_abij * self.t2_bbbb
+            residual_t2_aaaa += fock_e_aaaa_abij * self.t2_aaaa
+            residual_t2_abab += fock_e_abab_abij * self.t2_abab
+            residual_t2_bbbb += fock_e_bbbb_abij * self.t2_bbbb
 
-            t3_aaaaaa_res = residual_t3_aaaaaa + fock_e_aaaaaa_abcijk * self.t3_aaaaaa
-            t3_aabaab_res = residual_t3_aabaab + fock_e_aabaab_abcijk * self.t3_aabaab
-            t3_abbabb_res = residual_t3_abbabb + fock_e_abbabb_abcijk * self.t3_abbabb
-            t3_bbbbbb_res = residual_t3_bbbbbb + fock_e_bbbbbb_abcijk * self.t3_bbbbbb
+            residual_t3_aaaaaa += fock_e_aaaaaa_abcijk * self.t3_aaaaaa
+            residual_t3_aabaab += fock_e_aabaab_abcijk * self.t3_aabaab
+            residual_t3_abbabb += fock_e_abbabb_abcijk * self.t3_abbabb
+            residual_t3_bbbbbb += fock_e_bbbbbb_abcijk * self.t3_bbbbbb
 
             # qed-cc
-            #t0_1p_res = -residual_t0_1p / self.cavity_frequency
-            t0_1p_res = residual_t0_1p - self.t0_1p * self.cavity_frequency
+            residual_t0_1p -= self.t0_1p * self.cavity_frequency
 
-            t1_1p_aa_res = residual_t1_1p_aa + (fock_e_aa_ai * self.t1_1p_aa if self.t1_1p_aa.ndim == 2 else 0.0)
-            t1_1p_bb_res = residual_t1_1p_bb + (fock_e_bb_ai * self.t1_1p_bb if self.t1_1p_bb.ndim == 2 else 0.0)
+            residual_t1_1p_aa += (fock_e_aa_ai * self.t1_1p_aa if self.t1_1p_aa.ndim == 2 else 0.0)
+            residual_t1_1p_bb += (fock_e_bb_ai * self.t1_1p_bb if self.t1_1p_bb.ndim == 2 else 0.0)
     
-            t2_1p_aaaa_res = residual_t2_1p_aaaa + (fock_e_aaaa_abij * self.t2_1p_aaaa if self.t2_1p_aaaa.ndim == 4 else 0.0)
-            t2_1p_abab_res = residual_t2_1p_abab + (fock_e_abab_abij * self.t2_1p_abab if self.t2_1p_abab.ndim == 4 else 0.0)
-            t2_1p_bbbb_res = residual_t2_1p_bbbb + (fock_e_bbbb_abij * self.t2_1p_bbbb if self.t2_1p_bbbb.ndim == 4 else 0.0)
+            residual_t2_1p_aaaa += (fock_e_aaaa_abij * self.t2_1p_aaaa if self.t2_1p_aaaa.ndim == 4 else 0.0)
+            residual_t2_1p_abab += (fock_e_abab_abij * self.t2_1p_abab if self.t2_1p_abab.ndim == 4 else 0.0)
+            residual_t2_1p_bbbb += (fock_e_bbbb_abij * self.t2_1p_bbbb if self.t2_1p_bbbb.ndim == 4 else 0.0)
     
-            self.t1_aa = t1_aa_res * self.e_aa_ai
-            self.t1_bb = t1_bb_res * self.e_bb_ai
+            self.t1_aa = residual_t1_aa * self.e_aa_ai
+            self.t1_bb = residual_t1_bb * self.e_bb_ai
     
-            self.t2_aaaa = t2_aaaa_res * self.e_aaaa_abij
-            self.t2_abab = t2_abab_res * self.e_abab_abij
-            self.t2_bbbb = t2_bbbb_res * self.e_bbbb_abij
+            self.t2_aaaa = residual_t2_aaaa * self.e_aaaa_abij
+            self.t2_abab = residual_t2_abab * self.e_abab_abij
+            self.t2_bbbb = residual_t2_bbbb * self.e_bbbb_abij
 
-            self.t3_aaaaaa = t3_aaaaaa_res * self.e_aaaaaa_abcijk
-            self.t3_aabaab = t3_aabaab_res * self.e_aabaab_abcijk
-            self.t3_abbabb = t3_abbabb_res * self.e_abbabb_abcijk
-            self.t3_bbbbbb = t3_bbbbbb_res * self.e_bbbbbb_abcijk
+            self.t3_aaaaaa = residual_t3_aaaaaa * self.e_aaaaaa_abcijk
+            self.t3_aabaab = residual_t3_aabaab * self.e_aabaab_abcijk
+            self.t3_abbabb = residual_t3_abbabb * self.e_abbabb_abcijk
+            self.t3_bbbbbb = residual_t3_bbbbbb * self.e_bbbbbb_abcijk
 
             # qed-cc
             # TODO: t0_1p
-            #new_t0_1p = self.t0_1p + t0_1p_res 
-            self.t0_1p = -t0_1p_res / self.cavity_frequency
+            self.t0_1p = -residual_t0_1p / self.cavity_frequency
 
-            self.t1_1p_aa = t1_1p_aa_res * (self.e_aa_ai if self.t1_1p_aa.ndim == 2 else 1)
-            self.t1_1p_bb = t1_1p_bb_res * (self.e_bb_ai if self.t1_1p_bb.ndim == 2 else 1)
+            self.t1_1p_aa = residual_t1_1p_aa * (self.e_aa_ai if self.t1_1p_aa.ndim == 2 else 1)
+            self.t1_1p_bb = residual_t1_1p_bb * (self.e_bb_ai if self.t1_1p_bb.ndim == 2 else 1)
     
-            self.t2_1p_aaaa = t2_1p_aaaa_res * (self.e_aaaa_abij if self.t2_1p_aaaa.ndim == 4 else 1)
-            self.t2_1p_abab = t2_1p_abab_res * (self.e_abab_abij if self.t2_1p_abab.ndim == 4 else 1)
-            self.t2_1p_bbbb = t2_1p_bbbb_res * (self.e_bbbb_abij if self.t2_1p_bbbb.ndim == 4 else 1)
+            self.t2_1p_aaaa = residual_t2_1p_aaaa * (self.e_aaaa_abij if self.t2_1p_aaaa.ndim == 4 else 1)
+            self.t2_1p_abab = residual_t2_1p_abab * (self.e_abab_abij if self.t2_1p_abab.ndim == 4 else 1)
+            self.t2_1p_bbbb = residual_t2_1p_bbbb * (self.e_bbbb_abij if self.t2_1p_bbbb.ndim == 4 else 1)
 
             # diis update
             if diis_size is not None:
@@ -552,6 +574,7 @@ class cc:
 
                 # qed-cc
                 self.t0_1p = new_vectorized_iterate[t3_bbbbbb_end]
+
 
                 self.t1_1p_aa = new_vectorized_iterate[t0_1p_end:t1_1p_aa_end].reshape(self.t1_1p_aa.shape)
                 self.t1_1p_bb = new_vectorized_iterate[t1_1p_aa_end:t1_1p_bb_end].reshape(self.t1_1p_bb.shape)
