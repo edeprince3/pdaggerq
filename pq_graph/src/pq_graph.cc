@@ -138,11 +138,47 @@ namespace pdaggerq {
         if (options.contains("decompose_eri"))
             decompose_eri_ = options["decompose_eri"].cast<bool>();
 
+        if (options.contains("density_fitting"))
+            density_fitting_ = options["density_fitting"].cast<bool>();
+
         if (options.contains("no_scalars")) {
             Equation::no_scalars_ = options["no_scalars"].cast<bool>();
             if (Equation::no_scalars_)
                 cout << "'no_scalars' is set to true. Scalars will not be included in the final equations." << endl;
         }
+
+        if (options.contains("dims")) {
+            // representative dimension of each line class for the dimension-aware cost
+            // model (see scaling_map::set_dims). When given, optimizer decisions rank
+            // candidates by numeric flop estimates at these sizes instead of the
+            // dimension-blind lexicographic line-count metric. Keys: "o"/"v" electronic
+            // occupied/virtual, "O"/"V" nuclear (second-species) occupied/virtual,
+            // "L" sigma (trial vector), "Q" density-fitting auxiliary. Unspecified
+            // classes default to 1 (their lines then cost nothing, like O=1 protons).
+            std::map<string, double> dims;
+            try {
+                dims = options["dims"].cast<std::map<string, double>>();
+            } catch (const std::exception &e) {
+                throw invalid_argument("dims must be a map of 'o','v','O','V','L','Q' to numeric sizes");
+            }
+            for (const auto &[key, val] : dims) {
+                if (key != "o" && key != "v" && key != "O" && key != "V" && key != "L" && key != "Q")
+                    throw invalid_argument("dims keys must be one of 'o','v','O','V','L','Q'; found key: " + key);
+                if (val < 1.0)
+                    throw invalid_argument("dims values must be >= 1; found " + key + " = " + to_string(val));
+            }
+            auto dim_of = [&dims](const string &key) {
+                auto it = dims.find(key);
+                return it == dims.end() ? 1.0 : it->second;
+            };
+            scaling_map::set_dims(dim_of("o"), dim_of("v"), dim_of("O"), dim_of("V"),
+                                  dim_of("L"), dim_of("Q"));
+        } else {
+            // process-wide static: reset so a graph without dims is not affected by an
+            // earlier graph that set them
+            scaling_map::clear_dims();
+        }
+
 
         if (options.contains("no_trace")) {
             Equation::no_trace_ = options["no_trace"].cast<bool>();
@@ -421,6 +457,15 @@ namespace pdaggerq {
              << "  // number of threads to use (default: OMP_NUM_THREADS | available: "
              << omp_get_max_threads() << ")" << endl;
 
+        if (scaling_map::use_dims_) {
+            cout << "    dims: o" << scaling_map::dim_o_ << " v" << scaling_map::dim_v_
+                 << " O" << scaling_map::dim_no_ << " V" << scaling_map::dim_nv_
+                 << " L" << scaling_map::dim_L_ << " Q" << scaling_map::dim_Q_
+                 << "  // representative line-class sizes: optimizer ranks candidates by numeric flops at these dims" << endl;
+        } else {
+            cout << "    dims: (unset)  // optimizer ranks candidates by the dimension-blind line-count metric (default)" << endl;
+        }
+
         cout << endl;
     }
 
@@ -578,6 +623,22 @@ namespace pdaggerq {
             for (const auto &term : terms){
                 vector<Term> decomposed_eri_terms = term.decompose_eri();
                 new_terms.insert(new_terms.end(), decomposed_eri_terms.begin(), decomposed_eri_terms.end());
+            }
+            terms = new_terms;
+        }
+
+        // NEO density fitting: like decompose_eri, but emits B with the auxiliary index
+        // FIRST (B[Q,p,q], the layout the einsums/neocc consumer expects) and also splits
+        // the cross-species electron-nuclear integral g(p,P,q,Q) into an electron and a
+        // nuclear B factor (no exchange term). Kept distinct from master's decompose_eri,
+        // whose B index order and spin filtering differ.
+        if (density_fitting_){
+            vector<Term> new_terms;
+            new_terms.reserve(4*terms.size());
+            std::cout << "Density-fitting ERIs and cross-species integrals..." << std::endl;
+            for (auto &term : terms){
+                vector<Term> df_terms = term.density_fitting();
+                new_terms.insert(new_terms.end(), df_terms.begin(), df_terms.end());
             }
             terms = new_terms;
         }

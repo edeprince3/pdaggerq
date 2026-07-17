@@ -30,6 +30,7 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <set>
 #include <algorithm>
 #include <cstring>
 #include <bitset>
@@ -57,6 +58,12 @@ namespace pdaggerq {
         char blk_type_ = '\0'; // type of blocking (s: spin, r: range, '\0': none)
         bool sig_ = false; // whether the line is an excited state index
         bool den_ = false; // whether the line is for density fitting
+        bool nuc_ = false; // whether the line belongs to the nuclear (second fermion) species
+
+        // nuclear orbital labels carry this prefix, e.g. "ni" (occ) / "na" (vir);
+        // must match pdaggerq::nuclear_prefix in the core. occupied/virtual is then
+        // determined from the remaining character, within the nuclear space.
+        static constexpr char nuclear_prefix_ = 'n';
 
         // valid line names
         static inline array<char, 32> occ_labels_ = {               // names of occupied lines
@@ -87,6 +94,14 @@ namespace pdaggerq {
             if (line_char == '\0')
                 return;
 
+            // nuclear (second-species) labels carry a prefix; a lone prefix char is
+            // still an electron label, so only multi-character "n*" labels are nuclear.
+            // occupied/virtual is then read from the next character within that space.
+            if (label_.size() > 1 && line_char == nuclear_prefix_) {
+                nuc_ = true;
+                line_char = label_[1];
+            }
+
             auto occ_it = find(occ_labels_.begin(), occ_labels_.end(), line_char);
             o_ = occ_it != occ_labels_.end();
 
@@ -94,14 +109,26 @@ namespace pdaggerq {
                 auto virt_it = find(virt_labels_.begin(), virt_labels_.end(), line_char);
 
                 if (virt_it == virt_labels_.end()) { // not found in virtual lines
-                    auto sig_it = find(sig_labels_.begin(), sig_labels_.end(), line_char);
-                    sig_ = sig_it != sig_labels_.end();
+                    if (nuc_) {
+                        // A nuclear line is occupied or virtual only -- never a
+                        // sigma/DF line. The electron sigma/aux letters (L,R,X,Y)
+                        // are perfectly valid *nuclear* index letters (e.g. "nL"),
+                        // so classify a nuclear label case-insensitively against the
+                        // occupied table and never set sig_/den_ for it; otherwise
+                        // it falls through to virtual like any other letter.
+                        char lc = (line_char >= 'A' && line_char <= 'Z')
+                                  ? (char)(line_char + ('a' - 'A')) : line_char;
+                        o_ = find(occ_labels_.begin(), occ_labels_.end(), lc) != occ_labels_.end();
+                    } else {
+                        auto sig_it = find(sig_labels_.begin(), sig_labels_.end(), line_char);
+                        sig_ = sig_it != sig_labels_.end();
 
-                    if (!sig_) { // not found in excited lines
-                        auto den_it = find(den_labels_.begin(), den_labels_.end(), line_char);
-                        den_ = den_it != den_labels_.end();
+                        if (!sig_) { // not found in excited lines
+                            auto den_it = find(den_labels_.begin(), den_labels_.end(), line_char);
+                            den_ = den_it != den_labels_.end();
 
-                        // could not find in any lines. defaults to virtual
+                            // could not find in any lines. defaults to virtual
+                        }
                     }
                 }
             }
@@ -142,14 +169,16 @@ namespace pdaggerq {
                        (o_ == other.o_)     &
                        (a_ == other.a_)     &
                      (sig_ == other.sig_)   &
-                     (den_ == other.den_);
+                     (den_ == other.den_)   &
+                     (nuc_ == other.nuc_);
         }
 
         bool equivalent(const Line& other) const {
             return   (o_ == other.o_)   &
                      (a_ == other.a_)   &
                    (sig_ == other.sig_) &
-                   (den_ == other.den_);
+                   (den_ == other.den_) &
+                   (nuc_ == other.nuc_);
         }
 
         bool operator!=(const Line& other) const {
@@ -157,8 +186,11 @@ namespace pdaggerq {
         }
 
         bool operator<(const Line& other) const {
-            // sort by sig, o, a, den, then label
+            // sort by sig, nuc, o, a, den, then label. nuc_ (electron before nuclear) only
+            // discriminates a nuclear line from an electron one -- among electron lines it
+            // is always false -- so inserting it leaves master's electron ordering exactly.
             if (sig_ ^ other.sig_) return sig_;
+            if (nuc_ ^ other.nuc_) return !nuc_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
             if (den_ ^ other.den_) return den_;
@@ -166,8 +198,9 @@ namespace pdaggerq {
         }
 
         bool same_kind(const Line& other) const {
-            // sort by sig, o, a, den, but not label
+            // sort by sig, nuc, o, a, den, but not label (see operator<)
             if (sig_ ^ other.sig_) return sig_;
+            if (nuc_ ^ other.nuc_) return !nuc_;
             if (o_ ^ other.o_) return !o_;
             if (a_ ^ other.a_) return a_;
             if (den_ ^ other.den_) return den_;
@@ -202,8 +235,101 @@ namespace pdaggerq {
         char type() const {
             if (sig_) return 'L';
             if (den_) return 'Q';
+            if (nuc_) return o_ ? 'O' : 'V'; // nuclear occupied/virtual (distinct block from electron o/v)
             return o_ ? 'o' : 'v';
         }
+
+        // the subscript this line WANTS: its own character (electron labels are single
+        // characters) or, for a nuclear label, the uppercased base character.
+        //
+        // This map is NOT injective, and must never be used on its own. The core's label
+        // pool is case-doubled -- pq_utils.cc builds the nuclear labels as "n" + {i,j,k,l,
+        // m,n,I,J,K,L,M,N}, so "ni" and "nI" are two DISTINCT nuclear indices -- while the
+        // uppercasing here case-folds them onto the same 'I'. An electron line labelled "I"
+        // collides with nuclear "ni" the same way. Two distinct lines sharing a subscript
+        // silently emits a wrong contraction: a fused NEO intermediate came out as
+        //     tmps_["20_ooOO"][i,j,I,I] = B["QOO"][Q,I,I] * B["Qoo"][Q,i,j]
+        // -- defined only on its nuclear diagonal, then consumed OFF it as [i,j,J,I].
+        // No crash, no warning, just a wrong Hessian.
+        //
+        // So printers assign subscripts per statement via assign_subscripts() below, and
+        // ask for them through einsum_char(). This is the per-term pool the old comment
+        // here described and did not implement.
+        char natural_einsum_char() const {
+            if (nuc_ && label_.size() > 1) {
+                char c = label_[1];
+                return (c >= 'a' && c <= 'z') ? char(c - 'a' + 'A') : c;
+            }
+            return label_[0];
+        }
+
+        // subscript assignment for the statement currently being printed, keyed by label.
+        // keyed by LABEL rather than by Line: two lines with the same label are the same
+        // index and must share a subscript (spin-blocked equations reuse a label across
+        // blocks, and those must not be split apart).
+        static inline thread_local std::unordered_map<std::string, char> subscript_map_{};
+
+        char einsum_char() const {
+            auto it = subscript_map_.find(label_);
+            if (it != subscript_map_.end()) return it->second;
+            return natural_einsum_char(); // no statement in scope (single-line/debug printing)
+        }
+
+        // Assign a distinct subscript to every distinct label in one statement. Each label
+        // keeps its natural character where that character is unclaimed -- so every
+        // statement that does not actually collide prints exactly as it did before -- and
+        // otherwise takes a fresh one from the free pool. Deterministic: labels are
+        // considered in order of first appearance.
+        static void assign_subscripts(const std::vector<Line> &lines) {
+            subscript_map_.clear();
+
+            std::vector<std::pair<std::string, char>> order; // label -> natural char
+            for (const auto &line : lines) {
+                if (line.label_.empty()) continue;
+                bool seen = false;
+                for (const auto &p : order)
+                    if (p.first == line.label_) { seen = true; break; }
+                if (!seen) order.emplace_back(line.label_, line.natural_einsum_char());
+            }
+
+            auto is_natural_of_some_label = [&order](char c) {
+                for (const auto &p : order)
+                    if (p.second == c) return true;
+                return false;
+            };
+
+            std::set<char> taken;
+            for (const auto &[label, nat] : order) {
+                if (!taken.count(nat)) { // natural char still free -- keep it (the common case)
+                    subscript_map_[label] = nat;
+                    taken.insert(nat);
+                    continue;
+                }
+                // collided with an earlier label: take a character that is neither already
+                // assigned nor the natural character of any OTHER label in this statement.
+                static constexpr char pool[] = "pqrstuwxyzPSTWZabcdefghijklmnovABCDEFGHIJKLMNOQRUVXY";
+                char fresh = '\0';
+                for (const char *c = pool; *c; ++c) {
+                    if (taken.count(*c) || is_natural_of_some_label(*c)) continue;
+                    fresh = *c;
+                    break;
+                }
+                if (fresh == '\0')
+                    throw std::runtime_error("Line::assign_subscripts: subscript pool exhausted for '"
+                                             + label + "' (statement has too many distinct indices)");
+                subscript_map_[label] = fresh;
+                taken.insert(fresh);
+            }
+        }
+
+        // clears the assignment when the statement goes out of scope, so a stale map can
+        // never leak into an unrelated print.
+        struct SubscriptScope {
+            explicit SubscriptScope(const std::vector<Line> &lines) { assign_subscripts(lines); }
+            ~SubscriptScope() { subscript_map_.clear(); }
+            SubscriptScope(const SubscriptScope &) = delete;
+            SubscriptScope &operator=(const SubscriptScope &) = delete;
+        };
 
         bool empty() const {
             return label_.empty();
@@ -244,13 +370,14 @@ namespace pdaggerq {
     struct LineHash {
         uint_fast16_t operator()(const Line &line) const {
 
-            // we can store each boolean as a bit in an integral type (4 bits)
+            // we can store each boolean as a bit in an integral type (5 bits)
             uint16_t hash = line.o_;
             hash |= line.a_ << 1;
             hash |= line.sig_ << 2;
             hash |= line.den_ << 3;
+            hash |= line.nuc_ << 4;
 
-            // store the first character of the label and return (12 bits total)
+            // store the first character of the label and return
             return hash << 8 | line.label_[0];
         }
 
@@ -319,13 +446,14 @@ namespace pdaggerq {
     struct LinePropHash {
         uint_fast8_t operator()(const Line &line) const {
 
-            // we can store each boolean as a bit in an integral type (4 bits)
+            // we can store each boolean as a bit in an integral type (5 bits)
             uint16_t hash = line.o_;
             hash |= line.a_ << 1;
             hash |= line.sig_ << 2;
             hash |= line.den_ << 3;
+            hash |= line.nuc_ << 4;
 
-            // return the hash (4 bits)
+            // return the hash (5 bits)
             return hash;
         }
 
@@ -341,9 +469,10 @@ namespace pdaggerq {
             // store each boolean as a bit in an integral type
             hash |= line->a_;
             hash = (hash << shift) | line->sig_;
+            hash = (hash << shift) | line->den_;
 
-            // return the hash (4 bits)
-            return (hash << shift) | line->den_;
+            // return the hash (5 bits)
+            return (hash << shift) | line->nuc_;
         }
     };
     struct LinePropEqual {

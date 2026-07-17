@@ -43,12 +43,18 @@ namespace pdaggerq {
         LinkageHash() = default;
 
         size_t operator()(const LinkagePtr &linkage) const {
+            // structural hash, cached on the linkage (rehashing the whole base_name_
+            // string per container op was a top optimizer cost).
             return linkage->cached_hash();
         }
     }; // struct linkage_hash
 
     struct LinkageEqual {
         bool operator()(const LinkagePtr &lhs, const LinkagePtr &rhs) const {
+            // different structural hash -> different base_name_ -> not equal
+            // (operator== compares base_name_ via Vertex::equivalent, so this
+            // short-circuit can never reject a true match)
+            if (lhs->base_hash() != rhs->base_hash()) return false;
             return *lhs == *rhs;
         }
     }; // struct linkage_pred

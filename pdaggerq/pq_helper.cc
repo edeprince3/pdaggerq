@@ -119,14 +119,17 @@ void export_pq_helper(py::module& m) {
                 self.block_by_range(label_ranges);
             },
             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+        .def("remove_gep_reference_traces", &pq_helper::remove_gep_reference_traces)
         .def("add_st_operator",
-            [](pq_helper& self, double factor, 
-                                const std::vector<std::string> &targets, 
-                                const std::vector<std::string> &ops, 
-                                bool do_operators_commute) {
-                return self.add_st_operator(factor, targets, ops, do_operators_commute);
+            [](pq_helper& self, double factor,
+                                const std::vector<std::string> &targets,
+                                const std::vector<std::string> &ops,
+                                bool do_operators_commute,
+                                int max_order) {
+                return self.add_st_operator(factor, targets, ops, do_operators_commute, max_order);
             },
-            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true )
+            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true,
+            py::arg("max_order") = 4 )
         .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
         .def("add_bernoulli_operator", &pq_helper::add_bernoulli_operator)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
@@ -617,9 +620,14 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
         int count = 0;
         bool found_v = false; // fluctuation potential
         bool found_vn = false; // normal-ordered fluctuation potential
+        bool found_vp = false; // nuclear (proton-proton) fluctuation potential
         std::vector<std::string> tmp_in;
         for (const std::string & op : in) {
-            if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+            if (op.substr(0, 2) == "vp" || op.substr(0, 2) == "Vp") {
+                // nuclear-nuclear fluctuation potential (checked before the generic v)
+                found_vp = true;
+                break;
+            }else if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
                 if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
                     found_vn = true;
                     break;
@@ -631,16 +639,19 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
                 count++;
             }
         }
-        if ( found_v || found_vn ) {
+        if ( found_v || found_vn || found_vp ) {
             done_processing = false;
 
             // get bernoulli operator portions
             std::string op_portions = get_operator_portions_as_string(in[count]);
 
-            if ( found_v ) {
-                // term 1 (j1)
-                std::string v_type = "j1";
-                if ( op_portions.length() > 0 ) { 
+            if ( found_v || found_vp ) {
+                // split into a one-body fold (j1/jp1) and the two-body part (j2/jp2);
+                // the nuclear potential uses the nuclear-labelled "jp" variants.
+                std::string jname = found_vp ? "jp" : "j";
+                // term 1 (j1 / jp1)
+                std::string v_type = jname + "1";
+                if ( op_portions.length() > 0 ) {
                     v_type += "{" + op_portions + "}";
                 }
                 tmp_in.emplace_back(v_type);
@@ -653,13 +664,16 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
                 }
                 ops_out.push_back(pq_operator_terms(factor, in));
 
-                // term 2 (j2)
+                // term 2 (j2 / jp2)
                 in.clear();
                 for (int i = 0; i < count; i++) {
                     in.push_back(tmp_in[i]);
                 }
-                v_type[1] = '2';
-                in.emplace_back(v_type);
+                std::string v_type2 = jname + "2";
+                if ( op_portions.length() > 0 ) {
+                    v_type2 += "{" + op_portions + "}";
+                }
+                in.emplace_back(v_type2);
                 for (int i = count + 1; i < (int)tmp_in.size(); i++) {
                     in.push_back(tmp_in[i]);
                 }
@@ -826,7 +840,11 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplit
         bool found_t = false;
         for (size_t i = 0; i < in.size(); i++) {
             if ( in[i].substr(0,1) == "t" || in[i].substr(0,1) == "T" ) {
-                if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" ) {
+                // electron cluster amplitudes ("t<n>") are split into excitation
+                // ("te") / de-excitation ("td") forms here. nuclear ("tp") and mixed
+                // ("tep") amplitudes are constructed directly and pass through unsplit.
+                if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" &&
+                     in[i].substr(0,2) != "tp" ) {
                     found_t = true;
                     break;
                 }else {
@@ -1121,7 +1139,6 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
 
                 while (std::getline(ss, segment, ',')) {
                     if (!segment.empty()) {
-                        labels.size();
                         labels.push_back(segment);
                     }
                 }
@@ -1149,10 +1166,22 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             // integrals
             newguy->set_integrals("core", {idx1, idx2}, op_portions);
     
+        }else if (op.substr(0, 2) == "fp" || op.substr(0, 2) == "Fp") { // nuclear (proton) fock operator
+
+            // one-body operator over the nuclear space; general nuclear labels (np#)
+            // expand to nuclear occupied/virtual and never mix with electron labels
+            std::string idx1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2);
+
+            newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+
         }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
-  
+
             // normal ordered or not?
-            if ( op.size() == 1 ) { 
+            if ( op.size() == 1 ) {
                 std::string idx1 = "p" + std::to_string(gen_label_count++);
                 std::string idx2 = "p" + std::to_string(gen_label_count++);
     
@@ -1228,24 +1257,83 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             // boson operator
             newguy->is_boson_dagger.push_back(false);
     
+        }else if (op.substr(0, 3) == "gep" || op.substr(0, 3) == "Gep") { // electron-nuclear (e-p) two-body operator
+
+            // non-antisymmetrized two-body operator coupling one electron and one
+            // nuclear particle: a^+(e) a^+(n) a(n) a(e). electrons and nuclei do not
+            // exchange, so this integral has no antisymmetrizer between the species.
+            //
+            // CHARGE CONVENTION: gep carries NO built-in sign. The integral "g" IS the
+            // signed interaction, g = q_e q_x V_ex (V_ex = bare positive Coulomb, q in
+            // units of e). The caller therefore supplies
+            //     g = -Z_x V_ex      (Z_x = second species' charge; q_e = -1)
+            // so the equations are charge-independent and serve protons (Z=+1, attractive),
+            // positrons (Z=+1, attractive) and negative muons (Z=-1, repulsive) alike --
+            // the sign is a property of the integral, not of the derivation.
+            // (Previously this multiplied by -1, hardcoding Z_x = +1 and forcing an
+            // attractive e-p interaction; cf. Pavosevic, Culpitt, Hammes-Schiffer,
+            // J. Chem. Theory Comput. 2019, 15, 338, eq 1, which writes the proton case.)
+
+            std::string e1 =                              "p" + std::to_string(gen_label_count++);
+            std::string n1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string n2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string e2 =                              "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(e1+"*");
+            tmp_string.push_back(n1+"*");
+            tmp_string.push_back(n2);
+            tmp_string.push_back(e2);
+
+            // <e1 n1 | e2 n2>
+            newguy->set_integrals("two_body", {e1, n1, e2, n2}, op_portions);
+
         }else if (op.substr(0, 1) == "g" || op.substr(0, 1) == "G") { // general two-electron operator
-    
+
             //factor *= 0.25;
-    
+
             std::string idx1 = "p" + std::to_string(gen_label_count++);
             std::string idx2 = "p" + std::to_string(gen_label_count++);
             std::string idx3 = "p" + std::to_string(gen_label_count++);
             std::string idx4 = "p" + std::to_string(gen_label_count++);
-    
+
             tmp_string.push_back(idx1+"*");
             tmp_string.push_back(idx2+"*");
             tmp_string.push_back(idx3);
             tmp_string.push_back(idx4);
-    
+
             newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3}, op_portions);
     
+        }else if (op.substr(0, 3) == "jp1" || op.substr(0, 3) == "Jp1") { // nuclear fluctuation potential, one-body fold
+
+            factor *= -1.0;
+
+            std::string idx1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2);
+
+            newguy->set_integrals("occ_repulsion", {idx1, idx2}, op_portions);
+
+        }else if (op.substr(0, 3) == "jp2" || op.substr(0, 3) == "Jp2") { // nuclear fluctuation potential, two-body (antisymmetrized)
+
+            factor *= 0.25;
+
+            std::string np = std::string(1, nuclear_prefix);
+            std::string idx1 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx3 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx4 = np + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2+"*");
+            tmp_string.push_back(idx3);
+            tmp_string.push_back(idx4);
+
+            newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+
         }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
-    
+
             if (op.substr(1, 1) == "1" ){
     
                 factor *= -1.0;
@@ -1359,11 +1447,71 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
             }
     
+        }else if (op.substr(0, 3) == "tep" || op.substr(0, 3) == "Tep") {
+            // mixed electron-nuclear cluster amplitude "tep<ne><np>": excitation only.
+            // ne electron particle-hole pairs and np nuclear pairs.
+            int ne = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            for (int id = 0; id < ne; id++) {
+                std::string v = "v" + std::to_string(vir_label_count++);
+                std::string o = "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            // 1/(ne!)^2 1/(np!)^2 : independent electron and nuclear antisymmetrizers
+            double fe = 1.0, fn = 1.0;
+            for (int id = 0; id < ne; id++) fe *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / (fe*fe) / (fn*fn);
+
+            int n = ne + nn;
+            newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "tp" || op.substr(0, 2) == "Tp") {
+            // nuclear cluster amplitude "tp<n>": n nuclear particle-hole pairs (excitation)
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                tmp_string.push_back(v+"*");
+                labels_l.push_back(v); labels_r.push_back(o);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "t"){
-    
+
             int n = std::stoi(op.substr(2));
             std::vector<std::string> labels;
-    
+
             if ( n == 0 ){
     
                 // nothing to do
@@ -1557,8 +1705,68 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             }
             newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels, op_portions);
     
+        }else if (op.substr(0, 3) == "lep" || op.substr(0, 3) == "Lep") {
+            // mixed electron-nuclear lambda (de-excitation) amplitude "lep<ne><np>":
+            // ne electron and np nuclear hole-particle pairs. mirror of "tep".
+            int ne = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            for (int id = 0; id < ne; id++) {
+                std::string o = "o" + std::to_string(occ_label_count++);
+                std::string v = "v" + std::to_string(vir_label_count++);
+                creators.push_back(o+"*"); annihilators.push_back(v);
+                labels_l.push_back(o);     labels_r.push_back(v);
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                creators.push_back(o+"*"); annihilators.push_back(v);
+                labels_l.push_back(o);     labels_r.push_back(v);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double fe = 1.0, fn = 1.0;
+            for (int id = 0; id < ne; id++) fe *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / (fe*fe) / (fn*fn);
+
+            int n = ne + nn;
+            newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "lp" || op.substr(0, 2) == "Lp") {
+            // nuclear lambda (de-excitation) amplitude "lp<n>": n nuclear hole-particle
+            // pairs. mirror of "tp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                tmp_string.push_back(o+"*");
+                labels_l.push_back(o); labels_r.push_back(v);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
-    
+
             int n = std::stoi(op.substr(1));
             int n_annihilate = n;
             int n_create     = n;
@@ -2074,6 +2282,41 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     }
 }
 
+// drop terms carrying a reference self-trace of the electron-nuclear (gep) two-body
+// operator. gep sets its integral under "two_body" (the electron fluctuation uses
+// "eri", which is fold-split into the Fock, so is unaffected). A self-trace is a
+// repeated occupied label within one such integral -- the one-body e-p mean-field
+// contraction (V_ep over the proton occupied, or V_pe over the electron occupied),
+// which lives in the dressed NEO-HF Fock and must not appear explicitly.
+void pq_helper::remove_gep_reference_traces() {
+    std::vector< std::shared_ptr<pq_string> > kept;
+    for (const auto & pq_str : ordered) {
+        bool self_trace = false;
+        auto it = pq_str->ints.find("two_body");
+        if ( it != pq_str->ints.end() ) {
+            for (const integrals & integral : it->second) {
+                const std::vector<std::string> & labels = integral.labels;
+                // gep couples an electron and a nuclear particle: require a nuclear label
+                bool has_nuclear = false;
+                for (const std::string & label : labels) {
+                    if ( is_nuclear(label) ) { has_nuclear = true; break; }
+                }
+                if ( !has_nuclear ) continue;
+                // a repeated occupied label within the integral is the reference trace
+                for (size_t a = 0; a < labels.size() && !self_trace; a++) {
+                    if ( !is_occ(labels[a]) ) continue;
+                    for (size_t b = a + 1; b < labels.size(); b++) {
+                        if ( labels[a] == labels[b] ) { self_trace = true; break; }
+                    }
+                }
+                if ( self_trace ) break;
+            }
+        }
+        if ( !self_trace ) kept.push_back(pq_str);
+    }
+    ordered = kept;
+}
+
 // block labels by spin
 void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
     ordered_blocked.clear();
@@ -2127,22 +2370,27 @@ void pq_helper::clear() {
     pq_string::is_range_blocked = false;
 }
 
-void pq_helper::add_st_operator(double factor, 
+void pq_helper::add_st_operator(double factor,
                                 const std::vector<std::string> &targets,
                                 const std::vector<std::string> &ops,
-                                bool do_operators_commute = true){
+                                bool do_operators_commute = true,
+                                int max_order = 4){
 
-    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute);
+    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute, max_order);
     process_operator_products(st_ops);
 }
 
-std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true){
+std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true, int max_order = 4){
+
+    if ( max_order < 0 || max_order > 4 )
+        throw std::invalid_argument("add_st_operator: max_order must be between 0 and 4 (the BCH series truncates at fourth order for a two-body Hamiltonian)");
 
     int dim = (int)ops.size();
 
     std::vector<pq_operator_terms> st_terms;
-    st_terms.push_back(pq_operator_terms(factor, targets));
+    st_terms.push_back(pq_operator_terms(factor, targets)); // zeroth order: the bare operator
 
+    if ( max_order >= 1 )
     for (int i = 0; i < dim; i++) {
         std::vector<pq_operator_terms> tmp = get_commutator_terms(factor, targets, {ops[i]});
         st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
@@ -2150,6 +2398,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
 
     if ( do_operators_commute ) {
 
+        if ( max_order >= 2 ) {
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(factor, targets, {ops[i]}, {ops[j]});
@@ -2160,7 +2409,9 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
+        if ( max_order >= 3 ) {
         // ijk
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
@@ -2187,7 +2438,9 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
+        if ( max_order >= 4 ) {
         // ijkl
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
@@ -2239,9 +2492,11 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
     }else {
 
+        if ( max_order >= 2 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]});
@@ -2249,6 +2504,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             }
         }
 
+        if ( max_order >= 3 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
@@ -2258,6 +2514,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             }
         }
 
+        if ( max_order >= 4 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {

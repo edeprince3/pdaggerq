@@ -130,6 +130,10 @@ namespace pdaggerq {
         /// whether to decompose ERIs into their Cholesky or density-fitted form
         bool decompose_eri_ = false;
 
+        /// NEO density fitting (aux index first, B[Q,p,q]; splits cross-species g). Kept
+        /// separate from decompose_eri_ because the B layout and cross-species handling differ.
+        bool density_fitting_ = false;
+
         /// whether to expand permutations of terms before optimization
         bool expand_permutations_ = false;
 
@@ -322,6 +326,9 @@ namespace pdaggerq {
 
         /**
          * reindex the intermediates in the equations
+         * @param passes number of reindex passes to perform (the repeat lets the
+         *               id assignment settle; previously tracked in a function-local
+         *               static shared across all PQGraph instances)
          */
         void reindex(size_t passes = 3);
 

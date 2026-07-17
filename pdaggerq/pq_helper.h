@@ -338,12 +338,18 @@ class pq_helper {
      * @param targets: a list of strings defining the operator product to be transformed (here, f)
      * @param ops: a list of strings defining a sum of operators that define the transformation (here, T)
      * @param do_operators_commute: do the operators that define the similarity transformation commute?
+     * @param max_order: highest BCH commutator order to retain (0-4). The default, 4,
+     *        reproduces the full expansion. Lower values truncate the series, which is
+     *        exact when the projection cannot reach the dropped orders (e.g. 2 suffices
+     *        for a doubles residual / CCD) and avoids generating the many high-order
+     *        terms that vanish by rank -- important for multi-operator transforms.
      *
      */
-    void add_st_operator(double factor, 
+    void add_st_operator(double factor,
                          const std::vector<std::string> &targets,
                          const std::vector<std::string> &ops,
-                         bool do_operators_commute);
+                         bool do_operators_commute,
+                         int max_order);
 
     /**
      *
@@ -355,10 +361,11 @@ class pq_helper {
      * @param do_operators_commute: do the operators that define the similarity transformation commute?
      *
      */
-    std::vector<pq_operator_terms> get_st_operator_terms(double factor, 
+    std::vector<pq_operator_terms> get_st_operator_terms(double factor,
                                                          const std::vector<std::string> &targets,
                                                          const std::vector<std::string> &ops,
-                                                         bool do_operators_commute);
+                                                         bool do_operators_commute,
+                                                         int max_order);
 
     /**
      *
@@ -633,6 +640,19 @@ class pq_helper {
      *
      */
     void block_by_range(const std::unordered_map<std::string, std::vector<std::string>> &label_ranges);
+
+    /**
+     *
+     * drop terms that carry a reference self-trace of the electron-nuclear (gep)
+     * two-body operator -- a "two_body" integral (which, unlike the electron
+     * fluctuation "eri", is not fold-split into the Fock) that has both an
+     * electron and a nuclear label and a repeated occupied label. Those are the
+     * one-body e-p mean-field contractions (V_ep / V_pe); they belong in the
+     * dressed NEO-HF Fock (f / fp) and must not appear explicitly in the residuals,
+     * else they double-count the dressed dump-Fock. No-op for non-NEO terms.
+     *
+     */
+    void remove_gep_reference_traces();
 
     /**
      *

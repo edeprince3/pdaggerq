@@ -107,6 +107,13 @@ namespace pdaggerq {
         // set base name
         string base_name{type};
         base_name += to_string(order);
+        // multicomponent species suffix, matching pdaggerq::amplitudes::to_string:
+        // "_n" for a pure-nuclear amplitude, "_ep" for a mixed electron-nuclear one
+        {
+            size_t n_nuc = 0;
+            for (const string & l : amp.labels) if (l.size() > 1 && l[0] == 'n') n_nuc++;
+            if (n_nuc > 0) base_name += (n_nuc == amp.labels.size()) ? "_n" : "_ep";
+        }
         base_name_ = base_name;
         if (amp.n_ph > 0) {
             base_name_ += "_";

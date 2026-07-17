@@ -75,6 +75,10 @@ namespace pdaggerq {
         bool generated_linkages_ = false; // flag for if term has generated linkages (default is false)
         bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
         string print_override_; // string to override print function
+        string ir_perm_json_;  // optional "perm" JSON fragment for the IR export: set on the
+                               // expanded copies of a permuted term so each emitted statement
+                               // carries its originating antisymmetrizer (type + index pairs)
+
         static inline bool print_comments_ = true; // print comments in term string
         static inline bool deallocate_ = true; // deallocate temporary variables
         static inline bool binarize_ = false; // flag for whether to binarize terms
@@ -426,6 +430,8 @@ namespace pdaggerq {
          * @return string representation of the term
          */
         string str() const;
+        string ir_str() const;      // structured JSONL line for the einsums/codegen IR export
+        string ir_term_str() const; // full IR emission for a term (permutation-aware; see graph_printing.cc)
 
         string operator+(const string &other) const{ return str() + other; }
         friend string operator+(const string &other, const Term &term){ return other + term.str(); }
@@ -534,6 +540,7 @@ namespace pdaggerq {
          * @return vector of terms with decomposed eris
          */
         vector<Term> decompose_eri() const;
+        vector<Term> density_fitting(); // NEO DF: B[Q,p,q] layout + cross-species g split
 
         /**
          * Convert a beta term to an alpha term by changing all lines to alpha or applying permutations from alpha-beta

@@ -22,6 +22,8 @@
 //
 
 #include <cmath>
+#include <numeric>
+#include <queue>
 #include <map>
 #include <algorithm>
 #include <iostream>
@@ -47,9 +49,29 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 
 namespace pdaggerq {
 
+    void reset_ir_hoist_counter(); // defined with the counter, below
+
     string PQGraph::str(const string &print_type) const {
 
-        Vertex::set_printer(print_type);        
+        // The einsums "ir" (JSONL) export is NOT a CodePrinter backend: it emits JSON, not
+        // formatted source. It reuses all of the scaffolding below (clone/assemble/reindex,
+        // temp ordering, term collection); only the PER-TERM emission differs, and that is
+        // handled in Term::str via Vertex::ir_mode_. printer_ is pointed at the Einsum
+        // (python) backend so the banners/declarations come out '#'-commented -- lines the
+        // IR parser ignores -- while each term is emitted as a JSON object by ir_term_str.
+        string print_type_lc = print_type;
+        for (auto &c : print_type_lc) if (c >= 'A' && c <= 'Z') c = char(c - 'A' + 'a');
+
+        struct IRModeGuard { ~IRModeGuard() { Vertex::ir_mode_ = false; } } ir_mode_guard;
+        Vertex::ir_mode_ = (print_type_lc == "ir");
+
+        if (Vertex::ir_mode_) {
+            Vertex::set_printer("python");
+            reset_ir_hoist_counter(); // fresh irN names per export (the counter is otherwise
+                                      // monotonic across the process)
+        } else {
+            Vertex::set_printer(print_type);
+        }
 
         stringstream sout; // string stream to hold output
 
@@ -286,6 +308,9 @@ namespace pdaggerq {
             return newterm;
         };
 
+        // destructor insertion frees each tmp after its last use (python `del` /
+        // c++ `~TArrayD()`); the IR has no such notion, so skip it for "ir".
+        if (!Vertex::ir_mode_) {
         set<long> destroy_ids;
         map<size_t, vector<Term>, std::greater<>> destruct_terms;
         for (auto &tempterm: copy.equations_["temp"]) {
@@ -306,14 +331,10 @@ namespace pdaggerq {
                 // check if tmp is the lhs of the term
                 if (term.lhs()->same_temp(temp)) { declare_pos = i; break; }
 
-                string term_str = term.str();
-                if (term.lhs()->is_temp()) {
-                    bool test = true;
-                }
-
                 // check if tmp is in the rhs of the term
+                // (this loop previously built a full term.str()/op->str() rendering
+                // per iteration and discarded it -- pure wasted work in an O(n^2) scan)
                 for (const auto &op : term.rhs()) {
-                    string op_str = op->str();
                     if (op->is_linked() && as_link(op)->has_temp(temp, false)) {
                         found = true; break;
                     }
@@ -369,6 +390,7 @@ namespace pdaggerq {
             }
             cout << endl;
         }
+        } // end destructor insertion (skipped for "ir")
 
         sout << printer->format_named_section(" Evaluate Equations ", true);
 
@@ -483,17 +505,143 @@ namespace pdaggerq {
         return Vertex::printer_->condition_open(conditions);
     }
 
+    // every line appearing anywhere in a statement -- the lhs plus the whole rhs linkage
+    // tree, contracted lines included, since those get subscripts too. Order is
+    // deterministic (lhs first, then a breadth-first walk), which is what makes the
+    // resulting subscript assignment reproducible.
+    static line_vector statement_lines(const VertexPtr &lhs, const VertexPtr &rhs) {
+        line_vector lines;
+        if (lhs) lines.insert(lines.end(), lhs->lines().begin(), lhs->lines().end());
+        if (!rhs) return lines;
+
+        std::queue<VertexPtr> queue;
+        queue.push(rhs);
+        while (!queue.empty()) {
+            VertexPtr cur = queue.front(); queue.pop();
+            if (!cur) continue;
+            lines.insert(lines.end(), cur->lines().begin(), cur->lines().end());
+            if (cur->is_linked()) {
+                queue.push(as_link(cur)->left());
+                queue.push(as_link(cur)->right());
+            }
+        }
+        return lines;
+    }
+
+    // Self-contained IR (einsums JSONL) emission for one term, used when Vertex::ir_mode_ is
+    // set. Mirrors Term::str's structure but emits JSON objects (via ir_str) and, for an
+    // antisymmetrized term, annotates every expanded statement with the permutation that
+    // generated it. Recursion goes back through str(), which re-enters here in ir_mode_.
+    string Term::ir_term_str() const {
+
+        // give each distinct label in this statement its own subscript (see line.hpp).
+        Line::SubscriptScope subscripts(statement_lines(lhs_, term_linkage(true)));
+
+        string output;
+
+        bool has_permutations = !term_perms_.empty() && perm_type_ != 0;
+        if (has_permutations) {
+            // carry the antisymmetrizer that generated the expanded statements so a consumer
+            // can recognize "target is (anti)symmetrized under P(...)".
+            string perm_json = "\"perm\":{\"type\":" + std::to_string(perm_type_) + ",\"pairs\":[";
+            bool first = true;
+            for (const auto &p : term_perms_) {
+                if (!first) perm_json += ",";
+                first = false;
+                perm_json += "[\"" + p.first + "\",\"" + p.second + "\"]";
+            }
+            perm_json += "]}";
+
+            MutableVertexPtr perm_vertex;
+            bool perm_as_rhs = rhs_.size() == 1;
+            if (perm_as_rhs && rhs_[0]->is_linked() && !rhs_[0]->is_temp())
+                perm_as_rhs = false;
+
+            if (perm_as_rhs) perm_vertex = rhs_[0]->clone();
+            else {
+                perm_vertex = lhs_->clone();
+                perm_vertex->vertex_type_ = 'p';
+                perm_vertex->sort();
+                perm_vertex->update_name("tmps_");
+
+                Term perm_term = *this;
+                perm_term.lhs_ = perm_vertex;
+                perm_term.reset_perm();
+                perm_term.is_assignment_ = true;
+                perm_term.coefficient_ = fabs(coefficient_);
+                perm_term.ir_perm_json_ = perm_json; // annotate the group's definition (IR only)
+
+                output += perm_term.str();
+                output += "\n";
+            }
+
+            Term perm_term = *this;
+            perm_term.rhs_ = {perm_vertex};
+            perm_term.ir_perm_json_ = perm_json; // inherited by every expanded copy (IR only)
+            perm_term.compute_scaling(true);
+            perm_term.comments_.clear();
+            if (!perm_as_rhs)
+                perm_term.coefficient_ = coefficient_ > 0 ? 1 : -1;
+
+            std::vector<Term> perm_terms = perm_term.expand_perms();
+            for (auto &permuted_term: perm_terms) {
+                output += permuted_term.str();
+                output += '\n';
+            }
+            if (!perm_terms.empty())
+                output.pop_back(); // remove last newline character
+            return output;
+        }
+
+        // expand additions into separate terms
+        LinkagePtr term_link = term_linkage();
+        if (term_link->is_addition() && !term_link->is_temp()) {
+            Term left_term = *this, right_term = *this;
+            left_term.expand_rhs(term_link->left());
+            right_term.expand_rhs(term_link->right());
+            right_term.is_assignment_ = false;
+            right_term.compute_scaling(true);
+            return left_term.str() + '\n' + right_term.str();
+        }
+
+        return ir_str();
+    }
+
     string Term::str() const {
 
         if (!print_override_.empty())
             // return print override if it exists for custom printing
             return print_override_;
 
+        if (Vertex::ir_mode_)
+            return ir_term_str(); // self-contained IR (JSONL) emission
+
+        // give each distinct label in this statement its own subscript; the natural
+        // label->char map is not injective (see Line::natural_einsum_char).
+        Line::SubscriptScope subscripts(statement_lines(lhs_, term_linkage(true)));
+
         string output;
 
         // format for permutations if any
         bool has_permutations = !term_perms_.empty() && perm_type_ != 0;
         if (has_permutations) {
+
+            // for the IR export, carry the antisymmetrizer that generated the expanded
+            // statements: every statement of this group (the unpermuted definition and
+            // each permuted accumulate) is annotated with the perm type and index pairs,
+            // so a consumer can recognize "target is (anti)symmetrized under P(...)"
+            // instead of seeing unrelated accumulates.
+            string perm_json;
+            if (Vertex::ir_mode_) {
+                perm_json = "\"perm\":{\"type\":" + std::to_string(perm_type_) + ",\"pairs\":[";
+                bool first = true;
+                for (const auto &p : term_perms_) {
+                    if (!first) perm_json += ",";
+                    first = false;
+                    perm_json += "[\"" + p.first + "\",\"" + p.second + "\"]";
+                }
+                perm_json += "]}";
+            }
 
             // make intermediate vertex for the permutation
             MutableVertexPtr perm_vertex;
@@ -521,6 +669,7 @@ namespace pdaggerq {
                 perm_term.reset_perm();
                 perm_term.is_assignment_ = true; // set term as assignment
                 perm_term.coefficient_ = fabs(coefficient_); // set coefficient to absolute value of coefficient
+                perm_term.ir_perm_json_ = perm_json; // annotate the group's definition (IR only)
 
                 // add string to output
                 output += perm_term.str();
@@ -531,6 +680,7 @@ namespace pdaggerq {
             // initialize term to permute
             Term perm_term = *this; // copy term
             perm_term.rhs_ = {perm_vertex};
+            perm_term.ir_perm_json_ = perm_json; // inherited by every expanded copy (IR only)
             perm_term.compute_scaling(true);  // recomputes scaling
 
             // remove comments from term
@@ -590,7 +740,7 @@ namespace pdaggerq {
             // determine if binarization is still needed
             bool made_any_change = false;
             Term binarized_term = clone(); // copy of current term to modify
-            needs_binarization = binarized_term.rhs_.size() > 2;            
+            needs_binarization = binarized_term.rhs_.size() > 2;
 
             int count = 1;
 
@@ -669,6 +819,328 @@ namespace pdaggerq {
         }
 
         return Vertex::printer_->format_term(*this);
+    }
+
+    // JSON-escape a string (names like tmps_["12_vvoo"] contain quotes).
+    static string ir_jesc(const string &s) {
+        string o; o.reserve(s.size() + 2);
+        for (char c : s) {
+            if (c == '\\' || c == '"') o += '\\';
+            o += c;
+        }
+        return o;
+    }
+
+    // Whether a vertex is a generated intermediate (routes to the intermediate
+    // store, not inputs/outputs). is_temp() catches fusion intermediates (which
+    // are Linkages with an id), but permutation tmps are plain Vertices named
+    // "tmps_"; match those (and reused_/scalars_) by name prefix too.
+    static bool ir_is_intermediate(const VertexPtr &v) {
+        if (v->is_temp()) return true;
+        // A LINKAGE that is not a temp is an inline expression -- e.g. a fused ADDITION whose
+        // name() happens to start with its left temp's name ("tmps_[..] + einsum(..)"). It must
+        // be hoisted into its own temp, not referenced by name (there is no tensor of that
+        // name). Only non-linkage vertices (already-named temp references carried as plain
+        // vertices) are classified by the name prefix.
+        if (v->is_linked()) return false;
+        const string &n = v->name();
+        return n.rfind("tmps_", 0) == 0 || n.rfind("perm_tmps", 0) == 0
+            || n.rfind("reused_", 0) == 0 || n.rfind("scalars_", 0) == 0;
+    }
+
+    // Serialize {name, indices, classes, is_intermediate} from a name + lines.
+    // indices = einsum subscript chars (excited-state lines skipped, matching the
+    // python printer); classes = Line::type() (o/v electron, O/V proton, Q aux,
+    // L excited) for the dims lookup.
+    static string ir_vertex_json_core(const string &name, const line_vector &lines,
+                                      bool is_intermediate, bool is_target = false) {
+        string istr = "[", cstr = "[";
+        bool first = true;
+        std::set<char> target_seen;
+        for (const auto &line : lines) {
+            if (line.sig_ && !Vertex::use_trial_index) continue;
+            if (!first) { istr += ","; cstr += ","; }
+            first = false;
+            const char sub = line.einsum_char();
+            // A repeated subscript on the TARGET is not expressible: it would define the
+            // tensor on that diagonal only, leaving every off-diagonal element whatever the
+            // consumer's allocator happened to leave there. A repeat on an OPERAND is
+            // legitimate (a trace), which is why this is checked only for the target.
+            // Cheap invariant, and the bug it guards against is invisible downstream: a
+            // consumer writes the diagonal, reports no error, and returns a wrong answer.
+            if (is_target && !target_seen.insert(sub).second)
+                throw runtime_error(
+                    "ir_emit: repeated target index '" + string(1, sub) + "' in " + name
+                    + " -- two distinct lines were given the same subscript, which would "
+                      "define this tensor on its diagonal only.");
+            istr += string("\"") + sub + "\"";
+            cstr += string("\"") + line.type() + "\"";
+        }
+        istr += "]"; cstr += "]";
+        return string("{\"name\":\"") + ir_jesc(name) + "\""
+             + ",\"indices\":" + istr
+             + ",\"classes\":" + cstr
+             + ",\"is_intermediate\":" + (is_intermediate ? "true" : "false") + "}";
+    }
+
+    // Name for a vertex as it must appear in the IR. Vertex::name() for a merged/fused
+    // intermediate that is an ADDITION returns the expanded expression ("tmps_[...] +
+    // einsum(...)") rather than the temp's own name; str(true,false) always gives the temp
+    // identity (tmps_["id_shape"]). A temp DEFINITION target and every USE of it must agree
+    // on this identity -- if a use is named by name() it carries a stray einsum string and no
+    // tensor of that name exists. Input tensors (not intermediates) keep name().
+    static string ir_ident(const VertexPtr &v) {
+        if (v->is_linked() && ir_is_intermediate(v))
+            return as_link(v)->str(true, false);
+        return v->name();
+    }
+
+    static string ir_vertex_json(const VertexPtr &v) {
+        return ir_vertex_json_core(ir_ident(v), v->lines(), ir_is_intermediate(v));
+    }
+
+    // Fresh names for synthetic hoisted intermediates (see ir_emit). Monotonic, so
+    // unique within an export; deterministic across fresh processes (like the
+    // optimizer's own tmp ids).
+    static long ir_hoist_counter = 0;
+    void reset_ir_hoist_counter() { ir_hoist_counter = 0; }
+
+    // Optimal binary contraction tree over the emitted operand list, as a nested
+    // JSON array of operand indices -- e.g. [[0,1],[2,3]]. Exact subset DP, costed
+    // with the same scaling_map comparison the optimizer uses (dimension-aware when
+    // "dims" is set, lexicographic line-count otherwise), with a deterministic
+    // string tie-break. Computed at emission from the operands' line sets rather
+    // than walked off the term's linkage tree: several passes leave rhs_ in a
+    // canonicalised (e.g. name-sorted, see fusion's LinkTracker) rather than
+    // cost-optimal order, and Term::ir_str refolds the linkage from rhs_ anyway --
+    // so the stored tree is always the left fold of the emitted operand order,
+    // which for a canonicalised order can start with an outer product (operands
+    // sharing no index). The DP guarantees every emitted plan is outer-product
+    // free and optimal under the active cost model regardless of upstream order.
+    // Consumers without pairing support simply left-fold in list order.
+    static string ir_optimal_pairing(const std::vector<line_vector> &op_lines,
+                                     const line_vector &tlines) {
+        const size_t n = op_lines.size();
+        if (n < 3 || n > 12) return "";  // 2 operands need no plan; cap the 3^n DP
+
+        // deduplicated line set per operand (a repeated line within one operand is
+        // a summed diagonal; one copy carries its class for costing)
+        std::vector<line_vector> ols(n);
+        auto contains = [](const line_vector &v, const Line &l) {
+            return std::find(v.begin(), v.end(), l) != v.end();
+        };
+        for (size_t i = 0; i < n; i++)
+            for (const Line &l : op_lines[i])
+                if (!contains(ols[i], l)) ols[i].push_back(l);
+        line_vector tset;
+        for (const Line &l : tlines)
+            if (!contains(tset, l)) tset.push_back(l);
+
+        const size_t full = (1ul << n) - 1;
+
+        // external lines of subset S: lines within S still needed by the target or
+        // by an operand outside S (everything else is summed out inside S)
+        auto kept = [&](size_t S) {
+            line_vector lines;
+            for (size_t i = 0; i < n; i++) {
+                if (!(S >> i & 1ul)) continue;
+                for (const Line &l : ols[i]) {
+                    if (contains(lines, l)) continue;
+                    bool needed = contains(tset, l);
+                    for (size_t j = 0; !needed && j < n; j++)
+                        if (!(S >> j & 1ul) && contains(ols[j], l)) needed = true;
+                    if (needed) lines.push_back(l);
+                }
+            }
+            return lines;
+        };
+
+        struct Best { scaling_map cost; string tree; line_vector ext; bool set = false; };
+        std::vector<Best> best(full + 1);
+        for (size_t i = 0; i < n; i++) {
+            Best &b = best[1ul << i];
+            b.set = true;
+            b.tree = std::to_string(i);
+            b.ext = kept(1ul << i);
+        }
+
+        // ascending mask order visits every proper subset before its superset
+        for (size_t S = 3; S <= full; S++) {
+            if (__builtin_popcountl(S) < 2) continue;
+            Best &b = best[S];
+            const size_t low = S & (~S + 1ul);
+            // enumerate splits S = A | B canonically (A holds the lowest bit)
+            for (size_t A = (S - 1) & S; A; A = (A - 1) & S) {
+                if (!(A & low)) continue;
+                const size_t B = S & ~A;
+                const Best &ba = best[A], &bb = best[B];
+
+                // flops of contracting the two results: all their external lines
+                shape s;
+                line_vector uni = ba.ext;
+                for (const Line &l : bb.ext)
+                    if (!contains(uni, l)) uni.push_back(l);
+                for (const Line &l : uni) s += l;
+
+                scaling_map cost = ba.cost;
+                cost += bb.cost;
+                cost[s] += 1;
+
+                string tree = "[" + ba.tree + "," + bb.tree + "]";
+                int cmp = b.set ? cost.compare(b.cost) : scaling_map::this_better;
+                if (cmp == scaling_map::this_better ||
+                    (cmp == scaling_map::this_same && tree < b.tree)) {
+                    b.set = true;
+                    b.cost = std::move(cost);
+                    b.tree = std::move(tree);
+                }
+            }
+            b.ext = kept(S);
+        }
+        return best[full].tree;
+    }
+
+    // Emit one-or-more JSONL statements for "target [assign] coeff * <rhs_link>",
+    // the target given as (tname, tlines, tinterm) so synthetic temps can be
+    // targets too. A top-level addition A+B is split into "target = c*A" then
+    // "target += c*B"; contractions become one statement over the linkage's
+    // link_vector. An operand that is itself an inline (un-named) non-temp linkage
+    // -- the (A+B)/nested-contraction sub-expressions the expression backends
+    // inline but einsums cannot -- is HOISTED: it gets a synthetic tmps_ name, its
+    // defining statement(s) are emitted first, and the operand is replaced by a
+    // reference to that temp. So the IR carries every operand's definition.
+    static string ir_emit(const string &tname, const line_vector &tlines, bool tinterm,
+                          bool assign, double coeff, const VertexPtr &rhs_link,
+                          const std::set<string> &conds, const string &extra = "") {
+
+        // split additions (a named temp used as an operand is left intact)
+        if (rhs_link->is_linked() && as_link(rhs_link)->is_addition() && !rhs_link->is_temp()) {
+            LinkagePtr al = as_link(rhs_link);
+            return ir_emit(tname, tlines, tinterm, assign, coeff, al->left(), conds, extra)
+                 + "\n" + ir_emit(tname, tlines, tinterm, false, coeff, al->right(), conds, extra);
+        }
+
+        // gather operands (contraction order, mirroring the python printer's walk)
+        vertex_vector ops;
+        if (rhs_link->is_linked() && !rhs_link->is_temp())
+            ops = as_link(rhs_link)->link_vector();
+        else
+            ops = { rhs_link };
+
+        // Collect the operands BEFORE serializing any of them: a hoisted operand recurses
+        // into ir_emit, which assigns its own statement's subscripts, so nothing may be
+        // written out until every nested emission is done and this statement's own
+        // assignment is in scope.
+        struct IROperand { string name; line_vector lines; bool interm; };
+        string prefix;                     // hoisted temp definitions, emitted first
+        std::vector<IROperand> operands;
+        for (const auto &op : ops) {
+            if (op->empty()) continue;
+            if (!op->is_linked() && op->is_constant()) {
+                // constant-scalar vertex (created by intermediate fusion's
+                // ratio*vertex): fold into the statement coefficient instead of
+                // emitting an operand named "0.500000000000" with no indices,
+                // which every IR consumer would misread as an input tensor.
+                coeff *= op->value();
+                continue;
+            }
+            if (op->is_linked() && !ir_is_intermediate(op)) {
+                // inline (A+B)/nested-contraction operand -> materialise into a temp
+                string tn = "tmps_[\"ir" + std::to_string(ir_hoist_counter++) + "\"]";
+                prefix += ir_emit(tn, op->lines(), true, true, 1.0, op, conds) + "\n";
+                operands.push_back({tn, op->lines(), true});
+            } else {
+                operands.push_back({ir_ident(op), op->lines(), ir_is_intermediate(op)});
+            }
+        }
+
+        // Give every distinct label in this statement its own subscript. Without this the
+        // natural label->char map is not injective (see Line::natural_einsum_char) and two
+        // distinct nuclear lines can print as one index -- a silently wrong contraction.
+        line_vector stmt_lines = tlines;
+        for (const auto &op : operands)
+            stmt_lines.insert(stmt_lines.end(), op.lines.begin(), op.lines.end());
+        Line::SubscriptScope subscripts(stmt_lines);
+
+        std::vector<string> operand_jsons;
+        std::vector<line_vector> op_lines; // per emitted operand, for the pairing DP
+        for (const auto &op : operands) {
+            operand_jsons.push_back(ir_vertex_json_core(op.name, op.lines, op.interm));
+            op_lines.push_back(op.lines);
+        }
+
+        string out = string("{\"target\":") + ir_vertex_json_core(tname, tlines, tinterm, true);
+        out += string(",\"is_assignment\":") + (assign ? "true" : "false");
+        { std::ostringstream cs; cs.precision(17); cs << coeff;
+          out += ",\"coeff\":" + cs.str(); }
+
+        // exact small-rational annotation: repeating fractions print as 17-digit
+        // decimals above (e.g. 1/3 -> 0.33333333333333331); when the coefficient is a
+        // small p/q, also emit it exactly so consumers can recover the factor.
+        if (std::fabs(coeff - std::round(coeff)) > 1e-12) {          // non-integer only
+            for (long q : {2L, 3L, 4L, 6L, 8L, 12L, 16L, 24L, 32L, 48L, 64L}) {
+                double pd = coeff * (double) q;
+                double pr = std::round(pd);
+                if (std::fabs(pd - pr) < 1e-12) {
+                    long p = (long) pr;
+                    long g = std::gcd(std::labs(p), q);
+                    out += ",\"coeff_rational\":\"" + std::to_string(p / g) + "/"
+                         + std::to_string(q / g) + "\"";
+                    break;
+                }
+            }
+        }
+
+        // caller-supplied annotation (e.g. the originating antisymmetrizer group)
+        if (!extra.empty())
+            out += "," + extra;
+
+        // term-level spin-block / state conditions, if any (NEO spin blocking)
+        if (!conds.empty()) {
+            out += ",\"conditions\":[";
+            bool first = true;
+            for (const auto &c : conds) {
+                if (!first) out += ",";
+                first = false;
+                out += string("\"") + ir_jesc(c) + "\"";
+            }
+            out += "]";
+        }
+
+        out += ",\"operands\":[";
+        bool first = true;
+        for (const auto &oj : operand_jsons) {
+            if (!first) out += ",";
+            first = false;
+            out += oj;
+        }
+        out += "]";
+
+        // the optimal binary contraction order over the operands (only meaningful
+        // for 3+ operands; consumers without support ignore the field and left-fold
+        // in list order). Computed by ir_optimal_pairing's subset DP from the
+        // operands' line sets, so it is emitted for EVERY multi-operand statement
+        // (including temp/scalar declarations) and is guaranteed outer-product free
+        // even when an upstream pass canonicalised the operand order.
+        if (operand_jsons.size() >= 3) {
+            string tree = ir_optimal_pairing(op_lines, tlines);
+            if (!tree.empty() && tree.front() == '[')
+                out += ",\"pairing\":" + tree;
+        }
+
+        out += "}";
+        return prefix + out;
+    }
+
+    // Structured JSONL line(s) describing this term as flat codegen statement(s):
+    // target, assignment flag, coefficient, and ordered operands -- each with its
+    // index labels and orbital-class chars. Consumed by the einsums/codegen
+    // lowering (see neocc/codegen/einsums_printer_plan.md). Permutation operators
+    // are already expanded into separate terms by Term::str() before this point.
+    string Term::ir_str() const {
+        return ir_emit(ir_ident(lhs_), lhs_->lines(), ir_is_intermediate(lhs_),
+                       is_assignment_, coefficient_, term_linkage(true), conditions(),
+                       ir_perm_json_);
     }
 
 }
