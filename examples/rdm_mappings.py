@@ -5,7 +5,7 @@ import pdaggerq
 
 def main():
 
-    print("T2 mappings")
+    print("T2(ijk,lmn) mapping")
     pq = pdaggerq.pq_helper('true')
     pq.add_anticommutator(1.0, ['a*(i)', 'a*(j)', 'a(k)'], ['a*(n)', 'a(m)', 'a(l)'])
 
@@ -15,7 +15,7 @@ def main():
         print(term)
     pq.clear()
 
-    print("T1 mappings")
+    print("T1(ijk,lmn) mapping")
     pq.add_anticommutator(1.0, ['a*(i)', 'a*(j)', 'a*(k)'], ['a(n)', 'a(m)', 'a(l)'])
     pq.simplify()
     terms = pq.strings()
@@ -23,16 +23,16 @@ def main():
         print(term)
     pq.clear()
 
-    print("Q -> D")
-    pq.add_operator_product(1.0, ['a(i)', 'a(j)', 'a*(k)', 'a*(l)'])
+    print("Q(ij,kl) mapping")
+    pq.add_operator_product(1.0, ['a(i)', 'a(j)', 'a*(l)', 'a*(k)'])
     pq.simplify()
     terms = pq.strings()
     for term in terms:
         print(term)
     pq.clear()
 
-    print("G -> D")
-    pq.add_operator_product(1.0, ['a*(i)', 'a(j)', 'a*(k)', 'a(l)'])
+    print("G(ij,kl) mapping")
+    pq.add_operator_product(1.0, ['a*(i)', 'a(j)', 'a*(l)', 'a(k)'])
     pq.simplify()
     terms = pq.strings()
     for term in terms:
