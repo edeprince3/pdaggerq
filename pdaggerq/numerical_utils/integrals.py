@@ -118,7 +118,7 @@ def spatial_to_spin_orbital_tei(gaa, gab, gbb, n, noa, nob, antisymmetrize_eris 
 
     return sg
 
-def get_quadrupole_integrals_with_spin(wfn):
+def get_quadrupole_integrals_with_spin(wfn, nfzc = 0):
     """
 
     get quadrupole integrals from psi4, with spin
@@ -141,8 +141,8 @@ def get_quadrupole_integrals_with_spin(wfn):
     q_aa = []
     q_bb = []
     for i in range (len(q)):
-        q_aa.append(np.einsum('uj,vi,uv', Ca, Ca, q[i]))
-        q_bb.append(np.einsum('uj,vi,uv', Cb, Cb, q[i]))
+        q_aa.append(np.einsum('uj,vi,uv', Ca, Ca, q[i])[nfzc:, nfzc:])
+        q_bb.append(np.einsum('uj,vi,uv', Cb, Cb, q[i])[nfzc:, nfzc:])
 
     return q_aa, q_bb
 
@@ -171,7 +171,7 @@ def get_quadrupole_integrals(wfn):
 
     return q
 
-def get_dipole_integrals_with_spin(wfn):
+def get_dipole_integrals_with_spin(wfn, nfzc = 0):
     """
 
     get dipole integrals from psi4, with spin
@@ -194,8 +194,8 @@ def get_dipole_integrals_with_spin(wfn):
     mu_aa = []
     mu_bb = []
     for i in range (len(mu)):
-        mu_aa.append(np.einsum('uj,vi,uv', Ca, Ca, mu[i]))
-        mu_bb.append(np.einsum('uj,vi,uv', Cb, Cb, mu[i]))
+        mu_aa.append(np.einsum('uj,vi,uv', Ca, Ca, mu[i])[nfzc:, nfzc:])
+        mu_bb.append(np.einsum('uj,vi,uv', Cb, Cb, mu[i])[nfzc:, nfzc:])
 
     return mu_aa, mu_bb
 

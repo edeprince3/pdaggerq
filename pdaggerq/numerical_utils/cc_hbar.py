@@ -125,6 +125,32 @@ class HbarOperator:
 
         return l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb
 
+    def pack_right_amplitudes(self, r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb):
+
+        # packed same-spin doubles parts
+        r2_aaaa = self.pack_antisym(r2_aaaa, self.a_idx_a, self.b_idx_a, self.i_idx_a, self.j_idx_a)
+        r2_bbbb = self.pack_antisym(r2_bbbb, self.a_idx_b, self.b_idx_b, self.i_idx_b, self.j_idx_b)
+
+        if self.include_reference:
+            R = np.hstack((r0, r1_aa.flatten(), r1_bb.flatten(), r2_aaaa.flatten(), r2_abab.flatten(), r2_bbbb.flatten()))
+        else:
+            R = np.hstack((r1_aa.flatten(), r1_bb.flatten(), r2_aaaa.flatten(), r2_abab.flatten(), r2_bbbb.flatten()))
+
+        return R
+
+    def pack_left_amplitudes(self, l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb):
+
+        # packed same-spin doubles parts
+        l2_aaaa = self.pack_antisym(l2_aaaa, self.i_idx_a, self.j_idx_a, self.a_idx_a, self.b_idx_a)
+        l2_bbbb = self.pack_antisym(l2_bbbb, self.i_idx_b, self.j_idx_b, self.a_idx_b, self.b_idx_b)
+
+        if self.include_reference:
+            L = np.hstack((l0, l1_aa.flatten(), l1_bb.flatten(), l2_aaaa.flatten(), l2_abab.flatten(), l2_bbbb.flatten()))
+        else:
+            L = np.hstack((l1_aa.flatten(), l1_bb.flatten(), l2_aaaa.flatten(), l2_abab.flatten(), l2_bbbb.flatten()))
+
+        return L
+
     def matvec_right(self, R):
         """
         evaluate the action of Hbar on a vector, sigma = H.R
@@ -134,6 +160,7 @@ class HbarOperator:
         :return sigma: the sigma vector (flat, unique elements only)
         """
 
+        # unpack amplitudes
         bigR = R
         if not self.include_reference:
             bigR = np.hstack((0.0, R))
@@ -143,14 +170,9 @@ class HbarOperator:
         sigma1_aa, sigma1_bb = self.right_sigma1(r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb)
         sigma2_aaaa, sigma2_abab, sigma2_bbbb = self.right_sigma2(r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb)
 
-        # packed same-spin doubles parts of the eom-cc sigma vector
-        sigma2_aaaa = self.pack_antisym(sigma2_aaaa, self.a_idx_a, self.b_idx_a, self.i_idx_a, self.j_idx_a)
-        sigma2_bbbb = self.pack_antisym(sigma2_bbbb, self.a_idx_b, self.b_idx_b, self.i_idx_b, self.j_idx_b)
+        # repack amplitudes
+        sigma = self.pack_right_amplitudes(sigma0, sigma1_aa, sigma1_bb, sigma2_aaaa, sigma2_abab, sigma2_bbbb)
 
-        if self.include_reference:
-            sigma = np.hstack((sigma0, sigma1_aa.flatten(), sigma1_bb.flatten(), sigma2_aaaa.flatten(), sigma2_abab.flatten(), sigma2_bbbb.flatten()))
-        else:
-            sigma = np.hstack((sigma1_aa.flatten(), sigma1_bb.flatten(), sigma2_aaaa.flatten(), sigma2_abab.flatten(), sigma2_bbbb.flatten()))
         return sigma - self.ccsd.energy * R
 
     def matvec_left(self, L):
@@ -162,6 +184,7 @@ class HbarOperator:
         :return sigma: the sigma vector (flat, unique elements only)
         """
 
+        # unpack amplitudes
         bigL = L
         if not self.include_reference:
             bigL = np.hstack((0.0, L))
@@ -171,14 +194,9 @@ class HbarOperator:
         sigma1_aa, sigma1_bb = self.left_sigma1(l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb)
         sigma2_aaaa, sigma2_abab, sigma2_bbbb = self.left_sigma2(l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb)
 
-        # packed same-spin doubles parts of the eom-cc sigma vector
-        sigma2_aaaa = self.pack_antisym(sigma2_aaaa, self.i_idx_a, self.j_idx_a, self.a_idx_a, self.b_idx_a)
-        sigma2_bbbb = self.pack_antisym(sigma2_bbbb, self.i_idx_b, self.j_idx_b, self.a_idx_b, self.b_idx_b)
+        # repack amplitudes
+        sigma = self.pack_left_amplitudes(sigma0, sigma1_aa, sigma1_bb, sigma2_aaaa, sigma2_abab, sigma2_bbbb)
 
-        if self.include_reference:
-            sigma = np.hstack((sigma0, sigma1_aa.flatten(), sigma1_bb.flatten(), sigma2_aaaa.flatten(), sigma2_abab.flatten(), sigma2_bbbb.flatten()))
-        else:
-            sigma = np.hstack((sigma1_aa.flatten(), sigma1_bb.flatten(), sigma2_aaaa.flatten(), sigma2_abab.flatten(), sigma2_bbbb.flatten()))
         return sigma - self.ccsd.energy * L
 
     def unpack_antisym(self, rvec, a_idx, b_idx, i_idx, j_idx, nv, no):

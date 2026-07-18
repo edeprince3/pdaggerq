@@ -30,7 +30,7 @@ def setup_psi4_test():
     H            0.000000000000    -0.790689573744     0.543701060715 
     H            0.000000000000     0.790689573744     0.543701060715 
     #H            0.000000000000     0.000000000000     0.000000000000 
-    #F            0.000000000000     0.000000000000     1.6
+    #H            0.000000000000     0.000000000000     1
     no_reorient
     nocom
     symmetry c1
@@ -477,9 +477,8 @@ def test_eomccsd_codegen():
 
         with contextlib.redirect_stdout(f):
 
-            # Import pq codegen functions 
+            # Import pq cc codegen function 
             from pdaggerq.numerical_utils.autogen import cc_residual
-            from pdaggerq.numerical_utils.autogen import eomcc_sigma
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -490,6 +489,9 @@ def test_eomccsd_codegen():
             exec(cc_residual('r1', T, [['e1(i,a)']], 't1_residual'), globals(), local_namespace)
             exec(cc_residual('r2', T, [['e2(i,j,b,a)']], 't2_residual'), globals(), local_namespace)
 
+            # Import pq eomcc codegen function
+            from pdaggerq.numerical_utils.autogen import eomcc_sigma
+
             R = [['r0'], ['r1'], ['r2']]
             exec(eomcc_sigma('sigma0', T, [['1']], R, 'right_sigma0'), globals(), local_namespace)
             exec(eomcc_sigma('sigma1', T, [['e1(i,a)']], R, 'right_sigma1'), globals(), local_namespace)
@@ -499,6 +501,10 @@ def test_eomccsd_codegen():
             exec(eomcc_sigma('sigma0', T, L, [['1']], 'left_sigma0'), globals(), local_namespace)
             exec(eomcc_sigma('sigma1', T, L, [['e1(a,i)']], 'left_sigma1'), globals(), local_namespace)
             exec(eomcc_sigma('sigma2', T, L, [['e2(a,b,j,i)']], 'left_sigma2'), globals(), local_namespace)
+
+            # Import pq eomcc density matrix codegen function
+            from pdaggerq.numerical_utils.autogen import eomcc_density_matrix
+            exec(eomcc_density_matrix('tdm', T, L, R, 'density_matrix', write_function = True), globals(), local_namespace)
 
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
@@ -521,7 +527,8 @@ def test_eomccsd_codegen():
                 right_sigma2_func=local_namespace["right_sigma2"],
                 left_sigma0_func=local_namespace["left_sigma0"],
                 left_sigma1_func=local_namespace["left_sigma1"],
-                left_sigma2_func=local_namespace["left_sigma2"]
+                left_sigma2_func=local_namespace["left_sigma2"],
+                density_matrix_func=local_namespace["density_matrix"]
              )
 
             ref_energies = [0.000000000000,
@@ -539,6 +546,30 @@ def test_eomccsd_codegen():
 
             assert np.allclose(ref_energies, eomcc.eom_cc_energy, rtol=1e-10, atol=1e-10)
 
+            osc = eomcc.oscillator_strengths()
+
+            ref_osc = [0.000000000000,
+                -0.000000000000,
+                 0.002810870965,
+                -0.000000000000,
+                -0.000000000000,
+                 0.000000000000,
+                -0.000000000000,
+                 0.054163450493,
+                 0.000683020239,
+                 0.000000000000,
+                 0.000000000000,
+                 0.000000000000,
+                 0.000000000000,
+                -0.000000000000,
+                 0.000000000000,
+            ]
+            idx = 0
+            for i in range (5):
+                for j in range (i, 5):
+                    assert np.isclose(osc[i, j], ref_osc[idx], rtol=1e-10, atol=1e-10)
+                    idx += 1
+
         f.write(">>> TEST PASSED: EOMCCSD\n")    
 
 def main():
@@ -547,13 +578,13 @@ def main():
     #test_qed_ccsd_codegen()
     #test_ccsdt_codegen()
     #test_cc3_codegen()
-    #test_eomccsd_codegen()
+    test_eomccsd_codegen()
     #test_lambda_ccsd_codegen()
     #test_uccsd_3_codegen()
     #test_uccsd_4_codegen()
     #test_quccsd_codegen()
     #test_cuccsd_codegen()
-    raise Exception("run with pytest")
+    #raise Exception("run with pytest")
 
 if __name__ == "__main__":
     main()

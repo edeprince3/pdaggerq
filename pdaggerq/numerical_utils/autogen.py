@@ -1149,3 +1149,130 @@ f"""
     del pq
 
     return generated_code_string
+
+def eomcc_density_matrix(ret_name, 
+    T,
+    L,
+    R, 
+    function_name,
+    spin_block = True,
+    write_function = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC (transition)density matrix equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of left-hand operators
+    :param R: list of right-hand operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        'oo' : 'e1(i,j)',
+        'ov' : 'e1(i,a)',
+        'vo' : 'e1(a,i)',
+        'vv' : 'e1(a,b)',
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self, left_state, right_state):
+    r0 = self.r0[right_state]
+    r1 = {{}}
+    r1['aa'] = self.r1_aa[right_state]
+    r1['bb'] = self.r1_bb[right_state]
+    r2 = {{}}
+    r2['aaaa'] = self.r2_aaaa[right_state]
+    r2['abab'] = self.r2_abab[right_state]
+    r2['bbbb'] = self.r2_bbbb[right_state]
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, op in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # set ket
+        pq.set_right_operators(R)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, [op], T)
+        else:
+            pq.add_operator_product(1.0, [op])
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking
+        block_by_spin(pq, ret_name + "_" + block, L + T + R + [[op]], eqs)
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string("ccsd")
+
+    # need to redefine l1/l2 because they currently point to the ccsd ones
+    generated_code_string += \
+f"""
+    l0 = self.l0[left_state]
+    l1 = {{}}
+    l1['aa'] = self.l1_aa[left_state]
+    l1['bb'] = self.l1_bb[left_state]
+    l2 = {{}}
+    l2['aaaa'] = self.l2_aaaa[left_state]
+    l2['abab'] = self.l2_abab[left_state]
+    l2['bbbb'] = self.l2_bbbb[left_state]
+"""
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['aa_oo'] = {ret_name}_oo_aa
+    {ret_name}['aa_ov'] = {ret_name}_ov_aa.transpose(1,0)
+    {ret_name}['aa_vo'] = {ret_name}_vo_aa
+    {ret_name}['aa_vv'] = {ret_name}_vv_aa
+    {ret_name}['bb_oo'] = {ret_name}_oo_bb
+    {ret_name}['bb_ov'] = {ret_name}_ov_bb.transpose(1,0)
+    {ret_name}['bb_vo'] = {ret_name}_vo_bb
+    {ret_name}['bb_vv'] = {ret_name}_vv_bb
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        with open(f"generated_equations/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
+
+    return generated_code_string

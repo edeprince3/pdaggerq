@@ -65,6 +65,7 @@ class cc:
         """
 
         self.wfn = wfn
+        self.nfzc = nfzc
         self.mol = mol
         self.use_spin_orbital_basis = use_spin_orbital_basis
 
@@ -79,12 +80,12 @@ class cc:
         if t2_1p_residual_func is not None:
             self.is_qed = True
 
-        if self.is_qed and nfzc > 0:
+        if self.is_qed and self.nfzc > 0:
             raise Exception("QED-CCSD-21 does not work with frozen core")
 
         if self.use_spin_orbital_basis:
 
-            self.nsocc, self.nsvirt, self.f, self.g, self.efzc = get_integrals(self.wfn, nfzc = nfzc)
+            self.nsocc, self.nsvirt, self.f, self.g, self.efzc = get_integrals(self.wfn, nfzc = self.nfzc)
 
             # occupied, virtual slices
             n = np.newaxis
@@ -125,7 +126,7 @@ class cc:
 
         else:
 
-            noa, nob, nva, nvb, self.f_aa, self.f_bb, self.g_aaaa, self.g_bbbb, self.g_abab, self.efzc  = get_integrals_with_spin(self.wfn, nfzc = nfzc)
+            noa, nob, nva, nvb, self.f_aa, self.f_bb, self.g_aaaa, self.g_bbbb, self.g_abab, self.efzc  = get_integrals_with_spin(self.wfn, nfzc = self.nfzc)
 
             # occupied, virtual slices
             n = np.newaxis
