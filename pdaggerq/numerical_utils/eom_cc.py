@@ -201,12 +201,8 @@ class eom_ccsd:
 
     def oscillator_strengths(self):
 
-        # 
-        # Biorthogonalize L and R
-        # 
-
+        # Pack eigenvectors for biorthogonalization
         Hbar = HbarOperator(self.ccsd)
-
         L = Hbar.pack_left_amplitudes(self.l0[0],
             self.l1_aa[0],
             self.l1_bb[0],
@@ -249,26 +245,24 @@ class eom_ccsd:
             self.l2_bbbb[i] = self.l2_bbbb[i].transpose(2,3,0,1)
             
 
-        #
         # Compute oscillator strengths
-        #
 
         print('    ==> EOM-CCSD oscillator strengths <==')
         print('')
-        print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s %10s' % ('', '', '<L1|mu|R2>', '', '', '<L2|mu|R1>', '', '', '', ''))
-        print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s %10s' % ('state 1', 'state 2', 'x', 'y', 'z', 'x', 'y', 'z', 'osc', 'w'))
+        print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('', '', '<L1|mu|R2>', '', '', '<L2|mu|R1>', '', '', ''))
+        print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('state 1', 'state 2', 'x', 'y', 'z', 'x', 'y', 'z', 'osc'))
 
         from pdaggerq.numerical_utils.integrals import get_dipole_integrals_with_spin
         dipole_aa, dipole_bb = get_dipole_integrals_with_spin(self.ccsd.wfn, nfzc = self.ccsd.nfzc)
 
-        f = np.zeros((self.nstates, self.nstates))
+        f = np.zeros((self.nstates, self.nstates), dtype=np.complex128)
 
         for i in range (self.nstates):
-            for j in range (i, self.nstates):
+            for j in range (i+1, self.nstates):
 
                 tdm = self.density_matrix(i, j)
 
-                tdp_ij = np.zeros((3))
+                tdp_ij = np.zeros((3), dtype=np.complex128)
 
                 for xyz in range (3):
                     tdp_ij[xyz] += np.einsum('ij,ij->', tdm['aa_oo'], dipole_aa[xyz][self.ccsd.oa, self.ccsd.oa])
@@ -282,7 +276,7 @@ class eom_ccsd:
 
                 tdm = self.density_matrix(j, i)
                     
-                tdp_ji = np.zeros((3))
+                tdp_ji = np.zeros((3), dtype=np.complex128)
 
                 for xyz in range (3):
                     tdp_ji[xyz] += np.einsum('ij,ij->', tdm['aa_oo'], dipole_aa[xyz][self.ccsd.oa, self.ccsd.oa])
@@ -299,9 +293,9 @@ class eom_ccsd:
                 w = en_j - en_i
 
                 f[i, j] = 2./3. * w * np.einsum('i,i->', tdp_ij, tdp_ji)
-                print('    %7i %7i %10.6f %10.6f %10.6f %10.6f %10.6f %10.6f %10.6f %10.6f' 
-                    % (i, j, tdp_ij[0], tdp_ij[1], tdp_ij[2],
-                    tdp_ji[0], tdp_ji[1], tdp_ji[2], f[i, j], w))
+                print('    %7i %7i %10.6f %10.6f %10.6f %10.6f %10.6f %10.6f %10.6f' 
+                    % (i, j, tdp_ij[0].real, tdp_ij[1].real, tdp_ij[2].real,
+                    tdp_ji[0].real, tdp_ji[1].real, tdp_ji[2].real, f[i, j].real))
         print('')
 
         return f
@@ -312,32 +306,15 @@ class eom_ccsd:
             L[:,i] /= np.dot(L[:,i],R[:,i])
     
         M = np.matmul(L.T, R)
-    
-        # x, ML, MU = scipy.linalg.lu(M, permute_l=False)
         ML, MU = scipy.linalg.lu(M, permute_l=True)
     
         L = np.matmul(np.linalg.inv(ML),L.T).T
         R = np.matmul(R,np.linalg.inv(MU))
     
-        # for numerical reason, renormalize L and R vectors
+        # normalize L and R vectors, <R|R> = <L|R> = 1
         for i in range(len(R[0])):
-            R[:,i] /= np.linalg.norm(R[:,i]) # make sure <R|R>=1 for numerical stability
-            L[:,i] /= np.dot(L[:,i],R[:,i]) # re-binormalize <L|R>=1 for numerical stability
-    
-        chkmat = np.matmul(L.T,R)
-    
-        #print('',flush=True)
-        #print('    Checking <L_mu|R_nu> ...',flush=True)
-        ## print(np.abs(chkmat),flush=True)
-    
-        #if np.any(np.abs(chkmat - np.eye(len(L[0])))>1.0e-12):
-        #   adx=np.argwhere(np.abs(chkmat - np.eye(len(L[0])))>1.0e-12)
-        #   print('    Looks like L and R could be messed up. Check the following elements:',flush=True)
-        #   for a in adx:
-        #       print('    < {: 3d} | {: 3d} > = {: .6e}'.format(a[0],a[1],chkmat[a[0],a[1]]),flush=True)
-        #else:
-        #   print('    Looks like L and R are properly biorthonormalized',flush=True)
-        #print('',flush=True)
+            R[:,i] /= np.linalg.norm(R[:,i])
+            L[:,i] /= np.dot(L[:,i],R[:,i])
     
         return L, R
 
