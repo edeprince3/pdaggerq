@@ -573,13 +573,13 @@ def main():
     #test_qed_ccsd_codegen()
     #test_ccsdt_codegen()
     #test_cc3_codegen()
-    test_eomccsd_codegen()
+    #test_eomccsd_codegen()
     #test_lambda_ccsd_codegen()
     #test_uccsd_3_codegen()
     #test_uccsd_4_codegen()
     #test_quccsd_codegen()
     #test_cuccsd_codegen()
-    #raise Exception("run with pytest")
+    raise Exception("run with pytest")
 
 if __name__ == "__main__":
     main()
