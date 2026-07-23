@@ -399,6 +399,20 @@ namespace pdaggerq {
         }
 
         /**
+         * check if vertex has no lines that will actually be printed
+         * @return true if every line is omitted from the emitted index string
+         * @note trial (sigma) indices are not materialized as a tensor dimension unless
+         *       use_trial_index is set, so a vertex whose only lines are sigma lines is
+         *       printed as a scalar factor even though its rank is nonzero.
+         */
+        bool is_printed_scalar() const {
+            if (use_trial_index) return lines_.empty();
+            for (const Line &line : lines_)
+                if (!line.sig_) return false;
+            return true;
+        }
+
+        /**
          * check if vertex is a constant
          */
         bool is_constant() const;

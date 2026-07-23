@@ -68,12 +68,13 @@ string EinsumPrinter::format_contraction(
         if (op->is_addition() && !op->is_temp())
             s = "(" + s + ")";
 
-        if (op->is_scalar()) {
+        if (op->is_printed_scalar()) {
             output += s + " * ";
         } else {
             tensor_strs.push_back(std::move(s));
             string labels, types;
             for (const auto& line : op->lines()) {
+                if (line.sig_ && !Vertex::use_trial_index) continue;
                 labels += line.einsum_char();
                 types  += line.type();
             }
