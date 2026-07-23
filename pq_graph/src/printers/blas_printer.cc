@@ -88,16 +88,18 @@ string BLASPrinter::format_contraction(
 
 string BLASPrinter::format_lines(const line_vector& lines) const {
     if (lines.empty()) return "";
-    string out = "(";
-    for (size_t i = 0; i < lines.size(); ++i) {
-        if (i > 0) out += ",";
-        if (!lines[i].label_.empty())
-            out += lines[i].label_;
+    string out;
+    for (const Line &line : lines) {
+        // trial (sigma) indices are not a materialized tensor dimension unless requested
+        if (line.sig_ && !Vertex::use_trial_index) continue;
+        if (!out.empty()) out += ",";
+        if (!line.label_.empty())
+            out += line.label_;
         else
-            out += (lines[i].type() == 'v' ? 'a' : lines[i].type());
+            out += (line.type() == 'v' ? 'a' : line.type());
     }
-    out += ")";
-    return out;
+    if (out.empty()) return "";
+    return "(" + out + ")";
 }
 
 string BLASPrinter::format_declarations(const set<string>& names) const {
