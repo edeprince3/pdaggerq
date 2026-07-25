@@ -1323,54 +1323,190 @@ def eomcc_sigma(sigma_name,
     graph.optimize()
 
     # initialization statements 
-    if is_right:
-        generated_code_string = \
-f"""
-def {function_name}(self, r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb):
-    r1 = {{}}
-    r1['aa'] = r1_aa
-    r1['bb'] = r1_bb
-    r2 = {{}}
-    r2['aaaa'] = r2_aaaa
-    r2['abab'] = r2_abab
-    r2['bbbb'] = r2_bbbb
-"""
-    else:
-        generated_code_string = f"def {function_name}(self, l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb):"
-
+    generated_code_string = f"def {function_name}(self):"
     generated_code_string += function_initialization_string(extra_class = "ccsd")
 
-    # need to redefine l1/l2 because they currently point to the ccsd ones
-    if not is_right:
-        generated_code_string += \
+    generated_code_string += \
 f"""
-    l1 = {{}}
-    l1['aa'] = l1_aa
-    l1['bb'] = l1_bb
-    l2 = {{}}
-    l2['aaaa'] = l2_aaaa
-    l2['abab'] = l2_abab
-    l2['bbbb'] = l2_bbbb
+    # right-hand eom amplitudes
+
+    # r0 is special because it is a scalar
+    r0_dict = self.R.get('0', {{}})
+    r0_val = r0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0 = r0_val.item() if hasattr(r0_val, 'item') else r0_val
+
+    r1 = dict(self.R.get('1', {{}}))
+    r2 = dict(self.R.get('2', {{}}))
+    r3 = dict(self.R.get('3', {{}}))
+    r4 = dict(self.R.get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_1p_dict = self.R.get('0_1p', {{}})
+    r0_1p_val = r0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_1p = r0_1p_val.item() if hasattr(r0_1p_val, 'item') else r0_1p_val
+
+    r1_1p = dict(self.R.get('1_1p', {{}}))
+    r2_1p = dict(self.R.get('2_1p', {{}}))
+    r3_1p = dict(self.R.get('3_1p', {{}}))
+    r4_1p = dict(self.R.get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_2p_dict = self.R.get('0_2p', {{}})
+    r0_2p_val = r0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_2p = r0_2p_val.item() if hasattr(r0_2p_val, 'item') else r0_2p_val
+
+    r1_2p = dict(self.R.get('1_2p', {{}}))
+    r2_2p = dict(self.R.get('2_2p', {{}}))
+    r3_2p = dict(self.R.get('3_2p', {{}}))
+    r4_2p = dict(self.R.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_3p_dict = self.R.get('0_3p', {{}})
+    r0_3p_val = r0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_3p = r0_3p_val.item() if hasattr(r0_3p_val, 'item') else r0_3p_val
+
+    r1_3p = dict(self.R.get('1_3p', {{}}))
+    r2_3p = dict(self.R.get('2_3p', {{}}))
+    r3_3p = dict(self.R.get('3_3p', {{}}))
+    r4_3p = dict(self.R.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_4p_dict = self.R.get('0_4p', {{}})
+    r0_4p_val = r0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_4p = r0_4p_val.item() if hasattr(r0_4p_val, 'item') else r0_4p_val
+
+    r1_4p = dict(self.R.get('1_4p', {{}}))
+    r2_4p = dict(self.R.get('2_4p', {{}}))
+    r3_4p = dict(self.R.get('3_4p', {{}}))
+    r4_4p = dict(self.R.get('4_4p', {{}}))
+
+    # left-hand eom amplitudes
+
+    # l0 is special because it is a scalar
+    l0_dict = self.L.get('0', {{}})
+    l0_val = l0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0 = l0_val.item() if hasattr(l0_val, 'item') else l0_val
+    
+    l1 = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L.get('1', {{}}).items()}}
+    l2 = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L.get('2', {{}}).items()}}
+    l3 = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L.get('3', {{}}).items()}}
+    l4 = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L.get('4', {{}}).items()}}
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_1p_dict = self.L.get('0_1p', {{}})
+    l0_1p_val = l0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_1p = l0_1p_val.item() if hasattr(l0_1p_val, 'item') else l0_1p_val
+
+    l1_1p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L.get('1_1p', {{}}).items()}}
+    l2_1p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L.get('2_1p', {{}}).items()}}
+    l3_1p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L.get('3_1p', {{}}).items()}}
+    l4_1p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L.get('4_1p', {{}}).items()}}
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_2p_dict = self.L.get('0_2p', {{}})
+    l0_2p_val = l0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_2p = l0_2p_val.item() if hasattr(l0_2p_val, 'item') else l0_2p_val
+
+    l1_2p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L.get('1_2p', {{}}).items()}}
+    l2_2p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L.get('2_2p', {{}}).items()}}
+    l3_2p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L.get('3_2p', {{}}).items()}}
+    l4_2p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L.get('4_2p', {{}}).items()}}
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_3p_dict = self.L.get('0_3p', {{}})
+    l0_3p_val = l0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_3p = l0_3p_val.item() if hasattr(l0_3p_val, 'item') else l0_3p_val
+
+    l1_3p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L.get('1_3p', {{}}).items()}}
+    l2_3p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L.get('2_3p', {{}}).items()}}
+    l3_3p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L.get('3_3p', {{}}).items()}}
+    l4_3p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L.get('4_3p', {{}}).items()}}
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_4p_dict = self.L.get('0_4p', {{}})
+    l0_4p_val = l0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_4p = l0_4p_val.item() if hasattr(l0_4p_val, 'item') else l0_4p_val
+
+    l1_4p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L.get('1_4p', {{}}).items()}}
+    l2_4p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L.get('2_4p', {{}}).items()}}
+    l3_4p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L.get('3_4p', {{}}).items()}}
+    l4_4p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L.get('4_4p', {{}}).items()}}
 """
 
     # pq graph output
     generated_code_string += graph.str("python")
         
-    # return statement
-    if is_right:
-        if '2' in sigma_name:
-            generated_code_string += f"    return {sigma_name}_aaaa, {sigma_name}_abab, {sigma_name}_bbbb"
-        elif '1' in sigma_name:
-            generated_code_string += f"    return {sigma_name}_aa, {sigma_name}_bb"
-        else:
-            generated_code_string += f"    return {sigma_name}"
+    # Return statement
+    # This regex looks for digit, optionally followed by '_Np'
+    match = re.search(r'(\d+)(?:_(\d+)p)?$', sigma_name)
+            
+    if not match:
+        # Handles pure strings with no numbers (e.g., 'cc_energy', 'cc_residual') ... although this shouldn't happen in EOM
+        generated_code_string += f"\n    return {sigma_name}\n"
     else:
-        if '2' in sigma_name:
-            generated_code_string += f"    return {sigma_name}_aaaa.transpose(2,3,0,1), {sigma_name}_abab.transpose(2,3,0,1), {sigma_name}_bbbb.transpose(2,3,0,1)"
-        elif '1' in sigma_name:
-            generated_code_string += f"    return {sigma_name}_aa.transpose(1,0), {sigma_name}_bb.transpose(1,0)"
-        else:
-            generated_code_string += f"    return {sigma_name}"
+        # Group 1 is guaranteed to be the fermion order (e.g., '2' from 'r2_1p')
+        order = int(match.group(1))
+        
+        # Group 2 is the photon order if it exists (e.g., '1' from 'r2_1p')
+        nph_suffix = f"{match.group(2)}p" if match.group(2) else None
+
+        # Construct base_name (e.g., '1', '2_1p', '0_1p')
+        base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
+
+        # Safely get the spins for this exact order
+        spins = SPIN_MAP.get(order, [''])
+
+        # Generate individual spin channel assignments
+        assignments = []
+        for spin in spins:
+            var_name = f"{sigma_name}_{spin}" if spin else sigma_name
+            assignments.append(f"    sigma['{base_name}']['{spin}'] = {var_name}")
+
+        assignments_str = "\n".join(assignments)
+
+        generated_code_string += \
+f"""
+    sigma = {{}}
+    sigma['{base_name}'] = {{}}
+{assignments_str}
+    return sigma
+"""
 
     # write function 
     if write_function:
@@ -1419,14 +1555,75 @@ def eomcc_density_matrix(ret_name,
     generated_code_string = \
 f"""
 def {function_name}(self, left_state, right_state):
-    r0 = self.r0[right_state]
-    r1 = {{}}
-    r1['aa'] = self.r1_aa[right_state]
-    r1['bb'] = self.r1_bb[right_state]
-    r2 = {{}}
-    r2['aaaa'] = self.r2_aaaa[right_state]
-    r2['abab'] = self.r2_abab[right_state]
-    r2['bbbb'] = self.r2_bbbb[right_state]
+    # right-hand eom amplitudes
+
+    # r0 is special because it is a scalar
+    r0_dict = self.R[right_state].get('0', {{}})
+    r0_val = r0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0 = r0_val.item() if hasattr(r0_val, 'item') else r0_val
+
+    r1 = dict(self.R[right_state].get('1', {{}}))
+    r2 = dict(self.R[right_state].get('2', {{}}))
+    r3 = dict(self.R[right_state].get('3', {{}}))
+    r4 = dict(self.R[right_state].get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_1p_dict = self.R[right_state].get('0_1p', {{}})
+    r0_1p_val = r0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_1p = r0_1p_val.item() if hasattr(r0_1p_val, 'item') else r0_1p_val
+
+    r1_1p = dict(self.R[right_state].get('1_1p', {{}}))
+    r2_1p = dict(self.R[right_state].get('2_1p', {{}}))
+    r3_1p = dict(self.R[right_state].get('3_1p', {{}}))
+    r4_1p = dict(self.R[right_state].get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_2p_dict = self.R[right_state].get('0_2p', {{}})
+    r0_2p_val = r0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_2p = r0_2p_val.item() if hasattr(r0_2p_val, 'item') else r0_2p_val
+
+    r1_2p = dict(self.R[right_state].get('1_2p', {{}}))
+    r2_2p = dict(self.R[right_state].get('2_2p', {{}}))
+    r3_2p = dict(self.R[right_state].get('3_2p', {{}}))
+    r4_2p = dict(self.R[right_state].get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_3p_dict = self.R[right_state].get('0_3p', {{}})
+    r0_3p_val = r0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_3p = r0_3p_val.item() if hasattr(r0_3p_val, 'item') else r0_3p_val
+
+    r1_3p = dict(self.R[right_state].get('1_3p', {{}}))
+    r2_3p = dict(self.R[right_state].get('2_3p', {{}}))
+    r3_3p = dict(self.R[right_state].get('3_3p', {{}}))
+    r4_3p = dict(self.R[right_state].get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_4p_dict = self.R[right_state].get('0_4p', {{}})
+    r0_4p_val = r0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_4p = r0_4p_val.item() if hasattr(r0_4p_val, 'item') else r0_4p_val
+
+    r1_4p = dict(self.R[right_state].get('1_4p', {{}}))
+    r2_4p = dict(self.R[right_state].get('2_4p', {{}}))
+    r3_4p = dict(self.R[right_state].get('3_4p', {{}}))
+    r4_4p = dict(self.R[right_state].get('4_4p', {{}}))
 """
 
     # Enable and configure pq_graph
@@ -1474,14 +1671,75 @@ def {function_name}(self, left_state, right_state):
     # need to redefine l1/l2 because they currently point to the ccsd ones
     generated_code_string += \
 f"""
-    l0 = self.l0[left_state]
-    l1 = {{}}
-    l1['aa'] = self.l1_aa[left_state]
-    l1['bb'] = self.l1_bb[left_state]
-    l2 = {{}}
-    l2['aaaa'] = self.l2_aaaa[left_state]
-    l2['abab'] = self.l2_abab[left_state]
-    l2['bbbb'] = self.l2_bbbb[left_state]
+    # left-hand eom amplitudes
+
+    # l0 is special because it is a scalar
+    l0_dict = self.L[left_state].get('0', {{}})
+    l0_val = l0_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0 = l0_val.item() if hasattr(l0_val, 'item') else l0_val
+    
+    l1 = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1', {{}}).items()}}
+    l2 = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2', {{}}).items()}}
+    l3 = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3', {{}}).items()}}
+    l4 = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4', {{}}).items()}}
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_1p_dict = self.L[left_state].get('0_1p', {{}})
+    l0_1p_val = l0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_1p = l0_1p_val.item() if hasattr(l0_1p_val, 'item') else l0_1p_val
+
+    l1_1p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1_1p', {{}}).items()}}
+    l2_1p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2_1p', {{}}).items()}}
+    l3_1p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3_1p', {{}}).items()}}
+    l4_1p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4_1p', {{}}).items()}}
+    
+    # Photon-Coupled Amplitudes (2 Photon)
+    
+    # Photon creation only is special because it is a scalar
+    l0_2p_dict = self.L[left_state].get('0_2p', {{}})
+    l0_2p_val = l0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_2p = l0_2p_val.item() if hasattr(l0_2p_val, 'item') else l0_2p_val
+
+    l1_2p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1_2p', {{}}).items()}}
+    l2_2p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2_2p', {{}}).items()}}
+    l3_2p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3_2p', {{}}).items()}}
+    l4_2p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4_2p', {{}}).items()}}
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_3p_dict = self.L[left_state].get('0_3p', {{}})
+    l0_3p_val = l0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_3p = l0_3p_val.item() if hasattr(l0_3p_val, 'item') else l0_3p_val
+
+    l1_3p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1_3p', {{}}).items()}}
+    l2_3p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2_3p', {{}}).items()}}
+    l3_3p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3_3p', {{}}).items()}}
+    l4_3p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4_3p', {{}}).items()}}
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_4p_dict = self.L[left_state].get('0_4p', {{}})
+    l0_4p_val = l0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_4p = l0_4p_val.item() if hasattr(l0_4p_val, 'item') else l0_4p_val
+
+    l1_4p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1_4p', {{}}).items()}}
+    l2_4p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2_4p', {{}}).items()}}
+    l3_4p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3_4p', {{}}).items()}}
+    l4_4p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4_4p', {{}}).items()}}
 """
 
     # pq graph output

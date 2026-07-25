@@ -29,54 +29,31 @@ from pdaggerq.numerical_utils.cc_hbar import HbarOperator
 
 import types
 
+import copy
+
 class eom_ccsd:
 
     def __init__(self, 
                  ccsd,
                  nstates = 5,
-                 right_sigma0_func=None,
-                 right_sigma1_func=None,
-                 right_sigma2_func=None,
-                 left_sigma0_func=None,
-                 left_sigma1_func=None,
-                 left_sigma2_func=None,
+                 R_list=[],
+                 L_list=[],
                  density_matrix_func=None):
         """
         initialize EOM-CCSD class
 
         :params ccsd: the ccsd class
-        :params right_sigma0_func: python function for the 0 part of the right-hand sigma vector
-        :params right_sigma1_func: python function for the 1 part of the right-hand sigma vector
-        :params right_sigma2_func: python function for the 2 part of the right-hand sigma vector
-        :params left_sigma0_func: python function for the 0 part of the left-hand sigma vector
-        :params left_sigma1_func: python function for the 1 part of the left-hand sigma vector
-        :params left_sigma2_func: python function for the 2 part of the left-hand sigma vector
+        :params R_list: list of R operator dictionaries
+        :params L_list: list of L operator dictionaries
         """
 
         self.ccsd = ccsd
         self.nstates = nstates
-        self.right_sigma0_func = right_sigma0_func
-        self.right_sigma1_func = right_sigma1_func
-        self.right_sigma2_func = right_sigma2_func
-        self.left_sigma0_func = left_sigma0_func
-        self.left_sigma1_func = left_sigma1_func
-        self.left_sigma2_func = left_sigma2_func
+        self.R_list = R_list
+        self.L_list = L_list
 
         if density_matrix_func is not None:
             self.density_matrix = types.MethodType(density_matrix_func, self)
-
-        self.r0 = None
-        self.r1_aa = None
-        self.r1_bb = None
-        self.r2_aaaa = None
-        self.r2_abab = None
-        self.r2_bbbb = None
-        self.l0 = None
-        self.l1_aa = None
-        self.l1_bb = None
-        self.l2_aaaa = None
-        self.l2_abab = None
-        self.l2_bbbb = None
 
     def right_solver(self):
 
@@ -84,26 +61,10 @@ class eom_ccsd:
         print('')
 
         # build Hbar operator object
-
-        # unique oo/vv pairs
-        i_idx_a, j_idx_a = np.triu_indices(self.ccsd.noa, k=1)
-        i_idx_b, j_idx_b = np.triu_indices(self.ccsd.nob, k=1)
-        a_idx_a, b_idx_a = np.triu_indices(self.ccsd.nva, k=1)
-        a_idx_b, b_idx_b = np.triu_indices(self.ccsd.nvb, k=1)
-
-        dim = 1
-        dim += self.ccsd.noa * self.ccsd.nva
-        dim += self.ccsd.nob * self.ccsd.nvb
-        dim += len(i_idx_a) * len(a_idx_a)
-        dim += len(i_idx_b) * len(a_idx_b)
-        dim += self.ccsd.noa * self.ccsd.nva * self.ccsd.nob * self.ccsd.nvb
-
-        Hbar = HbarOperator(self.ccsd, 
-                            right_sigma0_func = self.right_sigma0_func,
-                            right_sigma1_func = self.right_sigma1_func,
-                            right_sigma2_func = self.right_sigma2_func)
+        Hbar = HbarOperator(self.ccsd, R_list = self.R_list)
 
         # diagonalize Hbar
+        dim = Hbar.right_amplitude_size
         HbarR = LinearOperator((dim, dim), matvec=Hbar.matvec_right, dtype=np.float64)
 
         ex, rvec = scipy.sparse.linalg.eigs(HbarR, k=self.nstates, which='SR')
@@ -122,20 +83,10 @@ class eom_ccsd:
         for i in range (self.nstates):
             self.eom_cc_energy.append(ex[i])
 
-        self.r0 = []
-        self.r1_aa = []
-        self.r1_bb = []
-        self.r2_aaaa = []
-        self.r2_abab = []
-        self.r2_bbbb = []
+        self.R = []
         for i in range (self.nstates):
-            r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb = Hbar.unpack_right_amplitudes(rvec[:, i])
-            self.r0.append(r0)
-            self.r1_aa.append(r1_aa)
-            self.r1_bb.append(r1_bb)
-            self.r2_aaaa.append(r2_aaaa)
-            self.r2_abab.append(r2_abab)
-            self.r2_bbbb.append(r2_bbbb)
+            Hbar.unpack_eom_vectors(rvec[:, i], Hbar.R, Hbar.R_meta)
+            self.R.append(copy.deepcopy(Hbar.R))
 
     def left_solver(self):
 
@@ -143,26 +94,10 @@ class eom_ccsd:
         print('')
 
         # build Hbar operator object
-
-        # unique oo/vv pairs
-        i_idx_a, j_idx_a = np.triu_indices(self.ccsd.noa, k=1)
-        i_idx_b, j_idx_b = np.triu_indices(self.ccsd.nob, k=1)
-        a_idx_a, b_idx_a = np.triu_indices(self.ccsd.nva, k=1)
-        a_idx_b, b_idx_b = np.triu_indices(self.ccsd.nvb, k=1)
-
-        dim = 1
-        dim += self.ccsd.noa * self.ccsd.nva
-        dim += self.ccsd.nob * self.ccsd.nvb
-        dim += len(i_idx_a) * len(a_idx_a)
-        dim += len(i_idx_b) * len(a_idx_b)
-        dim += self.ccsd.noa * self.ccsd.nva * self.ccsd.nob * self.ccsd.nvb
-
-        Hbar = HbarOperator(self.ccsd,
-                            left_sigma0_func = self.left_sigma0_func,
-                            left_sigma1_func = self.left_sigma1_func,
-                            left_sigma2_func = self.left_sigma2_func)
+        Hbar = HbarOperator(self.ccsd, L_list = self.L_list)
 
         # diagonalize Hbar
+        dim = Hbar.left_amplitude_size
         LHbar = LinearOperator((dim, dim), matvec=Hbar.matvec_left, dtype=np.float64)
 
         ex, lvec = scipy.sparse.linalg.eigs(LHbar, k=self.nstates, which='SR')
@@ -181,66 +116,32 @@ class eom_ccsd:
         for i in range (self.nstates):
             self.eom_cc_energy.append(ex[i])
 
-        self.l0 = []
-        self.l1_aa = []
-        self.l1_bb = []
-        self.l2_aaaa = []
-        self.l2_abab = []
-        self.l2_bbbb = []
+        self.L = []
         for i in range (self.nstates):
-            l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb = Hbar.unpack_left_amplitudes(lvec[:, i])
-            self.l0.append(l0)
-            self.l1_aa.append(l1_aa)
-            self.l1_bb.append(l1_bb)
-            self.l2_aaaa.append(l2_aaaa)
-            self.l2_abab.append(l2_abab)
-            self.l2_bbbb.append(l2_bbbb)
+            Hbar.unpack_eom_vectors(lvec[:, i], Hbar.L, Hbar.L_meta)
+            self.L.append(copy.deepcopy(Hbar.L))
 
     def oscillator_strengths(self):
 
         # Pack eigenvectors for biorthogonalization
-        Hbar = HbarOperator(self.ccsd)
-        L = Hbar.pack_left_amplitudes(self.l0[0],
-            self.l1_aa[0],
-            self.l1_bb[0],
-            self.l2_aaaa[0],
-            self.l2_abab[0],
-            self.l2_bbbb[0]
-        )
-        dim = len(L)
+        Hbar = HbarOperator(self.ccsd, L_list = self.L_list, R_list = self.R_list)
 
+        dim = Hbar.left_amplitude_size
         R_mat = np.zeros((dim, self.nstates), dtype = np.complex128)
         L_mat = np.zeros((dim, self.nstates), dtype = np.complex128)
         M = np.zeros((self.nstates, self.nstates))
 
         for i in range (self.nstates):
-            L_mat[:, i] = Hbar.pack_right_amplitudes(self.l0[i],
-                self.l1_aa[i].transpose(1,0),
-                self.l1_bb[i].transpose(1,0),
-                self.l2_aaaa[i].transpose(2,3,0,1),
-                self.l2_abab[i].transpose(2,3,0,1),
-                self.l2_bbbb[i].transpose(2,3,0,1)
-            )
-            R_mat[:, i] = Hbar.pack_right_amplitudes(self.r0[i],
-                self.r1_aa[i],
-                self.r1_bb[i],
-                self.r2_aaaa[i],
-                self.r2_abab[i],
-                self.r2_bbbb[i]
-            )
+            L_mat[:, i] = Hbar.pack_eom_vectors(self.L[i], Hbar.L_meta)
+            R_mat[:, i] = Hbar.pack_eom_vectors(self.R[i], Hbar.R_meta)
 
+        # Biorthogonalize
         L_mat, R_mat = self.LU_biorthonormalization(L_mat, R_mat)
 
         # Unpack biorthogonalized L and R
         for i in range (self.nstates):
-            self.r0[i], self.r1_aa[i], self.r1_bb[i], self.r2_aaaa[i], self.r2_abab[i], self.r2_bbbb[i] = Hbar.unpack_right_amplitudes(R_mat[:, i])
-            self.l0[i], self.l1_aa[i], self.l1_bb[i], self.l2_aaaa[i], self.l2_abab[i], self.l2_bbbb[i] = Hbar.unpack_right_amplitudes(L_mat[:, i])
-            self.l1_aa[i] = self.l1_aa[i].transpose(1,0)
-            self.l1_bb[i] = self.l1_bb[i].transpose(1,0)
-            self.l2_aaaa[i] = self.l2_aaaa[i].transpose(2,3,0,1)
-            self.l2_abab[i] = self.l2_abab[i].transpose(2,3,0,1)
-            self.l2_bbbb[i] = self.l2_bbbb[i].transpose(2,3,0,1)
-            
+            Hbar.unpack_eom_vectors(R_mat[:, i], self.R[i], Hbar.R_meta)
+            Hbar.unpack_eom_vectors(L_mat[:, i], self.L[i], Hbar.L_meta)
 
         # Compute oscillator strengths
 
