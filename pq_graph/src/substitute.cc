@@ -804,6 +804,24 @@ bool Term::substitute(const LinkagePtr &linkage, const linkage_vector &graph_per
     // break out of loops if a substitution was made
     bool madeSub = false; // initialize boolean to track if substitution was made
 
+    // Orderings whose substitution has already been scored and rejected.
+    //
+    // best_permutation() searches every ordering of a linkage's vertices, so what
+    // it returns depends only on WHICH vertices are there, not on the order this
+    // particular one happens to be in. Every ordering of the term holds the same
+    // vertices, and substituting removes the linkage's vertices and puts one
+    // intermediate in their place, so the substituted multiset -- and hence the
+    // score -- is fixed by the number of matches alone. Scoring an ordering means
+    // building a linkage for every ordering of the substituted graph, so rescoring
+    // is by far the most expensive thing in this loop, and it happens whenever a
+    // candidate does NOT improve the term: the loop then runs to the end instead
+    // of breaking, rescoring the same substitution once per matching ordering.
+    //
+    // Only the general branch of permutations() has that property (a temp keeps
+    // its structure, an addition only considers its two operands), so those are
+    // left to be scored every time, as before.
+    std::vector<size_t> rejected_match_counts;
+
     // iterate over all possible orderings of vertex subsets
     LinkagePtr best_linkage = as_link(term_linkage()->shallow());
     for (const auto &graph_perm : graph_perms) {
@@ -811,6 +829,11 @@ bool Term::substitute(const LinkagePtr &linkage, const linkage_vector &graph_per
         graph_perm->forget();
         auto matching_linkages = graph_perm->find_links(linkage);
         if (matching_linkages.empty()) continue; // skip if linkage is not found in permutation
+
+        const size_t num_matches = matching_linkages.size();
+        if (std::find(rejected_match_counts.begin(), rejected_match_counts.end(), num_matches)
+                != rejected_match_counts.end())
+            continue; // an ordering with this many matches was already scored, and it lost
 
         // otherwise, make the substitution for each matching linkage
         LinkagePtr new_term_linkage = graph_perm;
@@ -820,14 +843,23 @@ bool Term::substitute(const LinkagePtr &linkage, const linkage_vector &graph_per
             new_term_linkage = as_link(new_term_linkage->replace(found_linkage, new_link).first);
         }
 
+        // the score is only multiset-determined for the general permutation branch
+        const bool score_is_reusable = !new_term_linkage->is_temp() && !new_term_linkage->is_addition();
+
         new_term_linkage = as_link(new_term_linkage)->best_permutation();
         const auto &[new_flop, new_mem] = new_term_linkage->netscales();
         const auto &[best_flop, best_mem] = best_linkage->netscales();
 
-        if (new_flop > best_flop) continue; // new_linkage is worse than the best one
+        if (new_flop > best_flop) { // new_linkage is worse than the best one
+            if (score_is_reusable) rejected_match_counts.push_back(num_matches);
+            continue;
+        }
         if (new_flop == best_flop) {
             // for the same flop cost, prefer the one with less memory
-            if (new_mem > best_mem) continue; // new_linkage is worse than the best one
+            if (new_mem > best_mem) { // new_linkage is worse than the best one
+                if (score_is_reusable) rejected_match_counts.push_back(num_matches);
+                continue;
+            }
         }
 
         // create the best permutation of the substitution and break
