@@ -466,6 +466,23 @@ namespace pdaggerq {
         bool substitute(const LinkagePtr &linkage);
 
         /**
+         * Substitute linkage into the term, reusing an already generated set of
+         * vertex orderings.
+         *
+         * The orderings depend only on the term, not on the linkage being tested,
+         * and generating them means building up to 2^depth linkages. Testing a few
+         * thousand candidate intermediates against a term therefore does the same
+         * (dominant) work a few thousand times over unless the caller hoists it --
+         * which is what Equation::test_substitute does.
+         *
+         * @param linkage linkage to substitute
+         * @param graph_perms orderings of this term's vertices, as returned by
+         *                    term_linkage()->permutations()
+         * @return boolean indicating if substitution was successful
+         */
+        bool substitute(const LinkagePtr &linkage, const linkage_vector &graph_perms);
+
+        /**
          * collect all possible linkages from all equations
          */
         linkage_set make_all_links() const;
