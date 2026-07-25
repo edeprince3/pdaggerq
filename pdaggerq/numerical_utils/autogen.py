@@ -3,11 +3,21 @@ import re
 
 # Map fermionic order -> list of spin channels
 SPIN_MAP = {
-    0: [''],
-    1: ['aa', 'bb'],
-    2: ['aaaa', 'abab', 'bbbb'],
-    3: ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
-    4: ['aaaaaaaa', 'aaabaaab', 'aabbaabb', 'abbbabbb', 'bbbbbbbb'],
+    'EE': {
+        0: [''],
+        1: ['aa', 'bb'],
+        2: ['aaaa', 'abab', 'bbbb'],
+        3: ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
+        4: ['aaaaaaaa', 'aaabaaab', 'aabbaabb', 'abbbabbb', 'bbbbbbbb'],
+    },
+    'IP': {
+        1: ['a', 'b'],                   # 1h
+        2: ['aaa', 'bab', 'aab', 'bbb'], # 2h1p
+    },
+    'EA': {
+        1: ['a', 'b'],                   # 1p
+        2: ['aaa', 'abb', 'aba', 'bbb'], # 2p1h
+    }
 }
 
 def configure_graph(options = None):
@@ -32,7 +42,7 @@ def configure_graph(options = None):
 
     return pdaggerq.pq_graph(options)
 
-def get_spin_labels(ops):
+def get_spin_labels(ops, operator_type = 'EE'):
     """
     Get spin labels for the given operators.
 
@@ -66,17 +76,33 @@ def get_spin_labels(ops):
 
     # sort the labels and create spin types based on the number of unique labels
     labels = sorted(labels)
-    spin_types = ["aaaaaa", "aabaab", "abbabb", "bbbbbb"] if len(labels) == 6 else (
-        ["aaaaa", "aabaa", "abbab", "bbbbb"] if len(labels) == 5 else (
-            ["aaaa", "abab", "bbbb"] if len(labels) == 4 else (
-                ["aaa", "abb", "aba", "bbb"] if len(labels) == 3 else (
-                    ["aa", "bb"] if len(labels) == 2 else (
-                        ["a", "b"] if len(labels) == 1 else []
-                    )
-                )
-            )
-        )
-    )
+    #spin_types = ["aaaaaa", "aabaab", "abbabb", "bbbbbb"] if len(labels) == 6 else (
+    #    ["aaaaa", "aabaa", "abbab", "bbbbb"] if len(labels) == 5 else (
+    #        ["aaaa", "abab", "bbbb"] if len(labels) == 4 else (
+    #            ["aaa", "aab", "bab", "bbb"] if len(labels) == 3 else (
+    #                ["aa", "bb"] if len(labels) == 2 else (
+    #                    ["a", "b"] if len(labels) == 1 else []
+    #                )
+    #            )
+    #        )
+    #    )
+    #)
+
+    # Determine operator order
+    n_idx = len(labels)
+    
+    if operator_type == 'EE':
+        order = n_idx // 2
+    elif operator_type in ['IP', 'EA']:
+        order = (n_idx + 1) // 2
+    elif operator_type in ['DIP', 'DEA']:
+        order = (n_idx + 2) // 2
+    else:
+        raise ValueError(f"Unknown operator_type: {operator_type}")
+    if operator_type in SPIN_MAP and order in SPIN_MAP[operator_type]:
+        spin_types = SPIN_MAP[operator_type][order]
+    else:
+        raise ValueError(f"No spin map defined for operator_type '{operator_type}' and order {order}.")
 
     if spin_types == [] and len(labels) != 0:
         raise ValueError("Invalid number of labels for spin blocking")
@@ -90,7 +116,7 @@ def get_spin_labels(ops):
 
     return spin_map
 
-def block_by_spin(pq, eqname, ops, eqs):
+def block_by_spin(pq, eqname, ops, eqs, operator_type = 'EE'):
     """
     Block the equation by spin and store the result in the equations dictionary.
 
@@ -99,8 +125,9 @@ def block_by_spin(pq, eqname, ops, eqs):
         eqname (str): Name of the equation.
         ops (list): List of operators.
         eqs (dict): Dictionary to store the derived equations.
+        operator_type: operator type for EE/IP/EA/DIP/DEA
     """
-    spin_map = get_spin_labels(ops)
+    spin_map = get_spin_labels(ops, operator_type = operator_type)
 
     # print the blocking by spin
     print("Blocking by spin:", flush=True)
@@ -437,7 +464,7 @@ def cc_residual(residual_name,
         base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
         
         # Safely get the spins for this exact order
-        spins = SPIN_MAP.get(order, [''])
+        spins = SPIN_MAP['EE'].get(order, [''])
 
         # Generate individual spin channel assignments
         assignments = []
@@ -561,7 +588,7 @@ def bernoulli_ucc_residual(rank,
         base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
    
         # Safely get the spins for this exact order
-        spins = SPIN_MAP.get(order, [''])
+        spins = SPIN_MAP['EE'].get(order, [''])
         
         # Generate individual spin channel assignments
         assignments = []
@@ -1135,7 +1162,7 @@ def lambda_cc_residual(residual_name,
         base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
         
         # Safely get the spins for this exact order
-        spins = SPIN_MAP.get(order, [''])
+        spins = SPIN_MAP['EE'].get(order, [''])
 
         # Generate individual spin channel assignments
         assignments = []
@@ -1254,6 +1281,7 @@ def eomcc_sigma(sigma_name,
     L,
     R, 
     function_name,
+    operator_type = 'EE',
     spin_block = True,
     write_function = False,
     pq_graph_options = None):
@@ -1266,6 +1294,7 @@ def eomcc_sigma(sigma_name,
     :param L: list of left-hand operators
     :param R: list of right-hand operators
     :param function_name: name for the python function
+    :param operator_type: operator type for EE/IP/EA/DIP/DEA
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -1280,6 +1309,7 @@ def eomcc_sigma(sigma_name,
         is_right = False
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_right_operators_type(operator_type)
 
     # set bra
     pq.set_left_operators(L)
@@ -1303,7 +1333,7 @@ def eomcc_sigma(sigma_name,
 
     # spin blocking
     if spin_block:
-        block_by_spin(pq, sigma_name, L + T + R + ['f'] + ['v'], eqs)
+        block_by_spin(pq, sigma_name, L + T + R + ['f'] + ['v'], eqs, operator_type = operator_type)
     else:
         eqs[sigma_eqname] = pq.clone()
         # print the fully contracted strings
@@ -1490,7 +1520,7 @@ f"""
         base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
 
         # Safely get the spins for this exact order
-        spins = SPIN_MAP.get(order, [''])
+        spins = SPIN_MAP[operator_type].get(order, [''])
 
         # Generate individual spin channel assignments
         assignments = []
