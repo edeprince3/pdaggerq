@@ -157,6 +157,48 @@ f"""
     t3_1p = dict(self.{extra_class}T.get('3_1p', {{}}))
     t4_1p = dict(self.{extra_class}T.get('4_1p', {{}}))
 
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    t0_2p_dict = self.{extra_class}T.get('0_2p', {{}})
+    t0_2p_val = t0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    t0_2p = t0_2p_val.item() if hasattr(t0_2p_val, 'item') else t0_2p_val
+
+    t1_2p = dict(self.{extra_class}T.get('1_2p', {{}}))
+    t2_2p = dict(self.{extra_class}T.get('2_2p', {{}}))
+    t3_2p = dict(self.{extra_class}T.get('3_2p', {{}}))
+    t4_2p = dict(self.{extra_class}T.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    t0_3p_dict = self.{extra_class}T.get('0_3p', {{}})
+    t0_3p_val = t0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    t0_3p = t0_3p_val.item() if hasattr(t0_3p_val, 'item') else t0_3p_val
+
+    t1_3p = dict(self.{extra_class}T.get('1_3p', {{}}))
+    t2_3p = dict(self.{extra_class}T.get('2_3p', {{}}))
+    t3_3p = dict(self.{extra_class}T.get('3_3p', {{}}))
+    t4_3p = dict(self.{extra_class}T.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    t0_4p_dict = self.{extra_class}T.get('0_4p', {{}})
+    t0_4p_val = t0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    t0_4p = t0_4p_val.item() if hasattr(t0_4p_val, 'item') else t0_4p_val
+
+    t1_4p = dict(self.{extra_class}T.get('1_4p', {{}}))
+    t2_4p = dict(self.{extra_class}T.get('2_4p', {{}}))
+    t3_4p = dict(self.{extra_class}T.get('3_4p', {{}}))
+    t4_4p = dict(self.{extra_class}T.get('4_4p', {{}}))
+
     # lambda amplitudes
 
     l1 = {{spin: tensor.transpose(1, 0) for spin, tensor in self.{extra_class}L.get('1', {{}}).items()}}
@@ -177,6 +219,48 @@ f"""
     l2_1p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.{extra_class}L.get('2_1p', {{}}).items()}}
     l3_1p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.{extra_class}L.get('3_1p', {{}}).items()}}
     l4_1p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.{extra_class}L.get('4_1p', {{}}).items()}}
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_2p_dict = self.{extra_class}L.get('0_2p', {{}})
+    l0_2p_val = l0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_2p = l0_2p_val.item() if hasattr(l0_2p_val, 'item') else l0_2p_val
+
+    l1_2p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.{extra_class}L.get('1_2p', {{}}).items()}}
+    l2_2p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.{extra_class}L.get('2_2p', {{}}).items()}}
+    l3_2p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.{extra_class}L.get('3_2p', {{}}).items()}}
+    l4_2p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.{extra_class}L.get('4_2p', {{}}).items()}}
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_3p_dict = self.{extra_class}L.get('0_3p', {{}})
+    l0_3p_val = l0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_3p = l0_3p_val.item() if hasattr(l0_3p_val, 'item') else l0_3p_val
+
+    l1_3p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.{extra_class}L.get('1_3p', {{}}).items()}}
+    l2_3p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.{extra_class}L.get('2_3p', {{}}).items()}}
+    l3_3p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.{extra_class}L.get('3_3p', {{}}).items()}}
+    l4_3p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.{extra_class}L.get('4_3p', {{}}).items()}}
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_4p_dict = self.{extra_class}L.get('0_4p', {{}})
+    l0_4p_val = l0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_4p = l0_4p_val.item() if hasattr(l0_4p_val, 'item') else l0_4p_val
+
+    l1_4p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.{extra_class}L.get('1_4p', {{}}).items()}}
+    l2_4p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.{extra_class}L.get('2_4p', {{}}).items()}}
+    l3_4p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.{extra_class}L.get('3_4p', {{}}).items()}}
+    l4_4p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.{extra_class}L.get('4_4p', {{}}).items()}}
 
     oa = self.{extra_class}oa
     ob = self.{extra_class}ob
@@ -1254,7 +1338,7 @@ def {function_name}(self, r0, r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb):
     else:
         generated_code_string = f"def {function_name}(self, l0, l1_aa, l1_bb, l2_aaaa, l2_abab, l2_bbbb):"
 
-    generated_code_string += function_initialization_string("ccsd")
+    generated_code_string += function_initialization_string(extra_class = "ccsd")
 
     # need to redefine l1/l2 because they currently point to the ccsd ones
     if not is_right:
@@ -1385,7 +1469,7 @@ def {function_name}(self, left_state, right_state):
     # optimize the graph
     graph.optimize()
 
-    generated_code_string += function_initialization_string("ccsd")
+    generated_code_string += function_initialization_string(extra_class = "ccsd")
 
     # need to redefine l1/l2 because they currently point to the ccsd ones
     generated_code_string += \

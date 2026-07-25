@@ -17,7 +17,7 @@
 #   limitations under the License.
 
 """
-Solvers for CC and lambda CC. Should work for up to quadruple excitations, plus up to 1 photon in QED-CC
+Solvers for CC and lambda CC. Should work for up to quadruple excitations, plus up to 4 photons in QED-CC
 """
 
 import numpy as np
