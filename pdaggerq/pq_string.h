@@ -214,7 +214,13 @@ class pq_string
 
     /**
      *
-     * supported amplitude and rdm types
+     * supported amplitude and rdm types.
+     *
+     * NB this is process-global and grows as operator names are parsed, while
+     * get_key() and gobble_deltas() read it. It is neither synchronized nor
+     * reentrant, so add_amplitude_type() must only be reached from serial code:
+     * pq_helper builds its strings serially for exactly this reason and only
+     * parallelizes the normal ordering that follows.
      *
      */
     static inline std::vector<char> amplitude_types = {'D'}; //'t', 'l', 'r', 'u', 'm', 's', 'D'};
