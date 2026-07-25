@@ -973,13 +973,39 @@ def test_eomccsd_codegen():
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
+            # right-hand amplitude dictionaries to pass into the solver
+            r0 = {
+                'sigma' : local_namespace["right_sigma0"]
+            }
+            r1 = {
+                'spaces' : ['v', 'o'],
+                'spins' : [['a', 'a'], ['b', 'b']],
+                'sigma' : local_namespace["right_sigma1"]
+            }
+            r2 = {
+                'spaces' : ['vv', 'oo'],
+                'spins' : [['aa','aa'], ['ab','ab'], ['bb', 'bb']],
+                'sigma' : local_namespace["right_sigma2"]
+            }
+
+            # left-hand amplitude dictionaries to pass into the solver
+            l0 = {
+                'sigma' : local_namespace["left_sigma0"]
+            }
+            l1 = {
+                'spaces' : ['v', 'o'],
+                'spins' : [['a', 'a'], ['b', 'b']],
+                'sigma' : local_namespace["left_sigma1"]
+            }
+            l2 = {
+                'spaces' : ['vv', 'oo'],
+                'spins' : [['aa','aa'], ['ab','ab'], ['bb', 'bb']],
+                'sigma' : local_namespace["left_sigma2"]
+            }
+
             eomcc = eom_ccsd(mycc, 
-                right_sigma0_func=local_namespace["right_sigma0"],
-                right_sigma1_func=local_namespace["right_sigma1"],
-                right_sigma2_func=local_namespace["right_sigma2"],
-                left_sigma0_func=local_namespace["left_sigma0"],
-                left_sigma1_func=local_namespace["left_sigma1"],
-                left_sigma2_func=local_namespace["left_sigma2"],
+                R_list = [r0, r1, r2],
+                L_list = [l0, l1, l2],
                 density_matrix_func=local_namespace["density_matrix"]
              )
 
@@ -1026,11 +1052,11 @@ def main():
     #test_ccsdt_codegen()
     #test_cc3_codegen()
     #test_eomccsd_codegen()
-    test_lambda_ccsd_codegen()
+    #test_lambda_ccsd_codegen()
     #test_uccsd_3_codegen()
     #test_uccsd_4_codegen()
     #test_quccsd_codegen()
-    #raise Exception("run with pytest")
+    raise Exception("run with pytest")
 
 if __name__ == "__main__":
     main()
