@@ -65,21 +65,18 @@ class eom_ccsd:
         if density_matrix_func is not None:
             self.density_matrix = types.MethodType(density_matrix_func, self)
 
-        if ccsd.use_spin_orbital_basis:
-            raise Exception("spin-orbital eomcc is not implemented")
-        else:
-            self.r0 = None
-            self.r1_aa = None
-            self.r1_bb = None
-            self.r2_aaaa = None
-            self.r2_abab = None
-            self.r2_bbbb = None
-            self.l0 = None
-            self.l1_aa = None
-            self.l1_bb = None
-            self.l2_aaaa = None
-            self.l2_abab = None
-            self.l2_bbbb = None
+        self.r0 = None
+        self.r1_aa = None
+        self.r1_bb = None
+        self.r2_aaaa = None
+        self.r2_abab = None
+        self.r2_bbbb = None
+        self.l0 = None
+        self.l1_aa = None
+        self.l1_bb = None
+        self.l2_aaaa = None
+        self.l2_abab = None
+        self.l2_bbbb = None
 
     def right_solver(self):
 

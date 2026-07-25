@@ -82,17 +82,17 @@ class HbarOperator:
         r0 = R[0]
         start += 1
 
-        r1_aa = R[start:start + self.ccsd.noa*self.ccsd.nva].reshape(self.ccsd.t1_aa.shape)
+        r1_aa = R[start:start + self.ccsd.noa*self.ccsd.nva].reshape(self.ccsd.nva, self.ccsd.noa)
         start += self.ccsd.noa*self.ccsd.nva
 
-        r1_bb = R[start:start + self.ccsd.nob*self.ccsd.nvb].reshape(self.ccsd.t1_bb.shape)
+        r1_bb = R[start:start + self.ccsd.nob*self.ccsd.nvb].reshape(self.ccsd.nvb, self.ccsd.nob)
         start += self.ccsd.nob*self.ccsd.nvb
 
         # antisymmetrized eom-cc alpha-alpha doubles amplitudes
         r2_aaaa = self.unpack_antisym(R[start:start+len(self.i_idx_a)*len(self.a_idx_a)], self.a_idx_a, self.b_idx_a, self.i_idx_a, self.j_idx_a, self.ccsd.nva, self.ccsd.noa)
         start += len(self.i_idx_a)*len(self.a_idx_a)
 
-        r2_abab = R[start:start+self.ccsd.noa*self.ccsd.nva*self.ccsd.nob*self.ccsd.nvb].reshape(self.ccsd.t2_abab.shape)
+        r2_abab = R[start:start+self.ccsd.noa*self.ccsd.nva*self.ccsd.nob*self.ccsd.nvb].reshape(self.ccsd.nva, self.ccsd.nvb, self.ccsd.noa, self.ccsd.nob)
         start += self.ccsd.noa*self.ccsd.nva*self.ccsd.nob*self.ccsd.nvb
 
         # antisymmetrized eom-cc beta-beta doubles amplitudes

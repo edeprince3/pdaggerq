@@ -1,4 +1,14 @@
 import pdaggerq 
+import re
+
+# Map fermionic order -> list of spin channels
+SPIN_MAP = {
+    0: [''],
+    1: ['aa', 'bb'],
+    2: ['aaaa', 'abab', 'bbbb'],
+    3: ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
+    4: ['aaaaaaaa', 'aaabaaab', 'aabbaabb', 'abbbabbb', 'bbbbbbbb'],
+}
 
 def configure_graph(options = None):
     """
@@ -125,25 +135,49 @@ def function_initialization_string(extra_class = "", is_qed = False):
 f"""
     import numpy as np
     from numpy import einsum
-    t1 = {{}}
-    t1['aa'] = self.{extra_class}t1_aa
-    t1['bb'] = self.{extra_class}t1_bb
-    t2 = {{}}
-    t2['aaaa'] = self.{extra_class}t2_aaaa
-    t2['abab'] = self.{extra_class}t2_abab
-    t2['bbbb'] = self.{extra_class}t2_bbbb
-    t3 = {{}}
-    t3['aaaaaa'] = self.{extra_class}t3_aaaaaa
-    t3['aabaab'] = self.{extra_class}t3_aabaab
-    t3['abbabb'] = self.{extra_class}t3_abbabb
-    t3['bbbbbb'] = self.{extra_class}t3_bbbbbb
-    l1 = {{}}
-    l1['aa'] = self.{extra_class}l1_aa
-    l1['bb'] = self.{extra_class}l1_bb
-    l2 = {{}}
-    l2['aaaa'] = self.{extra_class}l2_aaaa
-    l2['abab'] = self.{extra_class}l2_abab
-    l2['bbbb'] = self.{extra_class}l2_bbbb
+
+    # cluster amplitudes
+
+    t1 = dict(self.{extra_class}T.get('1', {{}}))
+    t2 = dict(self.{extra_class}T.get('2', {{}}))
+    t3 = dict(self.{extra_class}T.get('3', {{}}))
+    t4 = dict(self.{extra_class}T.get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    t0_1p_dict = self.{extra_class}T.get('0_1p', {{}})
+    t0_1p_val = t0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    t0_1p = t0_1p_val.item() if hasattr(t0_1p_val, 'item') else t0_1p_val
+
+    t1_1p = dict(self.{extra_class}T.get('1_1p', {{}}))
+    t2_1p = dict(self.{extra_class}T.get('2_1p', {{}}))
+    t3_1p = dict(self.{extra_class}T.get('3_1p', {{}}))
+    t4_1p = dict(self.{extra_class}T.get('4_1p', {{}}))
+
+    # lambda amplitudes
+
+    l1 = {{spin: tensor.transpose(1, 0) for spin, tensor in self.{extra_class}L.get('1', {{}}).items()}}
+    l2 = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.{extra_class}L.get('2', {{}}).items()}}
+    l3 = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.{extra_class}L.get('3', {{}}).items()}}
+    l4 = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.{extra_class}L.get('4', {{}}).items()}}
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_1p_dict = self.{extra_class}L.get('0_1p', {{}})
+    l0_1p_val = l0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_1p = l0_1p_val.item() if hasattr(l0_1p_val, 'item') else l0_1p_val
+
+    l1_1p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.{extra_class}L.get('1_1p', {{}}).items()}}
+    l2_1p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.{extra_class}L.get('2_1p', {{}}).items()}}
+    l3_1p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.{extra_class}L.get('3_1p', {{}}).items()}}
+    l4_1p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.{extra_class}L.get('4_1p', {{}}).items()}}
+
     oa = self.{extra_class}oa
     ob = self.{extra_class}ob
     va = self.{extra_class}va
@@ -203,14 +237,6 @@ f"""
     if is_qed:
         ret_string += \
 f"""
-    t0_1p = self.{extra_class}t0_1p
-    t1_1p = {{}}
-    t1_1p['aa'] = self.{extra_class}t1_1p_aa
-    t1_1p['bb'] = self.{extra_class}t1_1p_bb
-    t2_1p = {{}}
-    t2_1p['aaaa'] = self.{extra_class}t2_1p_aaaa
-    t2_1p['abab'] = self.{extra_class}t2_1p_abab
-    t2_1p['bbbb'] = self.{extra_class}t2_1p_bbbb
     dp = {{}}
     dp['aa_oo'] = self.{extra_class}dipole_aa[oa, oa]
     dp['aa_ov'] = self.{extra_class}dipole_aa[oa, va]
@@ -297,10 +323,10 @@ def cc_residual(residual_name,
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
         graph.add(eq, proj_eqname)
 
-    # optimize the graph
+    # Optimize the graph
     graph.optimize()
 
-    # initialization statements
+    # Initialization statements
     generated_code_string = f"""def {function_name}(self):"""
 
     generated_code_string += function_initialization_string(is_qed = is_qed)
@@ -308,15 +334,42 @@ def cc_residual(residual_name,
     # pq graph output
     generated_code_string += graph.str("python")
 
-    # return statement
-    if '3' in residual_name:
-        generated_code_string += f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb"
-    elif '2' in residual_name:
-        generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb"
-    elif '1' in residual_name:
-        generated_code_string += f"    return {residual_name}_aa, {residual_name}_bb"
+    # Return statement
+
+    # This regex looks for digit, optionally followed by '_Np'
+    match = re.search(r'(\d+)(?:_(\d+)p)?$', residual_name)
+    
+    if not match:
+        # Handles pure strings with no numbers (e.g., 'cc_energy', 'cc_residual')
+        generated_code_string += f"\n    return {residual_name}\n"
     else:
-        generated_code_string += f"    return {residual_name}"
+        # Group 1 is guaranteed to be the fermion order (e.g., '2' from 'r2_1p')
+        order = int(match.group(1))
+        
+        # Group 2 is the photon order if it exists (e.g., '1' from 'r2_1p')
+        nph_suffix = f"{match.group(2)}p" if match.group(2) else None
+    
+        # Construct base_name (e.g., '1', '2_1p', '0_1p')
+        base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
+        
+        # Safely get the spins for this exact order
+        spins = SPIN_MAP.get(order, [''])
+
+        # Generate individual spin channel assignments
+        assignments = []
+        for spin in spins:
+            var_name = f"{residual_name}_{spin}" if spin else residual_name
+            assignments.append(f"    residual['{base_name}']['{spin}'] = {var_name}")
+    
+        assignments_str = "\n".join(assignments)
+    
+        generated_code_string += \
+f"""
+    residual = {{}}
+    residual['{base_name}'] = {{}}
+{assignments_str}
+    return residual
+"""
 
     # write function 
     if write_function:
@@ -405,15 +458,42 @@ def bernoulli_ucc_residual(rank,
     # pq graph output
     generated_code_string += graph.str("python")
 
-    # return statement
-    if '3' in residual_name:
-        generated_code_string += f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb"
-    elif '2' in residual_name:
-        generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb"
-    elif '1' in residual_name:
-        generated_code_string += f"    return {residual_name}_aa, {residual_name}_bb"
+    # Return statement
+
+    # This regex looks for digit, optionally followed by '_Np'
+    match = re.search(r'(\d+)(?:_(\d+)p)?$', residual_name)
+            
+    if not match:
+        # Handles pure strings with no numbers (e.g., 'cc_energy', 'cc_residual')
+        generated_code_string += f"\n    return {residual_name}\n"
     else:
-        generated_code_string += f"    return {residual_name}"
+        # Group 1 is guaranteed to be the fermion order (e.g., '2' from 'r2_1p')
+        order = int(match.group(1))
+        
+        # Group 2 is the photon order if it exists (e.g., '1' from 'r2_1p')
+        nph_suffix = f"{match.group(2)}p" if match.group(2) else None
+    
+        # Construct base_name (e.g., '1', '2_1p', '0_1p')
+        base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
+   
+        # Safely get the spins for this exact order
+        spins = SPIN_MAP.get(order, [''])
+        
+        # Generate individual spin channel assignments
+        assignments = []
+        for spin in spins:
+            var_name = f"{residual_name}_{spin}" if spin else residual_name
+            assignments.append(f"    residual['{base_name}']['{spin}'] = {var_name}")
+    
+        assignments_str = "\n".join(assignments)
+
+        generated_code_string += \
+f"""
+    residual = {{}}
+    residual['{base_name}'] = {{}}
+{assignments_str}
+    return residual
+"""
 
     # write function 
     if write_function:
@@ -510,7 +590,20 @@ def uccsd_singles_residual(order,
     generated_code_string += graph.str("python")
 
     # return statement
-    generated_code_string += f"    return {residual_name}_aa, {residual_name}_bb"
+    base_name = '1'
+    # check for photons
+    for part in residual_name.split('_'):
+        if part.endswith('p') and part[:-1].isdigit():
+            base_name += '_' + part[:-1] + 'p'
+            break
+    generated_code_string += \
+f"""
+    residual = {{}}
+    residual['{base_name}'] = {{}}
+    residual['{base_name}']['aa'] = {residual_name}_aa
+    residual['{base_name}']['bb'] = {residual_name}_bb
+    return residual
+"""
 
     # write function 
     if write_function:
@@ -613,7 +706,21 @@ def uccsd_doubles_residual(order,
     generated_code_string += graph.str("python")
         
     # return statement
-    generated_code_string += f"    return {residual_name}_aaaa, {residual_name}_abab, {residual_name}_bbbb"
+    base_name = '2' 
+    # check for photons
+    for part in residual_name.split('_'):
+        if part.endswith('p') and part[:-1].isdigit():
+            base_name += '_' + part[:-1] + 'p'
+            break
+    generated_code_string += \
+f"""
+    residual = {{}}
+    residual['{base_name}'] = {{}}
+    residual['{base_name}']['aaaa'] = {residual_name}_aaaa
+    residual['{base_name}']['abab'] = {residual_name}_abab
+    residual['{base_name}']['bbbb'] = {residual_name}_bbbb
+    return residual
+"""
     
     # write function 
     if write_function:
@@ -816,7 +923,22 @@ def cc3_triples_residual(residual_name,
     generated_code_string += graph.str("python")
         
     # return statement
-    generated_code_string += f"    return {residual_name}_aaaaaa, {residual_name}_aabaab, {residual_name}_abbabb, {residual_name}_bbbbbb"
+    base_name = '3'
+    # check for photons
+    for part in residual_name.split('_'):
+        if part.endswith('p') and part[:-1].isdigit():
+            base_name += '_' + part[:-1] + 'p'
+            break
+    generated_code_string += \
+f"""
+    residual = {{}}
+    residual['{base_name}'] = {{}}
+    residual['{base_name}']['aaaaaa'] = {residual_name}_aaaaaa
+    residual['{base_name}']['aabaab'] = {residual_name}_aabaab
+    residual['{base_name}']['abbabb'] = {residual_name}_abbabb
+    residual['{base_name}']['bbbbbb'] = {residual_name}_bbbbbb
+    return residual
+"""
     
     # write function 
     if write_function:
@@ -909,16 +1031,43 @@ def lambda_cc_residual(residual_name,
 
     # pq graph output
     generated_code_string += graph.str("python")
-        
-    # return statement
-    if '3' in residual_name:
-        generated_code_string += f"    return {residual_name}_aaaaaa.transpose.transpose(3,4,5,0,1,2), {residual_name}_aabaab.transpose(3,4,5,0,1,2), {residual_name}_abbabb.transpose(3,4,5,0,1,2), {residual_name}_bbbbbb.transpose(3,4,5,0,1,2)"
-    elif '2' in residual_name:
-        generated_code_string += f"    return {residual_name}_aaaa.transpose(2,3,0,1), {residual_name}_abab.transpose(2,3,0,1), {residual_name}_bbbb.transpose(2,3,0,1)"
-    elif '1' in residual_name:
-        generated_code_string += f"    return {residual_name}_aa.transpose(1,0), {residual_name}_bb.transpose(1,0)"
+
+    # Return statement
+
+    # This regex looks for digit, optionally followed by '_Np'
+    match = re.search(r'(\d+)(?:_(\d+)p)?$', residual_name)
+    
+    if not match:
+        # Handles pure strings with no numbers (e.g., 'cc_energy', 'cc_residual')
+        generated_code_string += f"\n    return {residual_name}\n"
     else:
-        generated_code_string += f"    return {residual_name}"
+        # Group 1 is guaranteed to be the fermion order (e.g., '2' from 'r2_1p')
+        order = int(match.group(1))
+        
+        # Group 2 is the photon order if it exists (e.g., '1' from 'r2_1p')
+        nph_suffix = f"{match.group(2)}p" if match.group(2) else None
+    
+        # Construct base_name (e.g., '1', '2_1p', '0_1p')
+        base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
+        
+        # Safely get the spins for this exact order
+        spins = SPIN_MAP.get(order, [''])
+
+        # Generate individual spin channel assignments
+        assignments = []
+        for spin in spins:
+            var_name = f"{residual_name}_{spin}" if spin else residual_name
+            assignments.append(f"    residual['{base_name}']['{spin}'] = {var_name}")
+    
+        assignments_str = "\n".join(assignments)
+
+        generated_code_string += \
+f"""    
+    residual = {{}}
+    residual['{base_name}'] = {{}}
+{assignments_str}
+    return residual
+"""        
 
     # write function 
     if write_function:

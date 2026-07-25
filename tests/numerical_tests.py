@@ -97,6 +97,18 @@ def test_ccsd_codegen_disk():
                     importlib.reload(sys.modules[name])
                 local_namespace[name] = importlib.import_module(name)
 
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"].t1_residual
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"].t2_residual
+            }
+
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
             mycc = cc(
@@ -104,8 +116,7 @@ def test_ccsd_codegen_disk():
                 mol,
                 nfzc=1,
                 cc_energy_func=local_namespace["cc_energy"].cc_energy,
-                t1_residual_func=local_namespace["t1_residual"].t1_residual,
-                t2_residual_func=local_namespace["t2_residual"].t2_residual,
+                T_list = [t1, t2]
             )
 
             en = mycc.t_solver()
@@ -155,7 +166,7 @@ def test_qed_ccsd_codegen():
                 pq_graph_options = pq_graph_options
             )
 
-            t0_1p_residual_func = cc_residual('r0', 
+            t0_1p_residual_func = cc_residual('r0_1p', 
                 T, 
                 [['B-']], 
                 't0_1p_residual', 
@@ -163,7 +174,7 @@ def test_qed_ccsd_codegen():
                 pq_graph_options = pq_graph_options
             )
 
-            t1_1p_residual_func = cc_residual('r1', 
+            t1_1p_residual_func = cc_residual('r1_1p', 
                 T, 
                 [['B-','e1(i,a)']], 
                 't1_1p_residual', 
@@ -171,7 +182,7 @@ def test_qed_ccsd_codegen():
                 pq_graph_options = pq_graph_options
             )
 
-            t2_1p_residual_func = cc_residual('r2', 
+            t2_1p_residual_func = cc_residual('r2_1p', 
                 T, 
                 [['B-','e2(i,j,b,a)']], 
                 't2_1p_residual', 
@@ -187,6 +198,34 @@ def test_qed_ccsd_codegen():
             exec(t1_1p_residual_func, globals(), local_namespace)
             exec(t2_1p_residual_func, globals(), local_namespace)
 
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo', 
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
+            t0_1p = {
+                'nph' : 1,
+                'residual' : local_namespace["t0_1p_residual"]
+            }
+            t1_1p = {
+                'nph' : 1,
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_1p_residual"]
+            }
+            t2_1p = {
+                'nph' : 1,
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_1p_residual"]
+            }
+
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
             mycc = cc(
@@ -194,11 +233,8 @@ def test_qed_ccsd_codegen():
                 mol,
                 nfzc=0,
                 cc_energy_func=local_namespace["cc_energy"],
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"],
-                t0_1p_residual_func=local_namespace["t0_1p_residual"],
-                t1_1p_residual_func=local_namespace["t1_1p_residual"],
-                t2_1p_residual_func=local_namespace["t2_1p_residual"],
+                T_list = [t1, t2, t0_1p, t1_1p, t2_1p],
+                is_qed = True, 
                 cavity_lambda=[0.0, 0.0, 0.05],
                 cavity_frequency=0.07349864501573 # 2eV
             )
@@ -251,6 +287,18 @@ def test_ccsd_codegen():
             exec(cc_energy_func, globals(), local_namespace)
             exec(t1_residual_func, globals(), local_namespace)
             exec(t2_residual_func, globals(), local_namespace)
+
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
             
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
@@ -259,8 +307,7 @@ def test_ccsd_codegen():
                 mol, 
                 nfzc=1, 
                 cc_energy_func=local_namespace["cc_energy"],
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"]
+                T_list = [t1, t2],
             )
 
             en = mycc.t_solver()
@@ -311,6 +358,18 @@ def test_uccsd_3_codegen():
             exec(t1_residual_func, globals(), local_namespace)
             exec(t2_residual_func, globals(), local_namespace)
 
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
+
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
             mycc = cc(
@@ -318,8 +377,7 @@ def test_uccsd_3_codegen():
                 mol, 
                 nfzc=1, 
                 cc_energy_func=local_namespace["cc_energy"], 
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"]
+                T_list = [t1, t2]
             )
 
             en = mycc.t_solver()
@@ -370,6 +428,18 @@ def test_uccsd_4_codegen():
             exec(t1_residual_func, globals(), local_namespace)
             exec(t2_residual_func, globals(), local_namespace)
 
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
+
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
             mycc = cc(
@@ -377,8 +447,7 @@ def test_uccsd_4_codegen():
                 mol,
                 nfzc=1,
                 cc_energy_func=local_namespace["cc_energy"], 
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"]
+                T_list = [t1, t2]
             )
 
             en = mycc.t_solver()
@@ -433,6 +502,18 @@ def test_quccsd_codegen():
             exec(t1_residual_func, globals(), local_namespace)
             exec(t2_residual_func, globals(), local_namespace)
 
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
+
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
             mycc = cc(
@@ -440,8 +521,7 @@ def test_quccsd_codegen():
                 mol,
                 nfzc=1,
                 cc_energy_func=local_namespace["cc_energy"], 
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"]
+                T_list = [t1, t2]
             )
 
             en = mycc.t_solver()
@@ -494,6 +574,18 @@ def test_lambda_ccsd_codegen():
             exec(cc_energy_func, globals(), local_namespace)
             exec(t1_residual_func, globals(), local_namespace)
             exec(t2_residual_func, globals(), local_namespace)
+
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
    
             # Generate lambda equations
             L = [['l1'], ['l2']]
@@ -526,6 +618,18 @@ def test_lambda_ccsd_codegen():
             exec(l1_residual_func, globals(), local_namespace)
             exec(l2_residual_func, globals(), local_namespace)
 
+            # lambda amplitude dictionaries to pass into the solver
+            l1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["l1_residual"]
+            }
+            l2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["l2_residual"]
+            }
+
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
 
@@ -534,11 +638,9 @@ def test_lambda_ccsd_codegen():
                 mol,
                 nfzc=1,
                 cc_energy_func=local_namespace["cc_energy"],
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"],
                 cc_pseudoenergy_func=local_namespace["cc_pseudoenergy"],
-                l1_residual_func=local_namespace["l1_residual"],
-                l2_residual_func=local_namespace["l2_residual"],
+                T_list = [t1, t2],
+                L_list = [l1, l2],
             )
             
             en = mycc.t_solver()
@@ -595,12 +697,29 @@ def test_ccsdt_codegen():
                 't3_residual',
                 pq_graph_options = pq_graph_options
             )   
-                
+
             # Execute the code strings in memory
             exec(cc_energy_func, globals(), local_namespace)
             exec(t1_residual_func, globals(), local_namespace)
             exec(t2_residual_func, globals(), local_namespace) 
             exec(t3_residual_func, globals(), local_namespace) 
+
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
+            t3 = {
+                'spaces' : 'vvvooo',
+                'spins' : ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
+                'residual' : local_namespace["t3_residual"]
+            }
             
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
@@ -609,9 +728,7 @@ def test_ccsdt_codegen():
                 mol, 
                 nfzc=1,  
                 cc_energy_func=local_namespace["cc_energy"],
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"],
-                t3_residual_func=local_namespace["t3_residual"]
+                T_list = [t1, t2, t3],
             )
 
             en = mycc.t_solver()
@@ -671,6 +788,23 @@ def test_cc3_codegen():
             exec(t2_residual_func, globals(), local_namespace)
             exec(t3_residual_func, globals(), local_namespace)
 
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
+            t3 = {
+                'spaces' : 'vvvooo',
+                'spins' : ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
+                'residual' : local_namespace["t3_residual"]
+            }
+
             # Pass pq-generated functions into the cc solver
             mol, wfn = setup_psi4_test()
             mycc = cc(
@@ -678,9 +812,7 @@ def test_cc3_codegen():
                 mol, 
                 nfzc=1,  
                 cc_energy_func=local_namespace["cc_energy"],
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"],
-                t3_residual_func=local_namespace["t3_residual"]
+                T_list = [t1, t2, t3]
             )
 
             en = mycc.t_solver()
@@ -731,6 +863,18 @@ def test_eomccsd_codegen():
             exec(cc_energy_func, globals(), local_namespace)
             exec(t1_residual_func, globals(), local_namespace)
             exec(t2_residual_func, globals(), local_namespace)
+
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo', 
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
 
             # Import pq eomcc codegen function
             from pdaggerq.numerical_utils.autogen import eomcc_sigma
@@ -822,8 +966,7 @@ def test_eomccsd_codegen():
                 mol, 
                 nfzc=1, 
                 cc_energy_func=local_namespace["cc_energy"],
-                t1_residual_func=local_namespace["t1_residual"],
-                t2_residual_func=local_namespace["t2_residual"]
+                T_list = [t1, t2]
             )
 
             en = mycc.t_solver()
@@ -883,12 +1026,11 @@ def main():
     #test_ccsdt_codegen()
     #test_cc3_codegen()
     #test_eomccsd_codegen()
-    #test_lambda_ccsd_codegen()
+    test_lambda_ccsd_codegen()
     #test_uccsd_3_codegen()
     #test_uccsd_4_codegen()
     #test_quccsd_codegen()
-    #test_cuccsd_codegen()
-    raise Exception("run with pytest")
+    #raise Exception("run with pytest")
 
 if __name__ == "__main__":
     main()
