@@ -43,6 +43,13 @@
 #include "pq_add_spin_labels.h"
 #include "pq_cumulant_expansion.h"
 #include "pq_swap_operators.h"
+
+// include omp only if defined
+#ifdef _OPENMP
+#include <omp.h>
+#else
+#define omp_get_max_threads() 1
+#endif
 #include "../pq_graph/include/pq_graph.h"
 
 namespace py = pybind11;
@@ -877,7 +884,264 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplit
     return std::make_pair(done_processing, ops_out);
 }
 
+namespace {
+
+/// excitation bookkeeping for one operator name, used by screen_operator_products
+struct op_class {
+
+    /// recognized by the classifier? if not, no screening is attempted
+    bool known = false;
+
+    /// a cluster amplitude, i.e. a pure excitation with no contractable slots
+    bool is_amplitude = false;
+
+    /// range of the excitation level this operator can carry, per species
+    int e_min = 0, e_max = 0;
+    int p_min = 0, p_max = 0;
+
+    /// number of quasi-annihilator slots -- a^(occupied) or a(virtual) -- that a
+    /// cluster amplitude can contract with, per species
+    int e_legs = 0, p_legs = 0;
+};
+
+/// the trailing integer of an operator name, e.g. rank_suffix("t2", 1) -> 2.
+/// returns -1 if what follows @p from is not a bare positive integer.
+int rank_suffix(const std::string &op, size_t from) {
+    if ( from >= op.size() ) return -1;
+    int rank = 0;
+    for (size_t i = from; i < op.size(); i++) {
+        if ( op[i] < '0' || op[i] > '9' ) return -1;
+        rank = 10 * rank + (op[i] - '0');
+    }
+    return rank > 0 ? rank : -1;
+}
+
+/// classify an explicit e<n>(l1,...,l2n) operator: the first n labels are
+/// creators, the last n annihilators. every label must be classifiable as
+/// occupied or virtual (a general label leaves the level undetermined).
+op_class classify_e_operator(const std::string &op) {
+
+    op_class c;
+
+    size_t lparen = op.find('(');
+    if ( lparen == std::string::npos || op.back() != ')' ) return c;
+
+    int rank = rank_suffix(op.substr(1, lparen - 1), 0);
+    if ( rank < 1 ) return c;
+
+    // split the label list
+    std::vector<std::string> labels;
+    std::string label;
+    for (size_t i = lparen + 1; i < op.size() - 1; i++) {
+        if ( op[i] == ',' ) {
+            labels.push_back(label);
+            label.clear();
+        }else {
+            label += op[i];
+        }
+    }
+    labels.push_back(label);
+
+    if ( (int)labels.size() != 2 * rank ) return c;
+
+    // a^+ p ... a q ...: particles = #(virtual creators) - #(virtual annihilators),
+    // holes = #(occupied annihilators) - #(occupied creators). the excitation level
+    // is half their sum; the contractable slots are the occupied creators and the
+    // virtual annihilators.
+    int particles[2] = {0, 0}, holes[2] = {0, 0}, legs[2] = {0, 0};
+    for (size_t i = 0; i < labels.size(); i++) {
+        const std::string &idx = labels[i];
+        int sp = is_nuclear(idx) ? 1 : 0;
+        bool creator = (int)i < rank;
+        if ( is_vir(idx) ) {
+            particles[sp] += creator ? 1 : -1;
+            if ( !creator ) legs[sp]++;
+        }else if ( is_occ(idx) ) {
+            holes[sp] += creator ? -1 : 1;
+            if ( creator ) legs[sp]++;
+        }else return c; // general label: level undetermined
+    }
+
+    if ( (particles[0] + holes[0]) % 2 != 0 ) return c;
+    if ( (particles[1] + holes[1]) % 2 != 0 ) return c;
+
+    c.known = true;
+    c.e_min = c.e_max = (particles[0] + holes[0]) / 2;
+    c.p_min = c.p_max = (particles[1] + holes[1]) / 2;
+    c.e_legs = legs[0];
+    c.p_legs = legs[1];
+
+    return c;
+}
+
+/// classify an amplitude name of the form <lead>[p<M> | ep<N><M> | <N>], e.g.
+/// "t2" (2 electrons), "tp1" (1 nucleus), "tep21" (2 electrons + 1 nucleus).
+/// @p sign is +1 for excitations (t) and -1 for de-excitations (l).
+op_class classify_amplitude(const std::string &op, int sign) {
+
+    op_class c;
+
+    int e_rank = 0, p_rank = 0;
+    if ( op.compare(1, 2, "ep") == 0 ) {
+        // tep<N><M> / lep<N><M>: single-digit electron and nuclear ranks
+        if ( op.size() != 5 ) return c;
+        if ( op[3] < '1' || op[3] > '9' || op[4] < '1' || op[4] > '9' ) return c;
+        e_rank = op[3] - '0';
+        p_rank = op[4] - '0';
+    }else if ( op.compare(1, 1, "p") == 0 ) {
+        p_rank = rank_suffix(op, 2);
+        if ( p_rank < 1 ) return c;
+    }else {
+        e_rank = rank_suffix(op, 1);
+        if ( e_rank < 1 ) return c;
+    }
+
+    c.known = true;
+    c.is_amplitude = sign > 0;
+    c.e_min = c.e_max = sign * e_rank;
+    c.p_min = c.p_max = sign * p_rank;
+    if ( sign < 0 ) {
+        // a de-excitation operator is all quasi-annihilators
+        c.e_legs = 2 * e_rank;
+        c.p_legs = 2 * p_rank;
+    }
+
+    return c;
+}
+
+/// classify an operator name for the pre-normal-ordering screen. anything not
+/// listed here is reported unknown, which disables the screen.
+op_class classify_operator(const std::string &op) {
+
+    op_class c;
+
+    // one- and two-body operators carry an undetermined excitation level: a
+    // k-body operator ranges over [-k, k] and offers 2k contractable slots.
+    auto body = [&c](int e_body, int p_body) {
+        c.known = true;
+        c.e_min = -e_body; c.e_max = e_body; c.e_legs = 2 * e_body;
+        c.p_min = -p_body; c.p_max = p_body; c.p_legs = 2 * p_body;
+    };
+
+    if ( op.empty() || op == "1" ) {
+        c.known = true;
+    }else if ( op == "h" || op == "f" || op == "j1" ) {
+        body(1, 0);                     // one-body, electronic
+    }else if ( op == "g" || op == "v" || op == "j2" ) {
+        body(2, 0);                     // two-body, electronic
+    }else if ( op == "fp" || op == "jp1" ) {
+        body(0, 1);                     // one-body, nuclear
+    }else if ( op == "vp" || op == "jp2" ) {
+        body(0, 2);                     // two-body, nuclear
+    }else if ( op == "gep" ) {
+        body(1, 1);                     // one electron and one nucleus
+    }else if ( op == "d+" || op == "d-" ) {
+        body(1, 0);                     // dipole (one-body) times a boson operator
+    }else if ( op == "w0" || op == "b+" || op == "b-" ) {
+        c.known = true;                 // purely bosonic
+    }else if ( op[0] == 't' ) {
+        c = classify_amplitude(op, +1);
+    }else if ( op[0] == 'l' ) {
+        c = classify_amplitude(op, -1);
+    }else if ( op[0] == 'e' ) {
+        c = classify_e_operator(op);
+    }
+    // everything else (user-defined 'o', EOM 'r'/'x'/'y', bare creators 'a',
+    // normal-ordered blocks 'fn'/'vn', bernoulli portions '{...}', ...) is left
+    // unknown on purpose.
+
+    return c;
+}
+
+} // anonymous namespace
+
+void pq_helper::screen_operator_products(std::vector<pq_operator_terms> &ops, bool connected) {
+
+    // the screen presumes that only fully contracted strings survive, which is
+    // what cleanup() enforces for standard coupled cluster at the fermi vacuum.
+    if ( vacuum != "FERMI" || use_rdms || is_unitary_cc ) return;
+
+    // accumulated excitation level of the bra and the ket. a term needs only one
+    // pair of them to balance, so the widest range over all of them is what a
+    // product has to fit into.
+    int outer_e_min = 0, outer_e_max = 0, outer_p_min = 0, outer_p_max = 0;
+    for (const std::vector<std::vector<std::string>> *side : {&left_operators, &right_operators}) {
+        if ( side->empty() ) continue;
+        int side_e_min = 0, side_e_max = 0, side_p_min = 0, side_p_max = 0;
+        bool side_first = true;
+        for (const std::vector<std::string> &alternative : *side) {
+            int e_min = 0, e_max = 0, p_min = 0, p_max = 0;
+            for (const std::string &op : alternative) {
+                op_class c = classify_operator(op);
+                if ( !c.known ) return;
+                e_min += c.e_min; e_max += c.e_max;
+                p_min += c.p_min; p_max += c.p_max;
+            }
+            if ( side_first ) {
+                side_e_min = e_min; side_e_max = e_max;
+                side_p_min = p_min; side_p_max = p_max;
+                side_first = false;
+            }else {
+                side_e_min = std::min(side_e_min, e_min); side_e_max = std::max(side_e_max, e_max);
+                side_p_min = std::min(side_p_min, p_min); side_p_max = std::max(side_p_max, p_max);
+            }
+        }
+        outer_e_min += side_e_min; outer_e_max += side_e_max;
+        outer_p_min += side_p_min; outer_p_max += side_p_max;
+    }
+
+    std::vector<pq_operator_terms> kept;
+    kept.reserve(ops.size());
+
+    for (const pq_operator_terms &term : ops) {
+
+        int e_min = outer_e_min, e_max = outer_e_max;
+        int p_min = outer_p_min, p_max = outer_p_max;
+
+        // contractable slots offered by the target block, and the cluster
+        // amplitudes that have to fit into them
+        int e_legs = 0, p_legs = 0;
+        int e_only = 0, p_only = 0, either = 0;
+
+        bool screenable = true;
+        for (const std::string &op : term.operators) {
+            op_class c = classify_operator(op);
+            if ( !c.known ) { screenable = false; break; }
+            e_min += c.e_min; e_max += c.e_max;
+            p_min += c.p_min; p_max += c.p_max;
+            if ( c.is_amplitude ) {
+                if ( c.e_max > 0 && c.p_max > 0 )  either++;
+                else if ( c.e_max > 0 )            e_only++;
+                else if ( c.p_max > 0 )            p_only++;
+            }else {
+                e_legs += c.e_legs;
+                p_legs += c.p_legs;
+            }
+        }
+        if ( !screenable ) return;
+
+        // 1. excitation balance
+        if ( e_min > 0 || e_max < 0 || p_min > 0 || p_max < 0 ) continue;
+
+        // 2. connectivity: every amplitude of a nested commutator has to contract
+        //    with the target block, and amplitudes never contract with each other
+        if ( connected && ( e_only > e_legs || p_only > p_legs ||
+                            e_only + p_only + either > e_legs + p_legs ) ) continue;
+
+        kept.push_back(term);
+    }
+
+    ops = std::move(kept);
+}
+
 void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
+
+    // discard products that cannot contribute before paying to normal order them.
+    // the operator names are still the ones the caller supplied here, which is
+    // what the classifier understands (and what makes the screen cheapest).
+    // connectivity is not assumed: this entry point also serves bare operator
+    // products, for which disconnected terms are perfectly legitimate.
+    screen_operator_products(ops, false);
 
     std::vector<pq_operator_terms> new_ops;
 
@@ -921,11 +1185,77 @@ void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
         consolidate_threshold = strtoull(env, nullptr, 10);
     }
 
-    for (auto op : ops){
-        add_operator_product(op.factor, op.operators);
-        if ( can_consolidate && ordered.size() > consolidate_threshold ) {
-            consolidate_running_terms();
+    // Normal ordering one operator product is independent of every other, so a
+    // batch of products is expanded concurrently. Building the sandwiched strings
+    // stays serial: that is where the operator names are parsed, and it writes
+    // pq_string's process-global registry of amplitude types. It is also cheap --
+    // essentially all of the time goes into the expansion that follows it.
+    //
+    // What happens to the results is exactly what the serial version did: each
+    // product's strings are appended to `ordered` in product order and the
+    // consolidation threshold is tested after each one. That keeps the equations
+    // -- and the code generated from them -- byte for byte independent of the
+    // batch size and of the number of threads, which matters because consumers
+    // freeze the generated code and because the incremental consolidation is
+    // order sensitive (it merges terms that only cancel once both are present).
+    //
+    // The batch size adapts to how prolific the products turn out to be, so that
+    // the strings held in flight stay within the same budget that bounds
+    // `ordered` itself: a single similarity transform of the two-electron
+    // operator with high-rank amplitudes can produce millions of raw strings, and
+    // expanding a fixed number of those at once would exhaust memory.
+    ensure_bra_and_ket();
+
+    const size_t max_batch = 64 * (size_t)std::max(1, omp_get_max_threads());
+    size_t batch_size = max_batch;
+
+    // one entry per product, each holding one list of strings per (bra, ket) pair
+    std::vector<std::vector<std::vector<std::shared_ptr<pq_string> > > > jobs;
+    std::vector<std::vector<std::shared_ptr<pq_string> > > batch;
+
+    for (size_t first = 0; first < ops.size(); first += jobs.size()) {
+
+        const size_t last = std::min(first + batch_size, ops.size());
+
+        jobs.clear();
+        jobs.resize(last - first);
+        for (size_t i = first; i < last; i++) {
+            build_operator_product(ops[i].factor, ops[i].operators, jobs[i - first]);
         }
+
+        // flatten to one expansion per (product, bra/ket pair) so that the work is
+        // handed out in the smallest independent pieces there are
+        std::vector<std::pair<size_t, size_t> > work;
+        for (size_t i = 0; i < jobs.size(); i++) {
+            for (size_t j = 0; j < jobs[i].size(); j++) {
+                work.emplace_back(i, j);
+            }
+        }
+
+        batch.clear();
+        batch.resize(work.size());
+
+        #pragma omp parallel for schedule(dynamic) default(none) shared(jobs, work, batch)
+        for (size_t w = 0; w < work.size(); w++) {
+            normal_order_strings(jobs[work[w].first][work[w].second], batch[w]);
+        }
+
+        size_t produced = 0;
+        size_t w = 0;
+        for (size_t i = 0; i < jobs.size(); i++) {
+            for (size_t j = 0; j < jobs[i].size(); j++, w++) {
+                produced += batch[w].size();
+                ordered.insert(ordered.end(), batch[w].begin(), batch[w].end());
+            }
+            if ( can_consolidate && ordered.size() > consolidate_threshold ) {
+                consolidate_running_terms();
+            }
+        }
+
+        // aim the next batch at the same number of in-flight strings
+        batch_size = std::max<size_t>(1, std::min(max_batch,
+            produced > consolidate_threshold ? jobs.size() * consolidate_threshold / produced
+                                             : max_batch));
     }
 }
 
@@ -986,17 +1316,22 @@ void pq_helper::py_add_operator_product(double factor, std::vector<std::string> 
 // add a string of operators
 void pq_helper::add_operator_product(double factor, std::vector<std::string>  in){
 
-    // make sure left / right operator lists aren't empty
-    if ( (int)left_operators.size() == 0 ) {
-        std::vector<std::string> junk;
-        junk.emplace_back("1");
-        left_operators.push_back(junk);
+    ensure_bra_and_ket();
+
+    std::vector<std::vector<std::shared_ptr<pq_string> > > jobs;
+    build_operator_product(factor, in, jobs);
+    for (std::vector<std::shared_ptr<pq_string> > & job : jobs) {
+        normal_order_strings(job, ordered);
     }
-    if ( (int)right_operators.size() == 0 ) {
-        std::vector<std::string> junk;
-        junk.emplace_back("1");
-        right_operators.push_back(junk);
-    }
+}
+
+// build the bra-operator-ket sandwiches for one operator product, one list per
+// (bra, ket) pair. this is where the operator names are parsed, so it is also
+// where pq_string's process-global registry of amplitude types is written --
+// hence it is kept out of the parallel expansion in process_operator_products().
+// the bra/ket lists must already be populated -- call ensure_bra_and_ket() first.
+void pq_helper::build_operator_product(double factor, const std::vector<std::string> &in,
+                                       std::vector<std::vector<std::shared_ptr<pq_string> > > &jobs){
 
 /*
     int o_count_1 = 0;
@@ -1079,13 +1414,32 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
                 }
             }
 
-            // bring pq_strings to normal order
-            if (vacuum == "TRUE") {
-                add_new_string_true_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, false);
-            } else {
-                add_new_string_fermi_vacuum(new_pq_strings, ordered, print_level, find_paired_permutations, false);
-            }
+            jobs.push_back(std::move(new_pq_strings));
         }
+    }
+}
+
+// bring a list of sandwiched strings to normal order. touches no member state
+// beyond reading the vacuum and the print settings, so several lists can be
+// ordered concurrently.
+void pq_helper::normal_order_strings(const std::vector<std::shared_ptr<pq_string> > &in,
+                                     std::vector<std::shared_ptr<pq_string> > &out) const {
+
+    if (vacuum == "TRUE") {
+        add_new_string_true_vacuum(in, out, print_level, find_paired_permutations, false);
+    } else {
+        add_new_string_fermi_vacuum(in, out, print_level, find_paired_permutations, false);
+    }
+}
+
+// populate the bra / ket operator lists with the identity if the caller never set them
+void pq_helper::ensure_bra_and_ket() {
+
+    if ( left_operators.empty() ) {
+        left_operators.push_back({"1"});
+    }
+    if ( right_operators.empty() ) {
+        right_operators.push_back({"1"});
     }
 }
 
@@ -2377,6 +2731,13 @@ void pq_helper::add_st_operator(double factor,
                                 int max_order = 4){
 
     std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute, max_order);
+
+    // every term of the BCH series past zeroth order is a nested commutator, so
+    // the connectivity half of the screen applies (the zeroth-order term carries
+    // no cluster amplitudes and passes it trivially). this is where the bulk of
+    // the series is discarded: the surviving fraction is a few percent.
+    screen_operator_products(st_ops, true);
+
     process_operator_products(st_ops);
 }
 
