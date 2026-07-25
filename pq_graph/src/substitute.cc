@@ -752,6 +752,15 @@ size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &
         // skip term if linkage is not compatible
         if (!terms_[i].is_compatible(linkage)) continue;
 
+        // Take the vertex orderings from the term ITSELF, not from the copy made
+        // below. They depend only on the term, and generating them builds up to
+        // 2^depth linkages -- by far the most expensive thing that happens here.
+        // The term's own memoized set survives from one candidate intermediate to
+        // the next (a copied linkage deliberately starts with empty caches), so
+        // hoisting the call turns per-candidate regeneration into one generation
+        // per term per pass.
+        const linkage_vector graph_perms = terms_[i].term_linkage()->permutations();
+
         // get term copy
         Term term = terms_[i];
         term.term_linkage() = as_link(term.term_linkage()->shallow()); // deep copy of term linkage
@@ -762,7 +771,7 @@ size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &
         test_mem_map -= term.mem_map(); // subtract memory scaling map for term
 
         // substitute linkage in term copy
-        bool madeSub = term.substitute(linkage);
+        bool madeSub = term.substitute(linkage, graph_perms);
         term.term_linkage()->forget(); // clear the linkage history for lazy evaluation
         test_flop_map += term.flop_map(); // add new flop scaling map for term
         test_mem_map += term.mem_map(); // add new memory scaling map for term
@@ -780,14 +789,20 @@ bool Term::substitute(const LinkagePtr &linkage) {
     if (rhs_.empty())
         return false;
 
+    // generate every permutation of the term
+    return substitute(linkage, term_linkage()->permutations());
+}
+
+bool Term::substitute(const LinkagePtr &linkage, const linkage_vector &graph_perms) {
+
+    if (rhs_.empty())
+        return false;
+
     // recompute the flop and memory cost of the term if necessary
     compute_scaling();
 
     // break out of loops if a substitution was made
     bool madeSub = false; // initialize boolean to track if substitution was made
-
-    // generate every permutation of the term
-    const linkage_vector &graph_perms = term_linkage()->permutations();
 
     // iterate over all possible orderings of vertex subsets
     LinkagePtr best_linkage = as_link(term_linkage()->shallow());
