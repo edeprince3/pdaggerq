@@ -1283,6 +1283,7 @@ def eomcc_sigma(sigma_name,
     function_name,
     operator_type = 'EE',
     spin_block = True,
+    is_qed = False,
     write_function = False,
     pq_graph_options = None):
 
@@ -1296,6 +1297,7 @@ def eomcc_sigma(sigma_name,
     :param function_name: name for the python function
     :param operator_type: operator type for EE/IP/EA/DIP/DEA
     :param spin_block: do spin block the equations?
+    :param is_qed: include qed-cc terms? 
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
     """ 
@@ -1325,6 +1327,19 @@ def eomcc_sigma(sigma_name,
         pq.add_operator_product(1.0, ['f'])
         pq.add_operator_product(1.0, ['v'])
 
+    ham_terms = [['f'], ['v']]
+    if is_qed:
+        ham_terms.append(['w0'])
+        ham_terms.append(['d+'])
+        ham_terms.append(['d-'])
+
+        pq.add_st_operator(1.0, ['w0'], T)
+        pq.add_st_operator(-1.0, ['d+'], T)
+        pq.add_st_operator(-1.0, ['d-'], T)
+
+        pq.add_st_operator(-1.0, ['ON', 'B+'], T) # nuclear part of bilinear coupling
+        pq.add_st_operator(-1.0, ['ON', 'B-'], T) # nuclear part of bilinear coupling
+
     # cleanup
     pq.simplify()
 
@@ -1333,7 +1348,7 @@ def eomcc_sigma(sigma_name,
 
     # spin blocking
     if spin_block:
-        block_by_spin(pq, sigma_name, L + T + R + ['f'] + ['v'], eqs, operator_type = operator_type)
+        block_by_spin(pq, sigma_name, L + T + R + ham_terms, eqs, operator_type = operator_type)
     else:
         eqs[sigma_eqname] = pq.clone()
         # print the fully contracted strings
@@ -1354,7 +1369,7 @@ def eomcc_sigma(sigma_name,
 
     # initialization statements 
     generated_code_string = f"def {function_name}(self):"
-    generated_code_string += function_initialization_string(extra_class = "ccsd")
+    generated_code_string += function_initialization_string(extra_class = "ccsd", is_qed = is_qed)
 
     generated_code_string += \
 f"""

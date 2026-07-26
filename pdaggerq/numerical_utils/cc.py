@@ -85,7 +85,9 @@ class cc:
         }
 
         # DSE and bilinear coupling contributions for QED
-        if self.is_qed:
+        if not self.is_qed:
+            self.enuc_dse = 0.0
+        else:
             from pdaggerq.numerical_utils.integrals import get_dipole_integrals_with_spin
             tmp_dipole_aa, tmp_dipole_bb = get_dipole_integrals_with_spin(self.wfn)
                              
@@ -314,16 +316,12 @@ class cc:
         print("")
         print("    CC Correlation Energy: {: 20.12f}".format(energy - self.hf_energy))
 
-        # add nuclear part of dipole self-energy to the energy
-        if self.is_qed:
-            energy += self.enuc_dse
-
-        print("    CC Total Energy:       {: 20.12f}".format(energy + self.nuclear_repulsion_energy + self.efzc))
+        print("    CC Total Energy:       {: 20.12f}".format(energy + self.enuc_dse + self.nuclear_repulsion_energy + self.efzc))
         print("")
 
         self.energy = energy
 
-        return energy + self.nuclear_repulsion_energy + self.efzc
+        return energy + self.enuc_dse + self.nuclear_repulsion_energy + self.efzc
 
     def lambda_solver(self):
         """

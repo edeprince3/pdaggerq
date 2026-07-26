@@ -171,6 +171,7 @@ def test_qed_ccsd_codegen():
                 [['B-']], 
                 't0_1p_residual', 
                 is_qed = True, 
+                write_function = True,
                 pq_graph_options = pq_graph_options
             )
 
@@ -876,6 +877,20 @@ def test_eomccsd_codegen():
                 'residual' : local_namespace["t2_residual"]
             }
 
+            # Pass pq-generated functions into the cc solver
+            mol, wfn = setup_psi4_test()
+            mycc = cc(
+                wfn, 
+                mol, 
+                nfzc=1, 
+                cc_energy_func=local_namespace["cc_energy"],
+                T_list = [t1, t2]
+            )
+
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
+
             # Import pq eomcc codegen function
             from pdaggerq.numerical_utils.autogen import eomcc_sigma
 
@@ -958,20 +973,6 @@ def test_eomccsd_codegen():
             
             # Execute the code string in memory
             exec(tdm_func, globals(), local_namespace)
-
-            # Pass pq-generated functions into the cc solver
-            mol, wfn = setup_psi4_test()
-            mycc = cc(
-                wfn, 
-                mol, 
-                nfzc=1, 
-                cc_energy_func=local_namespace["cc_energy"],
-                T_list = [t1, t2]
-            )
-
-            en = mycc.t_solver()
-
-            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
             # right-hand amplitude dictionaries to pass into the solver
             r0 = {
@@ -1100,6 +1101,20 @@ def test_ip_eomccsd_codegen():
                 'residual' : local_namespace["t2_residual"]
             }
 
+            # Pass pq-generated functions into the cc solver
+            mol, wfn = setup_psi4_test()
+            mycc = cc(
+                wfn, 
+                mol, 
+                nfzc=1, 
+                cc_energy_func=local_namespace["cc_energy"],
+                T_list = [t1, t2]
+            )
+
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
+
             # Import pq eomcc codegen function
             from pdaggerq.numerical_utils.autogen import eomcc_sigma
 
@@ -1127,20 +1142,6 @@ def test_ip_eomccsd_codegen():
             # Execute the code strings in memory
             exec(right_sigma1_func, globals(), local_namespace)
             exec(right_sigma2_func, globals(), local_namespace)
-
-            # Pass pq-generated functions into the cc solver
-            mol, wfn = setup_psi4_test()
-            mycc = cc(
-                wfn, 
-                mol, 
-                nfzc=1, 
-                cc_energy_func=local_namespace["cc_energy"],
-                T_list = [t1, t2]
-            )
-
-            en = mycc.t_solver()
-
-            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
             # right-hand amplitude dictionaries to pass into the solver
             r1 = {
@@ -1224,6 +1225,20 @@ def test_ea_eomccsd_codegen():
                 'residual' : local_namespace["t2_residual"]
             }
 
+            # Pass pq-generated functions into the cc solver
+            mol, wfn = setup_psi4_test()
+            mycc = cc(
+                wfn, 
+                mol, 
+                nfzc=1, 
+                cc_energy_func=local_namespace["cc_energy"],
+                T_list = [t1, t2]
+            )
+
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
+
             # Import pq eomcc codegen function
             from pdaggerq.numerical_utils.autogen import eomcc_sigma
 
@@ -1252,20 +1267,6 @@ def test_ea_eomccsd_codegen():
             exec(right_sigma1_func, globals(), local_namespace)
             exec(right_sigma2_func, globals(), local_namespace)
 
-            # Pass pq-generated functions into the cc solver
-            mol, wfn = setup_psi4_test()
-            mycc = cc(
-                wfn, 
-                mol, 
-                nfzc=1, 
-                cc_energy_func=local_namespace["cc_energy"],
-                T_list = [t1, t2]
-            )
-
-            en = mycc.t_solver()
-
-            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
-
             # right-hand amplitude dictionaries to pass into the solver
             r1 = {
                 'spaces' : ['v', ''],
@@ -1293,6 +1294,243 @@ def test_ea_eomccsd_codegen():
 
         f.write(">>> TEST PASSED: EA-EOMCCSD\n")    
 
+@pytest.mark.qed_eomcc
+def test_qed_eomccsd_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running QED-EOMCCSD ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # Import pq cc codegen function 
+            from pdaggerq.numerical_utils.autogen import cc_residual
+
+            # Create an empty dictionary to hold the pq-generated equations
+            local_namespace = {}
+
+            # Generate equations
+            T = ['t1', 't2', 't0,1', 't1,1', 't2,1'] 
+
+            cc_energy_func = cc_residual('cc_energy',
+                T, 
+                [['1']],
+                'cc_energy',
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )   
+            
+            t1_residual_func = cc_residual('r1',
+                T,
+                [['e1(i,a)']],
+                't1_residual', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )   
+                
+            t2_residual_func = cc_residual('r2',
+                T,
+                [['e2(i,j,b,a)']],
+                't2_residual',
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )   
+
+            t0_1p_residual_func = cc_residual('r0_1p', 
+                T, 
+                [['B-']], 
+                't0_1p_residual', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+
+            t1_1p_residual_func = cc_residual('r1_1p', 
+                T, 
+                [['B-','e1(i,a)']], 
+                't1_1p_residual', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+
+            t2_1p_residual_func = cc_residual('r2_1p', 
+                T, 
+                [['B-','e2(i,j,b,a)']], 
+                't2_1p_residual', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+                
+            # Execute the code strings in memory
+            exec(cc_energy_func, globals(), local_namespace)
+            exec(t1_residual_func, globals(), local_namespace)
+            exec(t2_residual_func, globals(), local_namespace)
+            exec(t0_1p_residual_func, globals(), local_namespace)
+            exec(t1_1p_residual_func, globals(), local_namespace)
+            exec(t2_1p_residual_func, globals(), local_namespace)
+
+            # amplitude dictionaries to pass into the solver
+            t1 = {
+                'spaces' : 'vo', 
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_residual"]
+            }
+            t2 = {
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_residual"]
+            }
+            t0_1p = {
+                'nph' : 1,
+                'residual' : local_namespace["t0_1p_residual"]
+            }
+            t1_1p = {
+                'nph' : 1,
+                'spaces' : 'vo',
+                'spins' : ['aa', 'bb'],
+                'residual' : local_namespace["t1_1p_residual"]
+            }
+            t2_1p = {
+                'nph' : 1,
+                'spaces' : 'vvoo',
+                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'residual' : local_namespace["t2_1p_residual"]
+            }
+
+            # Pass pq-generated functions into the cc solver
+            mol, wfn = setup_psi4_test()
+            mycc = cc(
+                wfn, 
+                mol, 
+                nfzc=0, 
+                is_qed = True, 
+                cc_energy_func=local_namespace["cc_energy"],
+                T_list = [t1, t2, t0_1p, t1_1p, t2_1p],
+                cavity_lambda=[0.0, 0.0, 0.05],
+                cavity_frequency=0.564371758730 # cavity-free bright z
+            )
+
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.016051053904, rtol=1e-10, atol=1e-10)
+
+            # Import pq eomcc codegen function
+            from pdaggerq.numerical_utils.autogen import eomcc_sigma
+
+            # Generate right-hand sigma equations
+            R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+
+            right_sigma0_func = eomcc_sigma('sigma0',
+                T,
+                [['1']],
+                R,
+                'right_sigma0', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+
+            right_sigma1_func = eomcc_sigma('sigma1',
+                T,
+                [['e1(i,a)']],
+                R,
+                'right_sigma1', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+
+            right_sigma2_func = eomcc_sigma('sigma2',
+                T,
+                [['e2(i,j,b,a)']],
+                R,
+                'right_sigma2', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+            right_sigma0_1p_func = eomcc_sigma('sigma0_1p',
+                T,
+                [['B-']],
+                R,
+                'right_sigma0_1p', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+
+            right_sigma1_1p_func = eomcc_sigma('sigma1_1p',
+                T,
+                [['B-', 'e1(i,a)']],
+                R,
+                'right_sigma1_1p', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+
+            right_sigma2_1p_func = eomcc_sigma('sigma2_1p',
+                T,
+                [['B-', 'e2(i,j,b,a)']],
+                R,
+                'right_sigma2_1p', 
+                is_qed = True, 
+                pq_graph_options = pq_graph_options
+            )
+
+            # Execute the code strings in memory
+            exec(right_sigma0_func, globals(), local_namespace)
+            exec(right_sigma1_func, globals(), local_namespace)
+            exec(right_sigma2_func, globals(), local_namespace)
+            exec(right_sigma0_1p_func, globals(), local_namespace)
+            exec(right_sigma1_1p_func, globals(), local_namespace)
+            exec(right_sigma2_1p_func, globals(), local_namespace)
+
+            # right-hand amplitude dictionaries to pass into the solver
+            r0 = {
+                'sigma' : local_namespace["right_sigma0"]
+            }
+            r1 = {
+                'spaces' : ['v', 'o'],
+                'spins' : [['a', 'a'], ['b', 'b']],
+                'sigma' : local_namespace["right_sigma1"]
+            }
+            r2 = {
+                'spaces' : ['vv', 'oo'],
+                'spins' : [['aa','aa'], ['ab','ab'], ['bb', 'bb']],
+                'sigma' : local_namespace["right_sigma2"]
+            }
+            r0_1p = {
+                'nph' : 1,
+                'sigma' : local_namespace["right_sigma0_1p"]
+            }
+            r1_1p = {
+                'nph' : 1,
+                'spaces' : ['v', 'o'],
+                'spins' : [['a', 'a'], ['b', 'b']],
+                'sigma' : local_namespace["right_sigma1_1p"]
+            }
+            r2_1p = {
+                'nph' : 1,
+                'spaces' : ['vv', 'oo'],
+                'spins' : [['aa','aa'], ['ab','ab'], ['bb', 'bb']],
+                'sigma' : local_namespace["right_sigma2_1p"]
+            }
+
+            eomcc = eom_ccsd(mycc, R_list = [r0, r1, r2, r0_1p, r1_1p, r2_1p], nstates = 10)
+
+            ref_energies = [0.000000000000,
+                0.356492972219,
+                0.412760173886,
+                0.457808057228,
+                0.458125578205,
+                0.493716904100,
+                0.531938438769,
+                0.552116116848,
+                0.575267673765,
+                0.639773246168
+            ]
+
+            eomcc.right_solver()
+
+            assert np.allclose(ref_energies, eomcc.eom_cc_energy, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: QED-EOMCCSD\n")    
+
+
 def main():
     #test_ccsd_codegen_disk()
     #test_ccsd_codegen()
@@ -1300,13 +1538,14 @@ def main():
     #test_ccsdt_codegen()
     #test_cc3_codegen()
     #test_eomccsd_codegen()
+    test_qed_eomccsd_codegen()
     #test_ip_eomccsd_codegen()
     #test_ea_eomccsd_codegen()
     #test_lambda_ccsd_codegen()
     #test_uccsd_3_codegen()
     #test_uccsd_4_codegen()
     #test_quccsd_codegen()
-    raise Exception("run with pytest")
+    #raise Exception("run with pytest")
 
 if __name__ == "__main__":
     main()
