@@ -25,6 +25,7 @@
 #define PDAGGERQ_SHAPE_HPP
 
 #include <cstdint>
+#include <cmath>
 #include <sstream>
 #include <clocale>
 #include <stdexcept>
@@ -34,6 +35,10 @@
 #include "line.hpp"
 
 struct shape {
+
+    static inline size_t nocc_  = 0;
+    static inline size_t nvirt_ = 0;
+
     uint_fast8_t n_ = 0; // number of lines
 
     //TODO: split this into two variables (oa, ob, va, vb); use a function to get their sum.
@@ -154,53 +159,54 @@ struct shape {
         }
         return result;
     }
+    bool operator<(const shape &other) const {
 
-    bool operator<( const shape & other) const {
+        if (nvirt_ != 0 && nocc_ != 0) {
+            // For non-zero numbers of virtual or occupied orbitals, use the below algorithm
+            double this_size  = std::pow(nocc_, o_) * std::pow(nvirt_, v_);
+            double other_size = std::pow(nocc_, other.o_) * std::pow(nvirt_, other.v_);
 
-        /// priority: o_ + v_ + L_, v_ + L_, L_, v_, va, oa
+            // Cholesky vectors are typically ~5 times the number of basis functions, so we approximate the scaling accordingly
+            if (Q_ > 0) this_size *= std::pow(5*(nocc_ + nvirt_), Q_);
+            if (other.Q_ > 0) other_size *= std::pow(5*(nocc_ + nvirt_), other.Q_);
 
-        // prioritize total scaling over individual scaling factors
-        if (n_ != other.n_)
-            return n_ < other.n_;
+            // This contraction is repeated M times for each root and k times for each iteration
+            // we approximate k as 30 and assume M = 10 for the number of roots
+            size_t nroot = 10; // make this a user parameter?
+            if (L_ > 0) this_size *= 30 * std::pow(nroot, L_);
+            if (other.L_ > 0) other_size *= 30 * std::pow(nroot, other.L_);
 
-        /// if total scaling is the same, prioritize individual scaling factors
-        if (Q_ + other.Q_ > 0) {
-            // prioritize sum of v_ and L_ and Q_ over individual L_ and v_ and Q_
-            uint_fast8_t sum = v_ + L_ + Q_;
-            uint_fast8_t other_sum = other.v_ + other.L_ + other.Q_;
-            if (sum != other_sum)
-                return sum < other_sum;
-
-            // if sum of v_ and L_ and Q_ is the same, prioritize Q_ over L_ and v_
-            if (Q_ != other.Q_)
-                return Q_ < other.Q_;
+            double diff = this_size - other_size;
+            if (std::fabs(diff) > 1e-8) return this_size < other_size;
         }
 
-        if (L_ + other.L_ > 0) {
-            // prioritize sum of v_ and L_ over individual L_ and v_
-            uint_fast8_t sum = v_ + L_;
-            uint_fast8_t other_sum = other.v_ + other.L_;
-            if (sum != other_sum)
-                return sum < other_sum;
+        // For arbitrary numbers of occupied and virtual orbitals, below algorithm is used
 
-            // if sum of v_ and L_ is the same, prioritize L_ over v_
-            if (L_ != other.L_)
-                return L_ < other.L_;
-        }
+        // Compare total scaling (L+Q+v+o)
+        uint_fast8_t total = n_, other_total = other.n_;
+        if (total != other_total) return total < other_total;
 
-        // prioritize v_ over o_
+        /// compare totals of properties
+
+        // disregard occupied lines (L+Q+v)
+        total -= o_, other_total -= other.o_;
+        if (total != other_total) return total < other_total;
+
+        // disregard virtual lines (L+Q)
+        total -= v_; other_total -= other.v_;
+        if (total != other_total) return total < other_total;
+
+        /// compare individual properties
+        if (L_ != other.L_) return L_ < other.L_;
+        if (Q_ != other.Q_) return Q_ < other.Q_;
         if (v_ != other.v_) return v_ < other.v_;
-
-        // prioritize o over spin
         if (o_ != other.o_) return o_ < other.o_;
 
-        // prioritize alpha over beta virtuals spin
-        if (va_ != other.va_) return va_ < other.va_;
-
-        // prioritize beta over alpha occupied spin
+        // Compare individual spin components (alpha spins will be considered first)
+        if (vb_ != other.vb_) return vb_ < other.vb_;
         if (ob_ != other.ob_) return ob_ < other.ob_;
 
-        // equal or greater scaling, return false
+        // scaling is equal
         return false;
     }
     bool operator>( const shape & other) const {

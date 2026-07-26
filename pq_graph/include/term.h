@@ -75,6 +75,9 @@ namespace pdaggerq {
         bool generated_linkages_ = false; // flag for if term has generated linkages (default is false)
         bool is_assignment_ = false; // true if the term is an assignment (default is false, using +=)
         string print_override_; // string to override print function
+        static inline bool print_comments_ = true; // print comments in term string
+        static inline bool deallocate_ = true; // deallocate temporary variables
+        static inline bool binarize_ = false; // flag for whether to binarize terms
 
         static inline size_t max_depth_ = -1; // maximum number of rhs in a linkage (no limit by default)
         static inline shape max_shape_; // maximum shape of a linkage
@@ -88,7 +91,7 @@ namespace pdaggerq {
         Term() = default;
         ~Term() = default;
 
-        double coefficient_{}; // coefficient of the term
+        double coefficient_ = 1.0; // coefficient of the term
 
         /**
          * expand rhs of term using a linkage
@@ -423,7 +426,6 @@ namespace pdaggerq {
          * @return string representation of the term
          */
         string str() const;
-        string einsum_str() const;
 
         string operator+(const string &other) const{ return str() + other; }
         friend string operator+(const string &other, const Term &term){ return other + term.str(); }
@@ -456,6 +458,23 @@ namespace pdaggerq {
          * @return boolean indicating if substitution was successful
          */
         bool substitute(const LinkagePtr &linkage);
+
+        /**
+         * Substitute linkage into the term, reusing an already generated set of
+         * vertex orderings.
+         *
+         * The orderings depend only on the term, not on the linkage being tested,
+         * and generating them means building up to 2^depth linkages. Testing a few
+         * thousand candidate intermediates against a term therefore does the same
+         * (dominant) work a few thousand times over unless the caller hoists it --
+         * which is what Equation::test_substitute does.
+         *
+         * @param linkage linkage to substitute
+         * @param graph_perms orderings of this term's vertices, as returned by
+         *                    term_linkage()->permutations()
+         * @return boolean indicating if substitution was successful
+         */
+        bool substitute(const LinkagePtr &linkage, const linkage_vector &graph_perms);
 
         /**
          * collect all possible linkages from all equations
@@ -512,15 +531,33 @@ namespace pdaggerq {
         bool is_compatible(const LinkagePtr &linkage) const;
 
         /**
+         * determines if the term is valid (non-zero coefficient, non-empty lhs and rhs, valid spin blocks, etc)
+         * @return
+         */
+        bool is_valid();
+
+        /**
          * swaps the sign of the term
          */
         void swap_sign() { coefficient_ *= -1; }
 
         /**
-         * Replace all two-body operators with density fitting operators
-         * @return vector of terms with density fitting operators
+         * Replaces lines in the term given by a map of Line replacements
          */
-        vector<Term> density_fitting();
+        void replace_lines(const LineMap &line_map);
+
+        /**
+         * Replace all two-body operators with decomposed eris
+         * @return vector of terms with decomposed eris
+         */
+        vector<Term> decompose_eri() const;
+
+        /**
+         * Convert a beta term to an alpha term by changing all lines to alpha or applying permutations from alpha-beta
+         * @return vector of converted terms
+         */
+        vector<Term> convert_beta_to_alpha() const;
+
 
     }; // end Term class
 

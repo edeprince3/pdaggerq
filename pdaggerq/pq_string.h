@@ -75,12 +75,12 @@ template <typename T> int minimum_precision(T factor) {
     }
 
     // if the last repeating digit is zero, we can reduce the precision
-    if (precision >= repeat_count && last_digit == '0')
+    if (precision >= repeat_count && repeat_count >= 3 && last_digit == '0')
         precision -= repeat_count;
 
-    // we should always have at least two digits
-    if (precision < 12)
-        precision = 12;
+    // we should always have at least three digits
+    if (precision < 3)
+        precision = 3;
 
     return precision;
 }
@@ -214,7 +214,13 @@ class pq_string
 
     /**
      *
-     * supported amplitude and rdm types
+     * supported amplitude and rdm types.
+     *
+     * NB this is process-global and grows as operator names are parsed, while
+     * get_key() and gobble_deltas() read it. It is neither synchronized nor
+     * reentrant, so add_amplitude_type() must only be reached from serial code:
+     * pq_helper builds its strings serially for exactly this reason and only
+     * parallelizes the normal ordering that follows.
      *
      */
     static inline std::vector<char> amplitude_types = {'t', 'l', 'r', 'D'};

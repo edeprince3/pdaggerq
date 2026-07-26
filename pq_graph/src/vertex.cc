@@ -238,7 +238,7 @@ namespace pdaggerq {
         update_lines(lines);
     }
 
-    void Vertex::replace_lines(const unordered_map<Line, Line, LineHash> &line_map, bool update_name) {
+    void Vertex::replace_lines(const LineMap &line_map, bool update_name) {
         for (Line &line : lines_) {
             // find the line in the map and replace it (if it exists)
             auto it = line_map.find(line);
@@ -262,10 +262,12 @@ namespace pdaggerq {
 
     VertexPtr Vertex::relabel() const {
 
+        return clone(); // disable relabeling for non-linked vertices
+
         size_t occ_idx = 0, virt_idx = 0, sig_idx = 0, den_idx = 0;
 
         // map lines to their first appearance
-        unordered_map<Line, Line, LineHash> line_map;
+        LineMap line_map;
         for (const auto &line : lines_) {
             // first check if line is already in map; skip if it is
             if (line_map.find(line) != line_map.end())
@@ -332,6 +334,10 @@ namespace pdaggerq {
         lines_ = lines; // set lines
         rank_ = lines.size(); // set rank
         shape_ = shape(lines_); // create shape from lines
+        has_blk_ |= shape_.b_ > 0; // beta dims only occurs with blocking
+        for (const Line &line : lines_) {
+            has_blk_ |= line.has_blk(); // check if any line has a block
+        }
         if (update_name)
             this->update_name(); // update name
 
@@ -420,6 +426,30 @@ namespace pdaggerq {
 
     }
 
+    Vertex Vertex::conj() const {
+        if (rank_ <= 2) return {}; // if rank is 2 or less, return empty vertex (no conj is possible)
+            
+        // create new conjugated vertex
+        Vertex conj_op(*this); // copy this vertex
+        
+        // swap first half of lines with second half
+        uint_fast8_t half_size = rank_ - rank_/2; // left n_ops
+        line_vector conj_lines(rank_);
+
+        // add ket to bra
+            for (uint_fast8_t i = 0; i < half_size; i++) {
+            conj_lines[i] = lines_[i+half_size];
+        }
+        // add bra to ket
+            for (uint_fast8_t i = half_size; i < rank_; i++) {
+            conj_lines[i] = lines_[i-half_size];
+        }
+
+        conj_op.update_lines(conj_lines);
+        return conj_op;
+
+    }
+
     bool Vertex::permute_eri() {
 
         // if allow_permute is false, do nothing
@@ -441,32 +471,39 @@ namespace pdaggerq {
         bool best_blk_valid = false; // is best blocking valid?
         size_t count = 0; // number of permutations tried
 
-        do { // test all permutations for a valid ovstring
-            new_eri = permute(id++, swap_sign); // get permutation
+        // Returns true if candidate is a better ERI representation than current best
+        auto is_better = [&](const Vertex &candidate) {
+            if (valid_ovstrings.find(candidate.ovstring()) == valid_ovstrings.end())
+                return false;
+            bool blk_valid = valid_blks.find(candidate.blk_string()) != valid_blks.end();
+            if (best_eri.empty() || (blk_valid && !best_blk_valid))
+                return true;
+            return blk_valid && candidate.lines_ < best_eri.lines_;
+        };
 
-            if (new_eri.empty()) continue; // if permutation is empty, do nothing
+        auto set_best = [&](const Vertex &candidate, bool swap_sign) {
+            best_eri = candidate;
+            swap_sign_best = swap_sign;
+            best_blk_valid = valid_blks.find(candidate.blk_string()) != valid_blks.end();
+        };
 
-            // check if ovstring is valid
-            ov_valid = valid_ovstrings.find(new_eri.ovstring()) != valid_ovstrings.end();
-            blk_valid = valid_blks.find(new_eri.blk_string()) != valid_blks.end();
+        // Try all permutations and their conjugates to find the best valid ERI
+        do {
+            new_eri = permute(id++, swap_sign);
 
-            if (ov_valid) {
-                if (best_eri.empty() || (blk_valid && !best_blk_valid)) {
-                    best_eri = new_eri; // set best eri to first valid ovstring
-                    swap_sign_best = swap_sign;
-                    best_blk_valid = blk_valid;
-                } else if (blk_valid) {
-                    // only replace best eri if the lines are more sorted
-                    bool better_lines = new_eri.lines_ < best_eri.lines_;
-                    if (better_lines) {
-                        best_eri = new_eri;
-                        swap_sign_best = swap_sign;
-                        best_blk_valid = blk_valid;
-                    }
+            // Prefer the permutation itself; fall back to its conjugate if allowed
+            Vertex candidate = new_eri;
+            if (is_better(candidate)) {
+                set_best(candidate, swap_sign);
+            }
+
+            if (Vertex::has_symmetric_eri_) {
+                candidate = new_eri.conj();
+                if (is_better(candidate)) {
+                    set_best(candidate, swap_sign);
                 }
             }
 
-        // end while when valid ovstring is found or throw error when max permutations is reached
         } while (!new_eri.empty());
 
         if (best_eri.empty())
@@ -477,16 +514,77 @@ namespace pdaggerq {
         return swap_sign_best; // return sign change
     }
 
-    void Vertex::sort(line_vector &lines) {
+    void Vertex::sort(line_vector &lines, bool merge_braket, bool ignore_labels) {
         if (lines.empty()) return; // do nothing if rank is zero
 
         // sort lines by occ/vir status (virs on left, occ on right); sort lines by blocks for same occ/vir (alpha on left, beta on right).
         // if all these are equal, sort by ASCII ordering of line name
-        std::sort(lines.begin(), lines.end(), std::less<>());
+        if (merge_braket) {
+            if (ignore_labels) std::sort(lines.begin(), lines.end(), line_compare());
+            else std::sort(lines.begin(), lines.end(), std::less<>());
+            return;
+        }
+
+        // sort the bra and ket lines separately
+        size_t n = lines.size();
+        line_vector bra, ket, sig, den;
+
+        // separate lines that are sig or den
+        for (const Line &line : lines) {
+            if (line.sig_) sig.push_back(line); // if line is sig, add to siglines
+            else if (line.den_) den.push_back(line); // if line is den, add to denlines
+        }
+
+        // sort the sig and den lines
+        if (ignore_labels) {
+            std::sort(sig.begin(), sig.end(), line_compare());
+            std::sort(den.begin(), den.end(), line_compare());
+        } else {
+            std::sort(sig.begin(), sig.end(), std::less<>());
+            std::sort(den.begin(), den.end(), std::less<>());
+        }
+
+        // get number of lines that are not sig or den
+        n -= sig.size() - den.size();
+        if (n == 0) return; // if there are no lines, do nothing
+
+        // reserve space for bra and ket lines
+        size_t hsize = n - n / 2;
+        bra.reserve(hsize); ket.reserve(hsize);
+
+        // loop over lines and separate them into bra and ket lines
+        size_t pos = 0;
+        for (const Line &line : lines) {
+            if (line.sig_ || line.den_) continue; // skip sig and den lines
+            if (pos < hsize) {
+                bra.push_back(line); // add to bra lines (note: bra will never be smaller than ket)
+            } else {
+                ket.push_back(line); // add to ket lines
+            }
+        }
+
+        // sort bra and ket lines
+        if (ignore_labels) {
+            std::sort(bra.begin(), bra.end(), line_compare());
+            std::sort(ket.begin(), ket.end(), line_compare());
+        } else {
+            std::sort(bra.begin(), bra.end(), std::less<>());
+            std::sort(ket.begin(), ket.end(), std::less<>());
+        }
+
+        // merge bra and ket lines
+        lines.clear(); // clear lines
+        lines.reserve(n); // reserve space for lines
+
+        lines.insert(lines.end(), sig.begin(), sig.end()); // add sig
+        lines.insert(lines.end(), bra.begin(), bra.end()); // add bra
+        lines.insert(lines.end(), ket.begin(), ket.end()); // add ket
+        lines.insert(lines.end(), den.begin(), den.end()); // add den
+
     }
 
     void Vertex::sort() {
-        sort(lines_);
+        sort(lines_, false, false); // sort lines without merging brackets and ignoring labels
         update_lines(lines_); // set lines
     }
 

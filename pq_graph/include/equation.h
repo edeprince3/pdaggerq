@@ -59,6 +59,7 @@ namespace pdaggerq {
         static inline bool permuted_merge_ = false; // whether to merge terms with permutations
         static inline bool separate_conditions_ = true; // whether to separate terms into their conditions
         static inline bool no_scalars_ = false; // whether to remove scalar terms
+        static inline bool no_trace_ = false; // whether to remove scalar terms
         bool is_temp_equation_ = false; // whether this is an equation to hold intermediates
         bool allow_substitution_ = true; // whether to allow substitution of linkages
 
@@ -223,10 +224,7 @@ namespace pdaggerq {
          */
         vector<string> to_strings() const;
 
-        friend ostream &operator<<(ostream &os, const Equation &eq){
-            for (const string &s : eq.to_strings()) os << "    " << s << endl;
-            return os;
-        }
+        friend ostream &operator<<(ostream &os, const Equation &eq);
 
         /**
          * Write DOT representation of terms to file stream (to visualize linkage in graphviz)
@@ -242,7 +240,7 @@ namespace pdaggerq {
          * @param allow_equality allow equality of scaling
          * @return number of substitutions
          */
-        size_t substitute(const LinkagePtr &linkage, bool allow_equality = false);
+        size_t substitute(const LinkagePtr &linkage, bool allow_equality);
 
         /**
          * test a linkage substituted into the equation
@@ -250,7 +248,7 @@ namespace pdaggerq {
          * @param test_flop_map reference to flop scaling map that collects the flop scaling of the substitution
          * @return number of substitutions
          */
-        size_t test_substitute(const MutableLinkagePtr &linkage, scaling_map &test_flop_map, bool allow_equality = false);
+        size_t test_substitute(const MutableLinkagePtr &linkage, scaling_map &test_flop_map, scaling_map &test_mem_map, bool allow_equality);
 
         /**
          * collect all possible linkages from all terms
