@@ -24,10 +24,9 @@ import numpy as np
 from numpy import einsum
 import types
 
-from pdaggerq.numerical_utils.integrals import get_integrals
-from pdaggerq.numerical_utils.integrals import get_integrals_with_spin
-
-from pdaggerq.numerical_utils.diis import DIIS
+from pdaggerq.numerical.utils.integrals import get_integrals
+from pdaggerq.numerical.utils.integrals import get_integrals_with_spin
+from pdaggerq.numerical.utils.diis import DIIS
 
 class cc:
 
@@ -88,7 +87,7 @@ class cc:
         if not self.is_qed:
             self.enuc_dse = 0.0
         else:
-            from pdaggerq.numerical_utils.integrals import get_dipole_integrals_with_spin
+            from pdaggerq.numerical.utils.integrals import get_dipole_integrals_with_spin
             tmp_dipole_aa, tmp_dipole_bb = get_dipole_integrals_with_spin(self.wfn)
                              
             # lambda-weighted dipole integrals
@@ -117,7 +116,7 @@ class cc:
             self.f_bb -= np.einsum('pi,iq->pq', dipole_bb[:, ob], dipole_bb[ob, :])
                                  
             # update fock matrix with dse term from quadrupole integrals
-            from pdaggerq.numerical_utils.integrals import get_quadrupole_integrals_with_spin
+            from pdaggerq.numerical.utils.integrals import get_quadrupole_integrals_with_spin
             tmp_quadrupole_aa, tmp_quadrupole_bb = get_quadrupole_integrals_with_spin(self.wfn)
 
             quadrupole_aa = np.zeros_like(tmp_quadrupole_aa[0])

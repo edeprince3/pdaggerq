@@ -25,7 +25,7 @@ from numpy import einsum
 import scipy
 from scipy.sparse.linalg import LinearOperator
 
-from pdaggerq.numerical_utils.cc_hbar import HbarOperator
+from pdaggerq.numerical.solvers.cc_hbar import HbarOperator
 
 import types
 
@@ -150,7 +150,7 @@ class eom_ccsd:
         print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('', '', '<L1|mu|R2>', '', '', '<L2|mu|R1>', '', '', ''))
         print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('state 1', 'state 2', 'x', 'y', 'z', 'x', 'y', 'z', 'osc'))
 
-        from pdaggerq.numerical_utils.integrals import get_dipole_integrals_with_spin
+        from pdaggerq.numerical.utils.integrals import get_dipole_integrals_with_spin
         dipole_aa, dipole_bb = get_dipole_integrals_with_spin(self.ccsd.wfn, nfzc = self.ccsd.nfzc)
 
         f = np.zeros((self.nstates, self.nstates), dtype=np.complex128)

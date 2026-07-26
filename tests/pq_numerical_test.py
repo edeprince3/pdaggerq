@@ -28,8 +28,8 @@ def initialize_log_file():
 import numpy as np
 import psi4    
 
-from pdaggerq.numerical_utils.cc import cc
-from pdaggerq.numerical_utils.eom_cc import eom_ccsd
+from pdaggerq.numerical.solvers.cc import cc
+from pdaggerq.numerical.solvers.eom_cc import eom_ccsd
 
 def setup_psi4_test():
 
@@ -80,7 +80,7 @@ def test_ccsd_codegen_disk():
         with contextlib.redirect_stdout(f):
 
             # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import cc_residual
+            from pdaggerq.numerical.codegen.autogen import cc_residual
 
             T = ['t1', 't2']
             cc_residual('cc_energy', T, [['1']], 'cc_energy', write_function = True, pq_graph_options = pq_graph_options)
@@ -134,7 +134,7 @@ def test_qed_ccsd_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import cc_residual
+            from pdaggerq.numerical.codegen.autogen import cc_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -253,63 +253,9 @@ def test_ccsd_codegen():
 
         with contextlib.redirect_stdout(f):
 
-            # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import cc_residual
-
-            # Create an empty dictionary to hold the pq-generated equations
-            local_namespace = {}
-            
-            # Generate equations
-            T = ['t1', 't2']
-
-            cc_energy_func = cc_residual('cc_energy',
-                T,
-                [['1']],
-                'cc_energy',
-                pq_graph_options = pq_graph_options
-            )
-
-            t1_residual_func = cc_residual('r1',
-                T,
-                [['e1(i,a)']],
-                't1_residual',
-                pq_graph_options = pq_graph_options
-            )
-
-            t2_residual_func = cc_residual('r2',
-                T,
-                [['e2(i,j,b,a)']],
-                't2_residual',
-                pq_graph_options = pq_graph_options
-            )
-
-            # Execute the code strings in memory
-            exec(cc_energy_func, globals(), local_namespace)
-            exec(t1_residual_func, globals(), local_namespace)
-            exec(t2_residual_func, globals(), local_namespace)
-
-            # amplitude dictionaries to pass into the solver
-            t1 = {
-                'spaces' : 'vo',
-                'spins' : ['aa', 'bb'],
-                'residual' : local_namespace["t1_residual"]
-            }
-            t2 = {
-                'spaces' : 'vvoo',
-                'spins' : ['aaaa', 'abab', 'bbbb'],
-                'residual' : local_namespace["t2_residual"]
-            }
-            
-            # Pass pq-generated functions into the cc solver
+            from pdaggerq.numerical.methods.ccsd import CCSD
             mol, wfn = setup_psi4_test()
-            mycc = cc(
-                wfn, 
-                mol, 
-                nfzc=1, 
-                cc_energy_func=local_namespace["cc_energy"],
-                T_list = [t1, t2],
-            )
-
+            mycc = CCSD(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -325,9 +271,9 @@ def test_uccsd_3_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import uccsd_energy
-            from pdaggerq.numerical_utils.autogen import uccsd_singles_residual
-            from pdaggerq.numerical_utils.autogen import uccsd_doubles_residual
+            from pdaggerq.numerical.codegen.autogen import uccsd_energy
+            from pdaggerq.numerical.codegen.autogen import uccsd_singles_residual
+            from pdaggerq.numerical.codegen.autogen import uccsd_doubles_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -395,9 +341,9 @@ def test_uccsd_4_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import uccsd_energy
-            from pdaggerq.numerical_utils.autogen import uccsd_singles_residual
-            from pdaggerq.numerical_utils.autogen import uccsd_doubles_residual
+            from pdaggerq.numerical.codegen.autogen import uccsd_energy
+            from pdaggerq.numerical.codegen.autogen import uccsd_singles_residual
+            from pdaggerq.numerical.codegen.autogen import uccsd_doubles_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -465,7 +411,7 @@ def test_quccsd_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import bernoulli_ucc_residual
+            from pdaggerq.numerical.codegen.autogen import bernoulli_ucc_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -539,9 +485,9 @@ def test_lambda_ccsd_codegen():
         with contextlib.redirect_stdout(f):
         
             # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import cc_residual
-            from pdaggerq.numerical_utils.autogen import lambda_cc_residual
-            from pdaggerq.numerical_utils.autogen import lambda_cc_pseudoenergy
+            from pdaggerq.numerical.codegen.autogen import cc_residual
+            from pdaggerq.numerical.codegen.autogen import lambda_cc_residual
+            from pdaggerq.numerical.codegen.autogen import lambda_cc_pseudoenergy
                 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -662,7 +608,7 @@ def test_ccsdt_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import cc_residual
+            from pdaggerq.numerical.codegen.autogen import cc_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -746,8 +692,8 @@ def test_cc3_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq codegen functions 
-            from pdaggerq.numerical_utils.autogen import cc_residual
-            from pdaggerq.numerical_utils.autogen import cc3_triples_residual
+            from pdaggerq.numerical.codegen.autogen import cc_residual
+            from pdaggerq.numerical.codegen.autogen import cc3_triples_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -829,71 +775,20 @@ def test_eomccsd_codegen():
 
         with contextlib.redirect_stdout(f):
 
-            # Import pq cc codegen function 
-            from pdaggerq.numerical_utils.autogen import cc_residual
-
-            # Create an empty dictionary to hold the pq-generated equations
-            local_namespace = {}
-
-            # Generate equations
-            T = ['t1', 't2'] 
-
-            cc_energy_func = cc_residual('cc_energy',
-                T, 
-                [['1']],
-                'cc_energy',
-                pq_graph_options = pq_graph_options
-            )   
-            
-            t1_residual_func = cc_residual('r1',
-                T,
-                [['e1(i,a)']],
-                't1_residual', 
-                pq_graph_options = pq_graph_options
-            )   
-                
-            t2_residual_func = cc_residual('r2',
-                T,
-                [['e2(i,j,b,a)']],
-                't2_residual',
-                pq_graph_options = pq_graph_options
-            )   
-                
-            # Execute the code strings in memory
-            exec(cc_energy_func, globals(), local_namespace)
-            exec(t1_residual_func, globals(), local_namespace)
-            exec(t2_residual_func, globals(), local_namespace)
-
-            # amplitude dictionaries to pass into the solver
-            t1 = {
-                'spaces' : 'vo', 
-                'spins' : ['aa', 'bb'],
-                'residual' : local_namespace["t1_residual"]
-            }
-            t2 = {
-                'spaces' : 'vvoo',
-                'spins' : ['aaaa', 'abab', 'bbbb'],
-                'residual' : local_namespace["t2_residual"]
-            }
-
-            # Pass pq-generated functions into the cc solver
+            from pdaggerq.numerical.methods.ccsd import CCSD
             mol, wfn = setup_psi4_test()
-            mycc = cc(
-                wfn, 
-                mol, 
-                nfzc=1, 
-                cc_energy_func=local_namespace["cc_energy"],
-                T_list = [t1, t2]
-            )
-
+            mycc = CCSD(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
             # Import pq eomcc codegen function
-            from pdaggerq.numerical_utils.autogen import eomcc_sigma
+            from pdaggerq.numerical.codegen.autogen import eomcc_sigma
 
             # Generate right-hand sigma equations
+            local_namespace = {}
+
+            T = ['t1', 't2']
             R = [['r0'], ['r1'], ['r2']]
 
             right_sigma0_func = eomcc_sigma('sigma0',
@@ -958,7 +853,7 @@ def test_eomccsd_codegen():
             exec(left_sigma2_func, globals(), local_namespace)
 
             # Import pq eomcc density matrix codegen function
-            from pdaggerq.numerical_utils.autogen import eomcc_density_matrix
+            from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
 
             # Generate transition density matrix equations
 
@@ -1003,7 +898,7 @@ def test_eomccsd_codegen():
                 'sigma' : local_namespace["left_sigma2"]
             }
 
-            eomcc = eom_ccsd(mycc, 
+            eomcc = eom_ccsd(mycc.cc_solver, 
                 R_list = [r0, r1, r2],
                 L_list = [l0, l1, l2],
                 density_matrix_func=local_namespace["density_matrix"]
@@ -1054,7 +949,7 @@ def test_ip_eomccsd_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq cc codegen function 
-            from pdaggerq.numerical_utils.autogen import cc_residual
+            from pdaggerq.numerical.codegen.autogen import cc_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -1115,7 +1010,7 @@ def test_ip_eomccsd_codegen():
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
             # Import pq eomcc codegen function
-            from pdaggerq.numerical_utils.autogen import eomcc_sigma
+            from pdaggerq.numerical.codegen.autogen import eomcc_sigma
 
             # Generate right-hand sigma equations
             R = [['r1'], ['r2']]
@@ -1178,7 +1073,7 @@ def test_ea_eomccsd_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq cc codegen function 
-            from pdaggerq.numerical_utils.autogen import cc_residual
+            from pdaggerq.numerical.codegen.autogen import cc_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -1239,7 +1134,7 @@ def test_ea_eomccsd_codegen():
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
 
             # Import pq eomcc codegen function
-            from pdaggerq.numerical_utils.autogen import eomcc_sigma
+            from pdaggerq.numerical.codegen.autogen import eomcc_sigma
 
             # Generate right-hand sigma equations
             R = [['r1'], ['r2']]
@@ -1302,7 +1197,7 @@ def test_qed_eomccsd_codegen():
         with contextlib.redirect_stdout(f):
 
             # Import pq cc codegen function 
-            from pdaggerq.numerical_utils.autogen import cc_residual
+            from pdaggerq.numerical.codegen.autogen import cc_residual
 
             # Create an empty dictionary to hold the pq-generated equations
             local_namespace = {}
@@ -1412,7 +1307,7 @@ def test_qed_eomccsd_codegen():
             assert np.isclose(en, -75.016051053904, rtol=1e-10, atol=1e-10)
 
             # Import pq eomcc codegen function
-            from pdaggerq.numerical_utils.autogen import eomcc_sigma
+            from pdaggerq.numerical.codegen.autogen import eomcc_sigma
 
             # Generate right-hand sigma equations
             R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
@@ -1531,20 +1426,7 @@ def test_qed_eomccsd_codegen():
 
 
 def main():
-    #test_ccsd_codegen_disk()
-    #test_ccsd_codegen()
-    #test_qed_ccsd_codegen()
-    #test_ccsdt_codegen()
-    #test_cc3_codegen()
-    #test_eomccsd_codegen()
-    test_qed_eomccsd_codegen()
-    #test_ip_eomccsd_codegen()
-    #test_ea_eomccsd_codegen()
-    #test_lambda_ccsd_codegen()
-    #test_uccsd_3_codegen()
-    #test_uccsd_4_codegen()
-    #test_quccsd_codegen()
-    #raise Exception("run with pytest")
+    raise Exception("run with pytest")
 
 if __name__ == "__main__":
     main()
