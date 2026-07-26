@@ -484,7 +484,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -608,7 +608,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -718,7 +718,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -835,7 +835,7 @@ f"""
     
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -943,7 +943,7 @@ def uccsd_energy(order,
     
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -1053,7 +1053,7 @@ f"""
     
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -1182,7 +1182,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -1267,7 +1267,7 @@ def lambda_cc_pseudoenergy(energy_name,
 
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -1555,7 +1555,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     pq.clear()
@@ -1808,7 +1808,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_equations/{function_name}.py", "w") as file:
+        with open(f"generated_code/{function_name}.py", "w") as file:
             file.write(generated_code_string)
 
     return generated_code_string

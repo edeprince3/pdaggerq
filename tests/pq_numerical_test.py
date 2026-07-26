@@ -67,7 +67,7 @@ def test_ccsd_codegen_disk():
     
     # Setup paths
     script_path = os.path.dirname(os.path.realpath(__file__))
-    gen_dir = os.path.join(script_path, "generated_equations")
+    gen_dir = os.path.join(script_path, "generated_code")
     os.makedirs(gen_dir, exist_ok=True)
     
     # Add the generation directory to sys.path so Python can import from it
@@ -171,7 +171,6 @@ def test_qed_ccsd_codegen():
                 [['B-']], 
                 't0_1p_residual', 
                 is_qed = True, 
-                write_function = True,
                 pq_graph_options = pq_graph_options
             )
 

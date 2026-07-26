@@ -26,6 +26,7 @@ except ImportError:
     psi4_available = False
 tests += ("ccsd_with_spin", "ccsdt_with_spin") if psi4_available else ()
 
+
 # get the path to the script
 script_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -47,14 +48,14 @@ def test_script_output(test_name):
     result = subprocess.run([str(sys.executable), codegen_path], capture_output=True, text=True)
     status = result.returncode
     if status != 0:
-        with open("legacy_numerical_test.log", "a") as file:
+        with open("pq_graph_numerical_test.log", "a") as file:
             file.write(f"Test {test_name} codegen failed!!\n")
             file.write(result.stdout)
             file.write(result.stderr)
         raise AssertionError(f"Failure during execution:\n {result.stderr}")
 
     # append stdout to log file
-    with open("legacy_numerical_test.log", "a") as file:
+    with open("pq_graph_numerical_test.log", "a") as file:
         file.write(f"Test {test_name} codegen\n")
         file.write(result.stdout)
 
@@ -62,13 +63,13 @@ def test_script_output(test_name):
     result = subprocess.run([str(sys.executable), code_path], capture_output=True, text=True)
     status = result.returncode
     if status != 0:
-        with open("legacy_numerical_test.log", "a") as file:
+        with open("pq_graph_numerical_test.log", "a") as file:
             file.write(f"Test {test_name} code failed!!\n")
             file.write(result.stderr)
         raise AssertionError(f"Failure during execution:\n {result.stderr}")
 
     # append stdout to log file
-    with open("legacy_numerical_test.log", "a") as file:
+    with open("pq_graph_numerical_test.log", "a") as file:
         file.write(f"Test {test_name} code\n")
         file.write(result.stdout)
 
@@ -77,5 +78,5 @@ def test_script_output(test_name):
 
 if __name__ == "__main__":
     print("Please use pytest to run the tests")
-    print("Syntax: python -m pytest legacy_numerical_test.py")
+    print("Syntax: python -m pytest pq_graph_numerical_test.py")
     sys.exit(1)

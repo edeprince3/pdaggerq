@@ -95,7 +95,6 @@ ENV/
 
 # generated codegen files
 pq_graph/tests/*code.py
-test/*.log
-numerical_test.log
-pq_test.log
+tests/*.log
+tests/generated_code/
 .vscode/c_cpp_properties.json

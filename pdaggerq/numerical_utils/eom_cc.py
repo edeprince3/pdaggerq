@@ -40,7 +40,7 @@ class eom_ccsd:
                  L_list=[],
                  density_matrix_func=None):
         """
-        initialize EOM-CCSD class
+        initialize EOMCC class
 
         :params ccsd: the ccsd class
         :params R_list: list of R operator dictionaries
@@ -57,7 +57,7 @@ class eom_ccsd:
 
     def right_solver(self):
 
-        print('    ==> right-hand EOM-CCSD <==')
+        print('    ==> right-hand EOMCC <==')
         print('')
 
         # build Hbar operator object
@@ -90,7 +90,7 @@ class eom_ccsd:
 
     def left_solver(self):
 
-        print('    ==> left-hand EOM-CCSD <==')
+        print('    ==> left-hand EOMCC <==')
         print('')
 
         # build Hbar operator object
@@ -145,7 +145,7 @@ class eom_ccsd:
 
         # Compute oscillator strengths
 
-        print('    ==> EOM-CCSD oscillator strengths <==')
+        print('    ==> EOMCC oscillator strengths <==')
         print('')
         print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('', '', '<L1|mu|R2>', '', '', '<L2|mu|R1>', '', '', ''))
         print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('state 1', 'state 2', 'x', 'y', 'z', 'x', 'y', 'z', 'osc'))

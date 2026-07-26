@@ -18,18 +18,21 @@ def main():
     
     pq.simplify()
 
-    print('')
-    print('def ccsdt_t1_aa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* a e(-T) H e(T) | 0> :')
-    print('')
-
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'i' : 'a',
         'a' : 'a'
     }
     singles_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in singles_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t1_aa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* a e(-T) H e(T) | 0> :')
+    print('')
+
     singles_residual_terms = contracted_strings_to_tensor_terms(
         singles_residual_terms)
     for my_term in singles_residual_terms:
@@ -41,18 +44,21 @@ def main():
     print('return singles_res')
     print('')
 
-    print('')
-    print('def ccsdt_t1_bb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* a e(-T) H e(T) | 0> :')
-    print('')
-
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'i' : 'b',
         'a' : 'b'
     }
     singles_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in singles_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t1_bb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* a e(-T) H e(T) | 0> :')
+    print('')
+
     singles_residual_terms = contracted_strings_to_tensor_terms(
         singles_residual_terms)
     for my_term in singles_residual_terms:
@@ -75,12 +81,6 @@ def main():
     
     pq.simplify()
 
-    print('')
-    print('def ccsdt_t2_aaaa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
-    print('')
-
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'i' : 'a',
@@ -89,6 +89,15 @@ def main():
         'b' : 'a'
     }
     doubles_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in doubles_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t2_aaaa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
+    print('')
+
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -97,12 +106,6 @@ def main():
         print()
 
     print('return doubles_res')
-    print('')
-
-    print('')
-    print('def ccsdt_t2_bbbb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -113,6 +116,15 @@ def main():
         'b' : 'b'
     }
     doubles_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in doubles_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t2_bbbb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
+    print('')
+
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -123,12 +135,6 @@ def main():
     print('return doubles_res')
     print('')
 
-    print('')
-    print('def ccsdt_t2_abab_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
-    print('')
-
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'i' : 'a',
@@ -137,6 +143,15 @@ def main():
         'b' : 'b'
     }
     doubles_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in doubles_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t2_abab_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* j* b a e(-T) H e(T) | 0> :')
+    print('')
+
     doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
     for my_term in doubles_residual_terms:
         print("#\t", my_term)
@@ -162,12 +177,6 @@ def main():
     
     pq.simplify()
 
-    print('')
-    print('def ccsdt_t3_aaaaaa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
-    print('')
-
     # grab list of fully-contracted strings, then print
     spin_labels = {
         'i' : 'a',
@@ -178,6 +187,15 @@ def main():
         'c' : 'a'
     }
     triples_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in triples_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t3_aaaaaa_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
+    print('')
+
     triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
     for my_term in triples_residual_terms:
         print("#\t", my_term)
@@ -186,12 +204,6 @@ def main():
         print()
 
     print('return triples_res')
-    print('')
-
-    print('')
-    print('def ccsdt_t3_aabaab_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -204,6 +216,15 @@ def main():
         'c' : 'b'
     }
     triples_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in triples_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t3_aabaab_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
+    print('')
+
     triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
     for my_term in triples_residual_terms:
         print("#\t", my_term)
@@ -212,12 +233,6 @@ def main():
         print()
 
     print('return triples_res')
-    print('')
-
-    print('')
-    print('def ccsdt_t3_abbabb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -230,6 +245,15 @@ def main():
         'c' : 'b'
     }
     triples_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in triples_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t3_abbabb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
+    print('')
+
     triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
     for my_term in triples_residual_terms:
         print("#\t", my_term)
@@ -238,12 +262,6 @@ def main():
         print()
 
     print('return triples_res')
-    print('')
-
-    print('')
-    print('def ccsdt_t3_bbbbbb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
-    print('')
-    print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
     print('')
 
     # grab list of fully-contracted strings, then print
@@ -256,6 +274,15 @@ def main():
         'c' : 'b'
     }
     triples_residual_terms = pq.strings(spin_labels = spin_labels)
+    for my_term in triples_residual_terms:
+        print(my_term)
+
+    print('')
+    print('def ccsdt_t3_bbbbbb_residual(t1_aa, t1_bb, t2_aaaa, t2_bbbb, t2_abab, t3_aaaaaa, t3_aabaab, t3_abbabb, t3_bbbbbb, f_aa, f_bb, g_aaaa, g_bbbb, g_abab, oa, ob, va, vb):')
+    print('')
+    print('#    < 0 | i* j* k* c b a e(-T) H e(T) | 0> :')
+    print('')
+
     triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
     for my_term in triples_residual_terms:
         print("#\t", my_term)
