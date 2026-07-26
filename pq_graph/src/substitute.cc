@@ -752,6 +752,15 @@ size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &
         // skip term if linkage is not compatible
         if (!terms_[i].is_compatible(linkage)) continue;
 
+        // Take the vertex orderings from the term ITSELF, not from the copy made
+        // below. They depend only on the term, and generating them builds up to
+        // 2^depth linkages -- by far the most expensive thing that happens here.
+        // The term's own memoized set survives from one candidate intermediate to
+        // the next (a copied linkage deliberately starts with empty caches), so
+        // hoisting the call turns per-candidate regeneration into one generation
+        // per term per pass.
+        const linkage_vector graph_perms = terms_[i].term_linkage()->permutations();
+
         // get term copy
         Term term = terms_[i];
         term.term_linkage() = as_link(term.term_linkage()->shallow()); // deep copy of term linkage
@@ -762,7 +771,7 @@ size_t Equation::test_substitute(const MutableLinkagePtr &linkage, scaling_map &
         test_mem_map -= term.mem_map(); // subtract memory scaling map for term
 
         // substitute linkage in term copy
-        bool madeSub = term.substitute(linkage);
+        bool madeSub = term.substitute(linkage, graph_perms);
         term.term_linkage()->forget(); // clear the linkage history for lazy evaluation
         test_flop_map += term.flop_map(); // add new flop scaling map for term
         test_mem_map += term.mem_map(); // add new memory scaling map for term
@@ -780,14 +789,38 @@ bool Term::substitute(const LinkagePtr &linkage) {
     if (rhs_.empty())
         return false;
 
+    // generate every permutation of the term
+    return substitute(linkage, term_linkage()->permutations());
+}
+
+bool Term::substitute(const LinkagePtr &linkage, const linkage_vector &graph_perms) {
+
+    if (rhs_.empty())
+        return false;
+
     // recompute the flop and memory cost of the term if necessary
     compute_scaling();
 
     // break out of loops if a substitution was made
     bool madeSub = false; // initialize boolean to track if substitution was made
 
-    // generate every permutation of the term
-    const linkage_vector &graph_perms = term_linkage()->permutations();
+    // Orderings whose substitution has already been scored and rejected.
+    //
+    // best_permutation() searches every ordering of a linkage's vertices, so what
+    // it returns depends only on WHICH vertices are there, not on the order this
+    // particular one happens to be in. Every ordering of the term holds the same
+    // vertices, and substituting removes the linkage's vertices and puts one
+    // intermediate in their place, so the substituted multiset -- and hence the
+    // score -- is fixed by the number of matches alone. Scoring an ordering means
+    // building a linkage for every ordering of the substituted graph, so rescoring
+    // is by far the most expensive thing in this loop, and it happens whenever a
+    // candidate does NOT improve the term: the loop then runs to the end instead
+    // of breaking, rescoring the same substitution once per matching ordering.
+    //
+    // Only the general branch of permutations() has that property (a temp keeps
+    // its structure, an addition only considers its two operands), so those are
+    // left to be scored every time, as before.
+    std::vector<size_t> rejected_match_counts;
 
     // iterate over all possible orderings of vertex subsets
     LinkagePtr best_linkage = as_link(term_linkage()->shallow());
@@ -797,6 +830,11 @@ bool Term::substitute(const LinkagePtr &linkage) {
         auto matching_linkages = graph_perm->find_links(linkage);
         if (matching_linkages.empty()) continue; // skip if linkage is not found in permutation
 
+        const size_t num_matches = matching_linkages.size();
+        if (std::find(rejected_match_counts.begin(), rejected_match_counts.end(), num_matches)
+                != rejected_match_counts.end())
+            continue; // an ordering with this many matches was already scored, and it lost
+
         // otherwise, make the substitution for each matching linkage
         LinkagePtr new_term_linkage = graph_perm;
         for (const auto &found_linkage : matching_linkages) {
@@ -805,14 +843,23 @@ bool Term::substitute(const LinkagePtr &linkage) {
             new_term_linkage = as_link(new_term_linkage->replace(found_linkage, new_link).first);
         }
 
+        // the score is only multiset-determined for the general permutation branch
+        const bool score_is_reusable = !new_term_linkage->is_temp() && !new_term_linkage->is_addition();
+
         new_term_linkage = as_link(new_term_linkage)->best_permutation();
         const auto &[new_flop, new_mem] = new_term_linkage->netscales();
         const auto &[best_flop, best_mem] = best_linkage->netscales();
 
-        if (new_flop > best_flop) continue; // new_linkage is worse than the best one
+        if (new_flop > best_flop) { // new_linkage is worse than the best one
+            if (score_is_reusable) rejected_match_counts.push_back(num_matches);
+            continue;
+        }
         if (new_flop == best_flop) {
             // for the same flop cost, prefer the one with less memory
-            if (new_mem > best_mem) continue; // new_linkage is worse than the best one
+            if (new_mem > best_mem) { // new_linkage is worse than the best one
+                if (score_is_reusable) rejected_match_counts.push_back(num_matches);
+                continue;
+            }
         }
 
         // create the best permutation of the substitution and break
