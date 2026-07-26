@@ -146,6 +146,17 @@ namespace pdaggerq {
         if (!Vertex::use_trial_index) {
             vertex_vector link_vector_no_trial;
             for (const auto &op: link_vector) {
+                // Never strip an intermediate. An intermediate is printed by NAME, and that
+                // name is derived from its full line set (dimstring), so dropping the sigma
+                // line here silently RENAMES it: the definition site keeps the sigma type
+                // (tmps_["0003_Loovo"]) while every use site loses it (tmps_["0003_oovo"]),
+                // and the emitted code then reads an intermediate that was never assigned.
+                // The printers omit sigma lines themselves when building index strings, so
+                // intermediates need no stripping here.
+                if (op->is_temp()) {
+                    link_vector_no_trial.push_back(op);
+                    continue;
+                }
                 MutableVertexPtr new_op = op->clone();
                 line_vector new_lines;
                 for (const auto &line: new_op->lines())
