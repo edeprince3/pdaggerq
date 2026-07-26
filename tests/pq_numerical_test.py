@@ -16,7 +16,7 @@ pq_graph_options = {
 }
 
 # Initialize log file
-LOG_FILE = "numerical_tests.log"
+LOG_FILE = "pq_numerical_test.log"
 @pytest.fixture(scope="session", autouse=True)
 def initialize_log_file():
     with open(LOG_FILE, "w") as f:

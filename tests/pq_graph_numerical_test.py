@@ -30,7 +30,7 @@ tests += ("ccsd_with_spin", "ccsdt_with_spin") if psi4_available else ()
 script_path = os.path.dirname(os.path.realpath(__file__))
 
 # remove log files
-os.system(f"rm legacy_numerical_test.log")
+os.system(f"rm pq_graph_numerical_test.log")
 
 # remove the generated files
 os.system(f"rm {script_path}/../pq_graph/tests/*_code.py")
