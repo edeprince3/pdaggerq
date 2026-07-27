@@ -35,18 +35,18 @@ class HbarOperator:
     """
 
     def __init__(self, 
-                 ccsd,
+                 cc,
                  R_list = [], 
                  L_list = []):
         """
         initialize HBarOperator
 
-        :param ccsd: ccsd object
+        :param cc: cc object
         :params R_list: list of R operator dictionaries
         :params L_list: list of L operator dictionaries
         """
 
-        self.ccsd = ccsd
+        self.cc = cc
 
         # right-hand amplitudes
         self.R = {}
@@ -116,10 +116,10 @@ class HbarOperator:
         """
 
         dims = {
-            'va': self.ccsd.nva,
-            'oa': self.ccsd.noa,
-            'vb': self.ccsd.nvb,
-            'ob': self.ccsd.nob
+            'va': self.cc.nva,
+            'oa': self.cc.noa,
+            'vb': self.cc.nvb,
+            'ob': self.cc.nob
         } 
 
         for myR in R_list:
@@ -341,7 +341,7 @@ class HbarOperator:
         # Repack sigma vector
         sigma = self.pack_eom_vectors(sigmas, self.R_meta)
 
-        return sigma - self.ccsd.energy * R
+        return sigma - self.cc.energy * R
 
     def matvec_left(self, L):
         """
@@ -368,4 +368,4 @@ class HbarOperator:
         # Repack sigma vector
         sigma = self.pack_eom_vectors(sigmas, self.L_meta)
 
-        return sigma - self.ccsd.energy * L
+        return sigma - self.cc.energy * L

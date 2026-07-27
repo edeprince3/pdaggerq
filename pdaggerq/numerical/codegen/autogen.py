@@ -1284,7 +1284,7 @@ def eomcc_sigma(sigma_name,
     operator_type = 'EE',
     spin_block = True,
     is_qed = False,
-    write_function = False,
+    write_function = True,
     pq_graph_options = None):
 
     """
@@ -1369,7 +1369,7 @@ def eomcc_sigma(sigma_name,
 
     # initialization statements 
     generated_code_string = f"def {function_name}(self):"
-    generated_code_string += function_initialization_string(extra_class = "ccsd", is_qed = is_qed)
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
 
     generated_code_string += \
 f"""
@@ -1711,7 +1711,7 @@ def {function_name}(self, left_state, right_state):
     # optimize the graph
     graph.optimize()
 
-    generated_code_string += function_initialization_string(extra_class = "ccsd")
+    generated_code_string += function_initialization_string(extra_class = "cc")
 
     # need to redefine l1/l2 because they currently point to the ccsd ones
     generated_code_string += \

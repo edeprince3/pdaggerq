@@ -76,12 +76,28 @@ class cc:
         ob = slice(None, nob)
         va = slice(noa, None)
         vb = slice(nob, None)
+        self.oa = oa
+        self.ob = ob
+        self.va = va
+        self.vb = vb
         self.slices = {
             'oa': oa,
             'va': va,
             'ob': ob,
             'vb': vb
         }
+
+        self.noa = noa
+        self.nob = nob
+        self.nva = nva
+        self.nvb = nvb
+        self.dims = {
+            'va': self.nva,
+            'oa': self.noa,
+            'vb': self.nvb,
+            'ob': self.nob
+        }
+
 
         # DSE and bilinear coupling contributions for QED
         if not self.is_qed:
@@ -164,14 +180,6 @@ class cc:
         for i in range(0,row):
             self.eps['b'][i] = self.f_bb[i,i]
 
-        # cluster amplitudes
-        dims = {
-            'va': nva,
-            'oa': noa,
-            'vb': nvb,
-            'ob': nob
-        }
-
         self.T = {}
         self.T_residual = {}
         self.D = {}
@@ -204,7 +212,7 @@ class cc:
                 rank = len(spaces)
         
                 for spins in myT['spins']:
-                    shape = tuple(dims[space + spin] for space, spin in zip(spaces, spins))
+                    shape = tuple(self.dims[space + spin] for space, spin in zip(spaces, spins))
                     
                     # Initialize denominator accumulator for this spin block
                     denom = np.zeros(shape)
@@ -236,6 +244,27 @@ class cc:
                     self.D[base_name][''] = np.array([-1.0 / (nph * self.cavity_frequency)])
 
         # lambda amplitudes
+        self.initialize_lambda(L_list = L_list, cc_pseudoenergy_func = cc_pseudoenergy_func)
+
+        # hartree-fock energy
+        self.hf_energy = ( einsum('ii', self.f_aa[oa, oa]) + einsum('ii', self.f_bb[ob, ob])
+                       - 0.5 * einsum('ijij', self.g_aaaa[oa, oa, oa, oa])
+                       - 0.5 * einsum('ijij', self.g_bbbb[ob, ob, ob, ob])
+                       - 1.0 * einsum('ijij', self.g_abab[oa, ob, oa, ob]) )
+ 
+        self.nuclear_repulsion_energy = self.mol.nuclear_repulsion_energy()
+
+        # cc energy function
+        self.cc_energy = types.MethodType(cc_energy_func, self)
+
+    def initialize_lambda(self, L_list = [], cc_pseudoenergy_func = None):
+
+        # lambda CC pseudoenergy function
+        if cc_pseudoenergy_func is not None:
+            self.cc_pseudoenergy = types.MethodType(cc_pseudoenergy_func, self)
+        else:
+            self.cc_pseudoenergy = lambda: 0.0
+
         self.L = {}
         self.L_residual = {}
         for myL in L_list:
@@ -265,7 +294,7 @@ class cc:
                 rank = len(spaces)
         
                 for spins in myL['spins']:
-                    shape = tuple(dims[space + spin] for space, spin in zip(spaces, spins))
+                    shape = tuple(self.dims[space + spin] for space, spin in zip(spaces, spins))
                     
                     # Store tensors in nested dicts
                     self.L[base_name][spins] = np.zeros(shape)
@@ -275,30 +304,6 @@ class cc:
                 if nph > 0:
                     # 1-element 1D array for scalar photon amplitudes
                     self.L[base_name][''] = np.zeros((1,))
-
-        # hartree-fock energy
-        self.hf_energy = ( einsum('ii', self.f_aa[oa, oa]) + einsum('ii', self.f_bb[ob, ob])
-                       - 0.5 * einsum('ijij', self.g_aaaa[oa, oa, oa, oa])
-                       - 0.5 * einsum('ijij', self.g_bbbb[ob, ob, ob, ob])
-                       - 1.0 * einsum('ijij', self.g_abab[oa, ob, oa, ob]) )
-
-        self.noa = noa
-        self.nob = nob
-        self.nva = nva
-        self.nvb = nvb
-        self.oa = oa
-        self.ob = ob
-        self.va = va
-        self.vb = vb
-   
-        self.nuclear_repulsion_energy = self.mol.nuclear_repulsion_energy()
-
-        # cc energy function
-        self.cc_energy = types.MethodType(cc_energy_func, self)
-
-        # lambda CC pseudoenergy function
-        if cc_pseudoenergy_func is not None:
-            self.cc_pseudoenergy = types.MethodType(cc_pseudoenergy_func, self)
 
     def t_solver(self):
         """
