@@ -54,7 +54,8 @@ string TiledArrayPrinter::format_contraction(
         string s = op->str();
         if (op->is_expandable())
             s = "(" + s + ")";
-        if (op->is_scalar()) {
+
+        if (op->is_printed_scalar()) {
             output += s + " * ";
         } else {
             tensor_strs.push_back(std::move(s));
