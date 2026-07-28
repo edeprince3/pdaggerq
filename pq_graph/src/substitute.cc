@@ -852,9 +852,9 @@ bool Term::is_compatible(const LinkagePtr &linkage) const {
     // scaling of the linkage cannot be more than the term
     if (linkage->netscales().first > flop_map()) return false;
 
-    // get total vector of linkage vertices (without expanding nested linkages)
-    vertex_vector link_list = linkage->link_vector();
-    vertex_vector term_list = term_linkage()->link_vector();
+    // get total vector of vertices
+    vertex_vector link_list = linkage->vertices();
+    vertex_vector term_list = term_linkage()->vertices();
 
     // sort lists by name
     sort(link_list.begin(), link_list.end(), [](const VertexPtr &a, const VertexPtr &b) {

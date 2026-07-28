@@ -51,9 +51,8 @@ string TammPrinter::format_contraction(
     for (const auto& op : operators) {
         if (op->empty()) continue;
         string s = op->str();
-        if (op->is_addition() && !op->is_temp())
+        if (op->is_expandable())
             s = "(" + s + ")";
-
         if (op->is_scalar()) {
             output += s + " * ";
         } else {

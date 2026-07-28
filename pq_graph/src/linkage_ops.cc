@@ -164,10 +164,14 @@ namespace pdaggerq {
             result.push_back(left_);
         }
 
-        // add operators from the right (excluding additions for now)
-        if (right_->is_linked() && !right_->empty()) {
-            if (!right_->is_expandable() && !fully_expand) {
-                result.push_back(right_); // if not fully expanding, add if an intermediate
+        // add operators from the right only if fully expanding. 
+        // Otherwise, just add the right vertex if it is not empty and not a constant 1.0
+        // Note that fully expanding in this way destroys associative property of the linkage.
+        // For example, A*(B*C) becomes A*B*C. To preserve associativity, we cannot separate (B*C) into its components. 
+        // However, if we are fully expanding, we can treat the linkage as a flat list of operators.
+        if (fully_expand && right_->is_linked() && !right_->empty()) {
+            if (!right_->is_expandable()) {
+                result.push_back(right_); // if not expandable, add if an intermediate
             } else {
                 const vertex_vector &right_vec = right_->link_vector(regenerate, fully_expand);
                 result.insert(result.end(), right_vec.begin(), right_vec.end());
@@ -592,7 +596,12 @@ namespace pdaggerq {
                 scaling_check = mems.compare(best_mems);
                 make_best = scaling_check == scaling_map::this_better;
 
-                // if the mems are the same, check the lines
+                // if mems are the same, prefer that the right vertex is not expandable (i.e., it is a leaf)
+                if (!make_best && scaling_check == scaling_map::this_same) {
+                    make_best = !perm->right_->is_expandable() && best_perm->right_->is_expandable();
+                }
+
+                // if the right vertex expandability is the same, prefer the permutation with less dimensions (i.e., less lines)
                 if (!make_best && scaling_check == scaling_map::this_same) {
                     make_best = perm->lines() < best_perm->lines();
                 }
