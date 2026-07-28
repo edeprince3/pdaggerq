@@ -170,12 +170,8 @@ namespace pdaggerq {
         // For example, A*(B*C) becomes A*B*C. To preserve associativity, we cannot separate (B*C) into its components. 
         // However, if we are fully expanding, we can treat the linkage as a flat list of operators.
         if (fully_expand && right_->is_linked() && !right_->empty()) {
-            if (!right_->is_expandable()) {
-                result.push_back(right_); // if not expandable, add if an intermediate
-            } else {
-                const vertex_vector &right_vec = right_->link_vector(regenerate, fully_expand);
-                result.insert(result.end(), right_vec.begin(), right_vec.end());
-            }
+            const vertex_vector &right_vec = right_->link_vector(regenerate, fully_expand);
+            result.insert(result.end(), right_vec.begin(), right_vec.end());
         } else if (!right_->empty() && (fabs(right_->value() - 1.0) > 1e-8)){
             result.push_back(right_);
         }
