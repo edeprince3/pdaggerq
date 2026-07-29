@@ -80,5 +80,69 @@ class EA_EOMCCSDT:
         self.R = self.eomcc_solver.R
 
     def left_solver(self):
-        raise Exception("left-hand EA-EOMCCSDT is not implemented")
+
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+
+        # Generate right-hand sigma equations
+        T = ['t1', 't2', 't3']
+        L = [['l1'], ['l2'], ['l3']]
+
+        left_sigma1_func = eomcc_sigma('sigma1',
+            T,
+            L,
+            [['a*(a)']],
+            'left_sigma1',
+            operator_type = 'EA',
+            pq_graph_options = self.pq_graph_options
+        )
+
+        left_sigma2_func = eomcc_sigma('sigma2',
+            T,
+            L,
+            [['a*(a)', 'a*(b)', 'a(i)']],
+            'left_sigma2',
+            operator_type = 'EA',
+            pq_graph_options = self.pq_graph_options
+        )
+
+        left_sigma3_func = eomcc_sigma('sigma3',
+            T,
+            L,
+            [['a*(a)', 'a*(b)', 'a*(c)', 'a(j)', 'a(i)']],
+            'left_sigma3',
+            operator_type = 'EA',
+            pq_graph_options = self.pq_graph_options
+        )
+
+        # Execute the code strings in memory
+        exec(left_sigma1_func, globals(), local_namespace)
+        exec(left_sigma2_func, globals(), local_namespace)
+        exec(left_sigma3_func, globals(), local_namespace)
+
+        # right-hand amplitude dictionaries to pass into the solver
+        l1 = {
+            'spaces' : ['v', ''],
+            'spins' : [['a', ''], ['b', '']],
+            'sigma' : local_namespace["left_sigma1"]
+        }
+        l2 = {
+            'spaces' : ['vv', 'o'],
+            'spins' : [['aa', 'a'], ['ab','b'], ['ab', 'a'], ['bb', 'b']],
+            'sigma' : local_namespace["left_sigma2"]
+        }
+        l3 = {
+            'spaces' : ['vvv', 'oo'],
+            'spins' : [['aaa', 'aa'], ['aab','aa'], ['aab', 'ab'], ['abb', 'ab'], ['abb', 'bb'], ['bbb', 'bb']],
+            'sigma' : local_namespace["left_sigma3"]
+        }
+
+        # call solver
+        self.eomcc_solver.left_solver(L_list = [l1, l2, l3])
+
+        self.eomcc_energy = self.eomcc_solver.eomcc_energy
+        self.L = self.eomcc_solver.L
+
+    def oscillator_strengths(self):
+        raise Exception("oscillator strengths are not implemented for EA-EOMCCSDT")
 

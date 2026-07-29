@@ -90,8 +90,8 @@ class IP_EOMCCSDT:
             
         left_sigma1_func = eomcc_sigma('sigma1',
             T,
+            L,
             [['a(i)']],
-            R,
             'left_sigma1', 
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
@@ -99,50 +99,50 @@ class IP_EOMCCSDT:
 
         left_sigma2_func = eomcc_sigma('sigma2',
             T,
+            L,
             [['a*(a)', 'a(j)', 'a(i)']],
-            R,
-            'right_sigma2',
+            'left_sigma2',
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
 
-        right_sigma3_func = eomcc_sigma('sigma3',
+        left_sigma3_func = eomcc_sigma('sigma3',
             T,
-            [['a*(i)', 'a*(j)', 'a*(k)', 'a(b)', 'a(a)']],
-            R,
-            'right_sigma3',
+            L,
+            [['a*(a)', 'a*(b)', 'a(k)', 'a(j)', 'a(i)']],
+            'left_sigma3',
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
 
         # Execute the code strings in memory
-        exec(right_sigma1_func, globals(), local_namespace)
-        exec(right_sigma2_func, globals(), local_namespace)
-        exec(right_sigma3_func, globals(), local_namespace)
+        exec(left_sigma1_func, globals(), local_namespace)
+        exec(left_sigma2_func, globals(), local_namespace)
+        exec(left_sigma3_func, globals(), local_namespace)
 
         # right-hand amplitude dictionaries to pass into the solver
-        r1 = {
+        l1 = {
             'spaces' : ['', 'o'],
             'spins' : [['', 'a'], ['', 'b']],
-            'sigma' : local_namespace["right_sigma1"]
+            'sigma' : local_namespace["left_sigma1"]
         }
-        r2 = {
+        l2 = {
             'spaces' : ['v', 'oo'],
             'spins' : [['a', 'aa'], ['a','ab'], ['b', 'ab'], ['b', 'bb']],
-            'sigma' : local_namespace["right_sigma2"]
+            'sigma' : local_namespace["left_sigma2"]
         }
-        r3 = {
+        l3 = {
             'spaces' : ['vv', 'ooo'],
             'spins' : [['aa', 'aaa'], ['aa','aab'], ['ab', 'aab'], ['ab', 'abb'], ['bb', 'abb'], ['bb', 'bbb']],
-            'sigma' : local_namespace["right_sigma3"]
+            'sigma' : local_namespace["left_sigma3"]
         }
 
         # call solver
-        self.eomcc_solver.right_solver(R_list = [r1, r2, r3])
+        self.eomcc_solver.left_solver(L_list = [l1, l2, l3])
 
         self.eomcc_energy = self.eomcc_solver.eomcc_energy
-        self.R = self.eomcc_solver.R
+        self.L = self.eomcc_solver.L
 
-    def left_solver(self):
-        raise Exception("left-hand IP-EOMCCSDT is not implemented")
+    def oscillator_strengths(self):
+        raise Exception("oscillator strengths are not implemented for IP-EOMCCSDT")
 
