@@ -52,7 +52,8 @@ def configure_graph():
         graph (pq_graph): Configured pq_graph object.
     """
     return pdaggerq.pq_graph({
-        'batched': False,
+        'batched': True,
+        'expand_permutations': True,
         'print_level': 3,
         'opt_level': 6,
         'nthreads': -1,

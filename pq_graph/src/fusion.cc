@@ -527,8 +527,24 @@ struct LinkMerger {
                 ref_terms.insert(merge_terms.begin(), merge_terms.end());
             }
 
-            unique_terms.insert(ref_terms.begin(), ref_terms.end());
+            // check if ref_link overlaps with previously accepted groups.
+            // Without this check, two fusion groups that share Term* pointers
+            // would both be accepted; the first group's nulling of merge-link
+            // usage terms in merge() would corrupt terms that the second group
+            // still needs to read/write, producing incorrect or crashing code.
+            bool ref_overlap = false;
+            for (auto &term: ref_terms) {
+                if (unique_terms.find(term) != unique_terms.end()) {
+                    ref_overlap = true;
+                    break;
+                }
+            }
+
             visited_links.insert(ref_link);
+
+            if (ref_overlap) continue; // skip this group entirely
+
+            unique_terms.insert(ref_terms.begin(), ref_terms.end());
 
             // skip if no merge links
             if (ref_merge_links.empty()) continue;
@@ -550,14 +566,14 @@ struct LinkMerger {
                     comp_terms.insert(merge_terms.begin(), merge_terms.end());
                 }
 
-                // check if any of the terms are unique
+                // check if any of the terms overlap with the accumulated set
                 bool unique = false;
                 for (auto &term: comp_terms) {
                     unique = unique_terms.find(term) == unique_terms.end();
                     if (!unique) break;
                 }
 
-                // if unique, add to new link merge map
+                // if unique (no overlap), accept the comp_link
                 if (unique) {
                     new_link_merge_map[comp_link] = comp_merge_links;
                     unique_terms.insert(comp_terms.begin(), comp_terms.end());
