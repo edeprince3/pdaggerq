@@ -123,9 +123,11 @@ class eomcc:
             self.eomcc_energy.append(ex[i])
 
         self.L = []
+        self.L_meta = []
         for i in range (self.nstates):
             Hbar.unpack_eom_vectors(lvec[:, i], Hbar.L, Hbar.L_meta)
             self.L.append(copy.deepcopy(Hbar.L))
+            self.L_meta.append(copy.deepcopy(Hbar.L_meta))
 
     def oscillator_strengths(self, density_matrix_func = None):
 

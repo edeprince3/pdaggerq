@@ -19,7 +19,17 @@ SPIN_MAP = {
         1: ['a', 'b'],                                             # 1p
         2: ['aaa', 'abb', 'aba', 'bbb'],                           # 2p1h
         3: ['aaaaa', 'aabaa', 'aabab', 'abbab', 'abbbb', 'bbbbb'], # 3p2h
-    }
+    },
+    'DIP': {
+        2: ['aa', 'ab', 'bb'],                                                                         # 2h
+        3: ['aaaa', 'aaab', 'baab', 'aabb', 'babb', 'bbbb'],                                           # 3h1p
+        4: ['aaaaaa', 'aaaaab', 'abaaab', 'aaaabb', 'abaabb', 'bbaabb', 'ababbb', 'bbabbb', 'bbbbbb'], # 4h2p
+    },
+    'DEA': {
+        2: ['aa', 'ab', 'bb'],                                                                         # 2p
+        3: ['aaaa', 'aaba', 'aabb', 'abba', 'abbb', 'bbbb'],                                           # 1h2p
+        4: ['aaaaaa', 'aaabaa', 'aaabab', 'aabbaa', 'aabbab', 'aabbbb', 'abbbab', 'abbbbb', 'bbbbbb'], # 4h2p
+    },
 }
 
 def configure_graph(options = None):
@@ -387,8 +397,8 @@ def cc_residual(residual_name,
     :param pq_graph_options: options dictionary for pq_graph
     """
 
-    if not spin_block:
-        raise Exception("spin-orbital cc residual equations not implemented")
+    #if not spin_block:
+    #    raise Exception("spin-orbital cc residual equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
 
@@ -1766,6 +1776,50 @@ def {function_name}(self, left_state, right_state):
     # need to redefine l1/l2 because they currently point to the ccsd ones
     generated_code_string += \
 f"""
+
+    # transposing left-hand amplitudes is tricky for non-EE methods
+    def transpose_left_amplitude(tensor, spaces, spin=None):
+        '''
+        Transposes left amplitudes by swapping creation and annihilation index blocks. 
+        `spaces` is a list/tuple like ['vv', 'ooo'] or ['', 'o'].
+        Optionally permutes a spin string key (e.g., 'bab' -> 'abb').
+        ''' 
+        # 1. Safely extract creation and annihilation spaces
+        cr_space = spaces[0] if len(spaces) > 0 else ''
+        an_space = spaces[1] if len(spaces) > 1 else ''
+            
+        n_cr = len(cr_space)  # Number of creation (virtual) indices
+        n_an = len(an_space)  # Number of annihilation (occupied) indices
+            
+        # 2. Compute the dynamic permutation
+        perm = tuple(range(n_cr, n_cr + n_an)) + tuple(range(0, n_cr))
+        
+        # 3. Guard against 0D scalars or empty permutations (e.g., L0)
+        if not perm or getattr(tensor, 'ndim', 0) == 0:
+            return (tensor, spin) if spin is not None else tensor
+    
+        # 4. Transpose tensor
+        transposed_tensor = tensor.transpose(perm)
+        
+        # 5. Permute spin string if provided
+        if spin is not None:
+            transposed_spin = "".join(spin[p] for p in perm)
+            return transposed_tensor, transposed_spin
+            
+        return transposed_tensor
+
+    # transposing left-hand amplitudes is tricky for non-EE methods:
+    L_transposed = {{}}
+    
+    for base_name, spin_dict in self.L[left_state].items():
+        L_transposed[base_name] = {{}}
+        raw_spaces = self.L_meta[left_state][base_name]['raw_spaces']
+        
+        for spin, tensor in spin_dict.items():
+            # Use the helper function to transpose tensor and remap the spin key
+            t_tensor, t_spin = transpose_left_amplitude(tensor, raw_spaces, spin=spin)
+            L_transposed[base_name][t_spin] = t_tensor
+
     # left-hand eom amplitudes
 
     # l0 is special because it is a scalar
@@ -1774,11 +1828,11 @@ f"""
     
     # Unwrap numpy array/scalar to a raw float if necessary
     l0 = l0_val.item() if hasattr(l0_val, 'item') else l0_val
-    
-    l1 = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1', {{}}).items()}}
-    l2 = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2', {{}}).items()}}
-    l3 = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3', {{}}).items()}}
-    l4 = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4', {{}}).items()}}
+   
+    l1 = dict(L_transposed.get('1', {{}}))
+    l2 = dict(L_transposed.get('2', {{}}))
+    l3 = dict(L_transposed.get('3', {{}}))
+    l4 = dict(L_transposed.get('4', {{}})) 
     
     # Photon-Coupled Amplitudes (1 Photon)
 
@@ -1789,10 +1843,10 @@ f"""
     # Unwrap numpy array/scalar to a raw float if necessary
     l0_1p = l0_1p_val.item() if hasattr(l0_1p_val, 'item') else l0_1p_val
 
-    l1_1p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1_1p', {{}}).items()}}
-    l2_1p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2_1p', {{}}).items()}}
-    l3_1p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3_1p', {{}}).items()}}
-    l4_1p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4_1p', {{}}).items()}}
+    l1_1p = dict(L_transposed.get('1_1p', {{}}))
+    l2_1p = dict(L_transposed.get('2_1p', {{}}))
+    l3_1p = dict(L_transposed.get('3_1p', {{}}))
+    l4_1p = dict(L_transposed.get('4_1p', {{}}))
     
     # Photon-Coupled Amplitudes (2 Photon)
     
@@ -1803,10 +1857,10 @@ f"""
     # Unwrap numpy array/scalar to a raw float if necessary
     l0_2p = l0_2p_val.item() if hasattr(l0_2p_val, 'item') else l0_2p_val
 
-    l1_2p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1_2p', {{}}).items()}}
-    l2_2p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2_2p', {{}}).items()}}
-    l3_2p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3_2p', {{}}).items()}}
-    l4_2p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4_2p', {{}}).items()}}
+    l1_2p = dict(L_transposed.get('1_2p', {{}}))
+    l2_2p = dict(L_transposed.get('2_2p', {{}}))
+    l3_2p = dict(L_transposed.get('3_2p', {{}}))
+    l4_2p = dict(L_transposed.get('4_2p', {{}}))
 
     # Photon-Coupled Amplitudes (3 Photon)
 
@@ -1817,10 +1871,10 @@ f"""
     # Unwrap numpy array/scalar to a raw float if necessary
     l0_3p = l0_3p_val.item() if hasattr(l0_3p_val, 'item') else l0_3p_val
 
-    l1_3p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1_3p', {{}}).items()}}
-    l2_3p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2_3p', {{}}).items()}}
-    l3_3p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3_3p', {{}}).items()}}
-    l4_3p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4_3p', {{}}).items()}}
+    l1_3p = dict(L_transposed.get('1_3p', {{}}))
+    l2_3p = dict(L_transposed.get('2_3p', {{}}))
+    l3_3p = dict(L_transposed.get('3_3p', {{}}))
+    l4_3p = dict(L_transposed.get('4_3p', {{}}))
 
     # Photon-Coupled Amplitudes (4 Photon)
 
@@ -1831,10 +1885,10 @@ f"""
     # Unwrap numpy array/scalar to a raw float if necessary
     l0_4p = l0_4p_val.item() if hasattr(l0_4p_val, 'item') else l0_4p_val
 
-    l1_4p = {{spin: tensor.transpose(1, 0) for spin, tensor in self.L[left_state].get('1_4p', {{}}).items()}}
-    l2_4p = {{spin: tensor.transpose(2, 3, 0, 1) for spin, tensor in self.L[left_state].get('2_4p', {{}}).items()}}
-    l3_4p = {{spin: tensor.transpose(3, 4, 5, 0, 1, 2) for spin, tensor in self.L[left_state].get('3_4p', {{}}).items()}}
-    l4_4p = {{spin: tensor.transpose(4, 5, 6, 7, 0, 1, 2, 3) for spin, tensor in self.L[left_state].get('4_4p', {{}}).items()}}
+    l1_4p = dict(L_transposed.get('1_4p', {{}}))
+    l2_4p = dict(L_transposed.get('2_4p', {{}}))
+    l3_4p = dict(L_transposed.get('3_4p', {{}}))
+    l4_4p = dict(L_transposed.get('4_4p', {{}}))
 """
 
     # pq graph output

@@ -133,7 +133,7 @@ class EOMCCSD:
         self.eomcc_solver.left_solver(L_list = [l0, l1, l2])
 
         self.eomcc_energy = self.eomcc_solver.eomcc_energy
-        self.L = self.eomcc_solver.L
+        self.L_meta = self.eomcc_solver.L_meta
 
     def oscillator_strengths(self):
 
@@ -149,7 +149,6 @@ class EOMCCSD:
             L, 
             R, 
             'density_matrix', 
-            write_function = True,
             pq_graph_options = self.pq_graph_options
         )
         

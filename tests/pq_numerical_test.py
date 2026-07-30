@@ -158,7 +158,7 @@ def test_ccsd_codegen():
 
         f.write(">>> TEST PASSED: CCSD\n")    
 
-@pytest.mark.ucc3
+@pytest.mark.uccsd3
 def test_uccsd_3_codegen():
 
     with open(LOG_FILE, "a") as f:
@@ -175,7 +175,7 @@ def test_uccsd_3_codegen():
 
         f.write(">>> TEST PASSED: UCCSD(3)\n")    
 
-@pytest.mark.ucc4
+@pytest.mark.uccsd4
 def test_uccsd_4_codegen():
 
     with open(LOG_FILE, "a") as f:
@@ -264,7 +264,7 @@ def test_cc3_codegen():
 
         f.write(">>> TEST PASSED: CC3\n")    
 
-@pytest.mark.eomcc
+@pytest.mark.eomccsd
 def test_eomccsd_codegen():
 
     with open(LOG_FILE, "a") as f:
@@ -322,7 +322,7 @@ def test_eomccsd_codegen():
 
         f.write(">>> TEST PASSED: EOMCCSD\n")    
 
-@pytest.mark.ip_eomcc
+@pytest.mark.ip_eomccsd
 def test_ip_eomccsd_codegen():
 
     with open(LOG_FILE, "a") as f:
@@ -355,9 +355,13 @@ def test_ip_eomccsd_codegen():
 
             assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
 
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
         f.write(">>> TEST PASSED: IP-EOMCCSD\n")    
 
-@pytest.mark.ea_eomcc
+@pytest.mark.ea_eomccsd
 def test_ea_eomccsd_codegen():
 
     with open(LOG_FILE, "a") as f:
@@ -390,9 +394,13 @@ def test_ea_eomccsd_codegen():
 
             assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
 
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
         f.write(">>> TEST PASSED: EA-EOMCCSD\n")    
 
-@pytest.mark.qed_eomcc
+@pytest.mark.qed_eomccsd
 def test_qed_eomccsd_codegen():
 
     with open(LOG_FILE, "a") as f:
@@ -434,6 +442,84 @@ def test_qed_eomccsd_codegen():
             assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: QED-EOMCCSD\n")    
+
+@pytest.mark.dip_eomccsd
+def test_dip_eomccsd_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running DIP-EOMCCSD ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # CCSD
+
+            from pdaggerq.numerical.methods.ccsd import CCSD
+            mol, wfn = setup_psi4_test()
+            mycc = CCSD(wfn, mol, nfzc=1)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
+
+            # DIP-EOMCCSD
+
+            from pdaggerq.numerical.methods.dip_eomccsd import DIP_EOMCCSD as EOMCC
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+
+            eomcc.right_solver()
+
+            ref_energies = [1.271802414785,
+                1.271802414785,
+                1.271802414785,
+                1.344877974041,
+                1.385026703778
+            ]
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: DIP-EOMCCSD\n")    
+
+@pytest.mark.dea_eomccsd
+def test_dea_eomccsd_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running DEA-EOMCCSD ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # CCSD
+
+            from pdaggerq.numerical.methods.ccsd import CCSD
+            mol, wfn = setup_psi4_test()
+            mycc = CCSD(wfn, mol, nfzc=1)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
+
+            # DEA-EOMCCSD
+
+            from pdaggerq.numerical.methods.dea_eomccsd import DEA_EOMCCSD as EOMCC
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+
+            eomcc.right_solver()
+
+            ref_energies = [1.695978431168,
+                1.704162303123,
+                1.704162303123,
+                1.704162303123,
+                1.837935299572
+            ]
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: DEA-EOMCCSD\n")    
 
 def main():
     raise Exception("run with pytest")
