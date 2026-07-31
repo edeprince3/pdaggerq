@@ -81,5 +81,5 @@ setup(
     ext_modules=[CMakeExtension("pdaggerq._pdaggerq")],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
-    packages=['pdaggerq']
+    packages=find_packages() #['pdaggerq']
 )
