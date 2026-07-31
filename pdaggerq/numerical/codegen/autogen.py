@@ -1296,7 +1296,7 @@ def eomcc_sigma(sigma_name,
     operator_type = 'EE',
     spin_block = True,
     is_qed = False,
-    write_function = True,
+    write_function = False,
     pq_graph_options = None):
 
     """
