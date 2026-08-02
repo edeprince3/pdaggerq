@@ -1081,6 +1081,7 @@ def lambda_cc_residual(residual_name,
     function_name, 
     spin_block = True, 
     write_function = False,
+    is_qed = False,
     pq_graph_options = None):
 
     """
@@ -1089,10 +1090,11 @@ def lambda_cc_residual(residual_name,
     :param residual_name: name for the variable representing the left-hand side of the residual equation
     :param T: list of cluster operators
     :param L: list of lambda amplitudes
-    :param R: excitation operator defining the projection
+    :param R: list of excitation operator defining the projection
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
     :param pq_graph_options: options dictionary for pq_graph
     """
 
@@ -1101,24 +1103,54 @@ def lambda_cc_residual(residual_name,
 
     pq = pdaggerq.pq_helper("fermi")
 
+
+    ham_terms = [['f'], ['v']]
+    if is_qed:
+        ham_terms.append(['w0'])
+        ham_terms.append(['d+'])
+        ham_terms.append(['d-'])
+
     #  <0| e(-T) H R e(T)|0>
     
     pq.set_left_operators([['1']])
     pq.set_right_operators([['1']])
     
-    pq.add_st_operator(1.0,['f',R],T)
-    pq.add_st_operator(1.0,['v',R],T)
+    pq.add_st_operator(1.0,['f'] + R,T)
+    pq.add_st_operator(1.0,['v'] + R,T)
     
+    if is_qed:
+        pq.add_st_operator( 1.0, ['w0'] + R, T)
+        pq.add_st_operator(-1.0, ['d+'] + R, T)
+        pq.add_st_operator(-1.0, ['d-'] + R, T)
+
+        pq.add_st_operator(-1.0, ['ON', 'B+'] + R, T) # nuclear part of bilinear coupling
+        pq.add_st_operator(-1.0, ['ON', 'B-'] + R, T) # nuclear part of bilinear coupling
+
     # <0| L e(-T) [H,R] e(T)|0>
     
     pq.set_left_operators(L)
     pq.set_right_operators([['1']])
     
-    pq.add_st_operator( 1.0,['f',R],T)
-    pq.add_st_operator( 1.0,['v',R],T)
+    pq.add_st_operator( 1.0,['f'] + R,T)
+    pq.add_st_operator( 1.0,['v'] + R,T)
     
-    pq.add_st_operator(-1.0,[R,'f'],T)
-    pq.add_st_operator(-1.0,[R,'v'],T)
+    pq.add_st_operator(-1.0,R + ['f'],T)
+    pq.add_st_operator(-1.0,R + ['v'],T)
+    
+    if is_qed:
+        pq.add_st_operator( 1.0, ['w0'] + R, T)
+        pq.add_st_operator(-1.0, ['d+'] + R, T)
+        pq.add_st_operator(-1.0, ['d-'] + R, T)
+
+        pq.add_st_operator(-1.0, ['ON', 'B+'] + R, T) # nuclear part of bilinear coupling
+        pq.add_st_operator(-1.0, ['ON', 'B-'] + R, T) # nuclear part of bilinear coupling
+
+        pq.add_st_operator(-1.0, R + ['w0'], T)
+        pq.add_st_operator( 1.0, R + ['d+'], T)
+        pq.add_st_operator( 1.0, R + ['d-'], T)
+
+        pq.add_st_operator( 1.0, R + ['ON', 'B+'], T) # nuclear part of bilinear coupling
+        pq.add_st_operator( 1.0, R + ['ON', 'B-'], T) # nuclear part of bilinear coupling
 
     # cleanup
     pq.simplify()
@@ -1128,7 +1160,7 @@ def lambda_cc_residual(residual_name,
 
     # spin blocking
     if spin_block:
-        block_by_spin(pq, residual_name, L + T + ['f'] + ['v'] + [[R]], eqs)
+        block_by_spin(pq, residual_name, L + T + ham_terms + [R], eqs)
     else:
         eqs[residual_name] = pq.clone()
         # print the fully contracted strings
@@ -1150,7 +1182,7 @@ def lambda_cc_residual(residual_name,
     # initialization statements 
     generated_code_string = f"""def {function_name}(self):"""
 
-    generated_code_string += function_initialization_string()
+    generated_code_string += function_initialization_string(is_qed = is_qed)
 
     # pq graph output
     generated_code_string += graph.str("python")
@@ -1209,6 +1241,7 @@ def lambda_cc_pseudoenergy(energy_name,
     function_name,
     spin_block = True,
     write_function = False,
+    is_qed = False,
     pq_graph_options = None):
 
     """
@@ -1221,6 +1254,7 @@ def lambda_cc_pseudoenergy(energy_name,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
     :param pq_graph_options: options dictionary for pq_graph
     """
 
@@ -1228,6 +1262,12 @@ def lambda_cc_pseudoenergy(energy_name,
         raise Exception("spin-orbital ccsd lambda equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+
+    ham_terms = [['f'], ['v']]
+    if is_qed:
+        ham_terms.append(['w0'])
+        ham_terms.append(['d+'])
+        ham_terms.append(['d-'])
 
     # set bra
     pq.set_left_operators(L)
@@ -1239,6 +1279,14 @@ def lambda_cc_pseudoenergy(energy_name,
     pq.add_operator_product(1.0, ['f'])
     pq.add_operator_product(1.0, ['v'])
 
+    if is_qed:
+        pq.add_operator_product( 1.0, ['w0'])
+        pq.add_operator_product(-1.0, ['d+'])
+        pq.add_operator_product(-1.0, ['d-'])
+    
+        pq.add_operator_product(-1.0, ['ON', 'B+']) # nuclear part of bilinear coupling
+        pq.add_operator_product(-1.0, ['ON', 'B-']) # nuclear part of bilinear coupling
+
     # cleanup
     pq.simplify()
 
@@ -1247,7 +1295,7 @@ def lambda_cc_pseudoenergy(energy_name,
 
     # spin blocking
     if spin_block:
-        block_by_spin(pq, energy_name, L + R + ['f'] + ['v'], eqs)
+        block_by_spin(pq, energy_name, L + R + ham_terms, eqs)
     else:
         eqs[sigma_eqname] = pq.clone()
         # print the fully contracted strings
@@ -1269,13 +1317,367 @@ def lambda_cc_pseudoenergy(energy_name,
     # initialization statements 
     generated_code_string = f"""def {function_name}(self):"""         
 
-    generated_code_string += function_initialization_string()
+    generated_code_string += function_initialization_string(is_qed = is_qed)
         
     # pq graph output
     generated_code_string += graph.str("python")
             
     # return statement
     generated_code_string += f"    return {energy_name}"
+
+    # write function 
+    if write_function:
+        with open(f"generated_code/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
+
+    pq.clear()
+
+    del pq
+
+    return generated_code_string
+
+def cc_response_terms(term_name, 
+    T,
+    L,
+    proj_ops,
+    function_name,
+    term_type = 'xi',
+    Ra = [],
+    Rb = [],
+    is_qed = False,
+    operator_type = 'EE',
+    spin_block = True,
+    write_function = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for CC response theory. either
+
+        xi_mu = <0|proj_ops Vbar |0> 
+
+    or
+
+        eta_nu = <0|(1+Lambda)[Vbar, proj_ops]|0> 
+
+    or
+        hessian = <0|(1+Lambda)[[Hbar, tau_mu], tau_n]|0> x(1)_mu y(1)_nu
+    
+    :param term_name: name for the variable representing xi, eta, or hessian contribution
+    :param T: list of cluster operators
+    :param L: list of left-hand operators (ground-state lambda)
+    :param proj_ops: a list of projection operators
+    :param function_name: name for the python function
+    :param is_qed: include qed-cc terms? 
+    :param term_type: xi, eta, or the hessian term
+    :param Ra: response amplitudes for perturbation a, term_type = 'hessian' only
+    :param Rb: response amplitudes for perturbation b, term_type = 'hessian' only
+    :param operator_type: operator type for EE/IP/EA/DIP/DEA
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital cc response equations not implemented")
+
+    if operator_type != 'EE':
+        raise Exception("cc response equations are only implemented for EE-type operators")
+
+    pq = pdaggerq.pq_helper("fermi")
+    pq.set_right_operators_type(operator_type)
+    pq.set_left_operators_type(operator_type)
+
+    # use 'h' as the perturbing operator
+    ham_terms = [['h']]
+
+    if term_type == 'xi':
+        #  xi_ai = <0|i*a e(-T) H e(T)|0>
+        pq.set_left_operators([proj_ops])
+        pq.set_right_operators([['1']])
+        pq.add_st_operator(1.0, ['h'], T)
+    elif term_type == 'eta':
+        #  eta_ai = <0| e(-T) H a*i e(T)|0>
+        pq.set_left_operators([['1']])
+        pq.set_right_operators([['1']])
+        pq.add_st_operator(1.0,['h'] + proj_ops, T)
+
+        # eta_ai += <0| L e(-T) [H, a*i] e(T)|0>
+        pq.set_left_operators(L)
+        pq.add_st_operator( 1.0, ['h'] + proj_ops, T)
+        pq.add_st_operator(-1.0, proj_ops + ['h'], T) 
+
+    elif term_type == 'hessian':
+
+        #[[H,x],y] = Hxy - xHy -yHx + yxH
+        pq.set_right_operators([['1']])
+        pq.set_left_operators(L)
+
+        ham_terms = [['f'], ['v']]
+        if is_qed:
+            ham_terms.append(['w0'])
+            ham_terms.append(['d+'])
+            ham_terms.append(['d-'])
+            
+            pq.add_st_operator(1.0, ['w0'], T)
+            pq.add_st_operator(-1.0, ['d+'], T)
+            pq.add_st_operator(-1.0, ['d-'], T)
+        
+            pq.add_st_operator(-1.0, ['ON', 'B+'], T) # nuclear part of bilinear coupling
+            pq.add_st_operator(-1.0, ['ON', 'B-'], T) # nuclear part of bilinear coupling
+        
+        for term in ham_terms:
+            h = term[0]
+            for x in Ra:
+                for y in Rb:
+                    pq.add_st_operator( 1.0, [h, x, y], T)
+                    pq.add_st_operator( 1.0, [h, x, y], T)
+                    pq.add_st_operator( 1.0, [h, x, y], T)
+                    pq.add_st_operator( 1.0, [h, x, y], T)
+        
+                    pq.add_st_operator(-1.0, [x, h, y], T)
+                    pq.add_st_operator(-1.0, [x, h, y], T)
+                    pq.add_st_operator(-1.0, [x, h, y], T)
+                    pq.add_st_operator(-1.0, [x, h, y], T)
+        
+                    pq.add_st_operator(-1.0, [y, h, x], T)
+                    pq.add_st_operator(-1.0, [y, h, x], T)
+                    pq.add_st_operator(-1.0, [y, h, x], T)
+                    pq.add_st_operator(-1.0, [y, h, x], T)
+        
+                    pq.add_st_operator( 1.0,[y, x, h], T)
+                    pq.add_st_operator( 1.0,[y, x, h], T)
+                    pq.add_st_operator( 1.0,[y, x, h], T)
+                    pq.add_st_operator( 1.0,[y, x, h], T)
+                pass
+    else:
+        raise Exception("invalid term_type in cc_response_terms")
+
+    # cleanup
+    pq.simplify()
+
+    # dictionary to store the derived equations
+    eqs = {}
+
+    # spin blocking
+    if spin_block:
+        block_by_spin(pq, term_name, T + ham_terms + [proj_ops], eqs, operator_type = operator_type)
+    else:
+        eqs[term_name] = pq.clone()
+        # print the fully contracted strings
+        print(f"Equation {term_name}:", flush=True)
+        for term in pq.strings():
+            print(term, flush=True)
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    # Add equations to graph
+    for proj_eqname, eq in eqs.items():
+        print(f"Adding equation {proj_eqname} to the graph", flush=True)
+        graph.add(eq, proj_eqname)
+
+    # optimize the graph
+    graph.optimize()
+
+    # initialization statements 
+    generated_code_string = f"def {function_name}(self):"
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
+
+    # perturbing operator:
+    generated_code_string += \
+f"""
+    h = {{}}
+    h['aa_oo'] = self.h_aa[oa, oa]
+    h['aa_ov'] = self.h_aa[oa, va]
+    h['aa_vo'] = self.h_aa[va, oa]
+    h['aa_vv'] = self.h_aa[va, va]
+    h['bb_oo'] = self.h_bb[ob, ob]
+    h['bb_ov'] = self.h_bb[ob, vb]
+    h['bb_vo'] = self.h_bb[vb, ob]
+    h['bb_vv'] = self.h_bb[vb, vb]
+"""
+    if term_type == 'hessian':
+        generated_code_string += \
+f"""
+    # positive-frequency response vectors
+
+    # r0 is special because it is a scalar
+    r0_dict = self.R.get('0', {{}})
+    r0_val = r0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0 = r0_val.item() if hasattr(r0_val, 'item') else r0_val
+
+    r1 = dict(self.R.get('1', {{}}))
+    r2 = dict(self.R.get('2', {{}}))
+    r3 = dict(self.R.get('3', {{}}))
+    r4 = dict(self.R.get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_1p_dict = self.R.get('0_1p', {{}})
+    r0_1p_val = r0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_1p = r0_1p_val.item() if hasattr(r0_1p_val, 'item') else r0_1p_val
+
+    r1_1p = dict(self.R.get('1_1p', {{}}))
+    r2_1p = dict(self.R.get('2_1p', {{}}))
+    r3_1p = dict(self.R.get('3_1p', {{}}))
+    r4_1p = dict(self.R.get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_2p_dict = self.R.get('0_2p', {{}})
+    r0_2p_val = r0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_2p = r0_2p_val.item() if hasattr(r0_2p_val, 'item') else r0_2p_val
+
+    r1_2p = dict(self.R.get('1_2p', {{}}))
+    r2_2p = dict(self.R.get('2_2p', {{}}))
+    r3_2p = dict(self.R.get('3_2p', {{}}))
+    r4_2p = dict(self.R.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_3p_dict = self.R.get('0_3p', {{}})
+    r0_3p_val = r0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_3p = r0_3p_val.item() if hasattr(r0_3p_val, 'item') else r0_3p_val
+
+    r1_3p = dict(self.R.get('1_3p', {{}}))
+    r2_3p = dict(self.R.get('2_3p', {{}}))
+    r3_3p = dict(self.R.get('3_3p', {{}}))
+    r4_3p = dict(self.R.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_4p_dict = self.R.get('0_4p', {{}})
+    r0_4p_val = r0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_4p = r0_4p_val.item() if hasattr(r0_4p_val, 'item') else r0_4p_val
+
+    r1_4p = dict(self.R.get('1_4p', {{}}))
+    r2_4p = dict(self.R.get('2_4p', {{}}))
+    r3_4p = dict(self.R.get('3_4p', {{}}))
+    r4_4p = dict(self.R.get('4_4p', {{}}))
+
+    # negative-frequency response vectors
+
+    # x0 is special because it is a scalar
+    x0_dict = self.R_neg.get('0', {{}})
+    x0_val = x0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0 = x0_val.item() if hasattr(x0_val, 'item') else x0_val
+
+    x1 = dict(self.R_neg.get('1', {{}}))
+    x2 = dict(self.R_neg.get('2', {{}}))
+    x3 = dict(self.R_neg.get('3', {{}}))
+    x4 = dict(self.R_neg.get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    x0_1p_dict = self.R_neg.get('0_1p', {{}})
+    x0_1p_val = x0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0_1p = x0_1p_val.item() if hasattr(x0_1p_val, 'item') else x0_1p_val
+
+    x1_1p = dict(self.R_neg.get('1_1p', {{}}))
+    x2_1p = dict(self.R_neg.get('2_1p', {{}}))
+    x3_1p = dict(self.R_neg.get('3_1p', {{}}))
+    x4_1p = dict(self.R_neg.get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    x0_2p_dict = self.R_neg.get('0_2p', {{}})
+    x0_2p_val = x0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0_2p = x0_2p_val.item() if hasattr(x0_2p_val, 'item') else x0_2p_val
+
+    x1_2p = dict(self.R_neg.get('1_2p', {{}}))
+    x2_2p = dict(self.R_neg.get('2_2p', {{}}))
+    x3_2p = dict(self.R_neg.get('3_2p', {{}}))
+    x4_2p = dict(self.R_neg.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    x0_3p_dict = self.R_neg.get('0_3p', {{}})
+    x0_3p_val = x0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0_3p = x0_3p_val.item() if hasattr(x0_3p_val, 'item') else x0_3p_val
+
+    x1_3p = dict(self.R_neg.get('1_3p', {{}}))
+    x2_3p = dict(self.R_neg.get('2_3p', {{}}))
+    x3_3p = dict(self.R_neg.get('3_3p', {{}}))
+    x4_3p = dict(self.R_neg.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    x0_4p_dict = self.R_neg.get('0_4p', {{}})
+    x0_4p_val = x0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0_4p = x0_4p_val.item() if hasattr(x0_4p_val, 'item') else x0_4p_val
+
+    x1_4p = dict(self.R_neg.get('1_4p', {{}}))
+    x2_4p = dict(self.R_neg.get('2_4p', {{}}))
+    x3_4p = dict(self.R_neg.get('3_4p', {{}}))
+    x4_4p = dict(self.R_neg.get('4_4p', {{}}))
+"""
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+        
+    # Return statement
+    # This regex looks for digit, optionally followed by '_Np'
+    match = re.search(r'(\d+)(?:_(\d+)p)?$', term_name)
+            
+    if not match:
+        # Handles pure strings with no numbers (e.g., 'cc_energy', 'cc_residual') ... although this shouldn't happen in EOM
+        generated_code_string += f"\n    return {term_name}\n"
+    else:
+        # Group 1 is guaranteed to be the fermion order (e.g., '2' from 'r2_1p')
+        order = int(match.group(1))
+        
+        # Group 2 is the photon order if it exists (e.g., '1' from 'r2_1p')
+        nph_suffix = f"{match.group(2)}p" if match.group(2) else None
+
+        # Construct base_name (e.g., '1', '2_1p', '0_1p')
+        base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
+
+        # Safely get the spins for this exact order
+        spins = SPIN_MAP[operator_type].get(order, [''])
+
+        # Generate individual spin channel assignments
+        assignments = []
+        for spin in spins:
+            var_name = f"{term_name}_{spin}" if spin else term_name
+            assignments.append(f"    term['{base_name}']['{spin}'] = {var_name}")
+
+        assignments_str = "\n".join(assignments)
+
+        generated_code_string += \
+f"""
+    term = {{}}
+    term['{base_name}'] = {{}}
+{assignments_str}
+    return term
+"""
 
     # write function 
     if write_function:
@@ -1302,7 +1704,7 @@ def eomcc_sigma(sigma_name,
     """
     derive equations for left/right EOMCC sigma equations
     
-    :param sigma_name: name for the variable representing the left/right EOMCC sigma veector
+    :param sigma_name: name for the variable representing the left/right EOMCC sigma vector
     :param T: list of cluster operators
     :param L: list of left-hand operators
     :param R: list of right-hand operators

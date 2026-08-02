@@ -1,7 +1,8 @@
-# hilbert2 - python-based quantum chemistry
-# Copyright (C) 2025 A. Eugene DePrince III
 #
-# This file is part of the hilbert2 package.
+# pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+# Copyright (C) 2026 A. Eugene DePrince III
+#
+# This file is part of the pdaggerq package.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.

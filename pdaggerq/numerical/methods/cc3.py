@@ -88,3 +88,6 @@ class CC3:
         en = self.cc_solver.t_solver()
 
         return en
+
+    def lambda_solver(self):
+        raise Exception("lambda solver is not implemented for CC3")
