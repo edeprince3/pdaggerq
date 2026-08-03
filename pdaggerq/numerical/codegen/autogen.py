@@ -1103,7 +1103,6 @@ def lambda_cc_residual(residual_name,
 
     pq = pdaggerq.pq_helper("fermi")
 
-
     ham_terms = [['f'], ['v']]
     if is_qed:
         ham_terms.append(['w0'])
@@ -1391,17 +1390,17 @@ def cc_response_terms(term_name,
     ham_terms = [['h']]
 
     if term_type == 'xi':
-        #  xi_ai = <0|i*a e(-T) H e(T)|0>
+        #  xi_ai = <0|i*a e(-T) V e(T)|0>
         pq.set_left_operators([proj_ops])
         pq.set_right_operators([['1']])
         pq.add_st_operator(1.0, ['h'], T)
     elif term_type == 'eta':
-        #  eta_ai = <0| e(-T) H a*i e(T)|0>
+        #  eta_ai = <0| e(-T) V a*i e(T)|0>
         pq.set_left_operators([['1']])
         pq.set_right_operators([['1']])
         pq.add_st_operator(1.0,['h'] + proj_ops, T)
 
-        # eta_ai += <0| L e(-T) [H, a*i] e(T)|0>
+        # eta_ai += <0| L e(-T) [V, a*i] e(T)|0>
         pq.set_left_operators(L)
         pq.add_st_operator( 1.0, ['h'] + proj_ops, T)
         pq.add_st_operator(-1.0, proj_ops + ['h'], T) 
@@ -1417,14 +1416,9 @@ def cc_response_terms(term_name,
             ham_terms.append(['w0'])
             ham_terms.append(['d+'])
             ham_terms.append(['d-'])
+            ham_terms.append(['ON', 'B+']) # nuclear part of bilinear coupling
+            ham_terms.append(['ON', 'B-']) # nuclear part of bilinear coupling
             
-            pq.add_st_operator(1.0, ['w0'], T)
-            pq.add_st_operator(-1.0, ['d+'], T)
-            pq.add_st_operator(-1.0, ['d-'], T)
-        
-            pq.add_st_operator(-1.0, ['ON', 'B+'], T) # nuclear part of bilinear coupling
-            pq.add_st_operator(-1.0, ['ON', 'B-'], T) # nuclear part of bilinear coupling
-        
         for term in ham_terms:
             h = term[0]
             for x in Ra:
