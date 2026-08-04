@@ -336,28 +336,32 @@ struct LinkMerger {
                     if (link_ratio == 0.0) link_ratio = cur_ratio;
                     else if (fabs(cur_ratio - link_ratio) > 1e-10) { same_connectivity = false; break; }
 
-                    // replace the replacement vertex with the trunc vertex
-                    VertexPtr term1_link = trunc_term1.term_linkage()->replace(dummy, link1_trunc).first;
-                    VertexPtr term2_link = trunc_term2.term_linkage()->replace(dummy, link1_trunc).first;
+                    // check that the replacement of the trunc term with the other trunc term gives the same connectivity
+                    std::pair<VertexPtr, bool> term1_replacement, term2_replacement;
+                    VertexPtr term1_link, term2_link;
 
-                    term1_link = link1_term->lhs() + term1_link;
-                    term2_link = link2_term->lhs() + term2_link;
+                    // replace the replacement vertex with the trunc vertex
+                    term1_replacement = trunc_term1.term_linkage()->replace(dummy, link1_trunc);
+                    term2_replacement = trunc_term2.term_linkage()->replace(dummy, link1_trunc);
+                    if (!term1_replacement.second || !term2_replacement.second) { same_connectivity = false; break; }
+
+                    term1_link = link1_term->lhs() + term1_replacement.first;
+                    term2_link = link2_term->lhs() + term2_replacement.first;
 
                     // ensure both the links have the same exact lines
                     if (term1_link->lines() != term2_link->lines()) { same_connectivity = false; break; }
-
                     if (*term1_link != *term2_link) { same_connectivity = false; break; }
 
                     // now check the other trunc term
-                    term1_link = trunc_term1.term_linkage()->replace(dummy, link2_trunc).first;
-                    term2_link = trunc_term2.term_linkage()->replace(dummy, link2_trunc).first;
+                    term1_replacement = trunc_term1.term_linkage()->replace(dummy, link2_trunc);
+                    term2_replacement = trunc_term2.term_linkage()->replace(dummy, link2_trunc);
+                    if (!term1_replacement.second || !term2_replacement.second) { same_connectivity = false; break; }
 
-                    term1_link = link1_term->lhs() + term1_link;
-                    term2_link = link2_term->lhs() + term2_link;
+                    term1_link = link1_term->lhs() + term1_replacement.first;
+                    term2_link = link2_term->lhs() + term2_replacement.first;
 
                     // ensure both the links have the same exact lines
                     if (term1_link->lines() != term2_link->lines()) { same_connectivity = false; break; }
-
                     if (*term1_link != *term2_link) { same_connectivity = false; break; }
 
                 }
