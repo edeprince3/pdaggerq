@@ -515,70 +515,33 @@ struct LinkMerger {
             if (link) sorted_links.push_back(link);
         std::sort(sorted_links.begin(), sorted_links.end(), [](const LinkagePtr &a, const LinkagePtr &b) { return a->id() > b->id(); });
 
-        // now prune between the merge links
+        // Select complete, pairwise-disjoint fusion groups.  A group owns all
+        // terms tracked by its target and merge links; groups sharing a Term*
+        // cannot both be applied because merge() rewrites target terms and
+        // nulls merge-term LHSs in place.
         unique_terms.clear();
         new_link_merge_map.clear();
-        unordered_set<LinkagePtr, LinkageHash, LinkageEqual> visited_links;
-        for (auto &ref_link: sorted_links) {
-            auto &ref_merge_links = link_merge_map_[ref_link];
-            auto ref_terms = extract_terms(ref_link);
-            for (auto &ref_merge_link: ref_merge_links) {
-                auto merge_terms = extract_terms(ref_merge_link);
-                ref_terms.insert(merge_terms.begin(), merge_terms.end());
+        for (auto &target_link: sorted_links) {
+            auto &merge_links = link_merge_map_[target_link];
+            if (merge_links.empty()) continue;
+
+            set<Term*> group_terms = extract_terms(target_link);
+            for (auto &merge_link: merge_links) {
+                auto merge_terms = extract_terms(merge_link);
+                group_terms.insert(merge_terms.begin(), merge_terms.end());
             }
 
-            // check if ref_link overlaps with previously accepted groups.
-            // Without this check, two fusion groups that share Term* pointers
-            // would both be accepted; the first group's nulling of merge-link
-            // usage terms in merge() would corrupt terms that the second group
-            // still needs to read/write, producing incorrect or crashing code.
-            bool ref_overlap = false;
-            for (auto &term: ref_terms) {
+            bool disjoint = true;
+            for (Term *term: group_terms) {
                 if (unique_terms.find(term) != unique_terms.end()) {
-                    ref_overlap = true;
+                    disjoint = false;
                     break;
                 }
             }
+            if (!disjoint) continue;
 
-            visited_links.insert(ref_link);
-
-            if (ref_overlap) continue; // skip this group entirely
-
-            unique_terms.insert(ref_terms.begin(), ref_terms.end());
-
-            // skip if no merge links
-            if (ref_merge_links.empty()) continue;
-
-            // add to new link merge map
-            new_link_merge_map[ref_link] = ref_merge_links;
-
-            for (auto &comp_link : sorted_links) {
-                auto &comp_merge_links = link_merge_map_[comp_link];
-
-                // skip if link has been visited
-                if (visited_links.find(comp_link) != visited_links.end()) continue;
-
-                if (comp_merge_links.empty()) continue;
-
-                auto comp_terms = extract_terms(comp_link);
-                for (auto &comp_merge_link: comp_merge_links) {
-                    auto merge_terms = extract_terms(comp_merge_link);
-                    comp_terms.insert(merge_terms.begin(), merge_terms.end());
-                }
-
-                // check if any of the terms overlap with the accumulated set
-                bool unique = false;
-                for (auto &term: comp_terms) {
-                    unique = unique_terms.find(term) == unique_terms.end();
-                    if (!unique) break;
-                }
-
-                // if unique (no overlap), accept the comp_link
-                if (unique) {
-                    new_link_merge_map[comp_link] = comp_merge_links;
-                    unique_terms.insert(comp_terms.begin(), comp_terms.end());
-                }
-            }
+            new_link_merge_map[target_link] = merge_links;
+            unique_terms.insert(group_terms.begin(), group_terms.end());
         }
 
         // overwrite the link merge map
