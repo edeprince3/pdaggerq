@@ -545,17 +545,54 @@ namespace pdaggerq {
         seen.reserve(max_pairs);
         result.reserve(max_pairs);
 
-        auto try_emplace = [&](const VertexPtr &l, const VertexPtr &r) {
-            MutableLinkagePtr new_link = as_link(is_add ? (l + r) : (l * r));
+        auto try_emplace = [&](const VertexPtr &l, const VertexPtr &r, bool do_add) {
+            MutableLinkagePtr new_link = as_link(do_add ? (l + r) : (l * r));
             new_link->copy_misc(*this);
+            new_link->is_addition() = do_add;
             if (seen.insert(new_link).second)
                 result.push_back(new_link);
         };
 
         for (const auto &L : left_vp) {
             for (const auto &R : right_vp) {
-                try_emplace(L, R); // original order
-                try_emplace(R, L); // commuted order (commutativity)
+                // add original order
+                try_emplace(L, R, is_add); 
+
+                // add commuted order (commutativity)
+                try_emplace(R, L, is_add);
+
+                if (is_add) continue; 
+                // consider associativity and distributivity for multiplication
+
+                // add associative order for left (associativity)
+                if (L->is_linked() && !L->is_addition() && !L->is_temp()) {
+                    // (L1 * L2) * R => L1 * (L2 * R)
+                    try_emplace(as_link(L)->left_, as_link(L)->right_ * R, false);
+                    //R * (L1 * L2) => (R * L1) * L2
+                    try_emplace(R * as_link(L)->left_, as_link(L)->right_, false);
+                }
+                // add associative order for right (associativity)
+                if (R->is_linked() && !R->is_addition() && !R->is_temp()) {
+                    // L * (R1 * R2) => (L * R1) * R2
+                    try_emplace(L * as_link(R)->left_, as_link(R)->right_, false);
+                    // (R1 * R2) * L => R1 * (R2 * L)
+                    try_emplace(as_link(R)->left_, as_link(R)->right_ * L, false);
+                }
+
+                // test distributivity for addition (distributivity)
+                if (L->is_addition() && !L->is_temp()) {
+                    // (L1 + L2) * R => (L1 * R) + (L2 * R)
+                    try_emplace(as_link(L)->left_ * R, as_link(L)->right_ * R, true);
+                    // R * (L1 + L2) => (R * L1) + (R * L2)
+                    try_emplace(R * as_link(L)->left_, R * as_link(L)->right_, true);
+                }
+
+                if (R->is_addition() && !R->is_temp()) {
+                    // L * (R1 + R2) => (L * R1) + (L * R2)
+                    try_emplace(L * as_link(R)->left_, L * as_link(R)->right_, true);
+                    // (R1 + R2) * L => (R1 * L) + (R2 * L)
+                    try_emplace(as_link(R)->left_ * L, as_link(R)->right_ * L, true);
+                }
             }
         }
 

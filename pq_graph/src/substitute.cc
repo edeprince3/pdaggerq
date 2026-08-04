@@ -463,8 +463,10 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 size_t num_subs = 0; // number of substitutions made
 
                 for (const auto &eq_name: eq_keys) { // iterate over equations in parallel
+                    if (eq_name == "scalar" && link_to_sub->type() == "temp") continue;
+                    
                     // get equation
-                    Equation &equation = equations_[eq_name]; // get equation
+                    Equation &equation = equations_[eq_name]; // get equation                    
                     size_t this_subs = equation.substitute(link_to_sub, allow_equality);
                     bool madeSub = this_subs > 0;
                     if (madeSub) {
