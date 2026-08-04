@@ -14,11 +14,12 @@ def test_models_present_and_projected():
         "ccd", "ccsd", "ccsdt", "ccsdtq",
         "neo-ccd", "neo-ccsd", "neo-ccsdt", "neo-ccsdtq",
         "neo-ccd(ep)", "neo-ccsdt(eep)", "neo-ccsdtq(eeep)",
+        "ccsd(t)", "neo-ccsd(t)",
     }
     assert expected <= set(models.MODELS), expected - set(models.MODELS)
-    # every amplitude of every model has a conjugate projection
+    # every amplitude of every model -- iterated and perturbative -- has a projection
     for m in models.MODELS.values():
-        for amp in m.T:
+        for amp in m.T + m.T_pt:
             assert amp in models.PROJECTION, f"{m.name}: no projection for {amp}"
     # the hybrids drop the matching pure-electron excitation
     assert "t3" not in models.model("neo-ccsdt(eep)").T   # eep, no electron t3
@@ -1599,6 +1600,243 @@ def test_ir_pairing():
     print(f"test_ir_pairing OK ({n1}+{n2} multi-operand plans verified)")
 
 
+def test_perturbative_triples():
+    """CCSD(T) / NEO-CCSD(T): the perturbative blocks, and the CONSUMER CONTRACT that
+    ties the two generated equations together.
+
+    Symbolic: the electronic model reproduces the canonical ``examples/ccsd_t.py``
+    derivation term for term.
+
+    Numeric, per block, with physically-symmetric integrals (hermitian, correctly
+    antisymmetrized -- the identities below use W = W^dagger, so random unsymmetric
+    integrals do NOT satisfy them):
+
+    1. the Fock coupling is ``<proj|[F, T_pt]|0> = -D * t``, ``D = sum(e_vir) -
+       sum(e_occ)``, so the amplitude is ``t = numerator / D``  -- the denominator
+       :func:`models.pt_amplitude_graph` documents, and the same sign rule the doubles
+       residuals of this library already use;
+    2. ``E_[T] = -(1/w) sum(numerator * t)`` with ``w`` the product of the index-group
+       factorials (36 for eee, 4 for eep/epp) -- this is the pairing an on-the-fly
+       implementation relies on, and it pins the RELATIVE index order and sign of the
+       two equations;
+    3. therefore ``E_[T] = -(1/w) sum(numerator^2 / D) < 0`` STRICTLY, for any
+       integrals -- the physical sign of a perturbative-triples correction;
+    4. the per-block energies sum to the fused ``pt_energy_ir(name)``, so generating
+       the blocks separately (which is what lets a consumer contract the triples away
+       on the fly) loses nothing.
+    """
+    import itertools, math
+    import numpy as np
+    from collections import defaultdict
+    from pdaggerq._pdaggerq import pq_helper
+
+    # >=3 occupied protons: a rank-3 antisymmetric proton block (ppp) is identically
+    # zero below that, and the checks below would be vacuous
+    NO, NV, NPO, NPV = 3, 4, 3, 4
+    DIM = {"o": NO, "v": NV, "O": NPO, "V": NPV}
+    NE, NP = NO + NV, NPO + NPV
+    SL = {"o": slice(0, NO), "v": slice(NO, NE), "O": slice(0, NPO), "V": slice(NPO, NP)}
+    VIR, OCC = {"v", "V"}, {"o", "O"}
+
+    def antisym(a, cl):
+        out = a.copy()
+        groups = defaultdict(list)
+        for ax, c in enumerate(cl):
+            groups[c].append(ax)
+        for c, axes in groups.items():
+            if len(axes) >= 2 and (c in VIR or c in OCC):
+                perms = list(itertools.permutations(range(len(axes))))
+                acc = np.zeros_like(out)
+                for p in perms:
+                    par = sum(1 for i in range(len(p)) for j in range(i + 1, len(p))
+                              if p[i] > p[j]) & 1
+                    src = list(range(out.ndim))
+                    for k, ax in enumerate(axes):
+                        src[ax] = axes[p[k]]
+                    acc += (-1 if par else 1) * np.transpose(out, src)
+                out = acc / len(perms)
+        return out
+
+    def interp(ir, inp, target):
+        st = {}
+        val = lambda o: st[o["name"]] if o["name"] in st else inp[o["name"]]
+        for s in ir:
+            subs = ",".join("".join(o["indices"]) for o in s["operands"])
+            out = "".join(s["target"]["indices"])
+            c = s["coeff"] * np.einsum(subs + "->" + out,
+                                       *[val(o) for o in s["operands"]], optimize=True)
+            t = s["target"]["name"]
+            st[t] = c.copy() if s["is_assignment"] else st[t] + c
+        return st[target]
+
+    def externals(ir_list):
+        names = {}
+        for ir in ir_list:
+            produced = {s["target"]["name"] for s in ir}
+            for s in ir:
+                for o in s["operands"]:
+                    if o["name"] not in produced:
+                        names[o["name"]] = tuple(o["classes"])
+        return names
+
+    def align(a, from_cls, to_cls):
+        """reorder axes by index class (within a class the choice is a global sign)"""
+        free = defaultdict(list)
+        for ax, c in enumerate(from_cls):
+            free[c].append(ax)
+        return np.transpose(a, [free[c].pop(0) for c in to_cls])
+
+    def chemist(rng, n, m=None):
+        """(pq|rs) with the full permutational symmetry of a real ERI"""
+        m = n if m is None else m
+        A = rng.standard_normal((n * n, m * m))
+        if m == n:
+            A = A + A.T                                    # (pq) <-> (rs)
+        C = A.reshape(n, n, m, m)
+        C = C + C.transpose(1, 0, 2, 3)                     # p <-> q
+        return C + C.transpose(0, 1, 3, 2)                  # r <-> s
+
+    def integrals(seed):
+        rng = np.random.default_rng(seed)
+        asym = lambda c: np.einsum("prqs->pqrs", c) - np.einsum("psqr->pqrs", c)
+        return {"eri": asym(chemist(rng, NE)),              # <pq||rs>, physicist order
+                "vp": asym(chemist(rng, NP)),
+                # gep(p,P,q,Q) = (pq|PQ): distinguishable species, no exchange
+                "g": np.einsum("pqPQ->pPqQ", chemist(rng, NE, NP))}
+
+    def fill(names, seed, full=None, eps=None):
+        rng = np.random.default_rng(seed)
+        inp = {}
+        for nm, cl in sorted(names.items()):
+            if '["' in nm:                                  # an integral block
+                base, blk = nm.split('["')[0], nm.split('"')[1]
+                assert blk == "".join(cl), (nm, cl)
+                if base in ("f", "fp"):                     # canonical: diagonal Fock
+                    inp[nm] = (np.diag(eps[cl[0]]) if cl[0] == cl[1]
+                               else np.zeros(tuple(DIM[c] for c in cl)))
+                else:
+                    inp[nm] = full[base][tuple(SL[c] for c in cl)]
+            else:
+                inp[nm] = antisym(rng.standard_normal(tuple(DIM[c] for c in cl)), cl)
+        return inp
+
+    def conjugate(inp, names):
+        """Lambda = T^dagger: index order reversed (l2_ep(i,I,A,a) = t2_ep(a,A,I,i)),
+        singles multipliers zeroed -- that leaves the [T] part of the (T) energy."""
+        for ln, cl in names.items():
+            if not ln.startswith("l"):
+                continue
+            if len(cl) == 2:
+                inp[ln] = np.zeros(tuple(DIM[c] for c in cl))
+            else:
+                tn = "t" + ln[1:]
+                assert tuple(reversed(names[tn])) == cl, (ln, cl, names[tn])
+                inp[ln] = np.transpose(inp[tn], list(range(len(cl)))[::-1])
+
+    # --- structure -----------------------------------------------------------------
+    assert {"pt_amps", "pt_amplitude_ir", "pt_energy_ir"} <= set(models.__all__)
+    assert models.pt_amps("ccsd(t)") == ["t3"]
+    assert models.pt_amps("neo-ccsd(t)") == ["t3", "tep21", "tep12", "tp3"]  # eee/eep/epp/ppp
+    assert models.pt_amps("neo-ccsd(t)-1p") == ["t3", "tep21"]   # epp needs 2 protons, ppp 3
+    assert models.pt_amps("ccsd") == []
+    assert models.model("neo-ccsd(t)").T == models.model("neo-ccsd").T  # CCSD cluster
+    assert "t3" not in models.model("neo-ccsd(t)").T                    # NOT iterated
+    for nm in ("ccsd(t)", "neo-ccsd(t)"):
+        for amp in models.pt_amps(nm):
+            assert amp in models.PROJECTION, (nm, amp)
+    for bad in (lambda: models.pt_amplitude_graph("ccsd(t)", "tep21"),
+                lambda: models.pt_energy_graph("ccsd", "t3"),
+                lambda: models.pt_energy_graph("ccsd(t)", "tep12")):
+        try:
+            bad()
+            assert False, "expected ValueError"
+        except ValueError:
+            pass
+
+    # --- symbolic: the canonical model IS examples/ccsd_t.py -------------------------
+    def raw(left, calls):
+        pq = pq_helper("fermi")
+        pq.set_left_operators(left)
+        for op, amp in calls:
+            pq.add_commutator(1.0, [op], [amp])
+        pq.simplify()
+        return sorted(pq.strings())
+
+    m = models.model("ccsd(t)")
+    assert sorted(models._pt_pq(m, [[models.PROJECTION["t3"]]], m.T).strings()) == \
+        raw([[models.PROJECTION["t3"]]], [("v", "t2")]), "ccsd(t) triples numerator"
+    assert sorted(models._pt_pq(m, [["l1"], ["l2"]], ["t3"]).strings()) == \
+        raw([["l1"], ["l2"]], [("v", "t3")]), "ccsd(t) (T) energy"
+
+    # --- numeric: the consumer contract ---------------------------------------------
+    for name in ("ccsd(t)", "neo-ccsd(t)-1p", "neo-ccsd(t)"):
+        m = models.model(name)
+        for amp in m.T_pt:
+            num_ir = einsums.parse_ir(models.pt_amplitude_ir(name, amp, df=False))
+            e_ir = einsums.parse_ir(models.pt_energy_ir(name, amp, df=False))
+            cls = einsums.target_shape(num_ir, "R")[1]
+            names = externals([num_ir, e_ir])
+            for ln, cl in list(names.items()):                  # every l needs its t
+                if ln.startswith("l") and len(cl) >= 4:
+                    names.setdefault("t" + ln[1:], tuple(reversed(cl)))
+            w = math.prod(math.factorial(cls.count(c)) for c in set(cls))
+            assert w == (36 if amp in ("t3", "tp3") else 4), (name, amp, w)
+
+            # <proj| [F, T_pt] |0>: the zeroth-order coupling that sets the denominator
+            pq = pq_helper("fermi")
+            pq.set_left_operators([[models.PROJECTION[amp]]])
+            for h in m.H:
+                if h in ("f", "fp"):
+                    pq.add_commutator(1.0, [h], [amp])
+            pq.simplify()
+            f_ir = einsums.parse_ir(models._optimized(pq, "R", False, 0).to_strings("ir"))
+            f_names = externals([f_ir])
+            t_name = next(n for n in f_names if not n.startswith(("f", "fp")))
+
+            for seed in (1, 2):
+                rng = np.random.default_rng(1000 + seed)
+                eps = {c: rng.standard_normal(DIM[c]) + (2.0 if c in VIR else -2.0)
+                       for c in DIM}
+                D = sum((1 if c in VIR else -1) *
+                        eps[c].reshape([DIM[c] if k == ax else 1
+                                        for k in range(len(cls))])
+                        for ax, c in enumerate(cls))
+
+                # (1) Fock coupling: R_F = -D * t  ->  t = numerator / D
+                f_inp = fill(f_names, seed, None, eps)
+                r_f = interp(f_ir, f_inp, "R")
+                t_f = align(f_inp[t_name], list(f_names[t_name]), cls)
+                assert np.abs(r_f + D * t_f).max() < 1e-10 * np.abs(r_f).max(), \
+                    (name, amp, "Fock coupling is not -D*t")
+
+                # (2) pairing: E_[T] = -(1/w) sum(numerator * t)
+                inp = fill(names, seed, integrals(seed), eps)
+                conjugate(inp, names)
+                num = interp(num_ir, inp, "R")
+                tgt = [o for s in e_ir for o in s["operands"]
+                       if o["name"].startswith("t3")][0]
+                e = float(interp(e_ir, inp, "energy"))
+                dot = float(np.tensordot(align(num, cls, tgt["classes"]),
+                                         inp[tgt["name"]], axes=len(cls)))
+                assert abs(e + dot / w) < 1e-8 * max(1.0, abs(e)), \
+                    (name, amp, "numerator/energy pairing", e, -dot / w)
+
+                # (3) with t = numerator / D the correction is strictly negative
+                pt = dict(inp)
+                pt[tgt["name"]] = align(num / D, cls, list(names[tgt["name"]]))
+                e_pt = float(interp(e_ir, pt, "energy"))
+                assert e_pt < 0.0, (name, amp, "(T) correction is not negative", e_pt)
+
+        # (4) the blocks are independent: the fused energy is exactly their sum, so an
+        # on-the-fly consumer loses nothing by generating (and looping) them separately
+        left = [[l] for l in models.lambda_amps(name)]
+        fused = sorted(models._pt_pq(m, left, m.T_pt).strings())
+        parts = sorted(s for a in m.T_pt
+                       for s in models._pt_pq(m, left, [a]).strings())
+        assert fused == parts, (name, len(fused), len(parts))
+    print("test_perturbative_triples OK")
+
+
 def test_equations_ir():
     """equations_ir emits the energy and every residual of a model in ONE pq_graph, so
     intermediates are shared across equations (cross-equation CSE). Verify (1) every
@@ -1716,4 +1954,5 @@ if __name__ == "__main__":
     test_rdm_block_ir()
     test_equations_ir()
     test_ir_pairing()
+    test_perturbative_triples()
     print("\nall model tests passed")

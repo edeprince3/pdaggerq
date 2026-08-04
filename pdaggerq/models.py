@@ -45,6 +45,12 @@ Method families
   the matching pure-electron excitation. ``neo-ccsdt(eep)`` is the Pavoševic-style
   cluster (no electron t3). ``neo-ccd(ep)`` stays the minimal single-proton e-p model
   (tep11 only, no proton correlation).
+* perturbative triples: ``ccsd(t)``, ``neo-ccsd(t)`` -- the CCSD cluster plus a
+  non-iterative triples correction. The perturbative blocks are listed in the model's
+  ``T_pt`` (never in ``T``): eee for ``ccsd(t)``; eee, eep, epp and ppp for
+  ``neo-ccsd(t)`` (``neo-ccsd(t)-1p`` keeps eee and eep -- epp needs two protons and ppp
+  three). Built by :func:`pt_amplitude_graph` and :func:`pt_energy_graph`, not the
+  residual builders.
 * single-proton NEO: every ``vp`` model has a ``<name>-1p`` counterpart (e.g.
   ``neo-ccsd-1p``) auto-derived by dropping ``vp`` and the >=2-proton amplitudes -- the
   exact equations for one quantum proton. Bit-for-bit with the full model there (the
@@ -90,9 +96,11 @@ from .spin import get_spin_labels
 
 __all__ = [
     "Model", "MODELS", "PROJECTION", "EXCITATION", "H_ELEC", "H_NEO", "H_NEO_PP",
-    "model", "lambda_amps",
+    "H_FLUCTUATION",
+    "model", "lambda_amps", "pt_amps",
     "energy_graph",
     "residual_graph", "residual_ir", "spin_cases", "residual_blocks",
+    "pt_amplitude_graph", "pt_amplitude_ir", "pt_energy_graph", "pt_energy_ir",
     "lambda_graph", "lambda_ir",
     "gradient_graph", "gradient_ir",
     "hessian_graph", "hessian_ir",
@@ -147,20 +155,32 @@ H_NEO    = ("f", "v", "fp", "gep")        # single-proton NEO (no proton-proton 
 H_NEO_PP = ("f", "v", "fp", "gep", "vp")  # + proton-proton fluctuation (multi-proton)
 
 
-class Model:
-    """A CC model: Hamiltonian ``H`` and cluster amplitudes ``T`` (name tuples)."""
+#: the two-body fluctuation operators -- the perturbation W of the (T) construction.
+#: Everything else in a model's H (f, fp) is one-body and defines the zeroth order.
+H_FLUCTUATION = ("v", "gep", "vp")
 
-    def __init__(self, name, H, T):
+
+class Model:
+    """A CC model: Hamiltonian ``H``, cluster amplitudes ``T``, and optionally the
+    *perturbative* amplitudes ``T_pt`` (name tuples).
+
+    ``T`` is solved iteratively. ``T_pt`` is not part of the cluster operator at all:
+    each such amplitude is built once, non-iteratively, from the converged ``T`` and
+    added to the energy -- the ``(T)`` of CCSD(T). See :func:`pt_amplitude_graph`."""
+
+    def __init__(self, name, H, T, T_pt=()):
         self.name = name
         self.H = tuple(H)
         self.T = tuple(T)
+        self.T_pt = tuple(T_pt)
 
     def __repr__(self):
-        return f"Model({self.name!r}, T={list(self.T)})"
+        pt = f", T_pt={list(self.T_pt)}" if self.T_pt else ""
+        return f"Model({self.name!r}, T={list(self.T)}{pt})"
 
 
-def _m(name, H, T):
-    return name, Model(name, H, T)
+def _m(name, H, T, T_pt=()):
+    return name, Model(name, H, T, T_pt)
 
 
 MODELS = dict([
@@ -187,6 +207,16 @@ MODELS = dict([
     _m("neo-ccd(ep)",      H_NEO,    ["tep11"]),
     _m("neo-ccsdt(eep)",   H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11", "tep21"]),
     _m("neo-ccsdtq(eeep)", H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11", "tep21", "tep31"]),
+    # --- perturbative triples: the CCSD cluster plus a non-iterative triples
+    #     correction over every rank-3 block -- eee (t3), eep (tep21), epp (tep12) and
+    #     ppp (tp3). ppp needs three quantum protons to be nonzero and is expected to be
+    #     numerically tiny (the protonic basis is small, and same-species proton
+    #     correlation is weak), but it costs nothing to carry: it is dropped outright
+    #     from the -1p reduction, and elsewhere it is the smallest block of the four.
+    #     Leaving it out would be the only unbalanced omission in the rank-3 set. ---
+    _m("ccsd(t)",     H_ELEC,   ["t1", "t2"], ["t3"]),
+    _m("neo-ccsd(t)", H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11"],
+                                ["t3", "tep21", "tep12", "tp3"]),
 ])
 
 
@@ -209,7 +239,8 @@ def _single_proton(m):
     it wants the plain SI-free proton Fock rather than the dressed one."""
     H = tuple(h for h in m.H if h != "vp")
     T = [a for a in m.T if _proton_count(a) <= 1]
-    return Model(m.name + "-1p", H, T)
+    T_pt = [a for a in m.T_pt if _proton_count(a) <= 1]
+    return Model(m.name + "-1p", H, T, T_pt)
 
 
 # Register a "<name>-1p" single-proton counterpart for every model that actually carries
@@ -232,6 +263,12 @@ def lambda_amps(name):
     """The de-excitation (Lambda) amplitude names of a model: leading t -> l
     (t2 -> l2, tp1 -> lp1, tep11 -> lep11, ...)."""
     return [a.replace("t", "l", 1) for a in model(name).T]
+
+
+def pt_amps(name):
+    """The perturbative (non-iterative) amplitude names of a model -- the ``(T)`` blocks.
+    Empty for every model without a perturbative correction."""
+    return list(model(name).T_pt)
 
 
 #: default pq_graph optimization level for every generated equation. Full opt_level 6
@@ -272,7 +309,8 @@ def _dims_for(name):
     """Dimension table for the optimizer cost model: :data:`DIMS` with the nuclear
     occupied size set to the model's proton count, or None (dimension-blind legacy
     metric) for electron-only models."""
-    protons = max((_proton_count(a) for a in model(name).T), default=0)
+    m = model(name)
+    protons = max((_proton_count(a) for a in m.T + m.T_pt), default=0)
     if protons == 0:
         return None
     return {**DIMS, "O": float(protons)}
@@ -415,6 +453,124 @@ def residual_blocks(name, amplitude, df=True, opt_level=None, label="R",
     return {c: residual_ir(name, amplitude, df=df, opt_level=opt_level, label=label,
                            spin_case=c, nuclear_spin=nuclear_spin)
             for c in spin_cases(amplitude, nuclear_spin)}
+
+
+def _fluctuation(m):
+    """The two-body (perturbation) part of a model's Hamiltonian, in H order."""
+    return [h for h in m.H if h in H_FLUCTUATION]
+
+
+def _pt_pq(m, left, amps):
+    """pq_helper holding ``<left| [W, amps] |0>``, first order in the two-body
+    fluctuation W and in ``amps``. Both perturbative equations are this shape."""
+    pq = pq_helper("fermi")
+    pq.set_left_operators(left)
+    for w in _fluctuation(m):
+        for a in amps:
+            pq.add_commutator(1.0, [w], [a])
+    pq.simplify()
+    return pq
+
+
+def pt_amplitude_graph(name, amplitude, df=True, opt_level=None, label="R"):
+    """Optimized pq_graph for the NUMERATOR of a perturbative amplitude -- the ``(T)``
+    driver ``<proj(amplitude)| [W, T] |0>``, first order in the two-body fluctuation
+    ``W`` (:data:`H_FLUCTUATION`) and in the converged cluster ``T``.
+
+    The amplitude is that numerator over the orbital-energy denominator::
+
+        t = R / D        D = sum(e_vir) - sum(e_occ)   (positive)
+
+    each index contributing the diagonal Fock element of *its own* species, so the
+    NEO blocks read (lower case = electron, upper case = proton)::
+
+        eee (t3)     e_a + e_b + e_c - e_i - e_j - e_k
+        eep (tep21)  e_a + e_b + E_A - e_i - e_j - E_I
+        epp (tep12)  e_a + E_A + E_B - e_i - E_I - E_J
+        ppp (tp3)    E_A + E_B + E_C - E_I - E_J - E_K
+
+    That is the same denominator convention this library's *doubles* residuals use
+    (``<proj|[F, T]|0> = -D t``, so ``R = 0`` gives ``t = rest/D``), and it is verified
+    against a pdaggerq-derived ``[F, T_pt]`` in
+    ``models_test.test_perturbative_triples`` rather than assumed.
+
+    The denominator is the only thing not emitted: like every ``(T)``, this presumes a
+    **(semi)canonical reference**, where the off-diagonal ``[f, T_pt]`` coupling that
+    would make the equation implicit in the triples is absent. That is what makes the
+    correction non-iterative, and it is what lets a consumer never store the triples --
+    see :func:`pt_energy_graph`.
+
+    Singles (``t1``/``tp1``) are passed to the commutator for uniformity but cannot
+    reach a rank-3 projection, so they contribute nothing; the derivation drops them."""
+    opt_level = _opt_level_for(name, opt_level)
+    m = model(name)
+    if amplitude not in m.T_pt:
+        raise ValueError(f"model {name!r} has no perturbative amplitude {amplitude!r}; "
+                         f"T_pt={list(m.T_pt)}")
+    if amplitude not in PROJECTION:
+        raise KeyError(f"no projection defined for amplitude {amplitude!r}")
+    pq = _pt_pq(m, [[PROJECTION[amplitude]]], m.T)
+    return _optimized(pq, label, df, opt_level, _dims_for(name))
+
+
+def pt_amplitude_ir(name, amplitude, df=True, opt_level=None, label="R"):
+    """The perturbative-amplitude numerator as ``to_strings("ir")`` JSONL lines."""
+    return pt_amplitude_graph(name, amplitude, df=df, opt_level=opt_level,
+                              label=label).to_strings("ir")
+
+
+def pt_energy_graph(name, amplitude=None, df=True, opt_level=None, label="energy"):
+    """Optimized pq_graph for the perturbative-triples energy ``<0| L [W, T_pt] |0>``,
+    with ``L`` the de-excitation operators of the model (``lambda_amps``). This is the
+    standard ``(T)``: the multipliers are *not* solved for, the consumer feeds
+    ``l1 = t1^dagger``, ``l2 = t2^dagger``, ... The ``L1`` term is what makes it ``(T)``
+    rather than ``[T]``.
+
+    ``amplitude=None`` (the default) sums every perturbative block into one equation.
+    Passing one block name emits only that block's contribution -- the energy is linear
+    in ``T_pt``, so the blocks sum to the same total.
+
+    **Per-block is what an on-the-fly implementation wants.** The triples are never
+    stored: for one occupied index tuple the consumer builds that slice of the numerator
+    (:func:`pt_amplitude_graph`), divides by the denominator, contracts it straight into
+    this energy expression, and discards it. Both equations for a block carry the same
+    external indices in the same order (the block's :data:`PROJECTION`), so the slice
+    built by one is the slice consumed by the other -- ``t3`` here is that slice, not a
+    global tensor. Generating the blocks separately keeps those three loops independent.
+
+    The pairing between the two equations is exact and fixed::
+
+        E_[T] = -(1/w) sum(R * t)  =  -(1/w) sum(R^2 / D)   < 0
+
+    over the block's full (unrestricted) index range, ``w`` the product of the factorials
+    of the index-group sizes -- 36 for eee and ppp, 4 for eep and epp. ``E_[T]`` is the ``L2``
+    part; the ``L1`` term the emitted equation also carries is what makes it ``(T)``
+    rather than ``[T]``. All of this is checked numerically in
+    ``models_test.test_perturbative_triples``.
+
+    One naming caveat for the fused (``amplitude=None``) NEO form: eep and epp are both
+    emitted as ``t3_ep`` and are told apart only by their index classes (``vvVOoo`` vs
+    ``vVVOOo``) -- the same convention the ``neo-ccsdt`` residuals already use. Per-block
+    generation sidesteps it."""
+    opt_level = _opt_level_for(name, opt_level)
+    m = model(name)
+    if not m.T_pt:
+        raise ValueError(f"model {name!r} has no perturbative correction (T_pt is empty)")
+    if amplitude is None:
+        amps = list(m.T_pt)
+    elif amplitude in m.T_pt:
+        amps = [amplitude]
+    else:
+        raise ValueError(f"model {name!r} has no perturbative amplitude {amplitude!r}; "
+                         f"T_pt={list(m.T_pt)}")
+    pq = _pt_pq(m, [[l] for l in lambda_amps(name)], amps)
+    return _optimized(pq, label, df, opt_level, _dims_for(name))
+
+
+def pt_energy_ir(name, amplitude=None, df=True, opt_level=None, label="energy"):
+    """The perturbative-triples energy as ``to_strings("ir")`` JSONL lines."""
+    return pt_energy_graph(name, amplitude, df=df, opt_level=opt_level,
+                           label=label).to_strings("ir")
 
 
 def lambda_graph(name, amplitude, df=True, opt_level=None, label="R"):
