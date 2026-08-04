@@ -196,31 +196,6 @@ struct LinkTracker {
             // remove all linkages that have no track terms
             remove_link |= link_infos.empty();
 
-            // ensure that all tracked link infos for this linkage have consistent permutations of their lines so that connectivity can be compared meaningfully
-            perm_list ref_perms;
-            for (auto &info : link_infos) {
-                // ensure the lines within each tracked link info are consistently permuted
-                perm_list tracked_perms;
-                if (info.term->perm_type() != 0) {
-                    set<string> seen_lines;
-                    for (auto &line : info.link->lines()) {
-                        seen_lines.insert(line.label_);
-                    }                    
-                    for (auto &perm_pair : info.term->term_perms()) {
-                        if (seen_lines.find(perm_pair.first) != seen_lines.end()) {
-                            tracked_perms.push_back(perm_pair);
-                        } else if (seen_lines.find(perm_pair.second) != seen_lines.end()) {
-                            tracked_perms.emplace_back(perm_pair.second, perm_pair.first);
-                        }
-                    }
-                }
-
-                if (ref_perms.empty()) ref_perms = tracked_perms;
-                else if (ref_perms != tracked_perms) remove_link = true;
-                if (remove_link) break;
-            }
-            
-
             if (!remove_link) {
                 new_link_track_map.insert({link, link_infos});
                 new_link_declare_map.insert({link, link_declare_map_[link]});
