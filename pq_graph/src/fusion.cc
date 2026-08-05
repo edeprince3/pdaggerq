@@ -196,31 +196,6 @@ struct LinkTracker {
             // remove all linkages that have no track terms
             remove_link |= link_infos.empty();
 
-            // ensure that all tracked link infos for this linkage have consistent permutations of their lines so that connectivity can be compared meaningfully
-            perm_list ref_perms;
-            for (auto &info : link_infos) {
-                // ensure the lines within each tracked link info are consistently permuted
-                perm_list tracked_perms;
-                if (info.term->perm_type() != 0) {
-                    set<string> seen_lines;
-                    for (auto &line : info.link->lines()) {
-                        seen_lines.insert(line.label_);
-                    }                    
-                    for (auto &perm_pair : info.term->term_perms()) {
-                        if (seen_lines.find(perm_pair.first) != seen_lines.end()) {
-                            tracked_perms.push_back(perm_pair);
-                        } else if (seen_lines.find(perm_pair.second) != seen_lines.end()) {
-                            tracked_perms.emplace_back(perm_pair.second, perm_pair.first);
-                        }
-                    }
-                }
-
-                if (ref_perms.empty()) ref_perms = tracked_perms;
-                else if (ref_perms != tracked_perms) remove_link = true;
-                if (remove_link) break;
-            }
-            
-
             if (!remove_link) {
                 new_link_track_map.insert({link, link_infos});
                 new_link_declare_map.insert({link, link_declare_map_[link]});
@@ -361,28 +336,32 @@ struct LinkMerger {
                     if (link_ratio == 0.0) link_ratio = cur_ratio;
                     else if (fabs(cur_ratio - link_ratio) > 1e-10) { same_connectivity = false; break; }
 
-                    // replace the replacement vertex with the trunc vertex
-                    VertexPtr term1_link = trunc_term1.term_linkage()->replace(dummy, link1_trunc).first;
-                    VertexPtr term2_link = trunc_term2.term_linkage()->replace(dummy, link1_trunc).first;
+                    // check that the replacement of the trunc term with the other trunc term gives the same connectivity
+                    std::pair<VertexPtr, bool> term1_replacement, term2_replacement;
+                    VertexPtr term1_link, term2_link;
 
-                    term1_link = link1_term->lhs() + term1_link;
-                    term2_link = link2_term->lhs() + term2_link;
+                    // replace the replacement vertex with the trunc vertex
+                    term1_replacement = trunc_term1.term_linkage()->replace(dummy, link1_trunc);
+                    term2_replacement = trunc_term2.term_linkage()->replace(dummy, link1_trunc);
+                    if (!term1_replacement.second || !term2_replacement.second) { same_connectivity = false; break; }
+
+                    term1_link = link1_term->lhs() + term1_replacement.first;
+                    term2_link = link2_term->lhs() + term2_replacement.first;
 
                     // ensure both the links have the same exact lines
                     if (term1_link->lines() != term2_link->lines()) { same_connectivity = false; break; }
-
                     if (*term1_link != *term2_link) { same_connectivity = false; break; }
 
                     // now check the other trunc term
-                    term1_link = trunc_term1.term_linkage()->replace(dummy, link2_trunc).first;
-                    term2_link = trunc_term2.term_linkage()->replace(dummy, link2_trunc).first;
+                    term1_replacement = trunc_term1.term_linkage()->replace(dummy, link2_trunc);
+                    term2_replacement = trunc_term2.term_linkage()->replace(dummy, link2_trunc);
+                    if (!term1_replacement.second || !term2_replacement.second) { same_connectivity = false; break; }
 
-                    term1_link = link1_term->lhs() + term1_link;
-                    term2_link = link2_term->lhs() + term2_link;
+                    term1_link = link1_term->lhs() + term1_replacement.first;
+                    term2_link = link2_term->lhs() + term2_replacement.first;
 
                     // ensure both the links have the same exact lines
                     if (term1_link->lines() != term2_link->lines()) { same_connectivity = false; break; }
-
                     if (*term1_link != *term2_link) { same_connectivity = false; break; }
 
                 }
@@ -515,54 +494,33 @@ struct LinkMerger {
             if (link) sorted_links.push_back(link);
         std::sort(sorted_links.begin(), sorted_links.end(), [](const LinkagePtr &a, const LinkagePtr &b) { return a->id() > b->id(); });
 
-        // now prune between the merge links
+        // Select complete, pairwise-disjoint fusion groups.  A group owns all
+        // terms tracked by its target and merge links; groups sharing a Term*
+        // cannot both be applied because merge() rewrites target terms and
+        // nulls merge-term LHSs in place.
         unique_terms.clear();
         new_link_merge_map.clear();
-        unordered_set<LinkagePtr, LinkageHash, LinkageEqual> visited_links;
-        for (auto &ref_link: sorted_links) {
-            auto &ref_merge_links = link_merge_map_[ref_link];
-            auto ref_terms = extract_terms(ref_link);
-            for (auto &ref_merge_link: ref_merge_links) {
-                auto merge_terms = extract_terms(ref_merge_link);
-                ref_terms.insert(merge_terms.begin(), merge_terms.end());
+        for (auto &target_link: sorted_links) {
+            auto &merge_links = link_merge_map_[target_link];
+            if (merge_links.empty()) continue;
+
+            set<Term*> group_terms = extract_terms(target_link);
+            for (auto &merge_link: merge_links) {
+                auto merge_terms = extract_terms(merge_link);
+                group_terms.insert(merge_terms.begin(), merge_terms.end());
             }
 
-            unique_terms.insert(ref_terms.begin(), ref_terms.end());
-            visited_links.insert(ref_link);
-
-            // skip if no merge links
-            if (ref_merge_links.empty()) continue;
-
-            // add to new link merge map
-            new_link_merge_map[ref_link] = ref_merge_links;
-
-            for (auto &comp_link : sorted_links) {
-                auto &comp_merge_links = link_merge_map_[comp_link];
-
-                // skip if link has been visited
-                if (visited_links.find(comp_link) != visited_links.end()) continue;
-
-                if (comp_merge_links.empty()) continue;
-
-                auto comp_terms = extract_terms(comp_link);
-                for (auto &comp_merge_link: comp_merge_links) {
-                    auto merge_terms = extract_terms(comp_merge_link);
-                    comp_terms.insert(merge_terms.begin(), merge_terms.end());
-                }
-
-                // check if any of the terms are unique
-                bool unique = false;
-                for (auto &term: comp_terms) {
-                    unique = unique_terms.find(term) == unique_terms.end();
-                    if (!unique) break;
-                }
-
-                // if unique, add to new link merge map
-                if (unique) {
-                    new_link_merge_map[comp_link] = comp_merge_links;
-                    unique_terms.insert(comp_terms.begin(), comp_terms.end());
+            bool disjoint = true;
+            for (Term *term: group_terms) {
+                if (unique_terms.find(term) != unique_terms.end()) {
+                    disjoint = false;
+                    break;
                 }
             }
+            if (!disjoint) continue;
+
+            new_link_merge_map[target_link] = merge_links;
+            unique_terms.insert(group_terms.begin(), group_terms.end());
         }
 
         // overwrite the link merge map

@@ -117,6 +117,10 @@ namespace pdaggerq {
             }
         }
 
+        if (options.contains("reindex_temps")) {
+            reindex_temps_ = options["reindex_temps"].cast<bool>();
+        }
+
         if(options.contains("max_temps")) {
             max_temps_ = (size_t) options["max_temps"].cast<long>();
         }
@@ -354,6 +358,9 @@ namespace pdaggerq {
         cout << "                  // 4: reordering, substitution, and separation; unused intermediates are removed (pruning)" << endl;
         cout << "                  // 5: reordering, substitution, separation, pruning, and merging of equivalent terms" << endl;
         cout << "                  // 6: reordering, substitution, separation, pruning, merging, and fusion of intermediates (default)" << endl;
+
+        cout << "    reindex_temps: " << (reindex_temps_ ? "true" : "false")
+             << "  // whether to reindex intermediates in order of first appearance in the final equations (default: true)" << endl;
         
         cout << "    permute_eri: " << (Vertex::permute_eri_ ? "true" : "false")
              << "  // whether to permute two-electron integrals to common order (default: true)" << endl;

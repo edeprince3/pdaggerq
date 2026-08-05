@@ -139,7 +139,7 @@ namespace pdaggerq {
             // if the link vector is already generated and does not need to be regenerated, return it
             if (!regenerate && !result.empty())
                 return result;
-	}
+	    }
 
         // else regenerate the result vector
         result.clear();
@@ -164,14 +164,14 @@ namespace pdaggerq {
             result.push_back(left_);
         }
 
-        // add operators from the right (excluding additions for now)
-        if (right_->is_linked() && !right_->empty()) {
-            if (!right_->is_expandable() && !fully_expand) {
-                result.push_back(right_); // if not fully expanding, add if an intermediate
-            } else {
-                const vertex_vector &right_vec = right_->link_vector(regenerate, fully_expand);
-                result.insert(result.end(), right_vec.begin(), right_vec.end());
-            }
+        // add operators from the right only if fully expanding. 
+        // Otherwise, just add the right vertex if it is not empty and not a constant 1.0
+        // Note that fully expanding in this way destroys associative property of the linkage.
+        // For example, A*(B*C) becomes A*B*C. To preserve associativity, we cannot separate (B*C) into its components. 
+        // However, if we are fully expanding, we can treat the linkage as a flat list of operators.
+        if (fully_expand && right_->is_linked() && !right_->empty()) {
+            const vertex_vector &right_vec = right_->link_vector(regenerate, fully_expand);
+            result.insert(result.end(), right_vec.begin(), right_vec.end());
         } else if (!right_->empty() && (fabs(right_->value() - 1.0) > 1e-8)){
             result.push_back(right_);
         }
@@ -261,12 +261,13 @@ namespace pdaggerq {
         return scalars;
     }
 
-    pair<VertexPtr, bool> Linkage::replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex) const {
+    pair<VertexPtr, bool> Linkage::replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex, bool exact_match) const {
 
         if (!target_vertex || !new_vertex) return {shallow(), false};
 
 
         bool replaced = *target_vertex == *this;
+        if (exact_match && replaced) replaced = target_vertex->lines() == lines();
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
         if (depth() < target_vertex->depth())
@@ -274,14 +275,14 @@ namespace pdaggerq {
 
         VertexPtr new_left = left_->shallow(), new_right = right_->shallow();
         if (left_->is_linked()) {
-            const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex);
+            const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex, exact_match);
             if (left_found) {
                 new_left = replaced_left;
                 replaced = true;
             }
         }
         if (right_->is_linked()) {
-            const auto &[replaced_right, right_found] = as_link(right_)->replace(target_vertex, new_vertex);
+            const auto &[replaced_right, right_found] = as_link(right_)->replace(target_vertex, new_vertex, exact_match);
             if (right_found) {
                 new_right = replaced_right;
                 replaced = true;
@@ -473,90 +474,132 @@ namespace pdaggerq {
 
     linkage_vector Linkage::permutations(bool regenerate) const {
 
-        // initialize the result vector
-
+        // --- Early return from cache ---
         linkage_vector result;
         {
-            // Lock the mutex for this scope
             std::lock_guard<std::mutex> lock(mtx_);
             result = permutations_;
-
-            // if the result vector is already generated and does not need to be regenerated, return it
             if (!regenerate && !result.empty())
                 return result;
-
             if (empty()) {
                 result.clear();
                 return result;
             }
         }
 
+        // Temps have fixed structure; only the identity permutation applies
+        if (is_temp())
+            return {as_link(shallow())};
 
-        // initialize the result vector with the identity permutation
-        result = {as_link(shallow())};
-
-        // determine depth to reserve space for the result vector (worst case is 2^(depth) permutations)
-        size_t depth = this->depth();
-        size_t reserve_size = 1ULL << std::min(cache_depth_, depth); // reserve space based on depth, but cap it at cache_depth_
-        result.reserve(reserve_size);
-        
-        // only cache permutations if caching is enabled and depth is less than or equal to cache_depth_ 
-        bool cache_permutations = cache_elements_ && cache_depth_ >= depth;
-
-        // do not generate permutations for temps (their structure is fixed)
-        if (is_temp()) return result;
-
+        // Degenerate: one side is empty — delegate to the non-empty side
         if (left_->empty() || right_->empty()) {
-            if (left_->empty() && right_->is_linked()) {
-                // return permutations of the right vertex if the left vertex is empty
-                result = as_link(right_->shallow())->permutations();
-            } else if (right_->empty() && left_->is_linked()) {
-                // return permutations of the left vertex if the right vertex is empty
-                result = as_link(left_->shallow())->permutations();
-            }
-
-            // return the identity permutation if one of the vertices is empty
+            if (left_->empty() && right_->is_linked())
+                result = as_link(right_)->permutations(regenerate);
+            else if (right_->empty() && left_->is_linked())
+                result = as_link(left_)->permutations(regenerate);
+            else
+                result = {as_link(shallow())};
             return result;
         }
 
-        // additions are special cases, so we need to handle them separately
-        if (is_addition()) {
-            // only consider the best permutation of the left and right vertices
-            const LinkagePtr &left_perm = as_link(left_)->best_permutation();
-            const LinkagePtr &right_perm = as_link(right_)->best_permutation();
+        // --- BET-based equivalence saturation via commutativity ---
+        //
+        // For each binary node, recursively collect all structurally equivalent
+        // BETs for the left and right subtrees.  Then, for every (L, R) pair,
+        // emit both L op R and R op L (commutativity).  Deduplication is done
+        // by the base_name string so that structurally identical trees produced
+        // by different derivation paths appear only once.
 
-            // check if the left and right vertices are the same
-            bool same_left_right = *left_perm == *right_perm;
+        // 1. Collect equivalent BET variants for each subtree
+        vertex_vector left_vp, right_vp;
 
-            // if the left and right vertices are not the same, add the left and right permutations
-            if (!same_left_right) {
-                result.push_back(as_link(left_perm + right_perm));
-                result.push_back(as_link(right_perm + left_perm));
+        const bool is_add = is_addition();
+
+        if (left_->is_linked()) {
+            if (!is_add) {
+                const linkage_vector &lperms = as_link(left_)->permutations(regenerate);
+                left_vp.insert(left_vp.end(), lperms.begin(), lperms.end());
+            } else {
+                // for additions, we only add the best permutation of the left vertex to avoid generating duplicate permutations
+                left_vp.push_back(as_link(left_)->best_permutation());
             }
-
-            // store or drop the cache -- all under the lock (see the general case below).
-            {
-                std::lock_guard<std::mutex> lock(mtx_);
-                if (cache_permutations) permutations_ = result;
-                else permutations_.clear();
-            }
-
-            return result;
+        } else {
+            left_vp.push_back(left_);
         }
 
-        // generate all permutations of the link vector
-        const vertex_vector &link_vec = link_vector(regenerate);
-        vector<size_t> idxs(link_vec.size());
-        std::iota(idxs.begin(), idxs.end(), 0);
-
-        // generate all permutations of the link vector
-        while (std::next_permutation(idxs.begin(), idxs.end())) {
-            // generate this permutation
-            result.push_back(link(link_vec, idxs));
+        if (right_->is_linked()) {
+            if (!is_add) {
+                const linkage_vector &rperms = as_link(right_)->permutations(regenerate);
+                right_vp.insert(right_vp.end(), rperms.begin(), rperms.end());
+            } else {
+                // for additions, we only add the best permutation of the right vertex to avoid generating duplicate permutations
+                right_vp.push_back(as_link(right_)->best_permutation());
+            }
+        } else {
+            right_vp.push_back(right_);
         }
 
-        // store or drop the cache -- all under the lock (the old `else if
-        // (!permutations_.empty())` read the member outside the lock, racing with forget()).
+        // 2. Combine child variants applying commutativity at this node        
+        linkage_set seen;
+        seen.reserve(left_vp.size() * right_vp.size() * 2); // reserve space for the seen set to avoid rehashing
+        const size_t max_pairs = left_vp.size() * right_vp.size() * 2;
+        seen.reserve(max_pairs);
+        result.reserve(max_pairs);
+
+        auto try_emplace = [&](const VertexPtr &l, const VertexPtr &r, bool do_add) {
+            MutableLinkagePtr new_link = as_link(do_add ? (l + r) : (l * r));
+            new_link->copy_misc(*this);
+            new_link->is_addition() = do_add;
+            if (seen.insert(new_link).second)
+                result.push_back(new_link);
+        };
+
+        for (const auto &L : left_vp) {
+            for (const auto &R : right_vp) {
+                // add original order
+                try_emplace(L, R, is_add); 
+
+                // add commuted order (commutativity)
+                try_emplace(R, L, is_add);
+
+                if (is_add) continue; 
+                // consider associativity and distributivity for multiplication
+
+                // add associative order for left (associativity)
+                if (L->is_linked() && !L->is_addition() && !L->is_temp()) {
+                    // (L1 * L2) * R => L1 * (L2 * R)
+                    try_emplace(as_link(L)->left_, as_link(L)->right_ * R, false);
+                    //R * (L1 * L2) => (R * L1) * L2
+                    try_emplace(R * as_link(L)->left_, as_link(L)->right_, false);
+                }
+                // add associative order for right (associativity)
+                if (R->is_linked() && !R->is_addition() && !R->is_temp()) {
+                    // L * (R1 * R2) => (L * R1) * R2
+                    try_emplace(L * as_link(R)->left_, as_link(R)->right_, false);
+                    // (R1 * R2) * L => R1 * (R2 * L)
+                    try_emplace(as_link(R)->left_, as_link(R)->right_ * L, false);
+                }
+
+                // test distributivity for addition (distributivity)
+                if (L->is_addition() && !L->is_temp()) {
+                    // (L1 + L2) * R => (L1 * R) + (L2 * R)
+                    try_emplace(as_link(L)->left_ * R, as_link(L)->right_ * R, true);
+                    // R * (L1 + L2) => (R * L1) + (R * L2)
+                    try_emplace(R * as_link(L)->left_, R * as_link(L)->right_, true);
+                }
+
+                if (R->is_addition() && !R->is_temp()) {
+                    // L * (R1 + R2) => (L * R1) + (L * R2)
+                    try_emplace(L * as_link(R)->left_, L * as_link(R)->right_, true);
+                    // (R1 + R2) * L => (R1 * L) + (R2 * L)
+                    try_emplace(as_link(R)->left_ * L, as_link(R)->right_ * L, true);
+                }
+            }
+        }
+
+        // Store or discard the cache under the lock
+        const size_t depth = this->depth();
+        const bool cache_permutations = cache_elements_ && cache_depth_ >= depth;
         {
             std::lock_guard<std::mutex> lock(mtx_);
             if (cache_permutations) permutations_ = result;
@@ -592,7 +635,25 @@ namespace pdaggerq {
                 scaling_check = mems.compare(best_mems);
                 make_best = scaling_check == scaling_map::this_better;
 
-                // if the mems are the same, check the lines
+                // if mems are the same, prefer linear chains
+                if (!make_best && scaling_check == scaling_map::this_same) {
+                    make_best = perm->right_->depth() < best_perm->right_->depth();
+                    bool same_depth = perm->right_->depth() == best_perm->right_->depth();
+                    VertexPtr left_perm = perm->left_;
+                    VertexPtr left_best = best_perm->left_;
+                    while (same_depth && !make_best) {
+                        make_best = left_perm->depth() < left_best->depth();
+                        same_depth = left_perm->depth() == left_best->depth();
+                        if (left_perm->is_linked() && left_best->is_linked()) {
+                            left_perm = as_link(left_perm)->left_;
+                            left_best = as_link(left_best)->left_;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                // if the right vertex expandability is the same, prefer the permutation with less dimensions (i.e., less lines)
                 if (!make_best && scaling_check == scaling_map::this_same) {
                     make_best = perm->lines() < best_perm->lines();
                 }
