@@ -463,8 +463,6 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 size_t num_subs = 0; // number of substitutions made
 
                 for (const auto &eq_name: eq_keys) { // iterate over equations in parallel
-                    if (eq_name == "scalar" && link_to_sub->type() == "temp") continue;
-                    
                     // get equation
                     Equation &equation = equations_[eq_name]; // get equation                    
                     size_t this_subs = equation.substitute(link_to_sub, allow_equality);
@@ -843,7 +841,7 @@ bool Term::substitute(const LinkagePtr &linkage, const linkage_vector &graph_per
             MutableVertexPtr new_link = found_linkage->shallow();
             as_link(new_link)->copy_misc(linkage);
             new_term_linkage = as_link(new_term_linkage->replace(found_linkage, new_link).first);
-        }
+        }        
 
         // the score is only multiset-determined for the general permutation branch
         const bool score_is_reusable = !new_term_linkage->is_temp() && !new_term_linkage->is_addition();

@@ -261,12 +261,13 @@ namespace pdaggerq {
         return scalars;
     }
 
-    pair<VertexPtr, bool> Linkage::replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex) const {
+    pair<VertexPtr, bool> Linkage::replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex, bool exact_match) const {
 
         if (!target_vertex || !new_vertex) return {shallow(), false};
 
 
         bool replaced = *target_vertex == *this;
+        if (exact_match && replaced) replaced = target_vertex->lines() == lines();
         if (replaced) return {new_vertex, true}; // this is the target vertex, so replace it
 
         if (depth() < target_vertex->depth())
@@ -274,14 +275,14 @@ namespace pdaggerq {
 
         VertexPtr new_left = left_->shallow(), new_right = right_->shallow();
         if (left_->is_linked()) {
-            const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex);
+            const auto &[replaced_left, left_found] = as_link(left_)->replace(target_vertex, new_vertex, exact_match);
             if (left_found) {
                 new_left = replaced_left;
                 replaced = true;
             }
         }
         if (right_->is_linked()) {
-            const auto &[replaced_right, right_found] = as_link(right_)->replace(target_vertex, new_vertex);
+            const auto &[replaced_right, right_found] = as_link(right_)->replace(target_vertex, new_vertex, exact_match);
             if (right_found) {
                 new_right = replaced_right;
                 replaced = true;
