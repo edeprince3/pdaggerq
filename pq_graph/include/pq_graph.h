@@ -113,6 +113,9 @@ namespace pdaggerq {
          */
         size_t opt_level_ = 6;
 
+        // whether to reindex intermediates in order of first appearance in the final equations
+        bool reindex_temps_ = true;
+
         /// number of threads to use
         int nthreads_ = 1;
 

@@ -464,7 +464,7 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
 
                 for (const auto &eq_name: eq_keys) { // iterate over equations in parallel
                     // get equation
-                    Equation &equation = equations_[eq_name]; // get equation
+                    Equation &equation = equations_[eq_name]; // get equation                    
                     size_t this_subs = equation.substitute(link_to_sub, allow_equality);
                     bool madeSub = this_subs > 0;
                     if (madeSub) {
@@ -841,7 +841,7 @@ bool Term::substitute(const LinkagePtr &linkage, const linkage_vector &graph_per
             MutableVertexPtr new_link = found_linkage->shallow();
             as_link(new_link)->copy_misc(linkage);
             new_term_linkage = as_link(new_term_linkage->replace(found_linkage, new_link).first);
-        }
+        }        
 
         // the score is only multiset-determined for the general permutation branch
         const bool score_is_reusable = !new_term_linkage->is_temp() && !new_term_linkage->is_addition();
@@ -899,9 +899,9 @@ bool Term::is_compatible(const LinkagePtr &linkage) const {
     // scaling of the linkage cannot be more than the term
     if (linkage->netscales().first > flop_map()) return false;
 
-    // get total vector of linkage vertices (without expanding nested linkages)
-    vertex_vector link_list = linkage->link_vector();
-    vertex_vector term_list = term_linkage()->link_vector();
+    // get total vector of vertices
+    vertex_vector link_list = linkage->vertices();
+    vertex_vector term_list = term_linkage()->vertices();
 
     // sort lists by name
     sort(link_list.begin(), link_list.end(), [](const VertexPtr &a, const VertexPtr &b) {
