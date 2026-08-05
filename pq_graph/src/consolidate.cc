@@ -397,9 +397,11 @@ PQGraph PQGraph::clone() const {
 
 void PQGraph::reindex(size_t passes) {
 
+    if (!reindex_temps_) return;
+    
     print_guard guard;
     if (print_level_ <= 1)
-        guard.lock();
+        guard.lock();    
 
     // reset saved linkages and temp counts
     saved_linkages_.clear();
