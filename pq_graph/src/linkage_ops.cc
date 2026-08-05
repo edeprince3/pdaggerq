@@ -562,37 +562,95 @@ namespace pdaggerq {
                 // add commuted order (commutativity)
                 try_emplace(R, L, is_add);
 
-                if (is_add) continue; 
-                // consider associativity and distributivity for multiplication
+                // decompose the left and right vertices
+                VertexPtr L1, L2, R1, R2;
 
-                // add associative order for left (associativity)
-                if (L->is_linked() && !L->is_addition() && !L->is_temp()) {
-                    // (L1 * L2) * R => L1 * (L2 * R)
-                    try_emplace(as_link(L)->left_, as_link(L)->right_ * R, false);
-                    //R * (L1 * L2) => (R * L1) * L2
-                    try_emplace(R * as_link(L)->left_, as_link(L)->right_, false);
-                }
-                // add associative order for right (associativity)
-                if (R->is_linked() && !R->is_addition() && !R->is_temp()) {
-                    // L * (R1 * R2) => (L * R1) * R2
-                    try_emplace(L * as_link(R)->left_, as_link(R)->right_, false);
-                    // (R1 * R2) * L => R1 * (R2 * L)
-                    try_emplace(as_link(R)->left_, as_link(R)->right_ * L, false);
-                }
+                // if neither L nor R are linked, we cannot decompose them further, so we skip to the next pair
+                bool L_decomposable = L->is_linked() && !L->is_temp();
+                bool R_decomposable = R->is_linked() && !R->is_temp();
+                if (!L_decomposable && !R_decomposable) continue;
 
-                // test distributivity for addition (distributivity)
-                if (L->is_addition() && !L->is_temp()) {
-                    // (L1 + L2) * R => (L1 * R) + (L2 * R)
-                    try_emplace(as_link(L)->left_ * R, as_link(L)->right_ * R, true);
-                    // R * (L1 + L2) => (R * L1) + (R * L2)
-                    try_emplace(R * as_link(L)->left_, R * as_link(L)->right_, true);
+                // if L is decomposable, decompose it into L1 and L2
+                if (L_decomposable) {
+                    L1 = as_link(L)->left_;
+                    L2 = as_link(L)->right_;
+                }
+                // if R is decomposable, decompose it into R1 and R2
+                if (R_decomposable) {
+                    R1 = as_link(R)->left_;
+                    R2 = as_link(R)->right_;
                 }
 
-                if (R->is_addition() && !R->is_temp()) {
-                    // L * (R1 + R2) => (L * R1) + (L * R2)
-                    try_emplace(L * as_link(R)->left_, L * as_link(R)->right_, true);
-                    // (R1 + R2) * L => (R1 * L) + (R2 * L)
-                    try_emplace(as_link(R)->left_ * L, as_link(R)->right_ * L, true);
+                // now we can apply associativity and distributivity to generate new permutations
+                if (is_add) {
+                    L_decomposable &= as_link(L)->is_addition();
+                    R_decomposable &= as_link(R)->is_addition();
+                    // for addition, we only consider associativity with other additions
+                    if (L_decomposable) {
+                        // (L1 + L2) + R => L1 + (L2 + R)
+                        try_emplace(L1, L2 + R, true);
+                        // R + (L1 + L2) => (R + L1) + L2
+                        try_emplace(R + L1, L2, true);
+                    }
+                    if (R_decomposable) {
+                        // L + (R1 + R2) => (L + R1) + R2
+                        try_emplace(L + R1, R2, true);
+                        // (R1 + R2) + L => R1 + (R2 + L)
+                        try_emplace(R1, R2 + L, true);
+                    }
+                    if (L_decomposable && R_decomposable) {
+                        // (L1 + L2) + (R1 + R2) => (L1 + R1) + (L2 + R2)
+                        try_emplace(L1 + R1, L2 + R2, true);
+                        // (R1 + R2) + (L1 + L2) => (R1 + L1) + (R2 + L2)
+                        try_emplace(R1 + L1, R2 + L2, true);
+                        // (L1 + L2) + (R1 + R2) => (L1 + R2) + (L2 + R1)
+                        try_emplace(L1 + R2, L2 + R1, true);
+                        // (R1 + R2) + (L1 + L2) => (R1 + L2) + (R2 + L1)
+                        try_emplace(R1 + L2, R2 + L1, true);
+                    }
+                
+                } else {
+                    // for multiplication, we consider both associativity and distributivity
+                    L_decomposable &= !as_link(L)->is_addition();
+                    R_decomposable &= !as_link(R)->is_addition();
+                    if (L_decomposable) {
+                        // (L1 * L2) * R => L1 * (L2 * R)
+                        try_emplace(L1, L2 * R, false);
+                        // R * (L1 * L2) => (R * L1) * L2
+                        try_emplace(R * L1, L2, false);
+                    }
+                    if (R_decomposable) {
+                        // L * (R1 * R2) => (L * R1) * R2
+                        try_emplace(L * R1, R2, false);
+                        // (R1 * R2) * L => R1 * (R2 * L)
+                        try_emplace(R1, R2 * L, false);
+                    }
+                    if (L_decomposable && R_decomposable) {
+                        // (L1 * L2) * (R1 * R2) => (L1 * R1) * (L2 * R2)
+                        try_emplace(L1 * R1, L2 * R2, false);
+                        // (R1 * R2) * (L1 * L2) => (R1 * L1) * (R2 * L2)
+                        try_emplace(R1 * L1, R2 * L2, false);
+                        // (L1 * L2) * (R1 * R2) => (L1 * R2) * (L2 * R1)
+                        try_emplace(L1 * R2, L2 * R1, false);
+                        // (R1 * R2) * (L1 * L2) => (R1 * L2) * (R2 * L1)
+                        try_emplace(R1 * L2, R2 * L1, false);
+                    }
+
+                    // test distributivity for addition
+                    L_decomposable = L->is_linked() && !L->is_temp() && as_link(L)->is_addition();
+                    R_decomposable = R->is_linked() && !R->is_temp() && as_link(R)->is_addition();
+                    if (L_decomposable) {
+                        // (L1 + L2) * R => (L1 * R) + (L2 * R)
+                        try_emplace(L1 * R, L2 * R, true);
+                        // R * (L1 + L2) => (R * L1) + (R * L2)
+                        try_emplace(R * L1, R * L2, true);
+                    }
+                    if (R_decomposable) {
+                        // L * (R1 + R2) => (L * R1) + (L * R2)
+                        try_emplace(L * R1, L * R2, true);
+                        // (R1 + R2) * L => (R1 * L) + (R2 * L)
+                        try_emplace(R1 * L, R2 * L, true);
+                    }
                 }
             }
         }
@@ -642,9 +700,9 @@ namespace pdaggerq {
                     VertexPtr left_perm = perm->left_;
                     VertexPtr left_best = best_perm->left_;
                     while (same_depth && !make_best) {
-                        make_best = left_perm->depth() < left_best->depth();
-                        same_depth = left_perm->depth() == left_best->depth();
                         if (left_perm->is_linked() && left_best->is_linked()) {
+                            make_best = as_link(left_perm)->right_->depth() < as_link(left_best)->right_->depth();
+                            same_depth = as_link(left_perm)->right_->depth() == as_link(left_best)->right_->depth();
                             left_perm = as_link(left_perm)->left_;
                             left_best = as_link(left_best)->left_;
                         } else {
