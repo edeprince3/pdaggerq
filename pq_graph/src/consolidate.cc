@@ -115,7 +115,7 @@ size_t PQGraph::prune(bool keep_single_use) {
                 // ) continue;
 
                 // we keep reused temps if it is used in an equation
-                if (temp->is_reused() && used_term && !used_term->lhs()->is_temp()) continue;
+                if (temp->is_reused() && used_term && !used_term->lhs()->is_reused()) continue;
 
             }
         }
