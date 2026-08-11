@@ -124,8 +124,8 @@ def test_ccsd_codegen_disk():
 
         f.write(">>> TEST PASSED: CCSD (functions on disk)\n")    
 
-@pytest.mark.qed_ccsd
-def test_qed_ccsd_codegen():
+@pytest.mark.qed_ccsd_21
+def test_qed_ccsd_21_codegen():
 
     with open(LOG_FILE, "a") as f:
         f.write(">>> Running QED-CCSD-21 ...\n")
@@ -140,6 +140,23 @@ def test_qed_ccsd_codegen():
             assert np.isclose(en, -75.015650410563, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: QED-CCSD-21\n")
+
+@pytest.mark.qed_ccsd_22
+def test_qed_ccsd_22_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running QED-CCSD-22 ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            from pdaggerq.numerical.methods.qed_ccsd_22 import QED_CCSD_22 as CC
+            mol, wfn = setup_psi4_test()
+            mycc = CC(wfn, mol, nfzc=0, cavity_lambda = [0, 0, 0.05], cavity_frequency = 0.07349864501573)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.015651100212, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: QED-CCSD-22\n")
 
 @pytest.mark.ccsd
 def test_ccsd_codegen():
@@ -326,7 +343,7 @@ def test_eomccsd_codegen():
 def test_ip_eomccsd_codegen():
 
     with open(LOG_FILE, "a") as f:
-        f.write(">>> Running IP-EOMCCSD ...\n")
+        f.write(">>> Running DIP-EOMCCSD ...\n")
 
         with contextlib.redirect_stdout(f):
 
@@ -341,7 +358,7 @@ def test_ip_eomccsd_codegen():
 
             # IP-EOMCCSD
 
-            from pdaggerq.numerical.methods.ip_eomccsd import IP_EOMCCSD as EOMCC
+            from pdaggerq.numerical.methods.dip_eomccsd import DIP_EOMCCSD as EOMCC
             eomcc = EOMCC(mycc.cc_solver, nstates = 5)
 
             eomcc.right_solver()
