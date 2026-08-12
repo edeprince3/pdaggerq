@@ -358,7 +358,7 @@ def test_ip_eomccsd_codegen():
 
             # IP-EOMCCSD
 
-            from pdaggerq.numerical.methods.dip_eomccsd import DIP_EOMCCSD as EOMCC
+            from pdaggerq.numerical.methods.ip_eomccsd import IP_EOMCCSD as EOMCC
             eomcc = EOMCC(mycc.cc_solver, nstates = 5)
 
             eomcc.right_solver()
