@@ -2439,25 +2439,28 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
     }
 }
 
-std::vector<std::vector<std::string> > pq_helper::strings() const {
-
+std::vector<std::vector<std::string>> pq_helper::strings() const {
     bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
     const auto &reference = is_blocked ? ordered_blocked : ordered;
 
-    std::vector<std::vector<std::string> > list;
-    // print operators by rank
-    for (size_t i = 0; i < 9; i++) {
-        for (const std::shared_ptr<pq_string> & pq_str : reference) {
-            if ( pq_str->symbol.size() != i  ) continue;
-            std::vector<std::string> my_string = pq_str->get_string();
-            if ( (int)my_string.size() > 0 ) {
-                list.push_back(my_string);
-            }
+    // Create a copy of the reference container and sort by rank (symbol size)
+    auto sorted_reference = reference;
+    std::stable_sort(sorted_reference.begin(), sorted_reference.end(),
+        [](const std::shared_ptr<pq_string> &a, const std::shared_ptr<pq_string> &b) {
+            return a->symbol.size() < b->symbol.size();
+        });
+
+    std::vector<std::vector<std::string>> list;
+    list.reserve(sorted_reference.size());
+
+    for (const auto &pq_str : sorted_reference) {
+        std::vector<std::string> my_string = pq_str->get_string();
+        if (!my_string.empty()) {
+            list.push_back(std::move(my_string));
         }
     }
 
     return list;
-
 }
 
 void pq_helper::clear() {
