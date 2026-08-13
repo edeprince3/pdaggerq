@@ -234,9 +234,9 @@ def test_lambda_ccsd_codegen():
 
         with contextlib.redirect_stdout(f):
         
-            from pdaggerq.numerical.methods.ccsd import CCSD
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            mycc = CC(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -255,9 +255,9 @@ def test_ccsdt_codegen():
 
         with contextlib.redirect_stdout(f):
 
-            from pdaggerq.numerical.methods.ccsdt import CCSDT
+            from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
             mol, wfn = setup_psi4_test()
-            mycc = CCSDT(wfn, mol, nfzc=1)
+            mycc = CC(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
@@ -291,9 +291,9 @@ def test_eomccsd_codegen():
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            mycc = CC(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -343,15 +343,15 @@ def test_eomccsd_codegen():
 def test_ip_eomccsd_codegen():
 
     with open(LOG_FILE, "a") as f:
-        f.write(">>> Running DIP-EOMCCSD ...\n")
+        f.write(">>> Running IP-EOMCCSD ...\n")
 
         with contextlib.redirect_stdout(f):
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            mycc = CC(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -378,6 +378,45 @@ def test_ip_eomccsd_codegen():
 
         f.write(">>> TEST PASSED: IP-EOMCCSD\n")    
 
+@pytest.mark.ip_eomccsdt
+def test_ip_eomccsdt_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running IP-EOMCCSDT ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # CCSDT
+
+            from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
+            mol, wfn = setup_psi4_test()
+            mycc = CC(wfn, mol, nfzc=1)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
+
+            # IP-EOMCCSDT
+
+            from pdaggerq.numerical.methods.ip_eomccsdt import IP_EOMCCSDT as EOMCC
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+
+            eomcc.right_solver()
+
+            ref_energies = [0.309884837023,
+                0.309884837023,
+                0.402665402493,
+                0.402665402493,
+                0.593490686307
+            ]
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: IP-EOMCCSDT\n")
+
 @pytest.mark.ea_eomccsd
 def test_ea_eomccsd_codegen():
 
@@ -388,9 +427,9 @@ def test_ea_eomccsd_codegen():
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            mycc = CC(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -416,6 +455,46 @@ def test_ea_eomccsd_codegen():
             assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: EA-EOMCCSD\n")    
+
+
+@pytest.mark.ea_eomccsdt
+def test_ea_eomccsdt_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running EA-EOMCCSDT ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # CCSDT
+
+            from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
+            mol, wfn = setup_psi4_test()
+            mycc = CC(wfn, mol, nfzc=1)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
+
+            # EA-EOMCCSDT
+
+            from pdaggerq.numerical.methods.ea_eomccsdt import EA_EOMCCSDT as EOMCC
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+
+            eomcc.right_solver()
+
+            ref_energies = [0.562965504084,
+                0.562965504084,
+                0.679160760729,
+                0.679160760729,
+                0.934942131998
+            ]
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: EA-EOMCCSDT\n")
 
 @pytest.mark.qed_eomccsd
 def test_qed_eomccsd_codegen():
@@ -470,9 +549,9 @@ def test_dip_eomccsd_codegen():
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            mycc = CC(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -509,9 +588,9 @@ def test_dea_eomccsd_codegen():
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            mycc = CC(wfn, mol, nfzc=1)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
