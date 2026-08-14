@@ -38,8 +38,8 @@ class cc:
         T_list = [],
         L_list = [],
         cc_pseudoenergy_func=None, 
-        cavity_frequency=1.0,
-        cavity_lambda=0.0):
+        cavity_frequency=0.07349864501573,
+        cavity_lambda=[0.0, 0.0, 0.0]):
 
         """
         initialize CC class

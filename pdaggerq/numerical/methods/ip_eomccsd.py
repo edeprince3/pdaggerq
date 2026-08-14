@@ -115,4 +115,4 @@ class IP_EOMCCSD:
 
 
     def oscillator_strengths(self):
-        raise Exception("oscillator strengths for are not implemented")
+        raise Exception("oscillator strengths are not implemented for IP-EOMCCSD")

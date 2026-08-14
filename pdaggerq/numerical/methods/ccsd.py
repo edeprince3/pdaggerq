@@ -98,7 +98,7 @@ class CCSD:
         l1_residual_func = lambda_cc_residual('r1',
             T,
             L,
-            'e1(a,i)',
+            ['e1(a,i)'],
             'l1_residual',
             pq_graph_options = self.pq_graph_options
         )
@@ -106,7 +106,7 @@ class CCSD:
         l2_residual_func = lambda_cc_residual('r2',
             T,
             L,
-            'e2(a,b,j,i)',
+            ['e2(a,b,j,i)'],
             'l2_residual',
             pq_graph_options = self.pq_graph_options
         )
