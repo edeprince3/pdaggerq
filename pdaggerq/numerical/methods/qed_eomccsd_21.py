@@ -52,6 +52,7 @@ class QED_EOMCCSD_21:
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
+
         right_sigma0_1p_func = eomcc_sigma('sigma0_1p',
             T,
             [['B-']],
@@ -127,3 +128,6 @@ class QED_EOMCCSD_21:
 
     def left_solver(self, L_list = None):
         raise Exception("left-hand QED-EOMCCSD-21 is not implemented")
+
+    def oscillator_strengths(self):
+        raise Exception("oscillator strengths are not implemented for QED-EOMCCSD-21")

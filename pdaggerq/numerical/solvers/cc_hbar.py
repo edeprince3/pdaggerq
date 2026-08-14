@@ -1,7 +1,8 @@
-# hilbert2 - python-based quantum chemistry
-# Copyright (C) 2025 A. Eugene DePrince III
 #
-# This file is part of the hilbert2 package.
+# pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+# Copyright (C) 2026 A. Eugene DePrince III
+#
+# This file is part of the pdaggerq package.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -16,7 +17,7 @@
 #   limitations under the License.
 
 """
-eom-ccsd sigma vectors and the full eom-ccsd hamiltonian
+eom-cc sigma vectors Hbar.R and L.Hbar
 """
 
 import numpy as np
@@ -106,13 +107,14 @@ class HbarOperator:
                 
         return total_size
 
-    def initialize_amplitudes(self, R_list, R, R_sigma, R_meta):
+    def initialize_amplitudes(self, R_list, R, R_sigma, R_meta, function = 'sigma'):
         """
         Initialize right- or left-hand EOMCC amplitude dictionaries
         :param R_list: list of amplitude dictionaries containing spaces / spins / sigma function
         :param R: amplitude dictionary
         :param R_sigma: sigma-vector function dictionary
         :param R_meta: meta-data dictionary for left/right space/spin information
+        :param function: the function in the R_list element that we wish to initialize
         """
 
         dims = {
@@ -148,8 +150,8 @@ class HbarOperator:
             # Initialize nested dictionaries for this rank
             R[base_name] = {}
 
-            # Bind sigma-build function to instance
-            R_sigma[base_name] = types.MethodType(myR['sigma'], self)
+            # Bind sigma-build function to instance (or xi or eta functions for cc response)
+            R_sigma[base_name] = types.MethodType(myR[function], self)
 
             # If no spins are provided (like for r0 or pure photons), 
             # we provide a dummy list [[]] so the packer loops exactly once.
