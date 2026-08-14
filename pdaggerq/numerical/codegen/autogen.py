@@ -1628,6 +1628,7 @@ def eomcc_density_matrix(ret_name,
     spin_block = True,
     write_function = False,
     operator_type = 'EE',
+    is_qed = False,
     pq_graph_options = None):
 
     """
@@ -1641,6 +1642,7 @@ def eomcc_density_matrix(ret_name,
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param operator_type: EE, IP, EA, etc.
+    :param is_qed: include qed-cc terms? 
     :param pq_graph_options: options dictionary for pq_graph
     """ 
 
@@ -1771,7 +1773,7 @@ def {function_name}(self, left_state, right_state):
     # optimize the graph
     graph.optimize()
 
-    generated_code_string += function_initialization_string(extra_class = "cc")
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
 
     # need to redefine l1/l2 because they currently point to the ccsd ones
     generated_code_string += \

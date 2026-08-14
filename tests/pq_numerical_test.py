@@ -537,6 +537,29 @@ def test_qed_eomccsd_codegen():
             ]
             assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
 
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+
+            osc = eomcc.oscillator_strengths()
+
+            ref_osc = [0.000000000000,
+                0.045111270239,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.867129684210,
+                0.010882045669,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+            ]
+            idx = 0
+            for i in range (5):
+                for j in range (i+1, 5):
+                    assert np.isclose(osc[i, j], ref_osc[idx], rtol=1e-10, atol=1e-10)
+                    idx += 1
+
         f.write(">>> TEST PASSED: QED-EOMCCSD\n")    
 
 @pytest.mark.dip_eomccsd
