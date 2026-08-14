@@ -226,6 +226,45 @@ def test_quccsd_codegen():
 
         f.write(">>> TEST PASSED: QUCCSD\n")    
 
+@pytest.mark.ccsd_polarizability
+def test_lambda_ccsd_polarizability():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running CCSD polarizability ...\n")
+
+        with contextlib.redirect_stdout(f):
+        
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_psi4_test()
+            mycc = CC(wfn, mol, nfzc=1)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
+
+            pseudoen = mycc.lambda_solver()
+
+            assert np.isclose(pseudoen, -0.054046897553, rtol=1e-10, atol=1e-10)
+
+            from pdaggerq.numerical.methods.ccsd_response import CCSD_RESPONSE as CC_RESPONSE
+            cc_response = CC_RESPONSE(mycc.cc_solver, omega = 0.1, perturb = 'dipole')
+            cc_response.first_order_response_solver()
+            alpha = cc_response.polarizability()
+
+            ref_alpha = [0.054955210843,
+                0.000000000000,
+                0.000000000000,
+                5.598060237333,
+                0.000000000000,
+                2.392116185320,
+            ]
+            idx = 0
+            for i in range (3):
+                for j in range (i, 3):
+                    assert np.isclose(alpha[i, j], ref_alpha[idx], rtol=1e-10, atol=1e-10)
+                    idx += 1
+
+        f.write(">>> TEST PASSED: CCSD polarizability\n")    
+
 @pytest.mark.lambda_ccsd
 def test_lambda_ccsd_codegen():
 
