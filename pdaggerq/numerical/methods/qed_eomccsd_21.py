@@ -240,8 +240,8 @@ class QED_EOMCCSD_21:
 
         # Generate transition density matrix equations
         T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
-        R = [['r0'], ['r1'], ['r2'], ['r0_1p'], ['r1_1p'], ['r2_1p']]
-        L = [['l0'], ['l1'], ['l2'], ['l0_1p'], ['l1_1p'], ['l2_1p']]
+        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
         tdm_func = eomcc_density_matrix('tdm',
             T,
             L,
@@ -258,3 +258,83 @@ class QED_EOMCCSD_21:
         f = self.eomcc_solver.oscillator_strengths(density_matrix_func = local_namespace['density_matrix'])
 
         return f
+
+    def opdm(self):
+
+        # Import pq cc density matrix codegen function
+        from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
+
+        # Generate transition density matrix equations
+        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        opdm_func = eomcc_density_matrix('opdm',
+            T,
+            L,
+            R,
+            'density_matrix',
+            is_qed = True,
+            pq_graph_options = self.pq_graph_options
+        )
+
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+        exec(opdm_func, globals(), local_namespace)
+
+        opdm_a, opdm_b = self.eomcc_solver.opdm(opdm_func = local_namespace['density_matrix'])
+
+        return opdm_a, opdm_b
+
+    def tpdm(self):
+
+        # Import pq cc tpdm codegen function
+        from pdaggerq.numerical.codegen.autogen import eomcc_tpdm
+
+        # Generate tpdm equations
+        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        tpdm_func = eomcc_tpdm('tpdm',
+            T,
+            L,
+            R,
+            'density_matrix',
+            is_qed = True,
+            operator_type = 'EE',
+            pq_graph_options = self.pq_graph_options
+        )
+
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+        exec(tpdm_func, globals(), local_namespace)
+
+        tpdm_aaaa, tpdm_abab, tpdm_bbbb = self.eomcc_solver.tpdm(tpdm_func = local_namespace['density_matrix'])
+
+        return tpdm_aaaa, tpdm_abab, tpdm_bbbb
+
+
+    def phdm(self):
+        
+        # Import pq cc density matrix codegen function
+        from pdaggerq.numerical.codegen.autogen import eomcc_phdm
+        
+        # Generate transition density matrix equations
+        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        phdm_func = eomcc_phdm('phdm',
+            T,
+            L,
+            R,
+            'density_matrix',
+            is_qed = True,
+            pq_graph_options = self.pq_graph_options
+        )   
+        
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+        exec(phdm_func, globals(), local_namespace)
+
+        phdm = self.eomcc_solver.phdm(phdm_func = local_namespace['density_matrix'])
+
+        return phdm

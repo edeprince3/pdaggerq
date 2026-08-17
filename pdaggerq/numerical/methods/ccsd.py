@@ -171,7 +171,6 @@ class CCSD:
             T, 
             L, 
             'density_matrix',
-            write_function = True,
             pq_graph_options = self.pq_graph_options
         )
 

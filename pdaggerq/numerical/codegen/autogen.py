@@ -2584,3 +2584,679 @@ f"""
             file.write(generated_code_string)
 
     return generated_code_string
+
+def eomcc_tpdm(ret_name, 
+    T,
+    L,
+    R, 
+    function_name,
+    spin_block = True,
+    write_function = False,
+    operator_type = 'EE',
+    is_qed = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC tpdm equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of left-hand operators
+    :param R: list of right-hand operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param operator_type: EE, IP, EA, etc.
+    :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        'oooo' : 'e2(i,j,l,k)',
+        'oovo' : 'e2(i,j,k,a)',
+        'ooov' : 'e2(i,j,a,k)',
+        'ovoo' : 'e2(i,a,k,j)',
+        'vooo' : 'e2(a,i,k,j)',
+        'oovv' : 'e2(i,j,b,a)',
+        'ovvo' : 'e2(i,a,j,b)',
+        'vovo' : 'e2(a,i,j,b)',
+        'ovov' : 'e2(i,a,b,j)',
+        'voov' : 'e2(a,i,b,j)',
+        'vvoo' : 'e2(a,b,j,i)',
+        'ovvv' : 'e2(i,a,c,b)',
+        'vovv' : 'e2(a,i,c,b)',
+        'vvvo' : 'e2(a,b,i,c)',
+        'vvov' : 'e2(a,b,c,i)',
+        'vvvv' : 'e2(a,b,d,c)',
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self, left_state, right_state):
+    # right-hand eom amplitudes
+
+    # r0 is special because it is a scalar
+    r0_dict = self.R[right_state].get('0', {{}})
+    r0_val = r0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0 = r0_val.item() if hasattr(r0_val, 'item') else r0_val
+
+    r1 = dict(self.R[right_state].get('1', {{}}))
+    r2 = dict(self.R[right_state].get('2', {{}}))
+    r3 = dict(self.R[right_state].get('3', {{}}))
+    r4 = dict(self.R[right_state].get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_1p_dict = self.R[right_state].get('0_1p', {{}})
+    r0_1p_val = r0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_1p = r0_1p_val.item() if hasattr(r0_1p_val, 'item') else r0_1p_val
+
+    r1_1p = dict(self.R[right_state].get('1_1p', {{}}))
+    r2_1p = dict(self.R[right_state].get('2_1p', {{}}))
+    r3_1p = dict(self.R[right_state].get('3_1p', {{}}))
+    r4_1p = dict(self.R[right_state].get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_2p_dict = self.R[right_state].get('0_2p', {{}})
+    r0_2p_val = r0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_2p = r0_2p_val.item() if hasattr(r0_2p_val, 'item') else r0_2p_val
+
+    r1_2p = dict(self.R[right_state].get('1_2p', {{}}))
+    r2_2p = dict(self.R[right_state].get('2_2p', {{}}))
+    r3_2p = dict(self.R[right_state].get('3_2p', {{}}))
+    r4_2p = dict(self.R[right_state].get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_3p_dict = self.R[right_state].get('0_3p', {{}})
+    r0_3p_val = r0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_3p = r0_3p_val.item() if hasattr(r0_3p_val, 'item') else r0_3p_val
+
+    r1_3p = dict(self.R[right_state].get('1_3p', {{}}))
+    r2_3p = dict(self.R[right_state].get('2_3p', {{}}))
+    r3_3p = dict(self.R[right_state].get('3_3p', {{}}))
+    r4_3p = dict(self.R[right_state].get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_4p_dict = self.R[right_state].get('0_4p', {{}})
+    r0_4p_val = r0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_4p = r0_4p_val.item() if hasattr(r0_4p_val, 'item') else r0_4p_val
+
+    r1_4p = dict(self.R[right_state].get('1_4p', {{}}))
+    r2_4p = dict(self.R[right_state].get('2_4p', {{}}))
+    r3_4p = dict(self.R[right_state].get('3_4p', {{}}))
+    r4_4p = dict(self.R[right_state].get('4_4p', {{}}))
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, op in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+
+        pq.set_right_operators_type(operator_type)
+        pq.set_left_operators_type(operator_type)
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # set ket
+        pq.set_right_operators(R)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, [op], T)
+        else:
+            pq.add_operator_product(1.0, [op])
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking ... the other spin blocking function doesn't work here because it sorts labels
+        #block_by_spin(pq, ret_name + "_" + block, L + T + [[op]], eqs)
+        spin_map = get_tpdm_spin_map(op)
+        for spins, label_to_spin in spin_map.items():
+            spin_eqname = f"{ret_name}_{block}_{spins}"
+            pq.block_by_spin(label_to_spin)
+            eqs[spin_eqname] = pq.clone()
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
+
+    # need to redefine l1/l2 because they currently point to the ccsd ones
+    generated_code_string += \
+f"""
+
+    # transposing left-hand amplitudes is tricky for non-EE methods
+    def transpose_left_amplitude(tensor, spaces, spin=None):
+        '''
+        Transposes left amplitudes by swapping creation and annihilation index blocks. 
+        `spaces` is a list/tuple like ['vv', 'ooo'] or ['', 'o'].
+        Optionally permutes a spin string key (e.g., 'bab' -> 'abb').
+        ''' 
+        # 1. Safely extract creation and annihilation spaces
+        cr_space = spaces[0] if len(spaces) > 0 else ''
+        an_space = spaces[1] if len(spaces) > 1 else ''
+            
+        n_cr = len(cr_space)  # Number of creation (virtual) indices
+        n_an = len(an_space)  # Number of annihilation (occupied) indices
+            
+        # 2. Compute the dynamic permutation
+        perm = tuple(range(n_cr, n_cr + n_an)) + tuple(range(0, n_cr))
+        
+        # 3. Guard against 0D scalars or empty permutations (e.g., L0)
+        if not perm or getattr(tensor, 'ndim', 0) == 0:
+            return (tensor, spin) if spin is not None else tensor
+    
+        # 4. Transpose tensor
+        transposed_tensor = tensor.transpose(perm)
+        
+        # 5. Permute spin string if provided
+        if spin is not None:
+            transposed_spin = "".join(spin[p] for p in perm)
+            return transposed_tensor, transposed_spin
+            
+        return transposed_tensor
+
+    # transposing left-hand amplitudes is tricky for non-EE methods:
+    L_transposed = {{}}
+    
+    for base_name, spin_dict in self.L[left_state].items():
+        L_transposed[base_name] = {{}}
+        raw_spaces = self.L_meta[left_state][base_name]['raw_spaces']
+        
+        for spin, tensor in spin_dict.items():
+            # Use the helper function to transpose tensor and remap the spin key
+            t_tensor, t_spin = transpose_left_amplitude(tensor, raw_spaces, spin=spin)
+            L_transposed[base_name][t_spin] = t_tensor
+
+    # left-hand eom amplitudes
+
+    # l0 is special because it is a scalar
+    l0_dict = self.L[left_state].get('0', {{}})
+    l0_val = l0_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0 = l0_val.item() if hasattr(l0_val, 'item') else l0_val
+   
+    l1 = dict(L_transposed.get('1', {{}}))
+    l2 = dict(L_transposed.get('2', {{}}))
+    l3 = dict(L_transposed.get('3', {{}}))
+    l4 = dict(L_transposed.get('4', {{}})) 
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_1p_dict = self.L[left_state].get('0_1p', {{}})
+    l0_1p_val = l0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_1p = l0_1p_val.item() if hasattr(l0_1p_val, 'item') else l0_1p_val
+
+    l1_1p = dict(L_transposed.get('1_1p', {{}}))
+    l2_1p = dict(L_transposed.get('2_1p', {{}}))
+    l3_1p = dict(L_transposed.get('3_1p', {{}}))
+    l4_1p = dict(L_transposed.get('4_1p', {{}}))
+    
+    # Photon-Coupled Amplitudes (2 Photon)
+    
+    # Photon creation only is special because it is a scalar
+    l0_2p_dict = self.L[left_state].get('0_2p', {{}})
+    l0_2p_val = l0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_2p = l0_2p_val.item() if hasattr(l0_2p_val, 'item') else l0_2p_val
+
+    l1_2p = dict(L_transposed.get('1_2p', {{}}))
+    l2_2p = dict(L_transposed.get('2_2p', {{}}))
+    l3_2p = dict(L_transposed.get('3_2p', {{}}))
+    l4_2p = dict(L_transposed.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_3p_dict = self.L[left_state].get('0_3p', {{}})
+    l0_3p_val = l0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_3p = l0_3p_val.item() if hasattr(l0_3p_val, 'item') else l0_3p_val
+
+    l1_3p = dict(L_transposed.get('1_3p', {{}}))
+    l2_3p = dict(L_transposed.get('2_3p', {{}}))
+    l3_3p = dict(L_transposed.get('3_3p', {{}}))
+    l4_3p = dict(L_transposed.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_4p_dict = self.L[left_state].get('0_4p', {{}})
+    l0_4p_val = l0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_4p = l0_4p_val.item() if hasattr(l0_4p_val, 'item') else l0_4p_val
+
+    l1_4p = dict(L_transposed.get('1_4p', {{}}))
+    l2_4p = dict(L_transposed.get('2_4p', {{}}))
+    l3_4p = dict(L_transposed.get('3_4p', {{}}))
+    l4_4p = dict(L_transposed.get('4_4p', {{}}))
+"""
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['aaaa_oooo'] = {ret_name}_oooo_aaaa
+    {ret_name}['aaaa_ooov'] = {ret_name}_ooov_aaaa.transpose(1,2,3,0)
+    {ret_name}['aaaa_oovo'] = {ret_name}_oovo_aaaa.transpose(1,2,0,3)
+    {ret_name}['aaaa_ovoo'] = {ret_name}_ovoo_aaaa.transpose(1,0,2,3)
+    {ret_name}['aaaa_vooo'] = {ret_name}_vooo_aaaa
+    {ret_name}['aaaa_oovv'] = {ret_name}_oovv_aaaa.transpose(2,3,0,1)
+    {ret_name}['aaaa_ovov'] = {ret_name}_ovov_aaaa.transpose(2,0,3,1)
+    {ret_name}['aaaa_voov'] = {ret_name}_voov_aaaa.transpose(0,2,3,1)
+    {ret_name}['aaaa_ovvo'] = {ret_name}_ovvo_aaaa.transpose(2,0,1,3)
+    {ret_name}['aaaa_vovo'] = {ret_name}_vovo_aaaa.transpose(0,2,1,3)
+    {ret_name}['aaaa_vvoo'] = {ret_name}_vvoo_aaaa
+    {ret_name}['aaaa_ovvv'] = {ret_name}_ovvv_aaaa.transpose(3,0,1,2)
+    {ret_name}['aaaa_vovv'] = {ret_name}_vovv_aaaa.transpose(0,3,1,2)
+    {ret_name}['aaaa_vvov'] = {ret_name}_vvov_aaaa.transpose(0,1,3,2)
+    {ret_name}['aaaa_vvvo'] = {ret_name}_vvvo_aaaa
+    {ret_name}['aaaa_vvvv'] = {ret_name}_vvvv_aaaa
+
+    {ret_name}['bbbb_oooo'] = {ret_name}_oooo_bbbb
+    {ret_name}['bbbb_ooov'] = {ret_name}_ooov_bbbb.transpose(1,2,3,0)
+    {ret_name}['bbbb_oovo'] = {ret_name}_oovo_bbbb.transpose(1,2,0,3)
+    {ret_name}['bbbb_ovoo'] = {ret_name}_ovoo_bbbb.transpose(1,0,2,3)
+    {ret_name}['bbbb_vooo'] = {ret_name}_vooo_bbbb
+    {ret_name}['bbbb_oovv'] = {ret_name}_oovv_bbbb.transpose(2,3,0,1)
+    {ret_name}['bbbb_ovov'] = {ret_name}_ovov_bbbb.transpose(2,0,3,1)
+    {ret_name}['bbbb_voov'] = {ret_name}_voov_bbbb.transpose(0,2,3,1)
+    {ret_name}['bbbb_ovvo'] = {ret_name}_ovvo_bbbb.transpose(2,0,1,3)
+    {ret_name}['bbbb_vovo'] = {ret_name}_vovo_bbbb.transpose(0,2,1,3)
+    {ret_name}['bbbb_vvoo'] = {ret_name}_vvoo_bbbb
+    {ret_name}['bbbb_ovvv'] = {ret_name}_ovvv_bbbb.transpose(3,0,1,2)
+    {ret_name}['bbbb_vovv'] = {ret_name}_vovv_bbbb.transpose(0,3,1,2)
+    {ret_name}['bbbb_vvov'] = {ret_name}_vvov_bbbb.transpose(0,1,3,2)
+    {ret_name}['bbbb_vvvo'] = {ret_name}_vvvo_bbbb
+    {ret_name}['bbbb_vvvv'] = {ret_name}_vvvv_bbbb
+    
+    {ret_name}['abab_oooo'] = {ret_name}_oooo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_ooov'] = {ret_name}_ooov_abab.transpose(1,2,3,0).transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_oovo'] = {ret_name}_oovo_abab.transpose(1,2,0,3)
+    {ret_name}['abab_ovoo'] = {ret_name}_ovoo_abab.transpose(1,0,2,3)
+    {ret_name}['abab_vooo'] = {ret_name}_vooo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_oovv'] = {ret_name}_oovv_abab.transpose(2,3,0,1)
+    {ret_name}['abab_ovov'] = {ret_name}_ovov_abab.transpose(2,0,3,1)
+    {ret_name}['abab_voov'] = {ret_name}_voov_abab.transpose(0,2,3,1).transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_ovvo'] = {ret_name}_ovvo_abab.transpose(2,0,1,3).transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_vovo'] = {ret_name}_vovo_abab.transpose(0,2,1,3)
+    {ret_name}['abab_vvoo'] = {ret_name}_vvoo_abab
+    {ret_name}['abab_ovvv'] = {ret_name}_ovvv_abab.transpose(3,0,1,2).transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_vovv'] = {ret_name}_vovv_abab.transpose(0,3,1,2)
+    {ret_name}['abab_vvov'] = {ret_name}_vvov_abab.transpose(0,1,3,2)
+    {ret_name}['abab_vvvo'] = {ret_name}_vvvo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_vvvv'] = {ret_name}_vvvv_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        with open(f"generated_code/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
+
+    return generated_code_string
+
+def eomcc_phdm(ret_name, 
+    T,
+    L,
+    R, 
+    function_name,
+    spin_block = True,
+    write_function = False,
+    operator_type = 'EE',
+    is_qed = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC photon and coupled photon-electron density matrix equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of left-hand operators
+    :param R: list of right-hand operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param operator_type: EE, IP, EA, etc.
+    :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        '0' : ['B+', 'B-'],
+        'p1' : ['B+'],
+        'm1' : ['B-'],
+        'oo_p1' : ['B+', 'e1(i,j)'],
+        'ov_p1' : ['B+', 'e1(i,a)'],
+        'vo_p1' : ['B+', 'e1(a,i)'],
+        'vv_p1' : ['B+', 'e1(a,b)'],
+        'oo_m1' : ['B-', 'e1(i,j)'],
+        'ov_m1' : ['B-', 'e1(i,a)'],
+        'vo_m1' : ['B-', 'e1(a,i)'],
+        'vv_m1' : ['B-', 'e1(a,b)'],
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self, left_state, right_state):
+    # right-hand eom amplitudes
+
+    # r0 is special because it is a scalar
+    r0_dict = self.R[right_state].get('0', {{}})
+    r0_val = r0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0 = r0_val.item() if hasattr(r0_val, 'item') else r0_val
+
+    r1 = dict(self.R[right_state].get('1', {{}}))
+    r2 = dict(self.R[right_state].get('2', {{}}))
+    r3 = dict(self.R[right_state].get('3', {{}}))
+    r4 = dict(self.R[right_state].get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_1p_dict = self.R[right_state].get('0_1p', {{}})
+    r0_1p_val = r0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_1p = r0_1p_val.item() if hasattr(r0_1p_val, 'item') else r0_1p_val
+
+    r1_1p = dict(self.R[right_state].get('1_1p', {{}}))
+    r2_1p = dict(self.R[right_state].get('2_1p', {{}}))
+    r3_1p = dict(self.R[right_state].get('3_1p', {{}}))
+    r4_1p = dict(self.R[right_state].get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_2p_dict = self.R[right_state].get('0_2p', {{}})
+    r0_2p_val = r0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_2p = r0_2p_val.item() if hasattr(r0_2p_val, 'item') else r0_2p_val
+
+    r1_2p = dict(self.R[right_state].get('1_2p', {{}}))
+    r2_2p = dict(self.R[right_state].get('2_2p', {{}}))
+    r3_2p = dict(self.R[right_state].get('3_2p', {{}}))
+    r4_2p = dict(self.R[right_state].get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_3p_dict = self.R[right_state].get('0_3p', {{}})
+    r0_3p_val = r0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_3p = r0_3p_val.item() if hasattr(r0_3p_val, 'item') else r0_3p_val
+
+    r1_3p = dict(self.R[right_state].get('1_3p', {{}}))
+    r2_3p = dict(self.R[right_state].get('2_3p', {{}}))
+    r3_3p = dict(self.R[right_state].get('3_3p', {{}}))
+    r4_3p = dict(self.R[right_state].get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_4p_dict = self.R[right_state].get('0_4p', {{}})
+    r0_4p_val = r0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_4p = r0_4p_val.item() if hasattr(r0_4p_val, 'item') else r0_4p_val
+
+    r1_4p = dict(self.R[right_state].get('1_4p', {{}}))
+    r2_4p = dict(self.R[right_state].get('2_4p', {{}}))
+    r3_4p = dict(self.R[right_state].get('3_4p', {{}}))
+    r4_4p = dict(self.R[right_state].get('4_4p', {{}}))
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, op in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+        pq.set_right_operators_type(operator_type)
+        pq.set_left_operators_type(operator_type)
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # set ket
+        pq.set_right_operators(R)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, op, T)
+        else:
+            pq.add_operator_product(1.0, op)
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking
+        block_by_spin(pq, ret_name + "_" + block, L + T + R + [op], eqs)
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
+
+    # need to redefine l1/l2 because they currently point to the ccsd ones
+    generated_code_string += \
+f"""
+
+    # transposing left-hand amplitudes is tricky for non-EE methods
+    def transpose_left_amplitude(tensor, spaces, spin=None):
+        '''
+        Transposes left amplitudes by swapping creation and annihilation index blocks. 
+        `spaces` is a list/tuple like ['vv', 'ooo'] or ['', 'o'].
+        Optionally permutes a spin string key (e.g., 'bab' -> 'abb').
+        ''' 
+        # 1. Safely extract creation and annihilation spaces
+        cr_space = spaces[0] if len(spaces) > 0 else ''
+        an_space = spaces[1] if len(spaces) > 1 else ''
+            
+        n_cr = len(cr_space)  # Number of creation (virtual) indices
+        n_an = len(an_space)  # Number of annihilation (occupied) indices
+            
+        # 2. Compute the dynamic permutation
+        perm = tuple(range(n_cr, n_cr + n_an)) + tuple(range(0, n_cr))
+        
+        # 3. Guard against 0D scalars or empty permutations (e.g., L0)
+        if not perm or getattr(tensor, 'ndim', 0) == 0:
+            return (tensor, spin) if spin is not None else tensor
+    
+        # 4. Transpose tensor
+        transposed_tensor = tensor.transpose(perm)
+        
+        # 5. Permute spin string if provided
+        if spin is not None:
+            transposed_spin = "".join(spin[p] for p in perm)
+            return transposed_tensor, transposed_spin
+            
+        return transposed_tensor
+
+    # transposing left-hand amplitudes is tricky for non-EE methods:
+    L_transposed = {{}}
+    
+    for base_name, spin_dict in self.L[left_state].items():
+        L_transposed[base_name] = {{}}
+        raw_spaces = self.L_meta[left_state][base_name]['raw_spaces']
+        
+        for spin, tensor in spin_dict.items():
+            # Use the helper function to transpose tensor and remap the spin key
+            t_tensor, t_spin = transpose_left_amplitude(tensor, raw_spaces, spin=spin)
+            L_transposed[base_name][t_spin] = t_tensor
+
+    # left-hand eom amplitudes
+
+    # l0 is special because it is a scalar
+    l0_dict = self.L[left_state].get('0', {{}})
+    l0_val = l0_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0 = l0_val.item() if hasattr(l0_val, 'item') else l0_val
+   
+    l1 = dict(L_transposed.get('1', {{}}))
+    l2 = dict(L_transposed.get('2', {{}}))
+    l3 = dict(L_transposed.get('3', {{}}))
+    l4 = dict(L_transposed.get('4', {{}})) 
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_1p_dict = self.L[left_state].get('0_1p', {{}})
+    l0_1p_val = l0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_1p = l0_1p_val.item() if hasattr(l0_1p_val, 'item') else l0_1p_val
+
+    l1_1p = dict(L_transposed.get('1_1p', {{}}))
+    l2_1p = dict(L_transposed.get('2_1p', {{}}))
+    l3_1p = dict(L_transposed.get('3_1p', {{}}))
+    l4_1p = dict(L_transposed.get('4_1p', {{}}))
+    
+    # Photon-Coupled Amplitudes (2 Photon)
+    
+    # Photon creation only is special because it is a scalar
+    l0_2p_dict = self.L[left_state].get('0_2p', {{}})
+    l0_2p_val = l0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_2p = l0_2p_val.item() if hasattr(l0_2p_val, 'item') else l0_2p_val
+
+    l1_2p = dict(L_transposed.get('1_2p', {{}}))
+    l2_2p = dict(L_transposed.get('2_2p', {{}}))
+    l3_2p = dict(L_transposed.get('3_2p', {{}}))
+    l4_2p = dict(L_transposed.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_3p_dict = self.L[left_state].get('0_3p', {{}})
+    l0_3p_val = l0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_3p = l0_3p_val.item() if hasattr(l0_3p_val, 'item') else l0_3p_val
+
+    l1_3p = dict(L_transposed.get('1_3p', {{}}))
+    l2_3p = dict(L_transposed.get('2_3p', {{}}))
+    l3_3p = dict(L_transposed.get('3_3p', {{}}))
+    l4_3p = dict(L_transposed.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_4p_dict = self.L[left_state].get('0_4p', {{}})
+    l0_4p_val = l0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_4p = l0_4p_val.item() if hasattr(l0_4p_val, 'item') else l0_4p_val
+
+    l1_4p = dict(L_transposed.get('1_4p', {{}}))
+    l2_4p = dict(L_transposed.get('2_4p', {{}}))
+    l3_4p = dict(L_transposed.get('3_4p', {{}}))
+    l4_4p = dict(L_transposed.get('4_4p', {{}}))
+"""
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['0'] = {ret_name}_0
+    {ret_name}['+1'] = {ret_name}_p1
+    {ret_name}['-1'] = {ret_name}_m1
+    {ret_name}['aa_oo_+1'] = {ret_name}_oo_p1_aa
+    {ret_name}['aa_ov_+1'] = {ret_name}_ov_p1_aa.transpose(1,0)
+    {ret_name}['aa_vo_+1'] = {ret_name}_vo_p1_aa
+    {ret_name}['aa_vv_+1'] = {ret_name}_vv_p1_aa
+    {ret_name}['bb_oo_+1'] = {ret_name}_oo_p1_bb
+    {ret_name}['bb_ov_+1'] = {ret_name}_ov_p1_bb.transpose(1,0)
+    {ret_name}['bb_vo_+1'] = {ret_name}_vo_p1_bb
+    {ret_name}['bb_vv_+1'] = {ret_name}_vv_p1_bb
+    {ret_name}['aa_oo_-1'] = {ret_name}_oo_m1_aa
+    {ret_name}['aa_ov_-1'] = {ret_name}_ov_m1_aa.transpose(1,0)
+    {ret_name}['aa_vo_-1'] = {ret_name}_vo_m1_aa
+    {ret_name}['aa_vv_-1'] = {ret_name}_vv_m1_aa
+    {ret_name}['bb_oo_-1'] = {ret_name}_oo_m1_bb
+    {ret_name}['bb_ov_-1'] = {ret_name}_ov_m1_bb.transpose(1,0)
+    {ret_name}['bb_vo_-1'] = {ret_name}_vo_m1_bb
+    {ret_name}['bb_vv_-1'] = {ret_name}_vv_m1_bb
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        with open(f"generated_code/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
+
+    return generated_code_string

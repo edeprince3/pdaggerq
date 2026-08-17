@@ -130,6 +130,9 @@ class QED_CCSD_21:
         )
         
         en = self.cc_solver.t_solver()
+        self.efzc = self.cc_solver.efzc
+        self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
+        self.enuc_dse = self.cc_solver.enuc_dse
 
         return en
 
