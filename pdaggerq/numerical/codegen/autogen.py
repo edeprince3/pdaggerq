@@ -88,17 +88,6 @@ def get_spin_labels(ops, operator_type = 'EE'):
 
     # sort the labels and create spin types based on the number of unique labels
     labels = sorted(labels)
-    #spin_types = ["aaaaaa", "aabaab", "abbabb", "bbbbbb"] if len(labels) == 6 else (
-    #    ["aaaaa", "aabaa", "abbab", "bbbbb"] if len(labels) == 5 else (
-    #        ["aaaa", "abab", "bbbb"] if len(labels) == 4 else (
-    #            ["aaa", "aab", "bab", "bbb"] if len(labels) == 3 else (
-    #                ["aa", "bb"] if len(labels) == 2 else (
-    #                    ["a", "b"] if len(labels) == 1 else []
-    #                )
-    #            )
-    #        )
-    #    )
-    #)
 
     # Determine operator order
     n_idx = len(labels)
@@ -2304,6 +2293,287 @@ f"""
     {ret_name}['bb_ov'] = {ret_name}_ov_bb.transpose(1,0)
     {ret_name}['bb_vo'] = {ret_name}_vo_bb
     {ret_name}['bb_vv'] = {ret_name}_vv_bb
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        with open(f"generated_code/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
+
+    return generated_code_string
+
+def cc_density_matrix(ret_name, 
+    T,
+    L,
+    function_name,
+    spin_block = True,
+    write_function = False,
+    operator_type = 'EE',
+    is_qed = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC (transition)density matrix equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of lambda operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        'oo' : 'e1(i,j)',
+        'ov' : 'e1(i,a)',
+        'vo' : 'e1(a,i)',
+        'vv' : 'e1(a,b)',
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self):
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, op in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, [op], T)
+        else:
+            pq.add_operator_product(1.0, [op])
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking
+        block_by_spin(pq, ret_name + "_" + block, L + T + [[op]], eqs)
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string(is_qed = is_qed)
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['aa_oo'] = {ret_name}_oo_aa
+    {ret_name}['aa_ov'] = {ret_name}_ov_aa.transpose(1,0)
+    {ret_name}['aa_vo'] = {ret_name}_vo_aa
+    {ret_name}['aa_vv'] = {ret_name}_vv_aa
+    {ret_name}['bb_oo'] = {ret_name}_oo_bb
+    {ret_name}['bb_ov'] = {ret_name}_ov_bb.transpose(1,0)
+    {ret_name}['bb_vo'] = {ret_name}_vo_bb
+    {ret_name}['bb_vv'] = {ret_name}_vv_bb
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        with open(f"generated_code/{function_name}.py", "w") as file:
+            file.write(generated_code_string)
+
+    return generated_code_string
+
+def get_tpdm_spin_map(op_str):
+    """
+    Directly maps e2(p, q, r, s) = p^ q^ r s index positions to spin strings,
+    correctly swapping r and s for D2(pq, rs) = <p^ q^ s r>.
+    """
+    raw = op_str[op_str.find("(")+1 : op_str.find(")")]
+    p, q, r, s = [x.strip() for x in raw.split(",")]
+
+    return {
+        'aaaa': {p: 'a', q: 'a', s: 'a', r: 'a'},
+        'bbbb': {p: 'b', q: 'b', s: 'b', r: 'b'},
+        'abab': {p: 'a', q: 'b', s: 'a', r: 'b'},
+    }
+
+def cc_tpdm(ret_name, 
+    T,
+    L,
+    function_name,
+    spin_block = True,
+    write_function = False,
+    is_qed = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC (transition)density matrix equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of lambda operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        'oooo' : 'e2(i,j,l,k)',
+        'oovo' : 'e2(i,j,k,a)',
+        'ooov' : 'e2(i,j,a,k)',
+        'ovoo' : 'e2(i,a,k,j)',
+        'vooo' : 'e2(a,i,k,j)',
+        'oovv' : 'e2(i,j,b,a)',
+        'ovvo' : 'e2(i,a,j,b)',
+        'vovo' : 'e2(a,i,j,b)',
+        'ovov' : 'e2(i,a,b,j)',
+        'voov' : 'e2(a,i,b,j)',
+        'vvoo' : 'e2(a,b,j,i)',
+        'ovvv' : 'e2(i,a,c,b)',
+        'vovv' : 'e2(a,i,c,b)',
+        'vvvo' : 'e2(a,b,i,c)',
+        'vvov' : 'e2(a,b,c,i)',
+        'vvvv' : 'e2(a,b,d,c)',
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self):
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, op in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, [op], T)
+        else:
+            pq.add_operator_product(1.0, [op])
+        #pq.add_operator_product(1.0, [op])
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking ... the other spin blocking function doesn't work here because it sorts labels
+        #block_by_spin(pq, ret_name + "_" + block, L + T + [[op]], eqs)
+        spin_map = get_tpdm_spin_map(op)
+        for spins, label_to_spin in spin_map.items():
+            spin_eqname = f"{ret_name}_{block}_{spins}"
+            pq.block_by_spin(label_to_spin)
+            eqs[spin_eqname] = pq.clone()
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string(is_qed = is_qed)
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['aaaa_oooo'] = {ret_name}_oooo_aaaa
+    {ret_name}['aaaa_ooov'] = {ret_name}_ooov_aaaa.transpose(1,2,3,0)
+    {ret_name}['aaaa_oovo'] = {ret_name}_oovo_aaaa.transpose(1,2,0,3)
+    {ret_name}['aaaa_ovoo'] = {ret_name}_ovoo_aaaa.transpose(1,0,2,3)
+    {ret_name}['aaaa_vooo'] = {ret_name}_vooo_aaaa
+    {ret_name}['aaaa_oovv'] = {ret_name}_oovv_aaaa.transpose(2,3,0,1)
+    {ret_name}['aaaa_ovov'] = {ret_name}_ovov_aaaa.transpose(2,0,3,1)
+    {ret_name}['aaaa_voov'] = {ret_name}_voov_aaaa.transpose(0,2,3,1)
+    {ret_name}['aaaa_ovvo'] = {ret_name}_ovvo_aaaa.transpose(2,0,1,3)
+    {ret_name}['aaaa_vovo'] = {ret_name}_vovo_aaaa.transpose(0,2,1,3)
+    {ret_name}['aaaa_vvoo'] = {ret_name}_vvoo_aaaa
+    {ret_name}['aaaa_ovvv'] = {ret_name}_ovvv_aaaa.transpose(3,0,1,2)
+    {ret_name}['aaaa_vovv'] = {ret_name}_vovv_aaaa.transpose(0,3,1,2)
+    {ret_name}['aaaa_vvov'] = {ret_name}_vvov_aaaa.transpose(0,1,3,2)
+    {ret_name}['aaaa_vvvo'] = {ret_name}_vvvo_aaaa
+    {ret_name}['aaaa_vvvv'] = {ret_name}_vvvv_aaaa
+
+    {ret_name}['bbbb_oooo'] = {ret_name}_oooo_bbbb
+    {ret_name}['bbbb_ooov'] = {ret_name}_ooov_bbbb.transpose(1,2,3,0)
+    {ret_name}['bbbb_oovo'] = {ret_name}_oovo_bbbb.transpose(1,2,0,3)
+    {ret_name}['bbbb_ovoo'] = {ret_name}_ovoo_bbbb.transpose(1,0,2,3)
+    {ret_name}['bbbb_vooo'] = {ret_name}_vooo_bbbb
+    {ret_name}['bbbb_oovv'] = {ret_name}_oovv_bbbb.transpose(2,3,0,1)
+    {ret_name}['bbbb_ovov'] = {ret_name}_ovov_bbbb.transpose(2,0,3,1)
+    {ret_name}['bbbb_voov'] = {ret_name}_voov_bbbb.transpose(0,2,3,1)
+    {ret_name}['bbbb_ovvo'] = {ret_name}_ovvo_bbbb.transpose(2,0,1,3)
+    {ret_name}['bbbb_vovo'] = {ret_name}_vovo_bbbb.transpose(0,2,1,3)
+    {ret_name}['bbbb_vvoo'] = {ret_name}_vvoo_bbbb
+    {ret_name}['bbbb_ovvv'] = {ret_name}_ovvv_bbbb.transpose(3,0,1,2)
+    {ret_name}['bbbb_vovv'] = {ret_name}_vovv_bbbb.transpose(0,3,1,2)
+    {ret_name}['bbbb_vvov'] = {ret_name}_vvov_bbbb.transpose(0,1,3,2)
+    {ret_name}['bbbb_vvvo'] = {ret_name}_vvvo_bbbb
+    {ret_name}['bbbb_vvvv'] = {ret_name}_vvvv_bbbb
+
+    {ret_name}['abab_oooo'] = {ret_name}_oooo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_ooov'] = {ret_name}_ooov_abab.transpose(1,2,3,0).transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_oovo'] = {ret_name}_oovo_abab.transpose(1,2,0,3)
+    {ret_name}['abab_ovoo'] = {ret_name}_ovoo_abab.transpose(1,0,2,3)
+    {ret_name}['abab_vooo'] = {ret_name}_vooo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_oovv'] = {ret_name}_oovv_abab.transpose(2,3,0,1)
+    {ret_name}['abab_ovov'] = {ret_name}_ovov_abab.transpose(2,0,3,1)
+    {ret_name}['abab_voov'] = {ret_name}_voov_abab.transpose(0,2,3,1).transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_ovvo'] = {ret_name}_ovvo_abab.transpose(2,0,1,3).transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_vovo'] = {ret_name}_vovo_abab.transpose(0,2,1,3)
+    {ret_name}['abab_vvoo'] = {ret_name}_vvoo_abab
+    {ret_name}['abab_ovvv'] = {ret_name}_ovvv_abab.transpose(3,0,1,2).transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_vovv'] = {ret_name}_vovv_abab.transpose(0,3,1,2)
+    {ret_name}['abab_vvov'] = {ret_name}_vvov_abab.transpose(0,1,3,2)
+    {ret_name}['abab_vvvo'] = {ret_name}_vvvo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_vvvv'] = {ret_name}_vvvv_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
 
     return {ret_name}
 """

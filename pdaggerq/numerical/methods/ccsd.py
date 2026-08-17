@@ -71,6 +71,8 @@ class CCSD:
             cc_energy_func = self.cc_energy["cc_energy"],
             T_list = self.T_list
         )
+        self.efzc = self.cc_solver.efzc
+        self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
         
         en = self.cc_solver.t_solver()
 
@@ -134,4 +136,49 @@ class CCSD:
         en = self.cc_solver.lambda_solver()
         return en
 
+    def opdm(self):
 
+        # Import pq cc density matrix codegen function
+        from pdaggerq.numerical.codegen.autogen import cc_density_matrix
+
+        # Generate transition density matrix equations
+        T = ['t1', 't2']
+        L = [['1'], ['l1'], ['l2']]
+        opdm_func = cc_density_matrix('opdm',
+            T, 
+            L, 
+            'density_matrix',
+            pq_graph_options = self.pq_graph_options
+        )
+
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+        exec(opdm_func, globals(), local_namespace)
+
+        opdm_a, opdm_b = self.cc_solver.opdm(opdm_func = local_namespace['density_matrix'])
+
+        return opdm_a, opdm_b
+
+    def tpdm(self):
+
+        # Import pq cc tpdm codegen function
+        from pdaggerq.numerical.codegen.autogen import cc_tpdm
+
+        # Generate transition density matrix equations
+        T = ['t1', 't2']
+        L = [['1'], ['l1'], ['l2']]
+        tpdm_func = cc_tpdm('tpdm',
+            T, 
+            L, 
+            'density_matrix',
+            write_function = True,
+            pq_graph_options = self.pq_graph_options
+        )
+
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+        exec(tpdm_func, globals(), local_namespace)
+
+        tpdm_aaaa, tpdm_abab, tpdm_bbbb = self.cc_solver.tpdm(tpdm_func = local_namespace['density_matrix'])
+
+        return tpdm_aaaa, tpdm_abab, tpdm_bbbb

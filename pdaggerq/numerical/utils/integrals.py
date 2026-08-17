@@ -281,6 +281,44 @@ def get_df_integrals_with_spin(wfn):
 
     return noa, nob, nva, nvb, eps_a, eps_b, Bov_aa, Bov_bb
 
+def get_core_hamiltonian_with_spin(wfn, nfzc = 0):
+    """
+
+    get core Hamiltonian integrals from psi4, with spin
+
+    :param wfn: psi4 wave function object
+    :param nfzc: number of frozen core orbitals
+
+    :return Ha: the core Hamiltonian matrix (alpha)
+    :return Hb: the core Hamiltonian matrix (beta)
+
+    """
+
+    # number of doubly occupied orbitals
+    noa = wfn.nalpha()
+    nob = wfn.nbeta()
+
+    # total number of orbitals
+    nmo = wfn.nmo()
+
+    # number of virtual orbitals
+    nva = nmo - noa
+    nvb = nmo - nob
+
+    # molecular orbitals (spatial):
+    Ca = wfn.Ca()
+    Cb = wfn.Cb()
+
+    # use Psi4's MintsHelper to generate integrals
+    mints = psi4.core.MintsHelper(wfn.basisset())
+
+    # build the one-electron integrals
+    H = np.asarray(mints.ao_kinetic()) + np.asarray(mints.ao_potential())
+    Ha = np.einsum('uj,vi,uv', Ca, Ca, H)
+    Hb = np.einsum('uj,vi,uv', Cb, Cb, H)
+
+    return Ha[nfzc:, nfzc:], Hb[nfzc:, nfzc:]
+
 def get_integrals_with_spin(wfn, antisymmetrize_eris = True, nfzc = 0):
     """
 

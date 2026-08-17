@@ -284,6 +284,22 @@ def test_lambda_ccsd_codegen():
 
             assert np.isclose(pseudoen, -0.054046897553, rtol=1e-10, atol=1e-10)
 
+            # build opdm, check one-electron energy
+            opdm_a, opdm_b = mycc.opdm()
+
+            from pdaggerq.numerical.utils.properties import one_electron_energy
+            one_electron_energy = one_electron_energy(wfn, opdm_a, opdm_b, nfzc=1)
+
+            assert np.isclose(one_electron_energy, -56.228181952008, rtol=1e-10, atol=1e-10)
+
+            # build tpdm, check two-electron energy
+            tpdm_aaaa, tpdm_abab, tpdm_bbbb = mycc.tpdm()
+
+            from pdaggerq.numerical.utils.properties import two_electron_energy
+            two_electron_energy = two_electron_energy(wfn, tpdm_aaaa, tpdm_abab, tpdm_bbbb, opdm_a, opdm_b, nfzc=1)
+
+            assert np.isclose(two_electron_energy, 32.974432824166, rtol=1e-10, atol=1e-10)
+
         f.write(">>> TEST PASSED: lambda-CCSD\n")    
 
 @pytest.mark.ccsdt
