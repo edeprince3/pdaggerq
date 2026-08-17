@@ -557,23 +557,6 @@ class cc:
             ]
         ])
 
-        # Insert directly above `tpdm_abab = np.block(...)`
-        expected_dims = {
-            0: {'o': self.noa, 'v': self.nva},
-            1: {'o': self.nob, 'v': self.nvb},
-            2: {'o': self.noa, 'v': self.nva},
-            3: {'o': self.nob, 'v': self.nvb},
-        }
-        
-        for s0 in ['o', 'v']:
-            for s1 in ['o', 'v']:
-                for s2 in ['o', 'v']:
-                    for s3 in ['o', 'v']:
-                        k = f'abab_{s0}{s1}{s2}{s3}'
-                        exp = (expected_dims[0][s0], expected_dims[1][s1], expected_dims[2][s2], expected_dims[3][s3])
-                        if tpdm[k].shape != exp:
-                            raise ValueError(f"Block tpdm['{k}'] shape is {tpdm[k].shape}, expected {exp}")
-
         # abab spin TPDM
         tpdm_abab = np.block([
             [  # Axis 0 = o
