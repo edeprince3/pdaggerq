@@ -2035,10 +2035,10 @@ def eomcc_density_matrix(ret_name,
         raise Exception("spin-orbital eomcc equations not implemented")
 
     blocks = {
-        'oo' : 'e1(i,j)',
-        'ov' : 'e1(i,a)',
-        'vo' : 'e1(a,i)',
-        'vv' : 'e1(a,b)',
+        'oo' : ('e1(i,j)', ['i', 'j']),
+        'ov' : ('e1(i,a)', ['i', 'a']),
+        'vo' : ('e1(a,i)', ['a', 'i']),
+        'vv' : ('e1(a,b)', ['a', 'b']),
     }
 
     # initialization statements 
@@ -2119,7 +2119,7 @@ def {function_name}(self, left_state, right_state):
     # Enable and configure pq_graph
     graph = configure_graph(pq_graph_options)
 
-    for block, op in blocks.items():
+    for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
         pq.set_right_operators_type(operator_type)
@@ -2149,7 +2149,7 @@ def {function_name}(self, left_state, right_state):
         # Add equations to graph
         for proj_eqname, eq in eqs.items():
             print(f"Adding equation {proj_eqname} to the graph", flush=True)
-            graph.add(eq, proj_eqname)
+            graph.add(eq, proj_eqname, indices)
 
         pq.clear()
 
@@ -2286,11 +2286,11 @@ f"""
 f"""
     {ret_name} = {{}}
     {ret_name}['aa_oo'] = {ret_name}_oo_aa
-    {ret_name}['aa_ov'] = {ret_name}_ov_aa.transpose(1,0)
+    {ret_name}['aa_ov'] = {ret_name}_ov_aa
     {ret_name}['aa_vo'] = {ret_name}_vo_aa
     {ret_name}['aa_vv'] = {ret_name}_vv_aa
     {ret_name}['bb_oo'] = {ret_name}_oo_bb
-    {ret_name}['bb_ov'] = {ret_name}_ov_bb.transpose(1,0)
+    {ret_name}['bb_ov'] = {ret_name}_ov_bb
     {ret_name}['bb_vo'] = {ret_name}_vo_bb
     {ret_name}['bb_vv'] = {ret_name}_vv_bb
 
@@ -2331,10 +2331,10 @@ def cc_density_matrix(ret_name,
         raise Exception("spin-orbital eomcc equations not implemented")
 
     blocks = {
-        'oo' : 'e1(i,j)',
-        'ov' : 'e1(i,a)',
-        'vo' : 'e1(a,i)',
-        'vv' : 'e1(a,b)',
+        'oo' : ('e1(i,j)', ['i', 'j']),
+        'ov' : ('e1(i,a)', ['i', 'a']),
+        'vo' : ('e1(a,i)', ['a', 'i']),
+        'vv' : ('e1(a,b)', ['a', 'b']),
     }
 
     # initialization statements 
@@ -2346,7 +2346,7 @@ def {function_name}(self):
     # Enable and configure pq_graph
     graph = configure_graph(pq_graph_options)
 
-    for block, op in blocks.items():
+    for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
 
@@ -2371,7 +2371,7 @@ def {function_name}(self):
         # Add equations to graph
         for proj_eqname, eq in eqs.items():
             print(f"Adding equation {proj_eqname} to the graph", flush=True)
-            graph.add(eq, proj_eqname)
+            graph.add(eq, proj_eqname, indices)
 
         pq.clear()
 
@@ -2390,11 +2390,11 @@ def {function_name}(self):
 f"""
     {ret_name} = {{}}
     {ret_name}['aa_oo'] = {ret_name}_oo_aa
-    {ret_name}['aa_ov'] = {ret_name}_ov_aa.transpose(1,0)
+    {ret_name}['aa_ov'] = {ret_name}_ov_aa
     {ret_name}['aa_vo'] = {ret_name}_vo_aa
     {ret_name}['aa_vv'] = {ret_name}_vv_aa
     {ret_name}['bb_oo'] = {ret_name}_oo_bb
-    {ret_name}['bb_ov'] = {ret_name}_ov_bb.transpose(1,0)
+    {ret_name}['bb_ov'] = {ret_name}_ov_bb
     {ret_name}['bb_vo'] = {ret_name}_vo_bb
     {ret_name}['bb_vv'] = {ret_name}_vv_bb
 
@@ -2448,22 +2448,22 @@ def cc_tpdm(ret_name,
         raise Exception("spin-orbital eomcc equations not implemented")
 
     blocks = {
-        'oooo' : 'e2(i,j,l,k)',
-        'oovo' : 'e2(i,j,k,a)',
-        'ooov' : 'e2(i,j,a,k)',
-        'ovoo' : 'e2(i,a,k,j)',
-        'vooo' : 'e2(a,i,k,j)',
-        'oovv' : 'e2(i,j,b,a)',
-        'ovvo' : 'e2(i,a,j,b)',
-        'vovo' : 'e2(a,i,j,b)',
-        'ovov' : 'e2(i,a,b,j)',
-        'voov' : 'e2(a,i,b,j)',
-        'vvoo' : 'e2(a,b,j,i)',
-        'ovvv' : 'e2(i,a,c,b)',
-        'vovv' : 'e2(a,i,c,b)',
-        'vvvo' : 'e2(a,b,i,c)',
-        'vvov' : 'e2(a,b,c,i)',
-        'vvvv' : 'e2(a,b,d,c)',
+        'oooo' : ('e2(i,j,l,k)', ['i', 'j', 'k', 'l']),
+        'oovo' : ('e2(i,j,k,a)', ['i', 'j', 'a', 'k']),
+        'ooov' : ('e2(i,j,a,k)', ['i', 'j', 'k', 'a']),
+        'ovoo' : ('e2(i,a,k,j)', ['i', 'a', 'j', 'k']),
+        'vooo' : ('e2(a,i,k,j)', ['a', 'i', 'j', 'k']),
+        'oovv' : ('e2(i,j,b,a)', ['i', 'j', 'a', 'b']),
+        'ovvo' : ('e2(i,a,j,b)', ['i', 'a', 'b', 'j']),
+        'vovo' : ('e2(a,i,j,b)', ['a', 'i', 'b', 'j']),
+        'ovov' : ('e2(i,a,b,j)', ['i', 'a', 'j', 'b']),
+        'voov' : ('e2(a,i,b,j)', ['a', 'i', 'j', 'b']),
+        'vvoo' : ('e2(a,b,j,i)', ['a', 'b', 'i', 'j']),
+        'ovvv' : ('e2(i,a,c,b)', ['i', 'a', 'b', 'c']),
+        'vovv' : ('e2(a,i,c,b)', ['a', 'i', 'b', 'c']),
+        'vvvo' : ('e2(a,b,i,c)', ['a', 'b', 'c', 'i']),
+        'vvov' : ('e2(a,b,c,i)', ['a', 'b', 'i', 'c']),
+        'vvvv' : ('e2(a,b,d,c)', ['a', 'b', 'c', 'd']),
     }
 
     # initialization statements 
@@ -2475,7 +2475,7 @@ def {function_name}(self):
     # Enable and configure pq_graph
     graph = configure_graph(pq_graph_options)
 
-    for block, op in blocks.items():
+    for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
 
@@ -2506,7 +2506,7 @@ def {function_name}(self):
         # Add equations to graph
         for proj_eqname, eq in eqs.items():
             print(f"Adding equation {proj_eqname} to the graph", flush=True)
-            graph.add(eq, proj_eqname)
+            graph.add(eq, proj_eqname, indices)
 
         pq.clear()
 
@@ -2525,55 +2525,55 @@ def {function_name}(self):
 f"""
     {ret_name} = {{}}
     {ret_name}['aaaa_oooo'] = {ret_name}_oooo_aaaa
-    {ret_name}['aaaa_ooov'] = {ret_name}_ooov_aaaa.transpose(1,2,3,0)
-    {ret_name}['aaaa_oovo'] = {ret_name}_oovo_aaaa.transpose(1,2,0,3)
-    {ret_name}['aaaa_ovoo'] = {ret_name}_ovoo_aaaa.transpose(1,0,2,3)
+    {ret_name}['aaaa_ooov'] = {ret_name}_ooov_aaaa
+    {ret_name}['aaaa_oovo'] = {ret_name}_oovo_aaaa
+    {ret_name}['aaaa_ovoo'] = {ret_name}_ovoo_aaaa
     {ret_name}['aaaa_vooo'] = {ret_name}_vooo_aaaa
-    {ret_name}['aaaa_oovv'] = {ret_name}_oovv_aaaa.transpose(2,3,0,1)
-    {ret_name}['aaaa_ovov'] = {ret_name}_ovov_aaaa.transpose(2,0,3,1)
-    {ret_name}['aaaa_voov'] = {ret_name}_voov_aaaa.transpose(0,2,3,1)
-    {ret_name}['aaaa_ovvo'] = {ret_name}_ovvo_aaaa.transpose(2,0,1,3)
-    {ret_name}['aaaa_vovo'] = {ret_name}_vovo_aaaa.transpose(0,2,1,3)
+    {ret_name}['aaaa_oovv'] = {ret_name}_oovv_aaaa
+    {ret_name}['aaaa_ovov'] = {ret_name}_ovov_aaaa
+    {ret_name}['aaaa_voov'] = {ret_name}_voov_aaaa
+    {ret_name}['aaaa_ovvo'] = {ret_name}_ovvo_aaaa
+    {ret_name}['aaaa_vovo'] = {ret_name}_vovo_aaaa
     {ret_name}['aaaa_vvoo'] = {ret_name}_vvoo_aaaa
-    {ret_name}['aaaa_ovvv'] = {ret_name}_ovvv_aaaa.transpose(3,0,1,2)
-    {ret_name}['aaaa_vovv'] = {ret_name}_vovv_aaaa.transpose(0,3,1,2)
-    {ret_name}['aaaa_vvov'] = {ret_name}_vvov_aaaa.transpose(0,1,3,2)
+    {ret_name}['aaaa_ovvv'] = {ret_name}_ovvv_aaaa
+    {ret_name}['aaaa_vovv'] = {ret_name}_vovv_aaaa
+    {ret_name}['aaaa_vvov'] = {ret_name}_vvov_aaaa
     {ret_name}['aaaa_vvvo'] = {ret_name}_vvvo_aaaa
     {ret_name}['aaaa_vvvv'] = {ret_name}_vvvv_aaaa
 
     {ret_name}['bbbb_oooo'] = {ret_name}_oooo_bbbb
-    {ret_name}['bbbb_ooov'] = {ret_name}_ooov_bbbb.transpose(1,2,3,0)
-    {ret_name}['bbbb_oovo'] = {ret_name}_oovo_bbbb.transpose(1,2,0,3)
-    {ret_name}['bbbb_ovoo'] = {ret_name}_ovoo_bbbb.transpose(1,0,2,3)
+    {ret_name}['bbbb_ooov'] = {ret_name}_ooov_bbbb
+    {ret_name}['bbbb_oovo'] = {ret_name}_oovo_bbbb
+    {ret_name}['bbbb_ovoo'] = {ret_name}_ovoo_bbbb
     {ret_name}['bbbb_vooo'] = {ret_name}_vooo_bbbb
-    {ret_name}['bbbb_oovv'] = {ret_name}_oovv_bbbb.transpose(2,3,0,1)
-    {ret_name}['bbbb_ovov'] = {ret_name}_ovov_bbbb.transpose(2,0,3,1)
-    {ret_name}['bbbb_voov'] = {ret_name}_voov_bbbb.transpose(0,2,3,1)
-    {ret_name}['bbbb_ovvo'] = {ret_name}_ovvo_bbbb.transpose(2,0,1,3)
-    {ret_name}['bbbb_vovo'] = {ret_name}_vovo_bbbb.transpose(0,2,1,3)
+    {ret_name}['bbbb_oovv'] = {ret_name}_oovv_bbbb
+    {ret_name}['bbbb_ovov'] = {ret_name}_ovov_bbbb
+    {ret_name}['bbbb_voov'] = {ret_name}_voov_bbbb
+    {ret_name}['bbbb_ovvo'] = {ret_name}_ovvo_bbbb
+    {ret_name}['bbbb_vovo'] = {ret_name}_vovo_bbbb
     {ret_name}['bbbb_vvoo'] = {ret_name}_vvoo_bbbb
-    {ret_name}['bbbb_ovvv'] = {ret_name}_ovvv_bbbb.transpose(3,0,1,2)
-    {ret_name}['bbbb_vovv'] = {ret_name}_vovv_bbbb.transpose(0,3,1,2)
-    {ret_name}['bbbb_vvov'] = {ret_name}_vvov_bbbb.transpose(0,1,3,2)
+    {ret_name}['bbbb_ovvv'] = {ret_name}_ovvv_bbbb
+    {ret_name}['bbbb_vovv'] = {ret_name}_vovv_bbbb
+    {ret_name}['bbbb_vvov'] = {ret_name}_vvov_bbbb
     {ret_name}['bbbb_vvvo'] = {ret_name}_vvvo_bbbb
     {ret_name}['bbbb_vvvv'] = {ret_name}_vvvv_bbbb
 
-    {ret_name}['abab_oooo'] = {ret_name}_oooo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_ooov'] = {ret_name}_ooov_abab.transpose(1,2,3,0).transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_oovo'] = {ret_name}_oovo_abab.transpose(1,2,0,3)
-    {ret_name}['abab_ovoo'] = {ret_name}_ovoo_abab.transpose(1,0,2,3)
-    {ret_name}['abab_vooo'] = {ret_name}_vooo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_oovv'] = {ret_name}_oovv_abab.transpose(2,3,0,1)
-    {ret_name}['abab_ovov'] = {ret_name}_ovov_abab.transpose(2,0,3,1)
-    {ret_name}['abab_voov'] = {ret_name}_voov_abab.transpose(0,2,3,1).transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_ovvo'] = {ret_name}_ovvo_abab.transpose(2,0,1,3).transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_vovo'] = {ret_name}_vovo_abab.transpose(0,2,1,3)
+    {ret_name}['abab_oooo'] = {ret_name}_oooo_abab
+    {ret_name}['abab_ooov'] = {ret_name}_ooov_abab
+    {ret_name}['abab_oovo'] = {ret_name}_oovo_abab
+    {ret_name}['abab_ovoo'] = {ret_name}_ovoo_abab
+    {ret_name}['abab_vooo'] = {ret_name}_vooo_abab
+    {ret_name}['abab_oovv'] = {ret_name}_oovv_abab
+    {ret_name}['abab_ovov'] = {ret_name}_ovov_abab
+    {ret_name}['abab_voov'] = {ret_name}_voov_abab
+    {ret_name}['abab_ovvo'] = {ret_name}_ovvo_abab
+    {ret_name}['abab_vovo'] = {ret_name}_vovo_abab
     {ret_name}['abab_vvoo'] = {ret_name}_vvoo_abab
-    {ret_name}['abab_ovvv'] = {ret_name}_ovvv_abab.transpose(3,0,1,2).transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_vovv'] = {ret_name}_vovv_abab.transpose(0,3,1,2)
-    {ret_name}['abab_vvov'] = {ret_name}_vvov_abab.transpose(0,1,3,2)
-    {ret_name}['abab_vvvo'] = {ret_name}_vvvo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_vvvv'] = {ret_name}_vvvv_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_ovvv'] = {ret_name}_ovvv_abab
+    {ret_name}['abab_vovv'] = {ret_name}_vovv_abab
+    {ret_name}['abab_vvov'] = {ret_name}_vvov_abab
+    {ret_name}['abab_vvvo'] = {ret_name}_vvvo_abab
+    {ret_name}['abab_vvvv'] = {ret_name}_vvvv_abab
 
     return {ret_name}
 """
@@ -2615,22 +2615,22 @@ def eomcc_tpdm(ret_name,
         raise Exception("spin-orbital eomcc equations not implemented")
 
     blocks = {
-        'oooo' : 'e2(i,j,l,k)',
-        'oovo' : 'e2(i,j,k,a)',
-        'ooov' : 'e2(i,j,a,k)',
-        'ovoo' : 'e2(i,a,k,j)',
-        'vooo' : 'e2(a,i,k,j)',
-        'oovv' : 'e2(i,j,b,a)',
-        'ovvo' : 'e2(i,a,j,b)',
-        'vovo' : 'e2(a,i,j,b)',
-        'ovov' : 'e2(i,a,b,j)',
-        'voov' : 'e2(a,i,b,j)',
-        'vvoo' : 'e2(a,b,j,i)',
-        'ovvv' : 'e2(i,a,c,b)',
-        'vovv' : 'e2(a,i,c,b)',
-        'vvvo' : 'e2(a,b,i,c)',
-        'vvov' : 'e2(a,b,c,i)',
-        'vvvv' : 'e2(a,b,d,c)',
+        'oooo' : ('e2(i,j,l,k)', ['i', 'j', 'k', 'l']),
+        'oovo' : ('e2(i,j,k,a)', ['i', 'j', 'a', 'k']),
+        'ooov' : ('e2(i,j,a,k)', ['i', 'j', 'k', 'a']),
+        'ovoo' : ('e2(i,a,k,j)', ['i', 'a', 'j', 'k']),
+        'vooo' : ('e2(a,i,k,j)', ['a', 'i', 'j', 'k']),
+        'oovv' : ('e2(i,j,b,a)', ['i', 'j', 'a', 'b']),
+        'ovvo' : ('e2(i,a,j,b)', ['i', 'a', 'b', 'j']),
+        'vovo' : ('e2(a,i,j,b)', ['a', 'i', 'b', 'j']),
+        'ovov' : ('e2(i,a,b,j)', ['i', 'a', 'j', 'b']),
+        'voov' : ('e2(a,i,b,j)', ['a', 'i', 'j', 'b']),
+        'vvoo' : ('e2(a,b,j,i)', ['a', 'b', 'i', 'j']),
+        'ovvv' : ('e2(i,a,c,b)', ['i', 'a', 'b', 'c']),
+        'vovv' : ('e2(a,i,c,b)', ['a', 'i', 'b', 'c']),
+        'vvvo' : ('e2(a,b,i,c)', ['a', 'b', 'c', 'i']),
+        'vvov' : ('e2(a,b,c,i)', ['a', 'b', 'i', 'c']),
+        'vvvv' : ('e2(a,b,d,c)', ['a', 'b', 'c', 'd']),
     }
 
     # initialization statements 
@@ -2711,7 +2711,7 @@ def {function_name}(self, left_state, right_state):
     # Enable and configure pq_graph
     graph = configure_graph(pq_graph_options)
 
-    for block, op in blocks.items():
+    for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
 
@@ -2747,7 +2747,7 @@ def {function_name}(self, left_state, right_state):
         # Add equations to graph
         for proj_eqname, eq in eqs.items():
             print(f"Adding equation {proj_eqname} to the graph", flush=True)
-            graph.add(eq, proj_eqname)
+            graph.add(eq, proj_eqname, indices)
 
         pq.clear()
 
@@ -2884,55 +2884,55 @@ f"""
 f"""
     {ret_name} = {{}}
     {ret_name}['aaaa_oooo'] = {ret_name}_oooo_aaaa
-    {ret_name}['aaaa_ooov'] = {ret_name}_ooov_aaaa.transpose(1,2,3,0)
-    {ret_name}['aaaa_oovo'] = {ret_name}_oovo_aaaa.transpose(1,2,0,3)
-    {ret_name}['aaaa_ovoo'] = {ret_name}_ovoo_aaaa.transpose(1,0,2,3)
+    {ret_name}['aaaa_ooov'] = {ret_name}_ooov_aaaa
+    {ret_name}['aaaa_oovo'] = {ret_name}_oovo_aaaa
+    {ret_name}['aaaa_ovoo'] = {ret_name}_ovoo_aaaa
     {ret_name}['aaaa_vooo'] = {ret_name}_vooo_aaaa
-    {ret_name}['aaaa_oovv'] = {ret_name}_oovv_aaaa.transpose(2,3,0,1)
-    {ret_name}['aaaa_ovov'] = {ret_name}_ovov_aaaa.transpose(2,0,3,1)
-    {ret_name}['aaaa_voov'] = {ret_name}_voov_aaaa.transpose(0,2,3,1)
-    {ret_name}['aaaa_ovvo'] = {ret_name}_ovvo_aaaa.transpose(2,0,1,3)
-    {ret_name}['aaaa_vovo'] = {ret_name}_vovo_aaaa.transpose(0,2,1,3)
+    {ret_name}['aaaa_oovv'] = {ret_name}_oovv_aaaa
+    {ret_name}['aaaa_ovov'] = {ret_name}_ovov_aaaa
+    {ret_name}['aaaa_voov'] = {ret_name}_voov_aaaa
+    {ret_name}['aaaa_ovvo'] = {ret_name}_ovvo_aaaa
+    {ret_name}['aaaa_vovo'] = {ret_name}_vovo_aaaa
     {ret_name}['aaaa_vvoo'] = {ret_name}_vvoo_aaaa
-    {ret_name}['aaaa_ovvv'] = {ret_name}_ovvv_aaaa.transpose(3,0,1,2)
-    {ret_name}['aaaa_vovv'] = {ret_name}_vovv_aaaa.transpose(0,3,1,2)
-    {ret_name}['aaaa_vvov'] = {ret_name}_vvov_aaaa.transpose(0,1,3,2)
+    {ret_name}['aaaa_ovvv'] = {ret_name}_ovvv_aaaa
+    {ret_name}['aaaa_vovv'] = {ret_name}_vovv_aaaa
+    {ret_name}['aaaa_vvov'] = {ret_name}_vvov_aaaa
     {ret_name}['aaaa_vvvo'] = {ret_name}_vvvo_aaaa
     {ret_name}['aaaa_vvvv'] = {ret_name}_vvvv_aaaa
 
     {ret_name}['bbbb_oooo'] = {ret_name}_oooo_bbbb
-    {ret_name}['bbbb_ooov'] = {ret_name}_ooov_bbbb.transpose(1,2,3,0)
-    {ret_name}['bbbb_oovo'] = {ret_name}_oovo_bbbb.transpose(1,2,0,3)
-    {ret_name}['bbbb_ovoo'] = {ret_name}_ovoo_bbbb.transpose(1,0,2,3)
+    {ret_name}['bbbb_ooov'] = {ret_name}_ooov_bbbb
+    {ret_name}['bbbb_oovo'] = {ret_name}_oovo_bbbb
+    {ret_name}['bbbb_ovoo'] = {ret_name}_ovoo_bbbb
     {ret_name}['bbbb_vooo'] = {ret_name}_vooo_bbbb
-    {ret_name}['bbbb_oovv'] = {ret_name}_oovv_bbbb.transpose(2,3,0,1)
-    {ret_name}['bbbb_ovov'] = {ret_name}_ovov_bbbb.transpose(2,0,3,1)
-    {ret_name}['bbbb_voov'] = {ret_name}_voov_bbbb.transpose(0,2,3,1)
-    {ret_name}['bbbb_ovvo'] = {ret_name}_ovvo_bbbb.transpose(2,0,1,3)
-    {ret_name}['bbbb_vovo'] = {ret_name}_vovo_bbbb.transpose(0,2,1,3)
+    {ret_name}['bbbb_oovv'] = {ret_name}_oovv_bbbb
+    {ret_name}['bbbb_ovov'] = {ret_name}_ovov_bbbb
+    {ret_name}['bbbb_voov'] = {ret_name}_voov_bbbb
+    {ret_name}['bbbb_ovvo'] = {ret_name}_ovvo_bbbb
+    {ret_name}['bbbb_vovo'] = {ret_name}_vovo_bbbb
     {ret_name}['bbbb_vvoo'] = {ret_name}_vvoo_bbbb
-    {ret_name}['bbbb_ovvv'] = {ret_name}_ovvv_bbbb.transpose(3,0,1,2)
-    {ret_name}['bbbb_vovv'] = {ret_name}_vovv_bbbb.transpose(0,3,1,2)
-    {ret_name}['bbbb_vvov'] = {ret_name}_vvov_bbbb.transpose(0,1,3,2)
+    {ret_name}['bbbb_ovvv'] = {ret_name}_ovvv_bbbb
+    {ret_name}['bbbb_vovv'] = {ret_name}_vovv_bbbb
+    {ret_name}['bbbb_vvov'] = {ret_name}_vvov_bbbb
     {ret_name}['bbbb_vvvo'] = {ret_name}_vvvo_bbbb
     {ret_name}['bbbb_vvvv'] = {ret_name}_vvvv_bbbb
     
-    {ret_name}['abab_oooo'] = {ret_name}_oooo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_ooov'] = {ret_name}_ooov_abab.transpose(1,2,3,0).transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_oovo'] = {ret_name}_oovo_abab.transpose(1,2,0,3)
-    {ret_name}['abab_ovoo'] = {ret_name}_ovoo_abab.transpose(1,0,2,3)
-    {ret_name}['abab_vooo'] = {ret_name}_vooo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_oovv'] = {ret_name}_oovv_abab.transpose(2,3,0,1)
-    {ret_name}['abab_ovov'] = {ret_name}_ovov_abab.transpose(2,0,3,1)
-    {ret_name}['abab_voov'] = {ret_name}_voov_abab.transpose(0,2,3,1).transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_ovvo'] = {ret_name}_ovvo_abab.transpose(2,0,1,3).transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_vovo'] = {ret_name}_vovo_abab.transpose(0,2,1,3)
+    {ret_name}['abab_oooo'] = {ret_name}_oooo_abab
+    {ret_name}['abab_ooov'] = {ret_name}_ooov_abab
+    {ret_name}['abab_oovo'] = {ret_name}_oovo_abab
+    {ret_name}['abab_ovoo'] = {ret_name}_ovoo_abab
+    {ret_name}['abab_vooo'] = {ret_name}_vooo_abab
+    {ret_name}['abab_oovv'] = {ret_name}_oovv_abab
+    {ret_name}['abab_ovov'] = {ret_name}_ovov_abab
+    {ret_name}['abab_voov'] = {ret_name}_voov_abab
+    {ret_name}['abab_ovvo'] = {ret_name}_ovvo_abab
+    {ret_name}['abab_vovo'] = {ret_name}_vovo_abab
     {ret_name}['abab_vvoo'] = {ret_name}_vvoo_abab
-    {ret_name}['abab_ovvv'] = {ret_name}_ovvv_abab.transpose(3,0,1,2).transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_vovv'] = {ret_name}_vovv_abab.transpose(0,3,1,2)
-    {ret_name}['abab_vvov'] = {ret_name}_vvov_abab.transpose(0,1,3,2)
-    {ret_name}['abab_vvvo'] = {ret_name}_vvvo_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
-    {ret_name}['abab_vvvv'] = {ret_name}_vvvv_abab.transpose(0,2,1,3) # pq_graph orders this term as aabb
+    {ret_name}['abab_ovvv'] = {ret_name}_ovvv_abab
+    {ret_name}['abab_vovv'] = {ret_name}_vovv_abab
+    {ret_name}['abab_vvov'] = {ret_name}_vvov_abab
+    {ret_name}['abab_vvvo'] = {ret_name}_vvvo_abab
+    {ret_name}['abab_vvvv'] = {ret_name}_vvvv_abab
 
     return {ret_name}
 """
@@ -2974,17 +2974,17 @@ def eomcc_phdm(ret_name,
         raise Exception("spin-orbital eomcc equations not implemented")
 
     blocks = {
-        '0' : ['B+', 'B-'],
-        'p1' : ['B+'],
-        'm1' : ['B-'],
-        'oo_p1' : ['B+', 'e1(i,j)'],
-        'ov_p1' : ['B+', 'e1(i,a)'],
-        'vo_p1' : ['B+', 'e1(a,i)'],
-        'vv_p1' : ['B+', 'e1(a,b)'],
-        'oo_m1' : ['B-', 'e1(i,j)'],
-        'ov_m1' : ['B-', 'e1(i,a)'],
-        'vo_m1' : ['B-', 'e1(a,i)'],
-        'vv_m1' : ['B-', 'e1(a,b)'],
+        '0'     : (['B+', 'B-'], ['']),
+        'p1'    : (['B+'], ['']),
+        'm1'    : (['B-'], ['']),
+        'oo_p1' : (['B+', 'e1(i,j)'], ['i', 'j']),
+        'ov_p1' : (['B+', 'e1(i,a)'], ['i', 'a']),
+        'vo_p1' : (['B+', 'e1(a,i)'], ['a', 'i']),
+        'vv_p1' : (['B+', 'e1(a,b)'], ['a', 'b']),
+        'oo_m1' : (['B-', 'e1(i,j)'], ['i', 'j']),
+        'ov_m1' : (['B-', 'e1(i,a)'], ['i', 'a']),
+        'vo_m1' : (['B-', 'e1(a,i)'], ['a', 'i']),
+        'vv_m1' : (['B-', 'e1(a,b)'], ['a', 'b']),
     }
 
     # initialization statements 
@@ -3065,7 +3065,7 @@ def {function_name}(self, left_state, right_state):
     # Enable and configure pq_graph
     graph = configure_graph(pq_graph_options)
 
-    for block, op in blocks.items():
+    for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
         pq.set_right_operators_type(operator_type)
@@ -3095,7 +3095,7 @@ def {function_name}(self, left_state, right_state):
         # Add equations to graph
         for proj_eqname, eq in eqs.items():
             print(f"Adding equation {proj_eqname} to the graph", flush=True)
-            graph.add(eq, proj_eqname)
+            graph.add(eq, proj_eqname, indices)
 
         pq.clear()
 
@@ -3235,19 +3235,19 @@ f"""
     {ret_name}['+1'] = {ret_name}_p1
     {ret_name}['-1'] = {ret_name}_m1
     {ret_name}['aa_oo_+1'] = {ret_name}_oo_p1_aa
-    {ret_name}['aa_ov_+1'] = {ret_name}_ov_p1_aa.transpose(1,0)
+    {ret_name}['aa_ov_+1'] = {ret_name}_ov_p1_aa
     {ret_name}['aa_vo_+1'] = {ret_name}_vo_p1_aa
     {ret_name}['aa_vv_+1'] = {ret_name}_vv_p1_aa
     {ret_name}['bb_oo_+1'] = {ret_name}_oo_p1_bb
-    {ret_name}['bb_ov_+1'] = {ret_name}_ov_p1_bb.transpose(1,0)
+    {ret_name}['bb_ov_+1'] = {ret_name}_ov_p1_bb
     {ret_name}['bb_vo_+1'] = {ret_name}_vo_p1_bb
     {ret_name}['bb_vv_+1'] = {ret_name}_vv_p1_bb
     {ret_name}['aa_oo_-1'] = {ret_name}_oo_m1_aa
-    {ret_name}['aa_ov_-1'] = {ret_name}_ov_m1_aa.transpose(1,0)
+    {ret_name}['aa_ov_-1'] = {ret_name}_ov_m1_aa
     {ret_name}['aa_vo_-1'] = {ret_name}_vo_m1_aa
     {ret_name}['aa_vv_-1'] = {ret_name}_vv_m1_aa
     {ret_name}['bb_oo_-1'] = {ret_name}_oo_m1_bb
-    {ret_name}['bb_ov_-1'] = {ret_name}_ov_m1_bb.transpose(1,0)
+    {ret_name}['bb_ov_-1'] = {ret_name}_ov_m1_bb
     {ret_name}['bb_vo_-1'] = {ret_name}_vo_m1_bb
     {ret_name}['bb_vv_-1'] = {ret_name}_vv_m1_bb
 
