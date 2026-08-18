@@ -1,8 +1,6 @@
 
 import pdaggerq
 
-from pdaggerq.parser import contracted_strings_to_tensor_terms
-
 def main():
     pq = pdaggerq.pq_helper("fermi")
 
@@ -20,11 +18,8 @@ def main():
     pq.simplify()
 
     H00 = pq.strings()
-    H00 = contracted_strings_to_tensor_terms(H00)
     for my_term in H00:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='H00'))
-        print()
+        print(my_term)
 
     pq.clear()
 
@@ -42,12 +37,8 @@ def main():
     pq.simplify()
 
     Hs0 = pq.strings()
-    Hs0 = contracted_strings_to_tensor_terms(Hs0)
     for my_term in Hs0:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='Hs0',
-                                    output_variables=('e', 'm')))
-        print()
+        print(my_term)
 
     pq.clear()
 
@@ -65,12 +56,8 @@ def main():
     pq.simplify()
 
     H0s = pq.strings()
-    H0s = contracted_strings_to_tensor_terms(H0s)
     for my_term in H0s:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='H0s',
-                                    output_variables=('a', 'i')))
-        print()
+        print(my_term)
 
     pq.clear()
 
@@ -88,12 +75,8 @@ def main():
     pq.simplify()
 
     Hd0 = pq.strings()
-    Hd0 = contracted_strings_to_tensor_terms(Hd0)
     for my_term in Hd0:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='Hd0',
-                                    output_variables=('e', 'f', 'm', 'n')))
-        print()
+        print(my_term)
 
     pq.clear()
     
@@ -111,12 +94,8 @@ def main():
     pq.simplify()
 
     H0d = pq.strings()
-    H0d = contracted_strings_to_tensor_terms(H0d)
     for my_term in H0d:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='H0d',
-                                    output_variables=('a', 'b', 'i', 'j')))
-        print()
+        print(my_term)
 
     pq.clear()
 
@@ -134,12 +113,8 @@ def main():
     pq.simplify()
 
     Hss = pq.strings()
-    Hss = contracted_strings_to_tensor_terms(Hss)
     for my_term in Hss:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='Hss',
-                                    output_variables=('e', 'm', 'a', 'i')))
-        print()
+        print(my_term)
 
     pq.clear()
     
@@ -157,12 +132,8 @@ def main():
     pq.simplify()
 
     Hsd = pq.strings()
-    Hsd = contracted_strings_to_tensor_terms(Hsd)
     for my_term in Hsd:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='Hsd',
-                                    output_variables=('e', 'm', 'a', 'b', 'i', 'j')))
-        print()
+        print(my_term)
 
     pq.clear()
     
@@ -180,12 +151,8 @@ def main():
     pq.simplify()
 
     Hds = pq.strings()
-    Hds = contracted_strings_to_tensor_terms(Hds)
     for my_term in Hds:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='Hds',
-                                    output_variables=('e', 'f', 'm', 'n', 'a', 'i')))
-        print()
+        print(my_term)
 
     pq.clear()
     
@@ -203,12 +170,8 @@ def main():
     pq.simplify()
 
     Hdd = pq.strings()
-    Hdd = contracted_strings_to_tensor_terms(Hdd)
     for my_term in Hdd:
-        print("#\t", my_term)
-        print(my_term.einsum_string(update_val='Hdd',
-                                    output_variables=('e', 'f', 'm', 'n', 'a', 'b', 'i', 'j')))
-        print()
+        print(my_term)
 
     pq.clear()
 

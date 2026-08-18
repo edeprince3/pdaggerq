@@ -517,9 +517,10 @@ namespace pdaggerq {
          * goes down the tree and replaces the id of any intermediate vertices to a new value
          * @param target_vertex the vertex to replace
          * @param new_vertex the new vertex to replace with
+         * @param exact_match whether to require an exact match of the target vertex (default true)
          * @return the copy of linkage with the replaced vertex and a bool indicating if the vertex was replaced
          */
-        pair<VertexPtr, bool> replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex) const;
+        pair<VertexPtr, bool> replace(const VertexPtr &target_vertex, const VertexPtr &new_vertex, bool exact_match = true) const;
 
         /**
          * goes down the tree and replaces the id of any intermediate vertices that matched the target to a new value

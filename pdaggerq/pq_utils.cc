@@ -28,8 +28,19 @@
 #include <unordered_set>
 #include <algorithm>
 #include <numeric>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace pdaggerq {
+
+// Fast look-ahead structure to characterize an unmapped label's environment
+struct ConnectivitySignature {
+    // We sort based on: (1) Operator Type priority, (2) Size of the tensor, (3) Sorted peer pool index
+    size_t operator_rank = 0;
+    int operator_type_weight = 0; // T vs L vs R vs Integral
+    size_t pool_position = 0;     // Index inside the sorted symmetry block of that downstream tensor
+};
 
 // concatinate a list of operators (a list of strings) into a single list
 std::vector<std::string> concatinate_operators(const std::vector<std::vector<std::string>> &ops) {
@@ -78,6 +89,14 @@ bool is_nuclear(const std::string &idx) {
     // a nuclear orbital label carries the species prefix followed by a label,
     // e.g. "pi" (occupied) or "pa" (virtual). a lone prefix char is not nuclear.
     return idx.size() > 1 && idx.at(0) == nuclear_prefix;
+}
+
+bool is_dummy(const std::string &idx) {
+    // the internal summation labels the normal-ordering machinery hands out are
+    // "o#" / "v#". a nuclear one carries the species prefix ("no#" / "nv#"), so the
+    // classification has to be made inside the label's own species.
+    const std::string base = is_nuclear(idx) ? idx.substr(1) : idx;
+    return base.rfind("o", 0) == 0 || base.rfind("v", 0) == 0;
 }
 
 bool is_occ(const std::string &idx) {
@@ -1306,49 +1325,26 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
 // compare strings and remove terms that cancel
 void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired_permutations, bool is_unitary_cc) {
 
-    // sort amplitude labels, etc.
+    // sort amplitude labels, etc. define key for each string
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
         pq_str->sort();
     }
 
-    // prune list so it only contains non-skipped pq_strings
-    std::vector< std::shared_ptr<pq_string> > pruned;
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
+    // TODO: the operator portions are not considered in the comparisons below. not sure this matters for future use cases
+    consolidate_permutations_plus_swaps(ordered, {});
 
-        if ( pq_str->skip ) continue;
-
-        // for normal order relative to fermi vacuum, i doubt anyone will care 
-        // about terms that aren't fully contracted. so, skip those because this
-        // function is time consuming
-        if (pq_str->vacuum == "FERMI" ) {
-            if ( !pq_str->symbol.empty() ) continue;
-            if ( !pq_str->is_boson_dagger.empty() ) continue;
-        }
-
-        pruned.push_back(pq_str);
-    }
-    ordered.clear();
-    for (const std::shared_ptr<pq_string> & pq_str : pruned) {
-        ordered.push_back(pq_str);
-    }
-    pruned.clear();
-
+    // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
-    // nuclear (second-species) summed labels carry the species prefix. they form
-    // their own swap spaces so that summed labels are only ever exchanged within a
-    // species -- an electron label is never swapped with a nuclear one.
+    // nuclear (second-species) labels carry the species prefix. they form their own
+    // spaces so that labels are only ever exchanged within a species -- an electron
+    // label is never swapped with a nuclear one.
     const std::string npfx(1, nuclear_prefix);
     std::vector<std::string> nuc_occ_labels, nuc_vir_labels;
     for (const auto & s : occ_labels) nuc_occ_labels.push_back(npfx + s);
     for (const auto & s : vir_labels) nuc_vir_labels.push_back(npfx + s);
-
-    // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
-
-    // TODO: the operator portions are not considered in the comparisons below. not sure this matters for future use cases
-
-    consolidate_permutations_plus_swaps(ordered, {});
+/*
 
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels});
@@ -1357,18 +1353,24 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
 
-    // nuclear analogues, plus mixed electron/nuclear pairs for multicomponent terms
-    consolidate_permutations_plus_swaps(ordered, {nuc_occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {nuc_vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels});
 
-    consolidate_permutations_plus_swaps(ordered, {nuc_occ_labels, nuc_occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {nuc_vir_labels, nuc_vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {nuc_occ_labels, nuc_vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels});
 
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, nuc_occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {occ_labels, nuc_vir_labels});
-    consolidate_permutations_plus_swaps(ordered, {vir_labels, nuc_occ_labels});
-    consolidate_permutations_plus_swaps(ordered, {vir_labels, nuc_vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, occ_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, occ_labels, occ_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+    consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels, vir_labels, vir_labels, vir_labels});
+*/
 
     if (is_unitary_cc) {
         for (const std::shared_ptr<pq_string> & pq_str : ordered) {
@@ -1378,49 +1380,42 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
         }
     }
 
-
     if ( ordered.empty() ) return;
 
     // probably only relevant for vacuum = fermi
-    if ( ordered[0]->vacuum != "FERMI" ) return;
+    if ( ordered[0]->vacuum == "FERMI" ) {
 
-    // look for paired permutations of non-summed labels:
-    if ( find_paired_permutations ) {
+        // look for paired permutations of non-summed labels:
+        if ( find_paired_permutations ) {
 
-        // a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
-        consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 6);
+            // a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
+            consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 6);
 
-        // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
-        consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 3);
+            // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+            consolidate_paired_permutations_non_summed(ordered, occ_labels, vir_labels, 3);
+        }
 
+        consolidate_permutations_non_summed(ordered, occ_labels);
+        consolidate_permutations_non_summed(ordered, vir_labels);
+        consolidate_permutations_non_summed(ordered, nuc_occ_labels);
+        consolidate_permutations_non_summed(ordered, nuc_vir_labels);
     }
 
-    consolidate_permutations_non_summed(ordered, occ_labels);
-    consolidate_permutations_non_summed(ordered, vir_labels);
-    consolidate_permutations_non_summed(ordered, nuc_occ_labels);
-    consolidate_permutations_non_summed(ordered, nuc_vir_labels);
-
-    // re-prune
-    pruned.clear();
-    for (const std::shared_ptr<pq_string> & pq_str : ordered) {
-
+    // prune list so it only contains non-skipped pq_strings
+    std::vector<std::shared_ptr<pq_string> > pruned;
+    pruned.reserve(ordered.size());
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
         if ( pq_str->skip ) continue;
-
-        // for normal order relative to fermi vacuum, pq_str doubt anyone will care 
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
         // about terms that aren't fully contracted. so, skip those because this
         // function is time consuming
         if (pq_str->vacuum == "FERMI" ) {
             if ( !pq_str->symbol.empty() ) continue;
             if ( !pq_str->is_boson_dagger.empty() ) continue;
         }
-
         pruned.push_back(pq_str);
     }
-    ordered.clear();
-    for (std::shared_ptr<pq_string> & pq_str : pruned) {
-        ordered.push_back(pq_str);
-    }
-    pruned.clear();
+    ordered = pruned;
 }
 
 // re-classify fluctuation potential terms
@@ -1441,8 +1436,12 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
     //   exit(1);
     //}
    
-    static std::vector<std::string> occ_out {"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N",
-                                             "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
+    //static std::vector<std::string> occ_out {"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N", 
+    //                                         "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"};
+    static std::vector<std::string> occ_out{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
+                                    "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
+                                    "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
+                                             
     // nuclear occupied summation labels for a nuclear (proton) one-body fold
     static std::vector<std::string> nuc_occ_out;
     if ( nuc_occ_out.empty() )
@@ -1498,8 +1497,341 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
 
 }
 
-// find and replace any funny labels in integrals with conventional ones. i.e., o1 -> i ,v1 -> a
-void use_conventional_labels(std::shared_ptr<pq_string> &in) {
+void sort_amplitudes_topologically(std::vector<amplitudes> &amps_vec, std::shared_ptr<pq_string> &track) {
+
+    // 1. count how many times every single label appears in this string
+    std::unordered_map<std::string, int> label_frequencies;
+    
+    for (const auto& type_pair : track->ints) {
+        for (const auto& integral : type_pair.second) {
+            for (const auto& label : integral.labels) label_frequencies[label]++;
+        }
+    }
+    for (const auto& type_pair : track->amps) {
+        for (const auto& amp : type_pair.second) {
+            for (const auto& label : amp.labels) label_frequencies[label]++;
+        }
+    }
+    for (const auto& delta : track->deltas) {
+        for (const auto& label : delta.labels) label_frequencies[label]++;
+    }
+
+    std::sort(amps_vec.begin(), amps_vec.end(), [&](const amplitudes &a, const amplitudes &b) {
+        
+        // 1. Core Structural Layer (Size / Excitation / Photons)
+        if (a.labels.size() != b.labels.size()) return a.labels.size() < b.labels.size();
+        if (a.n_ph != b.n_ph) return a.n_ph < b.n_ph;
+
+        // 2. Internal Topological Layer (Connection/Contraction Weights)
+        int a_weight = 0, b_weight = 0;
+        for (const auto& l : a.labels) {
+            if (label_frequencies.find(l) != label_frequencies.end()) a_weight += label_frequencies[l];
+        }
+        for (const auto& l : b.labels) {
+            if (label_frequencies.find(l) != label_frequencies.end()) b_weight += label_frequencies[l];
+        }
+        if (a_weight != b_weight) return a_weight > b_weight; 
+
+        // 3. External Anchor Tie-Breaker (Locks down identical dummy topologies)
+        // Extract fixed external lines (e, f) and permutation anchors (m, n)
+        std::string a_anchors = "";
+        std::string b_anchors = "";
+        
+        for (const auto& l : a.labels) {
+            // If it doesn't start with internal 'o' or 'v' prefixes, it's a fixed line!
+            if (!is_dummy(l)) a_anchors += l;
+        }
+        for (const auto& l : b.labels) {
+            if (!is_dummy(l)) b_anchors += l;
+        }
+        
+        // Sort anchor profiles so that the pairing order itself doesn't cause a mismatch
+        std::sort(a_anchors.begin(), a_anchors.end());
+        std::sort(b_anchors.begin(), b_anchors.end());
+        
+        if (a_anchors != b_anchors) {
+            return a_anchors < b_anchors; 
+        }
+
+        // ====================================================================
+        // NEW CODE HERE: Raw Backend Label Signature Check
+        // If weights and anchors match, sort their internal raw strings to 
+        // create a layout-independent layout signature.
+        // ====================================================================
+        auto a_raw_sorted = a.labels;
+        auto b_raw_sorted = b.labels;
+        
+        std::sort(a_raw_sorted.begin(), a_raw_sorted.end());
+        std::sort(b_raw_sorted.begin(), b_raw_sorted.end());
+        
+        if (a_raw_sorted != b_raw_sorted) {
+            return a_raw_sorted < b_raw_sorted;
+        }
+
+        // 4. Ultimate Fallback (Lexicographical internal string comparison)
+        return a.labels < b.labels;
+    });
+}
+
+// find and replace internally-used labels in integrals and amplitudes with conventional ones
+// e.g, o1 -> i ,v1 -> a, using some rules to establish a canonical order of adding the labels
+void canonicalize_labels(std::shared_ptr<pq_string> &in) {
+
+    // sort amplitudes before canonicalizing the labels
+    for (auto & type : in->amplitude_types) {
+        if (in->amps.find(type) == in->amps.end()) continue;
+        sort_amplitudes_topologically(in->amps[type], in);
+    }
+
+    std::unordered_map<std::string, std::string> occ_map;
+    std::unordered_map<std::string, std::string> vir_map;
+
+    std::vector<std::string> occ_pool  = {"i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N"};
+    std::vector<std::string> vir_pool = {"a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"};
+
+    size_t occ_counter = 0;
+    size_t vir_counter = 0;
+
+    // Identify and skip labels already chosen or fixed
+    // If 'i' or 'a' are already fixed/external indices in this string, 
+    // we must burn those options from our pool so we don't clobber them.
+    auto filter_pool = [&](std::vector<std::string>& pool, size_t& counter) {
+        while (counter < pool.size() && found_index_anywhere(in, pool[counter])) {
+            counter++; // Skip this label; it's already alive in the string
+        }
+    };
+
+    // nuclear (second-species) labels canonicalize inside their own space: the same
+    // conventional letters carried by the species prefix, drawn from their own pools.
+    // an electron label and a nuclear label are therefore never mapped onto each other.
+    const std::string npfx(1, nuclear_prefix);
+    std::unordered_map<std::string, std::string> nuc_occ_map, nuc_vir_map;
+    std::vector<std::string> nuc_occ_pool, nuc_vir_pool;
+    for (const auto & l : occ_pool) nuc_occ_pool.push_back(npfx + l);
+    for (const auto & l : vir_pool) nuc_vir_pool.push_back(npfx + l);
+
+    size_t nuc_occ_counter = 0;
+    size_t nuc_vir_counter = 0;
+
+    // is this an internal occupied ('o') or virtual ('v') label? classify within the
+    // label's own species, so that "no0" is nuclear-occupied and not a general label.
+    auto raw_class = [](const std::string &label) -> char {
+        const std::string base = is_nuclear(label) ? label.substr(1) : label;
+        if ( base.rfind("o", 0) == 0 ) return 'o';
+        if ( base.rfind("v", 0) == 0 ) return 'v';
+        return '\0';
+    };
+
+    // reserve the next conventional letter of the label's own species
+    auto assign_label = [&](const std::string &label, char cls) {
+        const bool nuc = is_nuclear(label);
+        auto &map     = cls == 'o' ? (nuc ? nuc_occ_map     : occ_map)
+                                   : (nuc ? nuc_vir_map     : vir_map);
+        auto &pool    = cls == 'o' ? (nuc ? nuc_occ_pool    : occ_pool)
+                                   : (nuc ? nuc_vir_pool    : vir_pool);
+        auto &counter = cls == 'o' ? (nuc ? nuc_occ_counter : occ_counter)
+                                   : (nuc ? nuc_vir_counter : vir_counter);
+
+        if ( map.find(label) != map.end() ) return;
+        filter_pool(pool, counter);
+        if ( counter < pool.size() ) map[label] = pool[counter++];
+        else map[label] = (nuc ? npfx : "") + (cls == 'o' ? "o_" : "v_") + std::to_string(counter++);
+    };
+
+/*
+    // Follow the exact macro-order of sorted amplitude vector
+    for (auto & type : in->amplitude_types) {
+        if (in->amps.find(type) == in->amps.end()) continue;
+        for (auto & amp : in->amps[type]) {
+            
+            // Collect internal raw labels ONLY for this specific operator
+            std::vector<std::string> local_raw_occ;
+            std::vector<std::string> local_raw_vir;
+    
+            for (const auto & label : amp.labels) {
+                if (label.rfind("o", 0) == 0) local_raw_occ.push_back(label);
+                if (label.rfind("v", 0) == 0) local_raw_vir.push_back(label);
+            }
+    
+            // Sort them alphabetically local to THIS operator.
+            // This ensures equivalent internal slots (like k and l) are assigned deterministically!
+            std::sort(local_raw_occ.begin(), local_raw_occ.end());
+            std::sort(local_raw_vir.begin(), local_raw_vir.end());
+    
+            // Map them sequentially
+            for (const auto& label : local_raw_occ) {
+                if (occ_map.find(label) == occ_map.end()) {
+                    filter_pool(occ_pool, occ_counter);
+                    if (occ_counter < occ_pool.size()) occ_map[label] = occ_pool[occ_counter++];
+                    else occ_map[label] = "o_" + std::to_string(occ_counter++);
+                }
+            }
+            for (const auto& label : local_raw_vir) {
+                if (vir_map.find(label) == vir_map.end()) {
+                    filter_pool(vir_pool, vir_counter);
+                    if (vir_counter < vir_pool.size()) vir_map[label] = vir_pool[vir_counter++];
+                    else vir_map[label] = "v_" + std::to_string(vir_counter++);
+                }
+            }
+        }
+    }
+*/
+
+    // Macro-order map creation loop
+    for (auto & type : in->amplitude_types) {
+        if (in->amps.find(type) == in->amps.end()) continue;
+        for (auto & amp : in->amps[type]) {
+            
+            std::vector<std::string> local_raw_occ;
+            std::vector<std::string> local_raw_vir;
+    
+            for (const auto & label : amp.labels) {
+                const char cls = raw_class(label);
+                if (cls == 'o') local_raw_occ.push_back(label);
+                if (cls == 'v') local_raw_vir.push_back(label);
+            }
+
+            // ====================================================================
+            // CONNECTIVITY-BASED TIE BREAKING OVERRIDES
+            // ====================================================================
+            auto get_downstream_signature = [&](const std::string& target, bool is_virtual) {
+                ConnectivitySignature sig{999, 999, 999};
+
+                // Look downstream through ALL amplitudes to find where this label lands
+                for (const auto& next_type : in->amplitude_types) {
+                    if (in->amps.find(next_type) == in->amps.end()) continue;
+                    for (const auto& downstream_amp : in->amps[next_type]) {
+                        // Skip the current tensor we are currently assigning maps for
+                        if (&downstream_amp == &amp) continue;
+
+                        // Build an on-the-fly sorted symmetry pool for this downstream operator
+                        std::vector<std::string_view> pool;
+                        for (const auto& lbl : downstream_amp.labels) {
+                            if (is_nuclear(lbl) != is_nuclear(target)) continue; // own species only
+                            if (is_virtual && raw_class(lbl) == 'v') pool.push_back(lbl);
+                            if (!is_virtual && raw_class(lbl) == 'o') pool.push_back(lbl);
+                        }
+                        std::sort(pool.begin(), pool.end());
+
+                        // Look up the label's slot index inside the layout-independent sorted pool!
+                        for (size_t p = 0; p < pool.size(); ++p) {
+                            if (pool[p] == target) {
+                                sig.operator_rank = downstream_amp.labels.size();
+                                sig.pool_position = p;
+                                sig.operator_type_weight = 1; // Prioritize Amplitudes over Integrals
+                                return sig;
+                            }
+                        }
+                    }
+                }
+
+                // If not found in Amplitudes, check Integrals downstream
+                for (const auto& next_type : in->integral_types) {
+                    if (in->ints.find(next_type) == in->ints.end()) continue;
+                    for (const auto& downstream_int : in->ints[next_type]) {
+                        std::vector<std::string_view> pool;
+                        for (const auto& lbl : downstream_int.labels) {
+                            if (is_nuclear(lbl) != is_nuclear(target)) continue; // own species only
+                            if (is_virtual && raw_class(lbl) == 'v') pool.push_back(lbl);
+                            if (!is_virtual && raw_class(lbl) == 'o') pool.push_back(lbl);
+                        }
+                        std::sort(pool.begin(), pool.end());
+
+                        for (size_t p = 0; p < pool.size(); ++p) {
+                            if (pool[p] == target) {
+                                sig.operator_rank = downstream_int.labels.size();
+                                sig.pool_position = p;
+                                sig.operator_type_weight = 2; // Integrals secondary
+                                return sig;
+                            }
+                        }
+                    }
+                }
+                return sig;
+            };
+
+            // Instead of blind alphabetical sorting, sort based on the downstream graph pools!
+            std::sort(local_raw_occ.begin(), local_raw_occ.end(), [&](const std::string& a, const std::string& b) {
+                auto sig_a = get_downstream_signature(a, false);
+                auto sig_b = get_downstream_signature(b, false);
+                if (sig_a.operator_type_weight != sig_b.operator_type_weight)
+                    return sig_a.operator_type_weight < sig_b.operator_type_weight;
+                if (sig_a.operator_rank != sig_b.operator_rank)
+                    return sig_a.operator_rank < sig_b.operator_rank;
+                if (sig_a.pool_position != sig_b.pool_position)
+                    return sig_a.pool_position < sig_b.pool_position;
+                return a < b; // Alphabetical fallback if completely identical downstream environments
+            });
+
+            std::sort(local_raw_vir.begin(), local_raw_vir.end(), [&](const std::string& a, const std::string& b) {
+                auto sig_a = get_downstream_signature(a, true);
+                auto sig_b = get_downstream_signature(b, true);
+                if (sig_a.operator_type_weight != sig_b.operator_type_weight)
+                    return sig_a.operator_type_weight < sig_b.operator_type_weight;
+                if (sig_a.operator_rank != sig_b.operator_rank)
+                    return sig_a.operator_rank < sig_b.operator_rank;
+                if (sig_a.pool_position != sig_b.pool_position)
+                    return sig_a.pool_position < sig_b.pool_position;
+                return a < b;
+            });
+            // ====================================================================
+
+            // Map them sequentially, each label out of its own species' pool
+            for (const auto& label : local_raw_occ) assign_label(label, 'o');
+            for (const auto& label : local_raw_vir) assign_label(label, 'v');
+        }
+    }
+
+    // Deterministic Traversal and In-Place Replacement
+    auto translate_label = [&](std::string &label) {
+        const char cls = raw_class(label);
+        if ( cls == '\0' ) return;                 // general label: left to the pass below
+        const bool nuc = is_nuclear(label);
+        assign_label(label, cls);                  // reserve a letter if not seen yet
+        label = cls == 'o' ? (nuc ? nuc_occ_map : occ_map)[label]
+                           : (nuc ? nuc_vir_map : vir_map)[label];
+    };
+
+    // now, traverse amplitudes and integrals
+
+    // for amplitudes, prioritize (1) amplitude order (2) amplitude type
+
+    std::vector<size_t> target_sizes = {0, 1, 2, 3, 4, 5, 6, 7, 8}; // TODO: this covers up to quadruples
+    
+    //Multi-pass translation: low-order operators take precedence
+    for (size_t current_size : target_sizes) {
+
+        // process amplitudes of the current size
+        for (auto & type : in->amplitude_types) {
+            if (in->amps.find(type) == in->amps.end()) continue;    
+            for (auto & amp : in->amps[type]) {
+                // only translate if this amplitude matches the current rank pass
+                if (amp.labels.size() != current_size) continue; 
+                
+                for (auto & label : amp.labels) {
+                    translate_label(label);
+                }
+            }
+        }
+    }
+
+    for (auto & type : in->integral_types) {
+        if (in->ints.find(type) == in->ints.end()) continue;
+        for (auto & integral : in->ints[type]) {
+            for (auto & label : integral.labels) { 
+                translate_label(label);
+            }
+        }
+    }
+
+    for (auto & delta : in->deltas) {
+        for (auto & label : delta.labels) {
+            translate_label(label);
+        }
+    }
+
+/*
+    // old non-deterministic way of assigning labels
 
     // occupied first:
     static std::vector<std::string> occ_in{"o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9",
@@ -1542,46 +1874,34 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
             }
         }
     }
+*/
 
     // now general
     static std::vector<std::string> gen_in{"p0", "p1", "p2", "p3"};
     static std::vector<std::string> gen_out{"p", "q", "r", "s"};
 
-    for (const std::string & in_idx : gen_in) {
-
-        if (in->index_in_anywhere(in_idx) > 0 ) {
-
-            for (const std::string & out_idx : gen_out) {
-
-                if (in->index_in_anywhere(out_idx) == 0 ) {
-
-                    replace_index_everywhere(in, in_idx, out_idx);
-                    break;
-                }
-            }
-        }
+    // ... and the nuclear analogues: the same letters carried by the species prefix,
+    // so that a nuclear general label (np#) never lands on an electron one.
+    static std::vector<std::string> nuc_gen_in, nuc_gen_out;
+    if ( nuc_gen_in.empty() ) {
+        const std::string np(1, nuclear_prefix);
+        for (const std::string & l : gen_in)  nuc_gen_in.push_back(np + l);
+        for (const std::string & l : gen_out) nuc_gen_out.push_back(np + l);
     }
 
-    // nuclear (second-species) labels: same conventional letters carried by the
-    // nuclear species prefix, e.g. no# -> ni,nj,...  nv# -> na,nb,...  np# -> np,nq,...
-    static const std::string np(1, nuclear_prefix);
-    static std::vector<std::string> nuc_occ_in, nuc_occ_out, nuc_vir_in, nuc_vir_out, nuc_gen_in, nuc_gen_out;
-    if ( nuc_occ_in.empty() ) {
-        for (const auto & s : occ_in) nuc_occ_in.push_back(np + s);
-        for (const auto & s : occ_out) nuc_occ_out.push_back(np + s);
-        for (const auto & s : vir_in) nuc_vir_in.push_back(np + s);
-        for (const auto & s : vir_out) nuc_vir_out.push_back(np + s);
-        for (const auto & s : gen_in) nuc_gen_in.push_back(np + s);
-        for (const auto & s : gen_out) nuc_gen_out.push_back(np + s);
-    }
+    for (size_t species = 0; species < 2; species++) {
 
-    for (size_t pass = 0; pass < 3; pass++) {
-        const std::vector<std::string> &in_list  = pass == 0 ? nuc_occ_in  : pass == 1 ? nuc_vir_in  : nuc_gen_in;
-        const std::vector<std::string> &out_list = pass == 0 ? nuc_occ_out : pass == 1 ? nuc_vir_out : nuc_gen_out;
+        const std::vector<std::string> &in_list  = species == 0 ? gen_in  : nuc_gen_in;
+        const std::vector<std::string> &out_list = species == 0 ? gen_out : nuc_gen_out;
+
         for (const std::string & in_idx : in_list) {
-            if ( in->index_in_anywhere(in_idx) > 0 ) {
+
+            if (in->index_in_anywhere(in_idx) > 0 ) {
+
                 for (const std::string & out_idx : out_list) {
-                    if ( in->index_in_anywhere(out_idx) == 0 ) {
+
+                    if (in->index_in_anywhere(out_idx) == 0 ) {
+
                         replace_index_everywhere(in, in_idx, out_idx);
                         break;
                     }
@@ -1589,10 +1909,12 @@ void use_conventional_labels(std::shared_ptr<pq_string> &in) {
             }
         }
     }
+
 }
 
 /// apply delta functions to amplitude and integral labels
-void gobble_deltas(std::shared_ptr<pq_string> &in) {
+void gobble_deltas_slow(std::shared_ptr<pq_string> &in) {
+    if (in->deltas.empty()) return;
     
     std::vector<std::string> tmp_delta1;
     std::vector<std::string> tmp_delta2;
@@ -1615,12 +1937,12 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
             tmp_delta2.push_back(delta.labels[1]);
             continue;
         }
-    
+   
+/* 
         // this logic is obviously cleaner than that below, but 
         // for some reason the code has a harder time collecting 
         // like terms this way. requires swapping up to four 
         // labels.
-/*
         if ( have_delta1 ) { 
             replace_index_everywhere(in, delta.labels[0], delta.labels[1] );
             continue;
@@ -1651,26 +1973,26 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         // list is ordered as {'t', 'l', 'r', 'u', 'm', 's'} ... i don't know why, but
         // i do know that this is the problematic part of the code
 
-        /*TODO: The order of the amplitude types happen to coincide
-         * with the order of descending number of amplitudes. This can be remedied by sorting the
-         * types by number of amplitudes. an implementation of this is below, however this changes the
-         * order of the indexing and cannot directly be compared with the test suite.
-         * However, visual inspection of the output shows that the results are analytically identical.
+        // TODO: The order of the amplitude types happen to coincide
+        // with the order of descending number of amplitudes. This can be remedied by sorting the
+        // types by number of amplitudes. an implementation of this is below, however this changes the
+        // order of the indexing and cannot directly be compared with the test suite.
+        // However, visual inspection of the output shows that the results are analytically identical.
 
-                char types[] {'t', 'l', 'r', 'u', 'm', 's'};
-                static int types_index[] {0, 1, 2, 3, 4, 5};
+        //      char types[] {'t', 'l', 'r', 'u', 'm', 's'};
+        //      static int types_index[] {0, 1, 2, 3, 4, 5};
 
-                // the amplitude type order will be set by the number of terms
-                std::sort(types_index, types_index + 6, [&types, &in](int i1, int i2) {
-                    return in->amps[types[i1]].size() > in->amps[types[i2]].size();
-                });
+        //      // the amplitude type order will be set by the number of terms
+        //      std::sort(types_index, types_index + 6, [&types, &in](int i1, int i2) {
+        //          return in->amps[types[i1]].size() > in->amps[types[i2]].size();
+        //      });
 
-                do_continue = false;
-                for (auto & type_index : types_index)
-                    char type = types[type_index];
-                    std::vector<amplitudes> & amps = in->amps[type];
-                    (... etc...)
-         * */
+        //      do_continue = false;
+        //      for (auto & type_index : types_index)
+        //          char type = types[type_index];
+        //          std::vector<amplitudes> & amps = in->amps[type];
+        //          (... etc...)
+        //
 
         do_continue = false;
         static std::vector<char> types = {'t', 'l', 'r', 'u', 'm', 's', 'D'};
@@ -1713,6 +2035,250 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         //deltas.sort();
         in->deltas.push_back(deltas);
     }
+
+}
+
+void gobble_deltas(std::shared_ptr<pq_string> &in) {
+    if (in->deltas.empty()) return;
+
+    // Grab flat local references to bypass the shared_ptr wrapper entirely
+    auto& deltas = in->deltas;
+    auto& ints = in->ints;
+    auto& amps = in->amps;
+
+    // ====================================================================
+    // ALLOCATION-FREE PRE-SCAN
+    // Bypasses the entire function instantly if there are no dummy deltas
+    // ====================================================================
+    bool has_gobbleable_delta = false;
+    for (const auto & delta : deltas) {
+        const std::string& l0 = delta.labels[0];
+        const std::string& l1 = delta.labels[1];
+        
+        if (is_dummy(l0) || is_dummy(l1)) {
+            has_gobbleable_delta = true;
+            break;
+        }
+    }
+    if (!has_gobbleable_delta) return;
+
+    // Use an unordered_map to build fully collapsed, direct single-hop lookups
+    std::unordered_map<std::string, std::string> substitution_map;
+    std::vector<delta_functions> remaining_deltas;
+    remaining_deltas.reserve(deltas.size());
+
+    for (const auto & delta : deltas) {
+        std::string l0 = delta.labels[0];
+        std::string l1 = delta.labels[1];
+
+        // Collapse delta chains completely in memory
+        while (substitution_map.find(l0) != substitution_map.end()) l0 = substitution_map[l0];
+        while (substitution_map.find(l1) != substitution_map.end()) l1 = substitution_map[l1];
+
+        if (l0 == l1) continue; 
+
+        bool l0_is_dummy = is_dummy(l0);
+        bool l1_is_dummy = is_dummy(l1);
+
+        if (!l0_is_dummy && !l1_is_dummy) {
+            remaining_deltas.push_back(delta);
+            continue;
+        }
+
+        if (l0_is_dummy && l1_is_dummy) {
+            if (l0 > l1) std::swap(l0, l1);
+            substitution_map[l0] = l1;
+        } else if (l0_is_dummy) {
+            substitution_map[l0] = l1;
+        } else {
+            substitution_map[l1] = l0;
+        }
+    }
+
+    if (substitution_map.empty()) return;
+
+    // Fully flatten the map so EVERY key points directly to its final destination.
+    // This turns our deep loops into a single O(1) hash check!
+    for (auto& pair : substitution_map) {
+        std::string final_dest = pair.second;
+        while (substitution_map.find(final_dest) != substitution_map.end()) {
+            final_dest = substitution_map[final_dest];
+        }
+        pair.second = final_dest;
+    }
+
+    // Helper lambda to apply substitutions with ZERO redundant string assignments
+    auto apply_subs = [&](std::string &label) {
+        auto it = substitution_map.find(label);
+        if (it != substitution_map.end()) {
+            // ONLY copy memory if the label is actually different!
+            if (label != it->second) {
+                label = it->second;
+            }
+        }
+    };
+
+    // 1. Direct iteration over integrals
+    for (auto & int_pair : ints) {
+        for (auto & integral : int_pair.second) {
+            for (auto & label : integral.labels) apply_subs(label);
+        }
+    }
+
+    // 2. Direct iteration over amplitudes
+    for (auto & amp_pair : amps) {
+        for (auto & amp : amp_pair.second) {
+            for (auto & label : amp.labels) apply_subs(label);
+        }
+    }
+
+    // 3. Update remaining deltas
+    for (auto & delta : remaining_deltas) {
+        for (auto & label : delta.labels) apply_subs(label);
+    }
+
+    deltas = std::move(remaining_deltas);
+}
+
+void gobble_deltas_gemini_v2(std::shared_ptr<pq_string> &in) {
+    if (in->deltas.empty()) return;
+
+    // Use a flat local vector to avoid heavy heap allocation/hashing overhead
+    std::vector<std::pair<std::string, std::string>> substitution_list;
+    std::vector<delta_functions> remaining_deltas;
+    substitution_list.reserve(in->deltas.size());
+
+    for (const auto & delta : in->deltas) {
+        std::string l0 = delta.labels[0];
+        std::string l1 = delta.labels[1];
+
+        // Resolve existing delta chains in our flat vector
+        for (const auto& sub : substitution_list) {
+            if (l0 == sub.first) l0 = sub.second;
+            if (l1 == sub.first) l1 = sub.second;
+        }
+
+        if (l0 == l1) continue; 
+
+        bool l0_is_dummy = (l0.rfind("o", 0) == 0 || l0.rfind("v", 0) == 0);
+        bool l1_is_dummy = (l1.rfind("o", 0) == 0 || l1.rfind("v", 0) == 0);
+
+        if (!l0_is_dummy && !l1_is_dummy) {
+            remaining_deltas.push_back(delta);
+            continue;
+        }
+
+        if (l0_is_dummy && l1_is_dummy) {
+            if (l0 > l1) std::swap(l0, l1);
+            substitution_list.push_back({l0, l1});
+        } else if (l0_is_dummy) {
+            substitution_list.push_back({l0, l1});
+        } else {
+            substitution_list.push_back({l1, l0});
+        }
+    }
+
+    if (substitution_list.empty()) return;
+
+    // Helper lambda to apply the flat substitution sequence
+    auto apply_subs = [&](std::string &label) {
+        for (const auto& sub : substitution_list) {
+            if (label == sub.first) {
+                label = sub.second;
+            }
+        }
+    };
+
+    // 1. Direct iteration over integrals map without type lookup keys
+    for (auto & int_pair : in->ints) {
+        for (auto & integral : int_pair.second) {
+            for (auto & label : integral.labels) apply_subs(label);
+        }
+    }
+
+    // 2. CRITICAL FLATTENING: Direct iteration over the amps map layers 
+    // loops through the underlying buckets directly without touching in->amplitude_types
+    for (auto & amp_pair : in->amps) {
+        for (auto & amp : amp_pair.second) {
+            for (auto & label : amp.labels) apply_subs(label);
+        }
+    }
+
+    // 3. Update remaining deltas
+    for (auto & delta : remaining_deltas) {
+        for (auto & label : delta.labels) apply_subs(label);
+    }
+
+    in->deltas = std::move(remaining_deltas);
+}
+
+void gobble_deltas_gemini_v1(std::shared_ptr<pq_string> &in) {
+    if (in->deltas.empty()) return;
+
+    std::unordered_map<std::string, std::string> substitution_map;
+    std::vector<delta_functions> remaining_deltas;
+
+    for (const auto & delta : in->deltas) {
+        std::string l0 = delta.labels[0];
+        std::string l1 = delta.labels[1];
+
+        // 1. Resolve existing delta chains locally in memory
+        while (substitution_map.find(l0) != substitution_map.end()) l0 = substitution_map[l0];
+        while (substitution_map.find(l1) != substitution_map.end()) l1 = substitution_map[l1];
+
+        if (l0 == l1) continue; 
+
+        // 2. FAST CHECK: No scans! Dummies start with internal 'o' or 'v' prefixes
+        bool l0_is_dummy = (l0.rfind("o", 0) == 0 || l0.rfind("v", 0) == 0);
+        bool l1_is_dummy = (l1.rfind("o", 0) == 0 || l1.rfind("v", 0) == 0);
+
+        if (!l0_is_dummy && !l1_is_dummy) {
+            // Both are external fixed lines; must preserve the delta
+            remaining_deltas.push_back(delta);
+            continue;
+        }
+
+        // 3. Map substitutions to always clear out the dummy index
+        if (l0_is_dummy && l1_is_dummy) {
+            if (l0 > l1) std::swap(l0, l1);
+            substitution_map[l0] = l1;
+        } else if (l0_is_dummy) {
+            substitution_map[l0] = l1;
+        } else {
+            substitution_map[l1] = l0;
+        }
+    }
+
+    if (substitution_map.empty()) return;
+
+    // 4. A single flat pass over the components to swap labels
+    for (auto & int_pair : in->ints) {
+        for (auto & integral : int_pair.second) {
+            for (auto & label : integral.labels) {
+                auto it = substitution_map.find(label);
+                if (it != substitution_map.end()) label = it->second;
+            }
+        }
+    }
+
+    for (auto & type : in->amplitude_types) {
+        if (in->amps.find(type) == in->amps.end()) continue;
+        for (auto & amp : in->amps[type]) {
+            for (auto & label : amp.labels) {
+                auto it = substitution_map.find(label);
+                if (it != substitution_map.end()) label = it->second;
+            }
+        }
+    }
+
+    for (auto & delta : remaining_deltas) {
+        for (auto & label : delta.labels) {
+            auto it = substitution_map.find(label);
+            if (it != substitution_map.end()) label = it->second;
+        }
+    }
+
+    in->deltas = std::move(remaining_deltas);
 }
 
 // bring a new string to normal order and add to list of normal ordered strings (fermi vacuum)

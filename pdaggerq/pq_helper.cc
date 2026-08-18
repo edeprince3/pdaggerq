@@ -1261,14 +1261,7 @@ void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
 
 void pq_helper::consolidate_running_terms() {
 
-    // apply delta functions and canonicalize labels so that equivalent terms
-    // acquire matching signatures (mirrors the per-string portion of simplify()).
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        if ( pq_str->skip ) continue;
-        gobble_deltas(pq_str);
-        reclassify_integrals(pq_str);
-        use_conventional_labels(pq_str);
-    }
+    //return;
 
     // keep only fully contracted, non-skipped strings (mirrors the FERMI prune
     // in cleanup(); terms that are not fully contracted never survive simplify()).
@@ -1278,10 +1271,21 @@ void pq_helper::consolidate_running_terms() {
         if ( pq_str->skip ) continue;
         if ( !pq_str->symbol.empty() ) continue;
         if ( !pq_str->is_boson_dagger.empty() ) continue;
-        pq_str->sort(); // sets the key used by consolidate_permutations_plus_swaps
         pruned.push_back(pq_str);
     }
     ordered = pruned;
+
+    // apply delta functions and canonicalize labels so that equivalent terms
+    // acquire matching signatures (mirrors the per-string portion of simplify()).
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        gobble_deltas(pq_str);
+        reclassify_integrals(pq_str);
+        canonicalize_labels(pq_str);
+    }
+
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        pq_str->sort(); // sets the key used by consolidate_permutations_plus_swaps
+    }
 
     // combine terms that are equal up to swaps of (up to two) summed labels.
     // this is the same sequence cleanup() uses, but without the subsequent
@@ -1290,11 +1294,13 @@ void pq_helper::consolidate_running_terms() {
     static const std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
     consolidate_permutations_plus_swaps(ordered, {});
+/*
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
+*/
 
     // drop the terms that were merged away so their memory is released
     std::vector<std::shared_ptr<pq_string> > kept;
@@ -2538,12 +2544,26 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
     return new_pq_strings;
 }
 
+#include<time.h>
 void pq_helper::simplify() {
 
-    // eliminate strings based on delta functions and use delta functions to alter integral / amplitude labels
+    // prune list so it only contains non-skipped pq_strings
+    std::vector<std::shared_ptr<pq_string> > pruned;
+    pruned.reserve(ordered.size());
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
-
         if ( pq_str->skip ) continue;
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
+        // about terms that aren't fully contracted. so, skip those because this
+        // function is time consuming
+        if (pq_str->vacuum == "FERMI" ) {
+            if ( !pq_str->symbol.empty() ) continue;
+            if ( !pq_str->is_boson_dagger.empty() ) continue;
+        }
+        pruned.push_back(pq_str);
+    }
+    ordered = pruned;
+
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
 
         // apply delta functions
         gobble_deltas(pq_str);
@@ -2552,13 +2572,15 @@ void pq_helper::simplify() {
         reclassify_integrals(pq_str);
 
         // replace any funny labels that were added with conventional ones
-        use_conventional_labels(pq_str);
+        canonicalize_labels(pq_str);
 
         // eliminate terms based on operator portions (for bernoulli)
         eliminate_operator_portions(pq_str, bernoulli_excitation_level);
+    }
 
-        // if UCC de-excitation amplitudes were transposed, transpose them back
-        if ( is_unitary_cc ) {
+    // if UCC de-excitation amplitudes were transposed, transpose them back
+    if ( is_unitary_cc ) {
+        for (std::shared_ptr<pq_string> & pq_str : ordered) {
             // relabel amplitudes t(i, a) -> t(a, i)
             for (size_t j = 0; j < pq_str->amps['t'].size(); j++) {
                 // check if first label is occupied or not. if so, reverse order and flip sign
@@ -2568,10 +2590,10 @@ void pq_helper::simplify() {
                 }
             }
         }
-
-        // replace creation / annihilation operators with rdms
-        if ( use_rdms ) {
-
+    }
+    // replace creation / annihilation operators with rdms
+    if ( use_rdms ) {
+        for (std::shared_ptr<pq_string> & pq_str : ordered) {
             size_t n = pq_str->symbol.size();
             size_t n_create = 0;
             size_t n_annihilate = 0;
@@ -2579,14 +2601,14 @@ void pq_helper::simplify() {
                 if ( pq_str->is_dagger[i] ) n_create++;
                 else                        n_annihilate++;
             }
-
+    
             if ( n_create != n_annihilate ) {
                 printf("\n");
                 printf("    error: rdms not defined for this case\n");
                 printf("\n");
                 exit(1);
-            }
-
+            }   
+    
             std::vector<std::string> rdm_labels;
             for (size_t i = 0; i < n_create; i++) {
                 rdm_labels.push_back(pq_str->symbol[i]);
@@ -2594,7 +2616,7 @@ void pq_helper::simplify() {
             for (size_t i = 0; i < n_annihilate; i++) {
                 rdm_labels.push_back(pq_str->symbol[n - i - 1]);
             }
-
+    
             // TODO: we're assuming no photons ... 
             // TODO: would there ever be a use case where we'd want to specify operator portions here?
             pq_str->set_amplitudes('D', n_create, n_annihilate, 0, rdm_labels);
@@ -2696,25 +2718,28 @@ void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string>
     }
 }
 
-std::vector<std::vector<std::string> > pq_helper::strings() const {
-
+std::vector<std::vector<std::string>> pq_helper::strings() const {
     bool is_blocked = pq_string::is_spin_blocked || pq_string::is_range_blocked;
     const auto &reference = is_blocked ? ordered_blocked : ordered;
 
-    std::vector<std::vector<std::string> > list;
-    // print operators by rank
-    for (size_t i = 0; i < 9; i++) {
-        for (const std::shared_ptr<pq_string> & pq_str : reference) {
-            if ( pq_str->symbol.size() != i  ) continue;
-            std::vector<std::string> my_string = pq_str->get_string();
-            if ( (int)my_string.size() > 0 ) {
-                list.push_back(my_string);
-            }
+    // Create a copy of the reference container and sort by rank (symbol size)
+    auto sorted_reference = reference;
+    std::stable_sort(sorted_reference.begin(), sorted_reference.end(),
+        [](const std::shared_ptr<pq_string> &a, const std::shared_ptr<pq_string> &b) {
+            return a->symbol.size() < b->symbol.size();
+        });
+
+    std::vector<std::vector<std::string>> list;
+    list.reserve(sorted_reference.size());
+
+    for (const auto &pq_str : sorted_reference) {
+        std::vector<std::string> my_string = pq_str->get_string();
+        if (!my_string.empty()) {
+            list.push_back(std::move(my_string));
         }
     }
 
     return list;
-
 }
 
 void pq_helper::clear() {

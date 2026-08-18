@@ -667,8 +667,12 @@ namespace pdaggerq {
 
             while (it != lines_.end()) {
                 // replace the repeated lines with arbitrary lines
-                if (counts[line] != 0)
-                    it->label_ += to_string(counts[line]);
+                if (counts[line] != 0) {
+                    // make uppercase and increment
+                    it->label_[0] -= 'a' - 'A';
+                    it->label_[0] += counts[line]-1;
+                }
+
                 counts[line]++;
 
                 it = std::find(it+1, lines_.end(), line);
@@ -686,8 +690,10 @@ namespace pdaggerq {
             delta_lines.reserve(freq);
             for (uint_fast8_t i = 0; i < freq; i++) {
                 Line new_line = line;
-                if (i != 0)
-                    new_line.label_ = new_line.label_ + to_string(i);
+                if (i != 0) {
+                    new_line.label_[0] -= 'a' - 'A';
+                    new_line.label_[0] += i-1;
+                }
                 delta_lines.push_back(new_line);
             }
 
