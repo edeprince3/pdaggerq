@@ -24,6 +24,8 @@ import numpy as np
 from numpy import einsum
 import types
 
+import copy
+
 from pdaggerq.numerical.utils.integrals import get_integrals
 from pdaggerq.numerical.utils.integrals import get_integrals_with_spin
 from pdaggerq.numerical.utils.diis import DIIS
@@ -244,6 +246,7 @@ class cc:
                     self.D[base_name][''] = np.array([-1.0 / (nph * self.cavity_frequency)])
 
         # lambda amplitudes
+        self.L_list = L_list
         self.initialize_lambda(L_list = L_list, cc_pseudoenergy_func = cc_pseudoenergy_func)
 
         # hartree-fock energy
@@ -473,4 +476,110 @@ class cc:
                 raise ValueError("lambda-CC iterations did not converge")
             else:
                 raise ValueError("CC iterations did not converge")
-    
+
+    def opdm(self, opdm_func = None):
+
+        if opdm_func is None:
+            raise Exception("provide an opdm_func")
+
+        # Evaluate OPDM
+        self.density_matrix = types.MethodType(opdm_func, self)
+        opdm = self.density_matrix()
+
+        # Alpha spin OPDM
+        opdm_a = np.block([
+            [opdm['aa_oo'], opdm['aa_ov']],
+            [opdm['aa_vo'], opdm['aa_vv']]
+        ])
+        
+        # Beta spin OPDM
+        opdm_b = np.block([
+            [opdm['bb_oo'], opdm['bb_ov']],
+            [opdm['bb_vo'], opdm['bb_vv']]
+        ])
+
+        return opdm_a, opdm_b
+
+    def tpdm(self, tpdm_func = None):
+
+        if tpdm_func is None:
+            raise Exception("provide an tpdm_func")
+
+        # Evaluate TPDM
+        self.density_matrix = types.MethodType(tpdm_func, self)
+        tpdm = self.density_matrix()
+
+        # aaaa spin TPDM
+        tpdm_aaaa = np.block([
+            [  # Axis 0 = o
+                [  # Axis 1 = o
+                    [tpdm['aaaa_oooo'], tpdm['aaaa_ooov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['aaaa_oovo'], tpdm['aaaa_oovv']]   # Axis 2 = v (Axis 3 = o, v)
+                ],
+                [  # Axis 1 = v
+                    [tpdm['aaaa_ovoo'], tpdm['aaaa_ovov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['aaaa_ovvo'], tpdm['aaaa_ovvv']]   # Axis 2 = v (Axis 3 = o, v)
+                ]
+            ],
+            [  # Axis 0 = v
+                [  # Axis 1 = o
+                    [tpdm['aaaa_vooo'], tpdm['aaaa_voov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['aaaa_vovo'], tpdm['aaaa_vovv']]   # Axis 2 = v (Axis 3 = o, v)
+                ],
+                [  # Axis 1 = v
+                    [tpdm['aaaa_vvoo'], tpdm['aaaa_vvov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['aaaa_vvvo'], tpdm['aaaa_vvvv']]   # Axis 2 = v (Axis 3 = o, v)
+                ]
+            ]
+        ])
+        
+        # bbbb spin TPDM
+        tpdm_bbbb = np.block([
+            [  # Axis 0 = o
+                [  # Axis 1 = o
+                    [tpdm['bbbb_oooo'], tpdm['bbbb_ooov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['bbbb_oovo'], tpdm['bbbb_oovv']]   # Axis 2 = v (Axis 3 = o, v)
+                ],
+                [  # Axis 1 = v
+                    [tpdm['bbbb_ovoo'], tpdm['bbbb_ovov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['bbbb_ovvo'], tpdm['bbbb_ovvv']]   # Axis 2 = v (Axis 3 = o, v)
+                ]
+            ],
+            [  # Axis 0 = v
+                [  # Axis 1 = o
+                    [tpdm['bbbb_vooo'], tpdm['bbbb_voov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['bbbb_vovo'], tpdm['bbbb_vovv']]   # Axis 2 = v (Axis 3 = o, v)
+                ],
+                [  # Axis 1 = v
+                    [tpdm['bbbb_vvoo'], tpdm['bbbb_vvov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['bbbb_vvvo'], tpdm['bbbb_vvvv']]   # Axis 2 = v (Axis 3 = o, v)
+                ]
+            ]
+        ])
+
+        # abab spin TPDM
+        tpdm_abab = np.block([
+            [  # Axis 0 = o
+                [  # Axis 1 = o
+                    [tpdm['abab_oooo'], tpdm['abab_ooov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['abab_oovo'], tpdm['abab_oovv']]   # Axis 2 = v (Axis 3 = o, v)
+                ],
+                [  # Axis 1 = v
+                    [tpdm['abab_ovoo'], tpdm['abab_ovov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['abab_ovvo'], tpdm['abab_ovvv']]   # Axis 2 = v (Axis 3 = o, v)
+                ]
+            ],
+            [  # Axis 0 = v
+                [  # Axis 1 = o
+                    [tpdm['abab_vooo'], tpdm['abab_voov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['abab_vovo'], tpdm['abab_vovv']]   # Axis 2 = v (Axis 3 = o, v)
+                ],
+                [  # Axis 1 = v
+                    [tpdm['abab_vvoo'], tpdm['abab_vvov']],  # Axis 2 = o (Axis 3 = o, v)
+                    [tpdm['abab_vvvo'], tpdm['abab_vvvv']]   # Axis 2 = v (Axis 3 = o, v)
+                ]
+            ]
+        ])
+
+        return tpdm_aaaa, tpdm_abab, tpdm_bbbb
+

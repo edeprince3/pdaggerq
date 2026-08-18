@@ -184,7 +184,6 @@ class CCSDT_RESPONSE:
             term_type = 'hessian',
             Ra = Ra,
             Rb = Rb,
-            write_function = True,
             pq_graph_options = self.pq_graph_options
         )
 

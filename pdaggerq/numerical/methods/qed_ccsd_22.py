@@ -167,6 +167,9 @@ class QED_CCSD_22:
             cavity_lambda = self.cavity_lambda,
             cavity_frequency= self.cavity_frequency
         )
+        self.efzc = self.cc_solver.efzc
+        self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
+        self.enuc_dse = self.cc_solver.enuc_dse
         
         en = self.cc_solver.t_solver()
 

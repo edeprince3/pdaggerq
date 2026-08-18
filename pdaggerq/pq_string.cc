@@ -46,7 +46,6 @@ pq_string::pq_string(const std::string &vacuum_type){
 void pq_string::sort() {
 
     // define numerical labels and permutations
-
     for (auto &ints_pair : ints) {
         std::vector<integrals> &ints_vec = ints_pair.second;
 
@@ -91,10 +90,26 @@ void pq_string::sort() {
         for (size_t i = 0; i < dim; i++) {
             numerical_labels_with_index.emplace_back(amps_vec[i].numerical_labels, i);
         }
+
         // sort the list of pairs lexicographically by the numerical labels
+        //std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
+        //          [](const std::pair<std::vector<int>, int> &a,
+        //             const std::pair<std::vector<int>, int> &b) {
+        //              return a.first < b.first;
+        //          });
+
+        // sort the list of pairs lexicographically by the numerical labels, 
+        // ensuring excitation order (vector size) takes priority!
         std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
                   [](const std::pair<std::vector<int>, int> &a,
-                     const std::pair<std::vector<int>, int> &b) {
+                     const std::pair<std::vector<int>, int> &b) { 
+                      
+                      // 1. Force shorter lists of labels (lower excitation) to come first
+                      if (a.first.size() != b.first.size()) {
+                          return a.first.size() < b.first.size();
+                      }
+
+                      // 2. Fall back to your original lexicographical sort if sizes are identical
                       return a.first < b.first;
                   });
 

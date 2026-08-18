@@ -44,39 +44,40 @@ void amplitudes::sort() {
         numerical_labels.push_back(numerical_label);
     }
 
+    permutations = 0;
+
+    if (has_permutational_symmetry) {
+
+        // sort labels and accumulate permutations
+        for (size_t step = 1; step < numerical_labels.size(); step++) {
+            
+            bool swapped = false;
+            for (size_t i = 0; i < numerical_labels.size() - step; i++) {
+        
+                // compare elements
+                if (numerical_labels[i] > numerical_labels[i + 1]) {
+        
+                  // swap
+                  int temp = numerical_labels[i];
+                  numerical_labels[i] = numerical_labels[i + 1];
+                  numerical_labels[i + 1] = temp;
+    
+                  // accumulate permutations
+                  permutations++;
+    
+                  swapped = true;
+    
+                }
+            }
+            if ( !swapped ) {
+                break;
+            }
+        }
+    }
     // add number of photons to the numerical labels
     char char_n_ph = '0' + n_ph;
     numerical_labels.push_back((int)char_n_ph);
 
-    permutations = 0;
-
-    if (!has_permutational_symmetry) return;
-
-    // sort labels and accumulate permutations
-    for (size_t step = 1; step < numerical_labels.size(); step++) {
-        
-        bool swapped = false;
-        for (size_t i = 0; i < numerical_labels.size() - step; i++) {
-    
-            // compare elements
-            if (numerical_labels[i] > numerical_labels[i + 1]) {
-    
-              // swap
-              int temp = numerical_labels[i];
-              numerical_labels[i] = numerical_labels[i + 1];
-              numerical_labels[i + 1] = temp;
-
-              // accumulate permutations
-              permutations++;
-
-              swapped = true;
-
-            }
-        }
-        if ( !swapped ) {
-            break;
-        }
-    }
 }
 
 /// copy amplitudes
