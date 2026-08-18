@@ -1464,6 +1464,37 @@ def test_rdm_block_ir():
         occ = base in "ijklmno"
         return ("O" if occ else "V") if nuc else ("o" if occ else "v")
 
+    def _antisym(a, classes):
+        """Antisymmetrize each run of equal index classes -- i.e. make the tensor a
+        PHYSICAL amplitude. The identity being checked here holds term by term only for
+        antisymmetric amplitudes: the two expansions consolidate a mutually-cancelling
+        pair of terms differently (one side cancels it, the other carries both halves),
+        so unsymmetrized random input makes the two sides differ by something that is
+        identically zero for any real amplitude."""
+        g, i = [], 0
+        while i < len(classes):                       # maximal runs of one class
+            j = i
+            while j + 1 < len(classes) and classes[j + 1] == classes[i]:
+                j += 1
+            g.append(list(range(i, j + 1))); i = j + 1
+        for grp in g:
+            if len(grp) < 2:
+                continue
+            out = np.zeros_like(a)
+            for perm in _it.permutations(range(len(grp))):
+                sgn = 1
+                pl = list(perm)                       # parity by counting inversions
+                for x in range(len(pl)):
+                    for y in range(x + 1, len(pl)):
+                        if pl[x] > pl[y]:
+                            sgn = -sgn
+                axes = list(range(a.ndim))
+                for k, src in enumerate(perm):
+                    axes[grp[k]] = grp[src]
+                out += sgn * np.transpose(a, axes)
+            a = out
+        return a
+
     for mdl in ("neo-ccd(ep)", "neo-ccsd", "neo-ccsdt(eep)"):
         rng2 = np.random.default_rng(7)
         gep = rng2.standard_normal((ne, npr, ne, npr))
@@ -1472,7 +1503,8 @@ def test_rdm_block_ir():
         def getamp(name, classes):
             classes = tuple(classes)
             if name not in amp:
-                amp[name] = rng2.standard_normal(tuple(DIM[c] for c in classes))
+                amp[name] = _antisym(rng2.standard_normal(tuple(DIM[c] for c in classes)),
+                                     classes)
             assert amp[name].shape == tuple(DIM[c] for c in classes), name
             return amp[name]
 

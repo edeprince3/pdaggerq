@@ -49,9 +49,26 @@ def test_codegen_keeps_species_distinct():
     print("OK  codegen keeps electron t2 and mixed t2_ep distinct (spin as block key)")
 
 
+def test_spin_traced_reference():
+    # The frozen spin-traced NEO equations (neo_spin_traced.ref, ~2000 lines over all five
+    # residual blocks) were only ever checked by running neo_spin_codegen.py by hand, so the
+    # reference silently went stale. Generating it costs under two seconds -- run it here so
+    # any change to the equations has to be an explicit --write.
+    import os
+    import neo_spin_codegen
+    ref = os.path.join(os.path.dirname(os.path.realpath(__file__)), "neo_spin_traced.ref")
+    with open(ref) as f:
+        expected = f.read()
+    assert neo_spin_codegen.serialize(neo_spin_codegen.build()) == expected, (
+        "spin-traced NEO equations differ from neo_spin_traced.ref; "
+        "run `python neo_spin_codegen.py --write` if the change is intended")
+    print("OK  spin-traced NEO equations match neo_spin_traced.ref")
+
+
 if __name__ == "__main__":
     test_electron_only_unchanged()
     test_highspin_nuclear_single_channel()
     test_full_nuclear_pairing_channel()
     test_codegen_keeps_species_distinct()
+    test_spin_traced_reference()
     print("PASS: NEO species-aware spin-tracing")
