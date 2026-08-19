@@ -206,9 +206,30 @@ namespace pdaggerq {
         // keep track of tmp ids that have been found
         set<long> declare_ids;
 
+        // A declaration is placed immediately before the first term that uses it, but a
+        // term only becomes visible here once it is in all_terms -- and other temp
+        // declarations are use sites too. So a declaration has to wait until every
+        // not-yet-placed declaration that reads it has been placed, or it lands after
+        // one of its own uses and the generated code reads an intermediate that does not
+        // exist yet. Walking ids downwards covers this only while a temp depends purely
+        // on lower ids; fusion (opt_level 6) merges intermediates and can leave a
+        // lower-id temp reading a higher-id one.
+        auto used_by_unplaced = [&](long temp_id) {
+            for (const auto &other : copy.equations_["temp"]) {
+                if (!other.lhs()->is_temp()) continue;
+                long other_id = as_link(other.lhs())->id();
+                if (other_id == temp_id) continue;
+                if (declare_ids.find(other_id) != declare_ids.end()) continue; // already placed
+                const idset rhs_ids = other.term_linkage()->get_ids("temp");   // reads only
+                if (rhs_ids.find(temp_id) != rhs_ids.end()) return true;
+            }
+            return false;
+        };
+
         // add declaration for each tmp
         bool found_any;
         size_t attempts = 0;
+        bool relax_deps = false; // drop the rule for one pass if it ever blocks everything
 
         do {
             found_any = false;
@@ -223,6 +244,9 @@ namespace pdaggerq {
 
                 // check if tmp is already declared
                 if (declare_ids.find(temp_id) != declare_ids.end()) continue;
+
+                // defer until everything that reads this tmp has been placed
+                if (!relax_deps && used_by_unplaced(temp_id)) continue;
 
                 bool found = false;
                 for (auto i = 0ul; i < all_terms.size(); ++i) {
@@ -274,7 +298,16 @@ namespace pdaggerq {
 
                 }
             }
-        } while (found_any && ++attempts < copy.equations_["temp"].size());
+
+            if (!found_any && !relax_deps) {
+                // every remaining declaration was deferred; a dependency cycle should be
+                // impossible, but fall back to the old unordered placement rather than
+                // dropping the declarations entirely.
+                relax_deps = true;
+                found_any  = true;
+            } else relax_deps = false;
+
+        } while (found_any && ++attempts < 2 * copy.equations_["temp"].size() + 2);
 
 
         // add a term to destroy the tmp after its last use
