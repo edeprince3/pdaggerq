@@ -51,7 +51,10 @@ string TammPrinter::format_contraction(
     for (const auto& op : operators) {
         if (op->empty()) continue;
         string s = op->str();
-        if (op->is_expandable(false, true))
+        // parenthesise an addition -- it binds looser than the product this operand
+        // sits in. is_expandable(false, true) answers false for a SCALAR addition
+        // (see EinsumPrinter::format_contraction), which opt_level 6 fusion produces.
+        if (op->is_expandable(false, true) || (!op->is_temp() && op->is_addition()))
             s = "(" + s + ")";
 
         if (op->is_printed_scalar()) {
