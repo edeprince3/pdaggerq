@@ -16,7 +16,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from pdaggerq.algebra import (BaseTerm, Index, TensorTerm, T1amps, T2amps,
+from pdaggerq.algebra import (BaseTerm, Index, TensorTerm, Rank1Amps, Rank2Amps,
                               TwoBody, OneBody)
 import numpy as np
 
@@ -40,12 +40,12 @@ def test_index():
 
 def test_baseterm():
     term = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='h', spin='')
+                    name='h', spin='', boson='', active='')
     assert term.indices[0] == Index('i', 'occ')
     assert term.indices[1] == Index('j', 'occ')
 
     term2 = BaseTerm(indices=(Index('k', 'occ'), Index('l', 'occ')),
-                    name='t1', spin='')
+                    name='t1', spin='', boson='', active='')
     tensort = term2 * term
     assert isinstance(tensort, TensorTerm)
 
@@ -58,29 +58,29 @@ def test_baseterm():
 
 def test_tensorterm():
     hij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='h', spin='')
+                    name='h', spin='', boson='', active='')
     t1ij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='t', spin='')
+                    name='t', spin='', boson='', active='')
     tensor_term = TensorTerm(base_terms=(hij, t1ij))
     assert tensor_term.coefficient == 1.0
 
-    assert tensor_term.__repr__() == " 1.0000 h(i,j)*t(i,j)"
+    assert tensor_term.__repr__() == " 1.000000000000 h(i,j)*t(i,j)"
 
     hij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='h', spin='_aa')
+                    name='h', spin='_aa', boson='', active='')
     t1ij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='t', spin='_aa')
+                    name='t', spin='_aa', boson='', active='')
     tensor_term = TensorTerm(base_terms=(hij, t1ij))
     assert tensor_term.coefficient == 1.0
 
-    assert tensor_term.__repr__() == " 1.0000 h_aa(i,j)*t_aa(i,j)"
+    assert tensor_term.__repr__() == " 1.000000000000 h_aa(i,j)*t_aa(i,j)"
 
 
 def test_tensor_multiply():
     hij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='h', spin='')
+                    name='h', spin='', boson='', active='')
     t1ij = BaseTerm(indices=(Index('i', 'occ'), Index('j', 'occ')),
-                    name='t', spin='')
+                    name='t', spin='', boson='', active='')
     tensor_term = TensorTerm(base_terms=(hij, t1ij))
     test_tensor_term = tensor_term * 4
     assert isinstance(test_tensor_term, TensorTerm)
@@ -91,7 +91,7 @@ def test_tensor_multiply():
     assert np.isclose(test_tensor_term.coefficient, 4)
 
     t1kl = BaseTerm(indices=(Index('k', 'occ'), Index('l', 'virt')),
-                    name='t', spin='')
+                    name='t', spin='', boson='', active='')
     test_tensor_term = tensor_term * t1kl
     assert test_tensor_term.base_terms[2] == t1kl
 
@@ -102,9 +102,9 @@ def test_tensor_multiply():
 def test_preset_tensor_terms():
     i, j, a, b = Index('i', 'occ'), Index('j', 'occ'), Index('a', 'virt'), \
                  Index('b', 'virt'),
-    test_term = T1amps(indices=(i, a))
+    test_term = Rank1Amps(indices=(i, a))
     assert test_term.name == 't1'
-    test_term = T2amps(indices=(i, j, b, a))
+    test_term = Rank2Amps(indices=(i, j, b, a))
     assert test_term.name == 't2'
     test_term = TwoBody(indices=(i, j, b, a))
     assert test_term.name == 'g'

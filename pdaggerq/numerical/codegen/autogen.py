@@ -1,5 +1,21 @@
 import pdaggerq 
+import os
 import re
+
+#: Directory the ``write_function=True`` generators write their modules to. A
+#: relative path resolves against the current working directory, which is why
+#: writing straight to "generated_code/..." only worked when the caller happened
+#: to be run from tests/. Callers that import what they generate should set this
+#: to the absolute directory they put on ``sys.path``.
+generated_code_dir = "generated_code"
+
+
+def write_generated_function(function_name, code):
+    """Write one generated module, creating the output directory if needed."""
+    os.makedirs(generated_code_dir, exist_ok=True)
+    with open(os.path.join(generated_code_dir, f"{function_name}.py"), "w") as file:
+        file.write(code)
+
 
 # Map fermionic order -> list of spin channels
 SPIN_MAP = {
@@ -485,8 +501,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -609,8 +624,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -719,8 +733,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -836,8 +849,7 @@ f"""
     
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -944,8 +956,7 @@ def uccsd_energy(order,
     
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1054,8 +1065,7 @@ f"""
     
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1214,8 +1224,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1315,8 +1324,7 @@ def lambda_cc_pseudoenergy(energy_name,
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1664,8 +1672,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1996,8 +2003,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -2299,8 +2305,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     return generated_code_string
 
@@ -2403,8 +2408,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     return generated_code_string
 
@@ -2580,8 +2584,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     return generated_code_string
 
@@ -2939,8 +2942,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     return generated_code_string
 
@@ -3256,7 +3258,6 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     return generated_code_string

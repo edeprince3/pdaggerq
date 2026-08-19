@@ -68,6 +68,11 @@ def test_ccsd_codegen_disk():
     script_path = os.path.dirname(os.path.realpath(__file__))
     gen_dir = os.path.join(script_path, "generated_code")
     os.makedirs(gen_dir, exist_ok=True)
+
+    # point the generators at the very directory we are about to import from,
+    # so the test does not depend on being invoked from tests/
+    from pdaggerq.numerical.codegen import autogen
+    autogen.generated_code_dir = gen_dir
     
     # Add the generation directory to sys.path so Python can import from it
     if gen_dir not in sys.path:
