@@ -1705,9 +1705,10 @@ def _check_pt_contract(model_names, dims):
 
     def interp(ir, inp, target):
         st = {}
-        # inputs are keyed by (name, classes): a name alone does not identify a block --
-        # the mixed rank-n multipliers share one emitted name (l3_ep is BOTH eep and epp)
-        # and are told apart only by their index classes
+        # inputs are keyed by (name, classes). Mixed blocks from rank 3 up now carry
+        # distinct names (l3_ep21 vs l3_ep12), so the name alone would do; keying by both
+        # is kept because it is what a consumer should do and it catches any regression
+        # that reintroduces a shared name
         val = lambda o: (st[o["name"]] if o["name"] in st
                          else inp[(o["name"], tuple(o["classes"]))])
         for s in ir:

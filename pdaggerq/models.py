@@ -521,9 +521,19 @@ def pt_amplitude_graph(name, amplitude, df=True, opt_level=None, label="R"):
     driver ``<proj(amplitude)| [W, T] |0>``, first order in the two-body fluctuation
     ``W`` (:data:`H_FLUCTUATION`) and in the converged cluster ``T``.
 
-    The amplitude is that numerator over the orbital-energy denominator::
+    The amplitude is that numerator over the orbital-energy denominator. The sign is
+    RANK-DEPENDENT -- do not carry the rank-3 form over to rank 4::
 
-        t = R / D        D = sum(e_vir) - sum(e_occ)   (positive)
+        t = -rsign * R / D        D = sum(e_vir) - sum(e_occ)   (positive)
+
+    with ``rsign`` the PROJECTION reversal parity ``(-1)^sum_species floor(rank_s / 2)``,
+    the same parity the cluster amplitudes carry. It is -1 for EVERY rank-3 block, which
+    is why ``(T)`` reads ``t = R / D`` throughout, and that simple form is rank-3 ONLY.
+    At rank 4 the blocks whose excitation rank is even in each species flip to +1::
+
+        rsign = -1   eee, eep, epp, ppp      (all of (T))   ->  t = +R/D
+        rsign = -1   eeep (tep31), eppp (tep13)             ->  t = +R/D
+        rsign = +1   eeee (t4), eepp (tep22), pppp (tp4)    ->  t = -R/D
 
     each index contributing the diagonal Fock element of *its own* species, so the
     NEO blocks read (lower case = electron, upper case = proton)::
@@ -594,29 +604,44 @@ def pt_energy_graph(name, amplitude=None, df=True, opt_level=None, label="energy
 
     The pairing between the two equations is exact and fixed::
 
-        E_[T] = -(1/w) sum(R * t)  =  -(1/w) sum(R^2 / D)   < 0
+        E = (rsign / w) sum(R * t)  =  -(1/w) sum(R^2 / D)   < 0
 
-    over the block's full (unrestricted) index range, ``w`` the product of the factorials
-    of the index-group sizes -- equivalently ``(n_e!)^2 (n_p!)^2`` for a block with
-    ``n_e`` electron and ``n_p`` proton excitations::
+    over the block's full (unrestricted) index range, with ``rsign`` the reversal parity
+    of :func:`pt_amplitude_graph` and ``w`` the product of the factorials of the
+    index-group sizes -- equivalently ``(n_e!)^2 (n_p!)^2`` for a block with ``n_e``
+    electron and ``n_p`` proton excitations::
 
         (T)  eee/ppp   36     eep/epp     4
         (Q)  eeee/pppp 576    eeep/eppp  36    eepp  16
 
-    ``E_[T]`` is the ``L2`` part; the ``L1`` term the emitted equation also carries is
-    what makes it ``(T)`` rather than ``[T]``. All of this is checked numerically in
+    The energy is negative at every rank -- but note that the FIRST form carries
+    ``rsign`` too. Both halves of the rank-3 special case (``t = R/D`` together with
+    ``E = -(1/w) sum(R*t)``) hide the same sign and it cancels between them, so carrying
+    the pair over to rank 4 by analogy yields a correction of the WRONG SIGN and no other
+    symptom. Use the ``rsign`` forms.
+
+    **Which multipliers pair.** A perturbative block of rank ``n`` pairs directly with the
+    rank ``n-1`` multipliers; the lower-rank ones are the extra terms that make the
+    correction ``(T)``/``(Q)`` rather than the bracketed ``[T]``/``[Q]``. So ``(T)`` keeps
+    ``L2`` and its extra term is ``L1``, while ``(Q)`` keeps ``L3`` and its extra terms are
+    ``L1`` AND ``L2`` -- the same over-generalization trap as the sign. A mixed block can
+    pair with more than one multiplier at once: the ``(Q)`` eepp energy contracts both
+    mixed rank-3 multipliers (see the naming caveat below).
+
+    All of this is checked numerically, per block, in
     ``models_test.test_perturbative_triples`` and ``..._quadruples``.
 
-    Naming caveat, and it is NOT sidestepped by per-block generation: the mixed blocks of
-    a given rank share an emitted name (eep and epp are both ``t3_ep``; eeep, eepp and
-    eppp are all ``t4_ep``, and likewise ``l3_ep``/``l4_ep`` for the multipliers), and are
-    told apart only by their index classes (``vvVOoo`` vs ``vVVOOo``, and so on) -- the
-    same convention the ``neo-ccsdt``/``neo-ccsdtq`` residuals already use. A single
-    block's equation can reference two of them at once: the ``(Q)`` eepp energy contracts
-    BOTH mixed rank-3 multipliers, emitting ``l3_ep`` with classes ``ooOVvv`` (eep) and
-    ``oOOVVv`` (epp) in the same expression. **A consumer must therefore key tensors by
-    (name, index classes), never by name alone** -- keying by name silently conflates two
-    physically distinct blocks."""
+    Naming: mixed blocks from rank 3 up spell out their electron/proton split, because a
+    single equation can reference two of them at once -- the ``(Q)`` eepp energy contracts
+    BOTH mixed rank-3 multipliers. So eep is ``t3_ep21`` and epp is ``t3_ep12`` (likewise
+    ``l3_ep21``/``l3_ep12``, and ``t4_ep31``/``t4_ep22``/``t4_ep13`` at rank 4), and the
+    names are unique within an equation. Rank 2 has only the 1+1 split and keeps the plain
+    ``t2_ep``/``l2_ep``.
+
+    Index classes still carry the shape (``vvVOoo`` for eep, ``vVVOOo`` for epp), and
+    keying by (name, classes) remains the most robust thing a consumer can do -- but with
+    distinct names it is no longer *required* to tell two physically different blocks
+    apart."""
     opt_level = _opt_level_for(name, opt_level)
     m = model(name)
     if not m.T_pt:

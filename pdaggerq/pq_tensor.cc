@@ -148,7 +148,20 @@ std::string amplitudes::to_string(char symbol) const {
     {
         size_t n_nuc = 0;
         for (const std::string & l : labels) if (l.size() > 1 && l[0] == 'n') n_nuc++;
-        if (n_nuc > 0) val += (n_nuc == labels.size()) ? "_n" : "_ep";
+        if (n_nuc > 0) {
+            if (n_nuc == labels.size()) val += "_n";
+            else {
+                // Mixed. From rank 3 up the order alone does NOT identify the block --
+                // tep21 (2e+1p) and tep12 (1e+2p) are both rank 3, have different shapes,
+                // and can appear in the same equation -- so spell out the split. Rank 2
+                // has only the 1+1 split, so it keeps the plain "_ep" name.
+                val += "_ep";
+                if (order >= 3) {
+                    size_t n_p = n_nuc / 2;
+                    val += std::to_string(order - n_p) + std::to_string(n_p);
+                }
+            }
+        }
     }
 
     if ( n_ph > 0 ) {
