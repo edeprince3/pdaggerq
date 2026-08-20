@@ -65,7 +65,13 @@ string EinsumPrinter::format_contraction(
     for (const auto& op : operators) {
         if (op->empty()) continue;
         string s = op->str();
-        if (op->is_expandable(false, true))
+        // An addition has to be parenthesised: it binds looser than the product this
+        // operand sits in. is_expandable(false, true) is the general test, but it also
+        // insists the operand is not a SCALAR, so a FUSED SCALAR ADDITION -- several
+        // scalars merged into one by opt_level 6 -- answered false and printed as
+        // "a + b + c * tensor" instead of "(a + b + c) * tensor", silently adding the
+        // scalars to the result instead of scaling by their sum.
+        if (op->is_expandable(false, true) || (!op->is_temp() && op->is_addition()))
             s = "(" + s + ")";
 
         if (op->is_printed_scalar()) {
