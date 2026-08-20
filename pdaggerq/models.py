@@ -55,10 +55,20 @@ Method families
   :func:`pt_amplitude_graph` and :func:`pt_energy_graph`, not the residual builders.
 * single-proton NEO: every ``vp`` model has a ``<name>-1p`` counterpart (e.g.
   ``neo-ccsd-1p``) auto-derived by dropping ``vp`` and the >=2-proton amplitudes -- the
-  exact equations for one quantum proton. Bit-for-bit with the full model there (the
-  dropped pieces are identically zero) but cheaper, and, having no ``vp``, it takes the
+  exact equations for one quantum proton, and cheaper. Having no ``vp`` it takes the
   plain SI-free proton Fock (no dressing). A consumer dispatches on the proton count:
   1 -> ``-1p``, >=2 -> the full ``vp`` model.
+
+  These are NOT redundant with the full models, and a consumer cannot replace them by
+  gating amplitudes on the particle count. The one- and many-proton problems have
+  genuinely different Hamiltonians: with a single quantum proton there is no
+  proton-proton interaction, so ``vp`` is absent from H entirely. Deleting the
+  >=2-proton amplitudes from a ``vp`` model leaves every ``vp`` term standing, and those
+  terms are a proton interacting with itself. Concretely, for ``neo-ccsd`` the proton
+  singles residual with the >=2-proton amplitudes deleted still has 24 terms against
+  ``neo-ccsd-1p``'s 20; the four extra are pure proton-proton, e.g.
+  ``<nj,na||nb,ni> t1_n(nb,nj)``. The reduction is a change of Hamiltonian, not a
+  truncation of the cluster (see :func:`_single_proton`).
 
 Charge convention
 -----------------
@@ -153,6 +163,9 @@ EXCITATION = {
 }
 
 H_ELEC = ("f", "v")
+# The one- and many-proton Hamiltonians are genuinely different operators, not a
+# truncation of one another: a single quantum proton has no proton-proton interaction, so
+# vp is absent rather than merely inactive. See _single_proton.
 H_NEO    = ("f", "v", "fp", "gep")        # single-proton NEO (no proton-proton term)
 H_NEO_PP = ("f", "v", "fp", "gep", "vp")  # + proton-proton fluctuation (multi-proton)
 
@@ -248,11 +261,26 @@ def _proton_count(amp):
 
 def _single_proton(m):
     """The one-quantum-proton reduction of a NEO model: drop ``vp`` and every amplitude
-    that needs >=2 protons. Both are identically zero for a single proton (``vp``'s two-
-    body part annihilates the lone proton; a proton-rank>=2 amplitude is antisymmetric in
-    the one occupied proton), so the reduced model is bit-for-bit with the full one for a
-    single proton -- but cheaper (no ``vp`` terms, fewer amplitudes) and, without ``vp``,
-    it wants the plain SI-free proton Fock rather than the dressed one."""
+    that needs >=2 protons.
+
+    A proton-rank>=2 amplitude is antisymmetric in the one occupied proton and so
+    vanishes, but ``vp`` is a different matter, and it is why this reduction exists as a
+    separate model rather than as something a consumer can do by itself.
+
+    **The Hamiltonian genuinely differs.** With one quantum proton there is no
+    proton-proton interaction at all, so ``vp`` is not part of H. It is not enough to
+    drop the >=2-proton amplitudes and keep the many-proton H: the ``vp`` terms do not
+    follow the amplitudes out. They contract with the surviving proton singles and
+    doubles and remain in the equations, where they describe the lone proton interacting
+    with itself. For ``neo-ccsd``, deleting the >=2-proton amplitudes from the full model
+    leaves the proton singles residual with 24 terms where ``neo-ccsd-1p`` has 20; the
+    four extra are pure proton-proton (``<nj,na||nb,ni> t1_n(nb,nj)`` and friends).
+    ``models_test.test_single_proton_models`` pins this.
+
+    So a downstream code that detects the particle count cannot reach these equations by
+    gating amplitudes -- it has to select the ``-1p`` model, which drops ``vp`` from H.
+    Without ``vp`` the model also wants the plain SI-free proton Fock rather than the
+    dressed one."""
     H = tuple(h for h in m.H if h != "vp")
     T = [a for a in m.T if _proton_count(a) <= 1]
     T_pt = [a for a in m.T_pt if _proton_count(a) <= 1]

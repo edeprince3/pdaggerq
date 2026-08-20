@@ -66,6 +66,38 @@ def test_single_proton_models():
     assert any(l.strip().startswith("{") for l in models.energy_graph("neo-ccsd-1p").to_strings("ir"))
     assert any(l.strip().startswith("{")
                for l in models.residual_ir("neo-ccsd-1p", "tep11"))
+    # The -1p models are NOT redundant with the full ones, and a consumer cannot reach
+    # them by gating amplitudes on the particle count: the one- and many-proton
+    # Hamiltonians differ. Deleting the >=2-proton amplitudes leaves every vp term
+    # standing, and for a single proton those describe it interacting with itself.
+    import re
+    from pdaggerq._pdaggerq import pq_helper
+
+    def resid(H, T, proj):
+        pq = pq_helper("fermi")
+        pq.set_left_operators([[proj]])
+        for h in H:
+            pq.add_st_operator(1.0, [h], list(T), True)
+        pq.simplify()
+        return [" ".join(t) for t in pq.strings()]
+
+    full = models.model("neo-ccsd")
+    gated_T = [a for a in full.T if models._proton_count(a) <= 1]   # what gating leaves
+    one_p = models.model("neo-ccsd-1p")
+    assert list(one_p.T) == gated_T, (list(one_p.T), gated_T)      # same cluster ...
+    assert "vp" in full.H and "vp" not in one_p.H                  # ... different H
+
+    proj = models.PROJECTION["tp1"]
+    gated = resid(full.H, gated_T, proj)        # amplitudes gated, many-proton H kept
+    true_1p = resid(one_p.H, gated_T, proj)     # the -1p model
+    extra = [t for t in gated if t not in true_1p]
+    assert extra, "gating amplitudes alone should leave vp terms behind"
+    assert len(gated) > len(true_1p), (len(gated), len(true_1p))
+    # every surviving term is pure proton-proton: an antisymmetrized integral over four
+    # nuclear labels, which is exactly the self-interaction a lone proton must not have
+    for t in extra:
+        assert re.search(r"<n\w+,n\w+\|\|n\w+,n\w+>", t), t
+
     print("test_single_proton_models OK")
 
 
