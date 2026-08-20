@@ -774,23 +774,32 @@ size_t PQGraph::merge_intermediates(){
         guard.lock();
     }
 
-    // count terms in pq_graph
-    size_t num_terms = get_num_terms();
+    // Repeat passes until one fuses nothing.
+    //
+    // This used to recurse: the loop called merge_intermediates(), which ran a pass and
+    // then looped on ITS return value, so every nesting level added its own "did anything
+    // change?" pass on top of the one its child had already run. Three productive passes
+    // therefore cost six. A pass is expensive even when it merges nothing -- on the
+    // UCCSD(4) energy it is minutes -- so half the fusion time went on confirming,
+    // repeatedly, that there was nothing left to do.
+    size_t num_fused_total = 0;
+    while (true) {
 
-    LinkMerger link_merger(*this);
-    link_merger.populate();
-    link_merger.prune();
-    link_merger.print();
-    link_merger.merge();
-    link_merger.clear();
+        // count terms in pq_graph
+        size_t num_terms = get_num_terms();
 
-    size_t fused_terms = get_num_terms();
-    fused_terms = num_terms - fused_terms;
-    collect_scaling();
+        LinkMerger link_merger(*this);
+        link_merger.populate();
+        link_merger.prune();
+        link_merger.print();
+        link_merger.merge();
+        link_merger.clear();
 
-    size_t num_fused_total = fused_terms;
-    while (fused_terms > 0) {
-        fused_terms = merge_intermediates(); // recursively merge intermediates until no more terms are fused
+        size_t fused_terms = get_num_terms();
+        fused_terms = num_terms - fused_terms;   // unchanged arithmetic
+        collect_scaling();
+
+        if (fused_terms == 0) break;
         num_fused_total += fused_terms;
     }
 
