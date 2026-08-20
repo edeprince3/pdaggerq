@@ -126,14 +126,17 @@ void export_pq_helper(py::module& m) {
                 self.block_by_range(label_ranges);
             },
             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+        .def("remove_gep_reference_traces", &pq_helper::remove_gep_reference_traces)
         .def("add_st_operator",
-            [](pq_helper& self, double factor, 
-                                const std::vector<std::string> &targets, 
-                                const std::vector<std::string> &ops, 
-                                bool do_operators_commute) {
-                return self.add_st_operator(factor, targets, ops, do_operators_commute);
+            [](pq_helper& self, double factor,
+                                const std::vector<std::string> &targets,
+                                const std::vector<std::string> &ops,
+                                bool do_operators_commute,
+                                int max_order) {
+                return self.add_st_operator(factor, targets, ops, do_operators_commute, max_order);
             },
-            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true )
+            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true,
+            py::arg("max_order") = 4 )
         .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
         .def("add_bernoulli_operator", &pq_helper::add_bernoulli_operator)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
@@ -624,9 +627,14 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
         int count = 0;
         bool found_v = false; // fluctuation potential
         bool found_vn = false; // normal-ordered fluctuation potential
+        bool found_vp = false; // nuclear (proton-proton) fluctuation potential
         std::vector<std::string> tmp_in;
         for (const std::string & op : in) {
-            if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+            if (op.substr(0, 2) == "vp" || op.substr(0, 2) == "Vp") {
+                // nuclear-nuclear fluctuation potential (checked before the generic v)
+                found_vp = true;
+                break;
+            }else if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
                 if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
                     found_vn = true;
                     break;
@@ -638,16 +646,19 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
                 count++;
             }
         }
-        if ( found_v || found_vn ) {
+        if ( found_v || found_vn || found_vp ) {
             done_processing = false;
 
             // get bernoulli operator portions
             std::string op_portions = get_operator_portions_as_string(in[count]);
 
-            if ( found_v ) {
-                // term 1 (j1)
-                std::string v_type = "j1";
-                if ( op_portions.length() > 0 ) { 
+            if ( found_v || found_vp ) {
+                // split into a one-body fold (j1/jp1) and the two-body part (j2/jp2);
+                // the nuclear potential uses the nuclear-labelled "jp" variants.
+                std::string jname = found_vp ? "jp" : "j";
+                // term 1 (j1 / jp1)
+                std::string v_type = jname + "1";
+                if ( op_portions.length() > 0 ) {
                     v_type += "{" + op_portions + "}";
                 }
                 tmp_in.emplace_back(v_type);
@@ -660,13 +671,16 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
                 }
                 ops_out.push_back(pq_operator_terms(factor, in));
 
-                // term 2 (j2)
+                // term 2 (j2 / jp2)
                 in.clear();
                 for (int i = 0; i < count; i++) {
                     in.push_back(tmp_in[i]);
                 }
-                v_type[1] = '2';
-                in.emplace_back(v_type);
+                std::string v_type2 = jname + "2";
+                if ( op_portions.length() > 0 ) {
+                    v_type2 += "{" + op_portions + "}";
+                }
+                in.emplace_back(v_type2);
                 for (int i = count + 1; i < (int)tmp_in.size(); i++) {
                     in.push_back(tmp_in[i]);
                 }
@@ -833,7 +847,11 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplit
         bool found_t = false;
         for (size_t i = 0; i < in.size(); i++) {
             if ( in[i].substr(0,1) == "t" || in[i].substr(0,1) == "T" ) {
-                if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" ) {
+                // electron cluster amplitudes ("t<n>") are split into excitation
+                // ("te") / de-excitation ("td") forms here. nuclear ("tp") and mixed
+                // ("tep") amplitudes are constructed directly and pass through unsplit.
+                if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" &&
+                     in[i].substr(0,2) != "tp" ) {
                     found_t = true;
                     break;
                 }else {
@@ -877,12 +895,13 @@ struct op_class {
     /// a cluster amplitude, i.e. a pure excitation with no contractable slots
     bool is_amplitude = false;
 
-    /// range of the excitation level this operator can carry
-    int min_level = 0, max_level = 0;
+    /// range of the excitation level this operator can carry, per species
+    int e_min = 0, e_max = 0;
+    int p_min = 0, p_max = 0;
 
     /// number of quasi-annihilator slots -- a^(occupied) or a(virtual) -- that a
-    /// cluster amplitude can contract with
-    int legs = 0;
+    /// cluster amplitude can contract with, per species
+    int e_legs = 0, p_legs = 0;
 };
 
 /// the trailing integer of an operator name, e.g. rank_suffix("t2", 1) -> 2.
@@ -929,43 +948,63 @@ op_class classify_e_operator(const std::string &op) {
     // holes = #(occupied annihilators) - #(occupied creators). the excitation level
     // is half their sum; the contractable slots are the occupied creators and the
     // virtual annihilators.
-    int particles = 0, holes = 0, legs = 0;
+    int particles[2] = {0, 0}, holes[2] = {0, 0}, legs[2] = {0, 0};
     for (size_t i = 0; i < labels.size(); i++) {
         const std::string &idx = labels[i];
+        int sp = is_nuclear(idx) ? 1 : 0;
         bool creator = (int)i < rank;
         if ( is_vir(idx) ) {
-            particles += creator ? 1 : -1;
-            if ( !creator ) legs++;
+            particles[sp] += creator ? 1 : -1;
+            if ( !creator ) legs[sp]++;
         }else if ( is_occ(idx) ) {
-            holes += creator ? -1 : 1;
-            if ( creator ) legs++;
+            holes[sp] += creator ? -1 : 1;
+            if ( creator ) legs[sp]++;
         }else return c; // general label: level undetermined
     }
 
-    if ( (particles + holes) % 2 != 0 ) return c;
+    if ( (particles[0] + holes[0]) % 2 != 0 ) return c;
+    if ( (particles[1] + holes[1]) % 2 != 0 ) return c;
 
     c.known = true;
-    c.min_level = c.max_level = (particles + holes) / 2;
-    c.legs = legs;
+    c.e_min = c.e_max = (particles[0] + holes[0]) / 2;
+    c.p_min = c.p_max = (particles[1] + holes[1]) / 2;
+    c.e_legs = legs[0];
+    c.p_legs = legs[1];
 
     return c;
 }
 
-/// classify a cluster amplitude name, e.g. "t2" or "l2".
+/// classify an amplitude name of the form <lead>[p<M> | ep<N><M> | <N>], e.g.
+/// "t2" (2 electrons), "tp1" (1 nucleus), "tep21" (2 electrons + 1 nucleus).
 /// @p sign is +1 for excitations (t) and -1 for de-excitations (l).
 op_class classify_amplitude(const std::string &op, int sign) {
 
     op_class c;
 
-    int rank = rank_suffix(op, 1);
-    if ( rank < 1 ) return c;
+    int e_rank = 0, p_rank = 0;
+    if ( op.compare(1, 2, "ep") == 0 ) {
+        // tep<N><M> / lep<N><M>: single-digit electron and nuclear ranks
+        if ( op.size() != 5 ) return c;
+        if ( op[3] < '1' || op[3] > '9' || op[4] < '1' || op[4] > '9' ) return c;
+        e_rank = op[3] - '0';
+        p_rank = op[4] - '0';
+    }else if ( op.compare(1, 1, "p") == 0 ) {
+        p_rank = rank_suffix(op, 2);
+        if ( p_rank < 1 ) return c;
+    }else {
+        e_rank = rank_suffix(op, 1);
+        if ( e_rank < 1 ) return c;
+    }
 
     c.known = true;
     c.is_amplitude = sign > 0;
-    c.min_level = c.max_level = sign * rank;
-
-    // a de-excitation operator is all quasi-annihilators
-    if ( sign < 0 ) c.legs = 2 * rank;
+    c.e_min = c.e_max = sign * e_rank;
+    c.p_min = c.p_max = sign * p_rank;
+    if ( sign < 0 ) {
+        // a de-excitation operator is all quasi-annihilators
+        c.e_legs = 2 * e_rank;
+        c.p_legs = 2 * p_rank;
+    }
 
     return c;
 }
@@ -978,21 +1017,26 @@ op_class classify_operator(const std::string &op) {
 
     // one- and two-body operators carry an undetermined excitation level: a
     // k-body operator ranges over [-k, k] and offers 2k contractable slots.
-    auto body = [&c](int n_body) {
+    auto body = [&c](int e_body, int p_body) {
         c.known = true;
-        c.min_level = -n_body;
-        c.max_level = n_body;
-        c.legs = 2 * n_body;
+        c.e_min = -e_body; c.e_max = e_body; c.e_legs = 2 * e_body;
+        c.p_min = -p_body; c.p_max = p_body; c.p_legs = 2 * p_body;
     };
 
     if ( op.empty() || op == "1" ) {
         c.known = true;
     }else if ( op == "h" || op == "f" || op == "j1" ) {
-        body(1);                        // one-body
+        body(1, 0);                     // one-body, electronic
     }else if ( op == "g" || op == "v" || op == "j2" ) {
-        body(2);                        // two-body
+        body(2, 0);                     // two-body, electronic
+    }else if ( op == "fp" || op == "jp1" ) {
+        body(0, 1);                     // one-body, nuclear
+    }else if ( op == "vp" || op == "jp2" ) {
+        body(0, 2);                     // two-body, nuclear
+    }else if ( op == "gep" ) {
+        body(1, 1);                     // one electron and one nucleus
     }else if ( op == "d+" || op == "d-" ) {
-        body(1);                        // dipole (one-body) times a boson operator
+        body(1, 0);                     // dipole (one-body) times a boson operator
     }else if ( op == "w0" || op == "b+" || op == "b-" ) {
         c.known = true;                 // purely bosonic
     }else if ( op[0] == 't' ) {
@@ -1020,29 +1064,30 @@ void pq_helper::screen_operator_products(std::vector<pq_operator_terms> &ops, bo
     // accumulated excitation level of the bra and the ket. a term needs only one
     // pair of them to balance, so the widest range over all of them is what a
     // product has to fit into.
-    int outer_min = 0, outer_max = 0;
+    int outer_e_min = 0, outer_e_max = 0, outer_p_min = 0, outer_p_max = 0;
     for (const std::vector<std::vector<std::string>> *side : {&left_operators, &right_operators}) {
         if ( side->empty() ) continue;
-        int side_min = 0, side_max = 0;
+        int side_e_min = 0, side_e_max = 0, side_p_min = 0, side_p_max = 0;
         bool side_first = true;
         for (const std::vector<std::string> &alternative : *side) {
-            int min_level = 0, max_level = 0;
+            int e_min = 0, e_max = 0, p_min = 0, p_max = 0;
             for (const std::string &op : alternative) {
                 op_class c = classify_operator(op);
                 if ( !c.known ) return;
-                min_level += c.min_level;
-                max_level += c.max_level;
+                e_min += c.e_min; e_max += c.e_max;
+                p_min += c.p_min; p_max += c.p_max;
             }
             if ( side_first ) {
-                side_min = min_level; side_max = max_level;
+                side_e_min = e_min; side_e_max = e_max;
+                side_p_min = p_min; side_p_max = p_max;
                 side_first = false;
             }else {
-                side_min = std::min(side_min, min_level);
-                side_max = std::max(side_max, max_level);
+                side_e_min = std::min(side_e_min, e_min); side_e_max = std::max(side_e_max, e_max);
+                side_p_min = std::min(side_p_min, p_min); side_p_max = std::max(side_p_max, p_max);
             }
         }
-        outer_min += side_min;
-        outer_max += side_max;
+        outer_e_min += side_e_min; outer_e_max += side_e_max;
+        outer_p_min += side_p_min; outer_p_max += side_p_max;
     }
 
     std::vector<pq_operator_terms> kept;
@@ -1050,29 +1095,38 @@ void pq_helper::screen_operator_products(std::vector<pq_operator_terms> &ops, bo
 
     for (const pq_operator_terms &term : ops) {
 
-        int min_level = outer_min, max_level = outer_max;
+        int e_min = outer_e_min, e_max = outer_e_max;
+        int p_min = outer_p_min, p_max = outer_p_max;
 
         // contractable slots offered by the target block, and the cluster
         // amplitudes that have to fit into them
-        int legs = 0, n_amplitudes = 0;
+        int e_legs = 0, p_legs = 0;
+        int e_only = 0, p_only = 0, either = 0;
 
         bool screenable = true;
         for (const std::string &op : term.operators) {
             op_class c = classify_operator(op);
             if ( !c.known ) { screenable = false; break; }
-            min_level += c.min_level;
-            max_level += c.max_level;
-            if ( c.is_amplitude ) n_amplitudes++;
-            else                  legs += c.legs;
+            e_min += c.e_min; e_max += c.e_max;
+            p_min += c.p_min; p_max += c.p_max;
+            if ( c.is_amplitude ) {
+                if ( c.e_max > 0 && c.p_max > 0 )  either++;
+                else if ( c.e_max > 0 )            e_only++;
+                else if ( c.p_max > 0 )            p_only++;
+            }else {
+                e_legs += c.e_legs;
+                p_legs += c.p_legs;
+            }
         }
         if ( !screenable ) return;
 
         // 1. excitation balance
-        if ( min_level > 0 || max_level < 0 ) continue;
+        if ( e_min > 0 || e_max < 0 || p_min > 0 || p_max < 0 ) continue;
 
         // 2. connectivity: every amplitude of a nested commutator has to contract
         //    with the target block, and amplitudes never contract with each other
-        if ( connected && n_amplitudes > legs ) continue;
+        if ( connected && ( e_only > e_legs || p_only > p_legs ||
+                            e_only + p_only + either > e_legs + p_legs ) ) continue;
 
         kept.push_back(term);
     }
@@ -1445,7 +1499,6 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
 
                 while (std::getline(ss, segment, ',')) {
                     if (!segment.empty()) {
-                        labels.size();
                         labels.push_back(segment);
                     }
                 }
@@ -1473,10 +1526,22 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             // integrals
             newguy->set_integrals("core", {idx1, idx2}, op_portions);
     
+        }else if (op.substr(0, 2) == "fp" || op.substr(0, 2) == "Fp") { // nuclear (proton) fock operator
+
+            // one-body operator over the nuclear space; general nuclear labels (np#)
+            // expand to nuclear occupied/virtual and never mix with electron labels
+            std::string idx1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2);
+
+            newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+
         }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
-  
+
             // normal ordered or not?
-            if ( op.size() == 1 ) { 
+            if ( op.size() == 1 ) {
                 std::string idx1 = "p" + std::to_string(gen_label_count++);
                 std::string idx2 = "p" + std::to_string(gen_label_count++);
     
@@ -1552,24 +1617,83 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             // boson operator
             newguy->is_boson_dagger.push_back(false);
     
+        }else if (op.substr(0, 3) == "gep" || op.substr(0, 3) == "Gep") { // electron-nuclear (e-p) two-body operator
+
+            // non-antisymmetrized two-body operator coupling one electron and one
+            // nuclear particle: a^+(e) a^+(n) a(n) a(e). electrons and nuclei do not
+            // exchange, so this integral has no antisymmetrizer between the species.
+            //
+            // CHARGE CONVENTION: gep carries NO built-in sign. The integral "g" IS the
+            // signed interaction, g = q_e q_x V_ex (V_ex = bare positive Coulomb, q in
+            // units of e). The caller therefore supplies
+            //     g = -Z_x V_ex      (Z_x = second species' charge; q_e = -1)
+            // so the equations are charge-independent and serve protons (Z=+1, attractive),
+            // positrons (Z=+1, attractive) and negative muons (Z=-1, repulsive) alike --
+            // the sign is a property of the integral, not of the derivation.
+            // (Previously this multiplied by -1, hardcoding Z_x = +1 and forcing an
+            // attractive e-p interaction; cf. Pavosevic, Culpitt, Hammes-Schiffer,
+            // J. Chem. Theory Comput. 2019, 15, 338, eq 1, which writes the proton case.)
+
+            std::string e1 =                              "p" + std::to_string(gen_label_count++);
+            std::string n1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string n2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string e2 =                              "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(e1+"*");
+            tmp_string.push_back(n1+"*");
+            tmp_string.push_back(n2);
+            tmp_string.push_back(e2);
+
+            // <e1 n1 | e2 n2>
+            newguy->set_integrals("two_body", {e1, n1, e2, n2}, op_portions);
+
         }else if (op.substr(0, 1) == "g" || op.substr(0, 1) == "G") { // general two-electron operator
-    
+
             //factor *= 0.25;
-    
+
             std::string idx1 = "p" + std::to_string(gen_label_count++);
             std::string idx2 = "p" + std::to_string(gen_label_count++);
             std::string idx3 = "p" + std::to_string(gen_label_count++);
             std::string idx4 = "p" + std::to_string(gen_label_count++);
-    
+
             tmp_string.push_back(idx1+"*");
             tmp_string.push_back(idx2+"*");
             tmp_string.push_back(idx3);
             tmp_string.push_back(idx4);
-    
+
             newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3}, op_portions);
     
+        }else if (op.substr(0, 3) == "jp1" || op.substr(0, 3) == "Jp1") { // nuclear fluctuation potential, one-body fold
+
+            factor *= -1.0;
+
+            std::string idx1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2);
+
+            newguy->set_integrals("occ_repulsion", {idx1, idx2}, op_portions);
+
+        }else if (op.substr(0, 3) == "jp2" || op.substr(0, 3) == "Jp2") { // nuclear fluctuation potential, two-body (antisymmetrized)
+
+            factor *= 0.25;
+
+            std::string np = std::string(1, nuclear_prefix);
+            std::string idx1 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx3 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx4 = np + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2+"*");
+            tmp_string.push_back(idx3);
+            tmp_string.push_back(idx4);
+
+            newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+
         }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
-    
+
             if (op.substr(1, 1) == "1" ){
     
                 factor *= -1.0;
@@ -1683,11 +1807,71 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
             }
     
+        }else if (op.substr(0, 3) == "tep" || op.substr(0, 3) == "Tep") {
+            // mixed electron-nuclear cluster amplitude "tep<ne><np>": excitation only.
+            // ne electron particle-hole pairs and np nuclear pairs.
+            int ne = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            for (int id = 0; id < ne; id++) {
+                std::string v = "v" + std::to_string(vir_label_count++);
+                std::string o = "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            // 1/(ne!)^2 1/(np!)^2 : independent electron and nuclear antisymmetrizers
+            double fe = 1.0, fn = 1.0;
+            for (int id = 0; id < ne; id++) fe *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / (fe*fe) / (fn*fn);
+
+            int n = ne + nn;
+            newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "tp" || op.substr(0, 2) == "Tp") {
+            // nuclear cluster amplitude "tp<n>": n nuclear particle-hole pairs (excitation)
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                tmp_string.push_back(v+"*");
+                labels_l.push_back(v); labels_r.push_back(o);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "t"){
-    
+
             int n = std::stoi(op.substr(2));
             std::vector<std::string> labels;
-    
+
             if ( n == 0 ){
     
                 // nothing to do
@@ -1881,8 +2065,68 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             }
             newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels, op_portions);
     
+        }else if (op.substr(0, 3) == "lep" || op.substr(0, 3) == "Lep") {
+            // mixed electron-nuclear lambda (de-excitation) amplitude "lep<ne><np>":
+            // ne electron and np nuclear hole-particle pairs. mirror of "tep".
+            int ne = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            for (int id = 0; id < ne; id++) {
+                std::string o = "o" + std::to_string(occ_label_count++);
+                std::string v = "v" + std::to_string(vir_label_count++);
+                creators.push_back(o+"*"); annihilators.push_back(v);
+                labels_l.push_back(o);     labels_r.push_back(v);
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                creators.push_back(o+"*"); annihilators.push_back(v);
+                labels_l.push_back(o);     labels_r.push_back(v);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double fe = 1.0, fn = 1.0;
+            for (int id = 0; id < ne; id++) fe *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / (fe*fe) / (fn*fn);
+
+            int n = ne + nn;
+            newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "lp" || op.substr(0, 2) == "Lp") {
+            // nuclear lambda (de-excitation) amplitude "lp<n>": n nuclear hole-particle
+            // pairs. mirror of "tp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                tmp_string.push_back(o+"*");
+                labels_l.push_back(o); labels_r.push_back(v);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
-    
+
             int n = std::stoi(op.substr(1));
             int n_annihilate = n;
             int n_create     = n;
@@ -2414,6 +2658,41 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
     }
 }
 
+// drop terms carrying a reference self-trace of the electron-nuclear (gep) two-body
+// operator. gep sets its integral under "two_body" (the electron fluctuation uses
+// "eri", which is fold-split into the Fock, so is unaffected). A self-trace is a
+// repeated occupied label within one such integral -- the one-body e-p mean-field
+// contraction (V_ep over the proton occupied, or V_pe over the electron occupied),
+// which lives in the dressed NEO-HF Fock and must not appear explicitly.
+void pq_helper::remove_gep_reference_traces() {
+    std::vector< std::shared_ptr<pq_string> > kept;
+    for (const auto & pq_str : ordered) {
+        bool self_trace = false;
+        auto it = pq_str->ints.find("two_body");
+        if ( it != pq_str->ints.end() ) {
+            for (const integrals & integral : it->second) {
+                const std::vector<std::string> & labels = integral.labels;
+                // gep couples an electron and a nuclear particle: require a nuclear label
+                bool has_nuclear = false;
+                for (const std::string & label : labels) {
+                    if ( is_nuclear(label) ) { has_nuclear = true; break; }
+                }
+                if ( !has_nuclear ) continue;
+                // a repeated occupied label within the integral is the reference trace
+                for (size_t a = 0; a < labels.size() && !self_trace; a++) {
+                    if ( !is_occ(labels[a]) ) continue;
+                    for (size_t b = a + 1; b < labels.size(); b++) {
+                        if ( labels[a] == labels[b] ) { self_trace = true; break; }
+                    }
+                }
+                if ( self_trace ) break;
+            }
+        }
+        if ( !self_trace ) kept.push_back(pq_str);
+    }
+    ordered = kept;
+}
+
 // block labels by spin
 void pq_helper::block_by_spin(const std::unordered_map<std::string, std::string> &spin_labels) {
     ordered_blocked.clear();
@@ -2470,12 +2749,13 @@ void pq_helper::clear() {
     pq_string::is_range_blocked = false;
 }
 
-void pq_helper::add_st_operator(double factor, 
+void pq_helper::add_st_operator(double factor,
                                 const std::vector<std::string> &targets,
                                 const std::vector<std::string> &ops,
-                                bool do_operators_commute = true){
+                                bool do_operators_commute = true,
+                                int max_order = 4){
 
-    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute);
+    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute, max_order);
 
     // every term of the BCH series past zeroth order is a nested commutator, so
     // the connectivity half of the screen applies (the zeroth-order term carries
@@ -2486,13 +2766,17 @@ void pq_helper::add_st_operator(double factor,
     process_operator_products(st_ops);
 }
 
-std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true){
+std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true, int max_order = 4){
+
+    if ( max_order < 0 || max_order > 4 )
+        throw std::invalid_argument("add_st_operator: max_order must be between 0 and 4 (the BCH series truncates at fourth order for a two-body Hamiltonian)");
 
     int dim = (int)ops.size();
 
     std::vector<pq_operator_terms> st_terms;
-    st_terms.push_back(pq_operator_terms(factor, targets));
+    st_terms.push_back(pq_operator_terms(factor, targets)); // zeroth order: the bare operator
 
+    if ( max_order >= 1 )
     for (int i = 0; i < dim; i++) {
         std::vector<pq_operator_terms> tmp = get_commutator_terms(factor, targets, {ops[i]});
         st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
@@ -2500,6 +2784,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
 
     if ( do_operators_commute ) {
 
+        if ( max_order >= 2 ) {
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(factor, targets, {ops[i]}, {ops[j]});
@@ -2510,7 +2795,9 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
+        if ( max_order >= 3 ) {
         // ijk
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
@@ -2537,7 +2824,9 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
+        if ( max_order >= 4 ) {
         // ijkl
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
@@ -2589,9 +2878,11 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
     }else {
 
+        if ( max_order >= 2 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]});
@@ -2599,6 +2890,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             }
         }
 
+        if ( max_order >= 3 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
@@ -2608,6 +2900,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             }
         }
 
+        if ( max_order >= 4 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {

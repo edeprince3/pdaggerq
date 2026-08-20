@@ -142,6 +142,28 @@ std::string amplitudes::to_string(char symbol) const {
 
     val = symbol_s + std::to_string(order);
 
+    // multicomponent amplitudes are distinguished by the species of their indices:
+    // a pure-nuclear amplitude gets the suffix "_n", a mixed electron-nuclear one
+    // "_ep" (nuclear labels carry the 'n' prefix, e.g. "ni"/"na").
+    {
+        size_t n_nuc = 0;
+        for (const std::string & l : labels) if (l.size() > 1 && l[0] == 'n') n_nuc++;
+        if (n_nuc > 0) {
+            if (n_nuc == labels.size()) val += "_n";
+            else {
+                // Mixed. From rank 3 up the order alone does NOT identify the block --
+                // tep21 (2e+1p) and tep12 (1e+2p) are both rank 3, have different shapes,
+                // and can appear in the same equation -- so spell out the split. Rank 2
+                // has only the 1+1 split, so it keeps the plain "_ep" name.
+                val += "_ep";
+                if (order >= 3) {
+                    size_t n_p = n_nuc / 2;
+                    val += std::to_string(order - n_p) + std::to_string(n_p);
+                }
+            }
+        }
+    }
+
     if ( n_ph > 0 ) {
         val += "_" + std::to_string(n_ph) + "p";
     }

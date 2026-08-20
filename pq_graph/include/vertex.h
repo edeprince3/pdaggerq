@@ -104,6 +104,13 @@ namespace pdaggerq {
         static const CodePrinter* printer_;
         static void set_printer(const string& type);
 
+        // the einsums "ir" (JSONL) export is not a CodePrinter backend: it emits JSON, not
+        // formatted source. When this is set (by PQGraph::str for print_type "ir"), Term::str
+        // routes to the self-contained IR path (ir_term_str) instead of printer_->format_term,
+        // and printer_ is pointed at the Einsum (python) backend only so the section banners /
+        // declarations come out '#'-commented -- lines the IR parser ignores.
+        static inline bool ir_mode_ = false;
+
         /****** Constructors ******/
 
         Vertex();

@@ -379,6 +379,89 @@ namespace pdaggerq {
         generated_linkages_ = false; // set term to not have generated linkages
     }
 
+    vector<Term> Term::density_fitting() {
+        // find every "eri" vertex and split it into two vertices and two terms using density fitting
+        // so <pq|rs> becomes (Q|pq)(Q|rs) - (Q|ps)(Q|qr)
+
+        vector<Term> new_terms; //
+        new_terms.reserve(rhs_.size()+1);
+
+        // iterate over all rhs and every time we see a vertex that is an eri,
+        // split it into two vertices and two terms using density fitting
+        if (rhs_.empty()) return {*this}; // if constant, return itself
+
+        for (int i = 0; i < rhs_.size(); i++) {
+            auto & op = rhs_[i];
+
+            // check if vertex is an eri
+            if (op->base_name() == "eri") {
+                // term with eri looks like <pq||rs>
+                // to do density fitting, we need to replace it with a product of two density fitting vertices within
+                // two terms, so we need to create two new vertices and two new terms
+                // <pq||rs> = <pq|rs> - <pq|sr> = (pr|qs) - (ps|qr) = (Q|pr)(Q|qs) - (Q|ps)(Q|qr)
+
+                // grab the lines from the eri
+                const line_vector &lines = op->lines();
+
+                // create lines for the density fitting vertices
+                Line den_line = Line("Q");
+
+                line_vector B1_lines{den_line, lines[0], lines[2]};
+                line_vector B2_lines{den_line, lines[1], lines[3]};
+                line_vector B3_lines{den_line, lines[0], lines[3]};
+                line_vector B4_lines{den_line, lines[1], lines[2]};
+
+                // create vertices
+                VertexPtr B1 = make_shared<const Vertex>("B", B1_lines);
+                VertexPtr B2 = make_shared<const Vertex>("B", B2_lines);
+                VertexPtr B3 = make_shared<const Vertex>("B", B3_lines);
+                VertexPtr B4 = make_shared<const Vertex>("B", B4_lines);
+
+                // create two new terms replacing the eri with the two new vertices
+                Term new_term1 = *this, new_term2 = *this;
+
+                // set new rhs of term1
+                new_term1.rhs_[i] = B1;
+                new_term1.rhs_.insert(new_term1.rhs_.begin() + (i+1), B2);
+
+                // set new rhs of term2
+                new_term2.rhs_[i] = B3;
+                new_term2.rhs_.insert(new_term2.rhs_.begin() + (i+1), B4);
+                new_term2.coefficient_ *= -1; // change sign of term2
+
+
+                // add new terms to vector
+                new_terms.push_back(new_term1);
+                new_terms.push_back(new_term2);
+            }
+            else if (op->base_name() == "g") {
+                // cross-species electron-nuclear integral g(p,P,q,Q) = <p P|q Q> = (pq|PQ).
+                // density-fit with a shared auxiliary basis. different species do not
+                // antisymmetrize, so there is no exchange term: g(p,P,q,Q) = (Q'|pq)(Q'|PQ),
+                // a single product of an electron and a nuclear density-fitting vertex.
+
+                const line_vector &lines = op->lines(); // [0]=electron p, [1]=nuclear P, [2]=electron q, [3]=nuclear Q
+
+                Line den_line = Line("Q");
+
+                line_vector Be_lines{den_line, lines[0], lines[2]}; // electron pair (p,q)
+                line_vector Bp_lines{den_line, lines[1], lines[3]}; // nuclear pair  (P,Q)
+
+                VertexPtr Be = make_shared<const Vertex>("B", Be_lines);
+                VertexPtr Bp = make_shared<const Vertex>("B", Bp_lines);
+
+                Term new_term = *this;
+                new_term.rhs_[i] = Be;
+                new_term.rhs_.insert(new_term.rhs_.begin() + (i+1), Bp);
+
+                new_terms.push_back(new_term); // single term, no exchange
+            }
+        }
+
+        if (new_terms.empty()) return {*this}; // if no eris/gep, return itself
+        return new_terms;
+    }
+
     Term Term::clone() const {
         Term new_term(*this);
 

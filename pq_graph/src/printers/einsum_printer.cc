@@ -81,7 +81,7 @@ string EinsumPrinter::format_contraction(
             string labels, types;
             for (const auto& line : op->lines()) {
                 if (line.sig_ && !Vertex::use_trial_index) continue;
-                labels += line.label_[0];
+                labels += line.einsum_char();
                 types  += line.type();
             }
             tensor_labels.push_back(std::move(labels));
@@ -93,7 +93,7 @@ string EinsumPrinter::format_contraction(
     string output_labels, output_types;
     for (const auto& line : output_lines) {
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        output_labels += line.label_[0];
+        output_labels += line.einsum_char();
         output_types  += line.type();
     }
 
@@ -143,11 +143,11 @@ string EinsumPrinter::format_addition(
     string left_labels, right_labels;
     for (const auto& line : left->lines()) {
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        left_labels += line.label_[0];
+        left_labels += line.einsum_char();
     }
     for (const auto& line : right->lines()) {
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        right_labels += line.label_[0];
+        right_labels += line.einsum_char();
     }
 
     string output = left->str() + " + ";
@@ -202,12 +202,12 @@ string EinsumPrinter::format_term(const Term& t) const {
     // Get string of lines from lhs vertex
     for (const auto& line : t.lhs()->lines())
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        else lhs_string += line.label_.front();
+        else lhs_string += line.einsum_char();
 
     // Get string of lines from the term linkage
     for (const auto& line : t.term_linkage(true)->lines())
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        else rhs_string += line.label_.front();
+        else rhs_string += line.einsum_char();
 
     // Get einsum string from term linkage
     string einsum_string = t.term_linkage(true)->str();

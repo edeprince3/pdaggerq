@@ -131,7 +131,8 @@ namespace pdaggerq {
         LineEntry line_entries[left_size + right_size];
         uint_fast8_t entry_count = 0;
 
-        // populate left lines
+        // populate left lines (a duplicate left line overwrites its entry, as the
+        // map's operator[] did)
         for (uint_fast8_t i = 0; i < left_size; i++) {
             line_entries[entry_count++] = {&left_lines[i], (int_fast8_t)i, -1};
         }
@@ -483,10 +484,15 @@ namespace pdaggerq {
         left_  = other.left_;
         right_ = other.right_;
 
-        // copy vectors that keep track of the graph structure
-        all_vert_     = other.all_vert_;
-        link_vector_  = other.link_vector_;
-        permutations_ = other.permutations_;
+        // do NOT copy the lazy memoization caches (all_vert_, link_vector_,
+        // permutations_): they regenerate on demand (link_vector()/permutations()
+        // rebuild when empty), permutations_ alone can hold up to depth! full
+        // subtrees, and shallow() copies are made pervasively -- duplicating the
+        // caches (and atomically bumping every contained shared_ptr refcount)
+        // was a dominant source of allocation churn in the optimizer.
+        all_vert_.clear();
+        link_vector_.clear();
+        permutations_.clear();
 
         // copy root linkage connectivity and scales
         connec_map_ = other.connec_map_;
@@ -494,6 +500,9 @@ namespace pdaggerq {
         mem_scale_  = other.mem_scale_;
         depth_      = other.depth_;
         hash_       = other.hash_;
+
+        // the cached hash tracks base_name_, which Vertex::operator= just copied
+        base_hash_ = other.base_hash_;
 
         // copy misc properties
         copy_misc(other);

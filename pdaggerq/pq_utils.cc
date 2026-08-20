@@ -85,10 +85,28 @@ void removeSpaces(std::string &x) {
 }
 
 // is a label classified as occupied?
+bool is_nuclear(const std::string &idx) {
+    // a nuclear orbital label carries the species prefix followed by a label,
+    // e.g. "pi" (occupied) or "pa" (virtual). a lone prefix char is not nuclear.
+    return idx.size() > 1 && idx.at(0) == nuclear_prefix;
+}
+
+bool is_dummy(const std::string &idx) {
+    // the internal summation labels the normal-ordering machinery hands out are
+    // "o#" / "v#". a nuclear one carries the species prefix ("no#" / "nv#"), so the
+    // classification has to be made inside the label's own species.
+    const std::string base = is_nuclear(idx) ? idx.substr(1) : idx;
+    return base.rfind("o", 0) == 0 || base.rfind("v", 0) == 0;
+}
+
 bool is_occ(const std::string &idx) {
 
     // replacing above with comparison along char range
     if (idx.empty()) return false;
+
+    // nuclear labels carry a species prefix; classify the remaining label so
+    // that occupied/virtual is determined within the label's own species space
+    if ( is_nuclear(idx) ) return is_occ(idx.substr(1));
 
     // use integer comparison for speed
     char c_idx = idx.at(0);
@@ -106,6 +124,9 @@ bool is_occ(const std::string &idx) {
 // is a label classified as virtual?
 bool is_vir(const std::string &idx) {
     if (idx.empty()) return false;
+
+    // nuclear labels carry a species prefix; classify the remaining label
+    if ( is_nuclear(idx) ) return is_vir(idx.substr(1));
 
     // use integer comparison for speed
     char c_idx = idx.at(0);
@@ -1315,6 +1336,14 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
     // swap up to two non-summed labels (more doesn't seem to be necessary for up to ccsdtq)
     std::vector<std::string> occ_labels { "i", "j", "k", "l", "m", "n", "I", "J", "K", "L", "M", "N" };
     std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
+
+    // nuclear (second-species) labels carry the species prefix. they form their own
+    // spaces so that labels are only ever exchanged within a species -- an electron
+    // label is never swapped with a nuclear one.
+    const std::string npfx(1, nuclear_prefix);
+    std::vector<std::string> nuc_occ_labels, nuc_vir_labels;
+    for (const auto & s : occ_labels) nuc_occ_labels.push_back(npfx + s);
+    for (const auto & s : vir_labels) nuc_vir_labels.push_back(npfx + s);
 /*
 
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
@@ -1368,6 +1397,8 @@ void cleanup(std::vector<std::shared_ptr<pq_string> > &ordered, bool find_paired
 
         consolidate_permutations_non_summed(ordered, occ_labels);
         consolidate_permutations_non_summed(ordered, vir_labels);
+        consolidate_permutations_non_summed(ordered, nuc_occ_labels);
+        consolidate_permutations_non_summed(ordered, nuc_vir_labels);
     }
 
     // prune list so it only contains non-skipped pq_strings
@@ -1411,18 +1442,27 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
                                     "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19",
                                     "o20", "o21", "o22", "o23", "o24", "o25", "o26", "o27", "o28", "o29"};
                                              
+    // nuclear occupied summation labels for a nuclear (proton) one-body fold
+    static std::vector<std::string> nuc_occ_out;
+    if ( nuc_occ_out.empty() )
+        for (const auto & s : occ_out) nuc_occ_out.push_back(std::string(1, nuclear_prefix) + s);
 
     for (size_t i = 0; i < in->ints["occ_repulsion"].size(); i++) {
 
+        // a nuclear fold sums over a nuclear occupied orbital, an electron fold over
+        // an electron occupied orbital
+        const std::vector<std::string> & out_list =
+            is_nuclear(in->ints["occ_repulsion"][i].labels[0]) ? nuc_occ_out : occ_out;
+
         // pick summation label not included in string already
         std::string idx;
-        
+
         int do_skip = -999;
-        
-        for (size_t i = 0; i < occ_out.size(); i++) {
-            if ( in->index_in_anywhere(occ_out[i]) == 0 ) {
-                idx = occ_out[i];
-                do_skip = i;
+
+        for (size_t k = 0; k < out_list.size(); k++) {
+            if ( in->index_in_anywhere(out_list[k]) == 0 ) {
+                idx = out_list[k];
+                do_skip = k;
                 break;
             }
         }
@@ -1499,10 +1539,10 @@ void sort_amplitudes_topologically(std::vector<amplitudes> &amps_vec, std::share
         
         for (const auto& l : a.labels) {
             // If it doesn't start with internal 'o' or 'v' prefixes, it's a fixed line!
-            if (l.rfind("o", 0) != 0 && l.rfind("v", 0) != 0) a_anchors += l;
+            if (!is_dummy(l)) a_anchors += l;
         }
         for (const auto& l : b.labels) {
-            if (l.rfind("o", 0) != 0 && l.rfind("v", 0) != 0) b_anchors += l;
+            if (!is_dummy(l)) b_anchors += l;
         }
         
         // Sort anchor profiles so that the pairing order itself doesn't cause a mismatch
@@ -1561,6 +1601,43 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
         }
     };
 
+    // nuclear (second-species) labels canonicalize inside their own space: the same
+    // conventional letters carried by the species prefix, drawn from their own pools.
+    // an electron label and a nuclear label are therefore never mapped onto each other.
+    const std::string npfx(1, nuclear_prefix);
+    std::unordered_map<std::string, std::string> nuc_occ_map, nuc_vir_map;
+    std::vector<std::string> nuc_occ_pool, nuc_vir_pool;
+    for (const auto & l : occ_pool) nuc_occ_pool.push_back(npfx + l);
+    for (const auto & l : vir_pool) nuc_vir_pool.push_back(npfx + l);
+
+    size_t nuc_occ_counter = 0;
+    size_t nuc_vir_counter = 0;
+
+    // is this an internal occupied ('o') or virtual ('v') label? classify within the
+    // label's own species, so that "no0" is nuclear-occupied and not a general label.
+    auto raw_class = [](const std::string &label) -> char {
+        const std::string base = is_nuclear(label) ? label.substr(1) : label;
+        if ( base.rfind("o", 0) == 0 ) return 'o';
+        if ( base.rfind("v", 0) == 0 ) return 'v';
+        return '\0';
+    };
+
+    // reserve the next conventional letter of the label's own species
+    auto assign_label = [&](const std::string &label, char cls) {
+        const bool nuc = is_nuclear(label);
+        auto &map     = cls == 'o' ? (nuc ? nuc_occ_map     : occ_map)
+                                   : (nuc ? nuc_vir_map     : vir_map);
+        auto &pool    = cls == 'o' ? (nuc ? nuc_occ_pool    : occ_pool)
+                                   : (nuc ? nuc_vir_pool    : vir_pool);
+        auto &counter = cls == 'o' ? (nuc ? nuc_occ_counter : occ_counter)
+                                   : (nuc ? nuc_vir_counter : vir_counter);
+
+        if ( map.find(label) != map.end() ) return;
+        filter_pool(pool, counter);
+        if ( counter < pool.size() ) map[label] = pool[counter++];
+        else map[label] = (nuc ? npfx : "") + (cls == 'o' ? "o_" : "v_") + std::to_string(counter++);
+    };
+
 /*
     // Follow the exact macro-order of sorted amplitude vector
     for (auto & type : in->amplitude_types) {
@@ -1609,8 +1686,9 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
             std::vector<std::string> local_raw_vir;
     
             for (const auto & label : amp.labels) {
-                if (label.rfind("o", 0) == 0) local_raw_occ.push_back(label);
-                if (label.rfind("v", 0) == 0) local_raw_vir.push_back(label);
+                const char cls = raw_class(label);
+                if (cls == 'o') local_raw_occ.push_back(label);
+                if (cls == 'v') local_raw_vir.push_back(label);
             }
 
             // ====================================================================
@@ -1629,8 +1707,9 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
                         // Build an on-the-fly sorted symmetry pool for this downstream operator
                         std::vector<std::string_view> pool;
                         for (const auto& lbl : downstream_amp.labels) {
-                            if (is_virtual && lbl.rfind("v", 0) == 0) pool.push_back(lbl);
-                            if (!is_virtual && lbl.rfind("o", 0) == 0) pool.push_back(lbl);
+                            if (is_nuclear(lbl) != is_nuclear(target)) continue; // own species only
+                            if (is_virtual && raw_class(lbl) == 'v') pool.push_back(lbl);
+                            if (!is_virtual && raw_class(lbl) == 'o') pool.push_back(lbl);
                         }
                         std::sort(pool.begin(), pool.end());
 
@@ -1652,8 +1731,9 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
                     for (const auto& downstream_int : in->ints[next_type]) {
                         std::vector<std::string_view> pool;
                         for (const auto& lbl : downstream_int.labels) {
-                            if (is_virtual && lbl.rfind("v", 0) == 0) pool.push_back(lbl);
-                            if (!is_virtual && lbl.rfind("o", 0) == 0) pool.push_back(lbl);
+                            if (is_nuclear(lbl) != is_nuclear(target)) continue; // own species only
+                            if (is_virtual && raw_class(lbl) == 'v') pool.push_back(lbl);
+                            if (!is_virtual && raw_class(lbl) == 'o') pool.push_back(lbl);
                         }
                         std::sort(pool.begin(), pool.end());
 
@@ -1696,48 +1776,20 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
             });
             // ====================================================================
 
-            // Map them sequentially (Rest of your original mapping logic remains completely unchanged)
-            for (const auto& label : local_raw_occ) {
-                if (occ_map.find(label) == occ_map.end()) {
-                    filter_pool(occ_pool, occ_counter);
-                    if (occ_counter < occ_pool.size()) occ_map[label] = occ_pool[occ_counter++];
-                    else occ_map[label] = "o_" + std::to_string(occ_counter++);
-                }
-            }
-            for (const auto& label : local_raw_vir) {
-                if (vir_map.find(label) == vir_map.end()) {
-                    filter_pool(vir_pool, vir_counter);
-                    if (vir_counter < vir_pool.size()) vir_map[label] = vir_pool[vir_counter++];
-                    else vir_map[label] = "v_" + std::to_string(vir_counter++);
-                }
-            }
+            // Map them sequentially, each label out of its own species' pool
+            for (const auto& label : local_raw_occ) assign_label(label, 'o');
+            for (const auto& label : local_raw_vir) assign_label(label, 'v');
         }
     }
 
     // Deterministic Traversal and In-Place Replacement
     auto translate_label = [&](std::string &label) {
-        if (label.rfind("o", 0) == 0) { // Internal Occupied
-            if (occ_map.find(label) == occ_map.end()) {
-                filter_pool(occ_pool, occ_counter); // Ensure next choice is safe
-                if (occ_counter < occ_pool.size()) {
-                    occ_map[label] = occ_pool[occ_counter++];
-                } else {
-                    occ_map[label] = "o_" + std::to_string(occ_counter++);
-                }
-            }
-            label = occ_map[label];
-        }
-        else if (label.rfind("v", 0) == 0) { // Internal Virtual
-            if (vir_map.find(label) == vir_map.end()) {
-                filter_pool(vir_pool, vir_counter); // Ensure next choice is safe
-                if (vir_counter < vir_pool.size()) {
-                    vir_map[label] = vir_pool[vir_counter++];
-                } else {
-                    vir_map[label] = "v_" + std::to_string(vir_counter++);
-                }
-            }
-            label = vir_map[label];
-        }
+        const char cls = raw_class(label);
+        if ( cls == '\0' ) return;                 // general label: left to the pass below
+        const bool nuc = is_nuclear(label);
+        assign_label(label, cls);                  // reserve a letter if not seen yet
+        label = cls == 'o' ? (nuc ? nuc_occ_map : occ_map)[label]
+                           : (nuc ? nuc_vir_map : vir_map)[label];
     };
 
     // now, traverse amplitudes and integrals
@@ -1828,16 +1880,31 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
     static std::vector<std::string> gen_in{"p0", "p1", "p2", "p3"};
     static std::vector<std::string> gen_out{"p", "q", "r", "s"};
 
-    for (const std::string & in_idx : gen_in) {
+    // ... and the nuclear analogues: the same letters carried by the species prefix,
+    // so that a nuclear general label (np#) never lands on an electron one.
+    static std::vector<std::string> nuc_gen_in, nuc_gen_out;
+    if ( nuc_gen_in.empty() ) {
+        const std::string np(1, nuclear_prefix);
+        for (const std::string & l : gen_in)  nuc_gen_in.push_back(np + l);
+        for (const std::string & l : gen_out) nuc_gen_out.push_back(np + l);
+    }
 
-        if (in->index_in_anywhere(in_idx) > 0 ) {
+    for (size_t species = 0; species < 2; species++) {
 
-            for (const std::string & out_idx : gen_out) {
+        const std::vector<std::string> &in_list  = species == 0 ? gen_in  : nuc_gen_in;
+        const std::vector<std::string> &out_list = species == 0 ? gen_out : nuc_gen_out;
 
-                if (in->index_in_anywhere(out_idx) == 0 ) {
+        for (const std::string & in_idx : in_list) {
 
-                    replace_index_everywhere(in, in_idx, out_idx);
-                    break;
+            if (in->index_in_anywhere(in_idx) > 0 ) {
+
+                for (const std::string & out_idx : out_list) {
+
+                    if (in->index_in_anywhere(out_idx) == 0 ) {
+
+                        replace_index_everywhere(in, in_idx, out_idx);
+                        break;
+                    }
                 }
             }
         }
@@ -1988,8 +2055,7 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
         const std::string& l0 = delta.labels[0];
         const std::string& l1 = delta.labels[1];
         
-        if (l0.rfind("o", 0) == 0 || l0.rfind("v", 0) == 0 ||
-            l1.rfind("o", 0) == 0 || l1.rfind("v", 0) == 0) {
+        if (is_dummy(l0) || is_dummy(l1)) {
             has_gobbleable_delta = true;
             break;
         }
@@ -2011,8 +2077,8 @@ void gobble_deltas(std::shared_ptr<pq_string> &in) {
 
         if (l0 == l1) continue; 
 
-        bool l0_is_dummy = (l0.rfind("o", 0) == 0 || l0.rfind("v", 0) == 0);
-        bool l1_is_dummy = (l1.rfind("o", 0) == 0 || l1.rfind("v", 0) == 0);
+        bool l0_is_dummy = is_dummy(l0);
+        bool l1_is_dummy = is_dummy(l1);
 
         if (!l0_is_dummy && !l1_is_dummy) {
             remaining_deltas.push_back(delta);
@@ -2276,8 +2342,11 @@ bool expand_general_labels(const std::shared_ptr<pq_string> & in, std::vector<st
             std::shared_ptr<pq_string> newguy_occ = std::make_shared<pq_string>(in.get(), true);
             std::shared_ptr<pq_string> newguy_vir = std::make_shared<pq_string>(in.get(), true);
 
-	    std::string occ_label = "o" + std::to_string(occ_label_count+1);
-	    std::string vir_label = "v" + std::to_string(vir_label_count+1);
+	    // a nuclear general label expands into nuclear occupied/virtual labels,
+	    // so it stays within its own species' space
+	    std::string sp = is_nuclear(me_nostar) ? std::string(1, nuclear_prefix) : "";
+	    std::string occ_label = sp + "o" + std::to_string(occ_label_count+1);
+	    std::string vir_label = sp + "v" + std::to_string(vir_label_count+1);
 
             newguy_occ->string = in->string;
             newguy_vir->string = in->string;
