@@ -221,6 +221,16 @@ namespace pdaggerq {
                 while ( this_it !=  this_end &&  this_it->second == 0 ) this_it++;
                 while (other_it != other_end && other_it->second == 0 ) other_it++;
 
+                // Re-evaluate after advancing. These flags used to be computed once,
+                // before the loop, so an iterator that reached end() here -- either by
+                // skipping trailing zero occurrences, or because the loop condition below
+                // continues while only ONE map is exhausted -- was not caught by the
+                // checks that follow, and *this_it dereferenced end(). That is undefined
+                // behaviour inside a std::stable_sort comparator, which is how it showed
+                // up: an intermittent SIGSEGV in __unguarded_linear_insert.
+                this_at_end  =  this_it ==  this_end;
+                other_at_end = other_it == other_end;
+
                 if ( this_at_end && !other_at_end) return this_better; // this is cheaper (other has more scalings)
                 if (!this_at_end &&  other_at_end) return this_worse; // this is more expensive (this has more scalings)
                 if (this_at_end  &&  other_at_end) return this_same; // this is the same (equal scalings)
