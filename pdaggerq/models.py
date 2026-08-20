@@ -59,8 +59,8 @@ Method families
   plain SI-free proton Fock (no dressing). A consumer dispatches on the proton count:
   1 -> ``-1p``, >=2 -> the full ``vp`` model.
 
-  These are NOT redundant with the full models, and a consumer cannot replace them by
-  gating amplitudes on the particle count. The one- and many-proton problems have
+  A consumer that gates amplitude blocks at runtime by particle count still cannot
+  replace these by gating alone -- but it can with ``operators=`` (see below). The one- and many-proton problems have
   genuinely different Hamiltonians: with a single quantum proton there is no
   proton-proton interaction, so ``vp`` is absent from H entirely. Deleting the
   >=2-proton amplitudes from a ``vp`` model leaves every ``vp`` term standing, and those
@@ -69,6 +69,12 @@ Method families
   ``neo-ccsd-1p``'s 20; the four extra are pure proton-proton, e.g.
   ``<nj,na||nb,ni> t1_n(nb,nj)``. The reduction is a change of Hamiltonian, not a
   truncation of the cluster (see :func:`_single_proton`).
+
+  If you would rather gate everything at runtime than carry ``-1p`` variants, generate
+  the Hamiltonian in parts instead: ``residual_ir(..., operators=(...))`` restricts H to
+  a subset, and the parts are exactly additive. Emit ``vp`` separately, load it only at
+  >=2 quantum protons, and one generated set with the full amplitude set covers every
+  particle count. See :func:`residual_graph`.
 
 Charge convention
 -----------------
@@ -399,26 +405,45 @@ def _optimized_multi(labeled_pqs, df, opt_level, dims=None, gep_traces=True):
     return g
 
 
-def _projected_pq(m, left):
-    """pq_helper holding ``<left| e^-T H e^T |0>`` for a model, simplified."""
+def _hamiltonian(m, operators):
+    """Validate and resolve an operator subset against a model's Hamiltonian."""
+    if operators is None:
+        return tuple(m.H)
+    ops = tuple(operators)
+    unknown = [h for h in ops if h not in m.H]
+    if unknown:
+        raise ValueError(f"model {m.name!r} has no Hamiltonian operator(s) {unknown}; "
+                         f"H={list(m.H)}")
+    return ops
+
+
+def _projected_pq(m, left, operators=None):
+    """pq_helper holding ``<left| e^-T H e^T |0>`` for a model, simplified.
+
+    ``operators`` restricts H to a subset of the model's. The similarity transform is
+    applied to each operator separately and is linear in H, so the contributions are
+    exactly additive: generating a subset and its complement and summing the two
+    reproduces the full equation term for term."""
     pq = pq_helper("fermi")
     pq.set_left_operators([left])
-    for h in m.H:
+    for h in _hamiltonian(m, operators):
         pq.add_st_operator(1.0, [h], list(m.T))
     pq.simplify()
     return pq
 
 
-def energy_graph(name, df=True, opt_level=None):
-    """Optimized pq_graph for the correlation energy ``<0| e^-T H e^T |0>``."""
+def energy_graph(name, df=True, opt_level=None, operators=None):
+    """Optimized pq_graph for the correlation energy ``<0| e^-T H e^T |0>``.
+
+    ``operators`` restricts H to a subset -- see :func:`residual_graph`."""
     opt_level = _opt_level_for(name, opt_level)
     m = model(name)
-    pq = _projected_pq(m, ["1"])
+    pq = _projected_pq(m, ["1"], operators)
     return _optimized(pq, "energy", df, opt_level, _dims_for(name))
 
 
 def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
-                   spin_case=None, nuclear_spin="high-spin"):
+                   spin_case=None, nuclear_spin="high-spin", operators=None):
     """Optimized pq_graph for the amplitude residual
     ``<proj(amplitude)| e^-T H e^T |0> = 0``.
 
@@ -427,6 +452,27 @@ def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
                 the equation is restricted to that block via ``block_by_spin``.
     nuclear_spin : "high-spin" (single nuclear channel) or "full" -- see
                 :mod:`pdaggerq.spin`.
+    operators : restrict H to a subset of the model's (default: all of it).
+
+    **Splitting the Hamiltonian.** The similarity transform is applied to each operator
+    separately and is linear in H, so operator contributions are exactly additive:
+    generating a subset and its complement and summing the two reproduces the full
+    equation. Each part is optimized on its own, so its intermediates are private to it
+    and a consumer can load or drop a part wholesale -- no provenance tracking needed.
+
+    The motivating case is ``vp``. A consumer that gates amplitude blocks at runtime by
+    particle count still cannot drop the proton-proton terms that way: ``vp`` is part of
+    H, not of the cluster, so it survives every amplitude gate (this is exactly why the
+    ``-1p`` models exist -- see :func:`_single_proton`). Nor is it identifiable in the
+    emitted code: density-fitted ``vp`` is proton-B x proton-B where ``gep`` is
+    electron-B x proton-B, so no rule over tensor names separates them once the optimizer
+    has folded them into intermediates. Generating the two parts separately does::
+
+        base = residual_ir("neo-ccsd", "tp1", operators=("f", "v", "fp", "gep"))
+        vp   = residual_ir("neo-ccsd", "tp1", operators=("vp",))
+
+    Load ``base`` always and ``vp`` only at >=2 quantum protons, and one generated set
+    serves every particle count -- with the full amplitude set, gated at runtime.
     """
     opt_level = _opt_level_for(name, opt_level)
     m = model(name)
@@ -434,7 +480,7 @@ def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
         raise ValueError(f"model {name!r} has no amplitude {amplitude!r}; T={list(m.T)}")
     if amplitude not in PROJECTION:
         raise KeyError(f"no projection defined for amplitude {amplitude!r}")
-    pq = _projected_pq(m, [PROJECTION[amplitude]])
+    pq = _projected_pq(m, [PROJECTION[amplitude]], operators)
     if spin_case is not None:
         cases = get_spin_labels([[PROJECTION[amplitude]]], nuclear_spin)
         if spin_case not in cases:
@@ -445,10 +491,10 @@ def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
 
 
 def residual_ir(name, amplitude, df=True, opt_level=None, label="R",
-                spin_case=None, nuclear_spin="high-spin"):
+                spin_case=None, nuclear_spin="high-spin", operators=None):
     """The amplitude residual as ``to_strings("ir")`` JSONL lines."""
     g = residual_graph(name, amplitude, df=df, opt_level=opt_level, label=label,
-                       spin_case=spin_case, nuclear_spin=nuclear_spin)
+                       spin_case=spin_case, nuclear_spin=nuclear_spin, operators=operators)
     return g.to_strings("ir")
 
 

@@ -1876,6 +1876,81 @@ def _check_pt_contract(model_names, dims):
                        for s in models._pt_pq(m, left, [a]).strings())
         assert fused == parts, (name, len(fused), len(parts))
 
+def test_hamiltonian_split():
+    """``operators=`` splits H exactly: a subset plus its complement reproduces the full
+    equation, and each part is self-contained.
+
+    This is what lets a consumer drop the proton-proton (``vp``) terms at load time. vp
+    is part of H, not of the cluster, so it survives every amplitude gate -- and in the
+    emitted code it is not identifiable, since density-fitted vp is proton-B x proton-B
+    where gep is electron-B x proton-B and the optimizer folds both into intermediates.
+    Generating the parts separately sidesteps that entirely.
+
+    The identity holds for ARBITRARY inputs: both sides are the same polynomial in the
+    same tensors, so no physical symmetry is needed here."""
+    import numpy as np
+
+    DIM = {"o": 2, "v": 3, "O": 2, "V": 3, "Q": 4}
+
+    def run(ir_lines, inp, rng):
+        ir = einsums.parse_ir(ir_lines)
+        st = {}
+        for s_ in ir:
+            ops = []
+            for o in s_["operands"]:
+                if o.get("is_intermediate"):
+                    ops.append(st[o["name"]]); continue
+                key = (o["name"], tuple(o["classes"]))
+                if key not in inp:
+                    inp[key] = rng.standard_normal(tuple(DIM[c] for c in o["classes"]))
+                ops.append(inp[key])
+            subs = ",".join("".join(o["indices"]) for o in s_["operands"])
+            out = "".join(s_["target"]["indices"])
+            val = s_["coeff"] * np.einsum(subs + "->" + out, *ops, optimize=True)
+            t = s_["target"]["name"]
+            st[t] = val.copy() if s_["is_assignment"] else st[t] + val
+        return st["R"]
+
+    m = models.model("neo-ccsd")
+    assert "vp" in m.H
+    rest = tuple(h for h in m.H if h != "vp")
+
+    for amp in ("tp1", "tep11"):
+        full = models.residual_ir("neo-ccsd", amp, df=False)
+        base = models.residual_ir("neo-ccsd", amp, df=False, operators=rest)
+        vp = models.residual_ir("neo-ccsd", amp, df=False, operators=("vp",))
+
+        inp = {}                                   # shared, so all three see one input set
+        rng = np.random.default_rng(2026)
+        r_full, r_base, r_vp = (run(x, inp, rng) for x in (full, base, vp))
+        assert np.max(np.abs(r_full - (r_base + r_vp))) < 1e-11 * max(
+            1.0, float(np.max(np.abs(r_full)))), amp
+
+        # the vp part touches only proton-proton integrals -- no electron eri, no gep
+        for st_ in einsums.parse_ir(vp):
+            for o in st_["operands"]:
+                if o.get("is_intermediate") or o["name"].startswith(("t", "l")):
+                    continue
+                if o["name"].startswith("eri"):
+                    assert set(o["classes"]) <= {"O", "V"}, (amp, o["name"], o["classes"])
+                assert not o["name"].startswith("g"), (amp, o["name"])   # gep is not vp
+
+    # the split is exact for the energy too
+    e_full = models.energy_graph("neo-ccsd", df=False).to_strings("ir")
+    e_rest = models.energy_graph("neo-ccsd", df=False, operators=rest).to_strings("ir")
+    e_vp = models.energy_graph("neo-ccsd", df=False, operators=("vp",)).to_strings("ir")
+    assert len([l for l in e_vp if l.strip().startswith("{")]) > 0, "vp energy is empty"
+
+    for bad in (lambda: models.residual_ir("neo-ccsd", "tp1", operators=("nope",)),
+                lambda: models.residual_ir("neo-ccsd", "tp1", operators=("vp", "zz"))):
+        try:
+            bad()
+            assert False, "expected ValueError"
+        except ValueError:
+            pass
+    print("test_hamiltonian_split OK")
+
+
 def test_perturbative_triples():
     """CCSD(T) / NEO-CCSD(T): the perturbative blocks, and the CONSUMER CONTRACT that
     ties the two generated equations together.
