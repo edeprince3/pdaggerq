@@ -355,15 +355,33 @@ def _opt_level_for(name, opt_level):
 DIMS = {"o": 10.0, "v": 40.0, "V": 10.0, "L": 1.0, "Q": 120.0}
 
 
-def _dims_for(name):
+def _dims_for(name, dims=None):
     """Dimension table for the optimizer cost model: :data:`DIMS` with the nuclear
     occupied size set to the model's proton count, or None (dimension-blind legacy
-    metric) for electron-only models."""
+    metric) for electron-only models.
+
+    ``dims`` overrides entries of the table, e.g. ``{"V": 4.0}`` for a small protonic
+    basis or ``{"v": 400.0}`` for a large electronic one. Partial dicts are merged over
+    the defaults. Passing ``dims`` for an electron-only model turns the cost model on for
+    it as well.
+
+    Why it matters: the second species' basis is typically far smaller than the
+    electronic one -- markedly so for muons and positrons -- so the cheapest contraction
+    order removes the large electronic indices first. The optimizer can only see that if
+    it is told the sizes. The defaults here are representative, not yours; supplying the
+    real ones is worth a further few percent, and more as the ratio gets more extreme."""
     m = model(name)
     protons = max((_proton_count(a) for a in m.T + m.T_pt), default=0)
-    if protons == 0:
+    if protons == 0 and dims is None:
         return None
-    return {**DIMS, "O": float(protons)}
+    table = {**DIMS, "O": float(protons)} if protons else dict(DIMS)
+    if dims is not None:
+        unknown = [k for k in dims if k not in DIMS and k != "O"]
+        if unknown:
+            raise ValueError(f"unknown dimension class(es) {unknown}; "
+                             f"known: {sorted(set(DIMS) | {'O'})}")
+        table.update({k: float(v) for k, v in dims.items()})
+    return table
 
 
 def _optimized(pq, label, df, opt_level, dims=None, gep_traces=True):
@@ -432,18 +450,18 @@ def _projected_pq(m, left, operators=None):
     return pq
 
 
-def energy_graph(name, df=True, opt_level=None, operators=None):
+def energy_graph(name, df=True, opt_level=None, operators=None, dims=None):
     """Optimized pq_graph for the correlation energy ``<0| e^-T H e^T |0>``.
 
     ``operators`` restricts H to a subset -- see :func:`residual_graph`."""
     opt_level = _opt_level_for(name, opt_level)
     m = model(name)
     pq = _projected_pq(m, ["1"], operators)
-    return _optimized(pq, "energy", df, opt_level, _dims_for(name))
+    return _optimized(pq, "energy", df, opt_level, _dims_for(name, dims))
 
 
 def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
-                   spin_case=None, nuclear_spin="high-spin", operators=None):
+                   spin_case=None, nuclear_spin="high-spin", operators=None, dims=None):
     """Optimized pq_graph for the amplitude residual
     ``<proj(amplitude)| e^-T H e^T |0> = 0``.
 
@@ -487,14 +505,15 @@ def residual_graph(name, amplitude, df=True, opt_level=None, label="R",
             raise ValueError(f"unknown spin_case {spin_case!r} for {amplitude!r}; "
                              f"choose from {sorted(cases)}")
         pq.block_by_spin(cases[spin_case])
-    return _optimized(pq, label, df, opt_level, _dims_for(name))
+    return _optimized(pq, label, df, opt_level, _dims_for(name, dims))
 
 
 def residual_ir(name, amplitude, df=True, opt_level=None, label="R",
-                spin_case=None, nuclear_spin="high-spin", operators=None):
+                spin_case=None, nuclear_spin="high-spin", operators=None, dims=None):
     """The amplitude residual as ``to_strings("ir")`` JSONL lines."""
     g = residual_graph(name, amplitude, df=df, opt_level=opt_level, label=label,
-                       spin_case=spin_case, nuclear_spin=nuclear_spin, operators=operators)
+                       spin_case=spin_case, nuclear_spin=nuclear_spin, operators=operators,
+                       dims=dims)
     return g.to_strings("ir")
 
 

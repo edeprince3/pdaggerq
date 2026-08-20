@@ -1876,6 +1876,63 @@ def _check_pt_contract(model_names, dims):
                        for s in models._pt_pq(m, left, [a]).strings())
         assert fused == parts, (name, len(fused), len(parts))
 
+def test_dims_cost_model():
+    """The optimizer ranks contraction candidates by numeric flops at the dimensions it
+    is given, so it removes the LARGE indices first -- and the second species' basis is
+    typically far smaller than the electronic one (markedly so for muons and positrons).
+
+    Checks that (a) the dimension-aware metric beats the dimension-blind one at realistic
+    NEO sizes, and (b) ``dims=`` reaches the optimizer, so a consumer can supply its own
+    basis sizes rather than the representative defaults."""
+    TRUE = {"o": 10.0, "v": 40.0, "O": 1.0, "V": 4.0, "L": 1.0, "Q": 120.0}
+
+    def flops(lines):
+        """exact flop count of the binary contractions (the product of the extents of a
+        binary einsum's index union); multi-operand statements are skipped rather than
+        charged their un-factorized nested-loop cost, which would badly overestimate"""
+        tot = 0.0
+        for st in einsums.parse_ir(lines):
+            if len(st["operands"]) != 2:
+                continue
+            idx = {}
+            for o in st["operands"] + [st["target"]]:
+                for i, c in zip(o["indices"], o["classes"]):
+                    idx[i] = TRUE[c]
+            p = 1.0
+            for d in idx.values():
+                p *= d
+            tot += p
+        return tot
+
+    m = models.model("neo-ccsd")
+    pq = lambda: models._projected_pq(m, [models.PROJECTION["tep11"]])
+    blind = flops(models._optimized(pq(), "R", True, 6, None).to_strings("ir"))
+    aware = flops(models._optimized(pq(), "R", True, 6, models._dims_for("neo-ccsd")).to_strings("ir"))
+    matched = flops(models.residual_ir("neo-ccsd", "tep11", dims={"V": 4.0}))
+
+    assert aware < blind, (aware, blind)          # knowing the sizes at all helps
+    assert matched < aware, (matched, aware)      # knowing the RIGHT sizes helps more
+
+    # dims reaches the electron-only models too (they are dimension-blind by default)
+    assert models._dims_for("ccsd") is None
+    assert models._dims_for("ccsd", {"v": 400.0})["v"] == 400.0
+    # partial dicts merge over the defaults rather than replacing them
+    t = models._dims_for("neo-ccsd", {"V": 4.0})
+    # O defaults to the model's max proton rank (neo-ccsd carries tp2, so 2), which is
+    # the smallest proton count at which every one of its blocks is nonzero
+    assert t["V"] == 4.0 and t["v"] == models.DIMS["v"] and t["O"] == 2.0
+    assert models._dims_for("neo-ccsd", {"O": 1.0})["O"] == 1.0    # and is overridable
+
+    for bad in (lambda: models._dims_for("neo-ccsd", {"X": 1.0}),
+                lambda: models.residual_ir("neo-ccsd", "tp1", dims={"nope": 2.0})):
+        try:
+            bad()
+            assert False, "expected ValueError"
+        except ValueError:
+            pass
+    print("test_dims_cost_model OK")
+
+
 def test_hamiltonian_split():
     """``operators=`` splits H exactly: a subset plus its complement reproduces the full
     equation, and each part is self-contained.
