@@ -1632,31 +1632,13 @@ def test_ir_pairing():
     print(f"test_ir_pairing OK ({n1}+{n2} multi-operand plans verified)")
 
 
-def test_perturbative_triples():
-    """CCSD(T) / NEO-CCSD(T): the perturbative blocks, and the CONSUMER CONTRACT that
-    ties the two generated equations together.
+def _check_pt_contract(model_names, dims):
+    """The consumer contract for a perturbative correction, checked per block.
 
-    Symbolic: the electronic model reproduces the canonical ``examples/ccsd_t.py``
-    derivation term for term.
-
-    Numeric, per block, with physically-symmetric integrals (hermitian, correctly
-    antisymmetrized -- the identities below use W = W^dagger, so random unsymmetric
-    integrals do NOT satisfy them):
-
-    1. the Fock coupling is ``<proj|[F, T_pt]|0> = -D * t``, ``D = sum(e_vir) -
-       sum(e_occ)``, so the amplitude is ``t = numerator / D``  -- the denominator
-       :func:`models.pt_amplitude_graph` documents, and the same sign rule the doubles
-       residuals of this library already use;
-    2. ``E_[T] = -(1/w) sum(numerator * t)`` with ``w`` the product of the index-group
-       factorials (36 for eee, 4 for eep/epp) -- this is the pairing an on-the-fly
-       implementation relies on, and it pins the RELATIVE index order and sign of the
-       two equations;
-    3. therefore ``E_[T] = -(1/w) sum(numerator^2 / D) < 0`` STRICTLY, for any
-       integrals -- the physical sign of a perturbative-triples correction;
-    4. the per-block energies sum to the fused ``pt_energy_ir(name)``, so generating
-       the blocks separately (which is what lets a consumer contract the triples away
-       on the fly) loses nothing.
-    """
+    Shared by the (T) and (Q) tests: the checks are identical, only the models and the
+    orbital-space sizes differ. ``dims`` is (NO, NV, NPO, NPV); a rank-n antisymmetric
+    block of one species is identically zero below n orbitals of that species, so the
+    quadruples caller has to pass at least 4 of each for pppp/eeee to be non-vacuous."""
     import itertools, math
     import numpy as np
     from collections import defaultdict
@@ -1664,7 +1646,7 @@ def test_perturbative_triples():
 
     # >=3 occupied protons: a rank-3 antisymmetric proton block (ppp) is identically
     # zero below that, and the checks below would be vacuous
-    NO, NV, NPO, NPV = 3, 4, 3, 4
+    NO, NV, NPO, NPV = dims
     DIM = {"o": NO, "v": NV, "O": NPO, "V": NPV}
     NE, NP = NO + NV, NPO + NPV
     SL = {"o": slice(0, NO), "v": slice(NO, NE), "O": slice(0, NPO), "V": slice(NPO, NP)}
@@ -1691,7 +1673,11 @@ def test_perturbative_triples():
 
     def interp(ir, inp, target):
         st = {}
-        val = lambda o: st[o["name"]] if o["name"] in st else inp[o["name"]]
+        # inputs are keyed by (name, classes): a name alone does not identify a block --
+        # the mixed rank-n multipliers share one emitted name (l3_ep is BOTH eep and epp)
+        # and are told apart only by their index classes
+        val = lambda o: (st[o["name"]] if o["name"] in st
+                         else inp[(o["name"], tuple(o["classes"]))])
         for s in ir:
             subs = ",".join("".join(o["indices"]) for o in s["operands"])
             out = "".join(s["target"]["indices"])
@@ -1708,7 +1694,7 @@ def test_perturbative_triples():
             for s in ir:
                 for o in s["operands"]:
                     if o["name"] not in produced:
-                        names[o["name"]] = tuple(o["classes"])
+                        names[(o["name"], tuple(o["classes"]))] = tuple(o["classes"])
         return names
 
     def align(a, from_cls, to_cls):
@@ -1739,31 +1725,151 @@ def test_perturbative_triples():
     def fill(names, seed, full=None, eps=None):
         rng = np.random.default_rng(seed)
         inp = {}
-        for nm, cl in sorted(names.items()):
+        for key, cl in sorted(names.items()):
+            nm = key[0]
             if '["' in nm:                                  # an integral block
                 base, blk = nm.split('["')[0], nm.split('"')[1]
                 assert blk == "".join(cl), (nm, cl)
                 if base in ("f", "fp"):                     # canonical: diagonal Fock
-                    inp[nm] = (np.diag(eps[cl[0]]) if cl[0] == cl[1]
-                               else np.zeros(tuple(DIM[c] for c in cl)))
+                    inp[key] = (np.diag(eps[cl[0]]) if cl[0] == cl[1]
+                                else np.zeros(tuple(DIM[c] for c in cl)))
                 else:
-                    inp[nm] = full[base][tuple(SL[c] for c in cl)]
+                    inp[key] = full[base][tuple(SL[c] for c in cl)]
             else:
-                inp[nm] = antisym(rng.standard_normal(tuple(DIM[c] for c in cl)), cl)
+                inp[key] = antisym(rng.standard_normal(tuple(DIM[c] for c in cl)), cl)
         return inp
 
-    def conjugate(inp, names):
-        """Lambda = T^dagger: index order reversed (l2_ep(i,I,A,a) = t2_ep(a,A,I,i)),
-        singles multipliers zeroed -- that leaves the [T] part of the (T) energy."""
-        for ln, cl in names.items():
+    def conjugate(inp, names, keep_rank):
+        """Lambda = T^dagger: index order reversed (l2_ep(i,I,A,a) = t2_ep(a,A,I,i)).
+
+        Multipliers below ``keep_rank`` are zeroed. A perturbative block of rank n pairs
+        directly with L_(n-1); the lower-rank multipliers are the extra terms that make
+        the correction ``(T)``/``(Q)`` rather than ``[T]``/``[Q]``, and the pairing
+        identity below is the bracketed part. So (T) keeps L2 and drops L1, and (Q)
+        keeps L3 and drops L1 and L2."""
+        for key, cl in names.items():
+            ln = key[0]
             if not ln.startswith("l"):
                 continue
-            if len(cl) == 2:
-                inp[ln] = np.zeros(tuple(DIM[c] for c in cl))
+            if len(cl) // 2 < keep_rank:
+                inp[key] = np.zeros(tuple(DIM[c] for c in cl))
             else:
-                tn = "t" + ln[1:]
-                assert tuple(reversed(names[tn])) == cl, (ln, cl, names[tn])
-                inp[ln] = np.transpose(inp[tn], list(range(len(cl)))[::-1])
+                tkey = ("t" + ln[1:], tuple(reversed(cl)))
+                assert tkey in names, (key, tkey)
+                inp[key] = np.transpose(inp[tkey], list(range(len(cl)))[::-1])
+
+    # --- numeric: the consumer contract ---------------------------------------------
+    for name in model_names:
+        m = models.model(name)
+        for amp in m.T_pt:
+            num_ir = einsums.parse_ir(models.pt_amplitude_ir(name, amp, df=False))
+            e_ir = einsums.parse_ir(models.pt_energy_ir(name, amp, df=False))
+            cls = einsums.target_shape(num_ir, "R")[1]
+            names = externals([num_ir, e_ir])
+            for (ln, _c), cl in list(names.items()):            # every l needs its t
+                if ln.startswith("l") and len(cl) >= 4:
+                    names.setdefault(("t" + ln[1:], tuple(reversed(cl))), tuple(reversed(cl)))
+            w = math.prod(math.factorial(cls.count(c)) for c in set(cls))
+            # the weight is the product of the index-group factorials, equivalently
+            # (n_e!)^2 (n_p!)^2 for a block with n_e electron and n_p proton excitations:
+            # 36 eee/ppp and 4 eep/epp at rank 3; 576 eeee/pppp, 36 eeep/eppp, 16 eepp at 4
+            n_p = models._proton_count(amp)
+            n_e = len(cls) // 2 - n_p
+            assert w == math.factorial(n_e) ** 2 * math.factorial(n_p) ** 2, (name, amp, w)
+
+            # <proj| [F, T_pt] |0>: the zeroth-order coupling that sets the denominator
+            pq = pq_helper("fermi")
+            pq.set_left_operators([[models.PROJECTION[amp]]])
+            for h in m.H:
+                if h in ("f", "fp"):
+                    pq.add_commutator(1.0, [h], [amp])
+            pq.simplify()
+            f_ir = einsums.parse_ir(models._optimized(pq, "R", False, 0).to_strings("ir"))
+            f_names = externals([f_ir])
+            t_key = next(k for k in f_names if not k[0].startswith(("f", "fp")))
+
+            for seed in (1, 2):
+                rng = np.random.default_rng(1000 + seed)
+                eps = {c: rng.standard_normal(DIM[c]) + (2.0 if c in VIR else -2.0)
+                       for c in DIM}
+                D = sum((1 if c in VIR else -1) *
+                        eps[c].reshape([DIM[c] if k == ax else 1
+                                        for k in range(len(cls))])
+                        for ax, c in enumerate(cls))
+
+                # (1) Fock coupling: R_F = -D * t  ->  t = numerator / D
+                f_inp = fill(f_names, seed, None, eps)
+                r_f = interp(f_ir, f_inp, "R")
+                t_f = align(f_inp[t_key], list(f_names[t_key]), cls)
+                # <proj|[F, T_pt]|0> = s * D * t, with s the PROJECTION reversal parity
+                # (-1)^sum_species floor(rank_s / 2): every rank-3 block gives s = -1, but
+                # at rank 4 the blocks with an even excitation rank in each species --
+                # eeee, eepp, pppp -- flip to s = +1, so those consumers form t = -R/D.
+                s_par = (-1) ** (n_e // 2 + n_p // 2)
+                assert np.abs(r_f - s_par * D * t_f).max() < 1e-10 * np.abs(r_f).max(), \
+                    (name, amp, "Fock coupling is not s*D*t", s_par)
+
+                # (2) pairing: E_[T] = -(1/w) sum(numerator * t)
+                inp = fill(names, seed, integrals(seed), eps)
+                conjugate(inp, names, len(cls) // 2 - 1)
+                num = interp(num_ir, inp, "R")
+                # the perturbative amplitude in the energy equation: t3/t3_ep/t3_n at
+                # rank 3, t4/t4_ep/t4_n at rank 4
+                tgt = [o for st in e_ir for o in st["operands"]
+                       if o["name"].startswith("t%d" % (len(cls) // 2))][0]
+                tkey_e = (tgt["name"], tuple(tgt["classes"]))
+                e = float(interp(e_ir, inp, "energy"))
+                dot = float(np.tensordot(align(num, cls, tgt["classes"]),
+                                         inp[tkey_e], axes=len(cls)))
+                # E = s * (1/w) sum(R * t), with the same reversal parity s as the
+                # Fock coupling -- so (T) reads E = -(1/w) sum(R*t) and the even-rank
+                # (Q) blocks read E = +(1/w) sum(R*t)
+                assert abs(e - s_par * dot / w) < 1e-8 * max(1.0, abs(e)), \
+                    (name, amp, "numerator/energy pairing", e, s_par * dot / w)
+
+                # (3) with t = numerator / D the correction is strictly negative
+                # the physical amplitude solves R + s*D*t = 0, i.e. t = -R/(s*D);
+                # combined with the pairing that gives E = -(1/w) sum(R^2/D) < 0
+                pt = dict(inp)
+                pt[tkey_e] = align(-num / (s_par * D), cls, list(names[tkey_e]))
+                e_pt = float(interp(e_ir, pt, "energy"))
+                assert e_pt < 0.0, (name, amp, "(T) correction is not negative", e_pt)
+
+        # (4) the blocks are independent: the fused energy is exactly their sum, so an
+        # on-the-fly consumer loses nothing by generating (and looping) them separately
+        left = [[l] for l in models.lambda_amps(name)]
+        fused = sorted(models._pt_pq(m, left, m.T_pt).strings())
+        parts = sorted(s for a in m.T_pt
+                       for s in models._pt_pq(m, left, [a]).strings())
+        assert fused == parts, (name, len(fused), len(parts))
+
+def test_perturbative_triples():
+    """CCSD(T) / NEO-CCSD(T): the perturbative blocks, and the CONSUMER CONTRACT that
+    ties the two generated equations together.
+
+    Symbolic: the electronic model reproduces the canonical ``examples/ccsd_t.py``
+    derivation term for term.
+
+    Numeric, per block, with physically-symmetric integrals (hermitian, correctly
+    antisymmetrized -- the identities below use W = W^dagger, so random unsymmetric
+    integrals do NOT satisfy them):
+
+    1. the Fock coupling is ``<proj|[F, T_pt]|0> = -D * t``, ``D = sum(e_vir) -
+       sum(e_occ)``, so the amplitude is ``t = numerator / D``  -- the denominator
+       :func:`models.pt_amplitude_graph` documents, and the same sign rule the doubles
+       residuals of this library already use;
+    2. ``E_[T] = -(1/w) sum(numerator * t)`` with ``w`` the product of the index-group
+       factorials (36 for eee, 4 for eep/epp) -- this is the pairing an on-the-fly
+       implementation relies on, and it pins the RELATIVE index order and sign of the
+       two equations;
+    3. therefore ``E_[T] = -(1/w) sum(numerator^2 / D) < 0`` STRICTLY, for any
+       integrals -- the physical sign of a perturbative-triples correction;
+    4. the per-block energies sum to the fused ``pt_energy_ir(name)``, so generating
+       the blocks separately (which is what lets a consumer contract the triples away
+       on the fly) loses nothing.
+    """
+    import math
+    from pdaggerq._pdaggerq import pq_helper
 
     # --- structure -----------------------------------------------------------------
     assert {"pt_amps", "pt_amplitude_ir", "pt_energy_ir"} <= set(models.__all__)
@@ -1800,73 +1906,65 @@ def test_perturbative_triples():
     assert sorted(models._pt_pq(m, [["l1"], ["l2"]], ["t3"]).strings()) == \
         raw([["l1"], ["l2"]], [("v", "t3")]), "ccsd(t) (T) energy"
 
-    # --- numeric: the consumer contract ---------------------------------------------
-    for name in ("ccsd(t)", "neo-ccsd(t)-1p", "neo-ccsd(t)"):
-        m = models.model(name)
-        for amp in m.T_pt:
-            num_ir = einsums.parse_ir(models.pt_amplitude_ir(name, amp, df=False))
-            e_ir = einsums.parse_ir(models.pt_energy_ir(name, amp, df=False))
-            cls = einsums.target_shape(num_ir, "R")[1]
-            names = externals([num_ir, e_ir])
-            for ln, cl in list(names.items()):                  # every l needs its t
-                if ln.startswith("l") and len(cl) >= 4:
-                    names.setdefault("t" + ln[1:], tuple(reversed(cl)))
-            w = math.prod(math.factorial(cls.count(c)) for c in set(cls))
-            assert w == (36 if amp in ("t3", "tp3") else 4), (name, amp, w)
-
-            # <proj| [F, T_pt] |0>: the zeroth-order coupling that sets the denominator
-            pq = pq_helper("fermi")
-            pq.set_left_operators([[models.PROJECTION[amp]]])
-            for h in m.H:
-                if h in ("f", "fp"):
-                    pq.add_commutator(1.0, [h], [amp])
-            pq.simplify()
-            f_ir = einsums.parse_ir(models._optimized(pq, "R", False, 0).to_strings("ir"))
-            f_names = externals([f_ir])
-            t_name = next(n for n in f_names if not n.startswith(("f", "fp")))
-
-            for seed in (1, 2):
-                rng = np.random.default_rng(1000 + seed)
-                eps = {c: rng.standard_normal(DIM[c]) + (2.0 if c in VIR else -2.0)
-                       for c in DIM}
-                D = sum((1 if c in VIR else -1) *
-                        eps[c].reshape([DIM[c] if k == ax else 1
-                                        for k in range(len(cls))])
-                        for ax, c in enumerate(cls))
-
-                # (1) Fock coupling: R_F = -D * t  ->  t = numerator / D
-                f_inp = fill(f_names, seed, None, eps)
-                r_f = interp(f_ir, f_inp, "R")
-                t_f = align(f_inp[t_name], list(f_names[t_name]), cls)
-                assert np.abs(r_f + D * t_f).max() < 1e-10 * np.abs(r_f).max(), \
-                    (name, amp, "Fock coupling is not -D*t")
-
-                # (2) pairing: E_[T] = -(1/w) sum(numerator * t)
-                inp = fill(names, seed, integrals(seed), eps)
-                conjugate(inp, names)
-                num = interp(num_ir, inp, "R")
-                tgt = [o for s in e_ir for o in s["operands"]
-                       if o["name"].startswith("t3")][0]
-                e = float(interp(e_ir, inp, "energy"))
-                dot = float(np.tensordot(align(num, cls, tgt["classes"]),
-                                         inp[tgt["name"]], axes=len(cls)))
-                assert abs(e + dot / w) < 1e-8 * max(1.0, abs(e)), \
-                    (name, amp, "numerator/energy pairing", e, -dot / w)
-
-                # (3) with t = numerator / D the correction is strictly negative
-                pt = dict(inp)
-                pt[tgt["name"]] = align(num / D, cls, list(names[tgt["name"]]))
-                e_pt = float(interp(e_ir, pt, "energy"))
-                assert e_pt < 0.0, (name, amp, "(T) correction is not negative", e_pt)
-
-        # (4) the blocks are independent: the fused energy is exactly their sum, so an
-        # on-the-fly consumer loses nothing by generating (and looping) them separately
-        left = [[l] for l in models.lambda_amps(name)]
-        fused = sorted(models._pt_pq(m, left, m.T_pt).strings())
-        parts = sorted(s for a in m.T_pt
-                       for s in models._pt_pq(m, left, [a]).strings())
-        assert fused == parts, (name, len(fused), len(parts))
+    # numeric: >=3 occupied protons, else the rank-3 proton block (ppp) is
+    # identically zero and the checks below would be vacuous
+    _check_pt_contract(("ccsd(t)", "neo-ccsd(t)-1p", "neo-ccsd(t)"), (3, 4, 3, 4))
     print("test_perturbative_triples OK")
+
+
+def test_perturbative_quadruples():
+    """CCSDT(Q) / NEO-CCSDT(Q): the same construction one rank up.
+
+    ``(Q)`` is ``(T)`` with the CCSDT cluster and a rank-4 projection, so the consumer
+    contract is identical and is checked by the same helper: the Fock coupling fixes the
+    denominator, the numerator/energy pairing fixes the relative index order and sign,
+    and together they force the correction negative. What is new here is the block set --
+    eeee, eeep, eepp, eppp and pppp -- and the pairing weight, which is
+    ``(n_e!)^2 (n_p!)^2`` and so reaches 576 for the pure-species blocks.
+
+    The many-proton blocks need that many quantum protons to be nonzero. They are
+    expected to be negligible for protons, but the machinery is not proton-specific --
+    for a heavier or more numerous second species they need not be -- so the set is
+    carried complete and a consumer gates each block on its own particle count. The
+    ``-1p`` reduction does exactly that, keeping only eeee and eeep.
+    """
+    import math
+
+    # --- structure -------------------------------------------------------------------
+    assert models.pt_amps("ccsdt(q)") == ["t4"]
+    assert models.pt_amps("neo-ccsdt(q)") == ["t4", "tep31", "tep22", "tep13", "tp4"]
+    assert models.pt_amps("neo-ccsdt(q)-1p") == ["t4", "tep31"]   # >=2-proton blocks dropped
+    # the base cluster is CCSDT: the quadruples are perturbative, never iterated
+    assert models.model("ccsdt(q)").T == ("t1", "t2", "t3")
+    assert models.model("neo-ccsdt(q)").T == models.model("neo-ccsdt").T
+    for nm in ("ccsdt(q)", "neo-ccsdt(q)"):
+        for amp in models.pt_amps(nm):
+            assert amp in models.PROJECTION, (nm, amp)
+            assert amp not in models.model(nm).T, (nm, amp)
+
+    # the pairing weight is (n_e!)^2 (n_p!)^2 -- 576 for eeee/pppp, 36 for eeep/eppp,
+    # 16 for eepp. spot-check it against the projection's index classes.
+    expect_w = {"t4": 576, "tep31": 36, "tep22": 16, "tep13": 36, "tp4": 576}
+    for amp, w in expect_w.items():
+        np_ = models._proton_count(amp)
+        ne = {"t4": 4, "tep31": 3, "tep22": 2, "tep13": 1, "tp4": 0}[amp]
+        assert math.factorial(ne) ** 2 * math.factorial(np_) ** 2 == w, (amp, w)
+
+    for bad in (lambda: models.pt_amplitude_graph("ccsdt(q)", "tep31"),
+                lambda: models.pt_energy_graph("ccsdt", "t4"),
+                lambda: models.pt_energy_graph("ccsdt(q)", "tp4")):
+        try:
+            bad()
+            assert False, "expected ValueError"
+        except ValueError:
+            pass
+
+    # --- numeric: same consumer contract, rank-4 blocks -------------------------------
+    # >=4 orbitals per species per space: a rank-4 antisymmetric block (eeee, pppp) is
+    # identically zero below that, and the checks would be vacuous
+    _check_pt_contract(("ccsdt(q)", "neo-ccsdt(q)-1p", "neo-ccsdt(q)"), (4, 5, 4, 5))
+    print("test_perturbative_quadruples OK")
+
 
 
 def test_equations_ir():

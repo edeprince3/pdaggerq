@@ -45,12 +45,14 @@ Method families
   the matching pure-electron excitation. ``neo-ccsdt(eep)`` is the Pavoševic-style
   cluster (no electron t3). ``neo-ccd(ep)`` stays the minimal single-proton e-p model
   (tep11 only, no proton correlation).
-* perturbative triples: ``ccsd(t)``, ``neo-ccsd(t)`` -- the CCSD cluster plus a
-  non-iterative triples correction. The perturbative blocks are listed in the model's
-  ``T_pt`` (never in ``T``): eee for ``ccsd(t)``; eee, eep, epp and ppp for
-  ``neo-ccsd(t)`` (``neo-ccsd(t)-1p`` keeps eee and eep -- epp needs two protons and ppp
-  three). Built by :func:`pt_amplitude_graph` and :func:`pt_energy_graph`, not the
-  residual builders.
+* perturbative triples and quadruples: ``ccsd(t)``, ``neo-ccsd(t)``, ``ccsdt(q)``,
+  ``neo-ccsdt(q)`` -- the CCSD (resp. CCSDT) cluster plus a non-iterative correction over
+  every block one rank up. The perturbative blocks are listed in the model's ``T_pt``
+  (never in ``T``): eee for ``ccsd(t)``, and eee/eep/epp/ppp for ``neo-ccsd(t)``; eeee
+  for ``ccsdt(q)``, and eeee/eeep/eepp/eppp/pppp for ``neo-ccsdt(q)``. A block with n
+  protons needs n quantum protons to be nonzero, so the ``-1p`` reductions keep only the
+  0- and 1-proton blocks; a consumer gates the rest on its own particle count. Built by
+  :func:`pt_amplitude_graph` and :func:`pt_energy_graph`, not the residual builders.
 * single-proton NEO: every ``vp`` model has a ``<name>-1p`` counterpart (e.g.
   ``neo-ccsd-1p``) auto-derived by dropping ``vp`` and the >=2-proton amplitudes -- the
   exact equations for one quantum proton. Bit-for-bit with the full model there (the
@@ -217,6 +219,20 @@ MODELS = dict([
     _m("ccsd(t)",     H_ELEC,   ["t1", "t2"], ["t3"]),
     _m("neo-ccsd(t)", H_NEO_PP, ["t1", "t2", "tp1", "tp2", "tep11"],
                                 ["t3", "tep21", "tep12", "tp3"]),
+    # --- perturbative quadruples: the same construction one rank up -- the CCSDT
+    #     cluster plus a non-iterative correction over every rank-4 block: eeee (t4),
+    #     eeep (tep31), eepp (tep22), eppp (tep13) and pppp (tp4). The many-proton
+    #     blocks need that many quantum protons to be nonzero and are expected to be
+    #     negligible for protons, but the multicomponent machinery is not
+    #     proton-specific -- for a heavier or more numerous second species they need not
+    #     be -- so the set is carried complete and a consumer gates each block on its
+    #     own particle count (the -1p reduction already does exactly that, keeping only
+    #     eeee and eeep). ---
+    _m("ccsdt(q)",     H_ELEC,   ["t1", "t2", "t3"], ["t4"]),
+    _m("neo-ccsdt(q)", H_NEO_PP, ["t1", "t2", "t3",
+                                  "tp1", "tp2", "tp3",
+                                  "tep11", "tep21", "tep12"],
+                                 ["t4", "tep31", "tep22", "tep13", "tp4"]),
 ])
 
 
@@ -484,10 +500,18 @@ def pt_amplitude_graph(name, amplitude, df=True, opt_level=None, label="R"):
     each index contributing the diagonal Fock element of *its own* species, so the
     NEO blocks read (lower case = electron, upper case = proton)::
 
-        eee (t3)     e_a + e_b + e_c - e_i - e_j - e_k
-        eep (tep21)  e_a + e_b + E_A - e_i - e_j - E_I
-        epp (tep12)  e_a + E_A + E_B - e_i - E_I - E_J
-        ppp (tp3)    E_A + E_B + E_C - E_I - E_J - E_K
+        eee  (t3)     e_a + e_b + e_c - e_i - e_j - e_k
+        eep  (tep21)  e_a + e_b + E_A - e_i - e_j - E_I
+        epp  (tep12)  e_a + E_A + E_B - e_i - E_I - E_J
+        ppp  (tp3)    E_A + E_B + E_C - E_I - E_J - E_K
+
+    and the rank-4 blocks of ``(Q)`` continue the same rule::
+
+        eeee (t4)     e_a + e_b + e_c + e_d - e_i - e_j - e_k - e_l
+        eeep (tep31)  e_a + e_b + e_c + E_A - e_i - e_j - e_k - E_I
+        eepp (tep22)  e_a + e_b + E_A + E_B - e_i - e_j - E_I - E_J
+        eppp (tep13)  e_a + E_A + E_B + E_C - e_i - E_I - E_J - E_K
+        pppp (tp4)    E_A + E_B + E_C + E_D - E_I - E_J - E_K - E_L
 
     That is the same denominator convention this library's *doubles* residuals use
     (``<proj|[F, T]|0> = -D t``, so ``R = 0`` gives ``t = rest/D``), and it is verified
@@ -500,8 +524,10 @@ def pt_amplitude_graph(name, amplitude, df=True, opt_level=None, label="R"):
     correction non-iterative, and it is what lets a consumer never store the triples --
     see :func:`pt_energy_graph`.
 
-    Singles (``t1``/``tp1``) are passed to the commutator for uniformity but cannot
-    reach a rank-3 projection, so they contribute nothing; the derivation drops them."""
+    Low-rank amplitudes are passed to the commutator for uniformity but cannot reach the
+    projection (a two-body ``W`` plus a rank-n cluster amplitude reaches rank n+2 at
+    most, so ``(T)`` sees nothing below doubles and ``(Q)`` nothing below triples); they
+    contribute no terms and the derivation drops them."""
     opt_level = _opt_level_for(name, opt_level)
     m = model(name)
     if amplitude not in m.T_pt:
@@ -543,15 +569,26 @@ def pt_energy_graph(name, amplitude=None, df=True, opt_level=None, label="energy
         E_[T] = -(1/w) sum(R * t)  =  -(1/w) sum(R^2 / D)   < 0
 
     over the block's full (unrestricted) index range, ``w`` the product of the factorials
-    of the index-group sizes -- 36 for eee and ppp, 4 for eep and epp. ``E_[T]`` is the ``L2``
-    part; the ``L1`` term the emitted equation also carries is what makes it ``(T)``
-    rather than ``[T]``. All of this is checked numerically in
-    ``models_test.test_perturbative_triples``.
+    of the index-group sizes -- equivalently ``(n_e!)^2 (n_p!)^2`` for a block with
+    ``n_e`` electron and ``n_p`` proton excitations::
 
-    One naming caveat for the fused (``amplitude=None``) NEO form: eep and epp are both
-    emitted as ``t3_ep`` and are told apart only by their index classes (``vvVOoo`` vs
-    ``vVVOOo``) -- the same convention the ``neo-ccsdt`` residuals already use. Per-block
-    generation sidesteps it."""
+        (T)  eee/ppp   36     eep/epp     4
+        (Q)  eeee/pppp 576    eeep/eppp  36    eepp  16
+
+    ``E_[T]`` is the ``L2`` part; the ``L1`` term the emitted equation also carries is
+    what makes it ``(T)`` rather than ``[T]``. All of this is checked numerically in
+    ``models_test.test_perturbative_triples`` and ``..._quadruples``.
+
+    Naming caveat, and it is NOT sidestepped by per-block generation: the mixed blocks of
+    a given rank share an emitted name (eep and epp are both ``t3_ep``; eeep, eepp and
+    eppp are all ``t4_ep``, and likewise ``l3_ep``/``l4_ep`` for the multipliers), and are
+    told apart only by their index classes (``vvVOoo`` vs ``vVVOOo``, and so on) -- the
+    same convention the ``neo-ccsdt``/``neo-ccsdtq`` residuals already use. A single
+    block's equation can reference two of them at once: the ``(Q)`` eepp energy contracts
+    BOTH mixed rank-3 multipliers, emitting ``l3_ep`` with classes ``ooOVvv`` (eep) and
+    ``oOOVVv`` (epp) in the same expression. **A consumer must therefore key tensors by
+    (name, index classes), never by name alone** -- keying by name silently conflates two
+    physically distinct blocks."""
     opt_level = _opt_level_for(name, opt_level)
     m = model(name)
     if not m.T_pt:
