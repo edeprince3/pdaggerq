@@ -341,17 +341,59 @@ def _opt_level_for(name, opt_level):
     return _SAFE_OPT_LEVEL if opt_level is None else opt_level
 
 
-#: representative line-class sizes for the dimension-aware optimizer cost model
+#: Representative line-class sizes for the dimension-aware optimizer cost model
 #: (pq_graph option "dims"). pq_graph's default metric counts every summation line
-#: equally, so it mis-ranks NEO candidates badly: a nuclear-occupied line (O = number
-#: of quantum protons, typically 1!) is scored like an electronic virtual line. With
-#: dims set, candidate intermediates/orderings are ranked by numeric flop estimates at
-#: these sizes instead. The values are *ratios*, not real basis sizes -- chosen
-#: representative of NEO targets (v/o ~ 4, protonic basis ~ o, DF aux ~ 3v); codegen is
-#: frozen per model, so decisions are optimal near these ratios. "O" is filled in
-#: per-model by :func:`_dims_for` (1 for single-proton models, 2 when the model carries
-#: >=2-proton amplitudes). Electron-only models keep pq_graph's scale-safe default
-#: metric (no dims) so their codegen is unchanged.
+#: equally, so it mis-ranks NEO candidates badly: a nuclear-occupied line (O = number of
+#: quantum protons, often 1!) is scored like an electronic virtual line. With dims set,
+#: candidates are ranked by numeric flop estimates at these sizes instead, so the
+#: contraction order removes the largest indices first.
+#:
+#: The line classes (pq_graph ``Line::type()``) are::
+#:
+#:     o   electron occupied           O   nuclear occupied  (per-model, see _dims_for)
+#:     v   electron virtual            V   nuclear virtual
+#:     L   excited-state / trial-vector index (sigma builds)
+#:     Q   density-fitting auxiliary
+#:
+#: The values are taken from a representative NEO target -- FHF- with the electrons in
+#: aug-cc-pVTZ and the quantum proton in PB4-F1::
+#:
+#:     electrons  2x46 (F) + 23 (H) = 115 spatial; 20 electrons
+#:                -> o = 20 spin orbitals, v = 2*115 - 20 = 210
+#:     proton     PB4-F1 = 4s3p2d1f = 30 functions, one proton
+#:                -> O = 1, V = 29
+#:     DF aux     aug-cc-pVTZ-RI, ~3.5x the orbital basis -> ~400
+#:
+#: so the ratios that matter are v/o ~ 10 and V/v ~ 0.14: the second species' basis is
+#: MUCH smaller than the electronic virtual space, and smaller still for muons and
+#: positrons. Codegen is frozen per model, so the decisions are optimal near these
+#: ratios; a consumer with different ones should pass its own via the ``dims`` argument
+#: (see :func:`_dims_for`).
+#:
+#: The values are distinct primes ON PURPOSE. Equal sizes make the metric blind: with the
+#: previous table V and o were both 10, so any two candidates differing only by swapping
+#: an electron-occupied line for a nuclear-virtual one scored identically and the
+#: optimizer fell back to arbitrary tie-breaking. Distinct primes go further -- by unique
+#: factorization, two different multisets of index classes cannot share a cost -- so a
+#: tie in this metric means a genuine tie. L was also 1, which made the trial-vector
+#: dimension multiplicatively free and dropped it out of sigma-build ranking entirely.
+#:
+#: "O" is filled in per-model by :func:`_dims_for` (the model's proton rank), so it is
+#: physical rather than prime and can coincide with another class; it is the one place
+#: an accidental tie remains possible. Electron-only models keep pq_graph's scale-safe
+#: default metric (no dims) unless a caller passes dims explicitly.
+#: KNOWN LIMITATION: o and V are both 10, so the metric cannot tell an electron-occupied
+#: line from a nuclear-virtual one and any two candidates differing only by that swap tie
+#: exactly. L = 1 likewise makes the trial-vector dimension multiplicatively free, so it
+#: drops out of sigma-build ranking. Both are real defects in principle. Neither was worth
+#: changing in practice: at the FHF- sizes above, breaking the tie (V = 11) moved the
+#: neo-ccsd residual set by 0.04%, and a table anchored to the true ratios above was
+#: neutral-to-worse (it also made cross-equation CSE marginally worse for neo-ccd(ep)).
+#: The optimizer is a greedy search, so a more accurate metric does not monotonically
+#: produce better code -- feeding it the exact FHF- dimensions made the tep11 residual
+#: 28% MORE expensive by binary-contraction flop count than these defaults do.
+#: So: if the ratios matter for your system, measure with your own ``dims`` rather than
+#: trusting either these defaults or a "more realistic" table.
 DIMS = {"o": 10.0, "v": 40.0, "V": 10.0, "L": 1.0, "Q": 120.0}
 
 
