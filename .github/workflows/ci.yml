@@ -1,21 +1,20 @@
 name: CI
 
 # Build pdaggerq and run its test suite on every push to this branch / master and
-# every PR. Two groups:
-#   * tests/  -- the upstream reference-output + numerical codegen tests, including the
-#                NEO (nuclear-electronic) suite, tagged with the `neo` marker regardless
-#                of tier (all NEO tests: `pytest -m neo tests/`)
+# every PR. All tests now live under tests/:
 #       - tests/pq_test.py              runs examples/*.py, diffs strings vs reference_outputs/*.ref
 #       - tests/neo_*.py                symbolic + synthetic-tensor NEO tests (no psi4/pyscf
-#                                       needed -- see each file's docstring for its tier)
+#                                       needed -- see each file's docstring for its tier); all
+#                                       NEO tests, any tier, are also selectable via
+#                                       `pytest -m neo tests/`
 #       - tests/pq_graph_numerical_test.py runs pq_graph/tests/*_codegen.py, executes it, checks numbers
-#   * pdaggerq/  -- the generated-model library and its consumers
-#       - pdaggerq/models_test.py   correctness of the models.py library: RDM<->energy
-#                                   identity, Lambda consistency, single-proton reduction,
-#                                   opt-level safety, orbital gradients/Hessians, ... This is an
-#                                   independent NEO cross-check at the models.py/einsums IR layer,
-#                                   not a duplicate of tests/neo_*.py (those exercise raw pq_helper).
-#       - pdaggerq/einsums_test.py  einsums dispatch/lowering
+#       - tests/models_test.py          correctness of the generated-model library (models.py):
+#                                       RDM<->energy identity, Lambda consistency, single-proton
+#                                       reduction, opt-level safety, orbital gradients/Hessians, ...
+#                                       This is an independent NEO cross-check at the
+#                                       models.py/einsums IR layer, not a duplicate of
+#                                       tests/neo_*.py (those exercise raw pq_helper).
+#       - tests/einsums_test.py         einsums dispatch/lowering
 
 on:
   push:
@@ -89,16 +88,14 @@ jobs:
           python -m pytest -v -k "not with_spin" \
             "$GITHUB_WORKSPACE/tests/pq_graph_numerical_test.py"
 
-      - name: Generated-model library tests (pdaggerq/)
+      - name: Generated-model library tests (tests/models_test.py, tests/einsums_test.py)
         working-directory: ${{ runner.temp }}
-        # --pyargs: these test modules live INSIDE the pdaggerq package, so collecting
-        # them by source path imports the source-tree package (whose __init__ needs the
-        # built _pdaggerq extension that only exists in site-packages) and fails with
-        # ModuleNotFoundError. --pyargs collects the installed copies instead, which
-        # pip install . built from this very checkout.
+        # --forked: models_test.py cannot run all cases in one process (a pq_graph
+        # cross-call state leak trips one case mid-suite); forking gives each test its
+        # own fresh interpreter.
         run: |
-          python -m pytest -v --forked --pyargs \
-            pdaggerq.models_test pdaggerq.einsums_test
+          python -m pytest -v --forked \
+            "$GITHUB_WORKSPACE/tests/models_test.py" "$GITHUB_WORKSPACE/tests/einsums_test.py"
 
       # NOTE: pdaggerq/algebra_test.py and pdaggerq/parser_test.py are excluded --
       # they are stale (import T1amps, removed from pdaggerq/algebra.py) and fail
