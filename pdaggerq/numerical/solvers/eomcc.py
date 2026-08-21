@@ -164,7 +164,7 @@ class eomcc:
         print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('', '', '<L1|mu|R2>', '', '', '<L2|mu|R1>', '', '', ''))
         print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('state 1', 'state 2', 'x', 'y', 'z', 'x', 'y', 'z', 'osc'))
 
-        from pdaggerq.numerical.utils.integrals import get_dipole_integrals_with_spin
+        from pdaggerq.numerical.utils.psi4_integrals import get_dipole_integrals_with_spin
         dipole_aa, dipole_bb = get_dipole_integrals_with_spin(self.cc.wfn, nfzc = self.cc.nfzc)
 
         f = np.zeros((self.nstates, self.nstates), dtype=np.complex128)

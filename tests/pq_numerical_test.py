@@ -53,6 +53,7 @@ def setup_psi4_test():
 
     # compute the Hartree-Fock energy and wave function
     scf_e, wfn = psi4.energy('SCF', return_wfn=True)
+    print(scf_e)
 
     return mol, wfn
 
@@ -294,7 +295,7 @@ def test_lambda_ccsd_codegen():
             # build opdm, check one-electron energy
             opdm_a, opdm_b = mycc.opdm()
 
-            from pdaggerq.numerical.utils.properties import one_electron_energy
+            from pdaggerq.numerical.utils.psi4_integrals import one_electron_energy
             energy_1 = one_electron_energy(wfn, opdm_a, opdm_b, nfzc=1)
 
             assert np.isclose(energy_1, -56.228181952008, rtol=1e-10, atol=1e-10)
@@ -302,7 +303,7 @@ def test_lambda_ccsd_codegen():
             # build tpdm, check two-electron energy
             tpdm_aaaa, tpdm_abab, tpdm_bbbb = mycc.tpdm()
 
-            from pdaggerq.numerical.utils.properties import two_electron_energy
+            from pdaggerq.numerical.utils.psi4_integrals import two_electron_energy
             two_electron_energy = two_electron_energy(wfn, tpdm_aaaa, tpdm_abab, tpdm_bbbb, opdm_a, opdm_b, nfzc=1)
 
             assert np.isclose(two_electron_energy, 32.974432824166, rtol=1e-10, atol=1e-10)
@@ -402,7 +403,7 @@ def test_eomccsd_codegen():
             # build excited-state OPDMs and check associated one-electron energies
             opdm_a, opdm_b = eomcc.opdm()
 
-            from pdaggerq.numerical.utils.properties import one_electron_energy
+            from pdaggerq.numerical.utils.psi4_integrals import one_electron_energy
             energy_1 = []
             for i in range (len(opdm_a)):
                 energy_1.append(one_electron_energy(wfn, opdm_a[i], opdm_b[i], nfzc=1))
@@ -410,7 +411,7 @@ def test_eomccsd_codegen():
             # build excited-state TPDMs and check associated one-electron energies
             tpdm_aaaa, tpdm_abab, tpdm_bbbb = eomcc.tpdm()
 
-            from pdaggerq.numerical.utils.properties import two_electron_energy
+            from pdaggerq.numerical.utils.psi4_integrals import two_electron_energy
             energy_2 = []
             for i in range (len(tpdm_aaaa)):
                 energy_2.append(two_electron_energy(wfn, tpdm_aaaa[i], tpdm_abab[i], tpdm_bbbb[i], opdm_a[i], opdm_b[i], nfzc=1))

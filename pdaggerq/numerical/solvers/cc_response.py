@@ -31,7 +31,7 @@ from scipy.sparse.linalg import LinearOperator
 import copy
 
 from pdaggerq.numerical.solvers.cc_hbar import HbarOperator
-from pdaggerq.numerical.utils.integrals import get_dipole_integrals_with_spin
+from pdaggerq.numerical.utils.psi4_integrals import get_dipole_integrals_with_spin
 from pdaggerq.numerical.utils.diis import DIIS
 
 class cc_response:
