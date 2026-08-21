@@ -68,6 +68,7 @@ pybind11_add_module(_pdaggerq
         pdaggerq/pq_helper.cc
 
         pq_graph/include/line.hpp
+        pq_graph/src/line.cc
         pq_graph/include/shape.hpp
         pq_graph/src/vertex.cc
         pq_graph/src/linkage.cc
