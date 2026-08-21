@@ -8,6 +8,10 @@ name: CI
 #                                       NEO tests, any tier, are also selectable via
 #                                       `pytest -m neo tests/`
 #       - tests/pq_graph_numerical_test.py runs pq_graph/tests/*_codegen.py, executes it, checks numbers
+#       - tests/pq_numerical_test.py    exercises the CC/EOMCC/CC-response solvers directly
+#                                       (pdaggerq/numerical/solvers) against pyscf reference
+#                                       integrals/energies (falls back to psi4 if pyscf isn't
+#                                       installed, but CI only has pyscf -- no psi4 wheels)
 #       - tests/models_test.py          correctness of the generated-model library (models.py):
 #                                       RDM<->energy identity, Lambda consistency, single-proton
 #                                       reduction, opt-level safety, orbital gradients/Hessians, ...
@@ -18,7 +22,7 @@ name: CI
 
 on:
   push:
-    branches: [ feat-neo-spin-tracing, master ]
+    branches: [ master ]
   pull_request:
 
 concurrency:
@@ -87,6 +91,18 @@ jobs:
         run: |
           python -m pytest -v -k "not with_spin" \
             "$GITHUB_WORKSPACE/tests/pq_graph_numerical_test.py"
+
+      - name: Numerical solver tests (tests/pq_numerical_test.py)
+        working-directory: ${{ runner.temp }}
+        # pyscf-backed: setup_test() in this file prefers pyscf (no psi4 wheels in CI) and
+        # constructs its Mole with verbose=0 to keep pyscf's logger from writing to stdout
+        # after pytest closes it between tests -- without that, the 2nd+ pyscf-backed test
+        # in the process crashes with "I/O operation on closed file" (same class of
+        # cross-test issue as models_test.py below, fixed here at the source instead of
+        # with --forked).
+        run: |
+          python -m pytest -v \
+            "$GITHUB_WORKSPACE/tests/pq_numerical_test.py"
 
       - name: Generated-model library tests (tests/models_test.py, tests/einsums_test.py)
         working-directory: ${{ runner.temp }}
