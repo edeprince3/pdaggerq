@@ -499,7 +499,7 @@ def electric_quadrupole(wfn, opdm_a, opdm_b, nfzc = 0, print_level = 1):
         [np.zeros((opdm_b.shape[0], nfzc)), opdm_b]
     ])
 
-    # Evaluate electric dipole
+    # Evaluate electric quadrupole
     q_xx = np.einsum('pq,qp->', q_aa[0], full_opdm_a)
     q_xx += np.einsum('pq,qp->', q_bb[0], full_opdm_b)
 

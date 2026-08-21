@@ -191,8 +191,8 @@ def get_quadrupole_integrals_with_spin(mf, nfzc = 0):
     q_aa = []
     q_bb = []
     for (i, j) in comps:
-        q_aa.append(np.einsum('up,vq,uv->pq', Ca, Ca, rr[i, j])[nfzc:, nfzc:])
-        q_bb.append(np.einsum('up,vq,uv->pq', Cb, Cb, rr[i, j])[nfzc:, nfzc:])
+        q_aa.append(-np.einsum('up,vq,uv->pq', Ca, Ca, rr[i, j])[nfzc:, nfzc:])
+        q_bb.append(-np.einsum('up,vq,uv->pq', Cb, Cb, rr[i, j])[nfzc:, nfzc:])
 
     return q_aa, q_bb
 
@@ -245,8 +245,8 @@ def get_dipole_integrals_with_spin(mf, nfzc = 0):
     mu_aa = []
     mu_bb = []
     for i in range (3):
-        mu_aa.append(np.einsum('up,vq,uv->pq', Ca, Ca, r[i])[nfzc:, nfzc:])
-        mu_bb.append(np.einsum('up,vq,uv->pq', Cb, Cb, r[i])[nfzc:, nfzc:])
+        mu_aa.append(-np.einsum('up,vq,uv->pq', Ca, Ca, r[i])[nfzc:, nfzc:])
+        mu_bb.append(-np.einsum('up,vq,uv->pq', Cb, Cb, r[i])[nfzc:, nfzc:])
 
     return mu_aa, mu_bb
 
@@ -476,7 +476,7 @@ def electric_quadrupole(mf, opdm_a, opdm_b, nfzc = 0, print_level = 1):
         [np.zeros((opdm_b.shape[0], nfzc)), opdm_b]
     ])
 
-    # Evaluate electric dipole
+    # Evaluate electric quadrupole
     q_xx = np.einsum('pq,qp->', q_aa[0], full_opdm_a)
     q_xx += np.einsum('pq,qp->', q_bb[0], full_opdm_b)
 
