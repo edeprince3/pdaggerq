@@ -22,7 +22,7 @@ name: CI
 
 on:
   push:
-    branches: [ pyscf-numerical-tests, master ]
+    branches: [ master ]
   pull_request:
 
 concurrency:
