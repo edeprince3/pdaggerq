@@ -267,7 +267,15 @@ namespace pdaggerq {
         // keyed by LABEL rather than by Line: two lines with the same label are the same
         // index and must share a subscript (spin-blocked equations reuse a label across
         // blocks, and those must not be split apart).
-        static inline thread_local std::unordered_map<std::string, char> subscript_map_{};
+        //
+        // Declared (not defined/inline) here -- defined once in line.cc. `static inline
+        // thread_local` is standard-legal and normally lets the linker merge the per-TU
+        // definitions, but at least one toolchain in the wild (recent AppleClang/ld64) has
+        // been observed emitting a duplicate-symbol error for the compiler-generated
+        // "thread-local initialization routine" for this exact pattern, non-deterministically
+        // across otherwise-identical clean builds. The traditional out-of-line-definition
+        // pattern below sidesteps inline-merging for this symbol entirely.
+        static thread_local std::unordered_map<std::string, char> subscript_map_;
 
         char einsum_char() const {
             auto it = subscript_map_.find(label_);
