@@ -8,8 +8,10 @@ separate spin species -- ``"high-spin"`` pins them to one channel (closed-shell
 default, one quantum proton), ``"full"`` gives them an independent alpha/beta
 manifold (>=2 nuclei / pairing).
 
-This is the package-canonical copy; ``pq_graph/tests/extract_spins.py`` carries
-the same `get_spin_labels` for the standalone spin tests.
+This is the package-canonical copy. ``pq_graph/tests/extract_spins.py`` still
+carries a copy of `get_spin_labels` (plus `block_by_spin`) for the non-NEO
+``pq_graph/tests/*_codegen.py`` scripts; the NEO tests in ``tests/neo_*.py``
+import this module directly instead.
 """
 
 

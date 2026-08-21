@@ -1018,7 +1018,7 @@ def _rdm_block_spec(tensor, block):
 
     if tensor == "D2_ep":
         # consumer layout D2_ep(P, E, E', P'); operator e2(P, E, P', E') -- the convention
-        # validated in pq_graph/tests/neo_rdm_energy_test.py. The e-p energy is
+        # validated in tests/neo_rdm_energy_test.py. The e-p energy is
         # E_ep = +gep.D2_ep (gep carries the charge sign; see energy_from_rdm_ir).
         cP, cE, cE2, cP2 = block[0], block[1], block[2], block[3]
         LE = take("e", cE); LP = take("p", cP); LP2 = take("p", cP2); LE2 = take("e", cE2)

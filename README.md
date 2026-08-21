@@ -320,8 +320,8 @@ cumulant-expands to `D1 * D1_n` with no cross-species exchange).
 
 See [`examples/neo_ccd.py`](examples/neo_ccd.py) and
 [`examples/neo_ccsd.py`](examples/neo_ccsd.py) for worked NEO-CCD and NEO-CCSD
-examples (the latter including singles), and `pq_graph/tests/neo_ccsd_test.py`
-and `pq_graph/tests/neo_lambda_rdm_test.py` for the amplitude and lambda/RDM
+examples (the latter including singles), and `tests/neo_ccsd_test.py`
+and `tests/neo_lambda_rdm_test.py` for the amplitude and lambda/RDM
 behavior.
 
 ### Methods

@@ -14,9 +14,13 @@ dimension so every tensor block is the same shape; the factorization is an
 algebraic identity, so random (non-symmetric) inputs are a valid probe.
 """
 import re
+import pytest
 import numpy as np
 from numpy import einsum
 import pdaggerq
+
+pytestmark = pytest.mark.neo
+
 
 def derive(opt_level, projection):
     pq = pdaggerq.pq_helper("fermi")
@@ -46,10 +50,9 @@ def evaluate(code, tensors, d):
     exec(body, ns)
     return ns["rep"]
 
-def main():
-    d = 4
-    rng = np.random.default_rng(20260627)
-    tensors = dict(
+def _make_tensors(seed, d=4):
+    rng = np.random.default_rng(seed)
+    return dict(
         f_full=rng.standard_normal((2 * d, 2 * d)),
         eri_full=rng.standard_normal((2 * d, 2 * d, 2 * d, 2 * d)),  # same-species two-body (v, vp)
         g_full=rng.standard_normal((2 * d, 2 * d, 2 * d, 2 * d)),    # electron-nuclear two-body (gep)
@@ -57,20 +60,27 @@ def main():
         t2_n=rng.standard_normal((d, d, d, d)),
         t2_ep=rng.standard_normal((d, d, d, d)),
     )
-    blocks = {
-        "electron doubles  <ee|": "e2(i,j,a,b)",
-        "mixed e-p doubles  <ep|": "e2(i,ni,a,na)",
-    }
-    ok = True
-    for name, proj in blocks.items():
-        r0 = evaluate(derive(0, proj), tensors, d)
-        r5 = evaluate(derive(5, proj), tensors, d)
-        err = float(np.abs(r0 - r5).max())
-        match = np.allclose(r0, r5)
-        ok = ok and match
-        print(f"{name}: opt0 vs opt5 max|diff| = {err:.2e}  {'OK' if match else 'FAIL'}")
-    assert ok, "NEO optimizer changed the equations"
-    print("PASS: nuclear-aware optimization preserves the NEO equations (both residual blocks)")
+
+
+BLOCKS = {
+    "electron doubles  <ee|": "e2(i,j,a,b)",
+    "mixed e-p doubles  <ep|": "e2(i,ni,a,na)",
+}
+
+
+@pytest.mark.parametrize("name,proj", list(BLOCKS.items()))
+def test_opt_level_consistency(name, proj):
+    d = 4
+    tensors = _make_tensors(20260627, d)
+    r0 = evaluate(derive(0, proj), tensors, d)
+    r5 = evaluate(derive(5, proj), tensors, d)
+    err = float(np.abs(r0 - r5).max())
+    match = np.allclose(r0, r5)
+    print(f"{name}: opt0 vs opt5 max|diff| = {err:.2e}  {'OK' if match else 'FAIL'}")
+    assert match, f"NEO optimizer changed the equations for {name}"
+
 
 if __name__ == "__main__":
-    main()
+    for name, proj in BLOCKS.items():
+        test_opt_level_consistency(name, proj)
+    print("PASS: nuclear-aware optimization preserves the NEO equations (both residual blocks)")

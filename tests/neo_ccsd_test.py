@@ -11,7 +11,10 @@ forward cluster amplitudes including singles.
 Run: python neo_ccsd_test.py
 """
 import re
+import pytest
 import pdaggerq
+
+pytestmark = pytest.mark.neo
 
 # single-proton NEO-CCSD: H = f + v + fp + gep,  T = t1 + t2 + tp1 + tep11
 MAXORD = 4   # CCSD with singles needs the full 4th-order BCH (exact for 2-body H)

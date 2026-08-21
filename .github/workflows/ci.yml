@@ -2,13 +2,19 @@ name: CI
 
 # Build pdaggerq and run its test suite on every push to this branch / master and
 # every PR. Two groups:
-#   * test/  -- the upstream reference-output + numerical codegen tests
-#       - test/pq_test.py        runs examples/*.py, diffs strings vs reference_outputs/*.ref
-#       - test/numerical_test.py runs pq_graph/tests/*_codegen.py, executes it, checks numbers
+#   * tests/  -- the upstream reference-output + numerical codegen tests, including the
+#                NEO (nuclear-electronic) suite, tagged with the `neo` marker regardless
+#                of tier (all NEO tests: `pytest -m neo tests/`)
+#       - tests/pq_test.py              runs examples/*.py, diffs strings vs reference_outputs/*.ref
+#       - tests/neo_*.py                symbolic + synthetic-tensor NEO tests (no psi4/pyscf
+#                                       needed -- see each file's docstring for its tier)
+#       - tests/pq_graph_numerical_test.py runs pq_graph/tests/*_codegen.py, executes it, checks numbers
 #   * pdaggerq/  -- the generated-model library and its consumers
 #       - pdaggerq/models_test.py   correctness of the models.py library: RDM<->energy
 #                                   identity, Lambda consistency, single-proton reduction,
-#                                   opt-level safety, orbital gradients/Hessians, ...
+#                                   opt-level safety, orbital gradients/Hessians, ... This is an
+#                                   independent NEO cross-check at the models.py/einsums IR layer,
+#                                   not a duplicate of tests/neo_*.py (those exercise raw pq_helper).
 #       - pdaggerq/einsums_test.py  einsums dispatch/lowering
 
 on:
@@ -55,8 +61,8 @@ jobs:
         # models_test.py, which cannot run all cases in one process (a pq_graph
         # cross-call state leak trips one case mid-suite; forking gives each a
         # fresh interpreter). pyscf/openfermion/openfermionpyscf: the code generated
-        # by test/numerical_test.py (pq_graph/tests/*_codegen.py) imports them for
-        # reference integrals/energies.
+        # by tests/pq_graph_numerical_test.py (pq_graph/tests/*_codegen.py) imports
+        # them for reference integrals/energies.
         run: python -m pip install pytest pytest-forked numpy pyscf openfermion openfermionpyscf
 
       # All test steps run from a NEUTRAL directory: `python -m pytest` puts the
@@ -65,11 +71,13 @@ jobs:
       # extension -> ImportError). The tests locate their data via __file__, so
       # absolute paths work from anywhere.
 
-      - name: Reference string tests (test/pq_test.py)
+      - name: Reference string + NEO tests (tests/pq_test.py, tests/neo_*.py)
         working-directory: ${{ runner.temp }}
-        run: python -m pytest -v "$GITHUB_WORKSPACE/test/pq_test.py"
+        # neo_*.py needs no psi4/pyscf (synthetic tensors / symbolic only), so it
+        # runs alongside pq_test.py here rather than in the psi4-gated step below.
+        run: python -m pytest -v "$GITHUB_WORKSPACE/tests/pq_test.py" "$GITHUB_WORKSPACE"/tests/neo_*.py
 
-      - name: Numerical codegen tests (test/numerical_test.py)
+      - name: Numerical codegen tests (tests/pq_graph_numerical_test.py)
         working-directory: ${{ runner.temp }}
         # -k "not with_spin": the ccsd_with_spin/ccsdt_with_spin generated code takes
         # its reference integrals from psi4, which has no PyPI wheels (conda-forge
@@ -79,7 +87,7 @@ jobs:
         # no psi4 and run unfiltered.)
         run: |
           python -m pytest -v -k "not with_spin" \
-            "$GITHUB_WORKSPACE/test/numerical_test.py"
+            "$GITHUB_WORKSPACE/tests/pq_graph_numerical_test.py"
 
       - name: Generated-model library tests (pdaggerq/)
         working-directory: ${{ runner.temp }}
