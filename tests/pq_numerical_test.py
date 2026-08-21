@@ -160,7 +160,7 @@ def test_ccsd_codegen_disk():
             }
 
             # Pass pq-generated functions into the cc solver
-            mol, wfn = setup_psi4_test()
+            mol, wfn = setup_test()
 
             from pdaggerq.numerical.solvers.cc import cc
             mycc = cc(
