@@ -26,10 +26,10 @@ def initialize_log_file():
     yield  
 
 import numpy as np
-import psi4    
 
 def setup_psi4_test():
 
+    import psi4    
     # set up job for psi4
     mol = psi4.geometry("""
     0 1
@@ -53,9 +53,31 @@ def setup_psi4_test():
 
     # compute the Hartree-Fock energy and wave function
     scf_e, wfn = psi4.energy('SCF', return_wfn=True)
-    print(scf_e)
 
     return mol, wfn
+
+def setup_pyscf_test():
+
+    from pyscf import gto, scf
+
+    # closed-shell: water, RHF
+    mol = gto.M(
+        atom="""
+        O 0.0  0.0            -0.068516219320; 
+        H 0.0 -0.790689573744  0.543701060715; 
+        H 0.0  0.790689573744  0.543701060715
+        """,
+        basis="sto-3g", 
+        unit="Angstrom"
+    )
+
+    mf = scf.RHF(mol)
+    mf.conv_tol = 1e-12
+    mf.conv_tol_grad = 1e-10
+    mf.kernel()
+    assert mf.converged, f"{label}: SCF did not converge"
+
+    return mol, mf
 
 @pytest.mark.ccsd_disk
 def test_ccsd_codegen_disk():
@@ -853,7 +875,7 @@ def test_dea_eomccsd_codegen():
 
 def main():
     #raise Exception("run with pytest")
-    test_qed_eomccsd_codegen()
+    mol, mf = setup_pyscf_test()
 
 if __name__ == "__main__":
     main()

@@ -31,7 +31,6 @@ from scipy.sparse.linalg import LinearOperator
 import copy
 
 from pdaggerq.numerical.solvers.cc_hbar import HbarOperator
-from pdaggerq.numerical.utils.psi4_integrals import get_dipole_integrals_with_spin
 from pdaggerq.numerical.utils.diis import DIIS
 
 class cc_response:
@@ -53,7 +52,7 @@ class cc_response:
             self.R_list = R_list
 
         if self.perturb == 'dipole':
-            self.V_aa, self.V_bb = get_dipole_integrals_with_spin(self.cc.wfn, nfzc = self.cc.nfzc)
+            self.V_aa, self.V_bb = self.cc._integrals.get_dipole_integrals_with_spin(self.cc.wfn, nfzc = self.cc.nfzc)
         else:
             raise Exception("invalid perturbing operator")
 
