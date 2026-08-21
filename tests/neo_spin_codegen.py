@@ -11,15 +11,13 @@ Covers the NEO-CCSD residuals (electron singles/doubles, proton singles, the mix
 e-p double) AND the NEO-CCSDT(eep) mixed triple, so the higher-order ladder is
 guarded from the start.
 
-Run: python neo_spin_codegen.py            # check against neo_spin_traced.ref
+Run: python neo_spin_codegen.py            # check against reference_outputs/neo_spin_traced.ref
      python neo_spin_codegen.py --write     # (re)generate the reference
 """
 import os
 import sys
 import pdaggerq
-
-sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from extract_spins import get_spin_labels
+from pdaggerq.spin import get_spin_labels
 
 H = ["f", "v", "fp", "gep"]          # single quantum proton: electron Fock+ee, proton Fock, e-p
 
@@ -62,19 +60,19 @@ def serialize(blocks):
 
 
 def main():
-    ref = os.path.join(os.path.dirname(os.path.realpath(__file__)), "neo_spin_traced.ref")
+    ref = os.path.join(os.path.dirname(os.path.realpath(__file__)), "reference_outputs", "neo_spin_traced.ref")
     text = serialize(build())
     if "--write" in sys.argv or not os.path.exists(ref):
         with open(ref, "w") as f:
             f.write(text)
-        print("WROTE reference: neo_spin_traced.ref (%d lines)" % text.count("\n"))
+        print("WROTE reference: reference_outputs/neo_spin_traced.ref (%d lines)" % text.count("\n"))
         return
     with open(ref) as f:
         old = f.read()
     if old == text:
-        print("PASS: spin-traced NEO equations match neo_spin_traced.ref")
+        print("PASS: spin-traced NEO equations match reference_outputs/neo_spin_traced.ref")
     else:
-        print("FAIL: spin-traced NEO equations differ from neo_spin_traced.ref")
+        print("FAIL: spin-traced NEO equations differ from reference_outputs/neo_spin_traced.ref")
         sys.exit(1)
 
 

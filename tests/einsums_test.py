@@ -1,7 +1,7 @@
 """Unit tests for pdaggerq.einsums (the einsums dispatch over to_strings("ir")).
 
 Pure-Python: feeds hand-built IR statements to the lowering, so it needs neither
-the compiled _pdaggerq nor an einsums build. Run: python -m pdaggerq.einsums_test
+the compiled _pdaggerq nor an einsums build. Run: pytest tests/einsums_test.py
 """
 
 from pdaggerq import einsums

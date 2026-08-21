@@ -13,9 +13,12 @@ eri/gep), and require they agree to machine precision.
 Run: python neo_df_test.py
 """
 import re
+import pytest
 import numpy as np
 import pdaggerq
 from numpy import einsum
+
+pytestmark = pytest.mark.neo
 
 NAUX, NMOE, NMOP = 14, 4, 3
 NOE = NVE = 2

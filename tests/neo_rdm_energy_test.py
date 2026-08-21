@@ -25,8 +25,11 @@ Conventions that make this work (all verified):
 """
 import re
 import itertools
+import pytest
 import numpy as np
 import pdaggerq
+
+pytestmark = pytest.mark.neo
 
 d = 2                                            # dimension of each orbital block
 slc = {"o": slice(0, d), "v": slice(d, 2 * d), "O": slice(0, d), "V": slice(d, 2 * d)}

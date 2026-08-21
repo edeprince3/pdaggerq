@@ -10,7 +10,10 @@ amplitudes and reduced density matrices.
 Run: python neo_lambda_rdm_test.py
 """
 import re
+import pytest
 import pdaggerq
+
+pytestmark = pytest.mark.neo
 
 
 def terms(pq):

@@ -9,8 +9,11 @@ positron, closed-shell-electron default), "full" gives them their own alpha/beta
 
 Run: python neo_spin_tracing_test.py
 """
+import pytest
 import pdaggerq
-from extract_spins import get_spin_labels
+from pdaggerq.spin import get_spin_labels
+
+pytestmark = pytest.mark.neo
 
 
 def test_electron_only_unchanged():
@@ -56,13 +59,13 @@ def test_spin_traced_reference():
     # any change to the equations has to be an explicit --write.
     import os
     import neo_spin_codegen
-    ref = os.path.join(os.path.dirname(os.path.realpath(__file__)), "neo_spin_traced.ref")
+    ref = os.path.join(os.path.dirname(os.path.realpath(__file__)), "reference_outputs", "neo_spin_traced.ref")
     with open(ref) as f:
         expected = f.read()
     assert neo_spin_codegen.serialize(neo_spin_codegen.build()) == expected, (
-        "spin-traced NEO equations differ from neo_spin_traced.ref; "
+        "spin-traced NEO equations differ from reference_outputs/neo_spin_traced.ref; "
         "run `python neo_spin_codegen.py --write` if the change is intended")
-    print("OK  spin-traced NEO equations match neo_spin_traced.ref")
+    print("OK  spin-traced NEO equations match reference_outputs/neo_spin_traced.ref")
 
 
 if __name__ == "__main__":

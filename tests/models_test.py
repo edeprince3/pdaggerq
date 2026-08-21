@@ -3,7 +3,7 @@
 Structural checks over every model are exhaustive and instant; generation is
 exercised only on the cheap models (the high-rank residuals -- ccsdt/ccsdtq and
 the full/hybrid NEO triples/quadruples -- are correct but slow to build, so they
-are covered by the dedicated examples, not here). Run: python -m pdaggerq.models_test
+are covered by the dedicated examples, not here). Run: pytest tests/models_test.py
 """
 
 from pdaggerq import einsums, models
