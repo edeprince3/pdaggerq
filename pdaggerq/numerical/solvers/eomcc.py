@@ -71,7 +71,13 @@ class eomcc:
         dim = Hbar.right_amplitude_size
         HbarR = LinearOperator((dim, dim), matvec=Hbar.matvec_right, dtype=np.float64)
 
-        ex, rvec = scipy.sparse.linalg.eigs(HbarR, k=self.nstates, which='SR')
+        ex, rvec = scipy.sparse.linalg.eigs(
+            HbarR, 
+            k=self.nstates, 
+            which='SR',
+            v0=np.ones(dim),
+            ncv=max(4*self.nstates + 1, 40)
+        )
         idx = np.argsort(ex)
         ex = ex[idx]
         rvec = rvec[:, idx]
@@ -107,7 +113,13 @@ class eomcc:
         dim = Hbar.left_amplitude_size
         LHbar = LinearOperator((dim, dim), matvec=Hbar.matvec_left, dtype=np.float64)
 
-        ex, lvec = scipy.sparse.linalg.eigs(LHbar, k=self.nstates, which='SR')
+        ex, lvec = scipy.sparse.linalg.eigs(
+            LHbar, 
+            k=self.nstates, 
+            which='SR',
+            v0=np.ones(dim),
+            ncv=max(4*self.nstates + 1, 40)
+        )
         idx = np.argsort(ex)
         ex = ex[idx]
         lvec = lvec[:, idx]

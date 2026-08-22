@@ -7,12 +7,12 @@ import contextlib
 # opt_level > 0 tests correctness of code optimization with pq_graph. if you're patient, try opt_level = 6
 pq_graph_options = {
     'batched': False,
+    #'batched': True,
+    #'batch_number': 100,
     'print_level': 0,
     'opt_level': 0,
     'nthreads': -1,
     'no_scalars': False,
-    #'batched': True,
-    #'batch_number': 100,
 }
 
 # Initialize log file
