@@ -2008,6 +2008,151 @@ def test_hamiltonian_split():
     print("test_hamiltonian_split OK")
 
 
+def test_perturbative_rdm():
+    """The perturbative contribution to the RDMs, validated against an INDEPENDENT
+    construction: it must equal the CCSDT density's terms at the orders it keeps.
+
+    ``ccsd(t)``'s perturbative density is, by construction, the terms of the full CCSDT
+    density carrying the perturbative amplitude and/or its multiplier at first order --
+    one ``t3`` and no ``l3``, one ``l3`` and no ``t3``, or one of each. Filtering the
+    CCSDT density that way must give the same arrays, which pins the construction without
+    relying on any energy/trace convention.
+
+    Also pins the property a slice-wise consumer depends on: the emitted statements carry
+    NO intermediates, so no intermediate can be shared between statements that pin
+    different axes of it."""
+    import itertools
+    import numpy as np
+    from collections import defaultdict
+    from pdaggerq._pdaggerq import pq_helper
+
+    NO, NV = 3, 4
+    DIM = {"o": NO, "v": NV}
+    rng = np.random.default_rng(9)
+    amps = {}
+
+    def antisym(a, cl):
+        out = a.copy()
+        g = defaultdict(list)
+        for ax, c in enumerate(cl):
+            g[c].append(ax)
+        for c, axes in g.items():
+            if len(axes) < 2:
+                continue
+            perms = list(itertools.permutations(range(len(axes))))
+            acc = np.zeros_like(out)
+            for perm in perms:
+                sgn, pl = 1, list(perm)
+                for x in range(len(pl)):
+                    for y in range(x + 1, len(pl)):
+                        if pl[x] > pl[y]:
+                            sgn = -sgn
+                src = list(range(out.ndim))
+                for k, ax in enumerate(axes):
+                    src[ax] = axes[perm[k]]
+                acc += sgn * np.transpose(out, src)
+            out = acc / len(perms)
+        return out
+
+    def amp(nm, cl):
+        if nm not in amps:
+            amps[nm] = antisym(rng.standard_normal(tuple(DIM[c] for c in cl)), cl)
+        return amps[nm]
+
+    spc = lambda i: "o" if i[0] in "ijklmn" else "v"
+
+    def ev(strings, consumer):
+        openlab = [L for L, _ in consumer]
+        D = np.zeros([DIM[c] for _, c in consumer])
+        for term in strings:
+            c = float(term[0])
+            perms, facs = [], []
+            for tok in term[1:]:
+                if tok.startswith("P("):
+                    perms.append(tok[2:-1].split(","))
+                elif "(" in tok:
+                    facs.append(tok)
+            lts = {x: chr(97 + i) for i, x in enumerate(openlab)}
+            nxt = [len(openlab)]
+            ops, subs = [], []
+            for tok in facs:
+                nm = tok[:tok.index("(")]
+                idx = tok[tok.index("(") + 1:-1].split(",")
+                ss = ""
+                for i in idx:
+                    if i not in lts:
+                        lts[i] = chr(97 + nxt[0]); nxt[0] += 1
+                    ss += lts[i]
+                subs.append(ss)
+                cl = [spc(i) for i in idx]
+                ops.append(np.eye(DIM[cl[0]]) if nm == "d" else amp(nm, cl))
+            out = "".join(chr(97 + i) for i in range(len(openlab)))
+            base = c * np.einsum(",".join(subs) + "->" + out, *ops, optimize=True)
+            variants = [(1.0, list(range(len(openlab))))]
+            for a, b in perms:
+                ia, ib = openlab.index(a), openlab.index(b)
+                nv = []
+                for sgn, ax in variants:
+                    nv.append((sgn, ax))
+                    sw = list(ax); sw[ia], sw[ib] = sw[ib], sw[ia]
+                    nv.append((-sgn, sw))
+                variants = nv
+            for sgn, ax in variants:
+                D += sgn * np.transpose(base, np.argsort(ax))
+        return D
+
+    cnt = lambda t, nm: sum(1 for x in t[1:] if x.startswith(nm + "("))
+
+    worst = 0.0
+    for tensor, blocks in (("D1", ["oo", "ov", "vo", "vv"]),
+                           ("D2", ["oooo", "ooov", "oovo", "oovv", "ovoo", "ovov",
+                                   "ovvo", "ovvv", "vooo", "voov", "vovo", "vovv",
+                                   "vvoo", "vvov", "vvvo", "vvvv"])):
+        for b in blocks:
+            op, consumer = models._rdm_block_spec(tensor, b)
+            q = pq_helper("fermi")
+            q.set_left_operators([["1"]] + [[l] for l in models.lambda_amps("ccsdt")])
+            q.add_st_operator(1.0, [op], ["t1", "t2", "t3"])
+            q.simplify()
+            ref = [t for t in q.strings()
+                   if 0 < cnt(t, "t3") + cnt(t, "l3")
+                   and cnt(t, "t3") <= 1 and cnt(t, "l3") <= 1]
+            mine = models._pt_rdm_pq("ccsd(t)", op, "t3").strings()
+            a1, a2 = ev(ref, consumer), ev(mine, consumer)
+            err = float(np.max(np.abs(a1 - a2)))
+            worst = max(worst, err / max(1.0, float(np.max(np.abs(a1)))))
+    assert worst < 1e-12, worst
+
+    # the diagonal blocks come only from the L_pt.T_pt cross term; a construction that
+    # drops it leaves them empty, which would pass every other check here
+    for b in ("oo", "vv"):
+        assert models.pt_rdm_block_ir("ccsd(t)", "t3", "D1", b), b
+
+    # no intermediates -> a slice-wise consumer can never hit an intermediate shared
+    # between statements that pin different axes of it
+    for name, amp_ in (("ccsd(t)", "t3"), ("neo-ccsd(t)", "tep21"), ("neo-ccsd(t)", "tp3")):
+        for tensor, b in (("D1", "oo"), ("D2", "oovv")):
+            for st in einsums.parse_ir(models.pt_rdm_block_ir(name, amp_, tensor, b)):
+                assert not st["target"].get("is_intermediate"), (name, tensor, b)
+                for o in st["operands"]:
+                    assert not o.get("is_intermediate"), (name, tensor, b)
+
+    # the perturbative amplitude and its multiplier are ordinary operands, under the
+    # rank-disambiguated names, so a slice-wise driver binds them directly
+    ir = einsums.parse_ir(models.pt_rdm_block_ir("neo-ccsd(t)", "tep21", "D2", "oovv"))
+    seen = {o["name"] for st in ir for o in st["operands"]}
+    assert "t3_ep21" in seen and "l3_ep21" in seen, sorted(seen)
+
+    for bad in (lambda: models.pt_rdm_block_ir("ccsd(t)", "tep21", "D1", "oo"),
+                lambda: models.pt_rdm_graph("ccsd", "t3", "e1(i,j)")):
+        try:
+            bad()
+            assert False, "expected ValueError"
+        except ValueError:
+            pass
+    print("test_perturbative_rdm OK")
+
+
 def test_perturbative_triples():
     """CCSD(T) / NEO-CCSD(T): the perturbative blocks, and the CONSUMER CONTRACT that
     ties the two generated equations together.
