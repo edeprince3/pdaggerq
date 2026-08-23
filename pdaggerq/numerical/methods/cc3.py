@@ -84,6 +84,8 @@ class CC3:
             cc_energy_func = self.cc_energy["cc_energy"],
             T_list = self.T_list
         )
+        self.efzc = self.cc_solver.efzc
+        self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
         
         en = self.cc_solver.t_solver()
 
