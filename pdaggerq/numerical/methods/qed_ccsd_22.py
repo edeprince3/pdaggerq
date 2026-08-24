@@ -19,7 +19,7 @@ class QED_CCSD_22:
         # Create an empty dictionary to hold the pq-generated equations
         local_namespace = {}
        
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1', 't0,2', 't1,2', 't2,2']
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21', 'tb2', 'teb12', 'teb22']
 
         # Generate equations
         cc_energy_func = cc_residual('cc_energy',

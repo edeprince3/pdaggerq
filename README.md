@@ -238,20 +238,20 @@ boson creation / annihilation operators, $\hat{b}^{\dagger}$ and $\hat{b}$
 b+
 b-
 ```
-cluster operators that include both n-body electron excitations and m-body photon creation ($T_{n,m}$, with $n=0,1,2,3,4$ and $m=0,1,2$...)
+cluster operators that include both n-body electron excitations and m-body photon creation ($T_{n,m}$, with $n=1,2,3,4$ and $m=1,2,...,9$), or pure m-body photon creation with no electron excitation
 ```
-'t0,1'
-'t1,1'
+'tb1'    # T_{0,1}
+'teb11'  # T_{1,1}
 etc.
 ```
-left-hand operators that include both n-body electron de-excitations and m-body photon annihilation ($L_{n,m}$, with $n=0,1,2,3,4$ and $m=0,1,2$...)
+left-hand operators that include both n-body electron de-excitations and m-body photon annihilation ($L_{n,m}$, with $n=1,2,3,4$ and $m=1,2,...,9$), or pure m-body photon annihilation with no electron de-excitation
 ```
-'l2,2'
+'leb22'  # L_{2,2}
 etc.
 ```
-right-hand operators that include both n-body electron excitations and m-body photon creation ($R_{n,m}$, with $n=0,1,2,3,4$ and $m=0,1,2$...)
+right-hand operators that include both n-body electron excitations and m-body photon creation ($R_{n,m}$, with $n=1,2,3,4$ and $m=1,2,...,9$), or pure m-body photon creation with no electron excitation
 ```
-'r1,2'
+'reb12'  # R_{1,2}
 etc.
 ```
 a  one-body fermionic operator times a boson creation operator, $\sum_{pq} d_{pq} \hat{a}^{\dagger}_p \hat{a}_q \hat{b}^{\dagger}$

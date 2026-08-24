@@ -848,10 +848,11 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplit
         for (size_t i = 0; i < in.size(); i++) {
             if ( in[i].substr(0,1) == "t" || in[i].substr(0,1) == "T" ) {
                 // electron cluster amplitudes ("t<n>") are split into excitation
-                // ("te") / de-excitation ("td") forms here. nuclear ("tp") and mixed
-                // ("tep") amplitudes are constructed directly and pass through unsplit.
+                // ("te") / de-excitation ("td") forms here. nuclear ("tp"), boson
+                // ("tb"), and mixed ("tep", "teb") amplitudes are constructed
+                // directly and pass through unsplit.
                 if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" &&
-                     in[i].substr(0,2) != "tp" ) {
+                     in[i].substr(0,2) != "tp" && in[i].substr(0,2) != "tb" ) {
                     found_t = true;
                     break;
                 }else {
@@ -1867,6 +1868,46 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
 
             newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
 
+        }else if (op.substr(0, 3) == "teb" || op.substr(0, 3) == "Teb") {
+            // mixed electron-boson cluster amplitude "teb<ne><nb>": excitation
+            // only. ne electron particle-hole pairs and nb boson creation
+            // operators. mirror of "tep".
+            int ne = op.at(3) - '0';
+            int nb = op.at(4) - '0';
+
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            for (int id = 0; id < ne; id++) {
+                std::string v = "v" + std::to_string(vir_label_count++);
+                std::string o = "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            // 1/(ne!)^2: electron antisymmetrizer
+            double fe = 1.0;
+            for (int id = 0; id < ne; id++) fe *= (id+1);
+            factor *= 1.0 / (fe*fe);
+
+            newguy->set_amplitudes('t', ne, ne, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "tb" || op.substr(0, 2) == "Tb") {
+            // pure boson cluster amplitude "tb<nb>": nb boson creation operators,
+            // no electrons. mirror of "tp".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('t', 0, 0, nb, labels, op_portions);
+
         }else if (op.substr(0, 1) == "t"){
 
             int n = std::stoi(op.substr(2));
@@ -1947,26 +1988,9 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 }
                 factor *= 1.0 / my_factor / my_factor;
             }
-    
-            int n_ph = 0;
-            if (op.size() > 3 ) {
-                if ( op.substr(3,1) == ",") {
-                    n_ph = std::stoi(op.substr(4));
-                    if ( op.substr(0,2) == "te" ) {
-                        // excitation
-                        for (int ph = 0; ph < n_ph; ph++) {
-                            newguy->is_boson_dagger.push_back(true);
-                        }
-                    }else if ( op.substr(0,2) == "td" ) {
-                        // de-excitation
-                        for (int ph = 0; ph < n_ph; ph++) {
-                            newguy->is_boson_dagger.push_back(false);
-                        }
-                    }
-                }
-            }
-            newguy->set_amplitudes('t', n, n, n_ph, labels, op_portions);
-    
+
+            newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "w" || op.substr(0, 1) == "W"){ // w0 B*B
     
             if (op.substr(1, 1) == "0" ){
@@ -1991,25 +2015,157 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
     
                 newguy->is_boson_dagger.push_back(false);
     
-        }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
-    
-    
-            int n = std::stoi(op.substr(1));
+        }else if (op.substr(0, 3) == "reb" || op.substr(0, 3) == "Reb") {
+            // mixed electron-boson right-hand operator "reb<n><nb>": n electron
+            // particle-hole pairs (adjusted for IP/EA/DIP/DEA) and nb boson
+            // creation operators. mirror of "teb"; r has no de-excitation form.
+            int n  = op.at(3) - '0';
+            int nb = op.at(4) - '0';
             int n_annihilate = n;
             int n_create     = n;
             std::vector<std::string> labels;
-    
-            if ( n == 0 ){
-    
-                // nothing to do
-    
-            }else {
-    
+
+            if ( n > 0 ) {
                 if ( right_operators_type == "IP" ) n_create--;
                 if ( right_operators_type == "DIP" ) n_create -= 2;
                 if ( right_operators_type == "EA" ) n_annihilate--;
                 if ( right_operators_type == "DEA" ) n_annihilate -= 2;
-    
+
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('r', n_create, n_annihilate, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "rb" || op.substr(0, 2) == "Rb") {
+            // pure boson right-hand operator "rb<nb>": nb boson creation
+            // operators, no electrons. mirror of "tb".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('r', 0, 0, nb, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "rep" || op.substr(0, 3) == "Rep") {
+            // mixed electron-nuclear right-hand operator "rep<n><np>": n electron
+            // particle-hole pairs (adjusted for IP/EA/DIP/DEA) and np nuclear
+            // pairs. mirror of "tep": creators (electron then nuclear) are all
+            // pushed before annihilators (electron then nuclear) -- the fermion
+            // sign depends on this relative order, so it must match "tep" exactly.
+            int n  = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            if ( n > 0 ) {
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+
+                for (int id = 0; id < n_create; id++) {
+                    std::string v = "v" + std::to_string(vir_label_count++);
+                    creators.push_back(v+"*");
+                    labels_l.push_back(v);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string o = "o" + std::to_string(occ_label_count++);
+                    annihilators.push_back(o);
+                    labels_r.push_back(o);
+                }
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double my_factor_create = 1.0, my_factor_annihilate = 1.0, fn = 1.0;
+            for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+            for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / my_factor_create / my_factor_annihilate / (fn*fn);
+
+            newguy->set_amplitudes('r', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "rp" || op.substr(0, 2) == "Rp") {
+            // pure nuclear right-hand operator "rp<np>": np nuclear
+            // particle-hole pairs, no electrons. mirror of "tp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                tmp_string.push_back(v+"*");
+                labels_l.push_back(v); labels_r.push_back(o);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('r', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
+
+
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+
+            if ( n == 0 ){
+
+                // nothing to do
+
+            }else {
+
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+
                 std::vector<std::string> op_left;
                 std::vector<std::string> op_right;
                 std::vector<std::string> label_left;
@@ -2032,7 +2188,7 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 for (int id = 0; id < n_annihilate; id++) {
                     tmp_string.push_back(op_right[id]);
                 }
-    
+
                 // tn(ab...
                 for (int id = 0; id < n_create; id++) {
                     labels.push_back(label_left[id]);
@@ -2041,7 +2197,7 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 for (int id = n_annihilate-1; id >= 0; id--) {
                     labels.push_back(label_right[id]);
                 }
-    
+
                 // factor = 1/(n!)^2
                 double my_factor_create = 1.0;
                 double my_factor_annihilate = 1.0;
@@ -2053,32 +2209,40 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 }
                 factor *= 1.0 / my_factor_create / my_factor_annihilate;
             }
-    
-            int n_ph = 0;
-            if (op.size() > 2 ) {
-                if ( op.substr(2,1) == ",") {
-                    n_ph = std::stoi(op.substr(3));
-                    for (int ph = 0; ph < n_ph; ph++) {
-                        newguy->is_boson_dagger.push_back(true);
-                    }
-                }
-            }
-            newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels, op_portions);
-    
+
+            newguy->set_amplitudes('r', n_create, n_annihilate, 0, labels, op_portions);
+
         }else if (op.substr(0, 3) == "lep" || op.substr(0, 3) == "Lep") {
-            // mixed electron-nuclear lambda (de-excitation) amplitude "lep<ne><np>":
-            // ne electron and np nuclear hole-particle pairs. mirror of "tep".
+            // mixed electron-nuclear left-hand amplitude "lep<ne><np>": ne electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA -- lep serves as both
+            // the ground-state lambda amplitude and the left EOM amplitude, exactly
+            // like bare "l") and np nuclear pairs. mirror of "tep"/"yep": creators
+            // (electron then nuclear) are all pushed before annihilators (electron
+            // then nuclear) -- the fermion sign depends on this relative order, so
+            // it must match "tep" exactly.
             int ne = op.at(3) - '0';
             int nn = op.at(4) - '0';
-
+            int n_annihilate = ne;
+            int n_create     = ne;
             std::string npfx = std::string(1, nuclear_prefix);
             std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
 
-            for (int id = 0; id < ne; id++) {
-                std::string o = "o" + std::to_string(occ_label_count++);
-                std::string v = "v" + std::to_string(vir_label_count++);
-                creators.push_back(o+"*"); annihilators.push_back(v);
-                labels_l.push_back(o);     labels_r.push_back(v);
+            if ( ne > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+
+                for (int id = 0; id < n_create; id++) {
+                    std::string o = "o" + std::to_string(occ_label_count++);
+                    creators.push_back(o+"*");
+                    labels_l.push_back(o);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string v = "v" + std::to_string(vir_label_count++);
+                    annihilators.push_back(v);
+                    labels_r.push_back(v);
+                }
             }
             for (int id = 0; id < nn; id++) {
                 std::string o = npfx + "o" + std::to_string(occ_label_count++);
@@ -2093,13 +2257,13 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             for (const auto & l : labels_l) labels.push_back(l);
             for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
 
-            double fe = 1.0, fn = 1.0;
-            for (int id = 0; id < ne; id++) fe *= (id+1);
+            double my_factor_create = 1.0, my_factor_annihilate = 1.0, fn = 1.0;
+            for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+            for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
             for (int id = 0; id < nn; id++) fn *= (id+1);
-            factor *= 1.0 / (fe*fe) / (fn*fn);
+            factor *= 1.0 / my_factor_create / my_factor_annihilate / (fn*fn);
 
-            int n = ne + nn;
-            newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
+            newguy->set_amplitudes('l', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
 
         }else if (op.substr(0, 2) == "lp" || op.substr(0, 2) == "Lp") {
             // nuclear lambda (de-excitation) amplitude "lp<n>": n nuclear hole-particle
@@ -2124,6 +2288,64 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             factor *= 1.0 / f / f;
 
             newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "leb" || op.substr(0, 3) == "Leb") {
+            // mixed electron-boson left-hand amplitude "leb<ne><nb>": ne electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA -- leb serves as both
+            // the ground-state lambda amplitude and the left EOM amplitude, exactly
+            // like bare "l") and nb boson annihilation operators. mirror of "yeb".
+            int ne = op.at(3) - '0';
+            int nb = op.at(4) - '0';
+            int n_annihilate = ne;
+            int n_create     = ne;
+            std::vector<std::string> labels;
+
+            if ( ne > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
+
+            newguy->set_amplitudes('l', n_create, n_annihilate, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "lb" || op.substr(0, 2) == "Lb") {
+            // pure boson lambda amplitude "lb<nb>": nb boson annihilation
+            // operators, no electrons. mirror of "tb".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
+
+            newguy->set_amplitudes('l', 0, 0, nb, labels, op_portions);
 
         }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
 
@@ -2185,24 +2407,148 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                     my_factor_annihilate *= (id+1);
                 }
                 factor *= 1.0 / my_factor_create / my_factor_annihilate;
-            
+
             }
-    
-            int n_ph = 0;
-            if (op.size() > 2 ) {
-                if ( op.substr(2,1) == ",") {
-                    n_ph = std::stoi(op.substr(3));
-                    for (int ph = 0; ph < n_ph; ph++) {
-                        newguy->is_boson_dagger.push_back(false);
-                    }
+
+            newguy->set_amplitudes('l', n_create, n_annihilate, 0, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "xeb" || op.substr(0, 3) == "Xeb") {
+            // mixed electron-boson right-hand operator "xeb<n><nb>": n electron
+            // particle-hole pairs (adjusted for IP/EA/DIP/DEA) and nb boson
+            // creation operators. mirror of "reb".
+            int n  = op.at(3) - '0';
+            int nb = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+
+            if ( n > 0 ) {
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('x', n_create, n_annihilate, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "xb" || op.substr(0, 2) == "Xb") {
+            // pure boson right-hand operator "xb<nb>": nb boson creation
+            // operators, no electrons. mirror of "rb".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('x', 0, 0, nb, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "xep" || op.substr(0, 3) == "Xep") {
+            // mixed electron-nuclear right-hand operator "xep<n><np>": n electron
+            // particle-hole pairs (adjusted for IP/EA/DIP/DEA) and np nuclear
+            // pairs. mirror of "tep"/"rep": creators (electron then nuclear) are
+            // all pushed before annihilators (electron then nuclear) -- the
+            // fermion sign depends on this relative order, so it must match "tep"
+            // exactly.
+            int n  = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            if ( n > 0 ) {
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+
+                for (int id = 0; id < n_create; id++) {
+                    std::string v = "v" + std::to_string(vir_label_count++);
+                    creators.push_back(v+"*");
+                    labels_l.push_back(v);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string o = "o" + std::to_string(occ_label_count++);
+                    annihilators.push_back(o);
+                    labels_r.push_back(o);
                 }
             }
-            newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels, op_portions);
-    
+            for (int id = 0; id < nn; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double my_factor_create = 1.0, my_factor_annihilate = 1.0, fn = 1.0;
+            for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+            for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / my_factor_create / my_factor_annihilate / (fn*fn);
+
+            newguy->set_amplitudes('x', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "xp" || op.substr(0, 2) == "Xp") {
+            // pure nuclear right-hand operator "xp<np>": np nuclear
+            // particle-hole pairs, no electrons. mirror of "rp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                tmp_string.push_back(v+"*");
+                labels_l.push_back(v); labels_r.push_back(o);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('x', n, n, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "x" || op.substr(0, 1) == "X"){
-   
-            // more right-hand operators 
-    
+
+            // more right-hand operators
+
             int n = std::stoi(op.substr(1));
             int n_annihilate = n;
             int n_create     = n;
@@ -2262,21 +2608,145 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 }
                 factor *= 1.0 / my_factor_create / my_factor_annihilate;
             }
-    
-            int n_ph = 0;
-            if (op.size() > 2 ) {
-                if ( op.substr(2,1) == ",") {
-                    n_ph = std::stoi(op.substr(3));
-                    for (int ph = 0; ph < n_ph; ph++) {
-                        newguy->is_boson_dagger.push_back(true);
-                    }
+
+            newguy->set_amplitudes('x', n_create, n_annihilate, 0, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "yeb" || op.substr(0, 3) == "Yeb") {
+            // mixed electron-boson left-hand operator "yeb<n><nb>": n electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA) and nb boson
+            // annihilation operators. mirror of "leb".
+            int n  = op.at(3) - '0';
+            int nb = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+
+            if ( n > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
+
+            newguy->set_amplitudes('y', n_create, n_annihilate, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "yb" || op.substr(0, 2) == "Yb") {
+            // pure boson left-hand operator "yb<nb>": nb boson annihilation
+            // operators, no electrons. mirror of "lb".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
+
+            newguy->set_amplitudes('y', 0, 0, nb, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "yep" || op.substr(0, 3) == "Yep") {
+            // mixed electron-nuclear left-hand operator "yep<n><np>": n electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA) and np nuclear
+            // pairs. mirror of "tep"/"lep": creators (electron then nuclear) are
+            // all pushed before annihilators (electron then nuclear) -- the
+            // fermion sign depends on this relative order, so it must match "tep"
+            // exactly.
+            int n  = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            if ( n > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+
+                for (int id = 0; id < n_create; id++) {
+                    std::string o = "o" + std::to_string(occ_label_count++);
+                    creators.push_back(o+"*");
+                    labels_l.push_back(o);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string v = "v" + std::to_string(vir_label_count++);
+                    annihilators.push_back(v);
+                    labels_r.push_back(v);
                 }
             }
-            newguy->set_amplitudes('x', n_create, n_annihilate, n_ph, labels, op_portions);
-    
+            for (int id = 0; id < nn; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                creators.push_back(o+"*"); annihilators.push_back(v);
+                labels_l.push_back(o);     labels_r.push_back(v);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double my_factor_create = 1.0, my_factor_annihilate = 1.0, fn = 1.0;
+            for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+            for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / my_factor_create / my_factor_annihilate / (fn*fn);
+
+            newguy->set_amplitudes('y', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "yp" || op.substr(0, 2) == "Yp") {
+            // pure nuclear left-hand operator "yp<np>": np nuclear hole-particle
+            // pairs, no electrons. mirror of "lp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                tmp_string.push_back(o+"*");
+                labels_l.push_back(o); labels_r.push_back(v);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('y', n, n, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "y" || op.substr(0, 1) == "Y"){
-    
-            // more left-hand operators 
+
+            // more left-hand operators
 
             int n = std::stoi(op.substr(1));
             int n_annihilate = n;
@@ -2336,20 +2806,11 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                     my_factor_annihilate *= (id+1);
                 }
                 factor *= 1.0 / my_factor_create / my_factor_annihilate;
-            
+
             }
-    
-            int n_ph = 0;
-            if (op.size() > 2 ) {
-                if ( op.substr(2,1) == ",") {
-                    n_ph = std::stoi(op.substr(3));
-                    for (int ph = 0; ph < n_ph; ph++) {
-                        newguy->is_boson_dagger.push_back(false);
-                    }
-                }
-            }
-            newguy->set_amplitudes('y', n_create, n_annihilate, n_ph, labels, op_portions);
-    
+
+            newguy->set_amplitudes('y', n_create, n_annihilate, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
     
     
