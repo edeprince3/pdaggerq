@@ -2406,16 +2406,17 @@ void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &
             mystring->print();
         }
 
-        // bring string to normal order in the fermion space (electron + nucleus)
-        std::vector< std::shared_ptr<pq_string> > fermion_ordered;
-        fermion_normal_order_fermi_vacuum(mystring, fermion_ordered, keep_operators);
-
         // bring string to normal order in the boson space
+        std::vector< std::shared_ptr<pq_string> > boson_ordered;
+        boson_normal_order(mystring, boson_ordered, keep_operators);
+
+        // bring string to normal order in the fermion space (electron + nucleus)
         std::vector< std::shared_ptr<pq_string> > tmp;
-        for (const auto & pq_str : fermion_ordered) {
-            boson_normal_order(pq_str, tmp, keep_operators);
+        for (const auto & pq_str : boson_ordered) {
+            fermion_normal_order_fermi_vacuum(pq_str, tmp, keep_operators);
         }
         new_strings[k] = tmp;
+
     }
 
     for (const auto& new_string : new_strings) {
