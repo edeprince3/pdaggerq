@@ -21,10 +21,10 @@ class QED_EOMCCSD_21:
         local_namespace = {}
 
         # Generate equations
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
 
         # Generate right-hand sigma equations
-        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+        R = [['r0'], ['r1'], ['r2'], ['rb1'], ['reb11'], ['reb21']]
 
         right_sigma0_func = eomcc_sigma('sigma0',
             T,
@@ -130,9 +130,9 @@ class QED_EOMCCSD_21:
         # Generate right-hand sigma equations
         local_namespace = {}
 
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
 
-        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        L = [['l0'], ['l1'], ['l2'], ['lb1'], ['leb11'], ['leb21']]
 
         left_sigma0_func = eomcc_sigma('sigma0',
             T,
@@ -239,9 +239,9 @@ class QED_EOMCCSD_21:
         from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
 
         # Generate transition density matrix equations
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
-        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
-        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
+        R = [['r0'], ['r1'], ['r2'], ['rb1'], ['reb11'], ['reb21']]
+        L = [['l0'], ['l1'], ['l2'], ['lb1'], ['leb11'], ['leb21']]
         tdm_func = eomcc_density_matrix('tdm',
             T,
             L,
@@ -265,9 +265,9 @@ class QED_EOMCCSD_21:
         from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
 
         # Generate transition density matrix equations
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
-        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
-        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
+        R = [['r0'], ['r1'], ['r2'], ['rb1'], ['reb11'], ['reb21']]
+        L = [['l0'], ['l1'], ['l2'], ['lb1'], ['leb11'], ['leb21']]
         opdm_func = eomcc_density_matrix('opdm',
             T,
             L,
@@ -291,9 +291,9 @@ class QED_EOMCCSD_21:
         from pdaggerq.numerical.codegen.autogen import eomcc_tpdm
 
         # Generate tpdm equations
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
-        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
-        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
+        R = [['r0'], ['r1'], ['r2'], ['rb1'], ['reb11'], ['reb21']]
+        L = [['l0'], ['l1'], ['l2'], ['lb1'], ['leb11'], ['leb21']]
         tpdm_func = eomcc_tpdm('tpdm',
             T,
             L,
@@ -319,9 +319,9 @@ class QED_EOMCCSD_21:
         from pdaggerq.numerical.codegen.autogen import eomcc_phdm
         
         # Generate transition density matrix equations
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
-        R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
-        L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
+        R = [['r0'], ['r1'], ['r2'], ['rb1'], ['reb11'], ['reb21']]
+        L = [['l0'], ['l1'], ['l2'], ['lb1'], ['leb11'], ['leb21']]
         phdm_func = eomcc_phdm('phdm',
             T,
             L,

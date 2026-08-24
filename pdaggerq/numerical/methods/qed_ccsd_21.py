@@ -19,7 +19,7 @@ class QED_CCSD_21:
         # Create an empty dictionary to hold the pq-generated equations
         local_namespace = {}
        
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
 
         # Generate equations
         cc_energy_func = cc_residual('cc_energy',
@@ -146,8 +146,8 @@ class QED_CCSD_21:
         local_namespace = {}
 
         # Generate lambda equations
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
-        L = [['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
+        L = [['l1'], ['l2'], ['lb1'], ['leb11'], ['leb21']]
 
         cc_pseudoenergy_func = lambda_cc_pseudoenergy('cc_pseudoenergy',
             L,

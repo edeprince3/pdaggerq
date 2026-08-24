@@ -49,11 +49,11 @@ def main():
     """
 
     # cluster operators
-    T = ['t1', 't2', 't0,1', 't1,1', 't2,1']
+    T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
 
     # left and right excitation operators
-    L = [['l0'], ['l1'], ['l2'], ['l0,1'], ['l1,1'], ['l2,1']]
-    R = [['r0'], ['r1'], ['r2'], ['r0,1'], ['r1,1'], ['r2,1']]
+    L = [['l0'], ['l1'], ['l2'], ['lb1'], ['leb11'], ['leb21']]
+    R = [['r0'], ['r1'], ['r2'], ['rb1'], ['reb11'], ['reb21']]
 
     rdms = {
         "D_vv": [['e1(a,b)']], # vv
