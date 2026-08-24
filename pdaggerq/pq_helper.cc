@@ -2224,40 +2224,67 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             newguy->set_amplitudes('r', n_create, n_annihilate, 0, labels, op_portions);
 
         }else if (op.substr(0, 3) == "lep" || op.substr(0, 3) == "Lep") {
-            // mixed electron-nuclear lambda (de-excitation) amplitude "lep<ne><np>":
-            // ne electron and np nuclear hole-particle pairs. mirror of "tep".
+            // mixed electron-nuclear left-hand amplitude "lep<ne><np>": ne electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA -- lep serves as both
+            // the ground-state lambda amplitude and the left EOM amplitude, exactly
+            // like bare "l") and np nuclear pairs. mirror of "yep".
             int ne = op.at(3) - '0';
             int nn = op.at(4) - '0';
-
+            int n_annihilate = ne;
+            int n_create     = ne;
             std::string npfx = std::string(1, nuclear_prefix);
-            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+            std::vector<std::string> labels;
 
-            for (int id = 0; id < ne; id++) {
-                std::string o = "o" + std::to_string(occ_label_count++);
-                std::string v = "v" + std::to_string(vir_label_count++);
-                creators.push_back(o+"*"); annihilators.push_back(v);
-                labels_l.push_back(o);     labels_r.push_back(v);
+            if ( ne > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
             }
+
+            std::vector<std::string> n_labels_l, n_labels_r;
             for (int id = 0; id < nn; id++) {
                 std::string o = npfx + "o" + std::to_string(occ_label_count++);
                 std::string v = npfx + "v" + std::to_string(vir_label_count++);
-                creators.push_back(o+"*"); annihilators.push_back(v);
-                labels_l.push_back(o);     labels_r.push_back(v);
+                tmp_string.push_back(o+"*");
+                n_labels_l.push_back(o); n_labels_r.push_back(v);
             }
+            for (int id = 0; id < nn; id++) tmp_string.push_back(n_labels_r[id]);
 
-            for (const auto & c : creators)     tmp_string.push_back(c);
-            for (const auto & a : annihilators) tmp_string.push_back(a);
+            for (const auto & l : n_labels_l) labels.push_back(l);
+            for (int id = (int)n_labels_r.size()-1; id >= 0; id--) labels.push_back(n_labels_r[id]);
 
-            for (const auto & l : labels_l) labels.push_back(l);
-            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
-
-            double fe = 1.0, fn = 1.0;
-            for (int id = 0; id < ne; id++) fe *= (id+1);
+            double fn = 1.0;
             for (int id = 0; id < nn; id++) fn *= (id+1);
-            factor *= 1.0 / (fe*fe) / (fn*fn);
+            factor *= 1.0 / (fn*fn);
 
-            int n = ne + nn;
-            newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
+            newguy->set_amplitudes('l', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
 
         }else if (op.substr(0, 2) == "lp" || op.substr(0, 2) == "Lp") {
             // nuclear lambda (de-excitation) amplitude "lp<n>": n nuclear hole-particle
@@ -2284,33 +2311,52 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
 
         }else if (op.substr(0, 3) == "leb" || op.substr(0, 3) == "Leb") {
-            // mixed electron-boson lambda (de-excitation) amplitude
-            // "leb<ne><nb>": ne electron hole-particle pairs and nb boson
-            // annihilation operators. mirror of "teb".
+            // mixed electron-boson left-hand amplitude "leb<ne><nb>": ne electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA -- leb serves as both
+            // the ground-state lambda amplitude and the left EOM amplitude, exactly
+            // like bare "l") and nb boson annihilation operators. mirror of "yeb".
             int ne = op.at(3) - '0';
             int nb = op.at(4) - '0';
+            int n_annihilate = ne;
+            int n_create     = ne;
+            std::vector<std::string> labels;
 
-            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+            if ( ne > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
 
-            for (int id = 0; id < ne; id++) {
-                std::string o = "o" + std::to_string(occ_label_count++);
-                std::string v = "v" + std::to_string(vir_label_count++);
-                creators.push_back(o+"*"); annihilators.push_back(v);
-                labels_l.push_back(o);     labels_r.push_back(v);
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
             }
+
             for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
 
-            for (const auto & c : creators)     tmp_string.push_back(c);
-            for (const auto & a : annihilators) tmp_string.push_back(a);
-
-            for (const auto & l : labels_l) labels.push_back(l);
-            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
-
-            double fe = 1.0;
-            for (int id = 0; id < ne; id++) fe *= (id+1);
-            factor *= 1.0 / (fe*fe);
-
-            newguy->set_amplitudes('l', ne, ne, nb, labels, op_portions);
+            newguy->set_amplitudes('l', n_create, n_annihilate, nb, labels, op_portions);
 
         }else if (op.substr(0, 2) == "lb" || op.substr(0, 2) == "Lb") {
             // pure boson lambda amplitude "lb<nb>": nb boson annihilation
