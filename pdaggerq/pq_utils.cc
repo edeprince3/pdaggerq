@@ -24,6 +24,7 @@
 #include "pq_string.h"
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
+#include "pq_normal_order_fermi_vacuum.h"
 
 #include <unordered_set>
 #include <algorithm>
@@ -2405,27 +2406,16 @@ void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &
             mystring->print();
         }
 
+        // bring string to normal order in the fermion space (electron + nucleus)
+        std::vector< std::shared_ptr<pq_string> > fermion_ordered;
+        fermion_normal_order_fermi_vacuum(mystring, fermion_ordered, keep_operators);
+
+        // bring string to normal order in the boson space
         std::vector< std::shared_ptr<pq_string> > tmp;
-        tmp.push_back(mystring);
-
-        bool done_rearranging = false;
-        do {
-            std::vector< std::shared_ptr<pq_string> > list;
-            done_rearranging = true;
-            for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-                bool am_i_done = swap_operators_fermi_vacuum(pq_str, list, keep_operators);
-                if ( !am_i_done ) done_rearranging = false;
-            }
-            tmp.clear();
-            for (std::shared_ptr<pq_string> & pq_str : list) {
-                if ( !pq_str->skip ) {
-                    tmp.push_back(pq_str);
-                }
-            }
-        }while(!done_rearranging);
-
+        for (const auto & pq_str : fermion_ordered) {
+            boson_normal_order(pq_str, tmp, keep_operators);
+        }
         new_strings[k] = tmp;
-        tmp.clear();
     }
 
     for (const auto& new_string : new_strings) {

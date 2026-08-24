@@ -62,6 +62,7 @@ pybind11_add_module(_pdaggerq
         pdaggerq/pq_bernoulli.cc
         pdaggerq/pq_serialize.cc
         pdaggerq/pq_swap_operators.cc
+        pdaggerq/pq_normal_order_fermi_vacuum.cc
         pdaggerq/pq_add_spin_labels.cc
         pdaggerq/pq_add_label_ranges.cc
         pdaggerq/pq_cumulant_expansion.cc
