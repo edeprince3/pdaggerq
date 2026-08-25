@@ -68,6 +68,8 @@ class CCSD:
             self.wfn,
             self.mol,
             nfzc = self.nfzc,
+            e_convergence = self.e_convergence,
+            r_convergence = self.r_convergence,
             cc_energy_func = self.cc_energy["cc_energy"],
             T_list = self.T_list
         )

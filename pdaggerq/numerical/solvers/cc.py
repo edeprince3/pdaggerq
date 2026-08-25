@@ -35,6 +35,10 @@ class cc:
     def __init__(self, wfn,
         mol,
         nfzc = 0,
+        e_convergence = 1e-8,
+        r_convergence = 1e-6,
+        diis_size = 8,
+        diis_start_cycle = 4,
         is_qed = False,
         cc_energy_func = None,
         T_list = [],
@@ -51,6 +55,8 @@ class cc:
             and used to pick the matching integrals module -- no other argument changes needed.
         :params mol: a psi4 molecule object, or a pyscf Mole object (matching whichever package
             wfn came from)
+        :params e_convergence: energy convergence thershold
+        :params r_convergence: residual equation convergence thershold
         :params nfzc: number of frozen core
         :params T_list: list of dictionaries representing cluster amplitudes
         :params L_list: list of dictionaries representing lambda amplitudes
@@ -64,6 +70,10 @@ class cc:
         self.wfn = wfn
         self.nfzc = nfzc
         self.mol = mol
+        self.e_convergence = e_convergence
+        self.r_convergence = r_convergence
+        self.diis_size = diis_size
+        self.diis_start_cycle = diis_start_cycle
  
         # figure out once whether wfn/mol are psi4 or pyscf objects, and which integrals
         # module matches -- everything below that used to hardcode psi4 goes through these
@@ -317,7 +327,7 @@ class cc:
  
         """
  
-        self.cc_iterations_with_spin(e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4)
+        self.cc_iterations_with_spin(e_convergence=self.e_convergence, r_convergence=self.r_convergence, diis_size=self.diis_size, diis_start_cycle=self.diis_start_cycle)
         energy = self.cc_energy()
  
         print("")
@@ -337,7 +347,7 @@ class cc:
  
         """
  
-        self.cc_iterations_with_spin(e_convergence=1e-10, r_convergence=1e-10, diis_size=8, diis_start_cycle=4, is_lambda = True)
+        self.cc_iterations_with_spin(e_convergence=self.e_convergence, r_convergence=self.r_convergence, diis_size=self.diis_size, diis_start_cycle=self.diis_start_cycle, is_lambda = True)
         energy = self.cc_pseudoenergy()
  
         print("")

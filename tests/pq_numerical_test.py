@@ -167,6 +167,8 @@ def test_ccsd_codegen_disk():
                 wfn,
                 mol,
                 nfzc=1,
+                e_convergence = 1e-10,
+                r_convergence = 1e-10,
                 cc_energy_func=local_namespace["cc_energy"].cc_energy,
                 T_list = [t1, t2]
             )
@@ -187,7 +189,15 @@ def test_qed_ccsd_21_codegen():
 
             from pdaggerq.numerical.methods.qed_ccsd_21 import QED_CCSD_21 as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=0, cavity_lambda = [0, 0, 0.05], cavity_frequency = 0.07349864501573, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, 
+                mol, 
+                nfzc=0, 
+                e_convergence = 1e-10,
+                r_convergence = 1e-10,
+                cavity_lambda = [0, 0, 0.05], 
+                cavity_frequency = 0.07349864501573, 
+                pq_graph_options = pq_graph_options
+            )
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.015650410563, rtol=1e-10, atol=1e-10)
@@ -204,7 +214,15 @@ def test_qed_ccsd_22_codegen():
 
             from pdaggerq.numerical.methods.qed_ccsd_22 import QED_CCSD_22 as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=0, cavity_lambda = [0, 0, 0.05], cavity_frequency = 0.07349864501573, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, 
+                mol, 
+                nfzc=0,  
+                e_convergence = 1e-10,
+                r_convergence = 1e-10,
+                cavity_lambda = [0, 0, 0.05], 
+                cavity_frequency = 0.07349864501573, 
+                pq_graph_options = pq_graph_options
+            )
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.015651100212, rtol=1e-10, atol=1e-10)
@@ -221,7 +239,7 @@ def test_ccsd_codegen():
 
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -238,7 +256,7 @@ def test_uccsd_3_codegen():
 
             from pdaggerq.numerical.methods.uccsd3 import UCCSD3
             mol, wfn = setup_test()
-            mycc = UCCSD3(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = UCCSD3(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.020242934640, rtol=1e-10, atol=1e-10)
@@ -255,7 +273,7 @@ def test_uccsd_4_codegen():
 
             from pdaggerq.numerical.methods.uccsd4 import UCCSD4
             mol, wfn = setup_test()
-            mycc = UCCSD4(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = UCCSD4(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019695059108, rtol=1e-10, atol=1e-10)
@@ -272,7 +290,7 @@ def test_quccsd_codegen():
 
             from pdaggerq.numerical.methods.quccsd import QUCCSD
             mol, wfn = setup_test()
-            mycc = QUCCSD(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = QUCCSD(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019629416631, rtol=1e-10, atol=1e-10)
@@ -289,7 +307,7 @@ def test_ccsd_polarizability():
         
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -328,7 +346,7 @@ def test_lambda_ccsd_codegen():
         
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -366,7 +384,7 @@ def test_ccsdt_codegen():
 
             from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
@@ -383,7 +401,7 @@ def test_cc3_codegen():
 
             from pdaggerq.numerical.methods.cc3 import CC3
             mol, wfn = setup_test()
-            mycc = CC3(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC3(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019717612241, rtol=1e-10, atol=1e-10)
@@ -402,7 +420,7 @@ def test_eomccsd_codegen():
 
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -480,7 +498,7 @@ def test_ip_eomccsd_codegen():
 
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -519,7 +537,7 @@ def test_ip_eomccsdt_codegen():
 
             from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
@@ -558,7 +576,7 @@ def test_ea_eomccsd_codegen():
 
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -598,7 +616,7 @@ def test_ea_eomccsdt_codegen():
 
             from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
@@ -640,6 +658,8 @@ def test_qed_eomccsd_codegen():
             mycc = CC(wfn, 
                 mol, 
                 nfzc=0, 
+                e_convergence = 1e-10,
+                r_convergence = 1e-10,
                 pq_graph_options = pq_graph_options,
                 cavity_lambda = [0, 0, 0.05], 
                 cavity_frequency = 0.564371758730 # cavity-free bright z
@@ -833,7 +853,7 @@ def test_dip_eomccsd_codegen():
 
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -872,7 +892,7 @@ def test_dea_eomccsd_codegen():
 
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
             mol, wfn = setup_test()
-            mycc = CC(wfn, mol, nfzc=1, pq_graph_options = pq_graph_options)
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
