@@ -355,8 +355,8 @@ f"""
     eri['bbbb_vvvo'] = self.{extra_class}g_bbbb[vb, vb, vb, ob]
     eri['bbbb_vvvv'] = self.{extra_class}g_bbbb[vb, vb, vb, vb]
     Id = {{}}
-    noa = t1['aa'].shape[1]
-    nob = t1['bb'].shape[1]
+    noa = f['aa_vo'].shape[1]
+    nob = f['bb_vo'].shape[1]
     Id['aa_oo'] = np.eye(noa, noa)
     Id['bb_oo'] = np.eye(nob, nob)
     scalars_ = {{}}
