@@ -29,6 +29,7 @@ class DIP_EOMCCSD:
             [['a*(i)', 'a*(j)']],
             R,
             'right_sigma2', 
+            indices = ['i', 'j'],
             operator_type = 'DIP',
             pq_graph_options = self.pq_graph_options
         )
@@ -38,6 +39,7 @@ class DIP_EOMCCSD:
             [['a*(i)', 'a*(j)', 'a*(k)', 'a(a)']],
             R,
             'right_sigma3',
+            indices = ['a', 'i', 'j', 'k'],
             operator_type = 'DIP',
             pq_graph_options = self.pq_graph_options
         )
@@ -78,6 +80,7 @@ class DIP_EOMCCSD:
             L,
             [['a(j)', 'a(i)']],
             'left_sigma2', 
+            indices = ['i', 'j'],
             operator_type = 'DIP',
             pq_graph_options = self.pq_graph_options
         )
@@ -87,6 +90,7 @@ class DIP_EOMCCSD:
             L,
             [['a*(a)', 'a(k)', 'a(j)', 'a(i)']],
             'left_sigma3',
+            indices = ['a', 'i', 'j', 'k'],
             operator_type = 'DIP',
             pq_graph_options = self.pq_graph_options
         )
