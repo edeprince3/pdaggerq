@@ -29,6 +29,7 @@ class DEA_EOMCCSDT:
             [['a(b)', 'a(a)']],
             R,
             'right_sigma2',
+            indices = ['a', 'b'],
             operator_type = 'DEA',
             pq_graph_options = self.pq_graph_options
         )
@@ -38,6 +39,7 @@ class DEA_EOMCCSDT:
             [['a*(i)', 'a(c)', 'a(b)', 'a(a)']],
             R,
             'right_sigma3',
+            indices = ['a', 'b', 'c', 'i'],
             operator_type = 'DEA',
             pq_graph_options = self.pq_graph_options
         )
@@ -47,6 +49,7 @@ class DEA_EOMCCSDT:
             [['a*(i)', 'a*(j)', 'a(d)', 'a(c)', 'a(b)', 'a(a)']],
             R,
             'right_sigma4',
+            indices = ['a', 'b', 'c', 'd', 'i', 'j'],
             operator_type = 'DEA',
             pq_graph_options = self.pq_graph_options
         )
@@ -93,6 +96,7 @@ class DEA_EOMCCSDT:
             L,
             [['a*(a)', 'a*(b)']],
             'left_sigma2',
+            indices = ['a', 'b'],
             operator_type = 'DEA',
             pq_graph_options = self.pq_graph_options
         )
@@ -102,6 +106,7 @@ class DEA_EOMCCSDT:
             L,
             [['a*(a)', 'a*(b)', 'a*(c)', 'a(i)']],
             'left_sigma3',
+            indices = ['a', 'b', 'c', 'i'],
             operator_type = 'DEA',
             pq_graph_options = self.pq_graph_options
         )
@@ -111,6 +116,7 @@ class DEA_EOMCCSDT:
             L,
             [['a*(a)', 'a*(b)', 'a*(c)', 'a*(d)', 'a(j)', 'a(i)']],
             'left_sigma4',
+            indices = ['a', 'b', 'c', 'd', 'i', 'j'],
             operator_type = 'DEA',
             pq_graph_options = self.pq_graph_options
         )

@@ -29,6 +29,7 @@ class IP_EOMCCSDT:
             [['a*(i)']],
             R,
             'right_sigma1', 
+            indices = ['i'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -38,6 +39,7 @@ class IP_EOMCCSDT:
             [['a*(i)', 'a*(j)', 'a(a)']],
             R,
             'right_sigma2',
+            indices = ['a', 'i', 'j'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -47,6 +49,7 @@ class IP_EOMCCSDT:
             [['a*(i)', 'a*(j)', 'a*(k)', 'a(b)', 'a(a)']],
             R,
             'right_sigma3',
+            indices = ['a', 'b', 'i', 'j', 'k'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -93,6 +96,7 @@ class IP_EOMCCSDT:
             L,
             [['a(i)']],
             'left_sigma1', 
+            indices = ['i'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -102,6 +106,7 @@ class IP_EOMCCSDT:
             L,
             [['a*(a)', 'a(j)', 'a(i)']],
             'left_sigma2',
+            indices = ['a', 'i', 'j'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -111,6 +116,7 @@ class IP_EOMCCSDT:
             L,
             [['a*(a)', 'a*(b)', 'a(k)', 'a(j)', 'a(i)']],
             'left_sigma3',
+            indices = ['a', 'b', 'i', 'j', 'k'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
