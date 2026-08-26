@@ -1,7 +1,8 @@
-# hilbert2 - python-based quantum chemistry
-# Copyright (C) 2025 A. Eugene DePrince III
 #
-# This file is part of the hilbert2 package.
+# pdaggerq - A code for bringing strings of creation / annihilation operators to normal order.
+# Copyright (C) 2026 A. Eugene DePrince III
+#
+# This file is part of the pdaggerq package.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -70,7 +71,13 @@ class eomcc:
         dim = Hbar.right_amplitude_size
         HbarR = LinearOperator((dim, dim), matvec=Hbar.matvec_right, dtype=np.float64)
 
-        ex, rvec = scipy.sparse.linalg.eigs(HbarR, k=self.nstates, which='SR')
+        ex, rvec = scipy.sparse.linalg.eigs(
+            HbarR, 
+            k=self.nstates, 
+            which='SR',
+            v0=np.ones(dim),
+            ncv=max(4*self.nstates + 1, 40)
+        )
         idx = np.argsort(ex)
         ex = ex[idx]
         rvec = rvec[:, idx]
@@ -106,7 +113,13 @@ class eomcc:
         dim = Hbar.left_amplitude_size
         LHbar = LinearOperator((dim, dim), matvec=Hbar.matvec_left, dtype=np.float64)
 
-        ex, lvec = scipy.sparse.linalg.eigs(LHbar, k=self.nstates, which='SR')
+        ex, lvec = scipy.sparse.linalg.eigs(
+            LHbar, 
+            k=self.nstates, 
+            which='SR',
+            v0=np.ones(dim),
+            ncv=max(4*self.nstates + 1, 40)
+        )
         idx = np.argsort(ex)
         ex = ex[idx]
         lvec = lvec[:, idx]
@@ -163,8 +176,7 @@ class eomcc:
         print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('', '', '<L1|mu|R2>', '', '', '<L2|mu|R1>', '', '', ''))
         print('    %7s %7s %10s %10s %10s %10s %10s %10s %10s' % ('state 1', 'state 2', 'x', 'y', 'z', 'x', 'y', 'z', 'osc'))
 
-        from pdaggerq.numerical.utils.integrals import get_dipole_integrals_with_spin
-        dipole_aa, dipole_bb = get_dipole_integrals_with_spin(self.cc.wfn, nfzc = self.cc.nfzc)
+        dipole_aa, dipole_bb = self.cc._integrals.get_dipole_integrals_with_spin(self.cc.wfn, nfzc = self.cc.nfzc)
 
         f = np.zeros((self.nstates, self.nstates), dtype=np.complex128)
 
@@ -229,3 +241,198 @@ class eomcc:
     
         return L, R
 
+    def opdm(self, opdm_func = None):
+
+        if opdm_func is not None:
+            self.density_matrix = types.MethodType(opdm_func, self)
+        else:
+            raise Exception("provide a opdm_func")
+
+        # Pack eigenvectors for biorthogonalization
+        Hbar = HbarOperator(self.cc, L_list = self.L_list, R_list = self.R_list)
+
+        dim = Hbar.left_amplitude_size
+        R_mat = np.zeros((dim, self.nstates), dtype = np.complex128)
+        L_mat = np.zeros((dim, self.nstates), dtype = np.complex128)
+        M = np.zeros((self.nstates, self.nstates))
+
+        for i in range (self.nstates):
+            L_mat[:, i] = Hbar.pack_eom_vectors(self.L[i], Hbar.L_meta)
+            R_mat[:, i] = Hbar.pack_eom_vectors(self.R[i], Hbar.R_meta)
+
+        # Biorthogonalize
+        L_mat, R_mat = self.LU_biorthonormalization(L_mat, R_mat)
+
+        # Unpack biorthogonalized L and R
+        for i in range (self.nstates):
+            Hbar.unpack_eom_vectors(R_mat[:, i], self.R[i], Hbar.R_meta)
+            Hbar.unpack_eom_vectors(L_mat[:, i], self.L[i], Hbar.L_meta)
+
+        # Compute opdms
+        opdm_a = []
+        opdm_b = []
+        for i in range (self.nstates):
+            opdm = self.density_matrix(i, i)
+
+            # Alpha spin OPDM
+            tmp_a = np.block([
+                [opdm['aa_oo'], opdm['aa_ov']],
+                [opdm['aa_vo'], opdm['aa_vv']]
+            ])
+            opdm_a.append(tmp_a)
+
+            # Beta spin OPDM
+            tmp_b = np.block([
+                [opdm['bb_oo'], opdm['bb_ov']],
+                [opdm['bb_vo'], opdm['bb_vv']]
+            ])
+            opdm_b.append(tmp_b)
+
+        return opdm_a, opdm_b
+
+    def tpdm(self, tpdm_func = None):
+
+        if tpdm_func is not None:
+            self.density_matrix = types.MethodType(tpdm_func, self)
+        else:
+            raise Exception("provide a tpdm_func")
+
+        # Pack eigenvectors for biorthogonalization
+        Hbar = HbarOperator(self.cc, L_list = self.L_list, R_list = self.R_list)
+
+        dim = Hbar.left_amplitude_size
+        R_mat = np.zeros((dim, self.nstates), dtype = np.complex128)
+        L_mat = np.zeros((dim, self.nstates), dtype = np.complex128)
+        M = np.zeros((self.nstates, self.nstates))
+
+        for i in range (self.nstates):
+            L_mat[:, i] = Hbar.pack_eom_vectors(self.L[i], Hbar.L_meta)
+            R_mat[:, i] = Hbar.pack_eom_vectors(self.R[i], Hbar.R_meta)
+
+        # Biorthogonalize
+        L_mat, R_mat = self.LU_biorthonormalization(L_mat, R_mat)
+
+        # Unpack biorthogonalized L and R
+        for i in range (self.nstates):
+            Hbar.unpack_eom_vectors(R_mat[:, i], self.R[i], Hbar.R_meta)
+            Hbar.unpack_eom_vectors(L_mat[:, i], self.L[i], Hbar.L_meta)
+
+        # Compute tpdms
+        tpdm_aaaa = []
+        tpdm_abab = []
+        tpdm_bbbb = []
+        for i in range (self.nstates):
+            tpdm = self.density_matrix(i, i)
+
+            # aaaa spin TPDM
+            tmp_aaaa = np.block([
+                [  # Axis 0 = o
+                    [  # Axis 1 = o
+                        [tpdm['aaaa_oooo'], tpdm['aaaa_ooov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['aaaa_oovo'], tpdm['aaaa_oovv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ],
+                    [  # Axis 1 = v
+                        [tpdm['aaaa_ovoo'], tpdm['aaaa_ovov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['aaaa_ovvo'], tpdm['aaaa_ovvv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ]
+                ],
+                [  # Axis 0 = v
+                    [  # Axis 1 = o
+                        [tpdm['aaaa_vooo'], tpdm['aaaa_voov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['aaaa_vovo'], tpdm['aaaa_vovv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ],
+                    [  # Axis 1 = v
+                        [tpdm['aaaa_vvoo'], tpdm['aaaa_vvov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['aaaa_vvvo'], tpdm['aaaa_vvvv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ]
+                ]
+            ])
+            tpdm_aaaa.append(tmp_aaaa)
+
+            # bbbb spin TPDM
+            tmp_bbbb = np.block([
+                [  # Axis 0 = o
+                    [  # Axis 1 = o
+                        [tpdm['bbbb_oooo'], tpdm['bbbb_ooov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['bbbb_oovo'], tpdm['bbbb_oovv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ],
+                    [  # Axis 1 = v
+                        [tpdm['bbbb_ovoo'], tpdm['bbbb_ovov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['bbbb_ovvo'], tpdm['bbbb_ovvv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ]
+                ],
+                [  # Axis 0 = v
+                    [  # Axis 1 = o
+                        [tpdm['bbbb_vooo'], tpdm['bbbb_voov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['bbbb_vovo'], tpdm['bbbb_vovv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ],
+                    [  # Axis 1 = v
+                        [tpdm['bbbb_vvoo'], tpdm['bbbb_vvov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['bbbb_vvvo'], tpdm['bbbb_vvvv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ]
+                ]
+            ])
+            tpdm_bbbb.append(tmp_bbbb)
+
+            # abab spin TPDM
+            tmp_abab = np.block([
+                [  # Axis 0 = o
+                    [  # Axis 1 = o
+                        [tpdm['abab_oooo'], tpdm['abab_ooov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['abab_oovo'], tpdm['abab_oovv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ],
+                    [  # Axis 1 = v
+                        [tpdm['abab_ovoo'], tpdm['abab_ovov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['abab_ovvo'], tpdm['abab_ovvv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ]
+                ],
+                [  # Axis 0 = v
+                    [  # Axis 1 = o
+                        [tpdm['abab_vooo'], tpdm['abab_voov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['abab_vovo'], tpdm['abab_vovv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ],
+                    [  # Axis 1 = v
+                        [tpdm['abab_vvoo'], tpdm['abab_vvov']],  # Axis 2 = o (Axis 3 = o, v)
+                        [tpdm['abab_vvvo'], tpdm['abab_vvvv']]   # Axis 2 = v (Axis 3 = o, v)
+                    ]
+                ]
+            ])
+            tpdm_abab.append(tmp_abab)
+
+        return tpdm_aaaa, tpdm_abab, tpdm_bbbb
+
+
+    def phdm(self, phdm_func = None):
+                        
+        if phdm_func is not None:
+            self.density_matrix = types.MethodType(phdm_func, self)
+        else:           
+            raise Exception("provide a phdm_func")
+                    
+        # Pack eigenvectors for biorthogonalization
+        Hbar = HbarOperator(self.cc, L_list = self.L_list, R_list = self.R_list)
+            
+        dim = Hbar.left_amplitude_size
+        R_mat = np.zeros((dim, self.nstates), dtype = np.complex128)
+        L_mat = np.zeros((dim, self.nstates), dtype = np.complex128)
+        M = np.zeros((self.nstates, self.nstates))
+                    
+        for i in range (self.nstates):
+            L_mat[:, i] = Hbar.pack_eom_vectors(self.L[i], Hbar.L_meta)
+            R_mat[:, i] = Hbar.pack_eom_vectors(self.R[i], Hbar.R_meta)
+                    
+        # Biorthogonalize
+        L_mat, R_mat = self.LU_biorthonormalization(L_mat, R_mat)
+                    
+        # Unpack biorthogonalized L and R
+        for i in range (self.nstates):
+            Hbar.unpack_eom_vectors(R_mat[:, i], self.R[i], Hbar.R_meta)
+            Hbar.unpack_eom_vectors(L_mat[:, i], self.L[i], Hbar.L_meta)
+                        
+        # Compute phdms
+        phdm = [] 
+        for i in range (self.nstates):
+            tmp = self.density_matrix(i, i)
+            phdm.append(tmp)
+
+        return phdm

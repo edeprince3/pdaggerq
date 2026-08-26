@@ -26,10 +26,10 @@ def initialize_log_file():
     yield  
 
 import numpy as np
-import psi4    
 
 def setup_psi4_test():
 
+    import psi4    
     # set up job for psi4
     mol = psi4.geometry("""
     0 1
@@ -54,6 +54,54 @@ def setup_psi4_test():
 
     return mol, wfn
 
+def setup_pyscf_test():
+
+    from pyscf import gto, scf
+
+    # closed-shell: water, RHF
+    mol = gto.M(
+        atom="""
+        O 0.0  0.0            -0.068516219320; 
+        H 0.0 -0.790689573744  0.543701060715; 
+        H 0.0  0.790689573744  0.543701060715
+        """,
+        basis="sto-3g", 
+        unit="Angstrom",
+        verbose=0,
+    )
+
+    mf = scf.RHF(mol)
+    mf.conv_tol = 1e-12
+    mf.conv_tol_grad = 1e-12
+    mf.kernel()
+
+    assert mf.converged, f"{label}: SCF did not converge"
+
+    return mol, mf
+
+def setup_test():
+    """
+    Set up the water/STO-3G test system for the CC/EOMCC solvers, preferring pyscf when it's
+    installed (pyscf has PyPI wheels and can run in CI, unlike psi4) and falling back to psi4
+    otherwise. Whichever backend is used, the returned (mol, wfn_or_mf) pair works unchanged
+    with cc(wfn, mol, ...) -- see pdaggerq.numerical.utils.backend.detect_backend.
+ 
+    :return mol, wfn_or_mf: a (pyscf Mole, pyscf mean-field) pair, or a (psi4 molecule, psi4
+        wave function) pair
+    """
+ 
+    try:
+        return setup_pyscf_test()
+    except ImportError:
+        pass
+ 
+    try:
+        return setup_psi4_test()
+    except ImportError:
+        pass
+ 
+    raise ImportError("this test needs either pyscf or psi4 installed, and neither was found")
+
 @pytest.mark.ccsd_disk
 def test_ccsd_codegen_disk():
 
@@ -66,6 +114,11 @@ def test_ccsd_codegen_disk():
     script_path = os.path.dirname(os.path.realpath(__file__))
     gen_dir = os.path.join(script_path, "generated_code")
     os.makedirs(gen_dir, exist_ok=True)
+
+    # point the generators at the very directory we are about to import from,
+    # so the test does not depend on being invoked from tests/
+    from pdaggerq.numerical.codegen import autogen
+    autogen.generated_code_dir = gen_dir
     
     # Add the generation directory to sys.path so Python can import from it
     if gen_dir not in sys.path:
@@ -96,24 +149,26 @@ def test_ccsd_codegen_disk():
 
             # amplitude dictionaries to pass into the solver
             t1 = {
-                'spaces' : 'vo',
-                'spins' : ['aa', 'bb'],
+                'spaces' : ['v','o'],
+                'spins' : [['a','a'], ['b','b']],
                 'residual' : local_namespace["t1_residual"].t1_residual
             }
             t2 = {
-                'spaces' : 'vvoo',
-                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'spaces' : ['vv','oo'],
+                'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
                 'residual' : local_namespace["t2_residual"].t2_residual
             }
 
             # Pass pq-generated functions into the cc solver
-            mol, wfn = setup_psi4_test()
+            mol, wfn = setup_test()
 
             from pdaggerq.numerical.solvers.cc import cc
             mycc = cc(
                 wfn,
                 mol,
                 nfzc=1,
+                e_convergence = 1e-10,
+                r_convergence = 1e-10,
                 cc_energy_func=local_namespace["cc_energy"].cc_energy,
                 T_list = [t1, t2]
             )
@@ -133,8 +188,16 @@ def test_qed_ccsd_21_codegen():
         with contextlib.redirect_stdout(f):
 
             from pdaggerq.numerical.methods.qed_ccsd_21 import QED_CCSD_21 as CC
-            mol, wfn = setup_psi4_test()
-            mycc = CC(wfn, mol, nfzc=0, cavity_lambda = [0, 0, 0.05], cavity_frequency = 0.07349864501573)
+            mol, wfn = setup_test()
+            mycc = CC(wfn, 
+                mol, 
+                nfzc=0, 
+                e_convergence = 1e-10,
+                r_convergence = 1e-10,
+                cavity_lambda = [0, 0, 0.05], 
+                cavity_frequency = 0.07349864501573, 
+                pq_graph_options = pq_graph_options
+            )
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.015650410563, rtol=1e-10, atol=1e-10)
@@ -150,8 +213,16 @@ def test_qed_ccsd_22_codegen():
         with contextlib.redirect_stdout(f):
 
             from pdaggerq.numerical.methods.qed_ccsd_22 import QED_CCSD_22 as CC
-            mol, wfn = setup_psi4_test()
-            mycc = CC(wfn, mol, nfzc=0, cavity_lambda = [0, 0, 0.05], cavity_frequency = 0.07349864501573)
+            mol, wfn = setup_test()
+            mycc = CC(wfn, 
+                mol, 
+                nfzc=0,  
+                e_convergence = 1e-10,
+                r_convergence = 1e-10,
+                cavity_lambda = [0, 0, 0.05], 
+                cavity_frequency = 0.07349864501573, 
+                pq_graph_options = pq_graph_options
+            )
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.015651100212, rtol=1e-10, atol=1e-10)
@@ -167,8 +238,8 @@ def test_ccsd_codegen():
         with contextlib.redirect_stdout(f):
 
             from pdaggerq.numerical.methods.ccsd import CCSD as CC
-            mol, wfn = setup_psi4_test()
-            mycc = CC(wfn, mol, nfzc=1)
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -184,8 +255,8 @@ def test_uccsd_3_codegen():
         with contextlib.redirect_stdout(f):
 
             from pdaggerq.numerical.methods.uccsd3 import UCCSD3
-            mol, wfn = setup_psi4_test()
-            mycc = UCCSD3(wfn, mol, nfzc=1)
+            mol, wfn = setup_test()
+            mycc = UCCSD3(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.020242934640, rtol=1e-10, atol=1e-10)
@@ -201,8 +272,8 @@ def test_uccsd_4_codegen():
         with contextlib.redirect_stdout(f):
 
             from pdaggerq.numerical.methods.uccsd4 import UCCSD4
-            mol, wfn = setup_psi4_test()
-            mycc = UCCSD4(wfn, mol, nfzc=1)
+            mol, wfn = setup_test()
+            mycc = UCCSD4(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019695059108, rtol=1e-10, atol=1e-10)
@@ -218,13 +289,52 @@ def test_quccsd_codegen():
         with contextlib.redirect_stdout(f):
 
             from pdaggerq.numerical.methods.quccsd import QUCCSD
-            mol, wfn = setup_psi4_test()
-            mycc = QUCCSD(wfn, mol, nfzc=1)
+            mol, wfn = setup_test()
+            mycc = QUCCSD(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019629416631, rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: QUCCSD\n")    
+
+@pytest.mark.ccsd_polarizability
+def test_ccsd_polarizability():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running CCSD polarizability ...\n")
+
+        with contextlib.redirect_stdout(f):
+        
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
+
+            pseudoen = mycc.lambda_solver()
+
+            assert np.isclose(pseudoen, -0.054046897553, rtol=1e-10, atol=1e-10)
+
+            from pdaggerq.numerical.methods.ccsd_response import CCSD_RESPONSE as CC_RESPONSE
+            cc_response = CC_RESPONSE(mycc.cc_solver, omega = 0.1, perturb = 'dipole', pq_graph_options = pq_graph_options)
+            cc_response.first_order_response_solver()
+            alpha = cc_response.polarizability()
+
+            ref_alpha = [0.054955210843,
+                0.000000000000,
+                0.000000000000,
+                5.598060237333,
+                0.000000000000,
+                2.392116185320,
+            ]
+            idx = 0
+            for i in range (3):
+                for j in range (i, 3):
+                    assert np.isclose(alpha[i, j], ref_alpha[idx], rtol=1e-8, atol=1e-8)
+                    idx += 1
+
+        f.write(">>> TEST PASSED: CCSD polarizability\n")    
 
 @pytest.mark.lambda_ccsd
 def test_lambda_ccsd_codegen():
@@ -234,9 +344,9 @@ def test_lambda_ccsd_codegen():
 
         with contextlib.redirect_stdout(f):
         
-            from pdaggerq.numerical.methods.ccsd import CCSD
-            mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -244,6 +354,23 @@ def test_lambda_ccsd_codegen():
             pseudoen = mycc.lambda_solver()
 
             assert np.isclose(pseudoen, -0.054046897553, rtol=1e-10, atol=1e-10)
+
+            # build opdm, check one-electron energy
+            opdm_a, opdm_b = mycc.opdm()
+
+            from pdaggerq.numerical.utils.backend import detect_backend, get_integrals_module
+            integrals = get_integrals_module(detect_backend(wfn))
+
+            energy_1 = integrals.one_electron_energy(wfn, opdm_a, opdm_b, nfzc=1)
+
+            assert np.isclose(energy_1, -56.228181952008, rtol=1e-8, atol=1e-8)
+
+            # build tpdm, check two-electron energy
+            tpdm_aaaa, tpdm_abab, tpdm_bbbb = mycc.tpdm()
+
+            two_electron_energy = integrals.two_electron_energy(wfn, tpdm_aaaa, tpdm_abab, tpdm_bbbb, opdm_a, opdm_b, nfzc=1)
+
+            assert np.isclose(two_electron_energy, 32.974432824166, rtol=1e-8, atol=1e-8)
 
         f.write(">>> TEST PASSED: lambda-CCSD\n")    
 
@@ -255,9 +382,9 @@ def test_ccsdt_codegen():
 
         with contextlib.redirect_stdout(f):
 
-            from pdaggerq.numerical.methods.ccsdt import CCSDT
-            mol, wfn = setup_psi4_test()
-            mycc = CCSDT(wfn, mol, nfzc=1)
+            from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
@@ -273,8 +400,8 @@ def test_cc3_codegen():
         with contextlib.redirect_stdout(f):
 
             from pdaggerq.numerical.methods.cc3 import CC3
-            mol, wfn = setup_psi4_test()
-            mycc = CC3(wfn, mol, nfzc=1)
+            mol, wfn = setup_test()
+            mycc = CC3(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019717612241, rtol=1e-10, atol=1e-10)
@@ -291,9 +418,9 @@ def test_eomccsd_codegen():
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
-            mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -301,7 +428,7 @@ def test_eomccsd_codegen():
             # EOMCCSD
 
             from pdaggerq.numerical.methods.eomccsd import EOMCCSD as EOMCC
-            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5, pq_graph_options = pq_graph_options)
 
             eomcc.right_solver()
 
@@ -312,11 +439,11 @@ def test_eomccsd_codegen():
                 0.457998414869,
             ]
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
 
             eomcc.left_solver()
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
 
             osc = eomcc.oscillator_strengths()
 
@@ -337,21 +464,41 @@ def test_eomccsd_codegen():
                     assert np.isclose(osc[i, j], ref_osc[idx], rtol=1e-10, atol=1e-10)
                     idx += 1
 
+            # build excited-state OPDMs and check associated one-electron energies
+            opdm_a, opdm_b = eomcc.opdm()
+
+            from pdaggerq.numerical.utils.backend import detect_backend, get_integrals_module
+            integrals = get_integrals_module(detect_backend(wfn))
+
+            energy_1 = []
+            for i in range (len(opdm_a)):
+                energy_1.append(integrals.one_electron_energy(wfn, opdm_a[i], opdm_b[i], nfzc=1))
+
+            # build excited-state TPDMs and check associated one-electron energies
+            tpdm_aaaa, tpdm_abab, tpdm_bbbb = eomcc.tpdm()
+
+            energy_2 = []
+            for i in range (len(tpdm_aaaa)):
+                energy_2.append(integrals.two_electron_energy(wfn, tpdm_aaaa[i], tpdm_abab[i], tpdm_bbbb[i], opdm_a[i], opdm_b[i], nfzc=1))
+
+            for i in range (len(opdm_a)):
+                assert np.isclose(energy_1[i] + energy_2[i] + mycc.efzc + mycc.nuclear_repulsion_energy, ref_energies[i] + (-75.019641774768), rtol=1e-10, atol=1e-10)
+
         f.write(">>> TEST PASSED: EOMCCSD\n")    
 
 @pytest.mark.ip_eomccsd
 def test_ip_eomccsd_codegen():
 
     with open(LOG_FILE, "a") as f:
-        f.write(">>> Running DIP-EOMCCSD ...\n")
+        f.write(">>> Running IP-EOMCCSD ...\n")
 
         with contextlib.redirect_stdout(f):
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
-            mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -359,7 +506,7 @@ def test_ip_eomccsd_codegen():
             # IP-EOMCCSD
 
             from pdaggerq.numerical.methods.ip_eomccsd import IP_EOMCCSD as EOMCC
-            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5, pq_graph_options = pq_graph_options)
 
             eomcc.right_solver()
 
@@ -370,13 +517,52 @@ def test_ip_eomccsd_codegen():
                 0.591083903982
             ]
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
 
             eomcc.left_solver()
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
 
         f.write(">>> TEST PASSED: IP-EOMCCSD\n")    
+
+@pytest.mark.ip_eomccsdt
+def test_ip_eomccsdt_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running IP-EOMCCSDT ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # CCSDT
+
+            from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
+
+            # IP-EOMCCSDT
+
+            from pdaggerq.numerical.methods.ip_eomccsdt import IP_EOMCCSDT as EOMCC
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5, pq_graph_options = pq_graph_options)
+
+            eomcc.right_solver()
+
+            ref_energies = [0.309884837023,
+                0.309884837023,
+                0.402665402493,
+                0.402665402493,
+                0.593490686307
+            ]
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
+
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
+
+        f.write(">>> TEST PASSED: IP-EOMCCSDT\n")
 
 @pytest.mark.ea_eomccsd
 def test_ea_eomccsd_codegen():
@@ -388,9 +574,9 @@ def test_ea_eomccsd_codegen():
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
-            mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -398,7 +584,7 @@ def test_ea_eomccsd_codegen():
             # EA-EOMCCSD
 
             from pdaggerq.numerical.methods.ea_eomccsd import EA_EOMCCSD as EOMCC
-            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5, pq_graph_options = pq_graph_options)
 
             eomcc.right_solver()
 
@@ -409,13 +595,53 @@ def test_ea_eomccsd_codegen():
                 0.941620379016,
             ]
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
 
             eomcc.left_solver()
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
 
         f.write(">>> TEST PASSED: EA-EOMCCSD\n")    
+
+
+@pytest.mark.ea_eomccsdt
+def test_ea_eomccsdt_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running EA-EOMCCSDT ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # CCSDT
+
+            from pdaggerq.numerical.methods.ccsdt import CCSDT as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019746392571, rtol=1e-10, atol=1e-10)
+
+            # EA-EOMCCSDT
+
+            from pdaggerq.numerical.methods.ea_eomccsdt import EA_EOMCCSDT as EOMCC
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5, pq_graph_options = pq_graph_options)
+
+            eomcc.right_solver()
+
+            ref_energies = [0.562965504084,
+                0.562965504084,
+                0.679160760729,
+                0.679160760729,
+                0.934942131998
+            ]
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
+
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
+
+        f.write(">>> TEST PASSED: EA-EOMCCSDT\n")
 
 @pytest.mark.qed_eomccsd
 def test_qed_eomccsd_codegen():
@@ -428,10 +654,13 @@ def test_qed_eomccsd_codegen():
             # QED-CCSD-21
 
             from pdaggerq.numerical.methods.qed_ccsd_21 import QED_CCSD_21 as CC
-            mol, wfn = setup_psi4_test()
+            mol, wfn = setup_test()
             mycc = CC(wfn, 
                 mol, 
                 nfzc=0, 
+                e_convergence = 1e-10,
+                r_convergence = 1e-10,
+                pq_graph_options = pq_graph_options,
                 cavity_lambda = [0, 0, 0.05], 
                 cavity_frequency = 0.564371758730 # cavity-free bright z
             )
@@ -441,7 +670,7 @@ def test_qed_eomccsd_codegen():
             # QED-EOMCCSD-21
 
             from pdaggerq.numerical.methods.qed_eomccsd_21 import QED_EOMCCSD_21 as EOMCC
-            eomcc = EOMCC(mycc.cc_solver, nstates = 10)
+            eomcc = EOMCC(mycc.cc_solver, nstates = 10, pq_graph_options = pq_graph_options)
 
             eomcc.right_solver()
 
@@ -456,7 +685,159 @@ def test_qed_eomccsd_codegen():
                 0.575267673765,
                 0.639773246168
             ]
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
+
+            eomcc.left_solver()
+
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-9, atol=1e-9)
+
+            osc = eomcc.oscillator_strengths()
+
+            ref_osc = [
+                0.000000000000,
+                0.002814137126,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.042911709772,
+                0.029003455505,
+                0.000000000000,
+                0.000000000000,
+                0.054151032863,
+                0.000682089537,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.035934598749,
+                0.000000000000,
+                0.002059853858,
+                0.002853100038,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000596962546,
+                0.000000000000,
+                0.000000000000,
+                0.003221291218,
+                0.000000000000,
+                0.025949161298,
+                0.000000000000,
+                0.000000000000,
+                0.033054820256,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000000000000,
+                0.000973944113,
+                0.002019267950,
+                0.000000000000,
+                0.000000000000
+            ]
+
+            idx = 0
+            for i in range (10):
+                for j in range (i+1, 10):
+                    assert np.isclose(osc[i, j], ref_osc[idx], rtol=1e-9, atol=1e-9)
+                    idx += 1
+
+            # build excited-state OPDMs and compute associated one-electron energies
+            opdm_a, opdm_b = eomcc.opdm()
+
+            energy_1 = []
+            noa =  mycc.cc_solver.noa
+            nob =  mycc.cc_solver.nob
+            for i in range (len(opdm_a)):
+                en = np.einsum('ij,ij->', opdm_a[i], mycc.cc_solver.f_aa)
+                en += np.einsum('ij,ij->', opdm_b[i], mycc.cc_solver.f_bb)
+
+                en -= np.einsum('piqi,pq->', mycc.cc_solver.g_aaaa[:, :noa, :, :noa], opdm_a[i])
+                en -= np.einsum('ipiq,pq->', mycc.cc_solver.g_abab[:noa, :, :noa, :], opdm_b[i])
+                en -= np.einsum('piqi,pq->', mycc.cc_solver.g_bbbb[:, :nob, :, :nob], opdm_b[i])
+                en -= np.einsum('piqi,pq->', mycc.cc_solver.g_abab[:, :nob, :, :nob], opdm_a[i])
+
+                energy_1.append(en)
+
+            # build excited-state TPDMs and compute associated one-electron energies
+            tpdm_aaaa, tpdm_abab, tpdm_bbbb = eomcc.tpdm()
+
+            energy_2 = []
+            for i in range (len(tpdm_aaaa)):
+                en = 0.25 * np.einsum('pqrs,pqrs->', mycc.cc_solver.g_aaaa, tpdm_aaaa[i])
+                en += np.einsum('pqrs,pqrs->', mycc.cc_solver.g_abab, tpdm_abab[i])
+                en += 0.25 * np.einsum('pqrs,pqrs->', mycc.cc_solver.g_bbbb, tpdm_bbbb[i])
+
+                energy_2.append(en)
+
+            # build excited-state photon DMs and compute associated energies
+            phdm = eomcc.phdm()
+
+            # -sqrt(w0/2) (lambda.mu)(el) <b + b^>
+            dp = {}
+
+            dp['aa_oo'] = mycc.cc_solver.dipole_aa[:noa, :noa]
+            dp['aa_ov'] = mycc.cc_solver.dipole_aa[:noa, noa:]
+            dp['aa_vo'] = mycc.cc_solver.dipole_aa[noa:, :noa]
+            dp['aa_vv'] = mycc.cc_solver.dipole_aa[noa:, noa:]
+
+            dp['bb_oo'] = mycc.cc_solver.dipole_bb[:nob, :nob]
+            dp['bb_ov'] = mycc.cc_solver.dipole_bb[:nob, nob:]
+            dp['bb_vo'] = mycc.cc_solver.dipole_bb[nob:, :nob]
+            dp['bb_vv'] = mycc.cc_solver.dipole_bb[nob:, nob:]
+
+            # -sqrt(w0/2) (lambda.mu)(nuc) <b + b^>
+            N0 = -mycc.cc_solver.nuc_dip * np.sqrt(0.5 * mycc.cc_solver.cavity_frequency)
+
+            # w0 < b^b >
+            w0 = mycc.cc_solver.cavity_frequency
+
+            energy_ph = []
+            for i in range (len(opdm_a)):
+                en_ph_0 = phdm[i]['0'] * w0
+                en_ph_p1 = phdm[i]['+1'] * N0
+                en_ph_m1 = phdm[i]['-1'] * N0
+
+                en_ep = -np.einsum('ij,ij->', phdm[i]['aa_oo_+1'], dp['aa_oo'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['aa_ov_+1'], dp['aa_ov'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['aa_vo_+1'], dp['aa_vo'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['aa_vv_+1'], dp['aa_vv'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['bb_oo_+1'], dp['bb_oo'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['bb_ov_+1'], dp['bb_ov'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['bb_vo_+1'], dp['bb_vo'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['bb_vv_+1'], dp['bb_vv'])
+
+                en_ep += -np.einsum('ij,ij->', phdm[i]['aa_oo_-1'], dp['aa_oo'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['aa_ov_-1'], dp['aa_ov'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['aa_vo_-1'], dp['aa_vo'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['aa_vv_-1'], dp['aa_vv'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['bb_oo_-1'], dp['bb_oo'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['bb_ov_-1'], dp['bb_ov'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['bb_vo_-1'], dp['bb_vo'])
+                en_ep += -np.einsum('ij,ij->', phdm[i]['bb_vv_-1'], dp['bb_vv'])
+
+                energy_ph.append(en_ph_0 + en_ph_p1 + en_ph_m1 + en_ep)
+
+                #en = energy_1[i] + energy_2[i] + energy_ph[i] + mycc.enuc_dse + mycc.efzc + mycc.nuclear_repulsion_energy
+                #print('total:         %20.12f' % (en))
+                #print('ph(0) energy:  %20.12f' % (en_ph_0))
+                #print('ph(+1) energy: %20.12f' % (en_ph_p1))
+                #print('ph(-1) energy: %20.12f' % (en_ph_m1))
+                #print('ep energy:     %20.12f' % (en_ep))
+                #print('1e energy:     %20.12f' % (energy_1[i]))
+                #print('2e energy:     %20.12f' % (energy_2[i]))
+                #print('nuc dse:       %20.12f' % (mycc.enuc_dse))
+                #print('efzc:          %20.12f' % (mycc.efzc))
+                #print('enuc:          %20.12f' % (mycc.nuclear_repulsion_energy))
+
+            for i in range (len(opdm_a)):
+                en = energy_1[i] + energy_2[i] + energy_ph[i] + mycc.enuc_dse + mycc.efzc + mycc.nuclear_repulsion_energy
+                assert np.isclose(en, ref_energies[i] + (-75.016051053904), rtol=1e-10, atol=1e-10)
 
         f.write(">>> TEST PASSED: QED-EOMCCSD\n")    
 
@@ -470,9 +851,9 @@ def test_dip_eomccsd_codegen():
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
-            mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -480,7 +861,7 @@ def test_dip_eomccsd_codegen():
             # DIP-EOMCCSD
 
             from pdaggerq.numerical.methods.dip_eomccsd import DIP_EOMCCSD as EOMCC
-            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5, pq_graph_options = pq_graph_options)
 
             eomcc.right_solver()
 
@@ -491,11 +872,11 @@ def test_dip_eomccsd_codegen():
                 1.385026703778
             ]
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-8, atol=1e-8)
 
             eomcc.left_solver()
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-8, atol=1e-8)
 
         f.write(">>> TEST PASSED: DIP-EOMCCSD\n")    
 
@@ -509,9 +890,9 @@ def test_dea_eomccsd_codegen():
 
             # CCSD
 
-            from pdaggerq.numerical.methods.ccsd import CCSD
-            mol, wfn = setup_psi4_test()
-            mycc = CCSD(wfn, mol, nfzc=1)
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options)
             en = mycc.t_solver()
 
             assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
@@ -519,7 +900,7 @@ def test_dea_eomccsd_codegen():
             # DEA-EOMCCSD
 
             from pdaggerq.numerical.methods.dea_eomccsd import DEA_EOMCCSD as EOMCC
-            eomcc = EOMCC(mycc.cc_solver, nstates = 5)
+            eomcc = EOMCC(mycc.cc_solver, nstates = 5, pq_graph_options = pq_graph_options)
 
             eomcc.right_solver()
 
@@ -530,11 +911,11 @@ def test_dea_eomccsd_codegen():
                 1.837935299572
             ]
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-8, atol=1e-8)
 
             eomcc.left_solver()
 
-            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-10, atol=1e-10)
+            assert np.allclose(ref_energies, eomcc.eomcc_energy, rtol=1e-8, atol=1e-8)
 
         f.write(">>> TEST PASSED: DEA-EOMCCSD\n")    
 

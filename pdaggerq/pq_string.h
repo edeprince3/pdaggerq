@@ -223,7 +223,7 @@ class pq_string
      * parallelizes the normal ordering that follows.
      *
      */
-    static inline std::vector<char> amplitude_types = {'D'}; //'t', 'l', 'r', 'u', 'm', 's', 'D'};
+    static inline std::vector<char> amplitude_types = {'t', 'l', 'r', 'D'};
 
     void add_amplitude_type(const char type) {
 

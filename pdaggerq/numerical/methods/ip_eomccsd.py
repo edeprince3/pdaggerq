@@ -29,6 +29,7 @@ class IP_EOMCCSD:
             [['a*(i)']],
             R,
             'right_sigma1', 
+            indices = ['i'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -38,6 +39,7 @@ class IP_EOMCCSD:
             [['a*(i)', 'a*(j)', 'a(a)']],
             R,
             'right_sigma2',
+            indices = ['a', 'i', 'j'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -78,6 +80,7 @@ class IP_EOMCCSD:
             L,
             [['a(i)']],
             'left_sigma1', 
+            indices = ['i'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -87,6 +90,7 @@ class IP_EOMCCSD:
             L,
             [['a*(a)', 'a(j)', 'a(i)']],
             'left_sigma2',
+            indices = ['a', 'i', 'j'],
             operator_type = 'IP',
             pq_graph_options = self.pq_graph_options
         )
@@ -115,4 +119,4 @@ class IP_EOMCCSD:
 
 
     def oscillator_strengths(self):
-        raise Exception("oscillator strengths for are not implemented")
+        raise Exception("oscillator strengths are not implemented for IP-EOMCCSD")

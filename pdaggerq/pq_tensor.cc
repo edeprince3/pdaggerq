@@ -44,39 +44,40 @@ void amplitudes::sort() {
         numerical_labels.push_back(numerical_label);
     }
 
+    permutations = 0;
+
+    if (has_permutational_symmetry) {
+
+        // sort labels and accumulate permutations
+        for (size_t step = 1; step < numerical_labels.size(); step++) {
+            
+            bool swapped = false;
+            for (size_t i = 0; i < numerical_labels.size() - step; i++) {
+        
+                // compare elements
+                if (numerical_labels[i] > numerical_labels[i + 1]) {
+        
+                  // swap
+                  int temp = numerical_labels[i];
+                  numerical_labels[i] = numerical_labels[i + 1];
+                  numerical_labels[i + 1] = temp;
+    
+                  // accumulate permutations
+                  permutations++;
+    
+                  swapped = true;
+    
+                }
+            }
+            if ( !swapped ) {
+                break;
+            }
+        }
+    }
     // add number of photons to the numerical labels
     char char_n_ph = '0' + n_ph;
     numerical_labels.push_back((int)char_n_ph);
 
-    permutations = 0;
-
-    if (!has_permutational_symmetry) return;
-
-    // sort labels and accumulate permutations
-    for (size_t step = 1; step < numerical_labels.size(); step++) {
-        
-        bool swapped = false;
-        for (size_t i = 0; i < numerical_labels.size() - step; i++) {
-    
-            // compare elements
-            if (numerical_labels[i] > numerical_labels[i + 1]) {
-    
-              // swap
-              int temp = numerical_labels[i];
-              numerical_labels[i] = numerical_labels[i + 1];
-              numerical_labels[i + 1] = temp;
-
-              // accumulate permutations
-              permutations++;
-
-              swapped = true;
-
-            }
-        }
-        if ( !swapped ) {
-            break;
-        }
-    }
 }
 
 /// copy amplitudes
@@ -140,6 +141,28 @@ std::string amplitudes::to_string(char symbol) const {
     }
 
     val = symbol_s + std::to_string(order);
+
+    // multicomponent amplitudes are distinguished by the species of their indices:
+    // a pure-nuclear amplitude gets the suffix "_n", a mixed electron-nuclear one
+    // "_ep" (nuclear labels carry the 'n' prefix, e.g. "ni"/"na").
+    {
+        size_t n_nuc = 0;
+        for (const std::string & l : labels) if (l.size() > 1 && l[0] == 'n') n_nuc++;
+        if (n_nuc > 0) {
+            if (n_nuc == labels.size()) val += "_n";
+            else {
+                // Mixed. From rank 3 up the order alone does NOT identify the block --
+                // tep21 (2e+1p) and tep12 (1e+2p) are both rank 3, have different shapes,
+                // and can appear in the same equation -- so spell out the split. Rank 2
+                // has only the 1+1 split, so it keeps the plain "_ep" name.
+                val += "_ep";
+                if (order >= 3) {
+                    size_t n_p = n_nuc / 2;
+                    val += std::to_string(order - n_p) + std::to_string(n_p);
+                }
+            }
+        }
+    }
 
     if ( n_ph > 0 ) {
         val += "_" + std::to_string(n_ph) + "p";

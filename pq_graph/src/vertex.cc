@@ -107,6 +107,25 @@ namespace pdaggerq {
         // set base name
         string base_name{type};
         base_name += to_string(order);
+        // multicomponent species suffix, matching pdaggerq::amplitudes::to_string:
+        // "_n" for a pure-nuclear amplitude, "_ep" for a mixed electron-nuclear one
+        {
+            size_t n_nuc = 0;
+            for (const string & l : amp.labels) if (l.size() > 1 && l[0] == 'n') n_nuc++;
+            if (n_nuc > 0) {
+                if (n_nuc == amp.labels.size()) base_name += "_n";
+                else {
+                    // see pdaggerq::amplitudes::to_string: from rank 3 up the order does
+                    // not identify a mixed block, so the electron/proton split is spelled
+                    // out (t3_ep21 vs t3_ep12). Rank 2 keeps the plain "_ep".
+                    base_name += "_ep";
+                    if (order >= 3) {
+                        size_t n_p = n_nuc / 2;
+                        base_name += to_string(order - n_p) + to_string(n_p);
+                    }
+                }
+            }
+        }
         base_name_ = base_name;
         if (amp.n_ph > 0) {
             base_name_ += "_";

@@ -19,7 +19,7 @@ class QED_CCSD_22:
         # Create an empty dictionary to hold the pq-generated equations
         local_namespace = {}
        
-        T = ['t1', 't2', 't0,1', 't1,1', 't2,1', 't0,2', 't1,2', 't2,2']
+        T = ['t1', 't2', 'tb1', 'teb11', 'teb21', 'tb2', 'teb12', 'teb22']
 
         # Generate equations
         cc_energy_func = cc_residual('cc_energy',
@@ -34,6 +34,7 @@ class QED_CCSD_22:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -42,6 +43,7 @@ class QED_CCSD_22:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -58,6 +60,7 @@ class QED_CCSD_22:
             T,
             [['B-','e1(i,a)']],
             't1_1p_residual',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -66,6 +69,7 @@ class QED_CCSD_22:
             T,
             [['B-','e2(i,j,b,a)']],
             't2_1p_residual',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -82,6 +86,7 @@ class QED_CCSD_22:
             T,
             [['B-','B-', 'e1(i,a)']],
             't1_2p_residual',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -90,6 +95,7 @@ class QED_CCSD_22:
             T,
             [['B-', 'B-', 'e2(i,j,b,a)']],
             't2_2p_residual',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -107,13 +113,13 @@ class QED_CCSD_22:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         t0_1p = {
@@ -122,14 +128,14 @@ class QED_CCSD_22:
         }
         t1_1p = {
             'nph' : 1,
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_1p_residual"]
         }
         t2_1p = {
             'nph' : 1,
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_1p_residual"]
         } 
         t0_2p = {
@@ -138,14 +144,14 @@ class QED_CCSD_22:
         }
         t1_2p = {
             'nph' : 2,
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_2p_residual"]
         }
         t2_2p = {
             'nph' : 2,
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_2p_residual"]
         } 
         
@@ -161,12 +167,17 @@ class QED_CCSD_22:
             self.wfn,
             self.mol,
             nfzc = self.nfzc,
+            e_convergence = self.e_convergence,
+            r_convergence = self.r_convergence,
             cc_energy_func = self.cc_energy["cc_energy"],
             is_qed = True,
             T_list = self.T_list,
             cavity_lambda = self.cavity_lambda,
             cavity_frequency= self.cavity_frequency
         )
+        self.efzc = self.cc_solver.efzc
+        self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
+        self.enuc_dse = self.cc_solver.enuc_dse
         
         en = self.cc_solver.t_solver()
 

@@ -126,14 +126,17 @@ void export_pq_helper(py::module& m) {
                 self.block_by_range(label_ranges);
             },
             py::arg("spin_labels") = std::unordered_map<std::string, std::string>() )
+        .def("remove_gep_reference_traces", &pq_helper::remove_gep_reference_traces)
         .def("add_st_operator",
-            [](pq_helper& self, double factor, 
-                                const std::vector<std::string> &targets, 
-                                const std::vector<std::string> &ops, 
-                                bool do_operators_commute) {
-                return self.add_st_operator(factor, targets, ops, do_operators_commute);
+            [](pq_helper& self, double factor,
+                                const std::vector<std::string> &targets,
+                                const std::vector<std::string> &ops,
+                                bool do_operators_commute,
+                                int max_order) {
+                return self.add_st_operator(factor, targets, ops, do_operators_commute, max_order);
             },
-            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true )
+            py::arg("factor"), py::arg("targets"), py::arg("ops"), py::arg("do_operators_commute") = true,
+            py::arg("max_order") = 4 )
         .def("get_st_operator_terms", &pq_helper::get_st_operator_terms)
         .def("add_bernoulli_operator", &pq_helper::add_bernoulli_operator)
         .def("add_anticommutator", &pq_helper::add_anticommutator)
@@ -624,9 +627,14 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
         int count = 0;
         bool found_v = false; // fluctuation potential
         bool found_vn = false; // normal-ordered fluctuation potential
+        bool found_vp = false; // nuclear (proton-proton) fluctuation potential
         std::vector<std::string> tmp_in;
         for (const std::string & op : in) {
-            if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
+            if (op.substr(0, 2) == "vp" || op.substr(0, 2) == "Vp") {
+                // nuclear-nuclear fluctuation potential (checked before the generic v)
+                found_vp = true;
+                break;
+            }else if (op.substr(0, 1) == "v" || op.substr(0, 1) == "V" || op.substr(0, 2) == "v{" || op.substr(0, 2) == "V{") {
                 if (op.substr(1, 1) == "n" || op.substr(1, 1) == "N") {
                     found_vn = true;
                     break;
@@ -638,16 +646,19 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
                 count++;
             }
         }
-        if ( found_v || found_vn ) {
+        if ( found_v || found_vn || found_vp ) {
             done_processing = false;
 
             // get bernoulli operator portions
             std::string op_portions = get_operator_portions_as_string(in[count]);
 
-            if ( found_v ) {
-                // term 1 (j1)
-                std::string v_type = "j1";
-                if ( op_portions.length() > 0 ) { 
+            if ( found_v || found_vp ) {
+                // split into a one-body fold (j1/jp1) and the two-body part (j2/jp2);
+                // the nuclear potential uses the nuclear-labelled "jp" variants.
+                std::string jname = found_vp ? "jp" : "j";
+                // term 1 (j1 / jp1)
+                std::string v_type = jname + "1";
+                if ( op_portions.length() > 0 ) {
                     v_type += "{" + op_portions + "}";
                 }
                 tmp_in.emplace_back(v_type);
@@ -660,13 +671,16 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_fluctuation_po
                 }
                 ops_out.push_back(pq_operator_terms(factor, in));
 
-                // term 2 (j2)
+                // term 2 (j2 / jp2)
                 in.clear();
                 for (int i = 0; i < count; i++) {
                     in.push_back(tmp_in[i]);
                 }
-                v_type[1] = '2';
-                in.emplace_back(v_type);
+                std::string v_type2 = jname + "2";
+                if ( op_portions.length() > 0 ) {
+                    v_type2 += "{" + op_portions + "}";
+                }
+                in.emplace_back(v_type2);
                 for (int i = count + 1; i < (int)tmp_in.size(); i++) {
                     in.push_back(tmp_in[i]);
                 }
@@ -833,7 +847,12 @@ std::pair<bool,std::vector<pq_operator_terms>> pq_helper::process_cluster_amplit
         bool found_t = false;
         for (size_t i = 0; i < in.size(); i++) {
             if ( in[i].substr(0,1) == "t" || in[i].substr(0,1) == "T" ) {
-                if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" ) {
+                // electron cluster amplitudes ("t<n>") are split into excitation
+                // ("te") / de-excitation ("td") forms here. nuclear ("tp"), boson
+                // ("tb"), and mixed ("tep", "teb") amplitudes are constructed
+                // directly and pass through unsplit.
+                if ( in[i].substr(0,2) != "te" && in[i].substr(0,2) != "td" &&
+                     in[i].substr(0,2) != "tp" && in[i].substr(0,2) != "tb" ) {
                     found_t = true;
                     break;
                 }else {
@@ -877,12 +896,13 @@ struct op_class {
     /// a cluster amplitude, i.e. a pure excitation with no contractable slots
     bool is_amplitude = false;
 
-    /// range of the excitation level this operator can carry
-    int min_level = 0, max_level = 0;
+    /// range of the excitation level this operator can carry, per species
+    int e_min = 0, e_max = 0;
+    int p_min = 0, p_max = 0;
 
     /// number of quasi-annihilator slots -- a^(occupied) or a(virtual) -- that a
-    /// cluster amplitude can contract with
-    int legs = 0;
+    /// cluster amplitude can contract with, per species
+    int e_legs = 0, p_legs = 0;
 };
 
 /// the trailing integer of an operator name, e.g. rank_suffix("t2", 1) -> 2.
@@ -929,43 +949,63 @@ op_class classify_e_operator(const std::string &op) {
     // holes = #(occupied annihilators) - #(occupied creators). the excitation level
     // is half their sum; the contractable slots are the occupied creators and the
     // virtual annihilators.
-    int particles = 0, holes = 0, legs = 0;
+    int particles[2] = {0, 0}, holes[2] = {0, 0}, legs[2] = {0, 0};
     for (size_t i = 0; i < labels.size(); i++) {
         const std::string &idx = labels[i];
+        int sp = is_nuclear(idx) ? 1 : 0;
         bool creator = (int)i < rank;
         if ( is_vir(idx) ) {
-            particles += creator ? 1 : -1;
-            if ( !creator ) legs++;
+            particles[sp] += creator ? 1 : -1;
+            if ( !creator ) legs[sp]++;
         }else if ( is_occ(idx) ) {
-            holes += creator ? -1 : 1;
-            if ( creator ) legs++;
+            holes[sp] += creator ? -1 : 1;
+            if ( creator ) legs[sp]++;
         }else return c; // general label: level undetermined
     }
 
-    if ( (particles + holes) % 2 != 0 ) return c;
+    if ( (particles[0] + holes[0]) % 2 != 0 ) return c;
+    if ( (particles[1] + holes[1]) % 2 != 0 ) return c;
 
     c.known = true;
-    c.min_level = c.max_level = (particles + holes) / 2;
-    c.legs = legs;
+    c.e_min = c.e_max = (particles[0] + holes[0]) / 2;
+    c.p_min = c.p_max = (particles[1] + holes[1]) / 2;
+    c.e_legs = legs[0];
+    c.p_legs = legs[1];
 
     return c;
 }
 
-/// classify a cluster amplitude name, e.g. "t2" or "l2".
+/// classify an amplitude name of the form <lead>[p<M> | ep<N><M> | <N>], e.g.
+/// "t2" (2 electrons), "tp1" (1 nucleus), "tep21" (2 electrons + 1 nucleus).
 /// @p sign is +1 for excitations (t) and -1 for de-excitations (l).
 op_class classify_amplitude(const std::string &op, int sign) {
 
     op_class c;
 
-    int rank = rank_suffix(op, 1);
-    if ( rank < 1 ) return c;
+    int e_rank = 0, p_rank = 0;
+    if ( op.compare(1, 2, "ep") == 0 ) {
+        // tep<N><M> / lep<N><M>: single-digit electron and nuclear ranks
+        if ( op.size() != 5 ) return c;
+        if ( op[3] < '1' || op[3] > '9' || op[4] < '1' || op[4] > '9' ) return c;
+        e_rank = op[3] - '0';
+        p_rank = op[4] - '0';
+    }else if ( op.compare(1, 1, "p") == 0 ) {
+        p_rank = rank_suffix(op, 2);
+        if ( p_rank < 1 ) return c;
+    }else {
+        e_rank = rank_suffix(op, 1);
+        if ( e_rank < 1 ) return c;
+    }
 
     c.known = true;
     c.is_amplitude = sign > 0;
-    c.min_level = c.max_level = sign * rank;
-
-    // a de-excitation operator is all quasi-annihilators
-    if ( sign < 0 ) c.legs = 2 * rank;
+    c.e_min = c.e_max = sign * e_rank;
+    c.p_min = c.p_max = sign * p_rank;
+    if ( sign < 0 ) {
+        // a de-excitation operator is all quasi-annihilators
+        c.e_legs = 2 * e_rank;
+        c.p_legs = 2 * p_rank;
+    }
 
     return c;
 }
@@ -978,21 +1018,26 @@ op_class classify_operator(const std::string &op) {
 
     // one- and two-body operators carry an undetermined excitation level: a
     // k-body operator ranges over [-k, k] and offers 2k contractable slots.
-    auto body = [&c](int n_body) {
+    auto body = [&c](int e_body, int p_body) {
         c.known = true;
-        c.min_level = -n_body;
-        c.max_level = n_body;
-        c.legs = 2 * n_body;
+        c.e_min = -e_body; c.e_max = e_body; c.e_legs = 2 * e_body;
+        c.p_min = -p_body; c.p_max = p_body; c.p_legs = 2 * p_body;
     };
 
     if ( op.empty() || op == "1" ) {
         c.known = true;
     }else if ( op == "h" || op == "f" || op == "j1" ) {
-        body(1);                        // one-body
+        body(1, 0);                     // one-body, electronic
     }else if ( op == "g" || op == "v" || op == "j2" ) {
-        body(2);                        // two-body
+        body(2, 0);                     // two-body, electronic
+    }else if ( op == "fp" || op == "jp1" ) {
+        body(0, 1);                     // one-body, nuclear
+    }else if ( op == "vp" || op == "jp2" ) {
+        body(0, 2);                     // two-body, nuclear
+    }else if ( op == "gep" ) {
+        body(1, 1);                     // one electron and one nucleus
     }else if ( op == "d+" || op == "d-" ) {
-        body(1);                        // dipole (one-body) times a boson operator
+        body(1, 0);                     // dipole (one-body) times a boson operator
     }else if ( op == "w0" || op == "b+" || op == "b-" ) {
         c.known = true;                 // purely bosonic
     }else if ( op[0] == 't' ) {
@@ -1020,29 +1065,30 @@ void pq_helper::screen_operator_products(std::vector<pq_operator_terms> &ops, bo
     // accumulated excitation level of the bra and the ket. a term needs only one
     // pair of them to balance, so the widest range over all of them is what a
     // product has to fit into.
-    int outer_min = 0, outer_max = 0;
+    int outer_e_min = 0, outer_e_max = 0, outer_p_min = 0, outer_p_max = 0;
     for (const std::vector<std::vector<std::string>> *side : {&left_operators, &right_operators}) {
         if ( side->empty() ) continue;
-        int side_min = 0, side_max = 0;
+        int side_e_min = 0, side_e_max = 0, side_p_min = 0, side_p_max = 0;
         bool side_first = true;
         for (const std::vector<std::string> &alternative : *side) {
-            int min_level = 0, max_level = 0;
+            int e_min = 0, e_max = 0, p_min = 0, p_max = 0;
             for (const std::string &op : alternative) {
                 op_class c = classify_operator(op);
                 if ( !c.known ) return;
-                min_level += c.min_level;
-                max_level += c.max_level;
+                e_min += c.e_min; e_max += c.e_max;
+                p_min += c.p_min; p_max += c.p_max;
             }
             if ( side_first ) {
-                side_min = min_level; side_max = max_level;
+                side_e_min = e_min; side_e_max = e_max;
+                side_p_min = p_min; side_p_max = p_max;
                 side_first = false;
             }else {
-                side_min = std::min(side_min, min_level);
-                side_max = std::max(side_max, max_level);
+                side_e_min = std::min(side_e_min, e_min); side_e_max = std::max(side_e_max, e_max);
+                side_p_min = std::min(side_p_min, p_min); side_p_max = std::max(side_p_max, p_max);
             }
         }
-        outer_min += side_min;
-        outer_max += side_max;
+        outer_e_min += side_e_min; outer_e_max += side_e_max;
+        outer_p_min += side_p_min; outer_p_max += side_p_max;
     }
 
     std::vector<pq_operator_terms> kept;
@@ -1050,29 +1096,38 @@ void pq_helper::screen_operator_products(std::vector<pq_operator_terms> &ops, bo
 
     for (const pq_operator_terms &term : ops) {
 
-        int min_level = outer_min, max_level = outer_max;
+        int e_min = outer_e_min, e_max = outer_e_max;
+        int p_min = outer_p_min, p_max = outer_p_max;
 
         // contractable slots offered by the target block, and the cluster
         // amplitudes that have to fit into them
-        int legs = 0, n_amplitudes = 0;
+        int e_legs = 0, p_legs = 0;
+        int e_only = 0, p_only = 0, either = 0;
 
         bool screenable = true;
         for (const std::string &op : term.operators) {
             op_class c = classify_operator(op);
             if ( !c.known ) { screenable = false; break; }
-            min_level += c.min_level;
-            max_level += c.max_level;
-            if ( c.is_amplitude ) n_amplitudes++;
-            else                  legs += c.legs;
+            e_min += c.e_min; e_max += c.e_max;
+            p_min += c.p_min; p_max += c.p_max;
+            if ( c.is_amplitude ) {
+                if ( c.e_max > 0 && c.p_max > 0 )  either++;
+                else if ( c.e_max > 0 )            e_only++;
+                else if ( c.p_max > 0 )            p_only++;
+            }else {
+                e_legs += c.e_legs;
+                p_legs += c.p_legs;
+            }
         }
         if ( !screenable ) return;
 
         // 1. excitation balance
-        if ( min_level > 0 || max_level < 0 ) continue;
+        if ( e_min > 0 || e_max < 0 || p_min > 0 || p_max < 0 ) continue;
 
         // 2. connectivity: every amplitude of a nested commutator has to contract
         //    with the target block, and amplitudes never contract with each other
-        if ( connected && n_amplitudes > legs ) continue;
+        if ( connected && ( e_only > e_legs || p_only > p_legs ||
+                            e_only + p_only + either > e_legs + p_legs ) ) continue;
 
         kept.push_back(term);
     }
@@ -1207,14 +1262,7 @@ void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
 
 void pq_helper::consolidate_running_terms() {
 
-    // apply delta functions and canonicalize labels so that equivalent terms
-    // acquire matching signatures (mirrors the per-string portion of simplify()).
-    for (std::shared_ptr<pq_string> & pq_str : ordered) {
-        if ( pq_str->skip ) continue;
-        gobble_deltas(pq_str);
-        reclassify_integrals(pq_str);
-        use_conventional_labels(pq_str);
-    }
+    //return;
 
     // keep only fully contracted, non-skipped strings (mirrors the FERMI prune
     // in cleanup(); terms that are not fully contracted never survive simplify()).
@@ -1224,10 +1272,21 @@ void pq_helper::consolidate_running_terms() {
         if ( pq_str->skip ) continue;
         if ( !pq_str->symbol.empty() ) continue;
         if ( !pq_str->is_boson_dagger.empty() ) continue;
-        pq_str->sort(); // sets the key used by consolidate_permutations_plus_swaps
         pruned.push_back(pq_str);
     }
     ordered = pruned;
+
+    // apply delta functions and canonicalize labels so that equivalent terms
+    // acquire matching signatures (mirrors the per-string portion of simplify()).
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        gobble_deltas(pq_str);
+        reclassify_integrals(pq_str);
+        canonicalize_labels(pq_str);
+    }
+
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
+        pq_str->sort(); // sets the key used by consolidate_permutations_plus_swaps
+    }
 
     // combine terms that are equal up to swaps of (up to two) summed labels.
     // this is the same sequence cleanup() uses, but without the subsequent
@@ -1236,11 +1295,13 @@ void pq_helper::consolidate_running_terms() {
     static const std::vector<std::string> vir_labels { "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F" };
 
     consolidate_permutations_plus_swaps(ordered, {});
+/*
     consolidate_permutations_plus_swaps(ordered, {occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, occ_labels});
     consolidate_permutations_plus_swaps(ordered, {vir_labels, vir_labels});
     consolidate_permutations_plus_swaps(ordered, {occ_labels, vir_labels});
+*/
 
     // drop the terms that were merged away so their memory is released
     std::vector<std::shared_ptr<pq_string> > kept;
@@ -1439,7 +1500,6 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
 
                 while (std::getline(ss, segment, ',')) {
                     if (!segment.empty()) {
-                        labels.size();
                         labels.push_back(segment);
                     }
                 }
@@ -1467,10 +1527,22 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             // integrals
             newguy->set_integrals("core", {idx1, idx2}, op_portions);
     
+        }else if (op.substr(0, 2) == "fp" || op.substr(0, 2) == "Fp") { // nuclear (proton) fock operator
+
+            // one-body operator over the nuclear space; general nuclear labels (np#)
+            // expand to nuclear occupied/virtual and never mix with electron labels
+            std::string idx1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2);
+
+            newguy->set_integrals("fock", {idx1, idx2}, op_portions);
+
         }else if (op.substr(0, 1) == "f" || op.substr(0, 1) == "F") { // fock operator
-  
+
             // normal ordered or not?
-            if ( op.size() == 1 ) { 
+            if ( op.size() == 1 ) {
                 std::string idx1 = "p" + std::to_string(gen_label_count++);
                 std::string idx2 = "p" + std::to_string(gen_label_count++);
     
@@ -1546,24 +1618,83 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
             // boson operator
             newguy->is_boson_dagger.push_back(false);
     
+        }else if (op.substr(0, 3) == "gep" || op.substr(0, 3) == "Gep") { // electron-nuclear (e-p) two-body operator
+
+            // non-antisymmetrized two-body operator coupling one electron and one
+            // nuclear particle: a^+(e) a^+(n) a(n) a(e). electrons and nuclei do not
+            // exchange, so this integral has no antisymmetrizer between the species.
+            //
+            // CHARGE CONVENTION: gep carries NO built-in sign. The integral "g" IS the
+            // signed interaction, g = q_e q_x V_ex (V_ex = bare positive Coulomb, q in
+            // units of e). The caller therefore supplies
+            //     g = -Z_x V_ex      (Z_x = second species' charge; q_e = -1)
+            // so the equations are charge-independent and serve protons (Z=+1, attractive),
+            // positrons (Z=+1, attractive) and negative muons (Z=-1, repulsive) alike --
+            // the sign is a property of the integral, not of the derivation.
+            // (Previously this multiplied by -1, hardcoding Z_x = +1 and forcing an
+            // attractive e-p interaction; cf. Pavosevic, Culpitt, Hammes-Schiffer,
+            // J. Chem. Theory Comput. 2019, 15, 338, eq 1, which writes the proton case.)
+
+            std::string e1 =                              "p" + std::to_string(gen_label_count++);
+            std::string n1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string n2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string e2 =                              "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(e1+"*");
+            tmp_string.push_back(n1+"*");
+            tmp_string.push_back(n2);
+            tmp_string.push_back(e2);
+
+            // <e1 n1 | e2 n2>
+            newguy->set_integrals("two_body", {e1, n1, e2, n2}, op_portions);
+
         }else if (op.substr(0, 1) == "g" || op.substr(0, 1) == "G") { // general two-electron operator
-    
+
             //factor *= 0.25;
-    
+
             std::string idx1 = "p" + std::to_string(gen_label_count++);
             std::string idx2 = "p" + std::to_string(gen_label_count++);
             std::string idx3 = "p" + std::to_string(gen_label_count++);
             std::string idx4 = "p" + std::to_string(gen_label_count++);
-    
+
             tmp_string.push_back(idx1+"*");
             tmp_string.push_back(idx2+"*");
             tmp_string.push_back(idx3);
             tmp_string.push_back(idx4);
-    
+
             newguy->set_integrals("two_body", {idx1, idx2, idx4, idx3}, op_portions);
     
+        }else if (op.substr(0, 3) == "jp1" || op.substr(0, 3) == "Jp1") { // nuclear fluctuation potential, one-body fold
+
+            factor *= -1.0;
+
+            std::string idx1 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = std::string(1, nuclear_prefix) + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2);
+
+            newguy->set_integrals("occ_repulsion", {idx1, idx2}, op_portions);
+
+        }else if (op.substr(0, 3) == "jp2" || op.substr(0, 3) == "Jp2") { // nuclear fluctuation potential, two-body (antisymmetrized)
+
+            factor *= 0.25;
+
+            std::string np = std::string(1, nuclear_prefix);
+            std::string idx1 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx2 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx3 = np + "p" + std::to_string(gen_label_count++);
+            std::string idx4 = np + "p" + std::to_string(gen_label_count++);
+
+            tmp_string.push_back(idx1+"*");
+            tmp_string.push_back(idx2+"*");
+            tmp_string.push_back(idx3);
+            tmp_string.push_back(idx4);
+
+            newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
+
         }else if (op.substr(0, 1) == "j" || op.substr(0, 1) == "J") { // fluctuation potential
-    
+
             if (op.substr(1, 1) == "1" ){
     
                 factor *= -1.0;
@@ -1677,11 +1808,111 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 newguy->set_integrals("eri", {idx1, idx2, idx4, idx3}, op_portions);
             }
     
+        }else if (op.substr(0, 3) == "tep" || op.substr(0, 3) == "Tep") {
+            // mixed electron-nuclear cluster amplitude "tep<ne><np>": excitation only.
+            // ne electron particle-hole pairs and np nuclear pairs.
+            int ne = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            for (int id = 0; id < ne; id++) {
+                std::string v = "v" + std::to_string(vir_label_count++);
+                std::string o = "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            // 1/(ne!)^2 1/(np!)^2 : independent electron and nuclear antisymmetrizers
+            double fe = 1.0, fn = 1.0;
+            for (int id = 0; id < ne; id++) fe *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / (fe*fe) / (fn*fn);
+
+            int n = ne + nn;
+            newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "tp" || op.substr(0, 2) == "Tp") {
+            // nuclear cluster amplitude "tp<n>": n nuclear particle-hole pairs (excitation)
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                tmp_string.push_back(v+"*");
+                labels_l.push_back(v); labels_r.push_back(o);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "teb" || op.substr(0, 3) == "Teb") {
+            // mixed electron-boson cluster amplitude "teb<ne><nb>": excitation
+            // only. ne electron particle-hole pairs and nb boson creation
+            // operators. mirror of "tep".
+            int ne = op.at(3) - '0';
+            int nb = op.at(4) - '0';
+
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            for (int id = 0; id < ne; id++) {
+                std::string v = "v" + std::to_string(vir_label_count++);
+                std::string o = "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            // 1/(ne!)^2: electron antisymmetrizer
+            double fe = 1.0;
+            for (int id = 0; id < ne; id++) fe *= (id+1);
+            factor *= 1.0 / (fe*fe);
+
+            newguy->set_amplitudes('t', ne, ne, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "tb" || op.substr(0, 2) == "Tb") {
+            // pure boson cluster amplitude "tb<nb>": nb boson creation operators,
+            // no electrons. mirror of "tp".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('t', 0, 0, nb, labels, op_portions);
+
         }else if (op.substr(0, 1) == "t"){
-    
+
             int n = std::stoi(op.substr(2));
             std::vector<std::string> labels;
-    
+
             if ( n == 0 ){
     
                 // nothing to do
@@ -1757,26 +1988,9 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 }
                 factor *= 1.0 / my_factor / my_factor;
             }
-    
-            int n_ph = 0;
-            if (op.size() > 3 ) {
-                if ( op.substr(3,1) == ",") {
-                    n_ph = std::stoi(op.substr(4));
-                    if ( op.substr(0,2) == "te" ) {
-                        // excitation
-                        for (int ph = 0; ph < n_ph; ph++) {
-                            newguy->is_boson_dagger.push_back(true);
-                        }
-                    }else if ( op.substr(0,2) == "td" ) {
-                        // de-excitation
-                        for (int ph = 0; ph < n_ph; ph++) {
-                            newguy->is_boson_dagger.push_back(false);
-                        }
-                    }
-                }
-            }
-            newguy->set_amplitudes('t', n, n, n_ph, labels, op_portions);
-    
+
+            newguy->set_amplitudes('t', n, n, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "w" || op.substr(0, 1) == "W"){ // w0 B*B
     
             if (op.substr(1, 1) == "0" ){
@@ -1801,25 +2015,157 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
     
                 newguy->is_boson_dagger.push_back(false);
     
-        }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
-    
-    
-            int n = std::stoi(op.substr(1));
+        }else if (op.substr(0, 3) == "reb" || op.substr(0, 3) == "Reb") {
+            // mixed electron-boson right-hand operator "reb<n><nb>": n electron
+            // particle-hole pairs (adjusted for IP/EA/DIP/DEA) and nb boson
+            // creation operators. mirror of "teb"; r has no de-excitation form.
+            int n  = op.at(3) - '0';
+            int nb = op.at(4) - '0';
             int n_annihilate = n;
             int n_create     = n;
             std::vector<std::string> labels;
-    
-            if ( n == 0 ){
-    
-                // nothing to do
-    
-            }else {
-    
+
+            if ( n > 0 ) {
                 if ( right_operators_type == "IP" ) n_create--;
                 if ( right_operators_type == "DIP" ) n_create -= 2;
                 if ( right_operators_type == "EA" ) n_annihilate--;
                 if ( right_operators_type == "DEA" ) n_annihilate -= 2;
-    
+
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('r', n_create, n_annihilate, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "rb" || op.substr(0, 2) == "Rb") {
+            // pure boson right-hand operator "rb<nb>": nb boson creation
+            // operators, no electrons. mirror of "tb".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('r', 0, 0, nb, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "rep" || op.substr(0, 3) == "Rep") {
+            // mixed electron-nuclear right-hand operator "rep<n><np>": n electron
+            // particle-hole pairs (adjusted for IP/EA/DIP/DEA) and np nuclear
+            // pairs. mirror of "tep": creators (electron then nuclear) are all
+            // pushed before annihilators (electron then nuclear) -- the fermion
+            // sign depends on this relative order, so it must match "tep" exactly.
+            int n  = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            if ( n > 0 ) {
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+
+                for (int id = 0; id < n_create; id++) {
+                    std::string v = "v" + std::to_string(vir_label_count++);
+                    creators.push_back(v+"*");
+                    labels_l.push_back(v);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string o = "o" + std::to_string(occ_label_count++);
+                    annihilators.push_back(o);
+                    labels_r.push_back(o);
+                }
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double my_factor_create = 1.0, my_factor_annihilate = 1.0, fn = 1.0;
+            for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+            for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / my_factor_create / my_factor_annihilate / (fn*fn);
+
+            newguy->set_amplitudes('r', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "rp" || op.substr(0, 2) == "Rp") {
+            // pure nuclear right-hand operator "rp<np>": np nuclear
+            // particle-hole pairs, no electrons. mirror of "tp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                tmp_string.push_back(v+"*");
+                labels_l.push_back(v); labels_r.push_back(o);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('r', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 1) == "r" || op.substr(0, 1) == "R"){
+
+
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+
+            if ( n == 0 ){
+
+                // nothing to do
+
+            }else {
+
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+
                 std::vector<std::string> op_left;
                 std::vector<std::string> op_right;
                 std::vector<std::string> label_left;
@@ -1842,7 +2188,7 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 for (int id = 0; id < n_annihilate; id++) {
                     tmp_string.push_back(op_right[id]);
                 }
-    
+
                 // tn(ab...
                 for (int id = 0; id < n_create; id++) {
                     labels.push_back(label_left[id]);
@@ -1851,7 +2197,7 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 for (int id = n_annihilate-1; id >= 0; id--) {
                     labels.push_back(label_right[id]);
                 }
-    
+
                 // factor = 1/(n!)^2
                 double my_factor_create = 1.0;
                 double my_factor_annihilate = 1.0;
@@ -1863,36 +2209,103 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                 }
                 factor *= 1.0 / my_factor_create / my_factor_annihilate;
             }
-    
-            int n_ph = 0;
-            if (op.size() > 2 ) {
-                if ( op.substr(2,1) == ",") {
-                    n_ph = std::stoi(op.substr(3));
-                    for (int ph = 0; ph < n_ph; ph++) {
-                        newguy->is_boson_dagger.push_back(true);
-                    }
-                }
-            }
-            newguy->set_amplitudes('r', n_create, n_annihilate, n_ph, labels, op_portions);
-    
-        }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
-    
-            int n = std::stoi(op.substr(1));
-            int n_annihilate = n;
-            int n_create     = n;
-            std::vector<std::string> labels;
-    
-            if ( n == 0 ){
-    
-                // nothing to do
-    
-            }else {
-                
+
+            newguy->set_amplitudes('r', n_create, n_annihilate, 0, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "lep" || op.substr(0, 3) == "Lep") {
+            // mixed electron-nuclear left-hand amplitude "lep<ne><np>": ne electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA -- lep serves as both
+            // the ground-state lambda amplitude and the left EOM amplitude, exactly
+            // like bare "l") and np nuclear pairs. mirror of "tep"/"yep": creators
+            // (electron then nuclear) are all pushed before annihilators (electron
+            // then nuclear) -- the fermion sign depends on this relative order, so
+            // it must match "tep" exactly.
+            int ne = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+            int n_annihilate = ne;
+            int n_create     = ne;
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            if ( ne > 0 ) {
                 if ( left_operators_type == "IP" ) n_annihilate--;
                 if ( left_operators_type == "DIP" ) n_annihilate -= 2;
                 if ( left_operators_type == "EA" ) n_create--;
                 if ( left_operators_type == "DEA" ) n_create -= 2;
-    
+
+                for (int id = 0; id < n_create; id++) {
+                    std::string o = "o" + std::to_string(occ_label_count++);
+                    creators.push_back(o+"*");
+                    labels_l.push_back(o);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string v = "v" + std::to_string(vir_label_count++);
+                    annihilators.push_back(v);
+                    labels_r.push_back(v);
+                }
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                creators.push_back(o+"*"); annihilators.push_back(v);
+                labels_l.push_back(o);     labels_r.push_back(v);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double my_factor_create = 1.0, my_factor_annihilate = 1.0, fn = 1.0;
+            for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+            for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / my_factor_create / my_factor_annihilate / (fn*fn);
+
+            newguy->set_amplitudes('l', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "lp" || op.substr(0, 2) == "Lp") {
+            // nuclear lambda (de-excitation) amplitude "lp<n>": n nuclear hole-particle
+            // pairs. mirror of "tp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                tmp_string.push_back(o+"*");
+                labels_l.push_back(o); labels_r.push_back(v);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('l', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "leb" || op.substr(0, 3) == "Leb") {
+            // mixed electron-boson left-hand amplitude "leb<ne><nb>": ne electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA -- leb serves as both
+            // the ground-state lambda amplitude and the left EOM amplitude, exactly
+            // like bare "l") and nb boson annihilation operators. mirror of "yeb".
+            int ne = op.at(3) - '0';
+            int nb = op.at(4) - '0';
+            int n_annihilate = ne;
+            int n_create     = ne;
+            std::vector<std::string> labels;
+
+            if ( ne > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+
                 std::vector<std::string> op_left;
                 std::vector<std::string> op_right;
                 std::vector<std::string> label_left;
@@ -1907,126 +2320,34 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                     op_right.push_back(idx2);
                     label_right.push_back(idx2);
                 }
-                // op*j*...
-                for (int id = 0; id < n_create; id++) {
-                    tmp_string.push_back(op_left[id]);
-                }
-                // ab...
-                for (int id = 0; id < n_annihilate; id++) {
-                    tmp_string.push_back(op_right[id]);
-                }
-    
-                // tn(ij... 
-                for (int id = 0; id < n_create; id++) {
-                    labels.push_back(label_left[id]);
-                }
-                // tn(ij......ba)
-                for (int id = n_annihilate-1; id >= 0; id--) {
-                    labels.push_back(label_right[id]);
-                }
-                
-                // factor = 1/(n!)^2
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
                 double my_factor_create = 1.0;
                 double my_factor_annihilate = 1.0;
-                for (int id = 0; id < n_create; id++) {
-                    my_factor_create *= (id+1);
-                }
-                for (int id = 0; id < n_annihilate; id++) {
-                    my_factor_annihilate *= (id+1);
-                }
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
                 factor *= 1.0 / my_factor_create / my_factor_annihilate;
-            
             }
-    
-            int n_ph = 0;
-            if (op.size() > 2 ) {
-                if ( op.substr(2,1) == ",") {
-                    n_ph = std::stoi(op.substr(3));
-                    for (int ph = 0; ph < n_ph; ph++) {
-                        newguy->is_boson_dagger.push_back(false);
-                    }
-                }
-            }
-            newguy->set_amplitudes('l', n_create, n_annihilate, n_ph, labels, op_portions);
-    
-        }else if (op.substr(0, 1) == "x" || op.substr(0, 1) == "X"){
-   
-            // more right-hand operators 
-    
-            int n = std::stoi(op.substr(1));
-            int n_annihilate = n;
-            int n_create     = n;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
+
+            newguy->set_amplitudes('l', n_create, n_annihilate, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "lb" || op.substr(0, 2) == "Lb") {
+            // pure boson lambda amplitude "lb<nb>": nb boson annihilation
+            // operators, no electrons. mirror of "tb".
+            int nb = std::stoi(op.substr(2));
             std::vector<std::string> labels;
-    
-            if ( n == 0 ){
-    
-                // nothing to do
-    
-            }else {
-    
-                if ( right_operators_type == "IP" ) n_create--;
-                if ( right_operators_type == "DIP" ) n_create -= 2;
-                if ( right_operators_type == "EA" ) n_annihilate--;
-                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
-    
-                std::vector<std::string> op_left;
-                std::vector<std::string> op_right;
-                std::vector<std::string> label_left;
-                std::vector<std::string> label_right;
-                for (int id = 0; id < n_create; id++) {
-                    std::string idx1 = "v" + std::to_string(vir_label_count++);
-                    op_left.push_back(idx1+"*");
-                    label_left.push_back(idx1);
-                }
-                for (int id = 0; id < n_annihilate; id++) {
-                    std::string idx2 = "o" + std::to_string(occ_label_count++);
-                    op_right.push_back(idx2);
-                    label_right.push_back(idx2);
-                }
-                // a*b*...
-                for (int id = 0; id < n_create; id++) {
-                    tmp_string.push_back(op_left[id]);
-                }
-                // ij...
-                for (int id = 0; id < n_annihilate; id++) {
-                    tmp_string.push_back(op_right[id]);
-                }
-    
-                // tn(ab...
-                for (int id = 0; id < n_create; id++) {
-                    labels.push_back(label_left[id]);
-                }
-                // tn(ab......ji)
-                for (int id = n_annihilate-1; id >= 0; id--) {
-                    labels.push_back(label_right[id]);
-                }
-    
-                // factor = 1/(n!)^2
-                double my_factor_create = 1.0;
-                double my_factor_annihilate = 1.0;
-                for (int id = 0; id < n_create; id++) {
-                    my_factor_create *= (id+1);
-                }
-                for (int id = 0; id < n_annihilate; id++) {
-                    my_factor_annihilate *= (id+1);
-                }
-                factor *= 1.0 / my_factor_create / my_factor_annihilate;
-            }
-    
-            int n_ph = 0;
-            if (op.size() > 2 ) {
-                if ( op.substr(2,1) == ",") {
-                    n_ph = std::stoi(op.substr(3));
-                    for (int ph = 0; ph < n_ph; ph++) {
-                        newguy->is_boson_dagger.push_back(true);
-                    }
-                }
-            }
-            newguy->set_amplitudes('x', n_create, n_annihilate, n_ph, labels, op_portions);
-    
-        }else if (op.substr(0, 1) == "y" || op.substr(0, 1) == "Y"){
-    
-            // more left-hand operators 
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
+
+            newguy->set_amplitudes('l', 0, 0, nb, labels, op_portions);
+
+        }else if (op.substr(0, 1) == "l" || op.substr(0, 1) == "L"){
 
             int n = std::stoi(op.substr(1));
             int n_annihilate = n;
@@ -2086,20 +2407,410 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
                     my_factor_annihilate *= (id+1);
                 }
                 factor *= 1.0 / my_factor_create / my_factor_annihilate;
-            
+
             }
-    
-            int n_ph = 0;
-            if (op.size() > 2 ) {
-                if ( op.substr(2,1) == ",") {
-                    n_ph = std::stoi(op.substr(3));
-                    for (int ph = 0; ph < n_ph; ph++) {
-                        newguy->is_boson_dagger.push_back(false);
-                    }
+
+            newguy->set_amplitudes('l', n_create, n_annihilate, 0, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "xeb" || op.substr(0, 3) == "Xeb") {
+            // mixed electron-boson right-hand operator "xeb<n><nb>": n electron
+            // particle-hole pairs (adjusted for IP/EA/DIP/DEA) and nb boson
+            // creation operators. mirror of "reb".
+            int n  = op.at(3) - '0';
+            int nb = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+
+            if ( n > 0 ) {
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('x', n_create, n_annihilate, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "xb" || op.substr(0, 2) == "Xb") {
+            // pure boson right-hand operator "xb<nb>": nb boson creation
+            // operators, no electrons. mirror of "rb".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(true);
+
+            newguy->set_amplitudes('x', 0, 0, nb, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "xep" || op.substr(0, 3) == "Xep") {
+            // mixed electron-nuclear right-hand operator "xep<n><np>": n electron
+            // particle-hole pairs (adjusted for IP/EA/DIP/DEA) and np nuclear
+            // pairs. mirror of "tep"/"rep": creators (electron then nuclear) are
+            // all pushed before annihilators (electron then nuclear) -- the
+            // fermion sign depends on this relative order, so it must match "tep"
+            // exactly.
+            int n  = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            if ( n > 0 ) {
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+
+                for (int id = 0; id < n_create; id++) {
+                    std::string v = "v" + std::to_string(vir_label_count++);
+                    creators.push_back(v+"*");
+                    labels_l.push_back(v);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string o = "o" + std::to_string(occ_label_count++);
+                    annihilators.push_back(o);
+                    labels_r.push_back(o);
                 }
             }
-            newguy->set_amplitudes('y', n_create, n_annihilate, n_ph, labels, op_portions);
+            for (int id = 0; id < nn; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                creators.push_back(v+"*"); annihilators.push_back(o);
+                labels_l.push_back(v);     labels_r.push_back(o);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double my_factor_create = 1.0, my_factor_annihilate = 1.0, fn = 1.0;
+            for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+            for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / my_factor_create / my_factor_annihilate / (fn*fn);
+
+            newguy->set_amplitudes('x', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "xp" || op.substr(0, 2) == "Xp") {
+            // pure nuclear right-hand operator "xp<np>": np nuclear
+            // particle-hole pairs, no electrons. mirror of "rp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                tmp_string.push_back(v+"*");
+                labels_l.push_back(v); labels_r.push_back(o);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('x', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 1) == "x" || op.substr(0, 1) == "X"){
+
+            // more right-hand operators
+
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
     
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+    
+                if ( right_operators_type == "IP" ) n_create--;
+                if ( right_operators_type == "DIP" ) n_create -= 2;
+                if ( right_operators_type == "EA" ) n_annihilate--;
+                if ( right_operators_type == "DEA" ) n_annihilate -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "v" + std::to_string(vir_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "o" + std::to_string(occ_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // a*b*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ij...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ab...
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ab......ji)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+    
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+
+            newguy->set_amplitudes('x', n_create, n_annihilate, 0, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "yeb" || op.substr(0, 3) == "Yeb") {
+            // mixed electron-boson left-hand operator "yeb<n><nb>": n electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA) and nb boson
+            // annihilation operators. mirror of "leb".
+            int n  = op.at(3) - '0';
+            int nb = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+
+            if ( n > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                for (int id = 0; id < n_create; id++)     tmp_string.push_back(op_left[id]);
+                for (int id = 0; id < n_annihilate; id++) tmp_string.push_back(op_right[id]);
+
+                for (int id = 0; id < n_create; id++) labels.push_back(label_left[id]);
+                for (int id = n_annihilate-1; id >= 0; id--) labels.push_back(label_right[id]);
+
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+                for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+            }
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
+
+            newguy->set_amplitudes('y', n_create, n_annihilate, nb, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "yb" || op.substr(0, 2) == "Yb") {
+            // pure boson left-hand operator "yb<nb>": nb boson annihilation
+            // operators, no electrons. mirror of "lb".
+            int nb = std::stoi(op.substr(2));
+            std::vector<std::string> labels;
+
+            for (int id = 0; id < nb; id++) newguy->is_boson_dagger.push_back(false);
+
+            newguy->set_amplitudes('y', 0, 0, nb, labels, op_portions);
+
+        }else if (op.substr(0, 3) == "yep" || op.substr(0, 3) == "Yep") {
+            // mixed electron-nuclear left-hand operator "yep<n><np>": n electron
+            // hole-particle pairs (adjusted for IP/EA/DIP/DEA) and np nuclear
+            // pairs. mirror of "tep"/"lep": creators (electron then nuclear) are
+            // all pushed before annihilators (electron then nuclear) -- the
+            // fermion sign depends on this relative order, so it must match "tep"
+            // exactly.
+            int n  = op.at(3) - '0';
+            int nn = op.at(4) - '0';
+            int n_annihilate = n;
+            int n_create     = n;
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> creators, annihilators, labels_l, labels_r, labels;
+
+            if ( n > 0 ) {
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+
+                for (int id = 0; id < n_create; id++) {
+                    std::string o = "o" + std::to_string(occ_label_count++);
+                    creators.push_back(o+"*");
+                    labels_l.push_back(o);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string v = "v" + std::to_string(vir_label_count++);
+                    annihilators.push_back(v);
+                    labels_r.push_back(v);
+                }
+            }
+            for (int id = 0; id < nn; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                creators.push_back(o+"*"); annihilators.push_back(v);
+                labels_l.push_back(o);     labels_r.push_back(v);
+            }
+
+            for (const auto & c : creators)     tmp_string.push_back(c);
+            for (const auto & a : annihilators) tmp_string.push_back(a);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = (int)labels_r.size()-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double my_factor_create = 1.0, my_factor_annihilate = 1.0, fn = 1.0;
+            for (int id = 0; id < n_create; id++)     my_factor_create *= (id+1);
+            for (int id = 0; id < n_annihilate; id++) my_factor_annihilate *= (id+1);
+            for (int id = 0; id < nn; id++) fn *= (id+1);
+            factor *= 1.0 / my_factor_create / my_factor_annihilate / (fn*fn);
+
+            newguy->set_amplitudes('y', n_create+nn, n_annihilate+nn, 0, labels, op_portions);
+
+        }else if (op.substr(0, 2) == "yp" || op.substr(0, 2) == "Yp") {
+            // pure nuclear left-hand operator "yp<np>": np nuclear hole-particle
+            // pairs, no electrons. mirror of "lp".
+            int n = std::stoi(op.substr(2));
+            std::string npfx = std::string(1, nuclear_prefix);
+            std::vector<std::string> labels_l, labels_r, labels;
+
+            for (int id = 0; id < n; id++) {
+                std::string o = npfx + "o" + std::to_string(occ_label_count++);
+                std::string v = npfx + "v" + std::to_string(vir_label_count++);
+                tmp_string.push_back(o+"*");
+                labels_l.push_back(o); labels_r.push_back(v);
+            }
+            for (int id = 0; id < n; id++) tmp_string.push_back(labels_r[id]);
+
+            for (const auto & l : labels_l) labels.push_back(l);
+            for (int id = n-1; id >= 0; id--) labels.push_back(labels_r[id]);
+
+            double f = 1.0;
+            for (int id = 0; id < n; id++) f *= (id+1);
+            factor *= 1.0 / f / f;
+
+            newguy->set_amplitudes('y', n, n, 0, labels, op_portions);
+
+        }else if (op.substr(0, 1) == "y" || op.substr(0, 1) == "Y"){
+
+            // more left-hand operators
+
+            int n = std::stoi(op.substr(1));
+            int n_annihilate = n;
+            int n_create     = n;
+            std::vector<std::string> labels;
+    
+            if ( n == 0 ){
+    
+                // nothing to do
+    
+            }else {
+                
+                if ( left_operators_type == "IP" ) n_annihilate--;
+                if ( left_operators_type == "DIP" ) n_annihilate -= 2;
+                if ( left_operators_type == "EA" ) n_create--;
+                if ( left_operators_type == "DEA" ) n_create -= 2;
+    
+                std::vector<std::string> op_left;
+                std::vector<std::string> op_right;
+                std::vector<std::string> label_left;
+                std::vector<std::string> label_right;
+                for (int id = 0; id < n_create; id++) {
+                    std::string idx1 = "o" + std::to_string(occ_label_count++);
+                    op_left.push_back(idx1+"*");
+                    label_left.push_back(idx1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    std::string idx2 = "v" + std::to_string(vir_label_count++);
+                    op_right.push_back(idx2);
+                    label_right.push_back(idx2);
+                }
+                // op*j*...
+                for (int id = 0; id < n_create; id++) {
+                    tmp_string.push_back(op_left[id]);
+                }
+                // ab...
+                for (int id = 0; id < n_annihilate; id++) {
+                    tmp_string.push_back(op_right[id]);
+                }
+    
+                // tn(ij... 
+                for (int id = 0; id < n_create; id++) {
+                    labels.push_back(label_left[id]);
+                }
+                // tn(ij......ba)
+                for (int id = n_annihilate-1; id >= 0; id--) {
+                    labels.push_back(label_right[id]);
+                }
+                
+                // factor = 1/(n!)^2
+                double my_factor_create = 1.0;
+                double my_factor_annihilate = 1.0;
+                for (int id = 0; id < n_create; id++) {
+                    my_factor_create *= (id+1);
+                }
+                for (int id = 0; id < n_annihilate; id++) {
+                    my_factor_annihilate *= (id+1);
+                }
+                factor *= 1.0 / my_factor_create / my_factor_annihilate;
+
+            }
+
+            newguy->set_amplitudes('y', n_create, n_annihilate, 0, labels, op_portions);
+
         }else if (op.substr(0, 1) == "e" || op.substr(0, 1) == "E"){
     
     
@@ -2294,12 +3005,26 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
     return new_pq_strings;
 }
 
+#include<time.h>
 void pq_helper::simplify() {
 
-    // eliminate strings based on delta functions and use delta functions to alter integral / amplitude labels
+    // prune list so it only contains non-skipped pq_strings
+    std::vector<std::shared_ptr<pq_string> > pruned;
+    pruned.reserve(ordered.size());
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
-
         if ( pq_str->skip ) continue;
+        // for normal order relative to fermi vacuum, i doubt anyone will care 
+        // about terms that aren't fully contracted. so, skip those because this
+        // function is time consuming
+        if (pq_str->vacuum == "FERMI" ) {
+            if ( !pq_str->symbol.empty() ) continue;
+            if ( !pq_str->is_boson_dagger.empty() ) continue;
+        }
+        pruned.push_back(pq_str);
+    }
+    ordered = pruned;
+
+    for (std::shared_ptr<pq_string> & pq_str : ordered) {
 
         // apply delta functions
         gobble_deltas(pq_str);
@@ -2308,13 +3033,15 @@ void pq_helper::simplify() {
         reclassify_integrals(pq_str);
 
         // replace any funny labels that were added with conventional ones
-        use_conventional_labels(pq_str);
+        canonicalize_labels(pq_str);
 
         // eliminate terms based on operator portions (for bernoulli)
         eliminate_operator_portions(pq_str, bernoulli_excitation_level);
+    }
 
-        // if UCC de-excitation amplitudes were transposed, transpose them back
-        if ( is_unitary_cc ) {
+    // if UCC de-excitation amplitudes were transposed, transpose them back
+    if ( is_unitary_cc ) {
+        for (std::shared_ptr<pq_string> & pq_str : ordered) {
             // relabel amplitudes t(i, a) -> t(a, i)
             for (size_t j = 0; j < pq_str->amps['t'].size(); j++) {
                 // check if first label is occupied or not. if so, reverse order and flip sign
@@ -2324,10 +3051,10 @@ void pq_helper::simplify() {
                 }
             }
         }
-
-        // replace creation / annihilation operators with rdms
-        if ( use_rdms ) {
-
+    }
+    // replace creation / annihilation operators with rdms
+    if ( use_rdms ) {
+        for (std::shared_ptr<pq_string> & pq_str : ordered) {
             size_t n = pq_str->symbol.size();
             size_t n_create = 0;
             size_t n_annihilate = 0;
@@ -2335,14 +3062,14 @@ void pq_helper::simplify() {
                 if ( pq_str->is_dagger[i] ) n_create++;
                 else                        n_annihilate++;
             }
-
+    
             if ( n_create != n_annihilate ) {
                 printf("\n");
                 printf("    error: rdms not defined for this case\n");
                 printf("\n");
                 exit(1);
-            }
-
+            }   
+    
             std::vector<std::string> rdm_labels;
             for (size_t i = 0; i < n_create; i++) {
                 rdm_labels.push_back(pq_str->symbol[i]);
@@ -2350,7 +3077,7 @@ void pq_helper::simplify() {
             for (size_t i = 0; i < n_annihilate; i++) {
                 rdm_labels.push_back(pq_str->symbol[n - i - 1]);
             }
-
+    
             // TODO: we're assuming no photons ... 
             // TODO: would there ever be a use case where we'd want to specify operator portions here?
             pq_str->set_amplitudes('D', n_create, n_annihilate, 0, rdm_labels);
@@ -2390,6 +3117,41 @@ void pq_helper::block_by_range(const std::unordered_map<std::string, std::vector
             ordered_blocked.push_back(op);
         }
     }
+}
+
+// drop terms carrying a reference self-trace of the electron-nuclear (gep) two-body
+// operator. gep sets its integral under "two_body" (the electron fluctuation uses
+// "eri", which is fold-split into the Fock, so is unaffected). A self-trace is a
+// repeated occupied label within one such integral -- the one-body e-p mean-field
+// contraction (V_ep over the proton occupied, or V_pe over the electron occupied),
+// which lives in the dressed NEO-HF Fock and must not appear explicitly.
+void pq_helper::remove_gep_reference_traces() {
+    std::vector< std::shared_ptr<pq_string> > kept;
+    for (const auto & pq_str : ordered) {
+        bool self_trace = false;
+        auto it = pq_str->ints.find("two_body");
+        if ( it != pq_str->ints.end() ) {
+            for (const integrals & integral : it->second) {
+                const std::vector<std::string> & labels = integral.labels;
+                // gep couples an electron and a nuclear particle: require a nuclear label
+                bool has_nuclear = false;
+                for (const std::string & label : labels) {
+                    if ( is_nuclear(label) ) { has_nuclear = true; break; }
+                }
+                if ( !has_nuclear ) continue;
+                // a repeated occupied label within the integral is the reference trace
+                for (size_t a = 0; a < labels.size() && !self_trace; a++) {
+                    if ( !is_occ(labels[a]) ) continue;
+                    for (size_t b = a + 1; b < labels.size(); b++) {
+                        if ( labels[a] == labels[b] ) { self_trace = true; break; }
+                    }
+                }
+                if ( self_trace ) break;
+            }
+        }
+        if ( !self_trace ) kept.push_back(pq_str);
+    }
+    ordered = kept;
 }
 
 // block labels by spin
@@ -2448,12 +3210,13 @@ void pq_helper::clear() {
     pq_string::is_range_blocked = false;
 }
 
-void pq_helper::add_st_operator(double factor, 
+void pq_helper::add_st_operator(double factor,
                                 const std::vector<std::string> &targets,
                                 const std::vector<std::string> &ops,
-                                bool do_operators_commute = true){
+                                bool do_operators_commute = true,
+                                int max_order = 4){
 
-    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute);
+    std::vector<pq_operator_terms> st_ops = get_st_operator_terms(factor, targets, ops, do_operators_commute, max_order);
 
     // every term of the BCH series past zeroth order is a nested commutator, so
     // the connectivity half of the screen applies (the zeroth-order term carries
@@ -2464,13 +3227,17 @@ void pq_helper::add_st_operator(double factor,
     process_operator_products(st_ops);
 }
 
-std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true){
+std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, const std::vector<std::string> &targets,const std::vector<std::string> &ops, bool do_operators_commute = true, int max_order = 4){
+
+    if ( max_order < 0 || max_order > 4 )
+        throw std::invalid_argument("add_st_operator: max_order must be between 0 and 4 (the BCH series truncates at fourth order for a two-body Hamiltonian)");
 
     int dim = (int)ops.size();
 
     std::vector<pq_operator_terms> st_terms;
-    st_terms.push_back(pq_operator_terms(factor, targets));
+    st_terms.push_back(pq_operator_terms(factor, targets)); // zeroth order: the bare operator
 
+    if ( max_order >= 1 )
     for (int i = 0; i < dim; i++) {
         std::vector<pq_operator_terms> tmp = get_commutator_terms(factor, targets, {ops[i]});
         st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
@@ -2478,6 +3245,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
 
     if ( do_operators_commute ) {
 
+        if ( max_order >= 2 ) {
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(factor, targets, {ops[i]}, {ops[j]});
@@ -2488,7 +3256,9 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
+        if ( max_order >= 3 ) {
         // ijk
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
@@ -2515,7 +3285,9 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_triple_commutator_terms(1.0 / 6.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
+        if ( max_order >= 4 ) {
         // ijkl
         for (int i = 0; i < dim; i++) {
             for (int j = i + 1; j < dim; j++) {
@@ -2567,9 +3339,11 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             std::vector<pq_operator_terms> tmp = get_quadruple_commutator_terms(1.0 / 24.0 * factor, targets, {ops[i]}, {ops[i]}, {ops[i]}, {ops[i]});
             st_terms.insert(std::end(st_terms), std::begin(tmp), std::end(tmp));
         }
+        }
 
     }else {
 
+        if ( max_order >= 2 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 std::vector<pq_operator_terms> tmp = get_double_commutator_terms(0.5 * factor, targets, {ops[i]}, {ops[j]});
@@ -2577,6 +3351,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             }
         }
 
+        if ( max_order >= 3 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {
@@ -2586,6 +3361,7 @@ std::vector<pq_operator_terms> pq_helper::get_st_operator_terms(double factor, c
             }
         }
 
+        if ( max_order >= 4 )
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 for (int k = 0; k < dim; k++) {

@@ -33,6 +33,7 @@ class UCCSD3:
             'r1',
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -40,6 +41,7 @@ class UCCSD3:
             'r2',
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         ) 
         
@@ -49,13 +51,13 @@ class UCCSD3:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         self.T_list = [t1, t2]
@@ -70,6 +72,8 @@ class UCCSD3:
             self.wfn,
             self.mol,
             nfzc = self.nfzc,
+            e_convergence = self.e_convergence,
+            r_convergence = self.r_convergence,
             cc_energy_func = self.cc_energy["cc_energy"],
             T_list = self.T_list
         )

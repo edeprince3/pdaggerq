@@ -17,7 +17,7 @@
 #   limitations under the License.
 
 from pdaggerq.parser import contracted_strings_to_tensor_terms
-from pdaggerq.algebra import BaseTerm, TensorTerm, Index, TwoBody, T2amps, T1amps
+from pdaggerq.algebra import BaseTerm, TensorTerm, Index, TwoBody, Rank2Amps, Rank1Amps
 
 
 def test_parse_strings_to_tensor():
@@ -30,11 +30,11 @@ def test_parse_strings_to_tensor():
    energy_tensor_terms = contracted_strings_to_tensor_terms(energy_strings)
    i, j, a, b = Index('i', 'occ'), Index('j', 'occ'), Index('a', 'virt'), Index(
       'b', 'virt')
-   h_ii = BaseTerm(indices=(i, i), name='f', spin='')
-   f_ia = BaseTerm(indices=(i, a), name='f', spin='')
-   t1 = T1amps(indices=(a, i))
+   h_ii = BaseTerm(indices=(i, i), name='f', spin='', boson='', active='')
+   f_ia = BaseTerm(indices=(i, a), name='f', spin='', boson='', active='')
+   t1 = Rank1Amps(indices=(a, i))
    g_ijab = TwoBody(indices=(i, j, a, b), name='g')
-   t2_abij = T2amps(indices=(a, b, j, i), name='t2')
+   t2_abij = Rank2Amps(indices=(a, b, j, i), name='t2')
 
    eterm1 = TensorTerm(base_terms=(h_ii,))
    eterm2 = TensorTerm(base_terms=(f_ia, t1,), coefficient=1)

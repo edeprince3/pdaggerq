@@ -31,6 +31,7 @@ class CCSD:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -38,6 +39,7 @@ class CCSD:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -47,13 +49,13 @@ class CCSD:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         self.T_list = [t1, t2]
@@ -68,9 +70,13 @@ class CCSD:
             self.wfn,
             self.mol,
             nfzc = self.nfzc,
+            e_convergence = self.e_convergence,
+            r_convergence = self.r_convergence,
             cc_energy_func = self.cc_energy["cc_energy"],
             T_list = self.T_list
         )
+        self.efzc = self.cc_solver.efzc
+        self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
         
         en = self.cc_solver.t_solver()
 
@@ -98,16 +104,18 @@ class CCSD:
         l1_residual_func = lambda_cc_residual('r1',
             T,
             L,
-            'e1(a,i)',
+            ['e1(a,i)'],
             'l1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
 
         l2_residual_func = lambda_cc_residual('r2',
             T,
             L,
-            'e2(a,b,j,i)',
+            ['e2(a,b,j,i)'],
             'l2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -118,13 +126,13 @@ class CCSD:
 
         # lambda amplitude dictionaries to pass into the solver
         l1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["l1_residual"]
         }
         l2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["l2_residual"]
         }
 
@@ -134,4 +142,48 @@ class CCSD:
         en = self.cc_solver.lambda_solver()
         return en
 
+    def opdm(self):
 
+        # Import pq cc density matrix codegen function
+        from pdaggerq.numerical.codegen.autogen import cc_density_matrix
+
+        # Generate transition density matrix equations
+        T = ['t1', 't2']
+        L = [['1'], ['l1'], ['l2']]
+        opdm_func = cc_density_matrix('opdm',
+            T, 
+            L, 
+            'density_matrix',
+            pq_graph_options = self.pq_graph_options
+        )
+
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+        exec(opdm_func, globals(), local_namespace)
+
+        opdm_a, opdm_b = self.cc_solver.opdm(opdm_func = local_namespace['density_matrix'])
+
+        return opdm_a, opdm_b
+
+    def tpdm(self):
+
+        # Import pq cc tpdm codegen function
+        from pdaggerq.numerical.codegen.autogen import cc_tpdm
+
+        # Generate transition density matrix equations
+        T = ['t1', 't2']
+        L = [['1'], ['l1'], ['l2']]
+        tpdm_func = cc_tpdm('tpdm',
+            T, 
+            L, 
+            'density_matrix',
+            pq_graph_options = self.pq_graph_options
+        )
+
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+        exec(tpdm_func, globals(), local_namespace)
+
+        tpdm_aaaa, tpdm_abab, tpdm_bbbb = self.cc_solver.tpdm(tpdm_func = local_namespace['density_matrix'])
+
+        return tpdm_aaaa, tpdm_abab, tpdm_bbbb

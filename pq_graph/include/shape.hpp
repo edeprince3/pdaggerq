@@ -50,6 +50,8 @@ struct shape {
     uint_fast8_t L_ = 0; // sigma index
     uint_fast8_t Q_ = 0; // density index
 
+    uint_fast8_t no_ = 0, nv_ = 0; // nuclear (second-species) occupied / virtual
+
 
     // default constructors and assignments
     shape() = default;
@@ -68,6 +70,7 @@ struct shape {
         n_  += other.n_;
         L_  += other.L_;
         Q_  += other.Q_;
+        no_ += other.no_; nv_ += other.nv_;
 
         oa_ += other.oa_; ob_ += other.ob_;
         va_ += other.va_; vb_ += other.vb_;
@@ -84,10 +87,13 @@ struct shape {
         L_ = (L_ < other.L_) ? 0 : L_ - other.L_;
         Q_ = (Q_ < other.Q_) ? 0 : Q_ - other.Q_;
 
+        no_ = (no_ < other.no_) ? 0 : no_ - other.no_;
+        nv_ = (nv_ < other.nv_) ? 0 : nv_ - other.nv_;
+
         o_ = oa_ + ob_; v_ = va_ + vb_;
         a_ = oa_ + va_; b_ = ob_ + vb_;
 
-        n_ = (o_ + v_) + L_ + Q_;
+        n_ = (o_ + v_) + L_ + Q_ + no_ + nv_;
     }
 
     void operator+=(const pdaggerq::Line &line) {
@@ -95,6 +101,7 @@ struct shape {
 
         if (line.sig_) { ++L_; return; } // sigma
         if (line.den_) { ++Q_; return; } // density
+        if (line.nuc_) { if (line.o_) ++no_; else ++nv_; return; } // nuclear
 
         if (line.o_) { // occupied
             if (line.a_) ++oa_;
@@ -112,6 +119,7 @@ struct shape {
 
         if (line.sig_ && L_ != 0) { --L_; return; } // sigma
         if (line.den_ && Q_ != 0) { --Q_; return; } // density
+        if (line.nuc_) { if (line.o_) { if (no_ != 0) --no_; } else if (nv_ != 0) --nv_; return; } // nuclear
 
         if (line.o_ && o_ != 0) { // occupied
             if (line.a_ && oa_ != 0) --oa_;
@@ -124,13 +132,34 @@ struct shape {
         a_ = oa_ + va_; b_ = ob_ + vb_;
     }
 
+    /**
+     * Numeric flop estimate of this shape given representative dimensions for each
+     * line class. Used by scaling_map's dimension-aware comparison (see
+     * scaling_map::set_dims); the default lexicographic comparison ignores this.
+     * Computed by repeated IEEE multiplication (no std::pow) so the value -- and
+     * therefore every optimizer decision based on it -- is bit-deterministic.
+     * @param o,v electronic occupied/virtual; no,nv nuclear (second-species)
+     *        occupied/virtual; L sigma (trial); Q density-fitting auxiliary
+     */
+    double cost(double o, double v, double no, double nv, double L, double Q) const {
+        double c = 1.0;
+        for (uint_fast8_t i = 0; i <  o_; i++) c *= o;
+        for (uint_fast8_t i = 0; i <  v_; i++) c *= v;
+        for (uint_fast8_t i = 0; i < no_; i++) c *= no;
+        for (uint_fast8_t i = 0; i < nv_; i++) c *= nv;
+        for (uint_fast8_t i = 0; i <  L_; i++) c *= L;
+        for (uint_fast8_t i = 0; i <  Q_; i++) c *= Q;
+        return c;
+    }
+
     bool operator==(const shape & other) const {
         return  n_ == other.n_
             &&  a_ == other.a_  &&  b_ == other.b_
             &&  o_ == other.o_  &&  v_ == other.v_
             && oa_ == other.oa_ && ob_ == other.ob_
             && va_ == other.va_ && vb_ == other.vb_
-            &&  L_ == other.L_  &&  Q_ == other.Q_;
+            &&  L_ == other.L_  &&  Q_ == other.Q_
+            && no_ == other.no_ && nv_ == other.nv_;
     }
     bool operator!=(const shape & other) const {
         return !(*this == other);
@@ -156,6 +185,14 @@ struct shape {
         if (Q_ > 0) {
             result += 'Q';
             result += std::to_string(Q_);
+        }
+        if (no_ > 0) {
+            result += 'O'; // nuclear occupied
+            result += std::to_string(no_);
+        }
+        if (nv_ > 0) {
+            result += 'V'; // nuclear virtual
+            result += std::to_string(nv_);
         }
         return result;
     }
@@ -201,6 +238,10 @@ struct shape {
         if (Q_ != other.Q_) return Q_ < other.Q_;
         if (v_ != other.v_) return v_ < other.v_;
         if (o_ != other.o_) return o_ < other.o_;
+
+        // nuclear (second-species) dimensions, ordered before the electron spin components
+        if (nv_ != other.nv_) return nv_ < other.nv_;
+        if (no_ != other.no_) return no_ < other.no_;
 
         // Compare individual spin components (alpha spins will be considered first)
         if (vb_ != other.vb_) return vb_ < other.vb_;

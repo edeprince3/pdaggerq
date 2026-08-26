@@ -57,16 +57,16 @@ def main():
     c_coeffs = [1.0, 1.0]
 
     # T-operators (assumes T1 transformed integrals)
-    T = ['t2', 't0,1', 't1,1', 't2,1']
+    T = ['t2', 'tb1', 'teb11', 'teb21']
     R = [
         #['r0'],
         ['r1'], ['r2'],
-        ['r0,1'], ['r1,1'], ['r2,1'],
+        ['rb1'], ['reb11'], ['reb21'],
     ]
     L = [
         #['l0'],
         ['l1'], ['l2'],
-        ['l0,1'], ['l1,1'], ['l2,1'],
+        ['lb1'], ['leb11'], ['leb21'],
     ]
 
     # Projection operators for different equations

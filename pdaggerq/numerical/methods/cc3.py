@@ -32,6 +32,7 @@ class CC3:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -39,12 +40,14 @@ class CC3:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
         t3_residual_func = cc3_triples_residual('r3',
             [['e3(i,j,k,c,b,a)']],
             't3_residual',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
             pq_graph_options = self.pq_graph_options
         ) 
         
@@ -55,18 +58,18 @@ class CC3:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         t3 = {
-            'spaces' : 'vvvooo',
-            'spins' : ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
+            'spaces' : ['vvv','ooo'],
+            'spins' : [['aaa','aaa'], ['aab','aab'], ['abb','abb'], ['bbb','bbb']],
             'residual' : local_namespace["t3_residual"]
         }
         self.T_list = [t1, t2, t3]
@@ -81,10 +84,17 @@ class CC3:
             self.wfn,
             self.mol,
             nfzc = self.nfzc,
+            e_convergence = self.e_convergence,
+            r_convergence = self.r_convergence,
             cc_energy_func = self.cc_energy["cc_energy"],
             T_list = self.T_list
         )
+        self.efzc = self.cc_solver.efzc
+        self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
         
         en = self.cc_solver.t_solver()
 
         return en
+
+    def lambda_solver(self):
+        raise Exception("lambda solver is not implemented for CC3")

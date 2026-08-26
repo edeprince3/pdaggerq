@@ -1,0 +1,118 @@
+name: CI
+
+# Build pdaggerq and run its test suite on every push to this branch / master and
+# every PR. All tests now live under tests/:
+#       - tests/pq_test.py              runs examples/*.py, diffs strings vs reference_outputs/*.ref
+#       - tests/neo_*.py                symbolic + synthetic-tensor NEO tests (no psi4/pyscf
+#                                       needed -- see each file's docstring for its tier); all
+#                                       NEO tests, any tier, are also selectable via
+#                                       `pytest -m neo tests/`
+#       - tests/pq_graph_numerical_test.py runs pq_graph/tests/*_codegen.py, executes it, checks numbers
+#       - tests/pq_numerical_test.py    exercises the CC/EOMCC/CC-response solvers directly
+#                                       (pdaggerq/numerical/solvers) against pyscf reference
+#                                       integrals/energies (falls back to psi4 if pyscf isn't
+#                                       installed, but CI only has pyscf -- no psi4 wheels)
+#       - tests/models_test.py          correctness of the generated-model library (models.py):
+#                                       RDM<->energy identity, Lambda consistency, single-proton
+#                                       reduction, opt-level safety, orbital gradients/Hessians, ...
+#                                       This is an independent NEO cross-check at the
+#                                       models.py/einsums IR layer, not a duplicate of
+#                                       tests/neo_*.py (those exercise raw pq_helper).
+#       - tests/einsums_test.py         einsums dispatch/lowering
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: build & test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake g++
+
+      - name: Build & install pdaggerq
+        # setup.py drives CMake (which FetchContent-clones pybind11) with the
+        # default Make generator; parallelise the compile across all cores.
+        run: |
+          export CMAKE_BUILD_PARALLEL_LEVEL="$(nproc)"
+          python -m pip install --verbose .
+
+      - name: Install test dependencies
+        # pytest-forked runs each test in its own process -- required for
+        # models_test.py, which cannot run all cases in one process (a pq_graph
+        # cross-call state leak trips one case mid-suite; forking gives each a
+        # fresh interpreter). pyscf/openfermion/openfermionpyscf: the code generated
+        # by tests/pq_graph_numerical_test.py (pq_graph/tests/*_codegen.py) imports
+        # them for reference integrals/energies.
+        run: python -m pip install pytest pytest-forked numpy pyscf openfermion openfermionpyscf
+
+      # All test steps run from a NEUTRAL directory: `python -m pytest` puts the
+      # CWD on sys.path[0], and from the repo root that shadows the installed,
+      # compiled pdaggerq with the ./pdaggerq source tree (no built _pdaggerq
+      # extension -> ImportError). The tests locate their data via __file__, so
+      # absolute paths work from anywhere.
+
+      - name: Reference string + NEO tests (tests/pq_test.py, tests/neo_*.py)
+        working-directory: ${{ runner.temp }}
+        # neo_*.py needs no psi4/pyscf (synthetic tensors / symbolic only), so it
+        # runs alongside pq_test.py here rather than in the psi4-gated step below.
+        run: python -m pytest -v "$GITHUB_WORKSPACE/tests/pq_test.py" "$GITHUB_WORKSPACE"/tests/neo_*.py
+
+      - name: Numerical codegen tests (tests/pq_graph_numerical_test.py)
+        working-directory: ${{ runner.temp }}
+        # -k "not with_spin": the ccsd_with_spin/ccsdt_with_spin generated code takes
+        # its reference integrals from psi4, which has no PyPI wheels (conda-forge
+        # only). The other six numerical cases (pyscf/openfermion-based) run; the two
+        # psi4 cases can be re-enabled by provisioning psi4 via micromamba if that
+        # coverage is wanted. (The same-named *string* tests in pq_test.py above need
+        # no psi4 and run unfiltered.)
+        run: |
+          python -m pytest -v -k "not with_spin" \
+            "$GITHUB_WORKSPACE/tests/pq_graph_numerical_test.py"
+
+      - name: Numerical solver tests (tests/pq_numerical_test.py)
+        working-directory: ${{ runner.temp }}
+        # pyscf-backed: setup_test() in this file prefers pyscf (no psi4 wheels in CI) and
+        # constructs its Mole with verbose=0 to keep pyscf's logger from writing to stdout
+        # after pytest closes it between tests -- without that, the 2nd+ pyscf-backed test
+        # in the process crashes with "I/O operation on closed file" (same class of
+        # cross-test issue as models_test.py below, fixed here at the source instead of
+        # with --forked).
+        run: |
+          python -m pytest -v \
+            "$GITHUB_WORKSPACE/tests/pq_numerical_test.py"
+
+      - name: Generated-model library tests (tests/models_test.py, tests/einsums_test.py)
+        working-directory: ${{ runner.temp }}
+        # --forked: models_test.py cannot run all cases in one process (a pq_graph
+        # cross-call state leak trips one case mid-suite); forking gives each test its
+        # own fresh interpreter.
+        run: |
+          python -m pytest -v --forked \
+            "$GITHUB_WORKSPACE/tests/models_test.py" "$GITHUB_WORKSPACE/tests/einsums_test.py"
+
+      # NOTE: pdaggerq/algebra_test.py and pdaggerq/parser_test.py are excluded --
+      # they are stale (import T1amps, removed from pdaggerq/algebra.py) and fail
+      # at collection. Re-add once fixed.

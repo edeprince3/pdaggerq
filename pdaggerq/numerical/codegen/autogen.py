@@ -1,5 +1,21 @@
 import pdaggerq 
+import os
 import re
+
+#: Directory the ``write_function=True`` generators write their modules to. A
+#: relative path resolves against the current working directory, which is why
+#: writing straight to "generated_code/..." only worked when the caller happened
+#: to be run from tests/. Callers that import what they generate should set this
+#: to the absolute directory they put on ``sys.path``.
+generated_code_dir = "generated_code"
+
+
+def write_generated_function(function_name, code):
+    """Write one generated module, creating the output directory if needed."""
+    os.makedirs(generated_code_dir, exist_ok=True)
+    with open(os.path.join(generated_code_dir, f"{function_name}.py"), "w") as file:
+        file.write(code)
+
 
 # Map fermionic order -> list of spin channels
 SPIN_MAP = {
@@ -88,17 +104,6 @@ def get_spin_labels(ops, operator_type = 'EE'):
 
     # sort the labels and create spin types based on the number of unique labels
     labels = sorted(labels)
-    #spin_types = ["aaaaaa", "aabaab", "abbabb", "bbbbbb"] if len(labels) == 6 else (
-    #    ["aaaaa", "aabaa", "abbab", "bbbbb"] if len(labels) == 5 else (
-    #        ["aaaa", "abab", "bbbb"] if len(labels) == 4 else (
-    #            ["aaa", "aab", "bab", "bbb"] if len(labels) == 3 else (
-    #                ["aa", "bb"] if len(labels) == 2 else (
-    #                    ["a", "b"] if len(labels) == 1 else []
-    #                )
-    #            )
-    #        )
-    #    )
-    #)
 
     # Determine operator order
     n_idx = len(labels)
@@ -350,8 +355,8 @@ f"""
     eri['bbbb_vvvo'] = self.{extra_class}g_bbbb[vb, vb, vb, ob]
     eri['bbbb_vvvv'] = self.{extra_class}g_bbbb[vb, vb, vb, vb]
     Id = {{}}
-    noa = t1['aa'].shape[1]
-    nob = t1['bb'].shape[1]
+    noa = f['aa_vo'].shape[1]
+    nob = f['bb_vo'].shape[1]
     Id['aa_oo'] = np.eye(noa, noa)
     Id['bb_oo'] = np.eye(nob, nob)
     scalars_ = {{}}
@@ -379,6 +384,7 @@ def cc_residual(residual_name,
     T, 
     L, 
     function_name, 
+    indices = None,
     spin_block = True, 
     write_function = False,
     is_qed = False,
@@ -391,6 +397,7 @@ def cc_residual(residual_name,
     :param T: list of cluster operators
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param is_qed: include qed-cc terms? 
@@ -444,7 +451,10 @@ def cc_residual(residual_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # Optimize the graph
     graph.optimize()
@@ -496,8 +506,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -510,6 +519,7 @@ def bernoulli_ucc_residual(rank,
     T, 
     L, 
     function_name, 
+    indices = None,
     spin_block = True, 
     write_function = False,
     pq_graph_options = None):
@@ -522,6 +532,7 @@ def bernoulli_ucc_residual(rank,
     :param T: list of cluster operators
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -568,7 +579,10 @@ def bernoulli_ucc_residual(rank,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -620,8 +634,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -633,6 +646,7 @@ def uccsd_singles_residual(order,
     residual_name, 
     L,
     function_name,
+    indices = None,
     spin_block = True, 
     write_function = False,
     pq_graph_options = None):
@@ -644,6 +658,7 @@ def uccsd_singles_residual(order,
     :param residual_name: name for the variable representing the left-hand side of the residual equation
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -699,7 +714,10 @@ def uccsd_singles_residual(order,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -730,8 +748,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -743,6 +760,7 @@ def uccsd_doubles_residual(order,
     residual_name,
     L,
     function_name,
+    indices = None,
     spin_block = True,
     write_function = False,
     pq_graph_options = None):
@@ -754,6 +772,7 @@ def uccsd_doubles_residual(order,
     :param residual_name: name for the variable representing the left-hand side of the residual equation
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -815,7 +834,10 @@ def uccsd_doubles_residual(order,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -847,8 +869,7 @@ f"""
     
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -955,8 +976,7 @@ def uccsd_energy(order,
     
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -968,6 +988,7 @@ def cc3_triples_residual(residual_name,
     L,
     function_name,
     spin_block = True,
+    indices = None,
     write_function = False,
     pq_graph_options = None):
 
@@ -977,6 +998,7 @@ def cc3_triples_residual(residual_name,
     :param residual_name: name for the variable representing the left-hand side of the residual equation
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -1032,7 +1054,10 @@ def cc3_triples_residual(residual_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -1065,8 +1090,7 @@ f"""
     
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1079,8 +1103,10 @@ def lambda_cc_residual(residual_name,
     L,
     R, 
     function_name, 
+    indices = None,
     spin_block = True, 
     write_function = False,
+    is_qed = False,
     pq_graph_options = None):
 
     """
@@ -1089,10 +1115,12 @@ def lambda_cc_residual(residual_name,
     :param residual_name: name for the variable representing the left-hand side of the residual equation
     :param T: list of cluster operators
     :param L: list of lambda amplitudes
-    :param R: excitation operator defining the projection
+    :param R: list of excitation operator defining the projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
     :param pq_graph_options: options dictionary for pq_graph
     """
 
@@ -1101,24 +1129,53 @@ def lambda_cc_residual(residual_name,
 
     pq = pdaggerq.pq_helper("fermi")
 
+    ham_terms = [['f'], ['v']]
+    if is_qed:
+        ham_terms.append(['w0'])
+        ham_terms.append(['d+'])
+        ham_terms.append(['d-'])
+
     #  <0| e(-T) H R e(T)|0>
     
     pq.set_left_operators([['1']])
     pq.set_right_operators([['1']])
     
-    pq.add_st_operator(1.0,['f',R],T)
-    pq.add_st_operator(1.0,['v',R],T)
+    pq.add_st_operator(1.0,['f'] + R,T)
+    pq.add_st_operator(1.0,['v'] + R,T)
     
+    if is_qed:
+        pq.add_st_operator( 1.0, ['w0'] + R, T)
+        pq.add_st_operator(-1.0, ['d+'] + R, T)
+        pq.add_st_operator(-1.0, ['d-'] + R, T)
+
+        pq.add_st_operator(-1.0, ['ON', 'B+'] + R, T) # nuclear part of bilinear coupling
+        pq.add_st_operator(-1.0, ['ON', 'B-'] + R, T) # nuclear part of bilinear coupling
+
     # <0| L e(-T) [H,R] e(T)|0>
     
     pq.set_left_operators(L)
     pq.set_right_operators([['1']])
     
-    pq.add_st_operator( 1.0,['f',R],T)
-    pq.add_st_operator( 1.0,['v',R],T)
+    pq.add_st_operator( 1.0,['f'] + R,T)
+    pq.add_st_operator( 1.0,['v'] + R,T)
     
-    pq.add_st_operator(-1.0,[R,'f'],T)
-    pq.add_st_operator(-1.0,[R,'v'],T)
+    pq.add_st_operator(-1.0,R + ['f'],T)
+    pq.add_st_operator(-1.0,R + ['v'],T)
+    
+    if is_qed:
+        pq.add_st_operator( 1.0, ['w0'] + R, T)
+        pq.add_st_operator(-1.0, ['d+'] + R, T)
+        pq.add_st_operator(-1.0, ['d-'] + R, T)
+
+        pq.add_st_operator(-1.0, ['ON', 'B+'] + R, T) # nuclear part of bilinear coupling
+        pq.add_st_operator(-1.0, ['ON', 'B-'] + R, T) # nuclear part of bilinear coupling
+
+        pq.add_st_operator(-1.0, R + ['w0'], T)
+        pq.add_st_operator( 1.0, R + ['d+'], T)
+        pq.add_st_operator( 1.0, R + ['d-'], T)
+
+        pq.add_st_operator( 1.0, R + ['ON', 'B+'], T) # nuclear part of bilinear coupling
+        pq.add_st_operator( 1.0, R + ['ON', 'B-'], T) # nuclear part of bilinear coupling
 
     # cleanup
     pq.simplify()
@@ -1128,7 +1185,7 @@ def lambda_cc_residual(residual_name,
 
     # spin blocking
     if spin_block:
-        block_by_spin(pq, residual_name, L + T + ['f'] + ['v'] + [[R]], eqs)
+        block_by_spin(pq, residual_name, L + T + ham_terms + [R], eqs)
     else:
         eqs[residual_name] = pq.clone()
         # print the fully contracted strings
@@ -1142,7 +1199,10 @@ def lambda_cc_residual(residual_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -1150,7 +1210,7 @@ def lambda_cc_residual(residual_name,
     # initialization statements 
     generated_code_string = f"""def {function_name}(self):"""
 
-    generated_code_string += function_initialization_string()
+    generated_code_string += function_initialization_string(is_qed = is_qed)
 
     # pq graph output
     generated_code_string += graph.str("python")
@@ -1194,8 +1254,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1209,6 +1268,7 @@ def lambda_cc_pseudoenergy(energy_name,
     function_name,
     spin_block = True,
     write_function = False,
+    is_qed = False,
     pq_graph_options = None):
 
     """
@@ -1221,6 +1281,7 @@ def lambda_cc_pseudoenergy(energy_name,
     :param function_name: name for the python function
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
     :param pq_graph_options: options dictionary for pq_graph
     """
 
@@ -1228,6 +1289,12 @@ def lambda_cc_pseudoenergy(energy_name,
         raise Exception("spin-orbital ccsd lambda equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+
+    ham_terms = [['f'], ['v']]
+    if is_qed:
+        ham_terms.append(['w0'])
+        ham_terms.append(['d+'])
+        ham_terms.append(['d-'])
 
     # set bra
     pq.set_left_operators(L)
@@ -1239,6 +1306,14 @@ def lambda_cc_pseudoenergy(energy_name,
     pq.add_operator_product(1.0, ['f'])
     pq.add_operator_product(1.0, ['v'])
 
+    if is_qed:
+        pq.add_operator_product( 1.0, ['w0'])
+        pq.add_operator_product(-1.0, ['d+'])
+        pq.add_operator_product(-1.0, ['d-'])
+    
+        pq.add_operator_product(-1.0, ['ON', 'B+']) # nuclear part of bilinear coupling
+        pq.add_operator_product(-1.0, ['ON', 'B-']) # nuclear part of bilinear coupling
+
     # cleanup
     pq.simplify()
 
@@ -1247,7 +1322,7 @@ def lambda_cc_pseudoenergy(energy_name,
 
     # spin blocking
     if spin_block:
-        block_by_spin(pq, energy_name, L + R + ['f'] + ['v'], eqs)
+        block_by_spin(pq, energy_name, L + R + ham_terms, eqs)
     else:
         eqs[sigma_eqname] = pq.clone()
         # print the fully contracted strings
@@ -1269,7 +1344,7 @@ def lambda_cc_pseudoenergy(energy_name,
     # initialization statements 
     generated_code_string = f"""def {function_name}(self):"""         
 
-    generated_code_string += function_initialization_string()
+    generated_code_string += function_initialization_string(is_qed = is_qed)
         
     # pq graph output
     generated_code_string += graph.str("python")
@@ -1279,8 +1354,360 @@ def lambda_cc_pseudoenergy(energy_name,
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
+
+    pq.clear()
+
+    del pq
+
+    return generated_code_string
+
+def cc_response_terms(term_name, 
+    T,
+    L,
+    proj_ops,
+    function_name,
+    term_type = 'xi',
+    Ra = [],
+    Rb = [],
+    indices = None,
+    is_qed = False,
+    operator_type = 'EE',
+    spin_block = True,
+    write_function = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for CC response theory. either
+
+        xi_mu = <0|proj_ops Vbar |0> 
+
+    or
+
+        eta_nu = <0|(1+Lambda)[Vbar, proj_ops]|0> 
+
+    or
+        hessian = <0|(1+Lambda)[[Hbar, tau_mu], tau_n]|0> x(1)_mu y(1)_nu
+    
+    :param term_name: name for the variable representing xi, eta, or hessian contribution
+    :param T: list of cluster operators
+    :param L: list of left-hand operators (ground-state lambda)
+    :param proj_ops: a list of projection operators
+    :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
+    :param is_qed: include qed-cc terms? 
+    :param term_type: xi, eta, or the hessian term
+    :param Ra: response amplitudes for perturbation a, term_type = 'hessian' only
+    :param Rb: response amplitudes for perturbation b, term_type = 'hessian' only
+    :param operator_type: operator type for EE/IP/EA/DIP/DEA
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital cc response equations not implemented")
+
+    if operator_type != 'EE':
+        raise Exception("cc response equations are only implemented for EE-type operators")
+
+    pq = pdaggerq.pq_helper("fermi")
+    pq.set_right_operators_type(operator_type)
+    pq.set_left_operators_type(operator_type)
+
+    # use 'h' as the perturbing operator
+    ham_terms = [['h']]
+
+    if term_type == 'xi':
+        #  xi_ai = <0|i*a e(-T) V e(T)|0>
+        pq.set_left_operators([proj_ops])
+        pq.set_right_operators([['1']])
+        pq.add_st_operator(1.0, ['h'], T)
+    elif term_type == 'eta':
+        #  eta_ai = <0| e(-T) V a*i e(T)|0>
+        pq.set_left_operators([['1']])
+        pq.set_right_operators([['1']])
+        pq.add_st_operator(1.0,['h'] + proj_ops, T)
+
+        # eta_ai += <0| L e(-T) [V, a*i] e(T)|0>
+        pq.set_left_operators(L)
+        pq.add_st_operator( 1.0, ['h'] + proj_ops, T)
+        pq.add_st_operator(-1.0, proj_ops + ['h'], T) 
+
+    elif term_type == 'hessian':
+
+        #[[H,x],y] = Hxy - xHy -yHx + yxH
+        pq.set_right_operators([['1']])
+        pq.set_left_operators(L)
+
+        ham_terms = [['f'], ['v']]
+        if is_qed:
+            ham_terms.append(['w0'])
+            ham_terms.append(['d+'])
+            ham_terms.append(['d-'])
+            ham_terms.append(['ON', 'B+']) # nuclear part of bilinear coupling
+            ham_terms.append(['ON', 'B-']) # nuclear part of bilinear coupling
+            
+        for term in ham_terms:
+            h = term[0]
+            for x in Ra:
+                for y in Rb:
+                    pq.add_st_operator( 1.0, [h, x, y], T)
+                    pq.add_st_operator( 1.0, [h, x, y], T)
+                    pq.add_st_operator( 1.0, [h, x, y], T)
+                    pq.add_st_operator( 1.0, [h, x, y], T)
+        
+                    pq.add_st_operator(-1.0, [x, h, y], T)
+                    pq.add_st_operator(-1.0, [x, h, y], T)
+                    pq.add_st_operator(-1.0, [x, h, y], T)
+                    pq.add_st_operator(-1.0, [x, h, y], T)
+        
+                    pq.add_st_operator(-1.0, [y, h, x], T)
+                    pq.add_st_operator(-1.0, [y, h, x], T)
+                    pq.add_st_operator(-1.0, [y, h, x], T)
+                    pq.add_st_operator(-1.0, [y, h, x], T)
+        
+                    pq.add_st_operator( 1.0,[y, x, h], T)
+                    pq.add_st_operator( 1.0,[y, x, h], T)
+                    pq.add_st_operator( 1.0,[y, x, h], T)
+                    pq.add_st_operator( 1.0,[y, x, h], T)
+                pass
+    else:
+        raise Exception("invalid term_type in cc_response_terms")
+
+    # cleanup
+    pq.simplify()
+
+    # dictionary to store the derived equations
+    eqs = {}
+
+    # spin blocking
+    if spin_block:
+        block_by_spin(pq, term_name, T + ham_terms + [proj_ops], eqs, operator_type = operator_type)
+    else:
+        eqs[term_name] = pq.clone()
+        # print the fully contracted strings
+        print(f"Equation {term_name}:", flush=True)
+        for term in pq.strings():
+            print(term, flush=True)
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    # Add equations to graph
+    for proj_eqname, eq in eqs.items():
+        print(f"Adding equation {proj_eqname} to the graph", flush=True)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
+
+    # optimize the graph
+    graph.optimize()
+
+    # initialization statements 
+    generated_code_string = f"def {function_name}(self):"
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
+
+    # perturbing operator:
+    generated_code_string += \
+f"""
+    h = {{}}
+    h['aa_oo'] = self.h_aa[oa, oa]
+    h['aa_ov'] = self.h_aa[oa, va]
+    h['aa_vo'] = self.h_aa[va, oa]
+    h['aa_vv'] = self.h_aa[va, va]
+    h['bb_oo'] = self.h_bb[ob, ob]
+    h['bb_ov'] = self.h_bb[ob, vb]
+    h['bb_vo'] = self.h_bb[vb, ob]
+    h['bb_vv'] = self.h_bb[vb, vb]
+"""
+    if term_type == 'hessian':
+        generated_code_string += \
+f"""
+    # positive-frequency response vectors
+
+    # r0 is special because it is a scalar
+    r0_dict = self.R.get('0', {{}})
+    r0_val = r0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0 = r0_val.item() if hasattr(r0_val, 'item') else r0_val
+
+    r1 = dict(self.R.get('1', {{}}))
+    r2 = dict(self.R.get('2', {{}}))
+    r3 = dict(self.R.get('3', {{}}))
+    r4 = dict(self.R.get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_1p_dict = self.R.get('0_1p', {{}})
+    r0_1p_val = r0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_1p = r0_1p_val.item() if hasattr(r0_1p_val, 'item') else r0_1p_val
+
+    r1_1p = dict(self.R.get('1_1p', {{}}))
+    r2_1p = dict(self.R.get('2_1p', {{}}))
+    r3_1p = dict(self.R.get('3_1p', {{}}))
+    r4_1p = dict(self.R.get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_2p_dict = self.R.get('0_2p', {{}})
+    r0_2p_val = r0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_2p = r0_2p_val.item() if hasattr(r0_2p_val, 'item') else r0_2p_val
+
+    r1_2p = dict(self.R.get('1_2p', {{}}))
+    r2_2p = dict(self.R.get('2_2p', {{}}))
+    r3_2p = dict(self.R.get('3_2p', {{}}))
+    r4_2p = dict(self.R.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_3p_dict = self.R.get('0_3p', {{}})
+    r0_3p_val = r0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_3p = r0_3p_val.item() if hasattr(r0_3p_val, 'item') else r0_3p_val
+
+    r1_3p = dict(self.R.get('1_3p', {{}}))
+    r2_3p = dict(self.R.get('2_3p', {{}}))
+    r3_3p = dict(self.R.get('3_3p', {{}}))
+    r4_3p = dict(self.R.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_4p_dict = self.R.get('0_4p', {{}})
+    r0_4p_val = r0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_4p = r0_4p_val.item() if hasattr(r0_4p_val, 'item') else r0_4p_val
+
+    r1_4p = dict(self.R.get('1_4p', {{}}))
+    r2_4p = dict(self.R.get('2_4p', {{}}))
+    r3_4p = dict(self.R.get('3_4p', {{}}))
+    r4_4p = dict(self.R.get('4_4p', {{}}))
+
+    # negative-frequency response vectors
+
+    # x0 is special because it is a scalar
+    x0_dict = self.R_neg.get('0', {{}})
+    x0_val = x0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0 = x0_val.item() if hasattr(x0_val, 'item') else x0_val
+
+    x1 = dict(self.R_neg.get('1', {{}}))
+    x2 = dict(self.R_neg.get('2', {{}}))
+    x3 = dict(self.R_neg.get('3', {{}}))
+    x4 = dict(self.R_neg.get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    x0_1p_dict = self.R_neg.get('0_1p', {{}})
+    x0_1p_val = x0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0_1p = x0_1p_val.item() if hasattr(x0_1p_val, 'item') else x0_1p_val
+
+    x1_1p = dict(self.R_neg.get('1_1p', {{}}))
+    x2_1p = dict(self.R_neg.get('2_1p', {{}}))
+    x3_1p = dict(self.R_neg.get('3_1p', {{}}))
+    x4_1p = dict(self.R_neg.get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    x0_2p_dict = self.R_neg.get('0_2p', {{}})
+    x0_2p_val = x0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0_2p = x0_2p_val.item() if hasattr(x0_2p_val, 'item') else x0_2p_val
+
+    x1_2p = dict(self.R_neg.get('1_2p', {{}}))
+    x2_2p = dict(self.R_neg.get('2_2p', {{}}))
+    x3_2p = dict(self.R_neg.get('3_2p', {{}}))
+    x4_2p = dict(self.R_neg.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    x0_3p_dict = self.R_neg.get('0_3p', {{}})
+    x0_3p_val = x0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0_3p = x0_3p_val.item() if hasattr(x0_3p_val, 'item') else x0_3p_val
+
+    x1_3p = dict(self.R_neg.get('1_3p', {{}}))
+    x2_3p = dict(self.R_neg.get('2_3p', {{}}))
+    x3_3p = dict(self.R_neg.get('3_3p', {{}}))
+    x4_3p = dict(self.R_neg.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    x0_4p_dict = self.R_neg.get('0_4p', {{}})
+    x0_4p_val = x0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    x0_4p = x0_4p_val.item() if hasattr(x0_4p_val, 'item') else x0_4p_val
+
+    x1_4p = dict(self.R_neg.get('1_4p', {{}}))
+    x2_4p = dict(self.R_neg.get('2_4p', {{}}))
+    x3_4p = dict(self.R_neg.get('3_4p', {{}}))
+    x4_4p = dict(self.R_neg.get('4_4p', {{}}))
+"""
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+        
+    # Return statement
+    # This regex looks for digit, optionally followed by '_Np'
+    match = re.search(r'(\d+)(?:_(\d+)p)?$', term_name)
+            
+    if not match:
+        # Handles pure strings with no numbers (e.g., 'cc_energy', 'cc_residual') ... although this shouldn't happen in EOM
+        generated_code_string += f"\n    return {term_name}\n"
+    else:
+        # Group 1 is guaranteed to be the fermion order (e.g., '2' from 'r2_1p')
+        order = int(match.group(1))
+        
+        # Group 2 is the photon order if it exists (e.g., '1' from 'r2_1p')
+        nph_suffix = f"{match.group(2)}p" if match.group(2) else None
+
+        # Construct base_name (e.g., '1', '2_1p', '0_1p')
+        base_name = f"{order}_{nph_suffix}" if nph_suffix else str(order)
+
+        # Safely get the spins for this exact order
+        spins = SPIN_MAP[operator_type].get(order, [''])
+
+        # Generate individual spin channel assignments
+        assignments = []
+        for spin in spins:
+            var_name = f"{term_name}_{spin}" if spin else term_name
+            assignments.append(f"    term['{base_name}']['{spin}'] = {var_name}")
+
+        assignments_str = "\n".join(assignments)
+
+        generated_code_string += \
+f"""
+    term = {{}}
+    term['{base_name}'] = {{}}
+{assignments_str}
+    return term
+"""
+
+    # write function 
+    if write_function:
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1293,6 +1720,7 @@ def eomcc_sigma(sigma_name,
     L,
     R, 
     function_name,
+    indices = None,
     operator_type = 'EE',
     spin_block = True,
     is_qed = False,
@@ -1302,11 +1730,12 @@ def eomcc_sigma(sigma_name,
     """
     derive equations for left/right EOMCC sigma equations
     
-    :param sigma_name: name for the variable representing the left/right EOMCC sigma veector
+    :param sigma_name: name for the variable representing the left/right EOMCC sigma vector
     :param T: list of cluster operators
     :param L: list of left-hand operators
     :param R: list of right-hand operators
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param operator_type: operator type for EE/IP/EA/DIP/DEA
     :param spin_block: do spin block the equations?
     :param is_qed: include qed-cc terms? 
@@ -1375,7 +1804,10 @@ def eomcc_sigma(sigma_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -1611,8 +2043,7 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
 
     pq.clear()
 
@@ -1628,6 +2059,7 @@ def eomcc_density_matrix(ret_name,
     spin_block = True,
     write_function = False,
     operator_type = 'EE',
+    is_qed = False,
     pq_graph_options = None):
 
     """
@@ -1641,6 +2073,7 @@ def eomcc_density_matrix(ret_name,
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param operator_type: EE, IP, EA, etc.
+    :param is_qed: include qed-cc terms? 
     :param pq_graph_options: options dictionary for pq_graph
     """ 
 
@@ -1648,10 +2081,10 @@ def eomcc_density_matrix(ret_name,
         raise Exception("spin-orbital eomcc equations not implemented")
 
     blocks = {
-        'oo' : 'e1(i,j)',
-        'ov' : 'e1(i,a)',
-        'vo' : 'e1(a,i)',
-        'vv' : 'e1(a,b)',
+        'oo' : ('e1(i,j)', ['i', 'j']),
+        'ov' : ('e1(i,a)', ['i', 'a']),
+        'vo' : ('e1(a,i)', ['a', 'i']),
+        'vv' : ('e1(a,b)', ['a', 'b']),
     }
 
     # initialization statements 
@@ -1732,7 +2165,7 @@ def {function_name}(self, left_state, right_state):
     # Enable and configure pq_graph
     graph = configure_graph(pq_graph_options)
 
-    for block, op in blocks.items():
+    for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
         pq.set_right_operators_type(operator_type)
@@ -1762,7 +2195,7 @@ def {function_name}(self, left_state, right_state):
         # Add equations to graph
         for proj_eqname, eq in eqs.items():
             print(f"Adding equation {proj_eqname} to the graph", flush=True)
-            graph.add(eq, proj_eqname)
+            graph.add(eq, proj_eqname, indices)
 
         pq.clear()
 
@@ -1771,7 +2204,7 @@ def {function_name}(self, left_state, right_state):
     # optimize the graph
     graph.optimize()
 
-    generated_code_string += function_initialization_string(extra_class = "cc")
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
 
     # need to redefine l1/l2 because they currently point to the ccsd ones
     generated_code_string += \
@@ -1899,11 +2332,11 @@ f"""
 f"""
     {ret_name} = {{}}
     {ret_name}['aa_oo'] = {ret_name}_oo_aa
-    {ret_name}['aa_ov'] = {ret_name}_ov_aa.transpose(1,0)
+    {ret_name}['aa_ov'] = {ret_name}_ov_aa
     {ret_name}['aa_vo'] = {ret_name}_vo_aa
     {ret_name}['aa_vv'] = {ret_name}_vv_aa
     {ret_name}['bb_oo'] = {ret_name}_oo_bb
-    {ret_name}['bb_ov'] = {ret_name}_ov_bb.transpose(1,0)
+    {ret_name}['bb_ov'] = {ret_name}_ov_bb
     {ret_name}['bb_vo'] = {ret_name}_vo_bb
     {ret_name}['bb_vv'] = {ret_name}_vv_bb
 
@@ -1912,7 +2345,959 @@ f"""
 
     # write function 
     if write_function:
-        with open(f"generated_code/{function_name}.py", "w") as file:
-            file.write(generated_code_string)
+        write_generated_function(function_name, generated_code_string)
+
+    return generated_code_string
+
+def cc_density_matrix(ret_name, 
+    T,
+    L,
+    function_name,
+    spin_block = True,
+    write_function = False,
+    operator_type = 'EE',
+    is_qed = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC (transition)density matrix equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of lambda operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        'oo' : ('e1(i,j)', ['i', 'j']),
+        'ov' : ('e1(i,a)', ['i', 'a']),
+        'vo' : ('e1(a,i)', ['a', 'i']),
+        'vv' : ('e1(a,b)', ['a', 'b']),
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self):
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, (op, indices) in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, [op], T)
+        else:
+            pq.add_operator_product(1.0, [op])
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking
+        block_by_spin(pq, ret_name + "_" + block, L + T + [[op]], eqs)
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname, indices)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string(is_qed = is_qed)
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['aa_oo'] = {ret_name}_oo_aa
+    {ret_name}['aa_ov'] = {ret_name}_ov_aa
+    {ret_name}['aa_vo'] = {ret_name}_vo_aa
+    {ret_name}['aa_vv'] = {ret_name}_vv_aa
+    {ret_name}['bb_oo'] = {ret_name}_oo_bb
+    {ret_name}['bb_ov'] = {ret_name}_ov_bb
+    {ret_name}['bb_vo'] = {ret_name}_vo_bb
+    {ret_name}['bb_vv'] = {ret_name}_vv_bb
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        write_generated_function(function_name, generated_code_string)
+
+    return generated_code_string
+
+def get_tpdm_spin_map(op_str):
+    """
+    Directly maps e2(p, q, r, s) = p^ q^ r s index positions to spin strings,
+    correctly swapping r and s for D2(pq, rs) = <p^ q^ s r>.
+    """
+    raw = op_str[op_str.find("(")+1 : op_str.find(")")]
+    p, q, r, s = [x.strip() for x in raw.split(",")]
+
+    return {
+        'aaaa': {p: 'a', q: 'a', s: 'a', r: 'a'},
+        'bbbb': {p: 'b', q: 'b', s: 'b', r: 'b'},
+        'abab': {p: 'a', q: 'b', s: 'a', r: 'b'},
+    }
+
+def cc_tpdm(ret_name, 
+    T,
+    L,
+    function_name,
+    spin_block = True,
+    write_function = False,
+    is_qed = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC (transition)density matrix equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of lambda operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        'oooo' : ('e2(i,j,l,k)', ['i', 'j', 'k', 'l']),
+        'oovo' : ('e2(i,j,k,a)', ['i', 'j', 'a', 'k']),
+        'ooov' : ('e2(i,j,a,k)', ['i', 'j', 'k', 'a']),
+        'ovoo' : ('e2(i,a,k,j)', ['i', 'a', 'j', 'k']),
+        'vooo' : ('e2(a,i,k,j)', ['a', 'i', 'j', 'k']),
+        'oovv' : ('e2(i,j,b,a)', ['i', 'j', 'a', 'b']),
+        'ovvo' : ('e2(i,a,j,b)', ['i', 'a', 'b', 'j']),
+        'vovo' : ('e2(a,i,j,b)', ['a', 'i', 'b', 'j']),
+        'ovov' : ('e2(i,a,b,j)', ['i', 'a', 'j', 'b']),
+        'voov' : ('e2(a,i,b,j)', ['a', 'i', 'j', 'b']),
+        'vvoo' : ('e2(a,b,j,i)', ['a', 'b', 'i', 'j']),
+        'ovvv' : ('e2(i,a,c,b)', ['i', 'a', 'b', 'c']),
+        'vovv' : ('e2(a,i,c,b)', ['a', 'i', 'b', 'c']),
+        'vvvo' : ('e2(a,b,i,c)', ['a', 'b', 'c', 'i']),
+        'vvov' : ('e2(a,b,c,i)', ['a', 'b', 'i', 'c']),
+        'vvvv' : ('e2(a,b,d,c)', ['a', 'b', 'c', 'd']),
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self):
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, (op, indices) in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, [op], T)
+        else:
+            pq.add_operator_product(1.0, [op])
+        #pq.add_operator_product(1.0, [op])
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking ... the other spin blocking function doesn't work here because it sorts labels
+        #block_by_spin(pq, ret_name + "_" + block, L + T + [[op]], eqs)
+        spin_map = get_tpdm_spin_map(op)
+        for spins, label_to_spin in spin_map.items():
+            spin_eqname = f"{ret_name}_{block}_{spins}"
+            pq.block_by_spin(label_to_spin)
+            eqs[spin_eqname] = pq.clone()
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname, indices)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string(is_qed = is_qed)
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['aaaa_oooo'] = {ret_name}_oooo_aaaa
+    {ret_name}['aaaa_ooov'] = {ret_name}_ooov_aaaa
+    {ret_name}['aaaa_oovo'] = {ret_name}_oovo_aaaa
+    {ret_name}['aaaa_ovoo'] = {ret_name}_ovoo_aaaa
+    {ret_name}['aaaa_vooo'] = {ret_name}_vooo_aaaa
+    {ret_name}['aaaa_oovv'] = {ret_name}_oovv_aaaa
+    {ret_name}['aaaa_ovov'] = {ret_name}_ovov_aaaa
+    {ret_name}['aaaa_voov'] = {ret_name}_voov_aaaa
+    {ret_name}['aaaa_ovvo'] = {ret_name}_ovvo_aaaa
+    {ret_name}['aaaa_vovo'] = {ret_name}_vovo_aaaa
+    {ret_name}['aaaa_vvoo'] = {ret_name}_vvoo_aaaa
+    {ret_name}['aaaa_ovvv'] = {ret_name}_ovvv_aaaa
+    {ret_name}['aaaa_vovv'] = {ret_name}_vovv_aaaa
+    {ret_name}['aaaa_vvov'] = {ret_name}_vvov_aaaa
+    {ret_name}['aaaa_vvvo'] = {ret_name}_vvvo_aaaa
+    {ret_name}['aaaa_vvvv'] = {ret_name}_vvvv_aaaa
+
+    {ret_name}['bbbb_oooo'] = {ret_name}_oooo_bbbb
+    {ret_name}['bbbb_ooov'] = {ret_name}_ooov_bbbb
+    {ret_name}['bbbb_oovo'] = {ret_name}_oovo_bbbb
+    {ret_name}['bbbb_ovoo'] = {ret_name}_ovoo_bbbb
+    {ret_name}['bbbb_vooo'] = {ret_name}_vooo_bbbb
+    {ret_name}['bbbb_oovv'] = {ret_name}_oovv_bbbb
+    {ret_name}['bbbb_ovov'] = {ret_name}_ovov_bbbb
+    {ret_name}['bbbb_voov'] = {ret_name}_voov_bbbb
+    {ret_name}['bbbb_ovvo'] = {ret_name}_ovvo_bbbb
+    {ret_name}['bbbb_vovo'] = {ret_name}_vovo_bbbb
+    {ret_name}['bbbb_vvoo'] = {ret_name}_vvoo_bbbb
+    {ret_name}['bbbb_ovvv'] = {ret_name}_ovvv_bbbb
+    {ret_name}['bbbb_vovv'] = {ret_name}_vovv_bbbb
+    {ret_name}['bbbb_vvov'] = {ret_name}_vvov_bbbb
+    {ret_name}['bbbb_vvvo'] = {ret_name}_vvvo_bbbb
+    {ret_name}['bbbb_vvvv'] = {ret_name}_vvvv_bbbb
+
+    {ret_name}['abab_oooo'] = {ret_name}_oooo_abab
+    {ret_name}['abab_ooov'] = {ret_name}_ooov_abab
+    {ret_name}['abab_oovo'] = {ret_name}_oovo_abab
+    {ret_name}['abab_ovoo'] = {ret_name}_ovoo_abab
+    {ret_name}['abab_vooo'] = {ret_name}_vooo_abab
+    {ret_name}['abab_oovv'] = {ret_name}_oovv_abab
+    {ret_name}['abab_ovov'] = {ret_name}_ovov_abab
+    {ret_name}['abab_voov'] = {ret_name}_voov_abab
+    {ret_name}['abab_ovvo'] = {ret_name}_ovvo_abab
+    {ret_name}['abab_vovo'] = {ret_name}_vovo_abab
+    {ret_name}['abab_vvoo'] = {ret_name}_vvoo_abab
+    {ret_name}['abab_ovvv'] = {ret_name}_ovvv_abab
+    {ret_name}['abab_vovv'] = {ret_name}_vovv_abab
+    {ret_name}['abab_vvov'] = {ret_name}_vvov_abab
+    {ret_name}['abab_vvvo'] = {ret_name}_vvvo_abab
+    {ret_name}['abab_vvvv'] = {ret_name}_vvvv_abab
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        write_generated_function(function_name, generated_code_string)
+
+    return generated_code_string
+
+def eomcc_tpdm(ret_name, 
+    T,
+    L,
+    R, 
+    function_name,
+    spin_block = True,
+    write_function = False,
+    operator_type = 'EE',
+    is_qed = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC tpdm equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of left-hand operators
+    :param R: list of right-hand operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param operator_type: EE, IP, EA, etc.
+    :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        'oooo' : ('e2(i,j,l,k)', ['i', 'j', 'k', 'l']),
+        'oovo' : ('e2(i,j,k,a)', ['i', 'j', 'a', 'k']),
+        'ooov' : ('e2(i,j,a,k)', ['i', 'j', 'k', 'a']),
+        'ovoo' : ('e2(i,a,k,j)', ['i', 'a', 'j', 'k']),
+        'vooo' : ('e2(a,i,k,j)', ['a', 'i', 'j', 'k']),
+        'oovv' : ('e2(i,j,b,a)', ['i', 'j', 'a', 'b']),
+        'ovvo' : ('e2(i,a,j,b)', ['i', 'a', 'b', 'j']),
+        'vovo' : ('e2(a,i,j,b)', ['a', 'i', 'b', 'j']),
+        'ovov' : ('e2(i,a,b,j)', ['i', 'a', 'j', 'b']),
+        'voov' : ('e2(a,i,b,j)', ['a', 'i', 'j', 'b']),
+        'vvoo' : ('e2(a,b,j,i)', ['a', 'b', 'i', 'j']),
+        'ovvv' : ('e2(i,a,c,b)', ['i', 'a', 'b', 'c']),
+        'vovv' : ('e2(a,i,c,b)', ['a', 'i', 'b', 'c']),
+        'vvvo' : ('e2(a,b,i,c)', ['a', 'b', 'c', 'i']),
+        'vvov' : ('e2(a,b,c,i)', ['a', 'b', 'i', 'c']),
+        'vvvv' : ('e2(a,b,d,c)', ['a', 'b', 'c', 'd']),
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self, left_state, right_state):
+    # right-hand eom amplitudes
+
+    # r0 is special because it is a scalar
+    r0_dict = self.R[right_state].get('0', {{}})
+    r0_val = r0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0 = r0_val.item() if hasattr(r0_val, 'item') else r0_val
+
+    r1 = dict(self.R[right_state].get('1', {{}}))
+    r2 = dict(self.R[right_state].get('2', {{}}))
+    r3 = dict(self.R[right_state].get('3', {{}}))
+    r4 = dict(self.R[right_state].get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_1p_dict = self.R[right_state].get('0_1p', {{}})
+    r0_1p_val = r0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_1p = r0_1p_val.item() if hasattr(r0_1p_val, 'item') else r0_1p_val
+
+    r1_1p = dict(self.R[right_state].get('1_1p', {{}}))
+    r2_1p = dict(self.R[right_state].get('2_1p', {{}}))
+    r3_1p = dict(self.R[right_state].get('3_1p', {{}}))
+    r4_1p = dict(self.R[right_state].get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_2p_dict = self.R[right_state].get('0_2p', {{}})
+    r0_2p_val = r0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_2p = r0_2p_val.item() if hasattr(r0_2p_val, 'item') else r0_2p_val
+
+    r1_2p = dict(self.R[right_state].get('1_2p', {{}}))
+    r2_2p = dict(self.R[right_state].get('2_2p', {{}}))
+    r3_2p = dict(self.R[right_state].get('3_2p', {{}}))
+    r4_2p = dict(self.R[right_state].get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_3p_dict = self.R[right_state].get('0_3p', {{}})
+    r0_3p_val = r0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_3p = r0_3p_val.item() if hasattr(r0_3p_val, 'item') else r0_3p_val
+
+    r1_3p = dict(self.R[right_state].get('1_3p', {{}}))
+    r2_3p = dict(self.R[right_state].get('2_3p', {{}}))
+    r3_3p = dict(self.R[right_state].get('3_3p', {{}}))
+    r4_3p = dict(self.R[right_state].get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_4p_dict = self.R[right_state].get('0_4p', {{}})
+    r0_4p_val = r0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_4p = r0_4p_val.item() if hasattr(r0_4p_val, 'item') else r0_4p_val
+
+    r1_4p = dict(self.R[right_state].get('1_4p', {{}}))
+    r2_4p = dict(self.R[right_state].get('2_4p', {{}}))
+    r3_4p = dict(self.R[right_state].get('3_4p', {{}}))
+    r4_4p = dict(self.R[right_state].get('4_4p', {{}}))
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, (op, indices) in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+
+        pq.set_right_operators_type(operator_type)
+        pq.set_left_operators_type(operator_type)
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # set ket
+        pq.set_right_operators(R)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, [op], T)
+        else:
+            pq.add_operator_product(1.0, [op])
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking ... the other spin blocking function doesn't work here because it sorts labels
+        #block_by_spin(pq, ret_name + "_" + block, L + T + [[op]], eqs)
+        spin_map = get_tpdm_spin_map(op)
+        for spins, label_to_spin in spin_map.items():
+            spin_eqname = f"{ret_name}_{block}_{spins}"
+            pq.block_by_spin(label_to_spin)
+            eqs[spin_eqname] = pq.clone()
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname, indices)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
+
+    # need to redefine l1/l2 because they currently point to the ccsd ones
+    generated_code_string += \
+f"""
+
+    # transposing left-hand amplitudes is tricky for non-EE methods
+    def transpose_left_amplitude(tensor, spaces, spin=None):
+        '''
+        Transposes left amplitudes by swapping creation and annihilation index blocks. 
+        `spaces` is a list/tuple like ['vv', 'ooo'] or ['', 'o'].
+        Optionally permutes a spin string key (e.g., 'bab' -> 'abb').
+        ''' 
+        # 1. Safely extract creation and annihilation spaces
+        cr_space = spaces[0] if len(spaces) > 0 else ''
+        an_space = spaces[1] if len(spaces) > 1 else ''
+            
+        n_cr = len(cr_space)  # Number of creation (virtual) indices
+        n_an = len(an_space)  # Number of annihilation (occupied) indices
+            
+        # 2. Compute the dynamic permutation
+        perm = tuple(range(n_cr, n_cr + n_an)) + tuple(range(0, n_cr))
+        
+        # 3. Guard against 0D scalars or empty permutations (e.g., L0)
+        if not perm or getattr(tensor, 'ndim', 0) == 0:
+            return (tensor, spin) if spin is not None else tensor
+    
+        # 4. Transpose tensor
+        transposed_tensor = tensor.transpose(perm)
+        
+        # 5. Permute spin string if provided
+        if spin is not None:
+            transposed_spin = "".join(spin[p] for p in perm)
+            return transposed_tensor, transposed_spin
+            
+        return transposed_tensor
+
+    # transposing left-hand amplitudes is tricky for non-EE methods:
+    L_transposed = {{}}
+    
+    for base_name, spin_dict in self.L[left_state].items():
+        L_transposed[base_name] = {{}}
+        raw_spaces = self.L_meta[left_state][base_name]['raw_spaces']
+        
+        for spin, tensor in spin_dict.items():
+            # Use the helper function to transpose tensor and remap the spin key
+            t_tensor, t_spin = transpose_left_amplitude(tensor, raw_spaces, spin=spin)
+            L_transposed[base_name][t_spin] = t_tensor
+
+    # left-hand eom amplitudes
+
+    # l0 is special because it is a scalar
+    l0_dict = self.L[left_state].get('0', {{}})
+    l0_val = l0_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0 = l0_val.item() if hasattr(l0_val, 'item') else l0_val
+   
+    l1 = dict(L_transposed.get('1', {{}}))
+    l2 = dict(L_transposed.get('2', {{}}))
+    l3 = dict(L_transposed.get('3', {{}}))
+    l4 = dict(L_transposed.get('4', {{}})) 
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_1p_dict = self.L[left_state].get('0_1p', {{}})
+    l0_1p_val = l0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_1p = l0_1p_val.item() if hasattr(l0_1p_val, 'item') else l0_1p_val
+
+    l1_1p = dict(L_transposed.get('1_1p', {{}}))
+    l2_1p = dict(L_transposed.get('2_1p', {{}}))
+    l3_1p = dict(L_transposed.get('3_1p', {{}}))
+    l4_1p = dict(L_transposed.get('4_1p', {{}}))
+    
+    # Photon-Coupled Amplitudes (2 Photon)
+    
+    # Photon creation only is special because it is a scalar
+    l0_2p_dict = self.L[left_state].get('0_2p', {{}})
+    l0_2p_val = l0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_2p = l0_2p_val.item() if hasattr(l0_2p_val, 'item') else l0_2p_val
+
+    l1_2p = dict(L_transposed.get('1_2p', {{}}))
+    l2_2p = dict(L_transposed.get('2_2p', {{}}))
+    l3_2p = dict(L_transposed.get('3_2p', {{}}))
+    l4_2p = dict(L_transposed.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_3p_dict = self.L[left_state].get('0_3p', {{}})
+    l0_3p_val = l0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_3p = l0_3p_val.item() if hasattr(l0_3p_val, 'item') else l0_3p_val
+
+    l1_3p = dict(L_transposed.get('1_3p', {{}}))
+    l2_3p = dict(L_transposed.get('2_3p', {{}}))
+    l3_3p = dict(L_transposed.get('3_3p', {{}}))
+    l4_3p = dict(L_transposed.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_4p_dict = self.L[left_state].get('0_4p', {{}})
+    l0_4p_val = l0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_4p = l0_4p_val.item() if hasattr(l0_4p_val, 'item') else l0_4p_val
+
+    l1_4p = dict(L_transposed.get('1_4p', {{}}))
+    l2_4p = dict(L_transposed.get('2_4p', {{}}))
+    l3_4p = dict(L_transposed.get('3_4p', {{}}))
+    l4_4p = dict(L_transposed.get('4_4p', {{}}))
+"""
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['aaaa_oooo'] = {ret_name}_oooo_aaaa
+    {ret_name}['aaaa_ooov'] = {ret_name}_ooov_aaaa
+    {ret_name}['aaaa_oovo'] = {ret_name}_oovo_aaaa
+    {ret_name}['aaaa_ovoo'] = {ret_name}_ovoo_aaaa
+    {ret_name}['aaaa_vooo'] = {ret_name}_vooo_aaaa
+    {ret_name}['aaaa_oovv'] = {ret_name}_oovv_aaaa
+    {ret_name}['aaaa_ovov'] = {ret_name}_ovov_aaaa
+    {ret_name}['aaaa_voov'] = {ret_name}_voov_aaaa
+    {ret_name}['aaaa_ovvo'] = {ret_name}_ovvo_aaaa
+    {ret_name}['aaaa_vovo'] = {ret_name}_vovo_aaaa
+    {ret_name}['aaaa_vvoo'] = {ret_name}_vvoo_aaaa
+    {ret_name}['aaaa_ovvv'] = {ret_name}_ovvv_aaaa
+    {ret_name}['aaaa_vovv'] = {ret_name}_vovv_aaaa
+    {ret_name}['aaaa_vvov'] = {ret_name}_vvov_aaaa
+    {ret_name}['aaaa_vvvo'] = {ret_name}_vvvo_aaaa
+    {ret_name}['aaaa_vvvv'] = {ret_name}_vvvv_aaaa
+
+    {ret_name}['bbbb_oooo'] = {ret_name}_oooo_bbbb
+    {ret_name}['bbbb_ooov'] = {ret_name}_ooov_bbbb
+    {ret_name}['bbbb_oovo'] = {ret_name}_oovo_bbbb
+    {ret_name}['bbbb_ovoo'] = {ret_name}_ovoo_bbbb
+    {ret_name}['bbbb_vooo'] = {ret_name}_vooo_bbbb
+    {ret_name}['bbbb_oovv'] = {ret_name}_oovv_bbbb
+    {ret_name}['bbbb_ovov'] = {ret_name}_ovov_bbbb
+    {ret_name}['bbbb_voov'] = {ret_name}_voov_bbbb
+    {ret_name}['bbbb_ovvo'] = {ret_name}_ovvo_bbbb
+    {ret_name}['bbbb_vovo'] = {ret_name}_vovo_bbbb
+    {ret_name}['bbbb_vvoo'] = {ret_name}_vvoo_bbbb
+    {ret_name}['bbbb_ovvv'] = {ret_name}_ovvv_bbbb
+    {ret_name}['bbbb_vovv'] = {ret_name}_vovv_bbbb
+    {ret_name}['bbbb_vvov'] = {ret_name}_vvov_bbbb
+    {ret_name}['bbbb_vvvo'] = {ret_name}_vvvo_bbbb
+    {ret_name}['bbbb_vvvv'] = {ret_name}_vvvv_bbbb
+    
+    {ret_name}['abab_oooo'] = {ret_name}_oooo_abab
+    {ret_name}['abab_ooov'] = {ret_name}_ooov_abab
+    {ret_name}['abab_oovo'] = {ret_name}_oovo_abab
+    {ret_name}['abab_ovoo'] = {ret_name}_ovoo_abab
+    {ret_name}['abab_vooo'] = {ret_name}_vooo_abab
+    {ret_name}['abab_oovv'] = {ret_name}_oovv_abab
+    {ret_name}['abab_ovov'] = {ret_name}_ovov_abab
+    {ret_name}['abab_voov'] = {ret_name}_voov_abab
+    {ret_name}['abab_ovvo'] = {ret_name}_ovvo_abab
+    {ret_name}['abab_vovo'] = {ret_name}_vovo_abab
+    {ret_name}['abab_vvoo'] = {ret_name}_vvoo_abab
+    {ret_name}['abab_ovvv'] = {ret_name}_ovvv_abab
+    {ret_name}['abab_vovv'] = {ret_name}_vovv_abab
+    {ret_name}['abab_vvov'] = {ret_name}_vvov_abab
+    {ret_name}['abab_vvvo'] = {ret_name}_vvvo_abab
+    {ret_name}['abab_vvvv'] = {ret_name}_vvvv_abab
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        write_generated_function(function_name, generated_code_string)
+
+    return generated_code_string
+
+def eomcc_phdm(ret_name, 
+    T,
+    L,
+    R, 
+    function_name,
+    spin_block = True,
+    write_function = False,
+    operator_type = 'EE',
+    is_qed = False,
+    pq_graph_options = None):
+
+    """
+    derive equations for EOMCC photon and coupled photon-electron density matrix equations
+    
+    :param ret_name: name for the variable representing the density matrix
+    :param T: list of cluster operators
+    :param L: list of left-hand operators
+    :param R: list of right-hand operators
+    :param function_name: name for the python function
+    :param spin_block: do spin block the equations?
+    :param write_function: do write function to disk?
+    :param operator_type: EE, IP, EA, etc.
+    :param is_qed: include qed-cc terms? 
+    :param pq_graph_options: options dictionary for pq_graph
+    """ 
+
+    if not spin_block:
+        raise Exception("spin-orbital eomcc equations not implemented")
+
+    blocks = {
+        '0'     : (['B+', 'B-'], ['']),
+        'p1'    : (['B+'], ['']),
+        'm1'    : (['B-'], ['']),
+        'oo_p1' : (['B+', 'e1(i,j)'], ['i', 'j']),
+        'ov_p1' : (['B+', 'e1(i,a)'], ['i', 'a']),
+        'vo_p1' : (['B+', 'e1(a,i)'], ['a', 'i']),
+        'vv_p1' : (['B+', 'e1(a,b)'], ['a', 'b']),
+        'oo_m1' : (['B-', 'e1(i,j)'], ['i', 'j']),
+        'ov_m1' : (['B-', 'e1(i,a)'], ['i', 'a']),
+        'vo_m1' : (['B-', 'e1(a,i)'], ['a', 'i']),
+        'vv_m1' : (['B-', 'e1(a,b)'], ['a', 'b']),
+    }
+
+    # initialization statements 
+    generated_code_string = \
+f"""
+def {function_name}(self, left_state, right_state):
+    # right-hand eom amplitudes
+
+    # r0 is special because it is a scalar
+    r0_dict = self.R[right_state].get('0', {{}})
+    r0_val = r0_dict.get('', 0.0)
+
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0 = r0_val.item() if hasattr(r0_val, 'item') else r0_val
+
+    r1 = dict(self.R[right_state].get('1', {{}}))
+    r2 = dict(self.R[right_state].get('2', {{}}))
+    r3 = dict(self.R[right_state].get('3', {{}}))
+    r4 = dict(self.R[right_state].get('4', {{}}))
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_1p_dict = self.R[right_state].get('0_1p', {{}})
+    r0_1p_val = r0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_1p = r0_1p_val.item() if hasattr(r0_1p_val, 'item') else r0_1p_val
+
+    r1_1p = dict(self.R[right_state].get('1_1p', {{}}))
+    r2_1p = dict(self.R[right_state].get('2_1p', {{}}))
+    r3_1p = dict(self.R[right_state].get('3_1p', {{}}))
+    r4_1p = dict(self.R[right_state].get('4_1p', {{}}))
+
+    # Photon-Coupled Amplitudes (2 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_2p_dict = self.R[right_state].get('0_2p', {{}})
+    r0_2p_val = r0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_2p = r0_2p_val.item() if hasattr(r0_2p_val, 'item') else r0_2p_val
+
+    r1_2p = dict(self.R[right_state].get('1_2p', {{}}))
+    r2_2p = dict(self.R[right_state].get('2_2p', {{}}))
+    r3_2p = dict(self.R[right_state].get('3_2p', {{}}))
+    r4_2p = dict(self.R[right_state].get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_3p_dict = self.R[right_state].get('0_3p', {{}})
+    r0_3p_val = r0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_3p = r0_3p_val.item() if hasattr(r0_3p_val, 'item') else r0_3p_val
+
+    r1_3p = dict(self.R[right_state].get('1_3p', {{}}))
+    r2_3p = dict(self.R[right_state].get('2_3p', {{}}))
+    r3_3p = dict(self.R[right_state].get('3_3p', {{}}))
+    r4_3p = dict(self.R[right_state].get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    r0_4p_dict = self.R[right_state].get('0_4p', {{}})
+    r0_4p_val = r0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    r0_4p = r0_4p_val.item() if hasattr(r0_4p_val, 'item') else r0_4p_val
+
+    r1_4p = dict(self.R[right_state].get('1_4p', {{}}))
+    r2_4p = dict(self.R[right_state].get('2_4p', {{}}))
+    r3_4p = dict(self.R[right_state].get('3_4p', {{}}))
+    r4_4p = dict(self.R[right_state].get('4_4p', {{}}))
+"""
+
+    # Enable and configure pq_graph
+    graph = configure_graph(pq_graph_options)
+
+    for block, (op, indices) in blocks.items():
+
+        pq = pdaggerq.pq_helper("fermi")
+        pq.set_right_operators_type(operator_type)
+        pq.set_left_operators_type(operator_type)
+
+        # set bra
+        pq.set_left_operators(L)
+
+        # set ket
+        pq.set_right_operators(R)
+
+        # add similarity-transformed density operator (or bare Hamiltonian if no T)
+        if len(T) > 0:
+            pq.add_st_operator(1.0, op, T)
+        else:
+            pq.add_operator_product(1.0, op)
+
+        # cleanup
+        pq.simplify()
+
+        # dictionary to store the derived equations
+        eqs = {}
+
+        # spin blocking
+        block_by_spin(pq, ret_name + "_" + block, L + T + R + [op], eqs)
+
+        # Add equations to graph
+        for proj_eqname, eq in eqs.items():
+            print(f"Adding equation {proj_eqname} to the graph", flush=True)
+            graph.add(eq, proj_eqname, indices)
+
+        pq.clear()
+
+        del pq
+
+    # optimize the graph
+    graph.optimize()
+
+    generated_code_string += function_initialization_string(extra_class = "cc", is_qed = is_qed)
+
+    # need to redefine l1/l2 because they currently point to the ccsd ones
+    generated_code_string += \
+f"""
+
+    # transposing left-hand amplitudes is tricky for non-EE methods
+    def transpose_left_amplitude(tensor, spaces, spin=None):
+        '''
+        Transposes left amplitudes by swapping creation and annihilation index blocks. 
+        `spaces` is a list/tuple like ['vv', 'ooo'] or ['', 'o'].
+        Optionally permutes a spin string key (e.g., 'bab' -> 'abb').
+        ''' 
+        # 1. Safely extract creation and annihilation spaces
+        cr_space = spaces[0] if len(spaces) > 0 else ''
+        an_space = spaces[1] if len(spaces) > 1 else ''
+            
+        n_cr = len(cr_space)  # Number of creation (virtual) indices
+        n_an = len(an_space)  # Number of annihilation (occupied) indices
+            
+        # 2. Compute the dynamic permutation
+        perm = tuple(range(n_cr, n_cr + n_an)) + tuple(range(0, n_cr))
+        
+        # 3. Guard against 0D scalars or empty permutations (e.g., L0)
+        if not perm or getattr(tensor, 'ndim', 0) == 0:
+            return (tensor, spin) if spin is not None else tensor
+    
+        # 4. Transpose tensor
+        transposed_tensor = tensor.transpose(perm)
+        
+        # 5. Permute spin string if provided
+        if spin is not None:
+            transposed_spin = "".join(spin[p] for p in perm)
+            return transposed_tensor, transposed_spin
+            
+        return transposed_tensor
+
+    # transposing left-hand amplitudes is tricky for non-EE methods:
+    L_transposed = {{}}
+    
+    for base_name, spin_dict in self.L[left_state].items():
+        L_transposed[base_name] = {{}}
+        raw_spaces = self.L_meta[left_state][base_name]['raw_spaces']
+        
+        for spin, tensor in spin_dict.items():
+            # Use the helper function to transpose tensor and remap the spin key
+            t_tensor, t_spin = transpose_left_amplitude(tensor, raw_spaces, spin=spin)
+            L_transposed[base_name][t_spin] = t_tensor
+
+    # left-hand eom amplitudes
+
+    # l0 is special because it is a scalar
+    l0_dict = self.L[left_state].get('0', {{}})
+    l0_val = l0_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0 = l0_val.item() if hasattr(l0_val, 'item') else l0_val
+   
+    l1 = dict(L_transposed.get('1', {{}}))
+    l2 = dict(L_transposed.get('2', {{}}))
+    l3 = dict(L_transposed.get('3', {{}}))
+    l4 = dict(L_transposed.get('4', {{}})) 
+    
+    # Photon-Coupled Amplitudes (1 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_1p_dict = self.L[left_state].get('0_1p', {{}})
+    l0_1p_val = l0_1p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_1p = l0_1p_val.item() if hasattr(l0_1p_val, 'item') else l0_1p_val
+
+    l1_1p = dict(L_transposed.get('1_1p', {{}}))
+    l2_1p = dict(L_transposed.get('2_1p', {{}}))
+    l3_1p = dict(L_transposed.get('3_1p', {{}}))
+    l4_1p = dict(L_transposed.get('4_1p', {{}}))
+    
+    # Photon-Coupled Amplitudes (2 Photon)
+    
+    # Photon creation only is special because it is a scalar
+    l0_2p_dict = self.L[left_state].get('0_2p', {{}})
+    l0_2p_val = l0_2p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_2p = l0_2p_val.item() if hasattr(l0_2p_val, 'item') else l0_2p_val
+
+    l1_2p = dict(L_transposed.get('1_2p', {{}}))
+    l2_2p = dict(L_transposed.get('2_2p', {{}}))
+    l3_2p = dict(L_transposed.get('3_2p', {{}}))
+    l4_2p = dict(L_transposed.get('4_2p', {{}}))
+
+    # Photon-Coupled Amplitudes (3 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_3p_dict = self.L[left_state].get('0_3p', {{}})
+    l0_3p_val = l0_3p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_3p = l0_3p_val.item() if hasattr(l0_3p_val, 'item') else l0_3p_val
+
+    l1_3p = dict(L_transposed.get('1_3p', {{}}))
+    l2_3p = dict(L_transposed.get('2_3p', {{}}))
+    l3_3p = dict(L_transposed.get('3_3p', {{}}))
+    l4_3p = dict(L_transposed.get('4_3p', {{}}))
+
+    # Photon-Coupled Amplitudes (4 Photon)
+
+    # Photon creation only is special because it is a scalar
+    l0_4p_dict = self.L[left_state].get('0_4p', {{}})
+    l0_4p_val = l0_4p_dict.get('', 0.0)
+    
+    # Unwrap numpy array/scalar to a raw float if necessary
+    l0_4p = l0_4p_val.item() if hasattr(l0_4p_val, 'item') else l0_4p_val
+
+    l1_4p = dict(L_transposed.get('1_4p', {{}}))
+    l2_4p = dict(L_transposed.get('2_4p', {{}}))
+    l3_4p = dict(L_transposed.get('3_4p', {{}}))
+    l4_4p = dict(L_transposed.get('4_4p', {{}}))
+"""
+
+    # pq graph output
+    generated_code_string += graph.str("python")
+
+    # return statement
+    generated_code_string += \
+f"""
+    {ret_name} = {{}}
+    {ret_name}['0'] = {ret_name}_0
+    {ret_name}['+1'] = {ret_name}_p1
+    {ret_name}['-1'] = {ret_name}_m1
+    {ret_name}['aa_oo_+1'] = {ret_name}_oo_p1_aa
+    {ret_name}['aa_ov_+1'] = {ret_name}_ov_p1_aa
+    {ret_name}['aa_vo_+1'] = {ret_name}_vo_p1_aa
+    {ret_name}['aa_vv_+1'] = {ret_name}_vv_p1_aa
+    {ret_name}['bb_oo_+1'] = {ret_name}_oo_p1_bb
+    {ret_name}['bb_ov_+1'] = {ret_name}_ov_p1_bb
+    {ret_name}['bb_vo_+1'] = {ret_name}_vo_p1_bb
+    {ret_name}['bb_vv_+1'] = {ret_name}_vv_p1_bb
+    {ret_name}['aa_oo_-1'] = {ret_name}_oo_m1_aa
+    {ret_name}['aa_ov_-1'] = {ret_name}_ov_m1_aa
+    {ret_name}['aa_vo_-1'] = {ret_name}_vo_m1_aa
+    {ret_name}['aa_vv_-1'] = {ret_name}_vv_m1_aa
+    {ret_name}['bb_oo_-1'] = {ret_name}_oo_m1_bb
+    {ret_name}['bb_ov_-1'] = {ret_name}_ov_m1_bb
+    {ret_name}['bb_vo_-1'] = {ret_name}_vo_m1_bb
+    {ret_name}['bb_vv_-1'] = {ret_name}_vv_m1_bb
+
+    return {ret_name}
+"""
+
+    # write function 
+    if write_function:
+        write_generated_function(function_name, generated_code_string)
 
     return generated_code_string

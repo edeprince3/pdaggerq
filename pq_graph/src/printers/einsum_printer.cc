@@ -65,7 +65,13 @@ string EinsumPrinter::format_contraction(
     for (const auto& op : operators) {
         if (op->empty()) continue;
         string s = op->str();
-        if (op->is_expandable(false, true))
+        // An addition has to be parenthesised: it binds looser than the product this
+        // operand sits in. is_expandable(false, true) is the general test, but it also
+        // insists the operand is not a SCALAR, so a FUSED SCALAR ADDITION -- several
+        // scalars merged into one by opt_level 6 -- answered false and printed as
+        // "a + b + c * tensor" instead of "(a + b + c) * tensor", silently adding the
+        // scalars to the result instead of scaling by their sum.
+        if (op->is_expandable(false, true) || (!op->is_temp() && op->is_addition()))
             s = "(" + s + ")";
 
         if (op->is_printed_scalar()) {
@@ -75,7 +81,7 @@ string EinsumPrinter::format_contraction(
             string labels, types;
             for (const auto& line : op->lines()) {
                 if (line.sig_ && !Vertex::use_trial_index) continue;
-                labels += line.label_[0];
+                labels += line.einsum_char();
                 types  += line.type();
             }
             tensor_labels.push_back(std::move(labels));
@@ -87,7 +93,7 @@ string EinsumPrinter::format_contraction(
     string output_labels, output_types;
     for (const auto& line : output_lines) {
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        output_labels += line.label_[0];
+        output_labels += line.einsum_char();
         output_types  += line.type();
     }
 
@@ -137,11 +143,11 @@ string EinsumPrinter::format_addition(
     string left_labels, right_labels;
     for (const auto& line : left->lines()) {
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        left_labels += line.label_[0];
+        left_labels += line.einsum_char();
     }
     for (const auto& line : right->lines()) {
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        right_labels += line.label_[0];
+        right_labels += line.einsum_char();
     }
 
     string output = left->str() + " + ";
@@ -196,12 +202,12 @@ string EinsumPrinter::format_term(const Term& t) const {
     // Get string of lines from lhs vertex
     for (const auto& line : t.lhs()->lines())
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        else lhs_string += line.label_.front();
+        else lhs_string += line.einsum_char();
 
     // Get string of lines from the term linkage
     for (const auto& line : t.term_linkage(true)->lines())
         if (line.sig_ && !Vertex::use_trial_index) continue;
-        else rhs_string += line.label_.front();
+        else rhs_string += line.einsum_char();
 
     // Get einsum string from term linkage
     string einsum_string = t.term_linkage(true)->str();

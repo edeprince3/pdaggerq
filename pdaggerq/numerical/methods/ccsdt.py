@@ -31,6 +31,7 @@ class CCSDT:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -38,6 +39,7 @@ class CCSDT:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -45,6 +47,7 @@ class CCSDT:
             T,
             [['e3(i,j,k,c,b,a)']],
             't3_residual',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -55,18 +58,18 @@ class CCSDT:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         t3 = {
-            'spaces' : 'vvvooo',
-            'spins' : ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
+            'spaces' : ['vvv','ooo'],
+            'spins' : [['aaa','aaa'], ['aab','aab'], ['abb','abb'], ['bbb','bbb']],
             'residual' : local_namespace["t3_residual"]
         }
         self.T_list = [t1, t2, t3]
@@ -81,10 +84,91 @@ class CCSDT:
             self.wfn,
             self.mol,
             nfzc = self.nfzc,
+            e_convergence = self.e_convergence,
+            r_convergence = self.r_convergence,
             cc_energy_func = self.cc_energy["cc_energy"],
             T_list = self.T_list
         )
+        self.efzc = self.cc_solver.efzc
+        self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
         
         en = self.cc_solver.t_solver()
+
+        return en
+
+    def lambda_solver(self):
+
+        # Import pq codegen functions 
+        from pdaggerq.numerical.codegen.autogen import lambda_cc_residual
+        from pdaggerq.numerical.codegen.autogen import lambda_cc_pseudoenergy
+
+        # Create an empty dictionary to hold the pq-generated equations
+        local_namespace = {}
+
+        # Generate lambda equations
+        T = ['t1', 't2', 't3']
+        L = [['l1'], ['l2'], ['l3']]
+
+        cc_pseudoenergy_func = lambda_cc_pseudoenergy('cc_pseudoenergy',
+            L,
+            [['1']],
+            'cc_pseudoenergy',
+            pq_graph_options = self.pq_graph_options
+        )
+        l1_residual_func = lambda_cc_residual('r1',
+            T,
+            L,
+            ['e1(a,i)'],
+            'l1_residual',
+            indices = ['a', 'i'],
+            pq_graph_options = self.pq_graph_options
+        )
+
+        l2_residual_func = lambda_cc_residual('r2',
+            T,
+            L,
+            ['e2(a,b,j,i)'],
+            'l2_residual',
+            indices = ['a', 'b', 'i', 'j'],
+            pq_graph_options = self.pq_graph_options
+        )
+
+        l3_residual_func = lambda_cc_residual('r3',
+            T,
+            L,
+            ['e3(a,b,c,k,j,i)'],
+            'l3_residual',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
+            pq_graph_options = self.pq_graph_options
+        )
+
+        # Execute the code strings in memory
+        exec(cc_pseudoenergy_func, globals(), local_namespace)
+        exec(l1_residual_func, globals(), local_namespace)
+        exec(l2_residual_func, globals(), local_namespace)
+        exec(l3_residual_func, globals(), local_namespace)
+
+        # lambda amplitude dictionaries to pass into the solver
+        # lambda amplitude dictionaries to pass into the solver
+        l1 = {
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
+            'residual' : local_namespace["l1_residual"]
+        }
+        l2 = {
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
+            'residual' : local_namespace["l2_residual"]
+        }
+        l3 = {
+            'spaces' : ['vvv','ooo'],
+            'spins' : [['aaa','aaa'], ['aab','aab'], ['abb','abb'], ['bbb','bbb']],
+            'residual' : local_namespace["l3_residual"]
+        }
+
+        # initialize lambdas in cc_solver
+        self.cc_solver.initialize_lambda([l1, l2, l3], cc_pseudoenergy_func = local_namespace['cc_pseudoenergy'])
+
+        en = self.cc_solver.lambda_solver()
 
         return en
