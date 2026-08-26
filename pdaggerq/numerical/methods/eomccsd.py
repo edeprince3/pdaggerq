@@ -39,6 +39,7 @@ class EOMCCSD:
             [['e1(i,a)']],
             R,
             'right_sigma1',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -47,6 +48,7 @@ class EOMCCSD:
             [['e2(i,j,b,a)']],
             R,
             'right_sigma2',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -98,6 +100,7 @@ class EOMCCSD:
             L,
             [['e1(a,i)']],
             'left_sigma1',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -106,6 +109,7 @@ class EOMCCSD:
             L,
             [['e2(a,b,j,i)']],
             'left_sigma2',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 

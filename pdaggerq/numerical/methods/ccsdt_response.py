@@ -36,6 +36,7 @@ class CCSDT_RESPONSE:
             [['e1(i,a)']],
             R,
             'right_sigma1',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -44,6 +45,7 @@ class CCSDT_RESPONSE:
             [['e2(i,j,b,a)']],
             R,
             'right_sigma2',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -52,6 +54,7 @@ class CCSDT_RESPONSE:
             [['e3(i,j,k,c,b,a)']],
             R,
             'right_sigma3',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -67,6 +70,7 @@ class CCSDT_RESPONSE:
             L,
             ['e1(i,a)'],
             'xi1',
+            indices = ['a', 'i'],
             term_type = 'xi',
             pq_graph_options = self.pq_graph_options
         )
@@ -76,6 +80,7 @@ class CCSDT_RESPONSE:
             L,
             ['e2(i,j,b,a)'],
             'xi2',
+            indices = ['a', 'b', 'i', 'j'],
             term_type = 'xi',
             pq_graph_options = self.pq_graph_options
         )
@@ -85,6 +90,7 @@ class CCSDT_RESPONSE:
             L,
             ['e3(i,j,k,c,b,a)'],
             'xi3',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
             term_type = 'xi',
             pq_graph_options = self.pq_graph_options
         )
@@ -101,6 +107,7 @@ class CCSDT_RESPONSE:
             L,
             ['e1(a,i)'],
             'eta1',
+            indices = ['a', 'i'],
             term_type = 'eta',
             pq_graph_options = self.pq_graph_options
         )
@@ -110,6 +117,7 @@ class CCSDT_RESPONSE:
             L,
             ['e2(a,b,j,i)'],
             'eta2',
+            indices = ['a', 'b', 'i', 'j'],
             term_type = 'eta',
             pq_graph_options = self.pq_graph_options
         )
@@ -119,6 +127,7 @@ class CCSDT_RESPONSE:
             L,
             ['e3(a,b,c,k,j,i)'],
             'eta3',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
             term_type = 'eta',
             pq_graph_options = self.pq_graph_options
         )

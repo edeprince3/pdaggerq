@@ -32,6 +32,7 @@ class CC3:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -39,12 +40,14 @@ class CC3:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
         t3_residual_func = cc3_triples_residual('r3',
             [['e3(i,j,k,c,b,a)']],
             't3_residual',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
             pq_graph_options = self.pq_graph_options
         ) 
         

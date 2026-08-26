@@ -31,6 +31,7 @@ class CCSD:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -38,6 +39,7 @@ class CCSD:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -104,6 +106,7 @@ class CCSD:
             L,
             ['e1(a,i)'],
             'l1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -112,6 +115,7 @@ class CCSD:
             L,
             ['e2(a,b,j,i)'],
             'l2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 

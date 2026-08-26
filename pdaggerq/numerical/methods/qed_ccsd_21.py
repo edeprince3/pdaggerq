@@ -34,6 +34,7 @@ class QED_CCSD_21:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -42,6 +43,7 @@ class QED_CCSD_21:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -58,6 +60,7 @@ class QED_CCSD_21:
             T,
             [['B-','e1(i,a)']],
             't1_1p_residual',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -66,6 +69,7 @@ class QED_CCSD_21:
             T,
             [['B-','e2(i,j,b,a)']],
             't2_1p_residual',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -163,6 +167,7 @@ class QED_CCSD_21:
             L,
             ['e1(a,i)'],
             'l1_residual',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -172,6 +177,7 @@ class QED_CCSD_21:
             L,
             ['e2(a,b,j,i)'],
             'l2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -190,6 +196,7 @@ class QED_CCSD_21:
             L,
             ['B+','e1(a,i)'],
             'l1_1p_residual',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -199,6 +206,7 @@ class QED_CCSD_21:
             L,
             ['B+','e2(a,b,j,i)'],
             'l2_1p_residual',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )

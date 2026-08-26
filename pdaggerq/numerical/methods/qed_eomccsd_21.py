@@ -40,6 +40,7 @@ class QED_EOMCCSD_21:
             [['e1(i,a)']],
             R,
             'right_sigma1',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -49,6 +50,7 @@ class QED_EOMCCSD_21:
             [['e2(i,j,b,a)']],
             R,
             'right_sigma2',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -67,6 +69,7 @@ class QED_EOMCCSD_21:
             [['B-', 'e1(i,a)']],
             R,
             'right_sigma1_1p',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -76,6 +79,7 @@ class QED_EOMCCSD_21:
             [['B-', 'e2(i,j,b,a)']],
             R,
             'right_sigma2_1p',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -148,6 +152,7 @@ class QED_EOMCCSD_21:
             L,
             [['e1(a,i)']],
             'left_sigma1',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -157,6 +162,7 @@ class QED_EOMCCSD_21:
             L,
             [['e2(a,b,j,i)']],
             'left_sigma2',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -175,6 +181,7 @@ class QED_EOMCCSD_21:
             L,
             [['B+', 'e1(a,i)']],
             'left_sigma1_1p',
+            indices = ['a', 'i'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )
@@ -184,6 +191,7 @@ class QED_EOMCCSD_21:
             L,
             [['B+', 'e2(a,b,j,i)']],
             'left_sigma2_1p',
+            indices = ['a', 'b', 'i', 'j'],
             is_qed = True,
             pq_graph_options = self.pq_graph_options
         )

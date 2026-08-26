@@ -29,6 +29,7 @@ class EA_EOMCCSDT:
             [['a(a)']],
             R,
             'right_sigma1',
+            indices = ['a'],
             operator_type = 'EA',
             pq_graph_options = self.pq_graph_options
         )
@@ -38,6 +39,7 @@ class EA_EOMCCSDT:
             [['a*(i)', 'a(b)', 'a(a)']],
             R,
             'right_sigma2',
+            indices = ['a', 'b', 'i'],
             operator_type = 'EA',
             pq_graph_options = self.pq_graph_options
         )
@@ -47,6 +49,7 @@ class EA_EOMCCSDT:
             [['a*(i)', 'a*(j)', 'a(c)', 'a(b)', 'a(a)']],
             R,
             'right_sigma3',
+            indices = ['a', 'b', 'c', 'i', 'j'],
             operator_type = 'EA',
             pq_graph_options = self.pq_graph_options
         )
@@ -93,6 +96,7 @@ class EA_EOMCCSDT:
             L,
             [['a*(a)']],
             'left_sigma1',
+            indices = ['a'],
             operator_type = 'EA',
             pq_graph_options = self.pq_graph_options
         )
@@ -102,6 +106,7 @@ class EA_EOMCCSDT:
             L,
             [['a*(a)', 'a*(b)', 'a(i)']],
             'left_sigma2',
+            indices = ['a', 'b', 'i'],
             operator_type = 'EA',
             pq_graph_options = self.pq_graph_options
         )
@@ -111,6 +116,7 @@ class EA_EOMCCSDT:
             L,
             [['a*(a)', 'a*(b)', 'a*(c)', 'a(j)', 'a(i)']],
             'left_sigma3',
+            indices = ['a', 'b', 'c', 'i', 'j'],
             operator_type = 'EA',
             pq_graph_options = self.pq_graph_options
         )
