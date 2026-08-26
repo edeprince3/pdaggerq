@@ -33,6 +33,7 @@ class QUCCSD:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )  
 
@@ -41,6 +42,7 @@ class QUCCSD:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )   
         

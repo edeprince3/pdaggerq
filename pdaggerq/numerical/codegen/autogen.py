@@ -384,6 +384,7 @@ def cc_residual(residual_name,
     T, 
     L, 
     function_name, 
+    indices = None,
     spin_block = True, 
     write_function = False,
     is_qed = False,
@@ -396,6 +397,7 @@ def cc_residual(residual_name,
     :param T: list of cluster operators
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param is_qed: include qed-cc terms? 
@@ -449,7 +451,10 @@ def cc_residual(residual_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # Optimize the graph
     graph.optimize()
@@ -514,6 +519,7 @@ def bernoulli_ucc_residual(rank,
     T, 
     L, 
     function_name, 
+    indices = None,
     spin_block = True, 
     write_function = False,
     pq_graph_options = None):
@@ -526,6 +532,7 @@ def bernoulli_ucc_residual(rank,
     :param T: list of cluster operators
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -572,7 +579,10 @@ def bernoulli_ucc_residual(rank,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -636,6 +646,7 @@ def uccsd_singles_residual(order,
     residual_name, 
     L,
     function_name,
+    indices = None,
     spin_block = True, 
     write_function = False,
     pq_graph_options = None):
@@ -647,6 +658,7 @@ def uccsd_singles_residual(order,
     :param residual_name: name for the variable representing the left-hand side of the residual equation
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -702,7 +714,10 @@ def uccsd_singles_residual(order,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -745,6 +760,7 @@ def uccsd_doubles_residual(order,
     residual_name,
     L,
     function_name,
+    indices = None,
     spin_block = True,
     write_function = False,
     pq_graph_options = None):
@@ -756,6 +772,7 @@ def uccsd_doubles_residual(order,
     :param residual_name: name for the variable representing the left-hand side of the residual equation
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -817,7 +834,10 @@ def uccsd_doubles_residual(order,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -968,6 +988,7 @@ def cc3_triples_residual(residual_name,
     L,
     function_name,
     spin_block = True,
+    indices = None,
     write_function = False,
     pq_graph_options = None):
 
@@ -977,6 +998,7 @@ def cc3_triples_residual(residual_name,
     :param residual_name: name for the variable representing the left-hand side of the residual equation
     :param L: left operator defining the bra / projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param pq_graph_options: options dictionary for pq_graph
@@ -1032,7 +1054,10 @@ def cc3_triples_residual(residual_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -1078,6 +1103,7 @@ def lambda_cc_residual(residual_name,
     L,
     R, 
     function_name, 
+    indices = None,
     spin_block = True, 
     write_function = False,
     is_qed = False,
@@ -1091,6 +1117,7 @@ def lambda_cc_residual(residual_name,
     :param L: list of lambda amplitudes
     :param R: list of excitation operator defining the projection
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param is_qed: include qed-cc terms? 
@@ -1172,7 +1199,10 @@ def lambda_cc_residual(residual_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -1340,6 +1370,7 @@ def cc_response_terms(term_name,
     term_type = 'xi',
     Ra = [],
     Rb = [],
+    indices = None,
     is_qed = False,
     operator_type = 'EE',
     spin_block = True,
@@ -1363,6 +1394,7 @@ def cc_response_terms(term_name,
     :param L: list of left-hand operators (ground-state lambda)
     :param proj_ops: a list of projection operators
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param is_qed: include qed-cc terms? 
     :param term_type: xi, eta, or the hessian term
     :param Ra: response amplitudes for perturbation a, term_type = 'hessian' only
@@ -1465,7 +1497,10 @@ def cc_response_terms(term_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()
@@ -1685,6 +1720,7 @@ def eomcc_sigma(sigma_name,
     L,
     R, 
     function_name,
+    indices = None,
     operator_type = 'EE',
     spin_block = True,
     is_qed = False,
@@ -1699,6 +1735,7 @@ def eomcc_sigma(sigma_name,
     :param L: list of left-hand operators
     :param R: list of right-hand operators
     :param function_name: name for the python function
+    :param indices: canonical ordering for residual labels
     :param operator_type: operator type for EE/IP/EA/DIP/DEA
     :param spin_block: do spin block the equations?
     :param is_qed: include qed-cc terms? 
@@ -1767,7 +1804,10 @@ def eomcc_sigma(sigma_name,
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        if indices is None:
+            graph.add(eq, proj_eqname)
+        else:
+            graph.add(eq, proj_eqname, indices)
 
     # optimize the graph
     graph.optimize()

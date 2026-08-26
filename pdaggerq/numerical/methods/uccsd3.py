@@ -33,6 +33,7 @@ class UCCSD3:
             'r1',
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -40,6 +41,7 @@ class UCCSD3:
             'r2',
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         ) 
         

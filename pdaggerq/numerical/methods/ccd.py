@@ -31,6 +31,7 @@ class CCD:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -90,6 +91,7 @@ class CCD:
             T,
             L,
             ['e2(a,b,j,i)'],
+            indices = ['a', 'b', 'i', 'j'],
             'l2_residual',
             pq_graph_options = self.pq_graph_options
         )

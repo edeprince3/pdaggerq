@@ -31,6 +31,7 @@ class CCSDT:
             T,
             [['e1(i,a)']],
             't1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -38,6 +39,7 @@ class CCSDT:
             T,
             [['e2(i,j,b,a)']],
             't2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -45,6 +47,7 @@ class CCSDT:
             T,
             [['e3(i,j,k,c,b,a)']],
             't3_residual',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
             pq_graph_options = self.pq_graph_options
         )
         
@@ -117,6 +120,7 @@ class CCSDT:
             L,
             ['e1(a,i)'],
             'l1_residual',
+            indices = ['a', 'i'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -125,6 +129,7 @@ class CCSDT:
             L,
             ['e2(a,b,j,i)'],
             'l2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -133,6 +138,7 @@ class CCSDT:
             L,
             ['e3(a,b,c,k,j,i)'],
             'l3_residual',
+            indices = ['a', 'b', 'c', 'i', 'j', 'k'],
             pq_graph_options = self.pq_graph_options
         )
 
