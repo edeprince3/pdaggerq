@@ -23,6 +23,8 @@ Solvers for CC and lambda CC. Should work for up to quadruple excitations, plus 
 import numpy as np
 from numpy import einsum
 import types
+import math
+import itertools
  
 import copy
  
@@ -544,6 +546,7 @@ class cc:
  
         # Alias the dictionaries based on the target
         amps = self.L if is_lambda else self.T
+        amps_meta = self.L_meta if is_lambda else self.T_meta
         res_funcs = self.L_residual if is_lambda else self.T_residual
  
         for idx in range(max_iter):
@@ -575,6 +578,9 @@ class cc:
             amp_vec, err_vec = self.pack_diis_vectors(amps, residuals)
             new_amp_vec = diis_update.compute_new_vec(amp_vec, err_vec)
             self.unpack_amp_vector(new_amp_vec, amps)
+
+            # explicitly antisymmetrize amplitudes
+            self.antisymmetrize_amplitudes(amps, amps_meta)
  
             # Calculate new energy
             current_energy = self.cc_energy() - self.hf_energy if not is_lambda else self.cc_pseudoenergy()
@@ -697,3 +703,100 @@ class cc:
         ])
  
         return tpdm_aaaa, tpdm_abab, tpdm_bbbb
+
+    def get_parity(self, p):
+        """
+        Computes the parity of a permutation using inversion counting.
+        Returns 1 for even permutations, -1 for odd permutations.
+        """
+        swaps = 0
+        for i in range(len(p)):
+            for j in range(i + 1, len(p)):
+                if p[i] > p[j]:
+                    swaps += 1
+        return 1 if swaps % 2 == 0 else -1
+
+    def antisymmetrize_tensor(self, tensor, raw_spaces, raw_spins):
+        """
+        Antisymmetrizes a dense tensor in-place, projecting it onto the exactly
+        antisymmetric subspace (respecting left/right operator boundaries).
+    
+        Unlike the EOMCC version this is adapted from -- which unpacks a genuinely
+        sparse (redundant-zero) representation, so summing permutations with sign
+        reconstructs the full tensor with no double counting -- every element of
+        `tensor` here is already populated (and only approximately antisymmetric,
+        e.g. from residual/DIIS floating-point noise). Summing all permutations
+        with sign therefore overcounts by prod(k!) over each permutable group of
+        size k, so the result must be normalized by that factor to be a proper
+        projector (idempotent, and a no-op on an already-exact input).
+        """
+        # 1. Identify groups of identical, permutable indices (unchanged from EOMCC)
+        offset = 0
+        groups = []
+    
+        for space_group, spin_group in zip(raw_spaces, raw_spins):
+    
+            partition_groups = {}
+            for i, (sp, spn) in enumerate(zip(space_group, spin_group)):
+                key = (sp, spn)
+                if key not in partition_groups:
+                    partition_groups[key] = []
+                partition_groups[key].append(offset + i)
+    
+            for key, indices in partition_groups.items():
+                if len(indices) > 1:
+                    groups.append(indices)
+    
+            offset += len(space_group)
+    
+        # If there are no groups to permute (e.g. a rank-1 amplitude), we are done
+        if not groups:
+            return
+    
+        # 2. Generate all allowed permutations for each group, and the
+        # normalization (product of each group's size factorial)
+        group_perms = []
+        norm = 1
+        for g in groups:
+            perms = [(p, self.get_parity(p)) for p in itertools.permutations(g)]
+            group_perms.append(perms)
+            norm *= math.factorial(len(g))
+    
+        # 3. Copy the (approximately antisymmetric) input, then accumulate the
+        # properly antisymmetrized result back into the original array
+        dense_tensor = tensor.copy()
+        tensor.fill(0.0)
+    
+        for combined in itertools.product(*group_perms):
+    
+            axes = list(range(tensor.ndim))
+            total_sign = 1
+    
+            for original_group, (permuted_indices, sign) in zip(groups, combined):
+                for orig_idx, perm_idx in zip(original_group, permuted_indices):
+                    axes[orig_idx] = perm_idx
+                total_sign *= sign
+    
+            tensor += total_sign * dense_tensor.transpose(axes)
+    
+        tensor /= norm
+    
+    
+    def antisymmetrize_amplitudes(self, amps, meta_dict):
+        """
+        Antisymmetrize every tensor in an amplitude dictionary (e.g. self.T or
+        self.L) in place.
+        :param amps: amplitude dict, keyed by base_name -> spin_key -> tensor,
+                     as built by initialize_amplitudes
+        :param meta_dict: meta-data dict (e.g. self.T_meta / self.L_meta) giving
+                           the raw_spaces/raw_spins structure for each base_name,
+                           as built by initialize_amplitudes
+        """
+        for base_name, meta in meta_dict.items():
+            raw_spaces = meta['raw_spaces']
+            if not raw_spaces:
+                continue  # scalar / pure-photon amplitude -- nothing to antisymmetrize
+    
+            for raw_spins in meta['raw_spins']:
+                spin_key = "".join(raw_spins) if isinstance(raw_spins, (list, tuple)) else raw_spins
+                self.antisymmetrize_tensor(amps[base_name][spin_key], raw_spaces, raw_spins)
