@@ -40,8 +40,8 @@ class CCD:
 
         # amplitude dictionaries to pass into the solver
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         self.T_list = [t2]
@@ -102,8 +102,8 @@ class CCD:
 
         # lambda amplitude dictionaries to pass into the solver
         l2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["l2_residual"]
         }
 

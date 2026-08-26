@@ -49,13 +49,13 @@ class CCSD:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         self.T_list = [t1, t2]
@@ -126,13 +126,13 @@ class CCSD:
 
         # lambda amplitude dictionaries to pass into the solver
         l1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["l1_residual"]
         }
         l2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["l2_residual"]
         }
 

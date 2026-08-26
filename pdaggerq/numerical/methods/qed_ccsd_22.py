@@ -113,13 +113,13 @@ class QED_CCSD_22:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         t0_1p = {
@@ -128,14 +128,14 @@ class QED_CCSD_22:
         }
         t1_1p = {
             'nph' : 1,
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_1p_residual"]
         }
         t2_1p = {
             'nph' : 1,
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_1p_residual"]
         } 
         t0_2p = {
@@ -144,14 +144,14 @@ class QED_CCSD_22:
         }
         t1_2p = {
             'nph' : 2,
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_2p_residual"]
         }
         t2_2p = {
             'nph' : 2,
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_2p_residual"]
         } 
         

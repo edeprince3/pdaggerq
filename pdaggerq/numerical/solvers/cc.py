@@ -195,69 +195,22 @@ class cc:
         self.T = {}
         self.T_residual = {}
         self.D = {}
+
+        # initialize T amplitude dictionaries
+        self.T = {}
+        self.T_residual = {}
+        self.T_meta = {}
+        self.initialize_amplitudes(T_list, self.T, self.T_residual, self.T_meta, function = 'residual')
+
+        # initialize denominator dictionaries
+        self.D = {}
+        self.initialize_denominators(T_list, self.D)
  
-        for myT in T_list:
- 
-            # vo, vvoo, etc.
-            spaces = myT.get('spaces', '')
- 
-            # Amplitude order (e.g., T1 -> 1, T2 -> 2)
-            order = len(spaces) // 2
- 
-            # Number of photons
-            nph = myT.get('nph', 0)
- 
-            # Base key for this rank (e.g., '1', '2', '0_1p' for 1 photon, '1_1p', etc.)
-            base_name = str(order)
-            if nph > 0:
-                base_name += '_' + str(nph) + 'p'
- 
-            # Initialize nested dictionaries for this rank
-            self.T[base_name] = {}
-            self.D[base_name] = {}
- 
-            # Bind residual method to instance
-            self.T_residual[base_name] = types.MethodType(myT['residual'], self)
- 
-            # Fermionic amplitudes (has spins e.g. 'aa', 'abab')
-            if 'spins' in myT and len(spaces) > 0:
-                rank = len(spaces)
- 
-                for spins in myT['spins']:
-                    shape = tuple(self.dims[space + spin] for space, spin in zip(spaces, spins))
- 
-                    # Initialize denominator accumulator for this spin block
-                    denom = np.zeros(shape)
- 
-                    # Accumulate orbital energy differences
-                    for i, (space, spin) in enumerate(zip(spaces, spins)):
-                        sign = 1.0 if space == 'o' else -1.0
-                        eps_1d = self.eps[spin][self.slices[space + spin]]
- 
-                        b_idx = [n] * rank
-                        b_idx[i] = slice(None)
- 
-                        denom += sign * eps_1d[tuple(b_idx)]
- 
-                    # Subtract photon energy if coupled to photons
-                    if nph > 0:
-                        denom -= nph * self.cavity_frequency
- 
-                    # Store tensors in nested dicts
-                    self.T[base_name][spins] = np.zeros(shape)
-                    self.D[base_name][spins] = 1.0 / denom
- 
-            # Pure photon / zero-fermion amplitudes
-            else:
-                if nph > 0:
-                    # 1-element 1D array for scalar photon amplitudes
-                    self.T[base_name][''] = np.zeros((1,))
-                    # Energy shift is strictly -nph * omega
-                    self.D[base_name][''] = np.array([-1.0 / (nph * self.cavity_frequency)])
- 
-        # lambda amplitudes
-        self.L_list = L_list
-        self.initialize_lambda(L_list = L_list, cc_pseudoenergy_func = cc_pseudoenergy_func)
+        # initialize lambda amplitude dictionaries
+        self.L = {}
+        self.L_residual = {}
+        self.L_meta = {}
+        self.initialize_amplitudes(L_list, self.L, self.L_residual, self.L_meta, function = 'residual')
  
         # hartree-fock energy
         self.hf_energy = ( einsum('ii', self.f_aa[oa, oa]) + einsum('ii', self.f_bb[ob, ob])
@@ -269,54 +222,206 @@ class cc:
  
         # cc energy function
         self.cc_energy = types.MethodType(cc_energy_func, self)
+
+    def initialize_denominators(self, amp_list, denom):
+        """
+        Initialize amplitude denominator dictionaries, mirroring initialize_amplitudes'
+        base_name/spaces/spins structure so the two stay in lockstep.
+        :param amp_list: list of amplitude dictionaries containing spaces / spins / nph
+        :param denom: denominator dictionary to populate
+        """
+    
+        dims = {
+            'va': self.nva,
+            'oa': self.noa,
+            'vb': self.nvb,
+            'ob': self.nob
+        }
+    
+        for my_amp in amp_list:
+    
+            raw_spaces = my_amp.get('spaces', [])
+            if raw_spaces and len(raw_spaces) != 2:
+                raise Exception("amp_list spaces should have exactly two elements (left/right)")
+            full_spaces = "".join(raw_spaces)
+    
+            order = max(len(raw_spaces[0]), len(raw_spaces[1])) if raw_spaces else 0
+    
+            nph = my_amp.get('nph', 0)
+    
+            base_name = str(order)
+            if nph > 0:
+                base_name += '_' + str(nph) + 'p'
+    
+            denom[base_name] = {}
+    
+            rank = len(full_spaces)
+    
+            if 'spins' in my_amp and rank > 0:
+                for raw_spins in my_amp['spins']:
+    
+                    if isinstance(raw_spins, (list, tuple)):
+                        full_spins = "".join(raw_spins)
+                    else:
+                        full_spins = raw_spins
+    
+                    shape = tuple(dims[space + spin] for space, spin in zip(full_spaces, full_spins))
+    
+                    d = np.zeros(shape)
+                    for i, (space, spin) in enumerate(zip(full_spaces, full_spins)):
+                        sign = 1.0 if space == 'o' else -1.0
+                        eps_1d = self.eps[spin][self.slices[space + spin]]
+    
+                        b_idx = [None] * rank
+                        b_idx[i] = slice(None)
+    
+                        d += sign * eps_1d[tuple(b_idx)]
+    
+                    if nph > 0:
+                        d -= nph * self.cavity_frequency
+    
+                    denom[base_name][full_spins] = 1.0 / d
+            else:
+                # scalar / pure-photon amplitude: denominator is purely photonic (or, if
+                # nph == 0 too, this amp is a bare scalar with no well-defined denominator --
+                # matches how initialize_amplitudes stores a dummy zeros((1,)) in that case)
+                d = -nph * self.cavity_frequency if nph > 0 else 0.0
+                denom[base_name][''] = 1.0 / d
+
+    def initialize_amplitudes(self, amp_list, amp, amp_residual, amp_meta, function = 'residual'):
+        """
+        Initialize T or lambda amplitude dictionaries
+        :param amp_list: list of amplitude dictionaries containing spaces / spins / residual function
+        :param amp: amplitude dictionary
+        :param amp_residual: residual function dictionary
+        :param amp_meta: meta-data dictionary for left/right space/spin information
+        :param function: the function in the amp_list element that we wish to initialize
+        """
+
+        dims = {
+            'va': self.nva,
+            'oa': self.noa,
+            'vb': self.nvb,
+            'ob': self.nob
+        } 
+        
+        for my_amp in amp_list:
+        
+            # [v,o], [vv,oo], etc.
+            raw_spaces = my_amp.get('spaces', [])
+        
+            if raw_spaces and len(raw_spaces) != 2:
+                raise Exception("amp_list spaces should have exactly two elements (left/right)")
+            full_spaces = "".join(raw_spaces)
+        
+            # Amplitude order (e.g., T1 -> 1, T2 -> 2)
+            if raw_spaces:
+                order = max(len(raw_spaces[0]), len(raw_spaces[1]))
+            else:
+                order = 0
+
+            # Number of photons
+            nph = my_amp.get('nph', 0)
+
+            # Base key for this rank (e.g., '1', '2', '0_1p' for 1 photon, '1_1p', etc.)
+            base_name = str(order)
+            if nph > 0:
+                base_name += '_' + str(nph) + 'p'
+
+            # Initialize nested dictionaries for this rank
+            amp[base_name] = {}
+
+            # Bind residual function to instance
+            amp_residual[base_name] = types.MethodType(my_amp[function], self)
+
+            # If no spins are provided (like for r0 or pure photons), 
+            # we provide a dummy list [[]] so the packer loops exactly once.
+            raw_spins = my_amp.get('spins', [])
+            if not raw_spins:
+                raw_spins = [[]]
+
+            # Store the exact structural boundaries for the solver
+            amp_meta[base_name] = {
+                'raw_spaces': raw_spaces,
+                'raw_spins': raw_spins
+            }
+
+            if 'spins' in my_amp and len(full_spaces) > 0:
+                for raw_spins in my_amp['spins']:
+
+                    if isinstance(raw_spins, (list, tuple)):
+                        full_spins = "".join(raw_spins)
+                    else:
+                        full_spins = raw_spins
+
+                    shape = tuple(dims[space + spin] for space, spin in zip(full_spaces, full_spins))
+                    amp[base_name][full_spins] = np.zeros(shape, dtype=np.float64)
+            else:
+                amp[base_name][''] = np.zeros((1,), dtype=np.float64)
  
     def initialize_lambda(self, L_list = [], cc_pseudoenergy_func = None):
- 
+        """
+        wrapper for initialize_amplitudes for initializing lambda externally
+        """
+
+        self.L = {}
+        self.L_residual = {}
+        self.L_meta = {}
+        self.initialize_amplitudes(L_list, self.L, self.L_residual, self.L_meta, function = 'residual')
+
         # lambda CC pseudoenergy function
         if cc_pseudoenergy_func is not None:
             self.cc_pseudoenergy = types.MethodType(cc_pseudoenergy_func, self)
         else:
             self.cc_pseudoenergy = lambda: 0.0
+
+    #def initialize_lambda(self, L_list = [], cc_pseudoenergy_func = None):
  
-        self.L = {}
-        self.L_residual = {}
-        for myL in L_list:
+    #    # lambda CC pseudoenergy function
+    #    if cc_pseudoenergy_func is not None:
+    #        self.cc_pseudoenergy = types.MethodType(cc_pseudoenergy_func, self)
+    #    else:
+    #        self.cc_pseudoenergy = lambda: 0.0
  
-            # vo, vvoo, etc.
-            spaces = myL.get('spaces', '')
+    #    self.L = {}
+    #    self.L_residual = {}
+    #    for myL in L_list:
  
-            # Amplitude order (e.g., L1 -> 1, L2 -> 2)
-            order = len(spaces) // 2
+    #        # vo, vvoo, etc.
+    #        spaces = myL.get('spaces', '')
  
-            # Number of photons
-            nph = myL.get('nph', 0)
+    #        # Amplitude order (e.g., L1 -> 1, L2 -> 2)
+    #        order = len(spaces) // 2
  
-            # Base key for this rank (e.g., '1', '2', '0_1p' for 1 photon, '1_1p', etc.)
-            base_name = str(order)
-            if nph > 0:
-                base_name += '_' + str(nph) + 'p'
+    #        # Number of photons
+    #        nph = myL.get('nph', 0)
  
-            # Initialize nested dictionaries for this rank
-            self.L[base_name] = {}
+    #        # Base key for this rank (e.g., '1', '2', '0_1p' for 1 photon, '1_1p', etc.)
+    #        base_name = str(order)
+    #        if nph > 0:
+    #            base_name += '_' + str(nph) + 'p'
  
-            # Bind residual method to instance
-            self.L_residual[base_name] = types.MethodType(myL['residual'], self)
+    #        # Initialize nested dictionaries for this rank
+    #        self.L[base_name] = {}
  
-            # Fermionic amplitudes (has spins e.g. 'aa', 'abab')
-            if 'spins' in myL and len(spaces) > 0:
-                rank = len(spaces)
+    #        # Bind residual method to instance
+    #        self.L_residual[base_name] = types.MethodType(myL['residual'], self)
  
-                for spins in myL['spins']:
-                    shape = tuple(self.dims[space + spin] for space, spin in zip(spaces, spins))
+    #        # Fermionic amplitudes (has spins e.g. 'aa', 'abab')
+    #        if 'spins' in myL and len(spaces) > 0:
+    #            rank = len(spaces)
  
-                    # Store tensors in nested dicts
-                    self.L[base_name][spins] = np.zeros(shape)
+    #            for spins in myL['spins']:
+    #                shape = tuple(self.dims[space + spin] for space, spin in zip(spaces, spins))
  
-            # Pure photon / zero-fermion amplitudes
-            else:
-                if nph > 0:
-                    # 1-element 1D array for scalar photon amplitudes
-                    self.L[base_name][''] = np.zeros((1,))
+    #                # Store tensors in nested dicts
+    #                self.L[base_name][spins] = np.zeros(shape)
+ 
+    #        # Pure photon / zero-fermion amplitudes
+    #        else:
+    #            if nph > 0:
+    #                # 1-element 1D array for scalar photon amplitudes
+    #                self.L[base_name][''] = np.zeros((1,))
  
     def t_solver(self):
         """
