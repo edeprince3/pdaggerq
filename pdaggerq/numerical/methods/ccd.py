@@ -24,7 +24,6 @@ class CCD:
             T,
             [['1']],
             'cc_energy',
-            write_function = True,
             pq_graph_options = self.pq_graph_options
         )
         
