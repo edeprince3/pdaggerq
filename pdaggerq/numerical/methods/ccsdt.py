@@ -58,18 +58,18 @@ class CCSDT:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         t3 = {
-            'spaces' : 'vvvooo',
-            'spins' : ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
+            'spaces' : ['vvv','ooo'],
+            'spins' : [['aaa','aaa'], ['aab','aab'], ['abb','abb'], ['bbb','bbb']],
             'residual' : local_namespace["t3_residual"]
         }
         self.T_list = [t1, t2, t3]
@@ -149,21 +149,20 @@ class CCSDT:
         exec(l3_residual_func, globals(), local_namespace)
 
         # lambda amplitude dictionaries to pass into the solver
+        # lambda amplitude dictionaries to pass into the solver
         l1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["l1_residual"]
         }
-
         l2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["l2_residual"]
         }
-
         l3 = {
-            'spaces' : 'vvvooo',
-            'spins' : ['aaaaaa', 'aabaab', 'abbabb', 'bbbbbb'],
+            'spaces' : ['vvv','ooo'],
+            'spins' : [['aaa','aaa'], ['aab','aab'], ['abb','abb'], ['bbb','bbb']],
             'residual' : local_namespace["l3_residual"]
         }
 

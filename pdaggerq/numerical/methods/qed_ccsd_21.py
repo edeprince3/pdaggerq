@@ -84,14 +84,14 @@ class QED_CCSD_21:
 
         # amplitude dictionaries to pass into the solver
         t1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_residual"]
         }
 
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
 
@@ -102,15 +102,15 @@ class QED_CCSD_21:
 
         t1_1p = {
             'nph' : 1,
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["t1_1p_residual"]
         }
 
         t2_1p = {
             'nph' : 1,
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_1p_residual"]
         } 
         
@@ -221,14 +221,14 @@ class QED_CCSD_21:
 
         # lambda amplitude dictionaries to pass into the solver
         l1 = {
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["l1_residual"]
         }
 
         l2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["l2_residual"]
         }
 
@@ -239,15 +239,15 @@ class QED_CCSD_21:
 
         l1_1p = {
             'nph' : 1,
-            'spaces' : 'vo',
-            'spins' : ['aa', 'bb'],
+            'spaces' : ['v', 'o'],
+            'spins' : [['a','a'], ['b','b']],
             'residual' : local_namespace["l1_1p_residual"]
         }
 
         l2_1p = {
             'nph' : 1,
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["l2_1p_residual"]
         } 
 

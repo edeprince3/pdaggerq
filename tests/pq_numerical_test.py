@@ -149,13 +149,13 @@ def test_ccsd_codegen_disk():
 
             # amplitude dictionaries to pass into the solver
             t1 = {
-                'spaces' : 'vo',
-                'spins' : ['aa', 'bb'],
+                'spaces' : ['v','o'],
+                'spins' : [['a','a'], ['b','b']],
                 'residual' : local_namespace["t1_residual"].t1_residual
             }
             t2 = {
-                'spaces' : 'vvoo',
-                'spins' : ['aaaa', 'abab', 'bbbb'],
+                'spaces' : ['vv','oo'],
+                'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
                 'residual' : local_namespace["t2_residual"].t2_residual
             }
 

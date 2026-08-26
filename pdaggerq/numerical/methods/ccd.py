@@ -40,8 +40,8 @@ class CCD:
 
         # amplitude dictionaries to pass into the solver
         t2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["t2_residual"]
         }
         self.T_list = [t2]
@@ -91,8 +91,8 @@ class CCD:
             T,
             L,
             ['e2(a,b,j,i)'],
-            indices = ['a', 'b', 'i', 'j'],
             'l2_residual',
+            indices = ['a', 'b', 'i', 'j'],
             pq_graph_options = self.pq_graph_options
         )
 
@@ -102,8 +102,8 @@ class CCD:
 
         # lambda amplitude dictionaries to pass into the solver
         l2 = {
-            'spaces' : 'vvoo',
-            'spins' : ['aaaa', 'abab', 'bbbb'],
+            'spaces' : ['vv','oo'],
+            'spins' : [['aa','aa'], ['ab','ab'], ['bb','bb']],
             'residual' : local_namespace["l2_residual"]
         }
 
