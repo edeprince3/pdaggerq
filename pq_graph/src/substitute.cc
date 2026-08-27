@@ -326,9 +326,11 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             // include declaration for scaling?
             bool keep_declaration = eq_type != "scalar" && eq_type != "reused";
 
-            // test if we made a valid substitution
-            if (numSubs > 0) {
+	    // determine if we have enough substitutions to keep this linkage (at least two substitutions, or one substitution if it is a scalar or reused)
+	    bool keep_linkage = numSubs > 1 || (numSubs == 1 && !keep_declaration);
+            if (keep_linkage) {
 
+            	// test if we made a valid substitution
                 if (keep_declaration) {
                     // make term of tmp declaration
                     Term precon_term = Term(linkage, 1.0);

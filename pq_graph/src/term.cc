@@ -279,9 +279,20 @@ namespace pdaggerq {
             if (op->empty()) continue; // skip empty vertices
 
             // determine if name is convertible to a double
-            if (op->is_constant()) {
-                merged_factor *= stod(op->name());
-                found_constant = true;
+            if (op->is_constant()) { merged_factor *= stod(op->name()); found_constant = true; }
+
+            // else if vertex is a linkage, check if left or right is a constant and merge it into the coefficient
+            else if (op->is_expandable(true)) {
+                VertexPtr left = as_link(op)->left();
+                VertexPtr right = as_link(op)->right();
+
+                if (left->is_constant())  { merged_factor *= stod(left->name());  found_constant = true; }
+                if (right->is_constant()) { merged_factor *= stod(right->name()); found_constant = true; }
+
+                if (left->is_constant() && right->is_constant()) continue;
+                else if (left->is_constant())  new_rhs.push_back(right);
+                else if (right->is_constant()) new_rhs.push_back(left);
+                else new_rhs.push_back(op);
             } else {
                 new_rhs.push_back(op);
             }

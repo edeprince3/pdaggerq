@@ -767,14 +767,12 @@ namespace pdaggerq {
         // ensure only two operations within any term. create intermediates as needed.
         bool needs_binarization = Term::binarize_;
         ///TODO: uncomment line below to prevent multiple in-line additions. Do so after chronusq parser is adjusted. 
-        // needs_binarization |= !term_link->is_temp() && (term_link->left()->is_addition() || term_link->right()->is_addition());
+        //needs_binarization |= !term_link->is_temp() && (term_link->left()->is_addition() || term_link->right()->is_addition());
         if (needs_binarization) {
 
-            // determine if binarization is still needed
-            bool made_any_change = false;
-            Term binarized_term = clone(); // copy of current term to modify
-            needs_binarization = binarized_term.rhs_.size() > 2;
-
+            // copy of current term to modify
+            Term binarized_term = clone(); 
+            bool made_any_change = false;            
             int count = 1;
 
             // helper to create intermediate vertex/term and update binarized_term
@@ -797,7 +795,9 @@ namespace pdaggerq {
 
                 interm_term.lhs_ = interm_vertex;
                 interm_term.rhs_ = verts;
+
                 interm_term.compute_scaling(true);
+                interm_term.expand_rhs();
 
                 output += interm_term.str();
                 output += "\n";
@@ -810,39 +810,59 @@ namespace pdaggerq {
                 made_any_change = true;
                 ++count;
             };
-
+            
             do {
+                // update rhs of binarized_term to ensure all vertices are present
+                binarized_term.compute_scaling(true);
+                binarized_term.expand_rhs();
+
+                // determine if binarization is still needed
                 size_t n = binarized_term.rhs_.size();
                 needs_binarization = n > 2;
 
                 if (needs_binarization) {
                     VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
 
-                    // determine which intermediate is larger: first two or last two
-                    VertexPtr &left_end = binarized_term.rhs_[n - 2];
-                    VertexPtr &right_end = binarized_term.rhs_[n - 1];
-
-                    // prefer to binarize larger intermediate first. prefer left for ties
-                    bool first_smaller = (left*right)->shape_ <= (left_end*right_end)->shape_;
-
-                    // create intermediate from first two vertices
-                    if (first_smaller)
+                    // binarize the first two vertices into an intermediate vertex and term
+                    if (left->is_scalar()) {
+                        VertexPtr &next = binarized_term.rhs_[2];
+                        make_interm({right, next}, 1, 2, 1);
+                    } else {
                         make_interm({left, right}, 0, 2, 0);
-                    else make_interm({left_end, right_end}, n - 2, 2, n - 2);
-
-                } else if (binarized_term.rhs_.size() == 2) {
-                    // check if left or right is an addition that needs to be binarized
+                    }
+                } else if (n == 2) {
+                    // check if left or right is expandable and needs to be binarized
                     VertexPtr &left = binarized_term.rhs_[0], &right = binarized_term.rhs_[1];
-                    bool left_is_add  =  left->is_expandable(false, true);
-                    bool right_is_add = right->is_expandable(false, true);
+                    bool left_expands  =  left->is_expandable(true, true);
+                    bool right_expands = right->is_expandable(true, true);
 
-                    if (left_is_add)
-                        make_interm({left}, 0, 1, 0);
+                    if (left_expands) {
+                        // do not binarize if any sub-vertices are constants (e.g., scalars) since they will not be expanded
+                        bool left_has_constant = as_link(left)->left()->is_constant() || as_link(left)->right()->is_constant();
+                        if (!left_has_constant)
+                            make_interm({left}, 0, 1, 0);
+                    }
 
-                    if (right_is_add)
-                        make_interm({right}, 1, 1, 1);
+                    if (right_expands) {
+                        // do not binarize if any sub-vertices are constants (e.g., scalars) since they will not be expanded
+                        bool right_has_constant = as_link(right)->left()->is_constant() || as_link(right)->right()->is_constant();
+                        if (!right_has_constant)
+                            make_interm({right}, 1, 1, 1);
+                    }
+                } else if (n == 1) {
+                    VertexPtr &only = binarized_term.rhs_[0];
+                    bool only_expands = only->is_expandable(true, true);
+                    if (only_expands) {
+                        VertexPtr left  = as_link(only)->left();
+                        VertexPtr right = as_link(only)->right();
+                        bool only_left_expands  = left->is_expandable(true, true);
+                        bool only_right_expands = right->is_expandable(true, true);
+                        bool only_has_constant = left->is_constant() || right->is_constant();                        
+                        if ((only_left_expands || only_right_expands) && !only_has_constant)
+                            make_interm({left, right}, 0, 1, 0);
+                    }
                 }
-            } while (needs_binarization);
+	    } while (needs_binarization);
 
             // now print the final binarized term if a change was made
             if (made_any_change) {
