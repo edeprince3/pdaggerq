@@ -24,6 +24,7 @@
 #include "pq_string.h"
 #include "pq_utils.h"
 #include "pq_swap_operators.h"
+#include "pq_normal_order_fermi_vacuum.h"
 
 #include <unordered_set>
 #include <algorithm>
@@ -590,8 +591,7 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
 
             // new term in map
             string_map[ordered[i]->key] = i; 
-
-        }else {
+        }else{
 
             // update factor for existing term in map
 
@@ -608,13 +608,47 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
                 ordered[j]->skip = true;
                 continue;
             }
-            ordered[i]->skip = true;
 
-            ordered[j]->factor = fabs(combined_factor);
-            if ( combined_factor > 0.0 ) {
-                ordered[j]->sign =  1;
-            }else {
-                ordered[j]->sign = -1;
+            // canonicalize which of the two summed-label-swapped-equivalent
+            // terms survives: always keep whichever term's own key sorts
+            // first, rather than whichever happened to be inserted into the
+            // map first.
+            bool keep_i = ordered[i]->key <= ordered[j]->key;
+
+            if ( keep_i ) {
+
+                // the newcomer (ordered[i]) becomes the survivor. Remove the
+                // stale map entry (keyed by ordered[j]'s key) and re-point
+                // the map at ordered[i] under its own key, so later lookups
+                // in this loop compare against the new representative.
+                auto it = string_map.find(ordered[j]->key);
+                if ( it != string_map.end() ) string_map.erase(it);
+
+                ordered[j]->skip = true;
+
+                // combined_factor above is expressed relative to ordered[j]'s
+                // labeling; re-express it relative to ordered[i]'s labeling
+                // (same magnitude, sign flips with the permutation parity).
+                double combined_factor_i = pow(-1.0, n_permute) * combined_factor;
+                ordered[i]->factor = fabs(combined_factor_i);
+                if ( combined_factor_i > 0.0 ) {
+                    ordered[i]->sign =  1;
+                }else {
+                    ordered[i]->sign = -1;
+                }
+
+                string_map[ordered[i]->key] = i;
+
+            }else{
+
+                ordered[i]->skip = true;
+
+                ordered[j]->factor = fabs(combined_factor);
+                if ( combined_factor > 0.0 ) {
+                    ordered[j]->sign =  1;
+                }else {
+                    ordered[j]->sign = -1;
+                }
             }
         }
     }
@@ -922,12 +956,23 @@ void consolidate_permutations_non_summed(
 
             // if terms exactly cancel, then this is a permutation
             if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->permutations.push_back(permutation_1);
-                ordered[i]->permutations.push_back(permutation_2);
-                ordered[j]->skip = true;
+
+                // canonicalize which of the two permutation-related terms survives:
+                // always keep whichever term's own key sorts first, rather than
+                // whichever happens to appear first in `ordered`. This makes the
+                // choice depend only on the term's own content, not on the
+                // traversal order of whatever normal-ordering algorithm produced it.
+                bool keep_i = ordered[i]->key <= ordered[j]->key;
+
+                std::shared_ptr<pq_string> keeper  = keep_i ? ordered[i] : ordered[j];
+                std::shared_ptr<pq_string> dropped = keep_i ? ordered[j] : ordered[i];
+
+                keeper->permutations.push_back(permutation_1);
+                keeper->permutations.push_back(permutation_2);
+                dropped->skip = true;
 
                 // don't forget to call sort labels so the permutation operator ends up on the identifier
-                ordered[i]->sort();
+                keeper->sort();
                 break;
             }
 
@@ -2405,27 +2450,17 @@ void add_new_string_fermi_vacuum(const std::vector<std::shared_ptr<pq_string>> &
             mystring->print();
         }
 
+        // bring string to normal order in the boson space
+        std::vector< std::shared_ptr<pq_string> > boson_ordered;
+        boson_normal_order(mystring, boson_ordered, keep_operators);
+
+        // bring string to normal order in the fermion space (electron + nucleus)
         std::vector< std::shared_ptr<pq_string> > tmp;
-        tmp.push_back(mystring);
-
-        bool done_rearranging = false;
-        do {
-            std::vector< std::shared_ptr<pq_string> > list;
-            done_rearranging = true;
-            for (const std::shared_ptr<pq_string> & pq_str : tmp) {
-                bool am_i_done = swap_operators_fermi_vacuum(pq_str, list, keep_operators);
-                if ( !am_i_done ) done_rearranging = false;
-            }
-            tmp.clear();
-            for (std::shared_ptr<pq_string> & pq_str : list) {
-                if ( !pq_str->skip ) {
-                    tmp.push_back(pq_str);
-                }
-            }
-        }while(!done_rearranging);
-
+        for (const auto & pq_str : boson_ordered) {
+            fermion_normal_order_fermi_vacuum(pq_str, tmp, keep_operators);
+        }
         new_strings[k] = tmp;
-        tmp.clear();
+
     }
 
     for (const auto& new_string : new_strings) {

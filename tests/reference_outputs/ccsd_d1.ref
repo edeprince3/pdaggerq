@@ -42,13 +42,13 @@ opdm[o, v] +=  1.000000000000 * einsum('em->me', t1)
 #	 ['-1.000', 't2(e,a,i,m)', 'l1(i,a)']
 opdm[o, v] += -1.000000000000 * einsum('eaim,ia->me', t2, l1)
 
-#	 -0.500000000000 t1(e,i)*t2(a,b,j,m)*l2(j,i,a,b)
-#	 ['-0.500', 't1(e,i)', 't2(a,b,j,m)', 'l2(j,i,a,b)']
-opdm[o, v] += -0.500000000000 * einsum('ei,abjm,jiab->me', t1, t2, l2, optimize=['einsum_path', (1, 2), (0, 1)])
-
 #	 -0.500000000000 t1(a,m)*t2(e,b,j,i)*l2(j,i,a,b)
 #	 ['-0.500', 't1(a,m)', 't2(e,b,j,i)', 'l2(j,i,a,b)']
 opdm[o, v] += -0.500000000000 * einsum('am,ebji,jiab->me', t1, t2, l2, optimize=['einsum_path', (1, 2), (0, 1)])
+
+#	 -0.500000000000 t1(e,i)*t2(a,b,j,m)*l2(j,i,a,b)
+#	 ['-0.500', 't1(e,i)', 't2(a,b,j,m)', 'l2(j,i,a,b)']
+opdm[o, v] += -0.500000000000 * einsum('ei,abjm,jiab->me', t1, t2, l2, optimize=['einsum_path', (1, 2), (0, 1)])
 
 #	 -1.000000000000 t1(a,m)*t1(e,i)*l1(i,a)
 #	 ['-1.000', 't1(a,m)', 't1(e,i)', 'l1(i,a)']
