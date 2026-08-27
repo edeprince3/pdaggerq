@@ -103,29 +103,26 @@ string CodePrinter::condition_open(const set<string>& conds) const {
 }
 
 string CodePrinter::format_name(const Vertex* v) const {
-        // scalars have no dimension
-        if (v->rank() == 0) return v->base_name();
-
-        // format tensor block as a map if it is not an amplitude or if it has a block
-        switch (v->vertex_type()) {
-            case 'v':
-                return v->base_name() + "[\"" + v->dimstring() + "\"]";
-            case 'a':
-                if (v->has_blks()) {
-                    return v->base_name() + "[\"" + v->blk_string() + "\"]";
-                }
-                break;
-            case 'p':
-                return v->base_name() + "[\"perm_" + v->dimstring() + "\"]";
-            default:
-                if (v->vertex_type() != '\0')
-                    return v->base_name() + "[\"bin" + v->vertex_type() + '_' + v->dimstring() + "\"]";
-                break;
-        }
-
-        // default format name without any special indexing
-        return v->base_name(); 
+    // format tensor block as a map if it is not an amplitude or if it has a block
+    switch (v->vertex_type()) {
+        case 'v':
+            if (!v->is_scalar()) return v->base_name() + "[\"" + v->dimstring() + "\"]";
+	    break;
+        case 'a':
+            if (!v->is_scalar() && v->has_blks()) return v->base_name() + "[\"" + v->blk_string() + "\"]";
+            break;
+        case 'p':
+            if (!v->is_scalar()) return v->base_name() + "[\"perm_" + v->dimstring() + "\"]";
+	    break;
+        default:
+            if (v->vertex_type() != '\0')
+                return v->base_name() + "[\"bin" + v->vertex_type() + '_' + v->dimstring() + "\"]";
+            break;
     }
+
+    // default format name without any special indexing
+    return v->base_name();
+}
 
 string CodePrinter::format_intermediate_name(const Linkage* link, bool include_lines) const {
     string generic_str;
