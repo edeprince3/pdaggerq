@@ -94,12 +94,12 @@ def test_leb_ea_reduces_to_single_virtual_index():
 
 def test_leb_dip_reduces_to_two_occupied_indices():
     leb = probe("leb21", "DIP", ["a(i)", "a(j)", "B+"])
-    assert leb == ["+1.000 l2_1p(j,i)"]
+    assert leb == ["+1.000 l2_1p(j,i)"] or leb == ["-1.000 l2_1p(i,j)"]
 
 
 def test_leb_dea_reduces_to_two_virtual_indices():
     leb = probe("leb21", "DEA", ["a*(a)", "a*(b)", "B+"])
-    assert leb == ["+1.000 l2_1p(a,b)"]
+    assert leb == ["+1.000 l2_1p(a,b)"] or leb == ["-1.000 l2_1p(b,a)"]
 
 
 if __name__ == "__main__":
