@@ -580,7 +580,7 @@ class cc:
             self.unpack_amp_vector(new_amp_vec, amps)
 
             # explicitly antisymmetrize amplitudes
-            self.antisymmetrize_amplitudes(amps, amps_meta)
+            #self.antisymmetrize_amplitudes(amps, amps_meta)
  
             # Calculate new energy
             current_energy = self.cc_energy() - self.hf_energy if not is_lambda else self.cc_pseudoenergy()
