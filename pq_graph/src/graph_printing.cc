@@ -185,11 +185,50 @@ namespace pdaggerq {
             std::sort(scalar_terms.begin(), scalar_terms.end(), [](const Term &a, const Term &b) {
                 return a.max_id("scalar") < b.max_id("scalar");
             });
+	    
+	    // find all temps in the scalar terms. If any temp is not a scalar, then unset its ID.
+	    //TODO: This is a hack to fix the issue of non-scalar temps being used in scalar terms. This should be fixed in the future by ensuring that only scalar temps are used in scalar terms.
+	    for (auto &term: scalar_terms) {
+		auto temps = as_link(term.lhs() + term.term_linkage())->get_temps(true, false);
+		linkage_set invalid_temps;
+		for (const auto &temp: temps) {
+		    if (temp->is_temp() && !temp->is_scalar()) {
+		        invalid_temps.insert(as_link(temp));
+		    }
+		}
+		// replace in term linkage and reexpand the term if any invalid temps were found
+		if (!invalid_temps.empty()) {
+		    LinkagePtr new_rhs = term.term_linkage();
+		    LinkagePtr new_lhs = as_link(term.lhs());
+		    bool made_change = false;
+		    for (const auto &temp: invalid_temps) {
+		        auto [next_rhs, rhs_replaced] = new_rhs->replace_id(temp, -1);
+			auto [next_lhs, lhs_replaced] = new_lhs->replace_id(temp, -1);			
+		        if (rhs_replaced) {
+		            new_rhs = as_link(next_rhs);
+			    made_change = true;
+		        }
+			if (lhs_replaced) {
+			    new_lhs = as_link(next_lhs);
+			    made_change = true;
+			}
+		    }
+		    if (made_change) {
+		        term.lhs() = new_lhs;
+			term.expand_rhs(new_rhs);
+		    }
+		}
+	    }
+	    
+	    // copy over the sorted scalars to the scalar equation and collect scaling
             copy.equations_["scalar"].terms() = scalar_terms;
             copy.equations_["scalar"].collect_scaling(true);
 
             for (auto &term: copy.equations_["scalar"])
                 term.comments() = {}; // remove comments from scalars
+	
+
+
 
             // print scalars
             sout << copy.equations_["scalar"] << endl;
@@ -205,6 +244,42 @@ namespace pdaggerq {
             std::sort(reused_terms.begin(), reused_terms.end(), [](const Term &a, const Term &b) {
                 return a.max_id("reused") < b.max_id("reused");
             });
+	    
+	    // find all temps in the reused terms. If any temp is not a reused, then unset its ID.
+	    //TODO: This is a hack to fix the issue of non-reused temps being used in reused terms. This should be fixed in the future by ensuring that only reused temps are used in reused terms.
+	    for (auto &term: reused_terms) {
+		auto temps = as_link(term.lhs() + term.term_linkage())->get_temps(true, false);
+		linkage_set invalid_temps;
+		for (const auto &temp: temps) {
+		    // only reused temps and scalars are allowed in reused terms. Mark any other temps as invalid.
+		    if (temp->is_temp() && !temp->is_reused() && !temp->is_scalar()) {
+		        invalid_temps.insert(as_link(temp));
+		    }
+		}
+		// replace in term linkage and reexpand the term if any invalid temps were found
+		if (!invalid_temps.empty()) {
+		    LinkagePtr new_rhs = term.term_linkage();
+		    LinkagePtr new_lhs = as_link(term.lhs());
+		    bool made_change = false;
+		    for (const auto &temp: invalid_temps) {
+		        auto [next_rhs, rhs_replaced] = new_rhs->replace_id(temp, -1);
+			auto [next_lhs, lhs_replaced] = new_lhs->replace_id(temp, -1);			
+		        if (rhs_replaced) {
+		            new_rhs = as_link(next_rhs);
+			    made_change = true;
+		        }
+			if (lhs_replaced) {
+			    new_lhs = as_link(next_lhs);
+			    made_change = true;
+			}
+		    }
+		    if (made_change) {
+		        term.lhs() = new_lhs;
+			term.expand_rhs(new_rhs);
+		    }
+		}
+	    }
+
             copy.equations_["reused"].terms() = reused_terms;
             copy.equations_["reused"].collect_scaling(true);
 
