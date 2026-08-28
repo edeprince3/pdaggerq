@@ -107,6 +107,7 @@ defined here only.
 """
 
 import json
+from fractions import Fraction
 
 from ._pdaggerq import pq_helper, pq_graph
 from . import einsums
@@ -1063,6 +1064,24 @@ def _pt_rdm_pq(name, op, amplitude):
     return pq
 
 
+def _exact_coeff(token):
+    """Exact value of a pq_helper coefficient token.
+
+    ``pq.strings()`` prints coefficients to seven decimals, so ``float()`` turns 1/12 into
+    0.0833333 -- a 4e-7 RELATIVE error that then rides into every emitted statement. It is
+    invisible in any check that compares two pdaggerq-derived quantities (both carry it)
+    and shows up only against an independent value, which is how it was found: a
+    finite-difference of the (T) energy disagreed with the density that is supposed to be
+    its derivative by exactly 1 - 4e-7 in every element. 50 of the 304 statements of
+    ccsd's and ccsd(t)'s D1/D2 blocks carry an affected coefficient (every 1/6 and 1/12).
+
+    Recover the rational whenever one reproduces the printed digits; fall back to the
+    float when none does, which leaves such a term exactly as accurate as before."""
+    x = float(token)
+    f = Fraction(x).limit_denominator(2000)
+    return float(f) if abs(float(f) - x) <= 1e-7 else x
+
+
 def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
     """Emit one RDM block's IR straight from ``pq.strings()``, bypassing ``pq_graph``.
 
@@ -1103,7 +1122,7 @@ def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
 
     stmts = []
     for term in strings:
-        coeff = float(term[0])
+        coeff = _exact_coeff(term[0])
         perms, factors = [], []
         for tok in term[1:]:
             if tok.startswith("P("):
