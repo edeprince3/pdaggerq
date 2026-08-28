@@ -26,6 +26,31 @@ python -m pip install .
 which should compile pdaggerq.  This command will produce a `build` folder that contains
 the compiled c++ shared library. 
 
+### Building with cmake directly
+
+If you are working on the c++ side it is often more convenient to drive cmake
+yourself, which lets you keep several build trees (release, debug, sanitizer)
+side by side:
+
+```
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+The compiled module is written straight into the in-source `pdaggerq` package,
+so `import pdaggerq` works from the top level directory with no further steps.
+To install that build into the active python environment, run
+
+```
+cmake --install build
+```
+
+which places the module and the python sources in the site-packages directory
+of the interpreter cmake found. Pass `-DPDAGGERQ_INSTALL_PYTHONDIR=<dir>` at
+configure time to install somewhere else, and `-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=<dir>`
+to write the compiled module somewhere other than the in-source package. Both
+paths are echoed at configure time.
+
 ## Quickstart
 
 The following is an example that generates the energy expression for CCSD. 
