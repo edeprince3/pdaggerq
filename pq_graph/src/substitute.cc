@@ -314,7 +314,10 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
             size_t numSubs = 0; // number of substitutions made
             for (auto &[eq_name, equation]: equations_) { // iterate over equations
 
-                if (eq_name == "scalar" || eq_name == "reused") continue; // skip scalar and reuse equations
+                if (eq_name == "scalar" || eq_name == "reused") {
+                    // skip if equation type does not match linkage type (cannot have regular intermediates in scalar or reused equations)
+		    if (eq_name != eq_type) continue; 
+		}
 
                 // if the substitution is possible and beneficial, collect the flop map for the test equation
                 numSubs += equation.test_substitute(linkage, test_flop_map, test_mem_map, allow_equality);
@@ -465,6 +468,10 @@ void PQGraph::substitute(bool format_sigma, bool only_scalars) {
                 size_t num_subs = 0; // number of substitutions made
 
                 for (const auto &eq_name: eq_keys) { // iterate over equations in parallel
+                    if (eq_name == "scalar" || eq_name == "reused") {
+                        // skip if equation type does not match linkage type (cannot have regular intermediates in scalar or reused equations)
+		        if (eq_name != eq_type) continue; 
+		    }
                     // get equation
                     Equation &equation = equations_[eq_name]; // get equation                    
                     size_t this_subs = equation.substitute(link_to_sub, allow_equality);
