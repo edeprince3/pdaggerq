@@ -1307,7 +1307,7 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
     // alphabetize string
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
 
-        // creation
+        // fermion creation
         bool not_alphabetized = false;
         do {
             not_alphabetized = false;
@@ -1316,9 +1316,7 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
                 if ( pq_str->is_dagger[j] ) ndagger++;
             }
             for (int j = 0; j < ndagger-1; j++) {
-                int val1 = pq_str->symbol[j].c_str()[0];
-                int val2 = pq_str->symbol[j + 1].c_str()[0];
-                if ( val2 < val1 ) {
+                if ( pq_str->symbol[j + 1] < pq_str->symbol[j] ) {
                     std::string dum = pq_str->symbol[j];
                     pq_str->symbol[j] = pq_str->symbol[j + 1];
                     pq_str->symbol[j + 1] = dum;
@@ -1329,7 +1327,8 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
                 }
             }
         }while(not_alphabetized);
-        // annihilation
+
+        // fermion annihilation
         not_alphabetized = false;
         do {
             not_alphabetized = false;
@@ -1338,9 +1337,7 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
                 if ( pq_str->is_dagger[j] ) ndagger++;
             }
             for (int j = ndagger; j < (int)pq_str->symbol.size() - 1; j++) {
-                int val1 = pq_str->symbol[j].c_str()[0];
-                int val2 = pq_str->symbol[j + 1].c_str()[0];
-                if ( val2 < val1 ) {
+                if ( pq_str->symbol[j + 1] < pq_str->symbol[j] ) {
                     std::string dum = pq_str->symbol[j];
                     pq_str->symbol[j] = pq_str->symbol[j + 1];
                     pq_str->symbol[j + 1] = dum;
@@ -1352,13 +1349,11 @@ void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered) {
             }
         }while(not_alphabetized);
     }
-        
+
     // alphabetize deltas
     for (std::shared_ptr<pq_string> & pq_str : ordered) {
         for (delta_functions & delta : pq_str->deltas) {
-            int val1 = delta.labels[0].c_str()[0];
-            int val2 = delta.labels[1].c_str()[0];
-            if ( val2 < val1 ) {
+            if ( delta.labels[1] < delta.labels[0] ) {
                 std::string dum = delta.labels[0];
                 delta.labels[0] = delta.labels[1];
                 delta.labels[1] = dum;
