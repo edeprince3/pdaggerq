@@ -107,6 +107,7 @@ defined here only.
 """
 
 import json
+from fractions import Fraction
 
 from ._pdaggerq import pq_helper, pq_graph
 from . import einsums
@@ -122,7 +123,7 @@ __all__ = [
     "lambda_graph", "lambda_ir",
     "gradient_graph", "gradient_ir",
     "hessian_graph", "hessian_ir",
-    "rdm_graph", "rdm_ir", "rdm_block_ir",
+    "rdm_graph", "rdm_ir", "rdm_block_ir", "pt_rdm_block_ir", "pt_rdm_graph",
     "energy_from_rdm_ir", "rdm_energy_reference",
     "equations_graph", "equations_ir",
     "orbital_gradient_ir",
@@ -1027,7 +1028,61 @@ def _rdm_block_spec(tensor, block):
     raise ValueError(f"unknown RDM tensor {tensor!r}; choose D1/D1_n/D2/D2_n/D2_ep")
 
 
-def _block_ir_from_strings(name, op, consumer, tgt):
+def _pt_rdm_pq(name, op, amplitude):
+    """``pq_helper`` for the PERTURBATIVE contribution of ``amplitude`` to a density block.
+
+    The ``(T)``/``(Q)``-corrected wavefunction carries the perturbative amplitude in the
+    exponential and its multiplier in the bra::
+
+        D = <0| (1 + L + L_pt) e^-(T + T_pt) O e^(T + T_pt) |0>
+
+    linearized in ``T_pt`` (it is first order, so ``T_pt^2`` is beyond the correction) and
+    with the cluster part subtracted off -- what is left is what this emits. ``T`` and
+    ``T_pt`` are both excitation operators and so commute, which lets the ``T_pt`` term be
+    written as a similarity transform of a bare commutator::
+
+        [e^-T O e^T, T_pt] = e^-T [O, T_pt] e^T
+
+    so the three surviving pieces are
+
+        <0| (1 + L) e^-T [O, T_pt] e^T |0>     the amplitude entering the density
+        <0| L_pt    e^-T  O         e^T |0>     the multiplier's response
+        <0| L_pt    e^-T [O, T_pt] e^T |0>     their cross term
+
+    The last is second order in the perturbative pair but is where the diagonal blocks
+    live -- it is what produces the familiar ``-1/12 t3 l3`` in ``D1_oo`` and ``+1/12`` in
+    ``D1_vv`` -- so dropping it would leave those blocks empty."""
+    m = model(name)
+    lpt = "l" + amplitude[1:]
+    pq = pq_helper("fermi")
+    pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)] + [[lpt]])
+    pq.add_st_operator( 1.0, [op, amplitude], list(m.T))     # e^-T [O, T_pt] e^T
+    pq.add_st_operator(-1.0, [amplitude, op], list(m.T))
+    pq.set_left_operators([[lpt]])
+    pq.add_st_operator( 1.0, [op], list(m.T))                 # <L_pt| e^-T O e^T
+    pq.simplify()
+    return pq
+
+
+def _exact_coeff(token):
+    """Exact value of a pq_helper coefficient token.
+
+    ``pq.strings()`` prints coefficients to seven decimals, so ``float()`` turns 1/12 into
+    0.0833333 -- a 4e-7 RELATIVE error that then rides into every emitted statement. It is
+    invisible in any check that compares two pdaggerq-derived quantities (both carry it)
+    and shows up only against an independent value, which is how it was found: a
+    finite-difference of the (T) energy disagreed with the density that is supposed to be
+    its derivative by exactly 1 - 4e-7 in every element. 50 of the 304 statements of
+    ccsd's and ccsd(t)'s D1/D2 blocks carry an affected coefficient (every 1/6 and 1/12).
+
+    Recover the rational whenever one reproduces the printed digits; fall back to the
+    float when none does, which leaves such a term exactly as accurate as before."""
+    x = float(token)
+    f = Fraction(x).limit_denominator(2000)
+    return float(f) if abs(float(f) - x) <= 1e-7 else x
+
+
+def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
     """Emit one RDM block's IR straight from ``pq.strings()``, bypassing ``pq_graph``.
 
     pq_graph's nuclear-index relabelling collapses a block's *internal* proton indices onto
@@ -1040,10 +1095,11 @@ def _block_ir_from_strings(name, op, consumer, tgt):
     Kronecker deltas ``d(p,q)`` become ``Id["cc"]`` (the consumer supplies an identity);
     ``P(i,j)`` antisymmetrizers are expanded into signed statements over the open indices.
     """
-    pq = pq_helper("fermi")
-    pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])
-    pq.add_st_operator(1.0, [op], list(model(name).T))
-    pq.simplify()
+    if pq is None:
+        pq = pq_helper("fermi")
+        pq.set_left_operators([["1"]] + [[l] for l in lambda_amps(name)])
+        pq.add_st_operator(1.0, [op], list(model(name).T))
+        pq.simplify()
     strings = pq.strings()
     if not strings:
         return []                                        # model cannot populate this block
@@ -1066,7 +1122,7 @@ def _block_ir_from_strings(name, op, consumer, tgt):
 
     stmts = []
     for term in strings:
-        coeff = float(term[0])
+        coeff = _exact_coeff(term[0])
         perms, factors = [], []
         for tok in term[1:]:
             if tok.startswith("P("):
@@ -1126,6 +1182,60 @@ def rdm_block_ir(name, tensor, block, df=True, opt_level=None):
     """
     op, consumer = _rdm_block_spec(tensor, block)
     return _block_ir_from_strings(name, op, consumer, f'{tensor}["{block}"]')
+
+
+def pt_rdm_block_ir(name, amplitude, tensor, block, df=True, opt_level=None):
+    """JSONL IR for the PERTURBATIVE contribution of one ``T_pt`` block to one RDM block.
+
+    Same shape and target naming as :func:`rdm_block_ir` -- target ``tensor["block"]``,
+    indexed in the order :func:`energy_from_rdm_ir` and the ``orbital_*_ir`` builders
+    consume it -- so a consumer adds this on top of the cluster density with no convention
+    knowledge. Returns ``[]`` for a block the correction cannot populate.
+
+    The perturbative amplitude and its multiplier appear as ORDINARY operands (``t3`` and
+    ``l3`` for ``ccsd(t)``, ``t3_ep21``/``l3_ep21`` for a mixed NEO block, and so on), so
+    a driver that builds ``T_pt`` one occupied subset at a time can contract it straight
+    into the density and discard it, exactly as it does for :func:`pt_energy_ir` -- the
+    energy case with an array instead of a scalar on the left.
+
+    ``l_pt`` is the consumer's to supply. At the order of the correction the perturbative
+    multiplier is the amplitude's own conjugate -- the multiplier of the constraint
+    ``R + rsign*D*t_pt = 0`` comes out proportional to ``t_pt`` itself, because the
+    numerator/energy pairing makes the Lambda-side numerator proportional to ``R`` -- so
+    ``l_pt`` is ``t_pt`` with its index order reversed, the same relation
+    :func:`lambda_ir` uses for the cluster multipliers.
+
+    SCOPE -- read before using this for a gradient. This is the density of the
+    ``(T)``-corrected wavefunction: it answers "what is <p+q> for this wavefunction". A
+    full analytic-gradient CCSD(T) density is a different object -- it additionally carries
+    orbital relaxation and the response of the perturbative denominator to the
+    perturbation, neither of which is a property of the wavefunction and neither of which
+    is emitted here. For expectation values of one- and two-body operators (dipoles,
+    populations, and the like) this is the density you want; for forces it is not the
+    whole story."""
+    m = model(name)
+    if amplitude not in m.T_pt:
+        raise ValueError(f"model {name!r} has no perturbative amplitude {amplitude!r}; "
+                         f"T_pt={list(m.T_pt)}")
+    op, consumer = _rdm_block_spec(tensor, block)
+    return _block_ir_from_strings(name, op, consumer, f'{tensor}["{block}"]',
+                                  pq=_pt_rdm_pq(name, op, amplitude))
+
+
+def pt_rdm_graph(name, amplitude, operator, df=True, opt_level=None, label="D"):
+    """Optimized pq_graph for the perturbative contribution to an RDM block, taking a raw
+    density-operator string (``e1(i,a)``, ``e2(a,b,i,j)``, ...) like :func:`rdm_graph`.
+
+    Prefer :func:`pt_rdm_block_ir`, which names and orders the target the way the energy
+    and orbital builders consume it. See :func:`_pt_rdm_pq` for the construction and
+    :func:`pt_rdm_block_ir` for what this density is and is not."""
+    opt_level = _opt_level_for(name, opt_level)
+    m = model(name)
+    if amplitude not in m.T_pt:
+        raise ValueError(f"model {name!r} has no perturbative amplitude {amplitude!r}; "
+                         f"T_pt={list(m.T_pt)}")
+    return _optimized(_pt_rdm_pq(name, operator, amplitude), label, df, opt_level,
+                      _dims_for(name))
 
 
 # --- explicit occ/vir-block RDM contractions -----------------------------------
