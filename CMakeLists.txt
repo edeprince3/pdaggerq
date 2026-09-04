@@ -25,10 +25,41 @@ project(pdaggerq LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Where the compiled module is placed.
+#
+# setup.py (i.e. `python -m pip install .`) drives this file and passes an
+# explicit -DCMAKE_LIBRARY_OUTPUT_DIRECTORY so the module is written where
+# setuptools collects it for the wheel. A direct `cmake -B build && cmake
+# --build build` passes no such setting, which leaves the module in the build
+# tree where `import pdaggerq` cannot find it. Default it to the in-source
+# package so a plain cmake build is importable without copying anything by
+# hand; the guard leaves the value passed by setup.py untouched.
+if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/pdaggerq")
+endif()
+
 # find pybind11 and set variables for finding the correct python version
 set(PYBIND11_PYTHON_VERSION 3)
 set(PYBIND11_FINDPYTHON ON)
 set(Python3_FIND_STRATEGY LOCATION)
+
+# pybind11 locates python inside its own add_subdirectory scope, so the
+# Python_* variables it sets are not visible here. Find the interpreter
+# ourselves to learn where the install target should place the package.
+# setup.py passes the legacy -DPYTHON_EXECUTABLE; honour it so that installing
+# from inside a virtualenv resolves that environment rather than the system.
+if(DEFINED PYTHON_EXECUTABLE AND NOT DEFINED Python_EXECUTABLE)
+    set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
+endif()
+# Request the same components pybind11 does, so this find is complete and
+# pybind11's own find_package call becomes a no-op; asking for Interpreter
+# alone would satisfy its Python_FOUND check while leaving the Development
+# component -- and hence python_add_library() -- undefined.
+if(CMAKE_VERSION VERSION_LESS 3.18)
+    find_package(Python COMPONENTS Interpreter Development REQUIRED)
+else()
+    find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
@@ -95,3 +126,29 @@ pybind11_add_module(_pdaggerq
         pq_graph/src/timer.cc
 
 )
+
+# ---------------------------------------------------------------------------
+# install target
+#
+# `pip install .` never invokes `cmake --install` -- setuptools collects the
+# module straight out of the build directory. A direct cmake build has no such
+# helper, so provide the missing target: it installs the compiled module
+# alongside the pure-python sources, which together form the importable
+# package. Defaults to the site-packages of the interpreter found above, so
+# `cmake --install <builddir>` lands in the active environment; override with
+# -DPDAGGERQ_INSTALL_PYTHONDIR=... to stage it somewhere else.
+# ---------------------------------------------------------------------------
+set(PDAGGERQ_INSTALL_PYTHONDIR "${Python_SITEARCH}"
+    CACHE PATH "Directory the pdaggerq package is installed into")
+
+install(TARGETS _pdaggerq
+        LIBRARY DESTINATION "${PDAGGERQ_INSTALL_PYTHONDIR}/pdaggerq")
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/pdaggerq/"
+        DESTINATION "${PDAGGERQ_INSTALL_PYTHONDIR}/pdaggerq"
+        FILES_MATCHING
+        PATTERN "__pycache__" EXCLUDE
+        PATTERN "*.py")
+
+message(STATUS "pdaggerq: module output  -> ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+message(STATUS "pdaggerq: install target -> ${PDAGGERQ_INSTALL_PYTHONDIR}/pdaggerq")
