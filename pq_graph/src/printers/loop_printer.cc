@@ -62,8 +62,8 @@ string LoopPrinter::format_intermediate_name(const Linkage* link, bool) const {
     return name;
 }
 
-string LoopPrinter::allocate(const string& name) const {
-    return name + " = (double*)calloc(" + name + "_size, sizeof(double));";
+string LoopPrinter::allocate(const string& name, const string& size_expr) const {
+    return name + " = (double*)calloc(" + size_expr + ", sizeof(double));";
 }
 
 string LoopPrinter::deallocate(const string& name) const {
