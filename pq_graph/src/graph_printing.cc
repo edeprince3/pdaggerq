@@ -101,22 +101,33 @@ namespace pdaggerq {
 
             for (const auto &term: terms) {
                 VertexPtr lhs = term.lhs();
-                if (!lhs->is_linked() && !lhs->is_constant())
+                if (!lhs->is_linked() && !lhs->is_constant()) {
+                    // leaf vertices are constructed/parsed before this print pass' call to
+                    // Vertex::set_printer(print_type) ever runs, so their cached name_ (used
+                    // by both Vertex::str() in term bodies and name() here) is still stamped
+                    // with whichever printer was active at construction time. Linkages don't
+                    // have this problem: Linkage::str() computes intermediate names fresh via
+                    // format_intermediate_name() on every call, with no caching. Refresh the
+                    // leaf vertex's cached name now so declarations and term bodies agree.
+                    lhs->update_name();
                     names.insert(lhs->name());
-                else if (lhs->is_temp())
+                } else if (lhs->is_temp())
                     names.insert(as_link(lhs)->str(true, false));
 
                 for (const auto &op: term.rhs()) {
-                    if (!op->is_linked() && !op->is_constant())
+                    if (!op->is_linked() && !op->is_constant()) {
+                        op->update_name();
                         names.insert(op->name());
-                    else if (op->is_linked()){
+                    } else if (op->is_linked()){
                         if (op->is_temp())
                             names.insert(as_link(op)->str(true, false));
 
                         vertex_vector vertices = as_link(op)->vertices();
                         for (const auto &vertex: vertices)
-                            if (!vertex->is_linked() && !vertex->is_constant())
+                            if (!vertex->is_linked() && !vertex->is_constant()) {
+                                vertex->update_name();
                                 names.insert(vertex->name());
+                            }
                     }
                 }
 
@@ -366,7 +377,7 @@ namespace pdaggerq {
 
                         // We need to allocate the tmp when using c++ or cpp
                         if (Term::deallocate_) {
-                            string allocatename = printer->allocate(temp->str(true, false));
+                            string allocatename = printer->allocate(temp->str(true, false), printer->size_expr(temp->lines()));
                             if (!allocatename.empty()) {
                                 Term allocateterm(tempterm);
                                 allocateterm.print_override_ = allocatename;
@@ -385,7 +396,7 @@ namespace pdaggerq {
 
                     // We need to allocate the tmp when using c++ or cpp
                     if (Term::deallocate_) {
-                        string allocatename = printer->allocate(temp->str(true, false));
+                        string allocatename = printer->allocate(temp->str(true, false), printer->size_expr(temp->lines()));
                         if (!allocatename.empty()) {
                             Term allocateterm(tempterm);
                             allocateterm.print_override_ = allocatename;
@@ -779,6 +790,18 @@ namespace pdaggerq {
                 perm_term.coefficient_ = fabs(coefficient_); // set coefficient to absolute value of coefficient
                 perm_term.ir_perm_json_ = perm_json; // annotate the group's definition (IR only)
 
+                // for raw-array backends (loop/blas), this intermediate is real allocated
+                // memory, not a language-level tensor object -- allocate it here, paired
+                // with the perm_delete()/deallocate() call below that frees it once this
+                // permutation group's accumulation is done.
+                if (Term::deallocate_) {
+                    string allocname = Vertex::printer_->allocate(perm_vertex->name(), Vertex::printer_->size_expr(perm_vertex->lines()));
+                    if (!allocname.empty()) {
+                        output += allocname;
+                        output += "\n";
+                    }
+                }
+
                 // add string to output
                 output += perm_term.str();
                 output += "\n";
@@ -810,7 +833,11 @@ namespace pdaggerq {
             // if an intermediate vertex was created, delete it
             if (!perm_as_rhs && Term::deallocate_) {
                 string del = Vertex::printer_->perm_delete(perm_vertex->name());
-                if (!del.empty()) output += del;
+                // the pop_back() below unconditionally strips output's last character,
+                // assuming it is the trailing '\n' left by the permuted_term loop above --
+                // append del's own trailing '\n' too, or that pop_back() eats the last
+                // character of del (e.g. the ';' of "free(x); x = NULL;") instead.
+                if (!del.empty()) { output += del; output += '\n'; }
             }
 
             if (!perm_terms.empty())
@@ -846,9 +873,17 @@ namespace pdaggerq {
         if (needs_binarization) {
 
             // copy of current term to modify
-            Term binarized_term = clone(); 
-            bool made_any_change = false;            
+            Term binarized_term = clone();
+            bool made_any_change = false;
             int count = 1;
+
+            // raw-array backends (loop/blas) need each binarization temp actually calloc'd
+            // before use and freed once the fully-binarized term has been rendered (they all
+            // stay live until then -- a later make_interm call can reference an earlier one's
+            // result via binarized_term.rhs_). Backends that don't raw-allocate (tamm/
+            // tiledarray/einsum) get empty strings from allocate()/deallocate() and this is a
+            // no-op for them.
+            vector<MutableVertexPtr> created_temps;
 
             // helper to create intermediate vertex/term and update binarized_term
             auto make_interm = [&](const std::vector<VertexPtr> &verts, size_t erase_pos, size_t erase_count, size_t insert_pos) {
@@ -861,6 +896,7 @@ namespace pdaggerq {
                 interm_vertex->vertex_type_ = (char)count + '0';
                 interm_vertex->sort();
                 interm_vertex->update_name();
+                created_temps.push_back(interm_vertex);
 
                 Term interm_term = binarized_term;
                 interm_term.reset_perm();
@@ -873,6 +909,12 @@ namespace pdaggerq {
 
                 interm_term.compute_scaling(true);
                 interm_term.expand_rhs();
+
+                string allocname = Vertex::printer_->allocate(interm_vertex->name(), Vertex::printer_->size_expr(interm_vertex->lines()));
+                if (!allocname.empty()) {
+                    output += allocname;
+                    output += "\n";
+                }
 
                 output += interm_term.str();
                 output += "\n";
@@ -942,6 +984,20 @@ namespace pdaggerq {
             // now print the final binarized term if a change was made
             if (made_any_change) {
                 output += binarized_term.str();
+                output += "\n";
+
+                // free every binarization temp created above -- all of them are dead once
+                // this fully-binarized term has been rendered
+                for (const auto &temp : created_temps) {
+                    string delname = Vertex::printer_->deallocate(temp->name());
+                    if (!delname.empty()) {
+                        output += delname;
+                        output += "\n";
+                    }
+                }
+                if (output.back() == '\n')
+                    output.pop_back(); // remove trailing newline for consistency with other returns
+
                 return output;
             } // else we continue to print the original term
         }

@@ -54,7 +54,11 @@ public:
 
     // ── Statement generators ──────────────────────────────────────────────
 
-    virtual string allocate(const string& name)             const { return ""; }
+    // size_expr is a runtime dimension-product expression (e.g. "nvirt*nvirt*nocc*nocc"),
+    // built by size_expr(lines) below, for backends (loop/blas) whose allocate() needs a
+    // concrete element count; backends that don't raw-allocate (tamm/tiledarray/einsum)
+    // just ignore it.
+    virtual string allocate(const string& name, const string& size_expr) const { return ""; }
     virtual string deallocate(const string& name)           const = 0;
     virtual string perm_delete(const string& name)          const = 0;
     virtual string condition_open(const set<string>& conds) const;    
@@ -93,6 +97,12 @@ public:
 
     // Map index type character to symbolic dimension name (e.g., 'o' → "nocc").
     virtual string dim_name(char type) const { return ""; }
+
+    // Runtime element-count expression for a tensor with these lines, built from dim_name()
+    // per line (e.g. {'v','v','o','o'} -> "nvirt*nvirt*nocc*nocc"); "1" for a scalar (no
+    // lines). Concrete (not virtual): backends only need to override dim_name() to get a
+    // correct allocate() size for free.
+    string size_expr(const line_vector& lines) const;
 
     // ── Intermediate naming ──────────────────────────────────────────────
 

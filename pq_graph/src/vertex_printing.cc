@@ -48,7 +48,7 @@ using std::ostream, std::string, std::vector, std::map, std::unordered_map, std:
 
 namespace pdaggerq {
 
-    void Vertex::format_name() {
+    void Vertex::format_name() const {
         name_ = printer_->format_name(this);
     }
 
