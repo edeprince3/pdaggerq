@@ -152,3 +152,9 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/pdaggerq/"
 
 message(STATUS "pdaggerq: module output  -> ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 message(STATUS "pdaggerq: install target -> ${PDAGGERQ_INSTALL_PYTHONDIR}/pdaggerq")
+
+# OpenMP compile flags alone do not link the runtime (on AppleClang the flag is
+# -Xclang -fopenmp, which adds no library); the module must link libomp itself.
+if (OpenMP_CXX_FOUND)
+    target_link_libraries(_pdaggerq PRIVATE OpenMP::OpenMP_CXX)
+endif()
