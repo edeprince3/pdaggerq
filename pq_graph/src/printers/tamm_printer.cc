@@ -10,7 +10,7 @@ namespace pdaggerq {
 
 // ── TammPrinter implementations ───────────────────────────────────────────────
 
-string TammPrinter::allocate(const string& name) const {
+string TammPrinter::allocate(const string& name, const string& size_expr) const {
     return ".allocate(" + name + ")";
 }
 

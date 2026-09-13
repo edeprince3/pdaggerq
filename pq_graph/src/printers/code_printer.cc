@@ -177,6 +177,18 @@ string CodePrinter::format_term(const Term& t) const {
     return output;
 }
 
+string CodePrinter::size_expr(const line_vector& lines) const {
+    if (lines.empty()) return "1";
+    string expr;
+    for (const auto& line : lines) {
+        string dn = dim_name(line.type());
+        if (dn.empty()) continue; // backend doesn't define dimension names (no raw allocation)
+        if (!expr.empty()) expr += "*";
+        expr += dn;
+    }
+    return expr.empty() ? "1" : expr;
+}
+
 string CodePrinter::format_declarations(const set<string>& names) const {
     string out;
     for (const auto& name : names)

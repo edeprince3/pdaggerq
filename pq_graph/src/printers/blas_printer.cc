@@ -62,8 +62,8 @@ string BLASPrinter::format_intermediate_name(const Linkage* link, bool) const {
     return name;
 }
 
-string BLASPrinter::allocate(const string& name) const {
-    return name + " = (double*)calloc(" + name + "_size, sizeof(double));";
+string BLASPrinter::allocate(const string& name, const string& size_expr) const {
+    return name + " = (double*)calloc(" + size_expr + ", sizeof(double));";
 }
 
 string BLASPrinter::deallocate(const string& name) const {
