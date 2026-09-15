@@ -875,7 +875,8 @@ namespace pdaggerq {
             // copy of current term to modify
             Term binarized_term = clone();
             bool made_any_change = false;
-            int count = 1;
+            thread_local std::map<string, int> shape_map = std::map<string, int>(); // map to track binarization count for each name
+            std::map<string, int> current_shape_map = std::map<string, int>();
 
             // raw-array backends (loop/blas) need each binarization temp actually calloc'd
             // before use and freed once the fully-binarized term has been rendered (they all
@@ -893,8 +894,15 @@ namespace pdaggerq {
                 else
                     interm_vertex = make_shared<Vertex>(Vertex::printer_->scratch_prefix(), verts[0]->lines());
 
-                interm_vertex->vertex_type_ = (char)count + '0';
+                // sort the intermediate vertex to maintain a consistent order
                 interm_vertex->sort();
+
+                // Get count for this shape from the shape_map and increment it to keep unique identifiers for each shape
+                string dimstring = interm_vertex->dimstring();
+                current_shape_map[dimstring]++;
+                int &count = ++shape_map[dimstring];
+
+                interm_vertex->vertex_type_ = (char)count + '0';
                 interm_vertex->update_name();
                 created_temps.push_back(interm_vertex);
 
@@ -925,7 +933,6 @@ namespace pdaggerq {
                 binarized_term.compute_scaling(true);
 
                 made_any_change = true;
-                ++count;
             };
             
             do {
@@ -979,11 +986,20 @@ namespace pdaggerq {
                             make_interm({left, right}, 0, 1, 0);
                     }
                 }
-	    } while (needs_binarization);
+	        } while (needs_binarization);
 
             // now print the final binarized term if a change was made
             if (made_any_change) {
                 output += binarized_term.str();
+
+                // decrement the counts in the thread-local shape map
+                for (const auto &[dimstring, count] : current_shape_map) {
+                    shape_map[dimstring] -= count;
+                    if (shape_map[dimstring] <= 0)
+                        shape_map.erase(dimstring);
+                }
+                current_shape_map.clear();
+
                 output += "\n";
 
                 // free every binarization temp created above -- all of them are dead once
