@@ -17,7 +17,7 @@ public:
     bool   include_line_indices() const override { return true; }
     string condition_closer()     const override { return "}"; }
 
-    string allocate(const string& name)    const override;
+    string allocate(const string& name, const string& size_expr) const override;
     string deallocate(const string& name)  const override;
     string perm_delete(const string& name) const override { return ""; }
 

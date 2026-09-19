@@ -71,8 +71,14 @@ namespace pdaggerq {
      */
     struct Vertex : public std::enable_shared_from_this<Vertex> {
 
-        string name_{}; // name of the vertex
-        string base_name_{}; // name of vertex without index markup
+        // name_/base_name_ are a display-string cache derived from the active CodePrinter
+        // (Vertex::printer_) at the time update_name()/format_name() was last called. Leaf
+        // vertices are parsed/constructed (and this cache first populated) before a given
+        // print pass' Vertex::set_printer(print_type) call, so the cache must be refreshable
+        // via a const accessor (VertexPtr is shared_ptr<const Vertex> everywhere) -- hence
+        // mutable here rather than requiring callers to hold a non-const handle.
+        mutable string name_{}; // name of the vertex
+        mutable string base_name_{}; // name of vertex without index markup
 
         // uint_fast8_t is sufficient for up to 255 line indices and is more efficient than size_t, which is 64 bits
         // 255 indices is more than enough for any reasonable vertex.
@@ -206,8 +212,8 @@ namespace pdaggerq {
          * @param ovstring string representation of the vertex
          * @param new_blk_string string representation of the blocks in this vertex
          */
-        void format_name();
-        void update_name(const string &base_name = "") {
+        void format_name() const;
+        void update_name(const string &base_name = "") const {
             if (!base_name.empty())
               base_name_ = base_name;
             format_name();
