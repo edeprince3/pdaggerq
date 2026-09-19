@@ -49,13 +49,21 @@ def probe(bra_op, left_type, ket_ops):
     return sorted(" ".join(t) for t in pq.strings())
 
 
+def sort_factors(term):
+    """Order-insensitive form of a printed term. The order in which a term's
+    factors print follows unordered_map iteration order, which is not stable
+    (it depends on the standard library and on how the string was copied)."""
+    coefficient, *factors = term.split()
+    return " ".join([coefficient] + sorted(factors))
+
+
 def strip_amplitude_letter(strings, letter, replacement):
     """Normalize a leading amplitude-name letter (e.g. 'l1_1p' -> 'y1_1p') so
     that two amplitudes differing only by name compare equal."""
-    return sorted(s.replace(f"{letter}1_1p", f"{replacement}1_1p")
-                   .replace(f"{letter}2_1p", f"{replacement}2_1p")
-                   .replace(f"{letter}1_n", f"{replacement}1_n")
-                   .replace(f"{letter}2_ep", f"{replacement}2_ep")
+    return sorted(sort_factors(s.replace(f"{letter}1_1p", f"{replacement}1_1p")
+                                .replace(f"{letter}2_1p", f"{replacement}2_1p")
+                                .replace(f"{letter}1_n", f"{replacement}1_n")
+                                .replace(f"{letter}2_ep", f"{replacement}2_ep"))
                   for s in strings)
 
 
