@@ -61,9 +61,19 @@ void Vertex::set_printer(const string& type) {
     // set the printer based on the type
     if (t == "python" || t == "einsum") {
         printer_ = &EinsumPrinter::instance();
+        Term::binarize_ = false; // python/einsum never binarizes -- see note below
         std::cout << "Setting printer to Einsum (Python) format" << std::endl;
     } else if (t == "tiledarray" || t == "c++" || t == "cpp") {
         printer_ = &TiledArrayPrinter::instance();
+        // TiledArray composes contractions as native n-ary expressions, so it never needs
+        // Term::str()'s needs_binarization/make_interm path (unlike loop/blas/tamm below,
+        // which force every term down to a chain of strictly-binary products). Must be reset
+        // to false here explicitly, not just left alone: every branch below except this one
+        // and python/einsum sets it to true and nothing ever reset it back, so any process
+        // that renders a loop/blas/tamm equation before a tiledarray one left this flag
+        // latched true -- wrongly re-enabling that code path (and the reused-intermediate
+        // premature-deallocation bug it contains) for tiledarray output too.
+        Term::binarize_ = false;
         std::cout << "Setting printer to TiledArray (C++) format" << std::endl;
     } else if (t == "tamm") {
         printer_ = &TammPrinter::instance();
