@@ -720,9 +720,6 @@ void consolidate_permutations_non_summed(
         return;
     }
 
-/*
-    std::unordered_map<std::string, size_t> string_map;
-
     for (size_t i = 0; i < ordered.size(); i++) {
 
         // not sure if this logic works with existing permutation operators ... skip those for now
@@ -761,128 +758,21 @@ void consolidate_permutations_non_summed(
             }
         }
 
-        std::string permutation_1;
-        std::string permutation_2;
-        int n_permute = 0;
-        bool string_in_map = false;
-        std::string key = "";
-
-        // try swapping non-summed labels
+        // before we start comparing ordered[i] to other strings, let's build a list 
+        // of keys corresponding to possible swaps
+        std::vector<std::string> keys;
         for (size_t id1 = 0; id1 < labels.size(); id1++) {
             if ( find_idx[id1] != 1 ) continue;
             for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                 if ( find_idx[id2] != 1 ) continue;
 
-                std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
-                swap_two_labels(newguy, labels[id1], labels[id2]);
-                //newguy->sort();
+                // swap labels
+                swap_two_labels(ordered[i], labels[id1], labels[id2]);
 
-                // is new string in map?
-                string_in_map = false;
+                keys.push_back(ordered[i]->key);
 
-                if (string_map.find(newguy->key) != string_map.end()) {
-
-                    key = newguy->key;
-                    string_in_map = true;
-                    size_t j = string_map.at(key);
-
-                    // accumulate permutations of amplitudes
-                    n_permute = 0;
-                    for (const auto &amp_pair : newguy->amps) {
-                        char type = amp_pair.first;
-                        const std::vector<amplitudes> &amps1 = amp_pair.second;
-                        const std::vector<amplitudes> &amps2 = ordered[j]->amps.at(type);
-                        for (size_t k = 0; k < amps1.size(); k++) {
-                            n_permute += amps1[k].permutations + amps2[k].permutations;
-                        }
-                    }
-
-                    // accumulate permutations of integrals
-                    for (const auto &int_pair : newguy->ints) {
-                        std::string type = int_pair.first;
-                        const std::vector<integrals> &ints1 = int_pair.second;
-                        const std::vector<integrals> &ints2 = ordered[j]->ints.at(type);
-                        for (size_t k = 0; k < ints1.size(); k++) {
-                            n_permute += ints1[k].permutations + ints2[k].permutations;
-                        }
-                    }
-
-                    permutation_1 = labels[id1];
-                    permutation_2 = labels[id2];
-                    break;
-                }
-            }
-            if ( string_in_map ) break;
-        }
-
-        // if the string is not in the map already, add it
-        if ( !string_in_map ) {
-            string_map[ordered[i]->key] = i; 
-            continue;
-        }
-
-        // if the string is in the map, 
-
-        size_t j = string_map.at(key);
-
-        double factor_i = ordered[i]->factor * ordered[i]->sign;
-        double factor_j = ordered[j]->factor * ordered[j]->sign;
-
-        double combined_factor = factor_j + factor_i * pow(-1.0, n_permute);
-
-        // if terms exactly cancel, then this is a permutation
-        if ( fabs(combined_factor) < 1e-12 ) {
-            ordered[j]->permutations.push_back(permutation_1);
-            ordered[j]->permutations.push_back(permutation_2);
-            ordered[i]->skip = true;
-
-            // don't forget to call sort labels so the permutation operator ends up on the identifier
-            ordered[j]->sort();
-        }else {
-            // otherwise, something has gone wrong in the previous consolidation step...
-            printf("somethign has gone wrong\n");fflush(stdout);
-            exit(0);
-        }
-    }
-
-    return;
-*/
-
-    for (size_t i = 0; i < ordered.size(); i++) {
-
-        // not sure if this logic works with existing permutation operators ... skip those for now
-        //if ( !ordered[i]->permutations.empty() ) continue;
-
-        if ( !ordered[i]->paired_permutations_2.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_3.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_6.empty() ) continue;
-        
-        if ( ordered[i]->skip ) continue;
-    
-        std::vector<int> find_idx;
-    
-        // ok, what labels do we have? 
-        for (const auto & label : labels) {
-            int found = ordered[i]->index_in_anywhere(label);
-            // this is buggy when existing permutation labels belong to 
-            // the same space as the labels we're permuting ... so skip those for now.
-            bool same_space = false;
-            bool is_occ1 = is_occ(label);
-            for (const auto & permutation : ordered[i]->permutations) {
-                bool is_occ2 = is_occ(permutation);
-                if ( is_occ1 && is_occ2 ) {
-                    same_space = true;
-                    break;
-                }else if ( !is_occ1 && !is_occ2 ) {
-                    same_space = true;
-                    break;
-                }
-            }
-        
-            if ( !same_space ) {
-                find_idx.push_back(found);
-            }else{
-                find_idx.push_back(0);
+                // swap labels back
+                swap_two_labels(ordered[i], labels[id1], labels[id2]);
             }
         }
 
@@ -921,18 +811,43 @@ void consolidate_permutations_non_summed(
             std::string permutation_1;
             std::string permutation_2;
 
-            // try swapping non-summed labels
+            // check if swapping non-summed labels gives us the same string
+            int key_count = 0;
             for (size_t id1 = 0; id1 < labels.size(); id1++) {
                 if ( find_idx[id1] != 1 ) continue;
                 for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                     if ( find_idx[id2] != 1 ) continue;
 
+                    if ( ordered[j]->key == keys[key_count++]) {
+
+                        // strings match, let's get permutations
+                        swap_two_labels(ordered[i], labels[id1], labels[id2]); // swap labels
+                        strings_same = compare_strings(ordered[j], ordered[i], n_permute);
+                        swap_two_labels(ordered[i], labels[id1], labels[id2]); // swap labels back
+
+                    }else {
+                        strings_same = false;
+                    }
+                        
+
+/*
+                    // swap labels
+                    swap_two_labels(ordered[i], labels[id1], labels[id2]);
+
+                    strings_same = compare_strings(ordered[j], ordered[i], n_permute);
+
+                    // swap labels back
+                    swap_two_labels(ordered[i], labels[id1], labels[id2]);
+*/
+
+/*
                     std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
                     swap_two_labels(newguy, labels[id1], labels[id2]);
                     //newguy->sort();
 
                     strings_same = compare_strings(ordered[j], newguy, n_permute);
-
+*/
+                    
                     if ( strings_same ) {
                         permutation_1 = labels[id1];
                         permutation_2 = labels[id2];
