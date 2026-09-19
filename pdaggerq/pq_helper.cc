@@ -32,6 +32,7 @@
 #include <string>
 #include <cctype>
 #include <algorithm>
+#include <unordered_map>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -1135,6 +1136,44 @@ void pq_helper::screen_operator_products(std::vector<pq_operator_terms> &ops, bo
     ops = std::move(kept);
 }
 
+/// operator counts behind can_contribute(), cached per operator name.
+struct count_screen_cache {
+
+    /// per species (electron, nuclear): the surplus of quasi-annihilators over
+    /// quasi-creators among occupied and among virtual operators with fixed
+    /// labels; the creators and annihilators that still carry a general label
+    /// (each can become occupied or virtual); the surplus of boson annihilators
+    /// over boson creators; and the total number of operators. every entry is a
+    /// sum over operators, so the counts of a product are the sum of the counts
+    /// of its factors.
+    struct counts {
+        int d_occ[2] = {0, 0};
+        int d_vir[2] = {0, 0};
+        int general_creators[2] = {0, 0};
+        int general_annihilators[2] = {0, 0};
+        int bosons = 0;
+        int operators = 0;
+
+        counts &operator+=(const counts &other) {
+            for (int sp = 0; sp < 2; sp++) {
+                d_occ[sp] += other.d_occ[sp];
+                d_vir[sp] += other.d_vir[sp];
+                general_creators[sp] += other.general_creators[sp];
+                general_annihilators[sp] += other.general_annihilators[sp];
+            }
+            bosons += other.bosons;
+            operators += other.operators;
+            return *this;
+        }
+    };
+
+    /// one factor of an operator product, parsed but with general labels unexpanded
+    std::unordered_map<std::string, counts> factor;
+
+    /// each fully expanded string of a bra or ket operator
+    std::unordered_map<std::string, std::vector<counts>> side;
+};
+
 void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
 
     // discard products that cannot contribute before paying to normal order them.
@@ -1214,6 +1253,9 @@ void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
     std::vector<std::vector<std::vector<std::shared_ptr<pq_string> > > > jobs;
     std::vector<std::vector<std::shared_ptr<pq_string> > > batch;
 
+    // operator counts for the pre-build screen, shared by every product in this call
+    count_screen_cache screen_cache;
+
     for (size_t first = 0; first < ops.size(); first += jobs.size()) {
 
         const size_t last = std::min(first + batch_size, ops.size());
@@ -1221,7 +1263,7 @@ void pq_helper::process_operator_products(std::vector<pq_operator_terms> ops) {
         jobs.clear();
         jobs.resize(last - first);
         for (size_t i = first; i < last; i++) {
-            build_operator_product(ops[i].factor, ops[i].operators, jobs[i - first]);
+            build_operator_product(ops[i].factor, ops[i].operators, jobs[i - first], &screen_cache);
         }
 
         // flatten to one expansion per (product, bra/ket pair) so that the work is
@@ -1376,13 +1418,162 @@ bool can_fully_contract(const pq_string &left, const pq_string &center, const pq
 
 } // anonymous namespace
 
+namespace {
+
+using counts = count_screen_cache::counts;
+
+void add_boson_counts(counts &c, const pq_string &s) {
+    for (bool creator : s.is_boson_dagger) c.bosons += creator ? -1 : 1;
+    c.operators += (int) s.is_boson_dagger.size();
+}
+
+/// counts of an expanded string (fixed labels only)
+counts counts_of_expanded(const pq_string &s) {
+    counts c;
+    for (size_t i = 0; i < s.symbol.size(); i++) {
+        int sp = is_nuclear(s.symbol[i]) ? 1 : 0;
+        int qa = s.is_dagger_fermi[i] ? -1 : 1;
+        if ( s.is_dagger[i] != s.is_dagger_fermi[i] ) c.d_occ[sp] += qa;
+        else                                          c.d_vir[sp] += qa;
+    }
+    c.operators = (int) s.symbol.size();
+    add_boson_counts(c, s);
+    return c;
+}
+
+/// counts of a parsed but unexpanded string: its "string" holds labels like "i",
+/// "a*", or a general "p0*", a trailing '*' marking a creator. expansion later turns
+/// each general label into an occupied and a virtual one, so the kind of each
+/// label is all that matters here, not its number.
+counts counts_of_unexpanded(const pq_string &s) {
+    counts c;
+    for (std::string label : s.string) {
+        bool creator = !label.empty() && label.back() == '*';
+        if ( creator ) label.pop_back();
+        int sp = is_nuclear(label) ? 1 : 0;
+        if ( is_occ(label) )      c.d_occ[sp] += creator ? 1 : -1;  // a+(occ) is a quasi-annihilator
+        else if ( is_vir(label) ) c.d_vir[sp] += creator ? -1 : 1;  // a+(vir) is a quasi-creator
+        else if ( creator )       c.general_creators[sp]++;
+        else                      c.general_annihilators[sp]++;
+    }
+    c.operators = (int) s.string.size();
+    add_boson_counts(c, s);
+    return c;
+}
+
+/// can some occupied/virtual choice for the general labels balance every sector?
+/// a general creator made occupied adds a quasi-annihilator to the occupied
+/// sector, made virtual a quasi-creator to the virtual one; a general annihilator
+/// the reverse. with x of the c general creators and y of the a general
+/// annihilators made occupied, balance needs x - y = -d_occ and
+/// x - y = c - a - d_vir, with 0 <= x <= c and 0 <= y <= a.
+bool counts_can_balance(const counts &c) {
+    if ( c.bosons != 0 ) return false;
+    for (int sp = 0; sp < 2; sp++) {
+        int cr = c.general_creators[sp];
+        int an = c.general_annihilators[sp];
+        if ( c.d_vir[sp] - c.d_occ[sp] != cr - an ) return false;
+        if ( -c.d_occ[sp] < -an || -c.d_occ[sp] > cr ) return false;
+    }
+    return true;
+}
+
+} // anonymous namespace
+
+// A full contraction at the fermi vacuum needs, in every sector, as many
+// quasi-annihilators as quasi-creators, and the bosons to balance too. Checking
+// this before building means an operator product that cannot contribute costs a
+// few integer additions instead of parsing, expanding every general label into
+// occupied and virtual (one full pq_string copy per split), and freeing it all
+// again. In EOM and QED equations that is almost every product.
+//
+// Counts are additive over the factors of a product and do not depend on which
+// label numbers the parser hands out, so each factor, bra, and ket is parsed
+// once and its counts cached. The parser does the classifying; there is no
+// table of operator names to maintain.
+//
+// Parsing also records amplitude types in pq_string's global registry, and the
+// order of that registry feeds into how terms are keyed. The cache is
+// filled in the order a full build would parse -- bra, factors in order, kets --
+// so every type is registered at the same point as before, even when the product
+// is then skipped.
+//
+// This only compares counts, not operator order, so it can keep a product that
+// cannot contribute; can_fully_contract() catches that later, exactly.
+bool pq_helper::can_contribute(const std::vector<std::string> &in,
+                               const std::vector<std::string> &left_operator,
+                               count_screen_cache &cache) {
+
+    // the counts of each expanded string of a bra or ket operator. the ket is
+    // normally built after the product, from where its label counts left off;
+    // starting from zero instead changes the label numbers but not their kinds.
+    auto side_counts = [this, &cache](const std::vector<std::string> &ops) -> const std::vector<counts> & {
+        std::string key;
+        for (const std::string &op : ops) {
+            key += op;
+            key += '\n';
+        }
+        auto it = cache.side.find(key);
+        if ( it == cache.side.end() ) {
+            int occ_label_count = 0;
+            int vir_label_count = 0;
+            std::vector<counts> list;
+            for (const auto &s : build_new_strings(1.0, ops, occ_label_count, vir_label_count)) {
+                list.push_back(counts_of_expanded(*s));
+            }
+            it = cache.side.emplace(key, std::move(list)).first;
+        }
+        return it->second;
+    };
+
+    const std::vector<counts> &bra = side_counts(left_operator);
+
+    counts center;
+    for (const std::string &op : in) {
+        auto it = cache.factor.find(op);
+        if ( it == cache.factor.end() ) {
+            int occ_label_count = 0;
+            int vir_label_count = 0;
+            std::shared_ptr<pq_string> parsed = build_new_strings(1.0, {op}, occ_label_count, vir_label_count, false)[0];
+            it = cache.factor.emplace(op, counts_of_unexpanded(*parsed)).first;
+        }
+        center += it->second;
+    }
+
+    // build_operator_product() never makes a sandwich around a product without
+    // operators, so such a product cannot contribute either
+    bool possible = false;
+    for (const std::vector<std::string> &right_operator : right_operators) {
+        const std::vector<counts> &ket = side_counts(right_operator);
+
+        // parse every ket even once the answer is known, so that its types are
+        // registered at the same point a full build would have parsed it
+        if ( possible || center.operators == 0 ) continue;
+
+        for (const counts &b : bra) {
+            for (const counts &k : ket) {
+                counts total = b;
+                total += center;
+                total += k;
+                if ( counts_can_balance(total) ) possible = true;
+            }
+        }
+    }
+
+    return possible;
+}
+
 // build the bra-operator-ket sandwiches for one operator product, one list per
 // (bra, ket) pair. this is where the operator names are parsed, so it is also
 // where pq_string's process-global registry of amplitude types is written --
 // hence it is kept out of the parallel expansion in process_operator_products().
 // the bra/ket lists must already be populated -- call ensure_bra_and_ket() first.
 void pq_helper::build_operator_product(double factor, const std::vector<std::string> &in,
-                                       std::vector<std::vector<std::shared_ptr<pq_string> > > &jobs){
+                                       std::vector<std::vector<std::shared_ptr<pq_string> > > &jobs,
+                                       count_screen_cache *screen_cache){
+
+    count_screen_cache private_cache;
+    if ( !screen_cache ) screen_cache = &private_cache;
 
 /*
     int o_count_1 = 0;
@@ -1407,6 +1598,12 @@ void pq_helper::build_operator_product(double factor, const std::vector<std::str
         int v_count_2 = v_count_1;
         std::vector<std::shared_ptr<pq_string>> left_strings = build_new_strings(1.0, left_operator, o_count_2, v_count_2);
 */
+
+        // skip this bra before building anything if no ket can make the sandwich
+        // fully contractable (normal ordering keeps only fully contracted terms)
+        if ( vacuum == "FERMI" && !can_contribute(in, left_operator, *screen_cache) ) {
+            continue;
+        }
 
         // the bra and the center are built once per bra, not once per (bra, ket)
         // pair: the ket is built last, so their dummy labels never depend on it.
@@ -1509,7 +1706,8 @@ void pq_helper::ensure_bra_and_ket() {
 std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double factor, 
     std::vector<std::string> input_op, 
     int & occ_label_count,
-    int & vir_label_count){
+    int & vir_label_count,
+    bool expand){
 
     std::shared_ptr<pq_string> newguy (new pq_string(vacuum));
     
@@ -3021,6 +3219,8 @@ std::vector<std::shared_ptr<pq_string>> pq_helper::build_new_strings(double fact
 
     std::vector< std::shared_ptr<pq_string> > new_pq_strings;
     new_pq_strings.push_back(newguy);
+
+    if ( !expand ) return new_pq_strings;
 
     // expand general labels (fermi vacuum)
     if (vacuum != "TRUE") {

@@ -30,6 +30,8 @@
 
 namespace pdaggerq {
 
+struct count_screen_cache;
+
 class pq_operator_terms {
   public:
     pq_operator_terms(double in_factor, std::vector<std::string> in_operators):
@@ -258,10 +260,14 @@ class pq_helper {
      * @param factor: the numerical factor associated with the operator product
      * @param in: a list of strings defining the operator product
      * @param jobs: receives one list of strings per (bra, ket) pair
+     * @param screen_cache: operator counts reused across calls (see can_contribute()); a
+     *        private cache is used if null. only valid while the bra, ket, and settings
+     *        stay unchanged.
      *
      */
     void build_operator_product(double factor, const std::vector<std::string> &in,
-                                std::vector<std::vector<std::shared_ptr<pq_string> > > &jobs);
+                                std::vector<std::vector<std::shared_ptr<pq_string> > > &jobs,
+                                count_screen_cache *screen_cache = nullptr);
 
     /**
      *
@@ -288,12 +294,15 @@ class pq_helper {
      * @param input_op: a list of strings defining the operator product
      * @param occ_label_count: how many occupied labels in the pq_string?
      * @param vir_label_count: how many virtual labels in the pq_string?
+     * @param expand: if false, stop after parsing: return the single string with its
+     *        general labels unexpanded and only its "string" (not "symbol") filled
      *
      */
     std::vector<std::shared_ptr<pq_string>> build_new_strings(double factor, 
         std::vector<std::string> input_op, 
         int & occ_label_count,
-        int & vir_label_count);
+        int & vir_label_count,
+        bool expand = true);
 
     /**
      *
@@ -742,6 +751,18 @@ class pq_helper {
     void deserialize(const std::string & filename);
 
 private:
+
+    /**
+     *
+     * can the operator product @p in, sandwiched between @p left_operator and any of
+     * the ket operators, possibly be fully contracted at the fermi vacuum? a necessary
+     * condition, checked on operator counts before anything is built; see the
+     * definition for details.
+     *
+     */
+    bool can_contribute(const std::vector<std::string> &in,
+                        const std::vector<std::string> &left_operator,
+                        count_screen_cache &cache);
 
     /**
      *
