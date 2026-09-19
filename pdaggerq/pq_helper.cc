@@ -1332,6 +1332,50 @@ void pq_helper::add_operator_product(double factor, std::vector<std::string>  in
     }
 }
 
+namespace {
+
+/// can the fermi-vacuum string left + center + right be fully contracted?
+///
+/// a contraction pairs a quasi-annihilator with a quasi-creator to its right.
+/// fermions only contract within a sector (species x occupied/virtual; an
+/// operator is occupied iff is_dagger != is_dagger_fermi), bosons among
+/// themselves. scanning left to right and counting +1 per quasi-annihilator and
+/// -1 per quasi-creator, a full contraction exists iff each running count never
+/// goes negative and ends at zero -- the balanced-parentheses condition.
+bool can_fully_contract(const pq_string &left, const pq_string &center, const pq_string &right) {
+
+    int fermions[4] = {0, 0, 0, 0}; // (nuclear ? 2 : 0) + (occupied ? 1 : 0)
+    int bosons = 0;
+
+    for (const pq_string *piece : {&left, &center, &right}) {
+        for (size_t i = 0; i < piece->symbol.size(); i++) {
+            int sector = 2 * (is_nuclear(piece->symbol[i]) ? 1 : 0)
+                       + (piece->is_dagger[i] != piece->is_dagger_fermi[i] ? 1 : 0);
+            if ( piece->is_dagger_fermi[i] ) {
+                if ( --fermions[sector] < 0 ) return false;
+            }else {
+                ++fermions[sector];
+            }
+        }
+    }
+    for (int count : fermions) {
+        if ( count != 0 ) return false;
+    }
+
+    for (const pq_string *piece : {&left, &center, &right}) {
+        for (bool creator : piece->is_boson_dagger) {
+            if ( creator ) {
+                if ( --bosons < 0 ) return false;
+            }else {
+                ++bosons;
+            }
+        }
+    }
+    return bosons == 0;
+}
+
+} // anonymous namespace
+
 // build the bra-operator-ket sandwiches for one operator product, one list per
 // (bra, ket) pair. this is where the operator names are parsed, so it is also
 // where pq_string's process-global registry of amplitude types is written --
@@ -1364,6 +1408,13 @@ void pq_helper::build_operator_product(double factor, const std::vector<std::str
         std::vector<std::shared_ptr<pq_string>> left_strings = build_new_strings(1.0, left_operator, o_count_2, v_count_2);
 */
 
+        // the bra and the center are built once per bra, not once per (bra, ket)
+        // pair: the ket is built last, so their dummy labels never depend on it.
+        int o_count_center = 0;
+        int v_count_center = 0;
+        std::vector<std::shared_ptr<pq_string>> left_strings = build_new_strings(1.0, left_operator, o_count_center, v_count_center);
+        std::vector<std::shared_ptr<pq_string>> center_strings = build_new_strings(1.0, in, o_count_center, v_count_center);
+
         for (std::vector<std::string> & right_operator : right_operators) {
 
 /*
@@ -1372,10 +1423,8 @@ void pq_helper::build_operator_product(double factor, const std::vector<std::str
             std::vector<std::shared_ptr<pq_string>> right_strings = build_new_strings(1.0, right_operator, o_count_3, v_count_3);
 */
 
-            int o_count = 0;
-            int v_count = 0;
-            std::vector<std::shared_ptr<pq_string>> left_strings = build_new_strings(1.0, left_operator, o_count, v_count);
-            std::vector<std::shared_ptr<pq_string>> center_strings = build_new_strings(1.0, in, o_count, v_count);
+            int o_count = o_count_center;
+            int v_count = v_count_center;
             std::vector<std::shared_ptr<pq_string>> right_strings = build_new_strings(1.0, right_operator, o_count, v_count);
 
 /*
@@ -1398,6 +1447,12 @@ void pq_helper::build_operator_product(double factor, const std::vector<std::str
 
                         // is the center bit fully contracted?
                         if ( center->symbol.size() == 0 && center->is_boson_dagger.size() == 0 ) {
+                            continue;
+                        }
+
+                        // normal ordering keeps only fully contracted terms, so skip
+                        // sandwiches that cannot produce one before paying to build them
+                        if ( vacuum == "FERMI" && !can_fully_contract(*left, *center, *right) ) {
                             continue;
                         }
 
