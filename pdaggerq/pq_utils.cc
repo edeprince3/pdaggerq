@@ -96,9 +96,11 @@ bool is_nuclear(const std::string &idx) {
 bool is_dummy(const std::string &idx) {
     // the internal summation labels the normal-ordering machinery hands out are
     // "o#" / "v#". a nuclear one carries the species prefix ("no#" / "nv#"), so the
-    // classification has to be made inside the label's own species.
-    const std::string base = is_nuclear(idx) ? idx.substr(1) : idx;
-    return base.rfind("o", 0) == 0 || base.rfind("v", 0) == 0;
+    // classification has to be made inside the label's own species. this is on the
+    // hot path, so it reads the leading character rather than building a substring.
+    size_t first = is_nuclear(idx) ? 1 : 0;
+    if ( idx.size() <= first ) return false;
+    return idx[first] == 'o' || idx[first] == 'v';
 }
 
 bool is_occ(const std::string &idx) {
@@ -1535,11 +1537,21 @@ void reclassify_integrals(std::shared_ptr<pq_string> &in) {
 
 }
 
+// order amplitudes by how they are connected to the rest of the string, so that
+// equivalent strings present their amplitudes the same way.
 void sort_amplitudes_topologically(std::vector<amplitudes> &amps_vec, std::shared_ptr<pq_string> &track) {
 
-    // 1. count how many times every single label appears in this string
-    std::unordered_map<std::string, int> label_frequencies;
-    
+    // a single amplitude is already in order, and this is the common case: the
+    // counting below walks the whole string, so it is worth not starting it
+    if ( amps_vec.size() < 2 ) return;
+
+    // 1. count how many times every single label appears in this string.
+    // the map is reused across calls -- clear() keeps its buckets, so repeated
+    // calls stop reallocating. thread_local because strings are canonicalized
+    // concurrently elsewhere.
+    static thread_local std::unordered_map<std::string, int> label_frequencies;
+    label_frequencies.clear();
+
     for (const auto& type_pair : track->ints) {
         for (const auto& integral : type_pair.second) {
             for (const auto& label : integral.labels) label_frequencies[label]++;
@@ -1630,11 +1642,40 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
     size_t occ_counter = 0;
     size_t vir_counter = 0;
 
+    // every label the string carries before anything is renamed. a conventional
+    // letter already alive here cannot be handed out again, and collecting them
+    // once avoids re-scanning the whole string for every candidate letter.
+    //
+    // this is equivalent to asking the string directly, as the old code did: a
+    // letter is handed out only from position `counter`, which then advances past
+    // it, so no letter at or beyond `counter` can appear part-way through.
+    std::vector<const std::string *> labels_in_use;
+    for (const delta_functions & delta : in->deltas) {
+        for (const std::string & label : delta.labels) labels_in_use.push_back(&label);
+    }
+    for (const auto & int_pair : in->ints) {
+        for (const integrals & integral : int_pair.second) {
+            for (const std::string & label : integral.labels) labels_in_use.push_back(&label);
+        }
+    }
+    for (const auto & amp_pair : in->amps) {
+        for (const amplitudes & amp : amp_pair.second) {
+            for (const std::string & label : amp.labels) labels_in_use.push_back(&label);
+        }
+    }
+    for (const std::string & label : in->symbol) labels_in_use.push_back(&label);
+
     // Identify and skip labels already chosen or fixed
     // If 'i' or 'a' are already fixed/external indices in this string, 
     // we must burn those options from our pool so we don't clobber them.
+    auto in_use = [&labels_in_use](const std::string &label) {
+        for (const std::string *used : labels_in_use) {
+            if ( *used == label ) return true;
+        }
+        return false;
+    };
     auto filter_pool = [&](std::vector<std::string>& pool, size_t& counter) {
-        while (counter < pool.size() && found_index_anywhere(in, pool[counter])) {
+        while (counter < pool.size() && in_use(pool[counter])) {
             counter++; // Skip this label; it's already alive in the string
         }
     };
@@ -1654,9 +1695,10 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
     // is this an internal occupied ('o') or virtual ('v') label? classify within the
     // label's own species, so that "no0" is nuclear-occupied and not a general label.
     auto raw_class = [](const std::string &label) -> char {
-        const std::string base = is_nuclear(label) ? label.substr(1) : label;
-        if ( base.rfind("o", 0) == 0 ) return 'o';
-        if ( base.rfind("v", 0) == 0 ) return 'v';
+        size_t first = is_nuclear(label) ? 1 : 0;
+        if ( label.size() <= first ) return '\0';
+        if ( label[first] == 'o' ) return 'o';
+        if ( label[first] == 'v' ) return 'v';
         return '\0';
     };
 
@@ -1715,14 +1757,19 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
     }
 */
 
+    // reused across amplitudes: clearing keeps the capacity, so the label lists
+    // below are built without allocating once per amplitude
+    std::vector<std::string> local_raw_occ;
+    std::vector<std::string> local_raw_vir;
+
     // Macro-order map creation loop
     for (auto & type : in->amplitude_types) {
         if (in->amps.find(type) == in->amps.end()) continue;
         for (auto & amp : in->amps[type]) {
-            
-            std::vector<std::string> local_raw_occ;
-            std::vector<std::string> local_raw_vir;
-    
+
+            local_raw_occ.clear();
+            local_raw_vir.clear();
+
             for (const auto & label : amp.labels) {
                 const char cls = raw_class(label);
                 if (cls == 'o') local_raw_occ.push_back(label);
@@ -2076,106 +2123,109 @@ void gobble_deltas_slow(std::shared_ptr<pq_string> &in) {
 
 }
 
+// eliminate delta functions involving summation labels by substituting one label
+// for the other everywhere in the string.
+//
+// a string carries only a handful of deltas, so the substitutions live in a small
+// vector searched linearly: that hashes nothing and allocates nothing beyond the
+// vector itself. surviving deltas are moved rather than copied, and a label that
+// is not summed over skips the search entirely, since every substitution replaces
+// a summation label.
 void gobble_deltas(std::shared_ptr<pq_string> &in) {
     if (in->deltas.empty()) return;
 
-    // Grab flat local references to bypass the shared_ptr wrapper entirely
-    auto& deltas = in->deltas;
-    auto& ints = in->ints;
-    auto& amps = in->amps;
+    auto & deltas = in->deltas;
 
-    // ====================================================================
-    // ALLOCATION-FREE PRE-SCAN
-    // Bypasses the entire function instantly if there are no dummy deltas
-    // ====================================================================
+    // nothing to do unless some delta carries a summation label
     bool has_gobbleable_delta = false;
-    for (const auto & delta : deltas) {
-        const std::string& l0 = delta.labels[0];
-        const std::string& l1 = delta.labels[1];
-        
-        if (is_dummy(l0) || is_dummy(l1)) {
+    for (const delta_functions & delta : deltas) {
+        if ( is_dummy(delta.labels[0]) || is_dummy(delta.labels[1]) ) {
             has_gobbleable_delta = true;
             break;
         }
     }
     if (!has_gobbleable_delta) return;
 
-    // Use an unordered_map to build fully collapsed, direct single-hop lookups
-    std::unordered_map<std::string, std::string> substitution_map;
-    std::vector<delta_functions> remaining_deltas;
-    remaining_deltas.reserve(deltas.size());
+    std::vector<std::pair<std::string, std::string> > substitutions;
+    substitutions.reserve(deltas.size());
 
-    for (const auto & delta : deltas) {
-        std::string l0 = delta.labels[0];
-        std::string l1 = delta.labels[1];
+    // every substitution replaces a summation label, so nothing else can match
+    auto substitute = [&substitutions](std::string & label) {
+        if ( !is_dummy(label) ) return false;
+        for (const auto & substitution : substitutions) {
+            if ( substitution.first == label ) {
+                label = substitution.second;
+                return true;
+            }
+        }
+        return false;
+    };
 
-        // Collapse delta chains completely in memory
-        while (substitution_map.find(l0) != substitution_map.end()) l0 = substitution_map[l0];
-        while (substitution_map.find(l1) != substitution_map.end()) l1 = substitution_map[l1];
+    // resolve a label through any chain of substitutions recorded so far
+    auto resolve = [&substitute](std::string & label) {
+        while ( substitute(label) ) { }
+    };
 
-        if (l0 == l1) continue; 
+    // surviving deltas are moved into place; assigning them would not do, since
+    // delta_functions' assignment operator leaves some members behind
+    std::vector<delta_functions> kept_deltas;
+
+    for (size_t i = 0; i < deltas.size(); i++) {
+
+        std::string l0 = deltas[i].labels[0];
+        std::string l1 = deltas[i].labels[1];
+
+        resolve(l0);
+        resolve(l1);
+
+        // the delta is satisfied already
+        if ( l0 == l1 ) continue;
 
         bool l0_is_dummy = is_dummy(l0);
         bool l1_is_dummy = is_dummy(l1);
 
-        if (!l0_is_dummy && !l1_is_dummy) {
-            remaining_deltas.push_back(delta);
+        // neither label is summed over, so the delta survives. its labels are
+        // substituted below, along with everything else.
+        if ( !l0_is_dummy && !l1_is_dummy ) {
+            if ( kept_deltas.empty() ) kept_deltas.reserve(deltas.size());
+            kept_deltas.push_back(std::move(deltas[i]));
             continue;
         }
 
-        if (l0_is_dummy && l1_is_dummy) {
-            if (l0 > l1) std::swap(l0, l1);
-            substitution_map[l0] = l1;
-        } else if (l0_is_dummy) {
-            substitution_map[l0] = l1;
+        if ( l0_is_dummy && l1_is_dummy ) {
+            if ( l0 > l1 ) std::swap(l0, l1);
+            substitutions.emplace_back(l0, l1);
+        } else if ( l0_is_dummy ) {
+            substitutions.emplace_back(l0, l1);
         } else {
-            substitution_map[l1] = l0;
+            substitutions.emplace_back(l1, l0);
+        }
+    }
+    deltas = std::move(kept_deltas);
+
+    if (substitutions.empty()) return;
+
+    // point every substitution at its final destination, so applying them below
+    // is a single pass
+    for (auto & substitution : substitutions) {
+        resolve(substitution.second);
+    }
+
+    for (auto & int_pair : in->ints) {
+        for (integrals & integral : int_pair.second) {
+            for (std::string & label : integral.labels) substitute(label);
         }
     }
 
-    if (substitution_map.empty()) return;
-
-    // Fully flatten the map so EVERY key points directly to its final destination.
-    // This turns our deep loops into a single O(1) hash check!
-    for (auto& pair : substitution_map) {
-        std::string final_dest = pair.second;
-        while (substitution_map.find(final_dest) != substitution_map.end()) {
-            final_dest = substitution_map[final_dest];
-        }
-        pair.second = final_dest;
-    }
-
-    // Helper lambda to apply substitutions with ZERO redundant string assignments
-    auto apply_subs = [&](std::string &label) {
-        auto it = substitution_map.find(label);
-        if (it != substitution_map.end()) {
-            // ONLY copy memory if the label is actually different!
-            if (label != it->second) {
-                label = it->second;
-            }
-        }
-    };
-
-    // 1. Direct iteration over integrals
-    for (auto & int_pair : ints) {
-        for (auto & integral : int_pair.second) {
-            for (auto & label : integral.labels) apply_subs(label);
+    for (auto & amp_pair : in->amps) {
+        for (amplitudes & amp : amp_pair.second) {
+            for (std::string & label : amp.labels) substitute(label);
         }
     }
 
-    // 2. Direct iteration over amplitudes
-    for (auto & amp_pair : amps) {
-        for (auto & amp : amp_pair.second) {
-            for (auto & label : amp.labels) apply_subs(label);
-        }
+    for (delta_functions & delta : deltas) {
+        for (std::string & label : delta.labels) substitute(label);
     }
-
-    // 3. Update remaining deltas
-    for (auto & delta : remaining_deltas) {
-        for (auto & label : delta.labels) apply_subs(label);
-    }
-
-    deltas = std::move(remaining_deltas);
 }
 
 void gobble_deltas_gemini_v2(std::shared_ptr<pq_string> &in) {
