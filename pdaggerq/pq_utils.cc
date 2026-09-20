@@ -653,73 +653,21 @@ void consolidate_permutations_plus_swaps(std::vector<std::shared_ptr<pq_string> 
             }
         }
     }
-
-/*
-    // old O(N^2) sort
-    for (size_t i = 0; i < ordered.size(); i++) {
-
-        if ( ordered[i]->skip ) continue;
-
-        std::vector<std::vector<std::string> > found_labels;
-
-        // ok, what summed / repeated labels do we have?
-        for (const std::vector<std::string> & label : labels) {
-            std::vector<std::string> tmp;
-            tmp.reserve(label.size());
-            for (const auto & index : label) {
-                int found = ordered[i]->index_in_anywhere(index);
-                if ( found == 2 ) {
-                    tmp.push_back(index);
-                }
-            }
-            found_labels.push_back(tmp);
-        }
-
-        for (size_t j = i+1; j < ordered.size(); j++) {
-
-            if ( ordered[j]->skip ) continue;
-
-            int n_permute;
-            bool strings_same = false;
-
-            compare_strings_with_swapped_summed_labels(found_labels, 0, ordered[i], ordered[j], n_permute, strings_same);
-
-            if ( !strings_same ) continue;
-
-            double factor_i = ordered[i]->factor * ordered[i]->sign;
-            double factor_j = ordered[j]->factor * ordered[j]->sign;
-
-            double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
-
-            // if terms exactly cancel, do so
-            if ( fabs(combined_factor) < 1e-12 ) {
-                ordered[i]->skip = true;
-                ordered[j]->skip = true;
-                break;
-            }
-
-            // otherwise, combine terms
-            ordered[i]->factor = fabs(combined_factor);
-            if ( combined_factor > 0.0 ) {
-                ordered[i]->sign =  1;
-            }else {
-                ordered[i]->sign = -1;
-            }
-            ordered[j]->skip = true;
-        }
-    }
-*/
-
 }
 
 // consolidate terms that differ by permutations of non-summed labels
+struct swapped_variant {
+    std::string label1;
+    std::string label2;
+    std::string key;
+};
 void consolidate_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
     const std::vector<std::string> &labels) {
 
     if ( ordered.size() == 0 ) {
         return;
-    }
+    }    
 
     for (size_t i = 0; i < ordered.size(); i++) {
 
@@ -762,12 +710,6 @@ void consolidate_permutations_non_summed(
         // before we start comparing ordered[i] to other strings, let's build a list 
         // of keys corresponding to possible swaps
 
-        struct swapped_variant {
-            std::string label1;
-            std::string label2;
-            std::string key;
-        };
-        
         std::vector<swapped_variant> variants;
         for (size_t id1 = 0; id1 < labels.size(); id1++) {
             if ( find_idx[id1] != 1 ) continue;
