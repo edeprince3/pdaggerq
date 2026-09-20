@@ -43,6 +43,44 @@ pq_string::pq_string(const std::string &vacuum_type){
 }
 
 // sort amplitude, integral,and delta function labels and define key
+namespace {
+
+/// order tensors of one type by their numerical labels. the labels are compared
+/// through pointers and the tensors are moved into place, so nothing here copies
+/// a tensor or its label vectors.
+///
+/// @param shorter_first: amplitudes are ordered by excitation level before
+///        anything else, i.e. by how many labels they carry
+template<typename T>
+void sort_by_numerical_labels(std::vector<T> &tensors, bool shorter_first) {
+
+    if ( tensors.size() < 2 ) return;
+
+    std::vector<std::pair<const std::vector<int> *, size_t> > order;
+    order.reserve(tensors.size());
+    for (size_t i = 0; i < tensors.size(); i++) {
+        order.emplace_back(&tensors[i].numerical_labels, i);
+    }
+
+    std::sort(order.begin(), order.end(),
+              [shorter_first](const std::pair<const std::vector<int> *, size_t> &a,
+                              const std::pair<const std::vector<int> *, size_t> &b) {
+                  if ( shorter_first && a.first->size() != b.first->size() ) {
+                      return a.first->size() < b.first->size();
+                  }
+                  return *a.first < *b.first;
+              });
+
+    std::vector<T> sorted;
+    sorted.reserve(tensors.size());
+    for (const auto & entry : order) {
+        sorted.push_back(std::move(tensors[entry.second]));
+    }
+    tensors = std::move(sorted);
+}
+
+} // anonymous namespace
+
 void pq_string::sort() {
 
     // define numerical labels and permutations
@@ -54,26 +92,8 @@ void pq_string::sort() {
             integral.sort();
         }
 
-        // now, sort list of amplitudes based on labels
-        size_t dim = ints_vec.size();
-
-        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
-        for (size_t i = 0; i < dim; i++) {
-            numerical_labels_with_index.emplace_back(ints_vec[i].numerical_labels, i);
-        }
-
-        // sort the list of pairs lexicographically by the numerical labels
-        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
-                  [](const std::pair<std::vector<int>, int> &a,
-                     const std::pair<std::vector<int>, int> &b) {
-                      return a.first < b.first;
-                  });
-
-        std::vector<integrals> tmp;
-        for (const auto& pair : numerical_labels_with_index) {
-            tmp.push_back(ints_vec[pair.second]);
-        }
-        ints_vec = tmp;
+        // now, sort list of integrals based on labels
+        sort_by_numerical_labels(ints_vec, false);
     }
 
     for (auto &amps_pair : amps) {
@@ -84,40 +104,9 @@ void pq_string::sort() {
             amp.sort();
         }
 
-        // now, sort list of amplitudes based on labels
-        size_t dim = amps_vec.size();
-        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
-        for (size_t i = 0; i < dim; i++) {
-            numerical_labels_with_index.emplace_back(amps_vec[i].numerical_labels, i);
-        }
-
-        // sort the list of pairs lexicographically by the numerical labels
-        //std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
-        //          [](const std::pair<std::vector<int>, int> &a,
-        //             const std::pair<std::vector<int>, int> &b) {
-        //              return a.first < b.first;
-        //          });
-
-        // sort the list of pairs lexicographically by the numerical labels, 
-        // ensuring excitation order (vector size) takes priority!
-        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
-                  [](const std::pair<std::vector<int>, int> &a,
-                     const std::pair<std::vector<int>, int> &b) { 
-                      
-                      // 1. Force shorter lists of labels (lower excitation) to come first
-                      if (a.first.size() != b.first.size()) {
-                          return a.first.size() < b.first.size();
-                      }
-
-                      // 2. Fall back to your original lexicographical sort if sizes are identical
-                      return a.first < b.first;
-                  });
-
-        std::vector<amplitudes> tmp;
-        for (const auto& pair : numerical_labels_with_index) {
-            tmp.push_back(amps_vec[pair.second]);
-        }
-        amps_vec = tmp;
+        // now, sort list of amplitudes based on labels, with excitation order
+        // taking priority
+        sort_by_numerical_labels(amps_vec, true);
     }
 
     // sort labels in deltas
@@ -126,27 +115,7 @@ void pq_string::sort() {
     }
 
     // now, sort list of deltas based on labels
-    size_t dim = deltas.size();
-    if ( dim > 0 ) {
-
-        std::vector<std::pair<std::vector<int>, int>> numerical_labels_with_index;
-        for (size_t i = 0; i < dim; i++) {
-            numerical_labels_with_index.emplace_back(deltas[i].numerical_labels, i);
-        }
-
-        // sort the list of pairs lexicographically by the numerical labels
-        std::sort(numerical_labels_with_index.begin(), numerical_labels_with_index.end(),
-                  [](const std::pair<std::vector<int>, int> &a,
-                     const std::pair<std::vector<int>, int> &b) {
-                      return a.first < b.first;
-                  });
-
-        std::vector<delta_functions> tmp;
-        for (const auto& pair : numerical_labels_with_index) {
-            tmp.push_back(deltas[pair.second]);
-        }
-        deltas = tmp;
-    }
+    sort_by_numerical_labels(deltas, false);
 
     key = get_key();
 }

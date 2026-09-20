@@ -50,6 +50,19 @@ class tensor {
 
     /**
      *
+     * copy and move constructors. the move constructor has to be declared to
+     * exist at all: the destructor above suppresses the implicit one, which
+     * silently turns every std::move of a tensor into a copy of its label
+     * vectors. note that the copy ASSIGNMENT operators below are selective
+     * (they leave some members alone), so no move assignment is declared --
+     * assignment must keep its current meaning.
+     *
+     */
+    tensor(const tensor &copy_me) = default;
+    tensor(tensor &&move_me) = default;
+
+    /**
+     *
      * human readable tensor labels
      *
      */
@@ -215,6 +228,19 @@ class amplitudes: public tensor {
 
     /**
      *
+     * copy and move constructors. the move constructor has to be declared to
+     * exist at all: the destructor above suppresses the implicit one, which
+     * silently turns every std::move of a amplitudes into a copy of its label
+     * vectors. note that the copy ASSIGNMENT operators below are selective
+     * (they leave some members alone), so no move assignment is declared --
+     * assignment must keep its current meaning.
+     *
+     */
+    amplitudes(const amplitudes &copy_me) = default;
+    amplitudes(amplitudes &&move_me) = default;
+
+    /**
+     *
      * sort numerical amplitudes labels, keep track of permutations, assuming there is permutational symmetry
      *
      */
@@ -354,6 +380,19 @@ class integrals: public tensor {
 
     /**
      *
+     * copy and move constructors. the move constructor has to be declared to
+     * exist at all: the destructor above suppresses the implicit one, which
+     * silently turns every std::move of a integrals into a copy of its label
+     * vectors. note that the copy ASSIGNMENT operators below are selective
+     * (they leave some members alone), so no move assignment is declared --
+     * assignment must keep its current meaning.
+     *
+     */
+    integrals(const integrals &copy_me) = default;
+    integrals(integrals &&move_me) = default;
+
+    /**
+     *
      * sort numerical integrals labels, keep track of permutations
      *
      */
@@ -428,6 +467,19 @@ class delta_functions: public tensor {
      * 
      */
     ~delta_functions() = default;
+
+    /**
+     *
+     * copy and move constructors. the move constructor has to be declared to
+     * exist at all: the destructor above suppresses the implicit one, which
+     * silently turns every std::move of a delta_functions into a copy of its label
+     * vectors. note that the copy ASSIGNMENT operators below are selective
+     * (they leave some members alone), so no move assignment is declared --
+     * assignment must keep its current meaning.
+     *
+     */
+    delta_functions(const delta_functions &copy_me) = default;
+    delta_functions(delta_functions &&move_me) = default;
 
     /**
      *
