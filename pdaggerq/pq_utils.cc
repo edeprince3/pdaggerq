@@ -669,6 +669,169 @@ void consolidate_permutations_non_summed(
         return;
     }    
 
+    // new O(N) logic
+
+    // first, make map of keys
+    std::unordered_map<std::string, size_t> string_map;
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->skip ) continue;
+
+        // not sure if this logic works with existing permutation operators ... skip those for now
+        //if ( !ordered[i]->permutations.empty() ) continue;
+
+        if ( !ordered[i]->paired_permutations_2.empty() ) continue;
+        if ( !ordered[i]->paired_permutations_3.empty() ) continue;
+        if ( !ordered[i]->paired_permutations_6.empty() ) continue;
+
+        string_map[ordered[i]->key] = i;
+    }
+    
+    // now, check if swapping non-summed labels gives a string in the map
+    for (size_t i = 0; i < ordered.size(); i++) {
+
+        if ( ordered[i]->skip ) continue;
+
+        // not sure if this logic works with existing permutation operators ... skip those for now
+        //if ( !ordered[i]->permutations.empty() ) continue;
+
+        if ( !ordered[i]->paired_permutations_2.empty() ) continue;
+        if ( !ordered[i]->paired_permutations_3.empty() ) continue;
+        if ( !ordered[i]->paired_permutations_6.empty() ) continue;
+    
+        std::vector<std::string> non_summed_labels;
+    
+        // ok, what labels do we have? 
+        for (const auto & label : labels) {
+            int found = ordered[i]->index_in_anywhere(label);
+            if ( found == 1 ) {
+                non_summed_labels.push_back(label);
+            }
+        }
+
+        // is we swap labels, is the string already in the map?
+        bool string_in_map = false;
+
+        for (size_t id1 = 0; id1 < non_summed_labels.size(); id1++) {
+            std::string label1 = non_summed_labels[id1];
+
+            bool is_occ1 = is_occ(label1);
+
+            for (size_t id2 = id1 + 1; id2 < non_summed_labels.size(); id2++) {
+                std::string label2 = non_summed_labels[id2];
+
+                bool is_occ2 = is_occ(label2);
+
+                // swapping occupied or virtual
+                if ( is_occ1 && !is_occ2 ) continue;
+                if ( !is_occ1 && is_occ2 ) continue;
+
+                std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
+                swap_two_labels(newguy, label1, label2);
+
+                // is string missing in map? try swapping the next pair
+                if (string_map.find(newguy->key) == string_map.end()) continue;
+
+                // which position in ordered?
+                size_t j = string_map.at(newguy->key);
+
+                // this is buggy when existing permutation labels belong to 
+                // the same space as the labels we're permuting ... so skip those for now.
+                bool skip_permutation_assignment = false;
+
+                // check ordered[i] first
+                for (const auto & permutation : ordered[i]->permutations) {
+                    bool is_occp = is_occ(permutation);
+                    if ( is_occ1 && is_occp ) {
+                        skip_permutation_assignment = true; 
+                        break;
+                    }else if ( !is_occ1 && !is_occp ) {
+                        skip_permutation_assignment = true; 
+                        break;
+                    }
+                }
+                if ( skip_permutation_assignment ) continue;
+
+                // now, check ordered[j]
+                for (const auto & permutation : ordered[j]->permutations) {
+                    bool is_occp = is_occ(permutation);
+                    if ( is_occ1 && is_occp ) {
+                        skip_permutation_assignment = true; 
+                        break;
+                    }else if ( !is_occ1 && !is_occp ) {
+                        skip_permutation_assignment = true; 
+                        break;
+                    }
+                }
+                if ( skip_permutation_assignment ) continue;
+        
+                string_in_map = true;
+
+                // don't cancel yourself
+                if ( i == j ) {
+                    continue;
+                }
+
+                // accumulate permutations of amplitudes
+                int n_permute = 0;
+                for (const auto &amp_pair : ordered[i]->amps) {
+                    char type = amp_pair.first;
+                    const std::vector<amplitudes> &amps1 = amp_pair.second;
+                    const std::vector<amplitudes> &amps2 = ordered[j]->amps.at(type);
+                    for (size_t k = 0; k < amps1.size(); k++) {
+                        n_permute += amps1[k].permutations + amps2[k].permutations;
+                    }       
+                }           
+
+                // accumulate permutations of integrals
+                for (const auto &int_pair : ordered[i]->ints) {
+                    std::string type = int_pair.first;
+                    const std::vector<integrals> &ints1 = int_pair.second;
+                    const std::vector<integrals> &ints2 = ordered[j]->ints.at(type);
+                    for (size_t k = 0; k < ints1.size(); k++) {
+                        n_permute += ints1[k].permutations + ints2[k].permutations;
+                    }
+                }
+
+                double factor_i = ordered[i]->factor * ordered[i]->sign;
+                double factor_j = ordered[j]->factor * ordered[j]->sign;
+
+                double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
+
+                // if terms exactly cancel, then this is a permutation
+                if ( fabs(combined_factor) < 1e-12 ) {
+
+                    // canonicalize which of the two permutation-related terms survives:
+                    // always keep whichever term's own key sorts first, rather than
+                    // whichever happens to appear first in `ordered`. This makes the
+                    // choice depend only on the term's own content, not on the
+                    // traversal order of whatever normal-ordering algorithm produced it.
+                    bool keep_i = ordered[i]->key <= ordered[j]->key;
+
+                    std::shared_ptr<pq_string> keeper  = keep_i ? ordered[i] : ordered[j];
+                    std::shared_ptr<pq_string> dropped = keep_i ? ordered[j] : ordered[i];
+
+                    keeper->permutations.push_back(label1);
+                    keeper->permutations.push_back(label2);
+
+                    dropped->skip = true;
+                    string_map.erase(dropped->key);
+
+                    // don't forget to call sort labels so the permutation operator ends up on the identifier
+                    keeper->sort();
+                    break;
+                }
+                // tempting to break here, but don't. with triples, some terms could survive 
+                // to this point, but they aren't antisymmetrized swaps, eg.
+                //     - 1.000 f(l,d) t2(a,b,k,l) t2(d,c,i,j) 
+                //     - 1.000 f(l,d) t2(a,b,i,l) t2(d,c,j,k) 
+                // are the same with the same sign upon swapping i/k
+            }
+        }
+    }
+
+    // old O(N^2) logic
+/*
     for (size_t i = 0; i < ordered.size(); i++) {
 
         // not sure if this logic works with existing permutation operators ... skip those for now
@@ -729,30 +892,31 @@ void consolidate_permutations_non_summed(
             int n_permute;
             bool strings_same = compare_strings(ordered[i], ordered[j], n_permute);
 
+            // AED 9/20/26 ... this check doesn't seem to be necessary 
             // now that we've identified some permutations, it is possible for strings to be the same without swaps
-            if (strings_same) {
+            //if (strings_same) {
 
-                double factor_i = ordered[i]->factor * ordered[i]->sign;
-                double factor_j = ordered[j]->factor * ordered[j]->sign;
+            //    double factor_i = ordered[i]->factor * ordered[i]->sign;
+            //    double factor_j = ordered[j]->factor * ordered[j]->sign;
 
-                double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
+            //    double combined_factor = factor_i + factor_j * pow(-1.0, n_permute);
 
-                // if terms exactly cancel, do so
-                if ( fabs(combined_factor) < 1e-12 ) {
-                    ordered[i]->skip = true;
-                    ordered[j]->skip = true;
-                    break;
-                }
+            //    // if terms exactly cancel, do so
+            //    if ( fabs(combined_factor) < 1e-12 ) {
+            //        ordered[i]->skip = true;
+            //        ordered[j]->skip = true;
+            //        break;
+            //    }
 
-                // otherwise, combine terms
-                ordered[i]->factor = fabs(combined_factor);
-                if ( combined_factor > 0.0 ) {
-                    ordered[i]->sign =  1;
-                }else {
-                    ordered[i]->sign = -1;
-                }
-                ordered[j]->skip = true;
-            }
+            //    // otherwise, combine terms
+            //    ordered[i]->factor = fabs(combined_factor);
+            //    if ( combined_factor > 0.0 ) {
+            //        ordered[i]->sign =  1;
+            //    }else {
+            //        ordered[i]->sign = -1;
+            //    }
+            //    ordered[j]->skip = true;
+            //}
 
             std::string permutation_1;
             std::string permutation_2;
@@ -812,6 +976,7 @@ void consolidate_permutations_non_summed(
             // otherwise, something has gone wrong in the previous consolidation step...
         }
     }
+*/
 
 }
 
