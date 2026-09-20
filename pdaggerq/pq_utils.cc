@@ -1642,11 +1642,40 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
     size_t occ_counter = 0;
     size_t vir_counter = 0;
 
+    // every label the string carries before anything is renamed. a conventional
+    // letter already alive here cannot be handed out again, and collecting them
+    // once avoids re-scanning the whole string for every candidate letter.
+    //
+    // this is equivalent to asking the string directly, as the old code did: a
+    // letter is handed out only from position `counter`, which then advances past
+    // it, so no letter at or beyond `counter` can appear part-way through.
+    std::vector<const std::string *> labels_in_use;
+    for (const delta_functions & delta : in->deltas) {
+        for (const std::string & label : delta.labels) labels_in_use.push_back(&label);
+    }
+    for (const auto & int_pair : in->ints) {
+        for (const integrals & integral : int_pair.second) {
+            for (const std::string & label : integral.labels) labels_in_use.push_back(&label);
+        }
+    }
+    for (const auto & amp_pair : in->amps) {
+        for (const amplitudes & amp : amp_pair.second) {
+            for (const std::string & label : amp.labels) labels_in_use.push_back(&label);
+        }
+    }
+    for (const std::string & label : in->symbol) labels_in_use.push_back(&label);
+
     // Identify and skip labels already chosen or fixed
     // If 'i' or 'a' are already fixed/external indices in this string, 
     // we must burn those options from our pool so we don't clobber them.
+    auto in_use = [&labels_in_use](const std::string &label) {
+        for (const std::string *used : labels_in_use) {
+            if ( *used == label ) return true;
+        }
+        return false;
+    };
     auto filter_pool = [&](std::vector<std::string>& pool, size_t& counter) {
-        while (counter < pool.size() && found_index_anywhere(in, pool[counter])) {
+        while (counter < pool.size() && in_use(pool[counter])) {
             counter++; // Skip this label; it's already alive in the string
         }
     };
@@ -1666,9 +1695,10 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
     // is this an internal occupied ('o') or virtual ('v') label? classify within the
     // label's own species, so that "no0" is nuclear-occupied and not a general label.
     auto raw_class = [](const std::string &label) -> char {
-        const std::string base = is_nuclear(label) ? label.substr(1) : label;
-        if ( base.rfind("o", 0) == 0 ) return 'o';
-        if ( base.rfind("v", 0) == 0 ) return 'v';
+        size_t first = is_nuclear(label) ? 1 : 0;
+        if ( label.size() <= first ) return '\0';
+        if ( label[first] == 'o' ) return 'o';
+        if ( label[first] == 'v' ) return 'v';
         return '\0';
     };
 
@@ -1727,14 +1757,19 @@ void canonicalize_labels(std::shared_ptr<pq_string> &in) {
     }
 */
 
+    // reused across amplitudes: clearing keeps the capacity, so the label lists
+    // below are built without allocating once per amplitude
+    std::vector<std::string> local_raw_occ;
+    std::vector<std::string> local_raw_vir;
+
     // Macro-order map creation loop
     for (auto & type : in->amplitude_types) {
         if (in->amps.find(type) == in->amps.end()) continue;
         for (auto & amp : in->amps[type]) {
-            
-            std::vector<std::string> local_raw_occ;
-            std::vector<std::string> local_raw_vir;
-    
+
+            local_raw_occ.clear();
+            local_raw_vir.clear();
+
             for (const auto & label : amp.labels) {
                 const char cls = raw_class(label);
                 if (cls == 'o') local_raw_occ.push_back(label);
