@@ -26,6 +26,7 @@
 #include "pq_swap_operators.h"
 #include "pq_normal_order_fermi_vacuum.h"
 
+#include <tuple>
 #include <unordered_set>
 #include <algorithm>
 #include <numeric>
@@ -760,18 +761,21 @@ void consolidate_permutations_non_summed(
 
         // before we start comparing ordered[i] to other strings, let's build a list 
         // of keys corresponding to possible swaps
-        std::vector<std::string> keys;
+
+        struct swapped_variant {
+            std::string label1;
+            std::string label2;
+            std::string key;
+        };
+        
+        std::vector<swapped_variant> variants;
         for (size_t id1 = 0; id1 < labels.size(); id1++) {
             if ( find_idx[id1] != 1 ) continue;
             for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
                 if ( find_idx[id2] != 1 ) continue;
-
-                // swap labels
+        
                 swap_two_labels(ordered[i], labels[id1], labels[id2]);
-
-                keys.push_back(ordered[i]->key);
-
-                // swap labels back
+                variants.push_back({labels[id1], labels[id2], ordered[i]->key});
                 swap_two_labels(ordered[i], labels[id1], labels[id2]);
             }
         }
@@ -811,50 +815,22 @@ void consolidate_permutations_non_summed(
             std::string permutation_1;
             std::string permutation_2;
 
-            // check if swapping non-summed labels gives us the same string
-            int key_count = 0;
-            for (size_t id1 = 0; id1 < labels.size(); id1++) {
-                if ( find_idx[id1] != 1 ) continue;
-                for (size_t id2 = id1 + 1; id2 < labels.size(); id2++) {
-                    if ( find_idx[id2] != 1 ) continue;
-
-                    if ( ordered[j]->key == keys[key_count++]) {
-
-                        // strings match, let's get permutations
-                        swap_two_labels(ordered[i], labels[id1], labels[id2]); // swap labels
-                        strings_same = compare_strings(ordered[j], ordered[i], n_permute);
-                        swap_two_labels(ordered[i], labels[id1], labels[id2]); // swap labels back
-
-                    }else {
-                        strings_same = false;
-                    }
-                        
-
-/*
-                    // swap labels
-                    swap_two_labels(ordered[i], labels[id1], labels[id2]);
-
-                    strings_same = compare_strings(ordered[j], ordered[i], n_permute);
-
-                    // swap labels back
-                    swap_two_labels(ordered[i], labels[id1], labels[id2]);
-*/
-
-/*
-                    std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[i]);
-                    swap_two_labels(newguy, labels[id1], labels[id2]);
-                    //newguy->sort();
-
-                    strings_same = compare_strings(ordered[j], newguy, n_permute);
-*/
-                    
-                    if ( strings_same ) {
-                        permutation_1 = labels[id1];
-                        permutation_2 = labels[id2];
-                        break;
-                    }
+            // check if swapping non-summed labels gives us the same string. use swapped_variants
+            for (const swapped_variant &v : variants) {
+                if ( ordered[j]->key != v.key ) { 
+                    strings_same = false; 
+                    continue; 
                 }
-                if ( strings_same ) break;
+            
+                swap_two_labels(ordered[i], v.label1, v.label2);
+                strings_same = compare_strings(ordered[j], ordered[i], n_permute);
+                swap_two_labels(ordered[i], v.label1, v.label2);
+            
+                if ( strings_same ) {
+                    permutation_1 = v.label1;
+                    permutation_2 = v.label2;
+                    break;
+                }
             }
 
             if ( !strings_same ) continue;
