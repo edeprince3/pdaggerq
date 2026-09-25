@@ -6,6 +6,8 @@ the full/hybrid NEO triples/quadruples -- are correct but slow to build, so they
 are covered by the dedicated examples, not here). Run: pytest tests/models_test.py
 """
 
+import math
+
 from pdaggerq import einsums, models
 
 
@@ -1875,6 +1877,480 @@ def _check_pt_contract(model_names, dims):
         parts = sorted(s for a in m.T_pt
                        for s in models._pt_pq(m, left, [a]).strings())
         assert fused == parts, (name, len(fused), len(parts))
+
+
+def test_perturbative_gradient():
+    """The (T) GRADIENT quantities: the Lambda source terms and the explicit integral
+    derivatives, each validated by finite difference against the object it claims to
+    differentiate -- not against another pdaggerq expression.
+
+    Three independent identities, all on a random but physically symmetric electronic
+    system (hermitian, properly antisymmetrized <pq||rs>; the identities below are false
+    for unsymmetric junk):
+
+    1. LAMBDA SOURCE. With Lambda arbitrary (NOT converged -- the identity is algebraic),
+
+           lambda_ir(cluster) + pt_lambda_source_ir(cluster)  ==  (w/rsign) dL/dt_cluster
+
+       for L = <0|(1+Lambda) e^-T H e^T|0> + E_pt. Both sides carry pq_helper's w/rsign
+       weighting for the block, which is exactly why a consumer adds them with coefficient
+       one; the test checks that shared normalization rather than assuming it.
+
+    2. dE_pt/df -> D1. Perturbing the orbital energies and rebuilding the perturbative
+       amplitude reproduces the emitted D1 blocks. This is the denominator response, and
+       it is the piece that has no counterpart in the wavefunction density.
+
+    3. dE_pt/dW -> D2. Two checks: Euler's theorem (E_pt is quadratic in W, so contracting
+       the emitted density back with the integral must return 2 E_pt exactly), and a
+       directional finite difference in the two-electron integrals.
+
+    NO=NV=4: a rank-3 antisymmetric block over 3 occupied orbitals is proportional to the
+    Levi-Civita symbol, which makes spurious identities hold and the checks vacuous."""
+    import itertools, json
+    from collections import defaultdict
+    import numpy as np
+    from pdaggerq._pdaggerq import pq_helper
+
+    assert {"pt_lambda_numerator_graph", "pt_lambda_numerator_ir", "pt_lambda_source_ir",
+            "pt_gradient_rdm_block_ir"} <= set(models.__all__)
+
+    PT, CC, AMP, S, W = "ccsd(t)", "ccsd", "t3", -1, 36.0
+    NO = NV = 4
+    NE = NO + NV
+    DIM = {"o": NO, "v": NV}
+    SL = {"o": slice(0, NO), "v": slice(NO, NE)}
+
+    def antisym(a, cl):
+        out = a.copy()
+        groups = defaultdict(list)
+        for ax, c in enumerate(cl):
+            groups[c].append(ax)
+        for c, axes in groups.items():
+            if len(axes) < 2:
+                continue
+            acc = np.zeros_like(out)
+            for p in itertools.permutations(range(len(axes))):
+                par = sum(1 for i in range(len(p)) for j in range(i + 1, len(p))
+                          if p[i] > p[j]) & 1
+                src = list(range(out.ndim))
+                for k, ax in enumerate(axes):
+                    src[ax] = axes[p[k]]
+                acc += (-1 if par else 1) * np.transpose(out, src)
+            out = acc / math.factorial(len(axes))
+        return out
+
+    def externals(irs):
+        names = {}
+        for ir in irs:
+            made = {s["target"]["name"] for s in ir}
+            for s in ir:
+                for o in s["operands"]:
+                    if o["name"] not in made:
+                        names[(o["name"], tuple(o["classes"]))] = tuple(o["classes"])
+        return names
+
+    def align(a, frm, to):
+        free = defaultdict(list)
+        for ax, c in enumerate(frm):
+            free[c].append(ax)
+        return np.transpose(a, [free[c].pop(0) for c in to])
+
+    def interp(ir, inp, target):
+        st = {}
+        for s in ir:
+            subs = ",".join("".join(o["indices"]) for o in s["operands"])
+            out = "".join(s["target"]["indices"])
+            val = lambda o: st[o["name"]] if o["name"] in st else inp[(o["name"], tuple(o["classes"]))]
+            c = s["coeff"] * np.einsum(subs + "->" + out, *[val(o) for o in s["operands"]],
+                                       optimize=True)
+            t = s["target"]["name"]
+            st[t] = c.copy() if s["is_assignment"] else st[t] + c
+        return st[target]
+
+    rng = np.random.default_rng(2024)
+    A = rng.standard_normal((NE * NE, NE * NE))
+    A = A + A.T
+    C = A.reshape(NE, NE, NE, NE)
+    C = C + C.transpose(1, 0, 2, 3)
+    C = C + C.transpose(0, 1, 3, 2)
+    ERI = np.einsum("prqs->pqrs", C) - np.einsum("psqr->pqrs", C)      # <pq||rs>
+    EPS = {c: rng.standard_normal(DIM[c]) + (2.0 if c == "v" else -2.0) for c in DIM}
+    t1 = rng.standard_normal((NV, NO)) * 0.1
+    t2 = antisym(rng.standard_normal((NV, NV, NO, NO)), "vvoo") * 0.1
+    L1 = rng.standard_normal((NO, NV)) * 0.1
+    L2 = antisym(rng.standard_normal((NO, NO, NV, NV)), "oovv") * 0.1
+    rev = lambda a: np.transpose(a, list(range(a.ndim))[::-1])
+
+    def fill(names, amps, eri, eps):
+        inp = {}
+        for key, cl in names.items():
+            nm = key[0]
+            if nm.startswith("Id"):
+                inp[key] = np.eye(DIM[cl[0]])
+            elif nm.startswith("eri"):
+                inp[key] = eri[tuple(SL[c] for c in cl)]
+            elif nm.startswith(("f", "fp")):
+                inp[key] = (np.diag(eps[cl[0]]) if cl[0] == cl[1]
+                            else np.zeros(tuple(DIM[c] for c in cl)))
+            else:
+                inp[key] = align(amps[nm], amps[nm + "_cls"], list(cl))
+        return inp
+
+    parse = einsums.parse_ir
+    NUM = parse(models.pt_amplitude_ir(PT, AMP, df=False))
+    LNUM = parse(models.pt_lambda_numerator_ir(PT, AMP, df=False))
+    EIR = parse(models.pt_energy_ir(PT, AMP, df=False))
+    RC = einsums.target_shape(NUM, "R")[1]
+    LC = einsums.target_shape(LNUM, "R")[1]
+
+    def denom(eps):
+        return sum((1 if c == "v" else -1) *
+                   eps[c].reshape([DIM[c] if k == ax else 1 for k in range(len(RC))])
+                   for ax, c in enumerate(RC))
+
+    def triples(a, b, eri, eps):
+        amps = {"t1": a, "t1_cls": "vo", "t2": b, "t2_cls": "vvoo"}
+        D = denom(eps)
+        R = interp(NUM, fill(externals([NUM]), amps, eri, eps), "R")
+        Rl = align(interp(LNUM, fill(externals([LNUM]), amps, eri, eps), "R"), LC, RC)
+        return -R / (S * D), -Rl / (S * D)
+
+    def e_pt(a, b, eri, eps):
+        t3, _ = triples(a, b, eri, eps)
+        amps = {"t1": a, "t1_cls": "vo", "t2": b, "t2_cls": "vvoo",
+                "l1": a.T, "l1_cls": "ov", "l2": rev(b), "l2_cls": "oovv",
+                "t3": t3, "t3_cls": RC}
+        return float(interp(EIR, fill(externals([EIR]), amps, eri, eps), "energy"))
+
+    # the pairing identity the whole derivation rests on: E_pt = rsign/w sum(R_lam * t_pt)
+    t3, l3lam = triples(t1, t2, ERI, EPS)
+    E = e_pt(t1, t2, ERI, EPS)
+    Rl = align(interp(LNUM, fill(externals([LNUM]),
+               {"t1": t1, "t1_cls": "vo", "t2": t2, "t2_cls": "vvoo"}, ERI, EPS), "R"), LC, RC)
+    assert abs(E - S * float((Rl * t3).sum()) / W) < 1e-12 * abs(E), "R_lam/energy pairing"
+
+    base = {"t1": t1, "t1_cls": "vo", "t2": t2, "t2_cls": "vvoo",
+            "l1": L1, "l1_cls": "ov", "l2": L2, "l2_cls": "oovv",
+            "t3": t3, "t3_cls": RC, "l3": rev(t3), "l3_cls": list(RC)[::-1],
+            "l3_lam": rev(l3lam), "l3_lam_cls": list(RC)[::-1]}
+    # the integral derivatives below take the (T) PRESCRIPTION multipliers l = t^dagger,
+    # the ones E_pt is defined with -- NOT the solved Lambda that the Lagrangian part
+    # above uses. Same operand names, different arrays; feeding the solved Lambda here is
+    # the one way to get this wrong silently, so the test uses both and keeps them apart.
+    base_pt = dict(base)
+    base_pt.update({"l1": t1.T, "l1_cls": "ov", "l2": rev(t2), "l2_cls": "oovv"})
+
+    # --- 1. the augmented Lambda equations --------------------------------------------
+    pq = pq_helper("fermi")
+    pq.set_left_operators([["1"]] + [[l] for l in models.lambda_amps(CC)])
+    for h in models.model(CC).H:
+        pq.add_st_operator(1.0, [h], list(models.model(CC).T))
+    pq.simplify()
+    LAG = parse(models._optimized(pq, "energy", False, 0).to_strings("ir"))
+
+    def lagrangian(a, b):
+        amps = dict(base); amps["t1"] = a; amps["t2"] = b
+        return float(interp(LAG, fill(externals([LAG]), amps, ERI, EPS), "energy")) \
+            + e_pt(a, b, ERI, EPS)
+
+    for cluster, cls in (("t1", "vo"), ("t2", "vvoo")):
+        lam = parse(models.lambda_ir(CC, cluster, df=False, opt_level=0))
+        src = [json.loads(l) for l in models.pt_lambda_source_ir(PT, AMP, cluster)]
+        assert not any(o["is_intermediate"] for s in src for o in s["operands"]), \
+            "source terms must carry no intermediates"
+        assert max(sum(1 for o in s["operands"] if o["name"].startswith("l3"))
+                   for s in src) == 1, "one perturbative operand per statement"
+        lc = einsums.target_shape(lam, "R")[1]
+        sc = einsums.target_shape(src, "R")[1]
+        tot = (align(interp(lam, fill(externals([lam]), base, ERI, EPS), "R"), lc, cls)
+               + align(interp(src, fill(externals([src]), base, ERI, EPS), "R"), sc, cls))
+        n_e = len(cls) // 2
+        wos = math.factorial(n_e) ** 2 / (-1) ** (n_e // 2)
+        d = (rng.standard_normal(t1.shape) if cluster == "t1"
+             else antisym(rng.standard_normal(t2.shape), "vvoo"))
+        h = 1e-5
+        fd = (lagrangian(t1 + h * d if cluster == "t1" else t1,
+                         t2 + h * d if cluster == "t2" else t2)
+              - lagrangian(t1 - h * d if cluster == "t1" else t1,
+                           t2 - h * d if cluster == "t2" else t2)) / (2 * h)
+        ana = float((tot * d).sum())
+        assert abs(ana - wos * fd) < 1e-6 * max(1.0, abs(wos * fd)), \
+            (cluster, "augmented Lambda residual", ana, wos * fd)
+
+    # --- 2. dE_pt/df -> D1 -------------------------------------------------------------
+    D1 = {}
+    for b in ("oo", "ov", "vo", "vv"):
+        ir = [json.loads(l) for l in models.pt_gradient_rdm_block_ir(PT, AMP, "D1", b)]
+        if ir:
+            assert max(sum(1 for o in s["operands"] if o["name"].startswith(("t3", "l3")))
+                       for s in ir) == 2, "D1 pairs the amplitude with the multiplier"
+            D1[b] = interp(ir, fill(externals([ir]), base_pt, ERI, EPS), f'D1["{b}"]')
+    assert set(D1) == {"oo", "vv"}, sorted(D1)
+    de = {c: rng.standard_normal(DIM[c]) for c in DIM}
+    h = 1e-4
+    ep = {c: EPS[c] + h * de[c] for c in DIM}
+    em = {c: EPS[c] - h * de[c] for c in DIM}
+    fd = (e_pt(t1, t2, ERI, ep) - e_pt(t1, t2, ERI, em)) / (2 * h)
+    ana = sum(float((np.diag(D1[c + c]) * de[c]).sum()) for c in DIM)
+    assert abs(ana - fd) < 1e-7 * max(1.0, abs(fd)), ("D1 denominator response", ana, fd)
+
+    # --- 3. dE_pt/dW -> D2 -------------------------------------------------------------
+    D2 = {}
+    for b in ("".join(p) for p in itertools.product("ov", repeat=4)):
+        ir = [json.loads(l) for l in models.pt_gradient_rdm_block_ir(PT, AMP, "D2", b)]
+        if ir:
+            assert max(sum(1 for o in s["operands"] if o["name"].startswith(("t3", "l3")))
+                       for s in ir) == 1, "D2 carries one perturbative operand per statement"
+            D2[b] = interp(ir, fill(externals([ir]), base_pt, ERI, EPS), f'D2["{b}"]')
+    pair = lambda X: sum(0.25 * float(np.einsum("pqsr,pqrs->", D2[b],
+                         X[SL[b[0]], SL[b[1]], SL[b[3]], SL[b[2]]])) for b in D2)
+    assert abs(pair(ERI) - 2 * E) < 1e-10 * abs(E), ("Euler on W", pair(ERI), 2 * E)
+    B = rng.standard_normal((NE * NE, NE * NE)); B = B + B.T
+    C2 = B.reshape(NE, NE, NE, NE)
+    C2 = C2 + C2.transpose(1, 0, 2, 3)
+    C2 = C2 + C2.transpose(0, 1, 3, 2)
+    dW = np.einsum("prqs->pqrs", C2) - np.einsum("psqr->pqrs", C2)
+    h = 1e-4
+    fd = (e_pt(t1, t2, ERI + h * dW, EPS) - e_pt(t1, t2, ERI - h * dW, EPS)) / (2 * h)
+    assert abs(pair(dW) - fd) < 1e-7 * max(1.0, abs(fd)), ("D2 vs finite difference",
+                                                           pair(dW), fd)
+    # --- 4. NEO: the source lands on lambda_ir's target slot for slot -----------------
+    # A mixed block is where this can go wrong: tep11's excitation operator reads
+    # e2(a,nA,i,nI) but pq_graph groups the target by species, so lambda_ir's target is
+    # (a,i,A,I). A transposed source would still have the right shape and the right block,
+    # so nothing but this check would notice.
+    neo = "neo-ccsd(t)-1p"
+    for cluster in models.model(neo).T:
+        lam = einsums.parse_ir(models.lambda_ir(neo, cluster, df=False, opt_level=0))
+        src = [json.loads(l) for l in models.pt_lambda_source_ir(neo, "tep21", cluster)]
+        if not src:
+            continue
+        assert einsums.target_shape(lam, "R")[1] == einsums.target_shape(src, "R")[1], \
+            (neo, cluster, "source target classes differ from lambda_ir's")
+        assert lam[0]["target"]["indices"] == src[0]["target"]["indices"], \
+            (neo, cluster, "source target index order differs from lambda_ir's")
+
+    print("test_perturbative_gradient OK")
+
+
+def test_perturbative_gradient_neo():
+    """The (T) gradient density for NEO, where the two-body blocks come in three
+    conventions and each carries its own sign -- none of which is guessable.
+
+        D2 / D2_n   same species, antisymmetrized <pq||rs>, the 1/4 of W's definition,
+                    and the density operator's last two arguments swapped
+        D2_ep       gep multiplies a PLAIN product of one-body operators, one per
+                    species; electron and proton operators commute, so no swap, no 1/4,
+                    and the opposite sign
+        D1 / D1_n   the denominator response, one per species
+
+    Also guards the mixed-block operand naming: the perturbative multiplier is fed to
+    pq_helper as ``lep21`` but PRINTS as ``l3_ep21``, so the two halves must be told apart
+    by a rule on the emitted name, not by the name that went in. When that was keyed on the
+    input name the two halves silently shared one operand and the density was wrong with no
+    other symptom.
+
+    tep12 (one electron, two proton excitations) is the block that reaches the
+    proton-proton integral; tep21 does not, and its D2_n is correctly empty."""
+    import itertools, json
+    from collections import defaultdict
+    import numpy as np
+
+    NAME = "neo-ccsd(t)"
+    NO, NV, NPO, NPV = 3, 3, 2, 2
+    NE, NP = NO + NV, NPO + NPV
+    DIM = {"o": NO, "v": NV, "O": NPO, "V": NPV}
+    SL = {"o": slice(0, NO), "v": slice(NO, NE), "O": slice(0, NPO), "V": slice(NPO, NP)}
+    VIR = {"v", "V"}
+
+    def antisym(a, cl):
+        out = a.copy()
+        groups = defaultdict(list)
+        for ax, c in enumerate(cl):
+            groups[c].append(ax)
+        for c, axes in groups.items():
+            if len(axes) < 2:
+                continue
+            acc = np.zeros_like(out)
+            for p in itertools.permutations(range(len(axes))):
+                par = sum(1 for i in range(len(p)) for j in range(i + 1, len(p))
+                          if p[i] > p[j]) & 1
+                src = list(range(out.ndim))
+                for k, ax in enumerate(axes):
+                    src[ax] = axes[p[k]]
+                acc += (-1 if par else 1) * np.transpose(out, src)
+            out = acc / math.factorial(len(axes))
+        return out
+
+    def externals(irs):
+        names = {}
+        for ir in irs:
+            made = {s["target"]["name"] for s in ir}
+            for s in ir:
+                for o in s["operands"]:
+                    if o["name"] not in made:
+                        names[(o["name"], tuple(o["classes"]))] = tuple(o["classes"])
+        return names
+
+    def align(a, frm, to):
+        free = defaultdict(list)
+        for ax, c in enumerate(frm):
+            free[c].append(ax)
+        return np.transpose(a, [free[c].pop(0) for c in to])
+
+    def interp(ir, inp, target):
+        st = {}
+        for s in ir:
+            subs = ",".join("".join(o["indices"]) for o in s["operands"])
+            out = "".join(s["target"]["indices"])
+            val = lambda o: st[o["name"]] if o["name"] in st else inp[(o["name"], tuple(o["classes"]))]
+            c = s["coeff"] * np.einsum(subs + "->" + out, *[val(o) for o in s["operands"]],
+                                       optimize=True)
+            t = s["target"]["name"]
+            st[t] = c.copy() if s["is_assignment"] else st[t] + c
+        return st[target]
+
+    def chem(rng, n, m=None):
+        m = n if m is None else m
+        A = rng.standard_normal((n * n, m * m))
+        if m == n:
+            A = A + A.T
+        C = A.reshape(n, n, m, m)
+        C = C + C.transpose(1, 0, 2, 3)
+        return C + C.transpose(0, 1, 3, 2)
+    asym = lambda c: np.einsum("prqs->pqrs", c) - np.einsum("psqr->pqrs", c)
+
+    rng = np.random.default_rng(4242)
+    ERI, VP = asym(chem(rng, NE)), asym(chem(rng, NP))
+    G = np.einsum("pqPQ->pPqQ", chem(rng, NE, NP))
+    EPS = {c: rng.standard_normal(DIM[c]) + (2.0 if c in VIR else -2.0) for c in DIM}
+    rev = lambda a: np.transpose(a, list(range(a.ndim))[::-1])
+    AMPS = {}
+    for nm, cls in (("t1", "vo"), ("t2", "vvoo"), ("t1_n", "VO"), ("t2_n", "VVOO"),
+                    ("t2_ep", "vVoO")):
+        AMPS[nm] = antisym(rng.standard_normal(tuple(DIM[c] for c in cls)), cls) * 0.1
+        AMPS[nm + "_cls"] = cls
+        ln = "l" + nm[1:]
+        AMPS[ln], AMPS[ln + "_cls"] = rev(AMPS[nm]), cls[::-1]
+
+    def fill(names, amps, eri, vp, g, eps):
+        inp = {}
+        for key, cl in names.items():
+            nm = key[0]
+            if nm.startswith("Id"):
+                inp[key] = np.eye(DIM[cl[0]])
+            elif nm.startswith("eri"):
+                inp[key] = (eri if cl[0] in "ov" else vp)[tuple(SL[c] for c in cl)]
+            elif nm.startswith("vp"):
+                inp[key] = vp[tuple(SL[c] for c in cl)]
+            elif nm.startswith("g"):
+                inp[key] = g[tuple(SL[c] for c in cl)]
+            elif nm.startswith(("f", "fp")):
+                inp[key] = (np.diag(eps[cl[0]]) if cl[0] == cl[1]
+                            else np.zeros(tuple(DIM[c] for c in cl)))
+            else:
+                inp[key] = align(amps[nm], amps[nm + "_cls"], list(cl))
+        return inp
+
+    for AMP in ("tep21", "tep12"):
+        NUM = einsums.parse_ir(models.pt_amplitude_ir(NAME, AMP, df=False))
+        LNUM = einsums.parse_ir(models.pt_lambda_numerator_ir(NAME, AMP, df=False))
+        EIR = einsums.parse_ir(models.pt_energy_ir(NAME, AMP, df=False))
+        RC = einsums.target_shape(NUM, "R")[1]
+        LC = einsums.target_shape(LNUM, "R")[1]
+        n_p = models._proton_count(AMP)
+        n_e = len(RC) // 2 - n_p
+        S = (-1) ** (n_e // 2 + n_p // 2)
+        W = math.factorial(n_e) ** 2 * math.factorial(n_p) ** 2
+
+        def denom(eps):
+            return sum((1 if c in VIR else -1) *
+                       eps[c].reshape([DIM[c] if k == ax else 1 for k in range(len(RC))])
+                       for ax, c in enumerate(RC))
+
+        def triples(eri, vp, g, eps):
+            D = denom(eps)
+            R = interp(NUM, fill(externals([NUM]), AMPS, eri, vp, g, eps), "R")
+            Rl = align(interp(LNUM, fill(externals([LNUM]), AMPS, eri, vp, g, eps), "R"), LC, RC)
+            return -R / (S * D), -Rl / (S * D)
+
+        TGT = [o["name"] for s in EIR for o in s["operands"] if o["name"].startswith("t3")][0]
+
+        def e_pt(eri, vp, g, eps):
+            t, _ = triples(eri, vp, g, eps)
+            a = dict(AMPS); a[TGT] = t; a[TGT + "_cls"] = "".join(RC)
+            return float(interp(EIR, fill(externals([EIR]), a, eri, vp, g, eps), "energy"))
+
+        t_pt, l_pt = triples(ERI, VP, G, EPS)
+        E = e_pt(ERI, VP, G, EPS)
+        Rl = align(interp(LNUM, fill(externals([LNUM]), AMPS, ERI, VP, G, EPS), "R"), LC, RC)
+        assert abs(E - S * float((Rl * t_pt).sum()) / W) < 1e-10 * abs(E), (AMP, "pairing")
+
+        base = dict(AMPS)
+        base[TGT], base[TGT + "_cls"] = t_pt, "".join(RC)
+        ln = "l" + TGT[1:]
+        base[ln], base[ln + "_cls"] = rev(t_pt), "".join(RC)[::-1]
+        base[ln + "_lam"], base[ln + "_lam_cls"] = rev(l_pt), "".join(RC)[::-1]
+
+        # the two halves must be distinguishable on a MIXED block. Which cluster blocks a
+        # perturbative block couples to varies (tep12 has no source against the pure
+        # electron doubles at all), so look across all of them.
+        seen = {o["name"] for cl in models.model(NAME).T
+                for l in models.pt_lambda_source_ir(NAME, AMP, cl)
+                for o in json.loads(l)["operands"]}
+        assert {ln, ln + "_lam"} <= seen, \
+            (AMP, "the two source halves share an operand name", sorted(seen))
+
+        def blocks(tensor, letters, rank):
+            out = {}
+            for b in ("".join(p) for p in itertools.product(*([letters] * rank))):
+                ir = [json.loads(l) for l in
+                      models.pt_gradient_rdm_block_ir(NAME, AMP, tensor, b)]
+                if ir:
+                    out[b] = interp(ir, fill(externals([ir]), base, ERI, VP, G, EPS),
+                                    f'{tensor}["{b}"]')
+            return out
+
+        # 1. D1 / D1_n -- the denominator response, one species at a time
+        for tensor, letters in (("D1", "ov"), ("D1_n", "OV")):
+            D1 = blocks(tensor, letters, 2)
+            assert set(D1) == {letters[0] * 2, letters[1] * 2}, (AMP, tensor, sorted(D1))
+            de = {c: rng.standard_normal(DIM[c]) for c in letters}
+            h = 1e-4
+            ep = {c: EPS[c] + (h * de[c] if c in letters else 0) for c in DIM}
+            em = {c: EPS[c] - (h * de[c] if c in letters else 0) for c in DIM}
+            fd = (e_pt(ERI, VP, G, ep) - e_pt(ERI, VP, G, em)) / (2 * h)
+            ana = sum(float((np.diag(D1[c + c]) * de[c]).sum()) for c in letters)
+            assert abs(ana - fd) < 1e-6 * max(1.0, abs(fd)), (AMP, tensor, ana, fd)
+
+        # 2. D2_ep -- consumer pairing gep[e,p,e',p'] * D2_ep[p,e,e',p'], coefficient 1
+        Dep = {}
+        for b in ("".join(p) for p in itertools.product("OV", "ov", "ov", "OV")):
+            ir = [json.loads(l) for l in models.pt_gradient_rdm_block_ir(NAME, AMP, "D2_ep", b)]
+            if ir:
+                Dep[b] = interp(ir, fill(externals([ir]), base, ERI, VP, G, EPS),
+                                f'D2_ep["{b}"]')
+        assert Dep, (AMP, "D2_ep empty")
+        dg = np.einsum("pqPQ->pPqQ", chem(rng, NE, NP))
+        h = 1e-4
+        fd = (e_pt(ERI, VP, G + h * dg, EPS) - e_pt(ERI, VP, G - h * dg, EPS)) / (2 * h)
+        ana = sum(float(np.einsum("pefq,epfq->", Dep[b],
+                  dg[SL[b[1]], SL[b[0]], SL[b[2]], SL[b[3]]])) for b in Dep)
+        assert abs(ana - fd) < 1e-6 * max(1.0, abs(fd)), (AMP, "D2_ep", ana, fd)
+
+        # 3. D2_n -- same-species, so the electronic convention: 1/4 vp[pqrs] D2_n[pqsr].
+        # tep21 cannot reach the proton-proton integral at all; its block is empty and so
+        # is the derivative, which is itself worth asserting.
+        Dn = blocks("D2_n", "OV", 4)
+        dvp = asym(chem(rng, NP))
+        fd = (e_pt(ERI, VP + h * dvp, G, EPS) - e_pt(ERI, VP - h * dvp, G, EPS)) / (2 * h)
+        if Dn:
+            ana = sum(0.25 * float(np.einsum("pqsr,pqrs->", Dn[b],
+                      dvp[SL[b[0]], SL[b[1]], SL[b[3]], SL[b[2]]])) for b in Dn)
+            assert abs(ana - fd) < 1e-6 * max(1.0, abs(fd)), (AMP, "D2_n", ana, fd)
+        else:
+            assert abs(fd) < 1e-10, (AMP, "D2_n empty but dE/dvp is not", fd)
+    print("test_perturbative_gradient_neo OK")
 
 def test_dims_cost_model():
     """The optimizer ranks contraction candidates by numeric flops at the dimensions it
