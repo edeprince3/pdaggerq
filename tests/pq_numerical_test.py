@@ -10,7 +10,8 @@ pq_graph_options = {
     #'batched': True,
     #'batch_number': 100,
     'print_level': 0,
-    'opt_level': 0,
+    'opt_level': 1,
+    'binarize': True,
     'nthreads': -1,
     'no_scalars': False,
 }
