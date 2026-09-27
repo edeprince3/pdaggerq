@@ -1,4 +1,5 @@
 import pdaggerq 
+import hashlib
 import os
 import re
 
@@ -48,7 +49,7 @@ SPIN_MAP = {
     },
 }
 
-def configure_graph(options = None):
+def configure_graph(options = None, varying = None):
     """
     Configure and return the code generator with specific settings.
 
@@ -57,6 +58,9 @@ def configure_graph(options = None):
     overrides the options' opt_level.
 
     :param options: options dictionary for the generator
+    :param varying: the tensors that change between calls of the generated function, by name
+        or by a prefix followed by a digit ('r' matches r1, r2, ...); pq_opt's opt_level 3
+        computes what depends on none of them once. None: r and l amplitudes
 
     Returns:
         graph (pq_opt or pq_graph): Configured code generator.
@@ -80,10 +84,43 @@ def configure_graph(options = None):
 
     backend = os.environ.get("PDAGGERQ_CODEGEN_BACKEND", "") or "pq_opt"
     if backend == "pq_opt":
-        return pdaggerq.pq_opt(options)
+        return pdaggerq.pq_opt({**options, 'varying': varying} if varying else options)
     if backend != "pq_graph":
         raise ValueError(f"PDAGGERQ_CODEGEN_BACKEND must be 'pq_graph' or 'pq_opt', not '{backend}'")
     return pdaggerq.pq_graph(options)
+
+def graph_code(graph):
+    """
+    the code a graph generates, for the body of a generated function (def f(self): ...)
+
+    pq_opt at opt_level 3 splits off what does not change between calls (reused_: products of
+    t amplitudes and integrals in functions of r or l amplitudes, e.g. EOM sigma builds and
+    lambda residuals). that part is computed on the first call and kept in self.reused_, keyed
+    by a hash of its code (function names are not unique: opdm and tpdm functions may share
+    one), so the t amplitudes must not change while the same self is in use.
+
+    :param graph: the optimized pq_opt or pq_graph object
+    """
+    try:
+        reused = graph.str("python", "reused")
+    except TypeError:
+        return graph.str("python")  # pq_graph
+
+    if reused.strip() == "":
+        return graph.str("python", "per_call")
+
+    cache_key = hashlib.sha1(reused.encode()).hexdigest()
+    indented = "".join("    " + line if line.strip() else line for line in reused.splitlines(True))
+    return f"""
+    # what does not change between calls is computed on the first call and kept
+    if not hasattr(self, 'reused_'):
+        self.reused_ = {{}}
+    reused_ = self.reused_.get('{cache_key}')
+    if reused_ is None:
+        reused_ = {{}}
+{indented}
+        self.reused_['{cache_key}'] = reused_
+""" + graph.str("python", "per_call")
 
 def get_spin_labels(ops, operator_type = 'EE'):
     """
@@ -480,7 +517,7 @@ def cc_residual(residual_name,
     generated_code_string += function_initialization_string(is_qed = is_qed)
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # Return statement
 
@@ -608,7 +645,7 @@ def bernoulli_ucc_residual(rank,
     generated_code_string += function_initialization_string()
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # Return statement
 
@@ -743,7 +780,7 @@ def uccsd_singles_residual(order,
     generated_code_string += function_initialization_string()
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # return statement
     base_name = '1'
@@ -863,7 +900,7 @@ def uccsd_doubles_residual(order,
     generated_code_string += function_initialization_string()
     
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
         
     # return statement
     base_name = '2' 
@@ -984,7 +1021,7 @@ def uccsd_energy(order,
     generated_code_string += function_initialization_string()
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
         
     # return statement
     generated_code_string += f"    return {energy_name}"
@@ -1083,7 +1120,7 @@ def cc3_triples_residual(residual_name,
     generated_code_string += function_initialization_string()
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
         
     # return statement
     base_name = '3'
@@ -1228,7 +1265,7 @@ def lambda_cc_residual(residual_name,
     generated_code_string += function_initialization_string(is_qed = is_qed)
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # Return statement
 
@@ -1362,7 +1399,7 @@ def lambda_cc_pseudoenergy(energy_name,
     generated_code_string += function_initialization_string(is_qed = is_qed)
         
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
             
     # return statement
     generated_code_string += f"    return {energy_name}"
@@ -1507,7 +1544,9 @@ def cc_response_terms(term_name,
             print(term, flush=True)
 
     # Enable and configure pq_graph
-    graph = configure_graph(pq_graph_options)
+    # besides r and l amplitudes, the x amplitudes and the perturbation (h) change between
+    # calls (one per component)
+    graph = configure_graph(pq_graph_options, varying = ['r', 'l', 'x', 'h'])
 
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
@@ -1682,7 +1721,7 @@ f"""
 """
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
         
     # Return statement
     # This regex looks for digit, optionally followed by '_Np'
@@ -2018,7 +2057,7 @@ def eomcc_sigma(sigma_name,
 """
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
         
     # Return statement
     # This regex looks for digit, optionally followed by '_Np'
@@ -2340,7 +2379,7 @@ f"""
 """
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # return statement
     generated_code_string += \
@@ -2443,7 +2482,7 @@ def {function_name}(self):
     generated_code_string += function_initialization_string(is_qed = is_qed)
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # return statement
     generated_code_string += \
@@ -2577,7 +2616,7 @@ def {function_name}(self):
     generated_code_string += function_initialization_string(is_qed = is_qed)
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # return statement
     generated_code_string += \
@@ -2935,7 +2974,7 @@ f"""
 """
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # return statement
     generated_code_string += \
@@ -3282,7 +3321,7 @@ f"""
 """
 
     # pq graph output
-    generated_code_string += graph.str("python")
+    generated_code_string += graph_code(graph)
 
     # return statement
     generated_code_string += \

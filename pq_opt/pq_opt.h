@@ -56,12 +56,17 @@ class PQOpt {
     /// run the passes selected by opt_level
     void optimize();
 
-    /// the generated code
-    std::vector<std::string> to_strings(const std::string &type);
-    std::string str(const std::string &type);
+    /// the generated code. part: "all"; or, at opt_level 3, "reused" (what does not change
+    /// between calls: run once, keeping reused_) or "per_call" (the rest, reading reused_)
+    std::vector<std::string> to_strings(const std::string &type, const std::string &part);
+    std::string str(const std::string &type, const std::string &part);
 
     /// flop counts and scaling of the optimized program
     void analysis() const;
+
+    /// flops of what runs once (opt_level 3) and of what runs per call, and the elements
+    /// stored in reused_
+    std::map<std::string, double> costs();
 
     void clear();
 
@@ -73,13 +78,15 @@ class PQOpt {
     int print_level_ = 0;
     long max_temps_ = -1;          // most intermediates to create at opt_level >= 2 (-1: no limit)
     bool use_antisymmetry_ = true; // match intermediates up to tensor antisymmetry (opt_level >= 2)
+    double calls_ = 10.0;          // calls the generated code is expected to serve (opt_level 3 hoisting)
     IngestOptions ingest_;
     PrintOptions print_;
     // o/v: electron occupied/virtual, O/V: nuclear occupied/virtual, L: trial vectors, b: cavity modes
     Sizes sizes_ = {{'o', 20.0}, {'v', 100.0}, {'O', 1.0}, {'V', 20.0}, {'L', 10.0}, {'b', 1.0}};
 
     std::vector<Equation> equations_;
-    Program program_;
+    Program reused_program_;  // opt_level 3: what is computed once (reused_)
+    Program program_;         // what is computed on every call
     bool optimized_ = false;
 };
 

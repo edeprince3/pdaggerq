@@ -27,6 +27,8 @@
 
 #include "ir.h"
 
+#include <set>
+
 namespace pdaggerq {
 class pq_helper;
 }
@@ -39,6 +41,10 @@ struct IngestOptions {
     bool permute_eri = true;      // bring eri blocks to the canonical set (oovv, vovo, ...)
     bool symmetric_eri = false;   // eri has bra/ket symmetry (<pq|rs> = <rs|pq>)
     bool use_trial_index = false; // give r/l amplitudes a leading trial-vector index
+    // the tensors that change between calls of the generated code (TensorRef::varies), by
+    // name or by a prefix followed by a digit ("r" matches r1, r2, r0_1p). everything else is
+    // taken to be fixed; e.g. response theory also varies "x" amplitudes and the perturbation "h"
+    std::set<std::string> varying = {"r", "l"};
 };
 
 /**
@@ -68,9 +74,27 @@ std::map<char, int> scaling(const ExprPtr &expr);
 /// one n-ary node over all tensors, in the order pdaggerq gave them
 ExprPtr flat_expr(const Term &term, const Indices &out);
 
-/// the binary contraction tree with the fewest flops (exhaustive DP over subsets);
-/// the flat tree when there are fewer than 3 or more than 16 tensors
-ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes);
+/**
+ * the binary contraction tree with the fewest flops (exhaustive DP over subsets);
+ * the flat tree when there are fewer than 3 or more than 16 tensors
+ * @param calls when > 0, hoist: the code is expected to be called this many times with new
+ *        values of the tensors that vary (TensorRef::varies), and a subtree of the others is
+ *        computed once and stored if it can be (no intermediate in it larger than hoist_cap)
+ *        and if that pays off: the flops minimized are those per call plus the stored
+ *        subtrees' flops divided by calls. see hoisted_subtrees
+ */
+ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes, double calls = 0.0);
+
+/// the largest tensor of a term that does not vary between calls: the most a hoisted
+/// intermediate may hold
+double hoist_cap(const Term &term, const Sizes &sizes);
+
+/// does the subtree hold only tensors that do not vary between calls?
+bool is_fixed(const ExprPtr &expr);
+
+/// the subtrees of a tree from optimal_expr(..., calls > 0) that are computed once: the
+/// fixed internal children of varying nodes with no intermediate larger than cap
+std::vector<ExprPtr> hoisted_subtrees(const ExprPtr &root, double cap, const Sizes &sizes);
 
 /// intermediates.cc: shared intermediates (opt_level >= 2)
 
@@ -91,6 +115,39 @@ ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes);
 std::vector<Equation> extract_intermediates(std::vector<Equation> &eqs, const Sizes &sizes, long max_temps,
                                            bool use_antisymmetry);
 
+/**
+ * compute once what does not change between calls (opt_level >= 3)
+ *
+ * when some tensor varies between calls (TensorRef::varies: r and l amplitudes), each term
+ * gets the tree with the fewest flops per call; its fixed subtrees that can be stored are
+ * defined once as reused_["0001_ov"] (one product of two tensors each, identical products
+ * shared), and the terms with no varying tensor are summed into one reused_ per equation.
+ * does nothing when no tensor varies
+ *
+ * @param eqs the equations; their terms are rewritten to read the reused_ tensors
+ * @param sizes index extents for the cost model
+ * @param calls the number of calls the code is expected to serve (see optimal_expr)
+ * @param use_antisymmetry as for extract_intermediates
+ * @return the reused_ definitions, in the order they must be computed
+ */
+std::vector<Equation> hoist_invariants(std::vector<Equation> &eqs, const Sizes &sizes, double calls,
+                                       bool use_antisymmetry);
+
+/**
+ * merge terms that differ only in their fixed tensor (opt_level >= 4, after hoist_invariants)
+ *
+ * the terms of an equation that are (varying tensors) x (one fixed tensor), with the same
+ * varying tensors contracted the same way (up to antisymmetry) and the same permutation
+ * operator, c_k P[V F_k], become one term P[V G], where G = sum_k c_k F_k is a reused_
+ * built once. one contraction per call replaces one per term
+ *
+ * @param eqs the equations; merged terms are replaced
+ * @param first_id the id of the first reused_ made here (after hoist_invariants' ones)
+ * @param use_antisymmetry as for extract_intermediates
+ * @return the definitions of the sums, to be computed after hoist_invariants' definitions
+ */
+std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, bool use_antisymmetry);
+
 /// build_program.cc: equations -> statements
 
 /**
@@ -98,8 +155,11 @@ std::vector<Equation> extract_intermediates(std::vector<Equation> &eqs, const Si
  * @param eqs the equations
  * @param reorder use optimal_expr (true) or flat_expr (false)
  * @param sizes index extents for the cost model
+ * @param free_reused the keys of reused_ intermediates to free after their last use too
+ *        (those that are only needed to build other reused_ ones)
  */
-Program build_program(const std::vector<Equation> &eqs, bool reorder, const Sizes &sizes);
+Program build_program(const std::vector<Equation> &eqs, bool reorder, const Sizes &sizes,
+                      const std::set<std::string> &free_reused = {});
 
 } // namespace pdaggerq::opt
 

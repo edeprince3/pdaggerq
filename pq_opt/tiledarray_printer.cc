@@ -42,9 +42,12 @@ std::string labels(const Indices &idx) {
     return "(\"" + s + "\")";
 }
 
-// the map an intermediate lives in: tensors in tmps_, numbers (no indices) in scalars_
+// the map an intermediate lives in: tensors in tmps_ (reused_ at opt_level 3), numbers
+// (no indices) in scalars_ (reused_scalars_)
 std::string storage(const TensorRef &t) {
-    return t.name == "tmps_" && t.idx.empty() ? "scalars_" : t.name;
+    if (t.idx.empty() && t.name == "tmps_") return "scalars_";
+    if (t.idx.empty() && t.name == "reused_") return "reused_scalars_";
+    return t.name;
 }
 
 std::string ref(const TensorRef &t, const Indices &idx) {

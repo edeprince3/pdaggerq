@@ -56,9 +56,17 @@ void PQOpt::set_options(const py::dict &options) {
         else if (k == "print_level") print_level_ = value.cast<int>();
         else if (k == "max_temps") max_temps_ = value.cast<long>();
         else if (k == "use_antisymmetry") use_antisymmetry_ = value.cast<bool>();
+        else if (k == "calls") {
+            calls_ = value.cast<double>();
+            if (!(calls_ >= 1.0)) throw std::invalid_argument("pq_opt: calls must be at least 1");
+        }
         else if (k == "permute_eri") ingest_.permute_eri = value.cast<bool>();
         else if (k == "has_symmetric_eri") ingest_.symmetric_eri = value.cast<bool>();
         else if (k == "use_trial_index") ingest_.use_trial_index = value.cast<bool>();
+        else if (k == "varying") {
+            auto names = value.cast<std::vector<std::string>>();
+            ingest_.varying = std::set<std::string>(names.begin(), names.end());
+        }
         else if (k == "print_comments") print_.comments = value.cast<bool>();
         else if (k == "deallocate") print_.deallocate = value.cast<bool>();
         else if (k == "nocc") { if (value.cast<int>() > 0) sizes_['o'] = value.cast<double>(); }
@@ -115,25 +123,52 @@ void PQOpt::add(const pq_helper &pq, const std::string &name, const std::vector<
 
 void PQOpt::optimize() {
     // level 0: terms as given; level >= 1: optimal contraction order per term;
-    // level >= 2: also shared intermediates, computed first. a copy of the equations is
-    // rewritten, so optimizing again starts from pdaggerq's terms
+    // level >= 2: also shared intermediates, computed first; level >= 3: first of all, what
+    // does not change between calls (reused_), in a program of its own; level >= 4: terms
+    // that differ only in a fixed tensor merged, reading the sum of those tensors. a copy of the
+    // equations is rewritten, so optimizing again starts from pdaggerq's terms
     std::vector<Equation> equations = equations_;
+    std::vector<Equation> reused;
+    if (opt_level_ >= 3) reused = hoist_invariants(equations, sizes_, calls_, use_antisymmetry_);
+    if (opt_level_ >= 4) {
+        std::vector<Equation> sums = merge_terms(equations, reused.size() + 1, use_antisymmetry_);
+        reused.insert(reused.end(), sums.begin(), sums.end());
+    }
     std::vector<Equation> program_equations;
     if (opt_level_ >= 2)
         program_equations = extract_intermediates(equations, sizes_, max_temps_, use_antisymmetry_);
     program_equations.insert(program_equations.end(), equations.begin(), equations.end());
     program_ = build_program(program_equations, opt_level_ >= 1, sizes_);
+
+    // the reused_ intermediates the per-call code does not read (e.g. the pieces of a merged
+    // sum) are freed once they have been used
+    std::set<std::string> read_per_call;
+    for (const Equation &eq : program_equations)
+        for (const Term &term : eq.terms)
+            for (const TensorRef &t : term.tensors)
+                if (t.name == "reused_") read_per_call.insert(t.key);
+    std::set<std::string> free_reused;
+    for (const Equation &eq : reused)
+        if (!read_per_call.count(eq.lhs.key)) free_reused.insert(eq.lhs.key);
+    reused_program_ = build_program(reused, true, sizes_, free_reused);
     optimized_ = true;
 }
 
-std::vector<std::string> PQOpt::to_strings(const std::string &type) {
+std::vector<std::string> PQOpt::to_strings(const std::string &type, const std::string &part) {
     if (!optimized_) optimize();
-    return make_printer(type, print_)->lines(program_);
+    auto printer = make_printer(type, print_);
+    if (part == "reused") return printer->lines(reused_program_);
+    if (part == "per_call") return printer->lines(program_);
+    if (part != "all")
+        throw std::invalid_argument("pq_opt: part must be 'all', 'reused', or 'per_call', not '" + part + "'");
+    std::vector<std::string> lines = printer->lines(reused_program_);
+    for (const std::string &line : printer->lines(program_)) lines.push_back(line);
+    return lines;
 }
 
-std::string PQOpt::str(const std::string &type) {
+std::string PQOpt::str(const std::string &type, const std::string &part) {
     std::string s;
-    for (const std::string &line : to_strings(type)) s += line + "\n";
+    for (const std::string &line : to_strings(type, part)) s += line + "\n";
     return s;
 }
 
@@ -161,48 +196,80 @@ void PQOpt::analysis() const {
 
     char line[256];
     std::string out = "pq_opt analysis (sizes:" + size_str + ")\n";
-    std::snprintf(line, sizeof line, "    %-20s %8s %14s   %s\n", "equation", "terms", "flops", "worst scaling");
-    out += line;
-
-    // one row per equation, and one for all intermediates (tmps_), in program order
-    std::vector<std::string> targets;
-    for (const Stmt &stmt : program_.stmts)
-        if (std::find(targets.begin(), targets.end(), stmt.target.name) == targets.end())
-            targets.push_back(stmt.target.name);
 
     std::map<std::string, int> histogram;
-    double total = 0.0;
-    size_t nterms = 0;
-    for (const std::string &target : targets) {
-        double flops = 0.0;
-        size_t count = 0;
-        std::map<char, int> worst;
-        for (const Stmt &stmt : program_.stmts) {
-            if (stmt.target.name != target) continue;
-            // a permuted term is contracted once; its permuted copies are additions, not counted
-            flops += cost(stmt.rhs, sizes_);
-            count++;
-            std::map<char, int> s = scaling(stmt.rhs);
-            histogram[name(s)]++;
-            if (rank(s) > rank(worst)) worst = s;
-        }
-        std::snprintf(line, sizeof line, "    %-20s %8zu %14.4e   %s\n", target.c_str(), count, flops,
-                      name(worst).c_str());
+
+    // one row per target (equations, tmps_, reused_), in program order, and a total
+    auto section = [&](const Program &program, const std::string &title) {
+        std::snprintf(line, sizeof line, "    %-20s %8s %14s   %s\n", title.c_str(), "terms", "flops", "worst scaling");
         out += line;
-        total += flops;
-        nterms += count;
+        std::vector<std::string> targets;
+        for (const Stmt &stmt : program.stmts)
+            if (std::find(targets.begin(), targets.end(), stmt.target.name) == targets.end())
+                targets.push_back(stmt.target.name);
+
+        double total = 0.0;
+        size_t nterms = 0;
+        for (const std::string &target : targets) {
+            double flops = 0.0;
+            size_t count = 0;
+            std::map<char, int> worst;
+            for (const Stmt &stmt : program.stmts) {
+                if (stmt.target.name != target) continue;
+                // a permuted term is contracted once; its permuted copies are additions, not counted
+                flops += cost(stmt.rhs, sizes_);
+                count++;
+                std::map<char, int> s = scaling(stmt.rhs);
+                histogram[name(s)]++;
+                if (rank(s) > rank(worst)) worst = s;
+            }
+            std::snprintf(line, sizeof line, "    %-20s %8zu %14.4e   %s\n", target.c_str(), count, flops,
+                          name(worst).c_str());
+            out += line;
+            total += flops;
+            nterms += count;
+        }
+        std::snprintf(line, sizeof line, "    %-20s %8zu %14.4e\n", "total", nterms, total);
+        out += line;
+    };
+
+    // with hoisting (opt_level 3), what runs once and what runs on every call
+    if (!reused_program_.stmts.empty()) {
+        section(reused_program_, "once (reused_)");
+        double stored = 0.0;
+        std::set<std::string> seen;
+        for (const Stmt &stmt : reused_program_.stmts)
+            if (seen.insert(stmt.target.key).second) stored += extent(stmt.target.idx, sizes_);
+        std::snprintf(line, sizeof line, "    %-20s %8s %14.4e\n", "stored elements", "", stored);
+        out += line;
+        section(program_, "per call");
+    } else {
+        section(program_, "equation");
     }
-    std::snprintf(line, sizeof line, "    %-20s %8zu %14.4e\n", "total", nterms, total);
-    out += line;
 
     out += "    scaling histogram:";
     for (const auto &[s, n] : histogram) out += " " + s + ":" + std::to_string(n);
     py::print(out);
 }
 
+std::map<std::string, double> PQOpt::costs() {
+    if (!optimized_) optimize();
+    auto flops = [&](const Program &program) {
+        double total = 0.0;
+        for (const Stmt &stmt : program.stmts) total += cost(stmt.rhs, sizes_);
+        return total;
+    };
+    double stored = 0.0;
+    std::set<std::string> seen;
+    for (const Stmt &stmt : reused_program_.stmts)
+        if (seen.insert(stmt.target.key).second) stored += extent(stmt.target.idx, sizes_);
+    return {{"once", flops(reused_program_)}, {"per_call", flops(program_)}, {"stored", stored}};
+}
+
 void PQOpt::clear() {
     equations_.clear();
     program_ = Program();
+    reused_program_ = Program();
     optimized_ = false;
 }
 
@@ -213,12 +280,13 @@ void PQOpt::export_pq_opt(py::module &m) {
         .def("add", &PQOpt::add, py::arg("pq"), py::arg("equation_name") = "",
              py::arg("label_order") = std::vector<std::string>())
         .def("optimize", &PQOpt::optimize)
-        .def("print", [](PQOpt &self, const std::string &type) { py::print(self.str(type)); },
-             py::arg("print_type") = "python")
-        .def("str", &PQOpt::str, py::arg("print_type") = "python")
-        .def("__str__", [](PQOpt &self) { return self.str("python"); })
-        .def("to_strings", &PQOpt::to_strings, py::arg("print_type") = "python")
+        .def("print", [](PQOpt &self, const std::string &type, const std::string &part) {
+                 py::print(self.str(type, part)); }, py::arg("print_type") = "python", py::arg("part") = "all")
+        .def("str", &PQOpt::str, py::arg("print_type") = "python", py::arg("part") = "all")
+        .def("__str__", [](PQOpt &self) { return self.str("python", "all"); })
+        .def("to_strings", &PQOpt::to_strings, py::arg("print_type") = "python", py::arg("part") = "all")
         .def("analysis", &PQOpt::analysis)
+        .def("costs", &PQOpt::costs)
         .def("clear", &PQOpt::clear)
         // pq_graph compatibility: these steps are part of optimize() here
         .def("assemble", [](PQOpt &) {})

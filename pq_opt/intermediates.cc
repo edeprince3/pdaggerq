@@ -40,6 +40,20 @@
 // the trees of the terms it changed, and repeat. A substituted X is an ordinary
 // tensor afterwards, so later rounds can pair it again (X C), which builds deeper
 // intermediates.
+//
+// Merging (opt_level 4) follows hoisting: terms of an equation that multiply the same
+// varying tensors, in the same way, by one fixed tensor each are one term, reading the
+// sum of their fixed tensors (built once; an element of Hbar in EOM-CC).
+//
+// Hoisting (opt_level 3) uses the same keys. When the code will be called repeatedly
+// with new r or l amplitudes (TensorRef::varies: EOM trial vectors, lambda amplitudes)
+// while everything else stays fixed, each term's tree is chosen to minimize the flops
+// per call, where a subtree of fixed tensors can be computed once and stored (if no
+// intermediate in it is larger than the term's largest fixed tensor), its flops spread
+// over the expected number of calls. Those subtrees are
+// defined once, as reused_["0001_ov"], a product of two tensors per definition, and
+// identical products (by key) are defined once for all terms. Terms with no varying
+// tensor at all are summed once per equation into a reused_ of the lhs shape.
 
 #include "passes.h"
 
@@ -193,7 +207,230 @@ std::string intermediate_key(size_t id, const Indices &idx) {
     return std::string(number) + (blocks.empty() ? "" : "_" + blocks) + "_" + spaces;
 }
 
+// the leaves of a tree, left to right
+void leaves(const ExprPtr &e, std::vector<TensorRef> &found) {
+    if (!e) return;
+    if (e->is_leaf()) found.push_back(*e->leaf);
+    for (const ExprPtr &arg : e->args) leaves(arg, found);
+}
+
 } // namespace
+
+std::vector<Equation> hoist_invariants(std::vector<Equation> &eqs, const Sizes &sizes, double calls,
+                                       bool use_antisymmetry) {
+
+    // nothing varies between calls: the code runs once per call with new inputs throughout
+    // (e.g. CC residuals, where t changes), so there is nothing to hoist
+    bool any_varying = false;
+    for (const Equation &eq : eqs)
+        for (const Term &term : eq.terms)
+            for (const TensorRef &t : term.tensors) any_varying |= t.varies;
+    if (!any_varying) return {};
+
+    std::vector<Equation> products;           // reused_ = a product of two tensors, in order
+    std::map<std::string, size_t> product_of; // canonical key -> its position in products
+    std::vector<Equation> constants;          // reused_ = the terms of an equation that never vary
+    size_t count = 0;                         // reused_ made so far (their ids)
+
+    // define a hoisted subtree bottom-up, one product at a time; its value is sign * ref
+    auto define = [&](auto &&self, const ExprPtr &e) -> std::pair<TensorRef, int> {
+        if (e->is_leaf()) return {*e->leaf, 1};
+        auto [x, sx] = self(self, e->args[0]);
+        auto [y, sy] = self(self, e->args[1]);
+        Canonical c = canonical(x, y, e->idx, use_antisymmetry);
+        auto it = product_of.find(c.key);
+        if (it == product_of.end()) {
+            Equation def;
+            def.lhs = {"reused_", intermediate_key(++count, c.x_idx), c.x_idx};
+            Term def_term;
+            def_term.tensors = {c.first, c.second};
+            def_term.comment = text(c.first) + " " + text(c.second);
+            def.terms.push_back(def_term);
+            it = product_of.emplace(c.key, products.size()).first;
+            products.push_back(std::move(def));
+        }
+        // x y = c.sign * (the definition), with this occurrence's labels
+        return {TensorRef{"reused_", products[it->second].lhs.key, c.x_idx}, sx * sy * c.sign};
+    };
+
+    for (Equation &eq : eqs) {
+        Equation constant;
+        std::vector<Term> kept;
+        for (Term &term : eq.terms) {
+            bool varies = false;
+            for (const TensorRef &t : term.tensors) varies |= t.varies;
+            if (!varies) {
+                constant.terms.push_back(std::move(term));
+                continue;
+            }
+
+            // hoist until the term's best per-call tree has no stored fixed subtree left
+            while (true) {
+                ExprPtr tree = optimal_expr(term, eq.lhs.idx, sizes, calls);
+                std::vector<ExprPtr> hoisted = hoisted_subtrees(tree, hoist_cap(term, sizes), sizes);
+                if (hoisted.empty()) break;
+
+                std::vector<bool> taken(term.tensors.size(), false);
+                std::vector<TensorRef> added;
+                for (const ExprPtr &sub : hoisted) {
+                    std::vector<TensorRef> inside;
+                    leaves(sub, inside);
+                    for (const TensorRef &t : inside) taken[position(term, t, taken)] = true;
+                    auto [ref, sign] = define(define, sub);
+                    added.push_back(ref);
+                    term.coeff *= sign;
+                }
+                std::vector<TensorRef> rest;
+                for (size_t p = 0; p < term.tensors.size(); p++)
+                    if (!taken[p]) rest.push_back(term.tensors[p]);
+                rest.insert(rest.end(), added.begin(), added.end());
+                term.tensors = std::move(rest);
+            }
+            kept.push_back(std::move(term));
+        }
+
+        // the terms that never vary, summed once
+        if (!constant.terms.empty()) {
+            constant.lhs = {"reused_", intermediate_key(++count, eq.lhs.idx), eq.lhs.idx};
+            Term read;
+            read.tensors = {constant.lhs};
+            read.comment = "the terms of " + eq.lhs.name + " that do not vary between calls";
+            kept.push_back(read);
+            constants.push_back(std::move(constant));
+        }
+        eq.terms = std::move(kept);
+    }
+
+    products.insert(products.end(), constants.begin(), constants.end());
+    return products;
+}
+
+std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, bool use_antisymmetry) {
+    std::vector<Equation> sums;
+
+    for (Equation &eq : eqs) {
+
+        // the terms that are (varying tensors) x (one fixed tensor), grouped by the varying
+        // part and the permutation operator. a group of c_k P[V F_k] becomes P[V G] with
+        // G = sum_k c_k F_k, computed once
+        struct Member {
+            size_t term;                             // position in eq.terms
+            int sign;                                // V_k = sign * V (the group's arrangement)
+            std::map<std::string, std::string> map;  // this term's summed labels -> the group's
+        };
+        std::map<std::string, std::vector<Member>> groups;
+        std::vector<std::string> order;              // group keys in order of first appearance
+        std::map<std::string, std::vector<TensorRef>> arrangement; // key -> V, as the group writes it
+
+        for (size_t n = 0; n < eq.terms.size(); n++) {
+            const Term &term = eq.terms[n];
+            std::vector<TensorRef> varying;
+            size_t fixed = 0;
+            for (const TensorRef &t : term.tensors) {
+                if (t.varies) varying.push_back(t);
+                else fixed++;
+            }
+            if (varying.empty() || fixed != 1) continue;
+
+            // the smallest text of V over its antisymmetric arrangements; summed labels are
+            // numbered in order of appearance, external labels (on the lhs) keep their names
+            std::vector<std::pair<std::vector<TensorRef>, int>> choices = {{{}, 1}};
+            for (const TensorRef &t : varying) {
+                std::vector<std::pair<std::vector<TensorRef>, int>> next;
+                for (const auto &[ts, sign] : choices)
+                    for (const auto &[a, s] : arrangements(t, use_antisymmetry)) {
+                        std::vector<TensorRef> more = ts;
+                        more.push_back(a);
+                        next.push_back({more, sign * s});
+                    }
+                choices = std::move(next);
+            }
+            std::string best;
+            Member member{n, 1, {}};
+            std::vector<TensorRef> best_arrangement;
+            for (const auto &[ts, sign] : choices) {
+                std::map<std::string, std::string> token;
+                std::string text;
+                for (const TensorRef &t : ts) {
+                    text += t.name + "[" + t.key + "](";
+                    for (const Index &i : t.idx) {
+                        bool external = std::find(eq.lhs.idx.begin(), eq.lhs.idx.end(), i) != eq.lhs.idx.end();
+                        if (!external && !token.count(i.label)) token[i.label] = "#" + std::to_string(token.size());
+                        text += (external ? i.label : token[i.label]) + ",";
+                    }
+                    text += ")";
+                }
+                if (!best.empty() && text >= best) continue;
+                best = text;
+                member.sign = sign;
+                member.map = token;   // label -> "#k" for now
+                best_arrangement = ts;
+            }
+            for (const PermTerm &p : term.perms) {
+                best += "|" + std::to_string(p.sign);
+                for (const auto &[x, y] : p.swaps) best += "(" + x + "," + y + ")";
+            }
+
+            if (!groups.count(best)) {
+                order.push_back(best);
+                arrangement[best] = best_arrangement;
+            }
+            groups[best].push_back(member);
+        }
+
+        std::vector<bool> merged(eq.terms.size(), false);
+        std::vector<Term> added;
+        for (const std::string &key : order) {
+            std::vector<Member> &members = groups[key];
+            if (members.size() < 2) continue;
+
+            // the group's summed labels are its first member's: "#k" -> that label
+            std::map<std::string, std::string> label_of;
+            for (const auto &[label, token] : members[0].map) label_of[token] = label;
+
+            // G's indices are the first member's fixed tensor's
+            auto fixed_of = [&](const Term &term) {
+                for (const TensorRef &t : term.tensors)
+                    if (!t.varies) return t;
+                throw std::logic_error("pq_opt: merged term has no fixed tensor");
+            };
+            TensorRef first_fixed = fixed_of(eq.terms[members[0].term]);
+
+            Equation sum;
+            sum.lhs = {"reused_", intermediate_key(first_id + sums.size(), first_fixed.idx), first_fixed.idx};
+            for (const Member &m : members) {
+                const Term &term = eq.terms[m.term];
+                Term piece;
+                piece.coeff = term.coeff * m.sign;
+                TensorRef f = fixed_of(term);
+                for (Index &i : f.idx) {
+                    auto it = m.map.find(i.label);
+                    if (it != m.map.end()) i.label = label_of.at(it->second);
+                }
+                piece.tensors = {f};
+                piece.comment = term.comment;
+                sum.terms.push_back(piece);
+                merged[m.term] = true;
+            }
+
+            // the merged term: V, as the first member writes it, times G
+            Term term;
+            term.tensors = arrangement[key];
+            term.tensors.push_back(sum.lhs);
+            term.perms = eq.terms[members[0].term].perms;
+            term.comment = std::to_string(members.size()) + " merged terms";
+            added.push_back(term);
+            sums.push_back(std::move(sum));
+        }
+
+        std::vector<Term> kept;
+        for (size_t n = 0; n < eq.terms.size(); n++)
+            if (!merged[n]) kept.push_back(std::move(eq.terms[n]));
+        kept.insert(kept.end(), added.begin(), added.end());
+        eq.terms = std::move(kept);
+    }
+    return sums;
+}
 
 std::vector<Equation> extract_intermediates(std::vector<Equation> &eqs, const Sizes &sizes, long max_temps,
                                            bool use_antisymmetry) {

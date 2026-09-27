@@ -154,7 +154,8 @@ ExprPtr flat_expr(const Term &term, const Indices &out) {
 
 // optimize an expression. Subsets of tensors are stored as bitmasks: bit
 // f is set when tensor f is in the subset.
-ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes) {
+ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes, double calls) {
+    const bool hoist = calls > 0;
     const size_t n = term.tensors.size();
 
     // n <= 2: only one way to contract; n > 16: too many subsets to search
@@ -182,6 +183,14 @@ ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes) {
 
     // the mask for the full term, ie the mask with all n bits set: 111 in our example
     const unsigned full = (1u << n) - 1;
+
+    // hoisting (opt_level 3): the tensors that vary between calls, as a mask. a subset
+    // without them is fixed, and if it is stored (see below) it is computed once, ahead
+    // of time, so it costs nothing per call
+    unsigned varying = 0;
+    for (size_t f = 0; f < n; f++)
+        if (term.tensors[f].varies) varying |= 1u << f;
+    const double cap = hoist_cap(term, sizes);
 
     // if we contract only the tensors in the subset, which indices
     // would remain?  these are the free indices of the subset, those that
@@ -220,8 +229,12 @@ ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes) {
 
     // the cheapest way found to build one subset; best[] is indexed by the subset's mask
     struct Best {
-        // cheapest flops to build this subset
+        // cheapest flops to build this subset (when hoisting: per call, plus the flops of the
+        // stored parts spread over the calls)
         double flops = std::numeric_limits<double>::infinity();
+
+        // when hoisting, the flops of the fixed parts computed once, ahead of time
+        double once = 0.0;
 
         // largest intermediate along the way, to break ties
         double peak = 0.0;
@@ -327,8 +340,21 @@ ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes) {
             // the total cost of building the current subset from a and c is:
             // build part a, build part c, then contract them. The last step touches
             // every index of either part. For that step merge(...) gives their union
-            // and extent(merge(...)) gives the flops
-            double flops = ba.flops + bc.flops + extent(merge(ba.idx, bc.idx), sizes);
+            // and extent(merge(...)) gives the flops.
+            //
+            // when hoisting, a fixed part of a subset that varies is computed once and stored,
+            // if no intermediate of its tree is larger than cap: its flops count once, not per
+            // call. (a fixed subset itself is costed as usual; whether it is stored is up to
+            // the subset that uses it.) a single tensor costs nothing either way
+            auto stored = [&](unsigned p, const Best &bp) {
+                return hoist && (s & varying) && !(p & varying) && (p & (p - 1)) && bp.peak <= cap;
+            };
+            // a stored part is used only if that pays off over `calls` calls: its flops, spread
+            // over the calls, must be fewer than computing it on every call
+            bool stored_a = stored(a, ba), stored_c = stored(c, bc);
+            double flops = (stored_a ? ba.flops / calls : ba.flops) + (stored_c ? bc.flops / calls : bc.flops)
+                         + extent(merge(ba.idx, bc.idx), sizes);
+            double once = (stored_a ? ba.flops : ba.once) + (stored_c ? bc.flops : bc.once);
 
             // peak memory for storing an intermediate along this route,
             // the largest inside either part, or this subset's own result
@@ -336,12 +362,17 @@ ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes) {
             // intermediate, so it counts as 0 there.
             double peak = std::max({ba.peak, bc.peak, s == full ? 0.0 : size});
 
-            bool better = flops < b.flops * (1.0 - 1e-12)
-                       || (flops <= b.flops * (1.0 + 1e-12) && peak < b.peak);
+            // fewest flops (per call, when hoisting), then fewest flops once, then least memory
+            bool fewer = flops < b.flops * (1.0 - 1e-12);
+            bool same = !fewer && flops <= b.flops * (1.0 + 1e-12);
+            bool fewer_once = once < b.once * (1.0 - 1e-12);
+            bool same_once = !fewer_once && once <= b.once * (1.0 + 1e-12);
+            bool better = fewer || (same && (fewer_once || (same_once && peak < b.peak)));
 
             // record flops along this path if best so far
             if (better) {
                 b.flops = flops;
+                b.once = once;
                 b.peak = peak;
                 b.left = a;
             }
@@ -396,6 +427,51 @@ ExprPtr optimal_expr(const Term &term, const Indices &out, const Sizes &sizes) {
     // └── build(100) → leaf t2(a,b,j,k)
     // idx = a,b,i,j                     (best[111].idx = out)
     return build(build, full);
+}
+
+} // namespace pdaggerq::opt
+
+namespace pdaggerq::opt {
+
+// the largest tensor of the term that does not vary between calls; no hoisted
+// intermediate may be larger, so hoisting never stores more than the inputs already do
+double hoist_cap(const Term &term, const Sizes &sizes) {
+    double cap = 0.0;
+    for (const TensorRef &t : term.tensors)
+        if (!t.varies) cap = std::max(cap, extent(t.idx, sizes));
+    return cap;
+}
+
+bool is_fixed(const ExprPtr &expr) {
+    if (!expr) return false;
+    if (expr->is_leaf()) return !expr->leaf->varies;
+    for (const ExprPtr &arg : expr->args)
+        if (!is_fixed(arg)) return false;
+    return true;
+}
+
+// the subtrees optimal_expr (with hoist) chose to compute once: the fixed internal
+// children of varying nodes whose intermediates are all no larger than cap (exactly
+// the parts optimal_expr counted as stored)
+std::vector<ExprPtr> hoisted_subtrees(const ExprPtr &root, double cap, const Sizes &sizes) {
+    std::vector<ExprPtr> found;
+
+    // the largest intermediate in a subtree (its root included)
+    auto peak = [&](auto &&self, const ExprPtr &e) -> double {
+        if (e->is_leaf()) return 0.0;
+        double p = extent(e->idx, sizes);
+        for (const ExprPtr &arg : e->args) p = std::max(p, self(self, arg));
+        return p;
+    };
+    auto visit = [&](auto &&self, const ExprPtr &e) -> void {
+        if (!e || e->is_leaf()) return;
+        for (const ExprPtr &arg : e->args) {
+            if (!is_fixed(arg)) self(self, arg);
+            else if (!arg->is_leaf() && peak(peak, arg) <= cap) found.push_back(arg);
+        }
+    };
+    if (!is_fixed(root)) visit(visit, root);
+    return found;
 }
 
 } // namespace pdaggerq::opt

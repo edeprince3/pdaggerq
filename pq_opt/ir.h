@@ -68,6 +68,12 @@ struct TensorRef {
     // boson indices, or other integrals). empty when unknown, which is always safe
     std::vector<std::vector<size_t>> antisymmetric;
 
+    // does the tensor change between calls of the generated code? by default true for r and
+    // l amplitudes (EOM trial vectors, lambda amplitudes), which a solver updates while the t
+    // amplitudes and integrals stay fixed; set by ingest from the varying option. used by
+    // hoisting (opt_level 3)
+    bool varies = false;
+
     size_t rank() const { return idx.size(); }
 };
 

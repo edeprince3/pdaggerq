@@ -23,19 +23,22 @@
 #include "passes.h"
 
 #include <map>
+#include <set>
 
 namespace pdaggerq::opt {
 
 namespace {
 
-// the intermediates (tmps_) a tree reads
-void intermediates_read(const ExprPtr &e, std::vector<TensorRef> &found) {
+// the intermediates a tree reads that are freed after their last use: tmps_, and the
+// reused_ ones listed in free_reused
+void intermediates_read(const ExprPtr &e, const std::set<std::string> &free_reused, std::vector<TensorRef> &found) {
     if (!e) return;
     if (e->is_leaf()) {
-        if (e->leaf->name == "tmps_") found.push_back(*e->leaf);
+        const TensorRef &t = *e->leaf;
+        if (t.name == "tmps_" || (t.name == "reused_" && free_reused.count(t.key))) found.push_back(t);
         return;
     }
-    for (const ExprPtr &arg : e->args) intermediates_read(arg, found);
+    for (const ExprPtr &arg : e->args) intermediates_read(arg, free_reused, found);
 }
 
 // "tmps_[0001_ov](k,i)"-style lhs text for comments; just the name for an equation
@@ -48,7 +51,8 @@ std::string lhs_text(const TensorRef &lhs) {
 
 } // namespace
 
-Program build_program(const std::vector<Equation> &eqs, bool reorder, const Sizes &sizes) {
+Program build_program(const std::vector<Equation> &eqs, bool reorder, const Sizes &sizes,
+                      const std::set<std::string> &free_reused) {
     Program program;
     for (const Equation &eq : eqs) {
         bool first = true;
@@ -69,7 +73,7 @@ Program build_program(const std::vector<Equation> &eqs, bool reorder, const Size
     std::map<std::string, std::pair<size_t, TensorRef>> last_read;
     for (size_t n = 0; n < program.stmts.size(); n++) {
         std::vector<TensorRef> read;
-        intermediates_read(program.stmts[n].rhs, read);
+        intermediates_read(program.stmts[n].rhs, free_reused, read);
         for (const TensorRef &t : read) last_read[t.key] = {n, t};
     }
     for (const auto &[key, entry] : last_read) program.stmts[entry.first].free_after.push_back(entry.second);

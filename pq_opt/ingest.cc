@@ -27,6 +27,7 @@
 #include "../pdaggerq/pq_utils.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <iostream>
 #include <map>
@@ -223,6 +224,15 @@ std::string integral_name(const std::string &type) {
     if (type == "n+" || type == "n-") return "N0"; // nuclear dipole coupling, boson index only
     if (type == "w0") return "w0";                  // cavity frequency, boson index only
     unsupported("integral type '" + type + "'");
+}
+
+// is a tensor named in the varying option, by its name or a prefix followed by a digit?
+bool is_varying(const std::string &name, const std::set<std::string> &varying) {
+    for (const std::string &v : varying) {
+        if (name == v) return true;
+        if (name.size() > v.size() && name.compare(0, v.size(), v) == 0 && std::isdigit(name[v.size()])) return true;
+    }
+    return false;
 }
 
 // the expansion of pdaggerq's permutation operators as a sum of label swaps
@@ -479,6 +489,7 @@ Equation ingest(const pq_helper &pq, const std::string &equation_name,
                 if (type == "eri" && options.permute_eri)
                     term.coeff *= permute_eri(t.idx, options.symmetric_eri);
                 t.key = operator_key(t.idx);
+                t.varies = is_varying(t.name, options.varying);
                 // <p,q||r,s> changes sign under p <-> q and under r <-> s
                 if (type == "eri") t.antisymmetric = antisymmetric_groups(t.idx, {{0, 1}, {2, 3}});
                 term.tensors.push_back(t);
@@ -493,6 +504,7 @@ Equation ingest(const pq_helper &pq, const std::string &equation_name,
             for (const amplitudes &amp : amps) {
                 TensorRef t{amplitude_name(type, amp), "", indices_of(amp)};
                 t.key = blkstring(t.idx);
+                t.varies = is_varying(t.name, options.varying);
                 if (options.use_trial_index && (type == 'r' || type == 'l')) {
                     Index trial;
                     trial.label = type == 'r' ? "R" : "L";   // R for r amplitudes, L for l amplitudes

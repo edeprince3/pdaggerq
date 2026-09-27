@@ -34,11 +34,20 @@ VARIANTS = {
     "1": {"opt_level": 1},
     "2": {"opt_level": 2},
     "2, no antisymmetry": {"opt_level": 2, "use_antisymmetry": False},
+    "3": {"opt_level": 3},
+    "3, one call": {"opt_level": 3, "calls": 1},
+    "3, many calls": {"opt_level": 3, "calls": 1e9},
+    "4": {"opt_level": 4},
+    "4, no antisymmetry": {"opt_level": 4, "use_antisymmetry": False},
 }
 
 # the Hamiltonian as (coefficient, operator) pairs, passed to add_st_operator
 ELECTRONIC = [(1.0, ['f']), (1.0, ['v'])]
 QED = ELECTRONIC + [(1.0, ['w0']), (-1.0, ['d+']), (-1.0, ['d-'])]
+
+# lambda residuals <0|(1 + L) e(-T) [H, e1(a,i)] e(T)|0>: l varies, t does not, and the terms
+# without l are constant (opt_level 3 computes them once)
+LAMBDA = [(sign * c, ops) for c, h in ELECTRONIC for sign, ops in ((1.0, h + ['e1(a,i)']), (-1.0, ['e1(a,i)'] + h))]
 
 # name -> (equations {lhs: (left ops, right ops, label order)}, T operators, options, spin blocked,
 #          Hamiltonian)
@@ -54,6 +63,7 @@ CASES = {
               "Hss": ([["e1(i,a)"]], [["e1(e,m)"]], ["a", "i", "e", "m"]),
               "Hsd": ([["e1(i,a)"]], [["e2(e,f,n,m)"]], ["a", "i", "e", "f", "m", "n"])},
              ["t1", "t2"], {}, False, ELECTRONIC),
+    "lambda": ({"rl1": ([["1"], ["l1"], ["l2"]], [["1"]], ["a", "i"])}, ["t1", "t2"], {}, False, LAMBDA),
     "ccsd_spin": ({"rt1": ([["e1(i,a)"]], [["1"]], ["a", "i"]),
                    "rt2": ([["e2(i,j,b,a)"]], [["1"]], ["a", "b", "i", "j"])}, ["t1", "t2"], {}, True, ELECTRONIC),
     # QED-CCSD-21 residuals: a single cavity mode (no boson labels), dipole couplings, the scalar w0,
@@ -181,7 +191,8 @@ def eri_groups(key):
 
 def inputs(code, trial, antisymmetric=True):
     """random inputs for the code; antisymmetric=False leaves every tensor without symmetry"""
-    ns = {"einsum": np.einsum, "np": np, "tmps_": {}}  # tmps_: intermediates (opt_level >= 2)
+    # tmps_: intermediates (opt_level >= 2); reused_: what does not vary between calls (opt_level 3)
+    ns = {"einsum": np.einsum, "np": np, "tmps_": {}, "reused_": {}}
     symmetrize = antisymmetrize if antisymmetric else (lambda x, groups: x)
 
     # integrals and identities are keyed by "<blocks>_<spaces>" or "<spaces>"; the cavity
@@ -229,18 +240,20 @@ def test_levels_agree(case):
 
 @pytest.mark.parametrize("case", CASES)
 def test_no_antisymmetry_needs_no_symmetry(case):
-    # with use_antisymmetry off, level 2 matches only identical products, so it must agree with
-    # level 0 even for tensors that have no symmetry at all (e.g. a user-defined tensor)
+    # with use_antisymmetry off, levels 2 and 4 match only identical products and terms, so they
+    # must agree with level 0 even for tensors that have no symmetry at all (e.g. a user-defined
+    # tensor)
     generated = generate(case)
     trial = CASES[case][2].get("use_trial_index", False)
     results = {}
-    for variant in ("0", "2, no antisymmetry"):
+    for variant in ("0", "2, no antisymmetry", "4, no antisymmetry"):
         ns = inputs(generated["code"][variant], trial, antisymmetric=False)
         exec(textwrap.dedent(generated["code"][variant]), ns)
         results[variant] = {name: np.asarray(ns[name]) for name in generated["names"]}
-    for name in generated["names"]:
-        np.testing.assert_allclose(results["2, no antisymmetry"][name], results["0"][name], rtol=1e-10, atol=1e-10,
-                                   err_msg=f"{case}: {name} differs with use_antisymmetry off")
+    for variant in ("2, no antisymmetry", "4, no antisymmetry"):
+        for name in generated["names"]:
+            np.testing.assert_allclose(results[variant][name], results["0"][name], rtol=1e-10, atol=1e-10,
+                                       err_msg=f"{case}: {name} differs at opt_level {variant}")
 
 
 if __name__ == "__main__":
