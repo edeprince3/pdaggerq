@@ -50,10 +50,16 @@ SPIN_MAP = {
 
 def configure_graph(options = None):
     """
-    Configure and return the pq_graph with specific settings.
+    Configure and return the code generator with specific settings.
+
+    The generator is pq_opt, unless the environment variable PDAGGERQ_CODEGEN_BACKEND
+    is "pq_graph" (e.g. to compare the two). PDAGGERQ_CODEGEN_OPT_LEVEL, if set,
+    overrides the options' opt_level.
+
+    :param options: options dictionary for the generator
 
     Returns:
-        graph (pq_graph): Configured pq_graph object.
+        graph (pq_opt or pq_graph): Configured code generator.
     """
 
     if options is None:
@@ -62,12 +68,21 @@ def configure_graph(options = None):
             #'batched': True,
             #'batch_number': 100,
             'print_level': 0,
-            'opt_level': 0,
+            'opt_level': 1,
             'nthreads': -1,
             'no_scalars': False,
             #'permute_eri': False,
         }
 
+    opt_level = os.environ.get("PDAGGERQ_CODEGEN_OPT_LEVEL", "")
+    if opt_level != "":
+        options = {**options, 'opt_level': int(opt_level)}
+
+    backend = os.environ.get("PDAGGERQ_CODEGEN_BACKEND", "") or "pq_opt"
+    if backend == "pq_opt":
+        return pdaggerq.pq_opt(options)
+    if backend != "pq_graph":
+        raise ValueError(f"PDAGGERQ_CODEGEN_BACKEND must be 'pq_graph' or 'pq_opt', not '{backend}'")
     return pdaggerq.pq_graph(options)
 
 def get_spin_labels(ops, operator_type = 'EE'):
@@ -3016,9 +3031,9 @@ def eomcc_phdm(ret_name,
         raise Exception("spin-orbital eomcc equations not implemented")
 
     blocks = {
-        '0'     : (['B+', 'B-'], ['']),
-        'p1'    : (['B+'], ['']),
-        'm1'    : (['B-'], ['']),
+        '0'     : (['B+', 'B-'], []),
+        'p1'    : (['B+'], []),
+        'm1'    : (['B-'], []),
         'oo_p1' : (['B+', 'e1(i,j)'], ['i', 'j']),
         'ov_p1' : (['B+', 'e1(i,a)'], ['i', 'a']),
         'vo_p1' : (['B+', 'e1(a,i)'], ['a', 'i']),

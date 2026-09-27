@@ -52,6 +52,7 @@
 #define omp_get_max_threads() 1
 #endif
 #include "../pq_graph/include/pq_graph.h"
+#include "../pq_opt/pq_opt.h"
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -156,6 +157,7 @@ void export_pq_helper(py::module& m) {
 
     // add pq graph class for optimizing, visualizing, and generating code from pq_helper
     PQGraph::export_pq_graph(m);
+    pdaggerq::opt::PQOpt::export_pq_opt(m);
 }
 
 PYBIND11_MODULE(_pdaggerq, m) {
