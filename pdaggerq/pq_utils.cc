@@ -833,162 +833,12 @@ void consolidate_permutations_non_summed(
     }
 }
 
-/// compare two strings when swapping (multiple) summed labels and ov pairs of nonsumed labels
-void compare_strings_with_swapped_summed_and_nonsummed_labels(
-    const std::vector<std::vector<std::string> > &labels,
-    const std::vector<std::vector<std::string>> &pairs,
-    size_t iter,
-    const std::shared_ptr<pq_string> &in1,
-    const std::shared_ptr<pq_string> &in2,
-    size_t in2_id,
-    std::vector<size_t> &my_permutations,
-    std::vector<bool> &permutation_types,
-    int n_permutation_type,
-    int & n_permute, 
-    bool & strings_same,
-    bool & found_paired_permutation) {
- 
-    if ( iter == labels.size() ) {
-
-        strings_same = compare_strings(in2, in1, n_permute);
-
-        // try swapping three pairs of non-summed labels
-        for (size_t pair1 = 0; pair1 < pairs.size(); pair1++) {
-            std::string o1 = pairs[pair1][0];
-            std::string v1 = pairs[pair1][1];
-            for (size_t pair2 = pair1 + 1; pair2 < pairs.size(); pair2++) {
-                std::string o2 = pairs[pair2][0];
-                if ( o2 == o1 ) continue;
-                std::string v2 = pairs[pair2][1];
-                if ( v2 == v1 ) continue;
-                for (size_t pair3 = pair2 + 1; pair3 < pairs.size(); pair3++) {
-                    std::string o3 = pairs[pair3][0];
-                    if ( o3 == o2 ) continue;
-                    if ( o3 == o1 ) continue;
-                    std::string v3 = pairs[pair3][1];
-                    if ( v3 == v2 ) continue;
-                    if ( v3 == v1 ) continue;
-
-                    bool paired_permutation = false;
-
-                    // for determining type PP3 permutations
-                    int found_permutation_type = -1;
-
-                    for (size_t permutation_type = 0; permutation_type < n_permutation_type; permutation_type++) {
-
-                        std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
-
-                        if ( permutation_type == 0 ) {
-
-                            // 1 <-> 2
-                            swap_two_labels(newguy, o1, o2);
-                            swap_two_labels(newguy, v1, v2);
-
-                        }else if ( permutation_type == 1 ) {
-
-                            // 1 <-> 3
-                            swap_two_labels(newguy, o1, o3);
-                            swap_two_labels(newguy, v1, v3);
-
-                        }else if ( permutation_type == 2 ) {
-
-                            // 2 <-> 3
-                            swap_two_labels(newguy, o2, o3);
-                            swap_two_labels(newguy, v2, v3);
-
-                        }else if ( permutation_type == 3 ) {
-
-                            // only relevant for 6-fold permutations:
-
-                            // 1 <-> 2
-                            swap_two_labels(newguy, o1, o2);
-                            swap_two_labels(newguy, v1, v2);
-
-                            // 1 <-> 3
-                            swap_two_labels(newguy, o1, o3);
-                            swap_two_labels(newguy, v1, v3);
-
-                        }else if ( permutation_type == 4 ) {
-
-                            // only relevant for 6-fold permutations:
-
-                            // 1 <-> 2
-                            swap_two_labels(newguy, o1, o2);
-                            swap_two_labels(newguy, v1, v2);
-
-                            // 2 <-> 3
-                            swap_two_labels(newguy, o2, o3);
-                            swap_two_labels(newguy, v2, v3);
-
-                        }
-                        //newguy->sort();
-
-                        strings_same = compare_strings(in2, newguy, n_permute);
-
-                        if ( strings_same ) {
-                            paired_permutation = true;
-                            found_permutation_type = (int)permutation_type;
-                            break;
-                        }
-                    }
-
-                    if ( !paired_permutation ) break;
-
-                    double factor_i = in1->factor * in1->sign;
-                    double factor_j = in2->factor * in2->sign;
-
-                    double combined_factor = factor_i - factor_j * pow(-1.0,n_permute);
-
-                    // if factors are identical, then this is a paired permutation
-                    if ( fabs(combined_factor) < 1e-12 ) {
-                        //ordered[j]->print();
-
-                        // keep track of which term this is
-                        my_permutations.push_back(in2_id);
-
-                        found_paired_permutation = true;
-
-                        // keep track of which labels were swapped (for 3-fold)
-                        permutation_types[found_permutation_type] = true;
-                    }
-                    if ( found_paired_permutation ) break;
-                }
-                if ( found_paired_permutation ) break;
-            }
-            if ( found_paired_permutation ) break;
-        }
-        return;
-    }
-
-    // try swapping non-summed labels
-    for (size_t id1 = 0; id1 < labels[iter].size(); id1++) {
-        for (size_t id2 = id1 + 1; id2 < labels[iter].size(); id2++) {
-    
-            std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*in1);
-            swap_two_labels(newguy, labels[iter][id1], labels[iter][id2]);
-            //newguy->sort();
-
-            compare_strings_with_swapped_summed_and_nonsummed_labels(labels, 
-                                                                     pairs, 
-                                                                     iter+1, 
-                                                                     newguy, 
-                                                                     in2, 
-                                                                     in2_id, 
-                                                                     my_permutations, 
-                                                                     permutation_types, 
-                                                                     n_permutation_type, 
-                                                                     n_permute, 
-                                                                     strings_same, 
-                                                                     found_paired_permutation);
-            if ( strings_same ) return;
-        }
-    }
-}
-
-
 // look for paired permutations:
 // a) PP6(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + R(ikj;acb) + R(jik;bac) + R(jki;bca) + R(kij;cab) + R(kji;cba)
 // b) PP3(i,a;j,b;k,c) R(ijk;abc) = R(ijk;abc) + (jik;bac) + R(kji;cba)
+//
+// O(N): each string's images under swaps of its non-summed ov pairs are looked up by key,
+// rather than compared against every other string
 void consolidate_paired_permutations_non_summed(
     std::vector<std::shared_ptr<pq_string> > &ordered,
     const std::vector<std::string> &occ_labels,
@@ -1002,153 +852,202 @@ void consolidate_paired_permutations_non_summed(
         exit(1);
     }
 
-    int n_permutation_type = 5;
-    if ( n_fold == 3 ) {
-        n_permutation_type = 3;
+    if ( ordered.empty() ) {
+        return;
     }
 
-    // look for n-fold permutations
+    // not sure if this logic works with existing permutation operators ... skip those for now
+    auto eligible = [](const std::shared_ptr<pq_string> &in) {
+        return !in->skip
+            && in->permutations.empty()
+            && in->paired_permutations_2.empty()
+            && in->paired_permutations_3.empty()
+            && in->paired_permutations_6.empty();
+    };
+
+    // first, make map of keys
+    std::unordered_map<std::string, size_t> string_map;
     for (size_t i = 0; i < ordered.size(); i++) {
+        if ( !eligible(ordered[i]) ) continue;
+        string_map[ordered[i]->key] = i;
+    }
 
-        if ( ordered[i]->skip ) continue;
+    // now, check if swapping non-summed ov pairs gives strings in the map
+    for (size_t idx1 = 0; idx1 < ordered.size(); idx1++) {
 
-        // not sure if this logic works with existing permutation operators ... skip those for now
-        if ( !ordered[i]->permutations.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_2.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_3.empty() ) continue;
-        if ( !ordered[i]->paired_permutations_6.empty() ) continue;
+        // skips strings consolidated earlier in this loop, too
+        if ( !eligible(ordered[idx1]) ) continue;
 
+        // ok, what non-summed labels do we have?
         std::vector<std::string> found_occ;
         std::vector<std::string> found_vir;
-        std::vector<std::string> found_summed_occ;
-        std::vector<std::string> found_summed_vir;
-
-        // ok, what non-summed occupied labels do we have? 
         for (const std::string & occ_label : occ_labels) {
-            int found = ordered[i]->index_in_anywhere(occ_label);
-            if ( found == 1 ) {
+            if ( ordered[idx1]->index_in_anywhere(occ_label) == 1 ) {
                 found_occ.push_back(occ_label);
             }
         }
-
-        // ok, what non-summed virtual labels do we have? 
         for (const std::string & vir_label : vir_labels) {
-            int found = ordered[i]->index_in_anywhere(vir_label);
-            if ( found == 1 ) {
+            if ( ordered[idx1]->index_in_anywhere(vir_label) == 1 ) {
                 found_vir.push_back(vir_label);
-            }
-        }
-
-        // ok, what summed labels (occupied and virtual) do we have? 
-        for (const std::string & occ_label : occ_labels) {
-            int found = ordered[i]->index_in_anywhere(occ_label);
-            if ( found == 2 ) {
-                found_summed_occ.push_back(occ_label);
-            }
-        }
-        for (const std::string & vir_label : vir_labels) {
-            int found = ordered[i]->index_in_anywhere(vir_label);
-            if ( found == 2 ) {
-                found_summed_vir.push_back(vir_label);
             }
         }
 
         // this function only works for swapping exactly three ov pairs
         if ( found_occ.size() != 3 || found_vir.size() != 3 ) continue;
 
-        // ov pairs to swap
-        std::vector<std::vector<std::string>> pairs;
-        pairs.push_back({found_occ[0], found_vir[0]});
-        pairs.push_back({found_occ[1], found_vir[1]});
-        pairs.push_back({found_occ[2], found_vir[2]});
-
-        // which labels are involve in the permutation?
-        std::vector<size_t> my_permutations;
-
-        // which pairs are swapped ( 12, 13, 23 ) ... this affects how we label 3-fold permutations
-        std::vector<bool> permutation_types = { false, false, false };
-
-        // loop over other strings
-        for (size_t j = i+1; j < ordered.size(); j++) {
-
-            if ( ordered[j]->skip ) continue;
-
-            // not sure if this logic works with existing permutation operators ... skip those for now
-            if ( !ordered[j]->permutations.empty() ) continue;
-            if ( !ordered[i]->paired_permutations_2.empty() ) continue;
-            if ( !ordered[i]->paired_permutations_3.empty() ) continue;
-            if ( !ordered[i]->paired_permutations_6.empty() ) continue;
-
-            int n_permute;
-            bool strings_same = compare_strings(ordered[i],ordered[j],n_permute);
-
-            bool found_paired_permutation = false;
-            std::vector<std::vector<std::vector<std::string> > > labels;
-            labels.emplace_back();
-            labels.push_back({found_summed_occ});
-            labels.push_back({found_summed_vir});
-            for (const std::vector<std::vector<std::string>> & label : labels) {
-                compare_strings_with_swapped_summed_and_nonsummed_labels(label,
-                                                                         pairs, 
-                                                                         0, 
-                                                                         ordered[i], 
-                                                                         ordered[j], 
-                                                                         j, 
-                                                                         my_permutations, 
-                                                                         permutation_types, 
-                                                                         n_permutation_type, 
-                                                                         n_permute, 
-                                                                         strings_same, 
-                                                                         found_paired_permutation);
-                if ( found_paired_permutation ) break;
+        // ... and what summed labels? a partner's summed labels may be named differently
+        std::vector<std::string> found_summed_occ;
+        std::vector<std::string> found_summed_vir;
+        for (const std::string & occ_label : occ_labels) {
+            if ( ordered[idx1]->index_in_anywhere(occ_label) == 2 ) {
+                found_summed_occ.push_back(occ_label);
+            }
+        }
+        for (const std::string & vir_label : vir_labels) {
+            if ( ordered[idx1]->index_in_anywhere(vir_label) == 2 ) {
+                found_summed_vir.push_back(vir_label);
             }
         }
 
-        if ( my_permutations.size() == 5 && n_fold == 6) {
-            // 6-fold permutations
-            for (unsigned long my_permutation : my_permutations) {
-                ordered[my_permutation]->skip = true;
+        // the image of this string when ov pairs p and q are swapped, then (optionally) r and s
+        auto image = [&](int p, int q, int r = -1, int s = -1) {
+            std::shared_ptr<pq_string> newguy = std::make_shared<pq_string>(*ordered[idx1]);
+            swap_two_labels(newguy, found_occ[p], found_occ[q]);
+            swap_two_labels(newguy, found_vir[p], found_vir[q]);
+            if ( r >= 0 ) {
+                swap_two_labels(newguy, found_occ[r], found_occ[s]);
+                swap_two_labels(newguy, found_vir[r], found_vir[s]);
             }
-            ordered[i]->paired_permutations_6.push_back(found_occ[0]);
-            ordered[i]->paired_permutations_6.push_back(found_vir[0]);
-            ordered[i]->paired_permutations_6.push_back(found_occ[1]);
-            ordered[i]->paired_permutations_6.push_back(found_vir[1]);
-            ordered[i]->paired_permutations_6.push_back(found_occ[2]);
-            ordered[i]->paired_permutations_6.push_back(found_vir[2]);
-        }else if ( my_permutations.size() == 2 && n_fold == 3 ) {
-            // 3-fold permutations
-            for (unsigned long my_permutation : my_permutations) {
-                ordered[my_permutation]->skip = true;
+            return newguy;
+        };
+
+        // the position in ordered of another string that equals this image, with the same
+        // factor (paired permutations add every term with a + sign), or -1 if there is none
+        auto match = [&](const std::shared_ptr<pq_string> &newguy) -> long {
+
+            auto it = string_map.find(newguy->key);
+            if ( it == string_map.end() ) return -1;
+
+            // don't pair a string with itself (it is symmetric under this swap)
+            size_t j = it->second;
+            if ( j == idx1 ) return -1;
+
+            // accumulate permutations of amplitudes and integrals
+            int n_permute = 0;
+            for (const auto &amp_pair : newguy->amps) {
+                const std::vector<amplitudes> &amps1 = amp_pair.second;
+                const std::vector<amplitudes> &amps2 = ordered[j]->amps.at(amp_pair.first);
+                for (size_t k = 0; k < amps1.size(); k++) {
+                    n_permute += amps1[k].permutations + amps2[k].permutations;
+                }
             }
-            if ( permutation_types[0] && permutation_types[1] && permutation_types[2] ) {
-                printf("\n");
-                printf("    something has gone terribly wrong in consolidate_paired_permutations_non_summed()\n");
-                printf("\n");
-                exit(1);
+            for (const auto &int_pair : newguy->ints) {
+                const std::vector<integrals> &ints1 = int_pair.second;
+                const std::vector<integrals> &ints2 = ordered[j]->ints.at(int_pair.first);
+                for (size_t k = 0; k < ints1.size(); k++) {
+                    n_permute += ints1[k].permutations + ints2[k].permutations;
+                }
             }
-            if ( permutation_types[0] && permutation_types[1] ) {
-                ordered[i]->paired_permutations_3.push_back(found_occ[0]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[0]);
-                ordered[i]->paired_permutations_3.push_back(found_occ[1]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[1]);
-                ordered[i]->paired_permutations_3.push_back(found_occ[2]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[2]);
-            }else if ( permutation_types[0] && permutation_types[2] ) {
-                ordered[i]->paired_permutations_3.push_back(found_occ[1]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[1]);
-                ordered[i]->paired_permutations_3.push_back(found_occ[0]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[0]);
-                ordered[i]->paired_permutations_3.push_back(found_occ[2]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[2]);
-            }else if ( permutation_types[1] && permutation_types[2] ) {
-                ordered[i]->paired_permutations_3.push_back(found_occ[2]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[2]);
-                ordered[i]->paired_permutations_3.push_back(found_occ[0]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[0]);
-                ordered[i]->paired_permutations_3.push_back(found_occ[1]);
-                ordered[i]->paired_permutations_3.push_back(found_vir[1]);
+
+            double factor_i = ordered[idx1]->factor * ordered[idx1]->sign;
+            double factor_j = ordered[j]->factor * ordered[j]->sign;
+            if ( fabs(factor_i - factor_j * pow(-1.0, n_permute)) > 1e-12 ) return -1;
+
+            return (long)j;
+        };
+
+        // the image itself, or else the image with two of its summed occupied labels or two of
+        // its summed virtual labels swapped
+        auto partner = [&](const std::shared_ptr<pq_string> &newguy) -> long {
+
+            long j = match(newguy);
+            if ( j >= 0 ) return j;
+
+            for (const std::vector<std::string> *summed : {&found_summed_occ, &found_summed_vir}) {
+                for (size_t id1 = 0; id1 < summed->size(); id1++) {
+                    for (size_t id2 = id1 + 1; id2 < summed->size(); id2++) {
+                        std::shared_ptr<pq_string> relabeled = std::make_shared<pq_string>(*newguy);
+                        swap_two_labels(relabeled, (*summed)[id1], (*summed)[id2]);
+                        j = match(relabeled);
+                        if ( j >= 0 ) return j;
+                    }
+                }
+            }
+            return -1;
+        };
+
+        // the partners under 1 <-> 2, 1 <-> 3, and 2 <-> 3
+        long p12 = partner(image(0, 1));
+        long p13 = partner(image(0, 2));
+        long p23 = partner(image(1, 2));
+
+        // the ov pairs, in the order they are written in the operator
+        std::vector<int> order;
+
+        // the strings the operator replaces
+        std::vector<long> partners;
+
+        if ( n_fold == 6 ) {
+
+            // ... and under the 3-cycles (1 <-> 2 then 1 <-> 3, and 1 <-> 2 then 2 <-> 3)
+            long p123 = partner(image(0, 1, 0, 2));
+            long p132 = partner(image(0, 1, 1, 2));
+
+            partners = {p12, p13, p23, p123, p132};
+            if ( std::find(partners.begin(), partners.end(), -1) != partners.end() ) continue;
+            order = {0, 1, 2};
+
+        }else {
+
+            // the string that is one swap away from both others carries the operator, with
+            // the pair both swaps involve written first:
+            // PP3(1;2;3) R = R + R(1 <-> 2) + R(1 <-> 3)
+            if ( p12 >= 0 && p13 >= 0 ) {
+                partners = {p12, p13};
+                order = {0, 1, 2};
+            }else if ( p12 >= 0 && p23 >= 0 ) {
+                partners = {p12, p23};
+                order = {1, 0, 2};
+            }else if ( p13 >= 0 && p23 >= 0 ) {
+                partners = {p13, p23};
+                order = {2, 0, 1};
+            }else {
+                continue;
             }
         }
+
+        // each image must be a different string
+        std::vector<long> sorted_partners = partners;
+        std::sort(sorted_partners.begin(), sorted_partners.end());
+        if ( std::adjacent_find(sorted_partners.begin(), sorted_partners.end()) != sorted_partners.end() ) continue;
+
+        // which string survives? a 6-fold operator gives the same sum on any of its strings, so
+        // keep whichever key sorts first (as consolidate_permutations_non_summed does), which
+        // depends only on the terms, not on their order. a 3-fold one must stay on idx1
+        size_t keep = idx1;
+        if ( n_fold == 6 ) {
+            for (long j : partners) {
+                if ( ordered[j]->key < ordered[keep]->key ) keep = (size_t)j;
+            }
+        }
+
+        // everything else is skipped
+        std::vector<long> group = partners;
+        group.push_back((long)idx1);
+        for (long j : group) {
+            string_map.erase(ordered[j]->key);
+            if ( (size_t)j != keep ) ordered[j]->skip = true;
+        }
+
+        std::vector<std::string> &labels = n_fold == 6 ? ordered[keep]->paired_permutations_6
+                                                        : ordered[keep]->paired_permutations_3;
+        for (int pair : order) {
+            labels.push_back(found_occ[pair]);
+            labels.push_back(found_vir[pair]);
+        }
+
+        // update the key, which now carries the operator
+        ordered[keep]->sort();
     }
 }
 

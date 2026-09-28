@@ -1,11 +1,12 @@
 
 import pdaggerq
 
-from pdaggerq.parser import contracted_strings_to_tensor_terms
+#from pdaggerq.parser import contracted_strings_to_tensor_terms
 
 
 pq = pdaggerq.pq_helper("fermi")
 pq.set_print_level(0)
+pq.set_find_paired_permutations(True)
 
 T = ['t1','t2','t3','t4']
 
@@ -47,12 +48,12 @@ singles_residual_terms = pq.strings()
 for my_term in singles_residual_terms:
     print(my_term, flush=True)
 
-singles_residual_terms = contracted_strings_to_tensor_terms(singles_residual_terms)
-for my_term in singles_residual_terms:
-    print("#\t", my_term)
-    print(my_term.einsum_string(update_val='singles_res',
-                                output_variables=('a', 'i')))
-    print(flush=True)
+#singles_residual_terms = contracted_strings_to_tensor_terms(singles_residual_terms)
+#for my_term in singles_residual_terms:
+#    print("#\t", my_term)
+#    print(my_term.einsum_string(update_val='singles_res',
+#                                output_variables=('a', 'i')))
+#    print(flush=True)
 
 pq.clear()
 
@@ -74,12 +75,12 @@ doubles_residual_terms = pq.strings()
 for my_term in doubles_residual_terms:
     print(my_term, flush=True)
 
-doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
-for my_term in doubles_residual_terms:
-    print("#\t", my_term)
-    print(my_term.einsum_string(update_val='doubles_res',
-                                output_variables=('a', 'b', 'i', 'j')))
-    print(flush=True)
+#doubles_residual_terms = contracted_strings_to_tensor_terms(doubles_residual_terms)
+#for my_term in doubles_residual_terms:
+#    print("#\t", my_term)
+#    print(my_term.einsum_string(update_val='doubles_res',
+#                                output_variables=('a', 'b', 'i', 'j')))
+#    print(flush=True)
 
 pq.clear()
 
@@ -101,12 +102,12 @@ triples_residual_terms = pq.strings()
 for my_term in triples_residual_terms:
     print(my_term, flush=True)
 
-triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
-for my_term in triples_residual_terms:
-    print("#\t", my_term)
-    print(my_term.einsum_string(update_val='triples_res',
-                                output_variables=('a', 'b', 'c', 'i', 'j', 'k')))
-    print(flush=True)
+#triples_residual_terms = contracted_strings_to_tensor_terms(triples_residual_terms)
+#for my_term in triples_residual_terms:
+#    print("#\t", my_term)
+#    print(my_term.einsum_string(update_val='triples_res',
+#                                output_variables=('a', 'b', 'c', 'i', 'j', 'k')))
+#    print(flush=True)
 
 pq.clear()
 
@@ -128,12 +129,12 @@ quadruples_residual_terms = pq.strings()
 for my_term in quadruples_residual_terms:
     print(my_term, flush=True)
 
-quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
-for my_term in quadruples_residual_terms:
-    print("#\t", my_term)
-    print(my_term.einsum_string(update_val='quadruples_res',
-                                output_variables=('a', 'b', 'c', 'd', 'i', 'j', 'k', 'l')))
-    print(flush=True)
+#quadruples_residual_terms = contracted_strings_to_tensor_terms(quadruples_residual_terms)
+#for my_term in quadruples_residual_terms:
+#    print("#\t", my_term)
+#    print(my_term.einsum_string(update_val='quadruples_res',
+#                                output_variables=('a', 'b', 'c', 'd', 'i', 'j', 'k', 'l')))
+#    print(flush=True)
 
 pq.clear()
 

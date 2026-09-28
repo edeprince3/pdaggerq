@@ -120,10 +120,12 @@ __all__ = [
     "energy_graph",
     "residual_graph", "residual_ir", "spin_cases", "residual_blocks",
     "pt_amplitude_graph", "pt_amplitude_ir", "pt_energy_graph", "pt_energy_ir",
+    "pt_lambda_numerator_graph", "pt_lambda_numerator_ir", "pt_lambda_source_ir",
     "lambda_graph", "lambda_ir",
     "gradient_graph", "gradient_ir",
     "hessian_graph", "hessian_ir",
     "rdm_graph", "rdm_ir", "rdm_block_ir", "pt_rdm_block_ir", "pt_rdm_graph",
+    "pt_gradient_rdm_block_ir",
     "energy_from_rdm_ir", "rdm_energy_reference",
     "equations_graph", "equations_ir",
     "orbital_gradient_ir",
@@ -771,6 +773,151 @@ def pt_energy_ir(name, amplitude=None, df=True, opt_level=None, label="energy"):
                            label=label).to_strings("ir")
 
 
+def _pt_lambda_numerator_pq(m, amplitude):
+    """``pq_helper`` for the numerator of the perturbative LAMBDA amplitude,
+    ``<proj(amplitude)| W T |0>`` -- a plain operator PRODUCT, not a commutator.
+
+    This is the one place the two perturbative triples differ. The amplitude numerator
+    (:func:`pt_amplitude_graph`) is the CONNECTED ``<proj|[W, T]|0>``: a connected
+    ``[W, T1]`` is a two-body operator at most, so it cannot reach a rank-3 projection and
+    the singles drop out entirely -- ``R`` is a function of ``T2`` alone. The product keeps
+    the disconnected ``W T1`` piece as well, and that piece is exactly what makes the
+    correction ``(T)`` rather than ``[T]``: it is the term the ``L1`` multiplier pairs with
+    in :func:`pt_energy_graph`. So the two numerators differ by precisely the singles
+    contribution, and both go over the SAME denominator."""
+    pq = pq_helper("fermi")
+    pq.set_left_operators([[PROJECTION[amplitude]]])
+    for w in _fluctuation(m):
+        for a in m.T:
+            pq.add_operator_product(1.0, [w, a])
+    pq.simplify()
+    return pq
+
+
+def pt_lambda_numerator_graph(name, amplitude, df=True, opt_level=None, label="R"):
+    """Optimized pq_graph for the numerator of the perturbative LAMBDA amplitude.
+
+    The gradient of a ``(T)`` model needs TWO perturbative arrays per block, not one. Both
+    are a numerator over the same orbital-energy denominator, and both are built and
+    discarded one occupied subset at a time exactly as :func:`pt_amplitude_graph` is::
+
+        t_pt      = -rsign * R      / D      R      from pt_amplitude_graph   (connected)
+        l_pt(lam) = -rsign * R_lam  / D      R_lam  from HERE                 (product)
+
+    with the SAME ``rsign`` and the SAME ``D`` documented on :func:`pt_amplitude_graph` --
+    nothing new to get right, one extra numerator build per subset.
+
+    ``t_pt`` is the amplitude of the ``(T)``-corrected wavefunction; ``l_pt(lam)`` is the
+    multiplier of the ``(T)`` energy's stationarity condition. They are NOT the same array
+    and are not interchangeable: they differ by the singles (disconnected) contribution to
+    the numerator, which is zero only at ``t1 = 0``. The wavefunction density
+    (:func:`pt_rdm_block_ir`) takes ``t_pt`` in both slots; every gradient quantity here
+    takes one of each. In the CCSD(T) gradient literature this is the array written
+    ``(w + v)/D`` against the amplitude's ``w/D``."""
+    opt_level = _opt_level_for(name, opt_level)
+    m = model(name)
+    if amplitude not in m.T_pt:
+        raise ValueError(f"model {name!r} has no perturbative amplitude {amplitude!r}; "
+                         f"T_pt={list(m.T_pt)}")
+    if amplitude not in PROJECTION:
+        raise KeyError(f"no projection defined for amplitude {amplitude!r}")
+    return _optimized(_pt_lambda_numerator_pq(m, amplitude), label, df, opt_level,
+                      _dims_for(name))
+
+
+def pt_lambda_numerator_ir(name, amplitude, df=True, opt_level=None, label="R"):
+    """The perturbative LAMBDA numerator as ``to_strings("ir")`` JSONL lines."""
+    return pt_lambda_numerator_graph(name, amplitude, df=df, opt_level=opt_level,
+                                     label=label).to_strings("ir")
+
+
+def _pt_lambda_source_pqs(m, amplitude, cluster):
+    """The two halves of ``dE_pt/dt_cluster``: ``<0| L_pt W tau |0>`` (pairs with the
+    perturbative AMPLITUDE) and ``<0| L_pt [W, tau] |0>`` (pairs with the perturbative
+    MULTIPLIER). Either may be empty for a given block."""
+    lpt = "l" + amplitude[1:]
+    tau = EXCITATION[cluster]
+    out = []
+    for connected in (False, True):
+        pq = pq_helper("fermi")
+        pq.set_left_operators([[lpt]])
+        for w in _fluctuation(m):
+            if connected:
+                pq.add_commutator(1.0, [w], [tau])
+            else:
+                pq.add_operator_product(1.0, [w, tau])
+        pq.simplify()
+        out.append(pq)
+    return out
+
+
+def pt_lambda_source_ir(name, amplitude, cluster, label="R"):
+    """JSONL IR for the ``(T)`` SOURCE TERM in the Lambda equation for ``cluster`` --
+    the inhomogeneity that makes the cluster multipliers response multipliers.
+
+    WHY IT EXISTS. A gradient comes from a Lagrangian stationary in every amplitude::
+
+        L = <0|(1 + Lambda) e^-T H e^T|0> + E_pt[t, f, W]
+
+    Plain CCSD already satisfies ``dL/dt = 0``: Lambda solving :func:`lambda_ir` IS the
+    response multiplier, so the CCSD density is already the response density. Adding
+    ``E_pt`` breaks that -- the amplitudes were converged for the parent's functional -- and
+    stationarity becomes
+
+        <0|(1 + Lambda) [Hbar, tau_mu]|0>  +  dE_pt/dt_mu  =  0
+
+    This emits the second term, in EXACTLY the units of the first: ``lambda_ir`` and this
+    function both carry pq_helper's ``w / rsign`` weighting for ``cluster`` (``w`` the
+    product of index-group factorials, ``rsign`` the PROJECTION reversal parity), so the
+    consumer ADDS the two arrays slot for slot, with coefficient one, and solves the
+    augmented equations with the machinery it already runs. There is no convention to
+    apply and none to invent -- verified by finite difference against ``L`` itself, not
+    assumed.
+
+    THE TWO OPERANDS. Writing ``E_pt = rsign/w sum(R_lam * t_pt)`` with
+    ``t_pt = -rsign R/D`` and differentiating through BOTH the amplitude and the
+    multipliers (in ``(T)`` the cluster multipliers are ``t^dagger``, so ``t`` appears in
+    both slots) gives a symmetric pair::
+
+        dE_pt/dt_mu  =  sum  t_pt      * d(R_lam)/dt_mu        <- the PRODUCT half
+                     +  sum  l_pt(lam) * d(R)/dt_mu            <- the COMMUTATOR half
+
+    so the emitted equation carries two ordinary operands, named for the array to feed::
+
+        l3        reverse-index-order of  t_pt       (pt_amplitude_ir      / D)
+        l3_lam    reverse-index-order of  l_pt(lam)  (pt_lambda_numerator_ir / D)
+
+    (``l3_ep21`` / ``l3_ep21_lam`` and so on for a mixed NEO block.) They are DIFFERENT
+    arrays -- see :func:`pt_lambda_numerator_graph` -- and the equation is wrong if the
+    same one is fed to both. A block where one half vanishes simply carries no statements
+    for that operand: the singles source is pure product (a connected ``[W, tau_1]``
+    cannot reach the projection), and the doubles source happens to have the two halves
+    algebraically equal, which is why the sum is often written with a single ``2 t + l``
+    array in the literature. Emitting them separately keeps that a fact about a block
+    rather than a convention the consumer has to know.
+
+    SLICING. Every statement carries EXACTLY ONE perturbative operand and no
+    intermediates, so this is strictly simpler to drive than :func:`pt_rdm_block_ir`: there
+    is no ``t_pt``-against-``l_pt`` term, hence no pair of subsets straddling ``r-1``
+    shared indices, hence no second loop. Each statement sums over occupied subsets exactly
+    as the energy does."""
+    m = model(name)
+    if amplitude not in m.T_pt:
+        raise ValueError(f"model {name!r} has no perturbative amplitude {amplitude!r}; "
+                         f"T_pt={list(m.T_pt)}")
+    if cluster not in m.T:
+        raise ValueError(f"model {name!r} has no amplitude {cluster!r}; T={list(m.T)}")
+    if cluster not in EXCITATION:
+        raise KeyError(f"no excitation operator defined for amplitude {cluster!r}")
+    spec = _excitation_spec(cluster)
+    lpt = "l" + amplitude[1:]
+    prod, comm = _pt_lambda_source_pqs(m, amplitude, cluster)
+    out = _block_ir_from_strings(name, None, spec, label, pq=prod)
+    out += _block_ir_from_strings(name, None, spec, label, pq=comm, lam=True,
+                                  assign=not out)
+    return out
+
+
 def lambda_graph(name, amplitude, df=True, opt_level=None, label="R"):
     """Optimized pq_graph for the Lambda residual ``<(1+L) [Hbar, tau_amplitude]>``,
     the equation whose root is the de-excitation amplitude for ``amplitude``."""
@@ -1064,6 +1211,14 @@ def _pt_rdm_pq(name, op, amplitude):
     return pq
 
 
+#: Hamiltonian operands are emitted BLOCKED (``eri["oovv"]``, ``g["oOvV"]``, ``f["oo"]``)
+#: -- the same names and index order pq_graph gives them, so equations emitted from
+#: pq.strings() and equations emitted through pq_graph present one contract to a consumer.
+#: Amplitudes and multipliers stay bare (``t2``, ``l3_ep21``). ``eri`` covers both
+#: same-species antisymmetrized blocks; the case of the class string says which species.
+_INTEGRAL_NAMES = {"eri", "f", "fp", "g", "gep", "vp"}
+
+
 def _exact_coeff(token):
     """Exact value of a pq_helper coefficient token.
 
@@ -1082,7 +1237,33 @@ def _exact_coeff(token):
     return float(f) if abs(float(f) - x) <= 1e-7 else x
 
 
-def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
+def _cls_of(lab):
+    """Line class of a pq_helper index label. Occupancy is case-insensitive so the same
+    rule covers open and internal indices; proton labels carry the nuclear ``n`` prefix
+    (open ``nI``/``nA``, internal ``ni``/``na``)."""
+    nuc = len(lab) > 1 and lab[0] == "n"
+    b = lab[1] if nuc else lab[0]
+    occ = b.lower() in "ijklmno"
+    return ("O" if occ else "V") if nuc else ("o" if occ else "v")
+
+
+def _excitation_spec(amplitude):
+    """Consumer-order ``[(pq_label, class), ...]`` for the open indices of an amplitude's
+    EXCITATION operator, in the operator's own argument order -- which is the order
+    :func:`lambda_ir` gives its target, so a source term emitted against this spec adds
+    onto that residual slot for slot."""
+    op = EXCITATION[amplitude]
+    labels = op[op.index("(") + 1:-1].split(",")
+    spec = [(l, _cls_of(l)) for l in labels]
+    # pq_graph groups a mixed block's target indices BY SPECIES -- tep11's excitation
+    # operator reads e2(a,nA,i,nI) but lambda_ir's target is (a,i,A,I) -- keeping each
+    # species' internal order. Match that, or a NEO source term would land on the right
+    # block with its axes transposed, which no shape check would catch.
+    return sorted(spec, key=lambda lc: lc[1] in "OV")
+
+
+def _block_ir_from_strings(name, op, consumer, tgt, pq=None, lam=False, assign=True,
+                          drop_traces=False, scale=1.0):
     """Emit one RDM block's IR straight from ``pq.strings()``, bypassing ``pq_graph``.
 
     pq_graph's nuclear-index relabelling collapses a block's *internal* proton indices onto
@@ -1094,6 +1275,30 @@ def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
 
     Kronecker deltas ``d(p,q)`` become ``Id["cc"]`` (the consumer supplies an identity);
     ``P(i,j)`` antisymmetrizers are expanded into signed statements over the open indices.
+
+    ``drop_traces`` skips terms carrying a Kronecker delta between two OPEN indices.
+    Those are traces of the density operator against itself, and they are exactly the
+    difference between the BARE operator this builds from and pq_helper's NORMAL-ORDERED
+    Hamiltonian. An expectation value wants them (the RDM is a true-vacuum object); a
+    derivative with respect to the normal-ordered fluctuation must not have them, or the
+    mean-field part of the integral is counted twice -- once here and once in the Fock
+    response. Verified by Euler's theorem: the perturbative energy is linear in W in the
+    slot this differentiates, so the emitted density contracted back with the integral
+    must return the energy exactly, and it does so only with the traces dropped.
+
+    ``lam`` suffixes ``_lam`` onto every de-excitation operand. In the halves that use it
+    the ONLY such operand is the perturbative multiplier -- the bra is ``L_pt`` alone and
+    the cluster contributes amplitudes, not multipliers -- so the rule is exact and,
+    unlike a name-keyed map, survives pq_helper renaming its operators on the way out: the
+    operator fed in as ``lep21`` prints as ``l3_ep21``, and a map keyed on the input name
+    silently matches nothing. That is how the two halves of a mixed NEO block came to
+    share one operand name, with no symptom except a wrong density.
+
+    ``assign=False`` makes every statement accumulate rather than letting the first one
+    assign. Together they let two
+    separately-built pq_helpers emit into ONE target while keeping their operands
+    distinguishable -- which is how :func:`pt_lambda_source_ir` puts the perturbative
+    amplitude and the perturbative multiplier, two different arrays, in one equation.
     """
     if pq is None:
         pq = pq_helper("fermi")
@@ -1108,11 +1313,7 @@ def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
     out_cls = [c for _, c in consumer]
     LET = {"o": "ijklmno", "v": "abcdefg", "O": "IJKLMNO", "V": "ABCDEFG"}
 
-    def cls_of(lab):                                     # occ-check case-insensitive: open
-        nuc = len(lab) > 1 and lab[0] == "n"              # proton labels are nI/nA (upper),
-        b = lab[1] if nuc else lab[0]                     # internal ones ni/na (lower)
-        occ = b.lower() in "ijklmno"
-        return ("O" if occ else "V") if nuc else ("o" if occ else "v")
+    cls_of = _cls_of
 
     base_used = {"o": 0, "v": 0, "O": 0, "V": 0}
     base_map = {}
@@ -1127,8 +1328,13 @@ def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
         for tok in term[1:]:
             if tok.startswith("P("):
                 perms.append(tok[2:-1].split(","))
-            elif "(" in tok:
+            elif tok.startswith("<") or "(" in tok:
                 factors.append(tok)
+        if drop_traces and any(
+                tok.startswith("d(") and
+                all(x in base_map for x in tok[2:-1].split(","))
+                for tok in factors):
+            continue
         used = dict(base_used); m = dict(base_map)
 
         def letter(lab):
@@ -1138,10 +1344,17 @@ def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
 
         operands = []
         for tok in factors:
-            nm = tok[:tok.index("(")]; idx = tok[tok.index("(") + 1:-1].split(",")
+            if tok.startswith("<"):                      # <p,q||r,s> antisymmetrized 2-body
+                nm = "eri"; idx = tok[1:-1].replace("||", ",").split(",")
+            else:
+                nm = tok[:tok.index("(")]; idx = tok[tok.index("(") + 1:-1].split(",")
             letters = [letter(i) for i in idx]; classes = [cls_of(i) for i in idx]
+            if lam and nm.startswith("l"):
+                nm = nm + "_lam"
             if nm == "d":                                # Kronecker delta -> identity block
                 nm = f'Id["{classes[0]}{classes[1]}"]'
+            elif nm in _INTEGRAL_NAMES:                  # blocked exactly as pq_graph names
+                nm = f'{nm}["{"".join(classes)}"]'
             operands.append({"name": nm, "indices": letters, "classes": classes,
                              "is_intermediate": False})
         if not operands:
@@ -1160,7 +1373,8 @@ def _block_ir_from_strings(name, op, consumer, tgt, pq=None):
             stmts.append(json.dumps({
                 "target": {"name": tgt, "indices": idxs, "classes": out_cls,
                            "is_intermediate": False},
-                "is_assignment": not stmts, "coeff": sgn * coeff, "operands": operands}))
+                "is_assignment": assign and not stmts, "coeff": scale * sgn * coeff,
+                "operands": operands}))
     return stmts
 
 
@@ -1220,6 +1434,143 @@ def pt_rdm_block_ir(name, amplitude, tensor, block, df=True, opt_level=None):
     op, consumer = _rdm_block_spec(tensor, block)
     return _block_ir_from_strings(name, op, consumer, f'{tensor}["{block}"]',
                                   pq=_pt_rdm_pq(name, op, amplitude))
+
+
+def _pt_gradient_rdm_halves(m, op, amplitude, one_body):
+    """``[(pq_helper, lam), ...]`` for the EXPLICIT integral derivatives of the
+    perturbative energy -- what ``E_pt`` contributes to the density in its own right,
+    over and above what reaches it through the Lambda source terms.
+
+    ``E_pt = rsign/w sum(R_lam * t_pt)`` with ``t_pt = -rsign R/D``. Differentiating the
+    two-body fluctuation gives the same symmetric pair the Lambda source has, with the
+    density operator in place of ``W``::
+
+        dE_pt/dW  =  <0| L     [O, T_pt] |0>    explicit -> pairs with t_pt
+                  +  <0| L_pt  [O, T]     |0>    response -> pairs with l_pt(lam)
+
+    Differentiating the DENOMINATOR is the other half of the story and is a genuinely
+    different object. ``t_pt`` is fixed by ``R + <mu|[F, T_pt]|0> = 0``; call that linear
+    map ``A`` (``A = rsign * D`` when the reference is canonical). Then
+    ``dt/df = -A^-1 (dA/df) t``, and with ``l_pt(lam)`` defined by the SAME equation
+    (``A l + R_lam = 0``, i.e. ``A^-1 R_lam = -l``) the symmetry of ``A`` collapses it to
+
+        dE_pt/df  =  rsign/w sum  l_pt(lam) * <mu_pt| [E_pq, T_pt] |0>
+
+    -- a one-body density operator commuted with the perturbative amplitude, with NO
+    reference to the denominator itself. That is what makes it emittable: it never assumes
+    ``D = sum(e_vir) - sum(e_occ)``, so it carries a non-diagonal Fock correctly. See
+    :func:`pt_gradient_rdm_block_ir` for what that does and does not buy at a
+    non-canonical reference."""
+    lpt = "l" + amplitude[1:]
+    if one_body:                                          # dE_pt/df: the denominator response
+        pq = pq_helper("fermi")
+        pq.set_left_operators([[lpt]])
+        pq.add_commutator(1.0, [op], [amplitude])
+        pq.simplify()
+        return [(pq, True)]
+    # dE_pt/dW. The EXPLICIT half differentiates W where it stands in the energy,
+    # <0|L [W, T_pt]|0>, giving the cluster multipliers against the perturbative
+    # AMPLITUDE. It is NOT the adjoint form <0|L_pt O T|0>: that rewriting of the energy
+    # relies on W = W^dagger, which a single density operator is not, so the two agree
+    # only after summing over all blocks -- not block by block, which is how this is
+    # consumed. The RESPONSE half is dR/dW carried through t_pt, and pairs with the
+    # perturbative MULTIPLIER.
+    explicit = pq_helper("fermi")
+    explicit.set_left_operators([[l] for l in lambda_amps(m.name)])
+    explicit.add_commutator(1.0, [op], [amplitude])
+    explicit.simplify()
+    response = pq_helper("fermi")
+    response.set_left_operators([[lpt]])
+    for a in m.T:
+        response.add_commutator(1.0, [op], [a])
+    response.simplify()
+    return [(explicit, False), (response, True)]
+
+
+def pt_gradient_rdm_block_ir(name, amplitude, tensor, block, df=True, opt_level=None):
+    """JSONL IR for the EXPLICIT perturbative contribution to one GRADIENT-density block.
+
+    Same target naming and index order as :func:`rdm_block_ir` and
+    :func:`pt_rdm_block_ir`, so a consumer adds it on top of the others with no convention
+    knowledge. Returns ``[]`` for a block the correction cannot populate.
+
+    THIS IS NOT :func:`pt_rdm_block_ir`. That one is the density of the ``(T)``-corrected
+    WAVEFUNCTION -- the answer to "what is <p+q>". This one is a derivative of the
+    ``(T)`` energy with respect to the integrals, which is a different object and is not
+    an expectation value of anything. Two visible differences make them hard to confuse:
+    this one pairs the perturbative amplitude with the perturbative MULTIPLIER
+    (``l3_lam``, from :func:`pt_lambda_numerator_ir`, NOT ``t_pt`` reversed), and it
+    populates ``D1`` from the denominator response, which no wavefunction density has.
+
+    ASSEMBLING THE GRADIENT DENSITY. Three pieces, of which this is one::
+
+        1. rdm_block_ir(parent, ...)        with Lambda solving the AUGMENTED equations
+                                            (lambda_ir + pt_lambda_source_ir) -- that
+                                            substitution alone turns the parent's density
+                                            into a response density; no new equation.
+        2. this function                    the explicit dE_pt/dW (-> D2) and dE_pt/df
+                                            (-> D1) at fixed amplitudes.
+        3. the Z-vector / orbital relaxation, which is the consumer's: it needs the
+           orbital Hessian, not the cluster algebra.
+
+    WHICH MULTIPLIERS TO FEED. The ``D2`` blocks carry the cluster multipliers ``l1``,
+    ``l2``, ... as operands, and in this family -- as in :func:`pt_energy_ir`, which
+    defines ``E_pt`` -- those mean the ``(T)`` PRESCRIPTION ``l = t^dagger``, NOT the
+    solved Lambda. The solved (augmented) Lambda belongs in :func:`rdm_block_ir`, piece 1
+    above. The two densities are added together and use the same operand names for
+    different arrays, so this is the one thing here that can go wrong without any symptom
+    except a wrong gradient; ``models_test.test_perturbative_gradient`` builds both and
+    keeps them apart deliberately.
+
+    ``D1`` here is exactly ``dE_pt/dh`` -- ``f = h + mean field`` and ``df/dh = 1``, so it
+    adds to ``D1`` with no fold. ``D2`` here is only the DIRECT ``dE_pt/dg``; because ``f``
+    also depends on ``g``, the consumer must add the mean-field image of the ``D1`` piece,
+    ``sum_pq (dE_pt/df)_pq df_pq/dg``, which is the same fold it already applies to turn
+    any normal-ordered one-body density into a true-vacuum two-body one. That fold is left
+    to the consumer deliberately: for NEO it runs through the DRESSED ``f``/``fp``, whose
+    definition (which mean fields are folded in, and with which charge sign for ``gep``)
+    is the consumer's, not this library's -- see :func:`energy_from_rdm_ir`.
+
+    SLICING. The ``D2`` blocks carry exactly ONE perturbative operand per statement, so
+    they sum over occupied subsets exactly as the energy does -- the cheap shape. The
+    ``D1`` blocks pair ``t_pt`` against ``l3_lam`` and so have the same two-subset,
+    ``r-1``-shared-index shape that ``pt_rdm_block_ir``'s diagonal blocks already have.
+    No statement anywhere carries a perturbative pair differing by more than one index,
+    and there are no intermediates."""
+    m = model(name)
+    if amplitude not in m.T_pt:
+        raise ValueError(f"model {name!r} has no perturbative amplitude {amplitude!r}; "
+                         f"T_pt={list(m.T_pt)}")
+    op, consumer = _rdm_block_spec(tensor, block)
+    one_body = tensor in ("D1", "D1_n")
+    if tensor in ("D2", "D2_n"):
+        # SAME-SPECIES two-body only. _rdm_block_spec hands back the operator in RDM
+        # order: with its arguments named (p,q,s,r) it is <p+ q+ r s>, which is what an
+        # expectation value wants. A derivative with respect to <pq||rs> needs the
+        # operator standing next to that integral in the Hamiltonian, p+ q+ s r -- the
+        # same operator with its last two arguments swapped. The TARGET keeps the RDM
+        # index order, so the emitted block still adds straight onto rdm_block_ir's.
+        #
+        # NOT for D2_ep. The e-p term is g(e,p,e',p') {e+ e'}{p+ p'}, and operators of
+        # different species commute, so that is e+ p+ e' p' = e2(P,E,P2,E2) -- exactly
+        # what _rdm_block_spec already returns. Swapping there gives a block that is
+        # wrong by no constant factor at all; finite difference against a NEO (T) energy
+        # is what caught it.
+        a = op[op.index("(") + 1:-1].split(",")
+        op = f"e2({a[0]},{a[1]},{a[3]},{a[2]})"
+    tgt = f'{tensor}["{block}"]'
+    out = []
+    for pq, lam in _pt_gradient_rdm_halves(m, op, amplitude, one_body):
+        # sign, per tensor, every one fixed by finite difference against E_pt itself:
+        #   D1 / D1_n  +1  dE_pt/df adds to D1 as it stands (f = h + mean field, df/dh = 1)
+        #   D2 / D2_n  -1  same-species, and carries the 1/4 of W's definition through the
+        #                  RDM convention together with the operator swap above
+        #   D2_ep      +1  no 1/4 and no swap -- gep multiplies a plain product of one-body
+        #                  operators, so it lands on the other sign
+        out += _block_ir_from_strings(name, op, consumer, tgt, pq=pq, lam=lam,
+                                      assign=not out, drop_traces=True,
+                                      scale=-1.0 if tensor in ("D2", "D2_n") else 1.0)
+    return out
 
 
 def pt_rdm_graph(name, amplitude, operator, df=True, opt_level=None, label="D"):
