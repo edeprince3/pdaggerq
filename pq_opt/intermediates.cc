@@ -43,7 +43,9 @@
 //
 // Merging (opt_level 4) follows hoisting: terms of an equation that multiply the same
 // varying tensors, in the same way, by one fixed tensor each are one term, reading the
-// sum of their fixed tensors (built once; an element of Hbar in EOM-CC).
+// sum of their fixed tensors (built once; an element of Hbar in EOM-CC). Then terms that
+// multiply the same fixed tensor, in the same way, by different per-call parts are one
+// term, reading the sum of those parts (built on every call), when that saves flops.
 //
 // Hoisting (opt_level 3) uses the same keys. When the code will be called repeatedly
 // with new r or l amplitudes (TensorRef::varies: EOM trial vectors, lambda amplitudes)
@@ -58,8 +60,10 @@
 #include "passes.h"
 
 #include <algorithm>
+#include <functional>
 #include <cstdio>
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -305,120 +309,270 @@ std::vector<Equation> hoist_invariants(std::vector<Equation> &eqs, const Sizes &
     return products;
 }
 
+namespace {
+
+// a term of a group of terms that share a common part
+struct Member {
+    size_t term;                             // position in the equation's terms
+    int sign;                                // its common part = sign * the group's arrangement
+    std::map<std::string, std::string> map;  // its summed labels in the common part -> "#k" tokens
+    std::vector<size_t> common;              // positions of the common part's tensors in the term
+};
+
+// terms that share a common part and a permutation operator
+struct Group {
+    std::vector<TensorRef> common;           // the common part, as the first member writes it
+    std::vector<Member> members;
+};
+
+/**
+ * group an equation's terms by a common part (e.g. their varying tensors), up to the
+ * antisymmetry of those tensors and the names of their summed labels, and by permutation operator
+ * @param common_of the positions of a term's common tensors; empty if the term takes no part
+ */
+std::vector<Group> group_by_common(const Equation &eq,
+                                   const std::function<std::vector<size_t>(const Term &)> &common_of,
+                                   bool use_antisymmetry) {
+    std::map<std::string, size_t> group_of;  // key -> position in groups
+    std::vector<Group> groups;
+
+    for (size_t n = 0; n < eq.terms.size(); n++) {
+        const Term &term = eq.terms[n];
+        std::vector<size_t> common = common_of(term);
+        if (common.empty()) continue;
+
+        // the smallest text of the common part over its antisymmetric arrangements; summed labels
+        // are numbered in order of appearance, external labels (on the lhs) keep their names
+        std::vector<std::pair<std::vector<TensorRef>, int>> choices = {{{}, 1}};
+        for (size_t position : common) {
+            std::vector<std::pair<std::vector<TensorRef>, int>> next;
+            for (const auto &[ts, sign] : choices)
+                for (const auto &[a, s] : arrangements(term.tensors[position], use_antisymmetry)) {
+                    std::vector<TensorRef> more = ts;
+                    more.push_back(a);
+                    next.push_back({more, sign * s});
+                }
+            choices = std::move(next);
+        }
+        std::string best;
+        Member member{n, 1, {}, common};
+        std::vector<TensorRef> best_arrangement;
+        for (const auto &[ts, sign] : choices) {
+            std::map<std::string, std::string> token;
+            std::string text;
+            for (const TensorRef &t : ts) {
+                text += t.name + "[" + t.key + "](";
+                for (const Index &i : t.idx) {
+                    bool external = std::find(eq.lhs.idx.begin(), eq.lhs.idx.end(), i) != eq.lhs.idx.end();
+                    if (!external && !token.count(i.label)) token[i.label] = "#" + std::to_string(token.size());
+                    text += (external ? i.label : token[i.label]) + ",";
+                }
+                text += ")";
+            }
+            if (!best.empty() && text >= best) continue;
+            best = text;
+            member.sign = sign;
+            member.map = token;
+            best_arrangement = ts;
+        }
+        for (const PermTerm &p : term.perms) {
+            best += "|" + std::to_string(p.sign);
+            for (const auto &[x, y] : p.swaps) best += "(" + x + "," + y + ")";
+        }
+
+        auto it = group_of.find(best);
+        if (it == group_of.end()) {
+            it = group_of.emplace(best, groups.size()).first;
+            groups.push_back({best_arrangement, {}});
+        }
+        groups[it->second].members.push_back(member);
+    }
+    return groups;
+}
+
+// the rest of a member's term (the tensors not in its common part), with the labels it shares
+// with the common part renamed to the group's (the first member's). labels summed within the
+// rest keep their names unless those are in use by the group, in which case they get new ones
+std::vector<TensorRef> rest_of(const Equation &eq, const Group &group, const Member &m) {
+    std::map<std::string, std::string> label_of;   // "#k" -> the group's label
+    for (const auto &[label, token] : group.members[0].map) label_of[token] = label;
+
+    std::set<std::string> in_use;
+    for (const TensorRef &t : group.common)
+        for (const Index &i : t.idx) in_use.insert(i.label);
+    for (const Index &i : eq.lhs.idx) in_use.insert(i.label);
+
+    const Term &term = eq.terms[m.term];
+    std::map<std::string, std::string> renamed;
+    std::vector<TensorRef> rest;
+    for (size_t p = 0; p < term.tensors.size(); p++) {
+        if (std::find(m.common.begin(), m.common.end(), p) != m.common.end()) continue;
+        TensorRef t = term.tensors[p];
+        for (Index &i : t.idx) {
+            auto shared = m.map.find(i.label);
+            if (shared != m.map.end()) {
+                i.label = label_of.at(shared->second);
+            } else if (std::find(eq.lhs.idx.begin(), eq.lhs.idx.end(), i) == eq.lhs.idx.end() && in_use.count(i.label)) {
+                auto it = renamed.find(i.label);
+                if (it == renamed.end()) {
+                    std::string fresh;
+                    for (size_t k = 1; fresh.empty() || in_use.count(fresh); k++)
+                        fresh = std::string(1, i.space) + "_s" + std::to_string(k);
+                    in_use.insert(fresh);
+                    it = renamed.emplace(i.label, fresh).first;
+                }
+                i.label = it->second;
+            }
+        }
+        rest.push_back(t);
+    }
+    return rest;
+}
+
+// the indices a group's sum carries: those of the first member's rest that are external or
+// shared with the common part, in order of appearance
+Indices sum_indices(const Equation &eq, const Group &group, const std::vector<TensorRef> &first_rest) {
+    Indices idx;
+    for (const TensorRef &t : first_rest)
+        for (const Index &i : t.idx) {
+            bool external = std::find(eq.lhs.idx.begin(), eq.lhs.idx.end(), i) != eq.lhs.idx.end();
+            bool shared = false;
+            for (const TensorRef &c : group.common)
+                shared |= std::find(c.idx.begin(), c.idx.end(), i) != c.idx.end();
+            if ((external || shared) && std::find(idx.begin(), idx.end(), i) == idx.end()) idx.push_back(i);
+        }
+    return idx;
+}
+
+} // namespace
+
 std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, bool use_antisymmetry) {
     std::vector<Equation> sums;
 
-    for (Equation &eq : eqs) {
-
-        // the terms that are (varying tensors) x (one fixed tensor), grouped by the varying
-        // part and the permutation operator. a group of c_k P[V F_k] becomes P[V G] with
-        // G = sum_k c_k F_k, computed once
-        struct Member {
-            size_t term;                             // position in eq.terms
-            int sign;                                // V_k = sign * V (the group's arrangement)
-            std::map<std::string, std::string> map;  // this term's summed labels -> the group's
-        };
-        std::map<std::string, std::vector<Member>> groups;
-        std::vector<std::string> order;              // group keys in order of first appearance
-        std::map<std::string, std::vector<TensorRef>> arrangement; // key -> V, as the group writes it
-
-        for (size_t n = 0; n < eq.terms.size(); n++) {
-            const Term &term = eq.terms[n];
-            std::vector<TensorRef> varying;
-            size_t fixed = 0;
-            for (const TensorRef &t : term.tensors) {
-                if (t.varies) varying.push_back(t);
-                else fixed++;
-            }
-            if (varying.empty() || fixed != 1) continue;
-
-            // the smallest text of V over its antisymmetric arrangements; summed labels are
-            // numbered in order of appearance, external labels (on the lhs) keep their names
-            std::vector<std::pair<std::vector<TensorRef>, int>> choices = {{{}, 1}};
-            for (const TensorRef &t : varying) {
-                std::vector<std::pair<std::vector<TensorRef>, int>> next;
-                for (const auto &[ts, sign] : choices)
-                    for (const auto &[a, s] : arrangements(t, use_antisymmetry)) {
-                        std::vector<TensorRef> more = ts;
-                        more.push_back(a);
-                        next.push_back({more, sign * s});
-                    }
-                choices = std::move(next);
-            }
-            std::string best;
-            Member member{n, 1, {}};
-            std::vector<TensorRef> best_arrangement;
-            for (const auto &[ts, sign] : choices) {
-                std::map<std::string, std::string> token;
-                std::string text;
-                for (const TensorRef &t : ts) {
-                    text += t.name + "[" + t.key + "](";
-                    for (const Index &i : t.idx) {
-                        bool external = std::find(eq.lhs.idx.begin(), eq.lhs.idx.end(), i) != eq.lhs.idx.end();
-                        if (!external && !token.count(i.label)) token[i.label] = "#" + std::to_string(token.size());
-                        text += (external ? i.label : token[i.label]) + ",";
-                    }
-                    text += ")";
-                }
-                if (!best.empty() && text >= best) continue;
-                best = text;
-                member.sign = sign;
-                member.map = token;   // label -> "#k" for now
-                best_arrangement = ts;
-            }
-            for (const PermTerm &p : term.perms) {
-                best += "|" + std::to_string(p.sign);
-                for (const auto &[x, y] : p.swaps) best += "(" + x + "," + y + ")";
-            }
-
-            if (!groups.count(best)) {
-                order.push_back(best);
-                arrangement[best] = best_arrangement;
-            }
-            groups[best].push_back(member);
+    // the terms that are (varying tensors) x (one fixed tensor), grouped by the varying part and
+    // the permutation operator. a group of c_k P[V F_k] becomes P[V G] with G = sum_k c_k F_k,
+    // computed once
+    auto varying_part = [](const Term &term) {
+        std::vector<size_t> varying;
+        size_t fixed = 0;
+        for (size_t p = 0; p < term.tensors.size(); p++) {
+            if (term.tensors[p].varies) varying.push_back(p);
+            else fixed++;
         }
+        return fixed == 1 ? varying : std::vector<size_t>{};
+    };
 
+    for (Equation &eq : eqs) {
         std::vector<bool> merged(eq.terms.size(), false);
         std::vector<Term> added;
-        for (const std::string &key : order) {
-            std::vector<Member> &members = groups[key];
-            if (members.size() < 2) continue;
-
-            // the group's summed labels are its first member's: "#k" -> that label
-            std::map<std::string, std::string> label_of;
-            for (const auto &[label, token] : members[0].map) label_of[token] = label;
+        for (const Group &group : group_by_common(eq, varying_part, use_antisymmetry)) {
+            if (group.members.size() < 2) continue;
 
             // G's indices are the first member's fixed tensor's
-            auto fixed_of = [&](const Term &term) {
-                for (const TensorRef &t : term.tensors)
-                    if (!t.varies) return t;
-                throw std::logic_error("pq_opt: merged term has no fixed tensor");
-            };
-            TensorRef first_fixed = fixed_of(eq.terms[members[0].term]);
-
+            Indices idx = rest_of(eq, group, group.members[0]).at(0).idx;
             Equation sum;
-            sum.lhs = {"reused_", intermediate_key(first_id + sums.size(), first_fixed.idx), first_fixed.idx};
-            for (const Member &m : members) {
-                const Term &term = eq.terms[m.term];
+            sum.lhs = {"reused_", intermediate_key(first_id + sums.size(), idx), idx};
+            for (const Member &m : group.members) {
                 Term piece;
-                piece.coeff = term.coeff * m.sign;
-                TensorRef f = fixed_of(term);
-                for (Index &i : f.idx) {
-                    auto it = m.map.find(i.label);
-                    if (it != m.map.end()) i.label = label_of.at(it->second);
-                }
-                piece.tensors = {f};
-                piece.comment = term.comment;
+                piece.coeff = eq.terms[m.term].coeff * m.sign;
+                piece.tensors = rest_of(eq, group, m);
+                piece.comment = eq.terms[m.term].comment;
                 sum.terms.push_back(piece);
                 merged[m.term] = true;
             }
 
             // the merged term: V, as the first member writes it, times G
             Term term;
-            term.tensors = arrangement[key];
+            term.tensors = group.common;
             term.tensors.push_back(sum.lhs);
-            term.perms = eq.terms[members[0].term].perms;
-            term.comment = std::to_string(members.size()) + " merged terms";
+            term.perms = eq.terms[group.members[0].term].perms;
+            term.comment = std::to_string(group.members.size()) + " merged terms";
+            added.push_back(term);
+            sums.push_back(std::move(sum));
+        }
+
+        std::vector<Term> kept;
+        for (size_t n = 0; n < eq.terms.size(); n++)
+            if (!merged[n]) kept.push_back(std::move(eq.terms[n]));
+        kept.insert(kept.end(), added.begin(), added.end());
+        eq.terms = std::move(kept);
+    }
+    return sums;
+}
+
+std::vector<Equation> merge_varying(std::vector<Equation> &eqs, const Sizes &sizes, bool use_antisymmetry) {
+    std::vector<Equation> sums;
+
+    // the terms that have varying tensors, grouped by their largest fixed tensor F (the first,
+    // if tied) and the permutation operator. a group of c_k P[F R_k] becomes P[F S] with
+    // S = sum_k c_k R_k, computed on every call. terms whose rest carries boson labels are left
+    // alone: renaming a summed boson label would break the label rule (ir.h)
+    auto anchor = [&](const Term &term) {
+        bool varies = false;
+        long largest = -1;
+        double largest_size = -1.0;
+        for (size_t p = 0; p < term.tensors.size(); p++) {
+            const TensorRef &t = term.tensors[p];
+            if (t.varies) {
+                varies = true;
+            } else if (extent(t.idx, sizes) > largest_size) {
+                largest = static_cast<long>(p);
+                largest_size = extent(t.idx, sizes);
+            }
+        }
+        if (!varies || largest < 0) return std::vector<size_t>{};
+        for (size_t p = 0; p < term.tensors.size(); p++)
+            for (const Index &i : term.tensors[p].idx)
+                if (static_cast<long>(p) != largest && i.space == 'b') return std::vector<size_t>{};
+        return std::vector<size_t>{static_cast<size_t>(largest)};
+    };
+
+    for (Equation &eq : eqs) {
+        std::vector<bool> merged(eq.terms.size(), false);
+        std::vector<Term> added;
+        for (const Group &group : group_by_common(eq, anchor, use_antisymmetry)) {
+            if (group.members.size() < 2) continue;
+            Indices idx = sum_indices(eq, group, rest_of(eq, group, group.members[0]));
+
+            // contracting F with S once replaces one such contraction per term, but each term must
+            // then build its rest first, which may cost more than its own best order. a term takes
+            // part only if that costs less than its best order, and the group only if the flops
+            // saved exceed the one contraction of F with S
+            Indices touched = group.common[0].idx;
+            for (const Index &i : idx)
+                if (std::find(touched.begin(), touched.end(), i) == touched.end()) touched.push_back(i);
+            double final_contraction = extent(touched, sizes);
+
+            std::vector<const Member *> gaining;
+            double saved = 0.0;
+            for (const Member &m : group.members) {
+                Term rest;
+                rest.tensors = rest_of(eq, group, m);
+                double own = cost(optimal_expr(eq.terms[m.term], eq.lhs.idx, sizes), sizes);
+                double forced = cost(optimal_expr(rest, idx, sizes), sizes);
+                if (own - forced <= 0.0) continue;
+                gaining.push_back(&m);
+                saved += own - forced;
+            }
+            if (gaining.size() < 2 || saved <= final_contraction * (1.0 + 1e-12)) continue;
+
+            Equation sum;
+            sum.lhs = {"tmps_", "s" + intermediate_key(sums.size() + 1, idx), idx};
+            for (const Member *m : gaining) {
+                Term piece;
+                piece.coeff = eq.terms[m->term].coeff * m->sign;
+                piece.tensors = rest_of(eq, group, *m);
+                piece.comment = eq.terms[m->term].comment;
+                sum.terms.push_back(piece);
+                merged[m->term] = true;
+            }
+
+            // the merged term: F, as the first member writes it, times S
+            Term term;
+            term.tensors = group.common;
+            term.tensors.push_back(sum.lhs);
+            term.perms = eq.terms[group.members[0].term].perms;
+            term.comment = std::to_string(gaining.size()) + " merged terms";
             added.push_back(term);
             sums.push_back(std::move(sum));
         }

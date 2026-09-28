@@ -148,6 +148,23 @@ std::vector<Equation> hoist_invariants(std::vector<Equation> &eqs, const Sizes &
  */
 std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, bool use_antisymmetry);
 
+/**
+ * merge terms that differ only in what they multiply one fixed tensor by (opt_level >= 4,
+ * after merge_terms)
+ *
+ * the terms of an equation that have varying tensors and the same largest fixed tensor F,
+ * contracted the same way (up to antisymmetry), with the same permutation operator,
+ * c_k P[F R_k], become one term P[F S], where S = sum_k c_k R_k is a tmps_ built on every
+ * call. a term takes part only if building its R_k first costs less than its own best order,
+ * and a group only if the flops saved exceed the one contraction of F with S
+ *
+ * @param eqs the equations; merged terms are replaced
+ * @param sizes index extents for the cost model
+ * @param use_antisymmetry as for extract_intermediates
+ * @return the definitions of the sums, to be computed before the equations that read them
+ */
+std::vector<Equation> merge_varying(std::vector<Equation> &eqs, const Sizes &sizes, bool use_antisymmetry);
+
 /// build_program.cc: equations -> statements
 
 /**

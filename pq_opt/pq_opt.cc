@@ -125,7 +125,8 @@ void PQOpt::optimize() {
     // level 0: terms as given; level >= 1: optimal contraction order per term;
     // level >= 2: also shared intermediates, computed first; level >= 3: first of all, what
     // does not change between calls (reused_), in a program of its own; level >= 4: terms
-    // that differ only in a fixed tensor merged, reading the sum of those tensors. a copy of the
+    // that differ only in a fixed tensor merged, reading the sum of those tensors, then terms
+    // that differ only in what multiplies a fixed tensor, reading the sum of those parts. a copy of the
     // equations is rewritten, so optimizing again starts from pdaggerq's terms
     std::vector<Equation> equations = equations_;
     std::vector<Equation> reused;
@@ -133,6 +134,8 @@ void PQOpt::optimize() {
     if (opt_level_ >= 4) {
         std::vector<Equation> sums = merge_terms(equations, reused.size() + 1, use_antisymmetry_);
         reused.insert(reused.end(), sums.begin(), sums.end());
+        std::vector<Equation> per_call_sums = merge_varying(equations, sizes_, use_antisymmetry_);
+        equations.insert(equations.begin(), per_call_sums.begin(), per_call_sums.end());
     }
     std::vector<Equation> program_equations;
     if (opt_level_ >= 2)
