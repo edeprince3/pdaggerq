@@ -88,10 +88,13 @@ def main():
     # Enable and configure pq_graph
     graph = configure_graph()
 
+    # order of the output indices of each residual (spin blocks share their base name's order)
+    label_orders = {"rt1": ["a", "i"], "rt2": ["a", "b", "i", "j"]}
+
     # Add equations to graph
     for proj_eqname, eq in eqs.items():
         print(f"Adding equation {proj_eqname} to the graph", flush=True)
-        graph.add(eq, proj_eqname)
+        graph.add(eq, proj_eqname, label_orders[proj_eqname.split('_')[0]])
 
     # Optimize and output the graph
     graph.optimize()

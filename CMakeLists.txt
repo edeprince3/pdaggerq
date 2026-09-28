@@ -125,6 +125,15 @@ pybind11_add_module(_pdaggerq
         pq_graph/src/dot_generator.cc
         pq_graph/src/timer.cc
 
+        pq_opt/ingest.cc
+        pq_opt/order.cc
+        pq_opt/intermediates.cc
+        pq_opt/build_program.cc
+        pq_opt/printer.cc
+        pq_opt/numpy_printer.cc
+        pq_opt/tiledarray_printer.cc
+        pq_opt/pq_opt.cc
+
 )
 
 # ---------------------------------------------------------------------------

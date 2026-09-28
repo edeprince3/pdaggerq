@@ -80,6 +80,7 @@ class EA_EOMCCSD:
             L,
             [['a*(a)']],
             'left_sigma1',
+            indices = ['a'],
             operator_type = 'EA',
             pq_graph_options = self.pq_graph_options
         )
@@ -89,6 +90,7 @@ class EA_EOMCCSD:
             L,
             [['a*(a)', 'a*(b)', 'a(i)']],
             'left_sigma2',
+            indices = ['a', 'b', 'i'],
             operator_type = 'EA',
             pq_graph_options = self.pq_graph_options
         )
