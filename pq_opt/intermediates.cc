@@ -45,7 +45,9 @@
 // varying tensors, in the same way, by one fixed tensor each are one term, reading the
 // sum of their fixed tensors (built once; an element of Hbar in EOM-CC). Then terms that
 // multiply the same fixed tensor, in the same way, by different per-call parts are one
-// term, reading the sum of those parts (built on every call), when that saves flops.
+// term, reading the sum of those parts (built on every call), when that saves flops. In
+// code where nothing varies between calls (e.g. CC residuals), the same is done with each
+// term's largest tensor.
 //
 // Hoisting (opt_level 3) uses the same keys. When the code will be called repeatedly
 // with new r or l amplitudes (TensorRef::varies: EOM trial vectors, lambda amplitudes)
@@ -500,27 +502,36 @@ std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, b
     return sums;
 }
 
-std::vector<Equation> merge_varying(std::vector<Equation> &eqs, const Sizes &sizes, bool use_antisymmetry) {
+std::vector<Equation> merge_by_anchor(std::vector<Equation> &eqs, const Sizes &sizes, bool use_antisymmetry) {
     std::vector<Equation> sums;
 
-    // the terms that have varying tensors, grouped by their largest fixed tensor F (the first,
-    // if tied) and the permutation operator. a group of c_k P[F R_k] becomes P[F S] with
-    // S = sum_k c_k R_k, computed on every call. terms whose rest carries boson labels are left
-    // alone: renaming a summed boson label would break the label rule (ir.h)
+    // when some tensor varies between calls, only terms with varying tensors take part, and
+    // their anchor is their largest fixed tensor (what they share must not change between
+    // calls in a way the sum does not); otherwise every term takes part, anchored on its
+    // largest tensor
+    bool any_varying = false;
+    for (const Equation &eq : eqs)
+        for (const Term &term : eq.terms)
+            for (const TensorRef &t : term.tensors) any_varying |= t.varies;
+
+    // the terms grouped by their anchor F (the first, if tied) and the permutation operator. a
+    // group of c_k P[F R_k] becomes P[F S] with S = sum_k c_k R_k, computed on every call.
+    // terms whose rest carries boson labels are left alone: renaming a summed boson label would
+    // break the label rule (ir.h)
     auto anchor = [&](const Term &term) {
-        bool varies = false;
+        bool takes_part = !any_varying;
         long largest = -1;
         double largest_size = -1.0;
         for (size_t p = 0; p < term.tensors.size(); p++) {
             const TensorRef &t = term.tensors[p];
             if (t.varies) {
-                varies = true;
+                takes_part = true;
             } else if (extent(t.idx, sizes) > largest_size) {
                 largest = static_cast<long>(p);
                 largest_size = extent(t.idx, sizes);
             }
         }
-        if (!varies || largest < 0) return std::vector<size_t>{};
+        if (!takes_part || largest < 0 || term.tensors.size() < 2) return std::vector<size_t>{};
         for (size_t p = 0; p < term.tensors.size(); p++)
             for (const Index &i : term.tensors[p].idx)
                 if (static_cast<long>(p) != largest && i.space == 'b') return std::vector<size_t>{};
