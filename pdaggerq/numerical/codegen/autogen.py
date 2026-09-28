@@ -543,6 +543,7 @@ def bernoulli_ucc_residual(rank,
         raise Exception("spin-orbital cc residual equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
 
     pq.set_unitary_cc(True)
 
@@ -669,6 +670,7 @@ def uccsd_singles_residual(order,
         raise Exception("spin-orbital uccsd singles residual equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
 
     pq.set_unitary_cc(True)
 
@@ -783,6 +785,7 @@ def uccsd_doubles_residual(order,
         raise Exception("spin-orbital uccsd doubles residual equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
 
     pq.set_unitary_cc(True)
 
@@ -900,6 +903,7 @@ def uccsd_energy(order,
         raise Exception("spin-orbital uccsd energy equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
 
     pq.set_unitary_cc(True)
 
@@ -1009,6 +1013,7 @@ def cc3_triples_residual(residual_name,
         raise Exception("spin-orbital cc3 triples residual equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
 
     # set bra
     pq.set_left_operators(L)
@@ -1129,6 +1134,7 @@ def lambda_cc_residual(residual_name,
         raise Exception("spin-orbital ccsd lambda equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
 
     ham_terms = [['f'], ['v']]
     if is_qed:
@@ -1290,6 +1296,7 @@ def lambda_cc_pseudoenergy(energy_name,
         raise Exception("spin-orbital ccsd lambda equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
 
     ham_terms = [['f'], ['v']]
     if is_qed:
@@ -1413,6 +1420,7 @@ def cc_response_terms(term_name,
         raise Exception("cc response equations are only implemented for EE-type operators")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
     pq.set_right_operators_type(operator_type)
     pq.set_left_operators_type(operator_type)
 
@@ -1753,6 +1761,7 @@ def eomcc_sigma(sigma_name,
         is_right = False
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
     pq.set_right_operators_type(operator_type)
     pq.set_left_operators_type(operator_type)
 
@@ -2169,6 +2178,7 @@ def {function_name}(self, left_state, right_state):
     for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
+        pq.set_find_paired_permutations(True)
         pq.set_right_operators_type(operator_type)
         pq.set_left_operators_type(operator_type)
 
@@ -2395,6 +2405,7 @@ def {function_name}(self):
     for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
+        pq.set_find_paired_permutations(True)
 
         # set bra
         pq.set_left_operators(L)
@@ -2523,6 +2534,7 @@ def {function_name}(self):
     for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
+        pq.set_find_paired_permutations(True)
 
         # set bra
         pq.set_left_operators(L)
@@ -2758,6 +2770,7 @@ def {function_name}(self, left_state, right_state):
     for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
+        pq.set_find_paired_permutations(True)
 
         pq.set_right_operators_type(operator_type)
         pq.set_left_operators_type(operator_type)
@@ -3111,6 +3124,7 @@ def {function_name}(self, left_state, right_state):
     for block, (op, indices) in blocks.items():
 
         pq = pdaggerq.pq_helper("fermi")
+        pq.set_find_paired_permutations(True)
         pq.set_right_operators_type(operator_type)
         pq.set_left_operators_type(operator_type)
 

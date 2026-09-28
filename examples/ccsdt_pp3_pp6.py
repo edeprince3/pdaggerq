@@ -3,6 +3,7 @@ import pdaggerq
 
 pq = pdaggerq.pq_helper("fermi")
 pq.set_print_level(0)
+pq.set_find_paired_permutations(True)
 
 # energy equation
 
