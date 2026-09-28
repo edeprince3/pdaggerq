@@ -121,21 +121,6 @@ void compare_strings_with_swapped_summed_labels(const std::vector<std::vector<st
                                                 int & n_permute,
                                                 bool & strings_same);
 
-/// compare two strings when swapping (multiple) summed labels and ov pairs of nonsumed labels
-void compare_strings_with_swapped_summed_and_nonsummed_labels(
-    const std::vector<std::vector<std::string> > &labels,
-    const std::vector<std::vector<std::string>> &pairs,
-    size_t iter,
-    const std::shared_ptr<pq_string> &in1,
-    const std::shared_ptr<pq_string> &in2,
-    size_t in2_id,
-    std::vector<size_t> &my_permutations,
-    std::vector<bool> &permutation_types,
-    int n_permutation_type,
-    int & n_permute,
-    bool & strings_same,
-    bool & found_paired_permutation);
-
 /// alphabetize operators to simplify string comparisons (for true vacuum only)
 void alphabetize(std::vector<std::shared_ptr<pq_string> > &ordered);
 
