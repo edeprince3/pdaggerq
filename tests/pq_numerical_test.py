@@ -3,17 +3,19 @@ import os
 import contextlib
 
 # code generator options (the generator is pq_opt unless PDAGGERQ_CODEGEN_BACKEND
-# says otherwise; see autogen.configure_graph). opt_level = 0 evaluates the pdaggerq terms as written;
-# opt_level = 1 also picks each term's contraction order, which makes the suite much
-# faster with pq_opt. binarize only affects pq_graph (pq_opt ignores it; at opt_level >= 1
-# it writes only two-operand contractions). with PDAGGERQ_CODEGEN_BACKEND=pq_graph and
-# patience, try opt_level = 6
+# says otherwise; see autogen.configure_graph). opt_level = 0 evaluates the pdaggerq terms as
+# written; 1 picks each term's contraction order; 2 also shares intermediates between terms;
+# 3 also computes once what does not change between calls (EOM and lambda code); 4, autogen's
+# default, also merges terms that differ in one part. every level must pass. binarize only
+# affects pq_graph (pq_opt ignores it; at opt_level >= 1 it writes only two-operand
+# contractions). with PDAGGERQ_CODEGEN_BACKEND=pq_graph, set PDAGGERQ_CODEGEN_OPT_LEVEL too:
+# pq_graph's levels mean different things and its higher ones are much slower
 pq_graph_options = {
     'batched': False,
     #'batched': True,
     #'batch_number': 100,
     'print_level': 0,
-    'opt_level': 1,
+    'opt_level': 4,
     'binarize': True,
     'nthreads': -1,
     'no_scalars': False,

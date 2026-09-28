@@ -55,7 +55,8 @@ def configure_graph(options = None, varying = None):
 
     The generator is pq_opt, unless the environment variable PDAGGERQ_CODEGEN_BACKEND
     is "pq_graph" (e.g. to compare the two). PDAGGERQ_CODEGEN_OPT_LEVEL, if set,
-    overrides the options' opt_level.
+    overrides the options' opt_level. Without options, pq_opt runs at opt_level 4 and
+    pq_graph at opt_level 1 (its higher levels are much slower).
 
     :param options: options dictionary for the generator
     :param varying: the tensors that change between calls of the generated function, by name
@@ -66,13 +67,15 @@ def configure_graph(options = None, varying = None):
         graph (pq_opt or pq_graph): Configured code generator.
     """
 
+    backend = os.environ.get("PDAGGERQ_CODEGEN_BACKEND", "") or "pq_opt"
+
     if options is None:
         options = {
             'batched': False,
             #'batched': True,
             #'batch_number': 100,
             'print_level': 0,
-            'opt_level': 1,
+            'opt_level': 4 if backend == "pq_opt" else 1,
             'nthreads': -1,
             'no_scalars': False,
             #'permute_eri': False,
@@ -82,7 +85,6 @@ def configure_graph(options = None, varying = None):
     if opt_level != "":
         options = {**options, 'opt_level': int(opt_level)}
 
-    backend = os.environ.get("PDAGGERQ_CODEGEN_BACKEND", "") or "pq_opt"
     if backend == "pq_opt":
         return pdaggerq.pq_opt({**options, 'varying': varying} if varying else options)
     if backend != "pq_graph":
