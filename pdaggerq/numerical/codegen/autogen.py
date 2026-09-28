@@ -408,6 +408,7 @@ def cc_residual(residual_name,
     #    raise Exception("spin-orbital cc residual equations not implemented")
 
     pq = pdaggerq.pq_helper("fermi")
+    pq.set_find_paired_permutations(True)
 
     # set bra
     pq.set_left_operators(L)
