@@ -129,12 +129,16 @@ Python:
         print(term)
     pq.clear()
 
-### PQ Graph
+### PQ Opt and PQ Graph
 
-The module `pq_graph` is used to optimize the order of contractions within the expressions and to eliminate common subexpressions. 
-The module can represent the many-body equations as a multidirected graph and can be output 
-in either C++ or Python syntax for evaluation. Refer to the [README.md](pq_graph/README.md) 
-in the pq_graph directory for more information.
+The modules `pq_opt` and `pq_graph` can be used to optimize the order of 
+contractions within the expressions and to eliminate common subexpressions. 
+Equations can be emitted in either C++ or Python syntax for evaluation. `pq_opt`
+is designed for rapid code optimization, whereas `pq_graph` is more time intensive 
+but may result in more efficient code.
+
+Refer to the [README.md](pq_opt/README.md) for `pq_opt` or the [README.md](pq_graph/README.md) 
+for `pq_graph` for more information.
 
 
 ## How to contribute
