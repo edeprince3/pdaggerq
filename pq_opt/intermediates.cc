@@ -446,6 +446,22 @@ Indices sum_indices(const Equation &eq, const Group &group, const std::vector<Te
     return idx;
 }
 
+// the members whose rest carries exactly the indices idx (external or shared with the common
+// part). with the label rule (ir.h) every member does; a free boson label may also appear in
+// several tensors of a term, so a term may carry it on its common part and its rest, or on
+// only one of them, and such members cannot share a sum (it would need broadcasting)
+std::vector<const Member *> fitting(const Equation &eq, const Group &group, const Indices &idx) {
+    std::set<std::string> want;
+    for (const Index &i : idx) want.insert(i.label);
+    std::vector<const Member *> found;
+    for (const Member &m : group.members) {
+        std::set<std::string> has;
+        for (const Index &i : sum_indices(eq, group, rest_of(eq, group, m))) has.insert(i.label);
+        if (has == want) found.push_back(&m);
+    }
+    return found;
+}
+
 } // namespace
 
 std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, bool use_antisymmetry) {
@@ -472,15 +488,17 @@ std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, b
 
             // G's indices are the first member's fixed tensor's
             Indices idx = rest_of(eq, group, group.members[0]).at(0).idx;
+            std::vector<const Member *> members = fitting(eq, group, idx);
+            if (members.size() < 2) continue;
             Equation sum;
             sum.lhs = {"reused_", intermediate_key(first_id + sums.size(), idx), idx};
-            for (const Member &m : group.members) {
+            for (const Member *m : members) {
                 Term piece;
-                piece.coeff = eq.terms[m.term].coeff * m.sign;
-                piece.tensors = rest_of(eq, group, m);
-                piece.comment = eq.terms[m.term].comment;
+                piece.coeff = eq.terms[m->term].coeff * m->sign;
+                piece.tensors = rest_of(eq, group, *m);
+                piece.comment = eq.terms[m->term].comment;
                 sum.terms.push_back(piece);
-                merged[m.term] = true;
+                merged[m->term] = true;
             }
 
             // the merged term: V, as the first member writes it, times G
@@ -488,7 +506,7 @@ std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, b
             term.tensors = group.common;
             term.tensors.push_back(sum.lhs);
             term.perms = eq.terms[group.members[0].term].perms;
-            term.comment = std::to_string(group.members.size()) + " merged terms";
+            term.comment = std::to_string(members.size()) + " merged terms";
             added.push_back(term);
             sums.push_back(std::move(sum));
         }
@@ -556,7 +574,8 @@ std::vector<Equation> merge_by_anchor(std::vector<Equation> &eqs, const Sizes &s
 
             std::vector<const Member *> gaining;
             double saved = 0.0;
-            for (const Member &m : group.members) {
+            for (const Member *mp : fitting(eq, group, idx)) {
+                const Member &m = *mp;
                 Term rest;
                 rest.tensors = rest_of(eq, group, m);
                 double own = cost(optimal_expr(eq.terms[m.term], eq.lhs.idx, sizes), sizes);

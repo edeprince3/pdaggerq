@@ -72,6 +72,9 @@ CASES = {
                   "r1": ([["e1(i,a)"]], [["1"]], ["a", "i"]),
                   "r1_1p": ([["B-", "e1(i,a)"]], [["1"]], ["a", "i"])},
                  ["t1", "t2", "tb1", "teb11", "teb21"], {}, False, QED),
+    # QED-EOM-CCSD photon-coupled sigma: varying r amplitudes with photons, for the level-4 merges
+    "qed_eom": ({"sigma1_1p": ([["B-", "e1(i,a)"]], [["r1"], ["rb1"], ["reb11"]], ["a", "i"])},
+                ["t1", "t2", "tb1", "teb11"], {}, False, QED),
 }
 
 GENERATOR = r"""
