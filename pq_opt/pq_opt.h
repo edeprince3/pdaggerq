@@ -36,6 +36,8 @@
 
 #include <pybind11/pybind11.h>
 
+#include <utility>
+
 namespace pdaggerq {
 class pq_helper;
 }
@@ -69,6 +71,13 @@ class PQOpt {
     std::map<std::string, double> costs();
 
     void clear();
+
+  private:
+    /// the per-call and once-only programs for the queued equations, with or without
+    /// Jacobian blocks (opt_level 4)
+    std::pair<Program, Program> build(bool blocks) const;
+
+  public:
 
     /// bind the class to python as pdaggerq.pq_opt
     static void export_pq_opt(pybind11::module &m);

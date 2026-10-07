@@ -122,8 +122,16 @@ methods](#use-in-pdaggerqs-numerical-methods)).
 
 ### Merging (opt_level 4)
 
-Two passes sum terms that differ in one part, then contract once:
+Three passes sum terms that differ in one part, then contract once:
 
+- **Jacobian blocks.** Terms that are one varying tensor (e.g. `r1`) times any number of fixed
+  tensors, with the varying tensor contracted the same way, are combined into a single term. It
+  reads the sum of their fixed parts, built once as a `reused_["j0001_..."]`. In EOMCC these are
+  blocks of the similarity-transformed Hamiltonian: all R1 → σ1 terms, for example, can become
+  one oo, one vv, and one vovo block. A block may be no larger than the largest fixed tensor of
+  its terms. Building blocks costs more once and less per call, so level 4 optimizes the
+  equations both with and without them and keeps whichever needs fewer flops per call plus its
+  once-only flops divided by `calls`.
 - **Fixed side.** Terms that multiply the same varying tensors, in the same way, by one fixed
   tensor each are combined into a single term. It reads the sum of those fixed tensors, built once as a
   `reused_`. In EOMCC these sums are elements of the similarity-transformed Hamiltonian.
@@ -133,7 +141,13 @@ Two passes sum terms that differ in one part, then contract once:
   first costs less than its own best order, and a group only if the flops saved exceed the one
   remaining contraction. This pass applies to CC residuals too.
 
-Terms are merged only when they carry the same permutation operator.
+Terms are merged only when they carry the same permutation operator, and only when their parts
+carry the same indices. (With labeled cavity modes, a free mode label can appear on several
+tensors of a term, so two terms with the same varying tensor may carry it on different parts;
+those are not summed. This release has a single unlabeled mode.)
+
+The once-only program (`reused_`) shares intermediates between its products the way level 2 does
+for the per-call program; its `tmps_` keys start with `r`.
 
 ## Printing code
 
