@@ -27,6 +27,7 @@
 #include <pybind11/stl.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstdio>
 #include <iostream>
 #include <set>
@@ -122,15 +123,44 @@ void PQOpt::add(const pq_helper &pq, const std::string &name, const std::vector<
 }
 
 void PQOpt::optimize() {
+    // level 4 builds blocks only when that makes the code cheaper: both versions are built, and
+    // the one with fewer flops per call (plus its once-only flops spread over the calls) is kept
+    auto [program, reused_program] = build(false);
+    if (opt_level_ >= 4) {
+        auto [block_program, block_reused_program] = build(true);
+        auto flops = [&](const Program &p) {
+            double total = 0.0;
+            for (const Stmt &stmt : p.stmts) total += cost(stmt.rhs, sizes_);
+            return total;
+        };
+        double without = flops(program) + flops(reused_program) / calls_;
+        double with = flops(block_program) + flops(block_reused_program) / calls_;
+        if (with < without * (1.0 - 1e-12)) {
+            program = std::move(block_program);
+            reused_program = std::move(block_reused_program);
+        }
+    }
+    program_ = std::move(program);
+    reused_program_ = std::move(reused_program);
+    optimized_ = true;
+}
+
+std::pair<Program, Program> PQOpt::build(bool blocks) const {
     // level 0: terms as given; level >= 1: optimal contraction order per term;
     // level >= 2: also shared intermediates, computed first; level >= 3: first of all, what
     // does not change between calls (reused_), in a program of its own; level >= 4: terms
     // that differ only in a fixed tensor merged, reading the sum of those tensors, then terms
-    // that differ only in what multiplies one tensor, reading the sum of those parts. a copy of the
-    // equations is rewritten, so optimizing again starts from pdaggerq's terms
+    // that differ only in what multiplies one tensor, reading the sum of those parts; with
+    // blocks, before all of that, terms that are one varying tensor times fixed ones read
+    // blocks of their fixed parts. a copy of the equations is rewritten, so optimizing again
+    // starts from pdaggerq's terms
     std::vector<Equation> equations = equations_;
     std::vector<Equation> reused;
-    if (opt_level_ >= 3) reused = hoist_invariants(equations, sizes_, calls_, use_antisymmetry_);
+    if (blocks) reused = jacobian_blocks(equations, sizes_, calls_, use_antisymmetry_);
+    if (opt_level_ >= 3) {
+        std::vector<Equation> hoisted = hoist_invariants(equations, sizes_, calls_, use_antisymmetry_);
+        reused.insert(reused.end(), hoisted.begin(), hoisted.end());
+    }
     if (opt_level_ >= 4) {
         std::vector<Equation> sums = merge_terms(equations, reused.size() + 1, use_antisymmetry_);
         reused.insert(reused.end(), sums.begin(), sums.end());
@@ -141,7 +171,7 @@ void PQOpt::optimize() {
     if (opt_level_ >= 2)
         program_equations = extract_intermediates(equations, sizes_, max_temps_, use_antisymmetry_);
     program_equations.insert(program_equations.end(), equations.begin(), equations.end());
-    program_ = build_program(program_equations, opt_level_ >= 1, sizes_);
+    Program program = build_program(program_equations, opt_level_ >= 1, sizes_);
 
     // the reused_ intermediates the per-call code does not read (e.g. the pieces of a merged
     // sum) are freed once they have been used
@@ -153,8 +183,13 @@ void PQOpt::optimize() {
     std::set<std::string> free_reused;
     for (const Equation &eq : reused)
         if (!read_per_call.count(eq.lhs.key)) free_reused.insert(eq.lhs.key);
-    reused_program_ = build_program(reused, true, sizes_, free_reused);
-    optimized_ = true;
+
+    // the once-only program shares intermediates too; its tmps_ keys start with "r"
+    std::vector<Equation> reused_equations;
+    if (opt_level_ >= 2 && !reused.empty())
+        reused_equations = extract_intermediates(reused, sizes_, max_temps_, use_antisymmetry_, "r");
+    reused_equations.insert(reused_equations.end(), reused.begin(), reused.end());
+    return {program, build_program(reused_equations, true, sizes_, free_reused)};
 }
 
 std::vector<std::string> PQOpt::to_strings(const std::string &type, const std::string &part) {

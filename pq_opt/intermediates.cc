@@ -49,6 +49,12 @@
 // code where nothing varies between calls (e.g. CC residuals), the same is done with each
 // term's largest tensor.
 //
+// Jacobian blocks (opt_level 4) come first: terms that are one varying tensor (e.g. R1)
+// times fixed ones, with the varying tensor contracted the same way, read one block, the sum
+// of their fixed parts, built once (in EOM-CC, a block of the similarity-transformed
+// Hamiltonian, e.g. all R1 -> sigma1 terms in an oo, a vv, and a vovo block), when that
+// costs less than the terms do separately.
+//
 // Hoisting (opt_level 3) uses the same keys. When the code will be called repeatedly
 // with new r or l amplitudes (TensorRef::varies: EOM trial vectors, lambda amplitudes)
 // while everything else stays fixed, each term's tree is chosen to minimize the flops
@@ -520,6 +526,108 @@ std::vector<Equation> merge_terms(std::vector<Equation> &eqs, size_t first_id, b
     return sums;
 }
 
+std::vector<Equation> jacobian_blocks(std::vector<Equation> &eqs, const Sizes &sizes, double calls,
+                                     bool use_antisymmetry) {
+    std::vector<Equation> blocks;
+
+    // only code that is called repeatedly with new values of some tensors has blocks to build
+    bool any_varying = false;
+    for (const Equation &eq : eqs)
+        for (const Term &term : eq.terms)
+            for (const TensorRef &t : term.tensors) any_varying |= t.varies;
+    if (!any_varying) return blocks;
+
+    // the terms that are one varying tensor times fixed ones, grouped by the varying tensor (how
+    // it is contracted, up to antisymmetry) and the permutation operator. terms whose fixed part
+    // carries boson labels are left alone: renaming a summed boson label would break the label
+    // rule (ir.h)
+    auto varying_tensor = [](const Term &term) {
+        std::vector<size_t> varying;
+        size_t fixed = 0;
+        for (size_t p = 0; p < term.tensors.size(); p++) {
+            if (term.tensors[p].varies) varying.push_back(p);
+            else fixed++;
+        }
+        if (varying.size() != 1 || fixed == 0) return std::vector<size_t>{};
+        for (size_t p = 0; p < term.tensors.size(); p++)
+            for (const Index &i : term.tensors[p].idx)
+                if (p != varying[0] && i.space == 'b') return std::vector<size_t>{};
+        return varying;
+    };
+
+    // what a term costs as hoisting would order it: flops per call, and flops of what it stores
+    auto current = [&](const Term &term, const Indices &out) {
+        ExprPtr tree = optimal_expr(term, out, sizes, calls);
+        double once = 0.0;
+        for (const ExprPtr &stored : hoisted_subtrees(tree, hoist_cap(term, sizes), sizes)) once += cost(stored, sizes);
+        return std::make_pair(cost(tree, sizes) - once, once);
+    };
+
+    for (Equation &eq : eqs) {
+        std::vector<bool> merged(eq.terms.size(), false);
+        std::vector<Term> added;
+        for (const Group &group : group_by_common(eq, varying_tensor, use_antisymmetry)) {
+            if (group.members.size() < 2) continue;
+
+            // the block: what the varying tensor is contracted with, no larger than the largest
+            // fixed tensor of the group's terms (as for hoisting)
+            Indices idx = sum_indices(eq, group, rest_of(eq, group, group.members[0]));
+            double cap = 0.0;
+            for (const Member &m : group.members) cap = std::max(cap, hoist_cap(eq.terms[m.term], sizes));
+            if (extent(idx, sizes) > cap) continue;
+
+            Indices touched = group.common[0].idx;
+            for (const Index &i : idx)
+                if (std::find(touched.begin(), touched.end(), i) == touched.end()) touched.push_back(i);
+            double contraction = extent(touched, sizes);
+
+            // a term joins if building its part of the block, spread over the calls, costs less
+            // than the term does now (per call, plus what it stores spread over the calls); the
+            // group is built if that saves more than the one contraction per call it adds
+            std::vector<const Member *> joining;
+            double saved = 0.0;
+            for (const Member *m : fitting(eq, group, idx)) {
+                auto [per_call, once] = current(eq.terms[m->term], eq.lhs.idx);
+                Term part;
+                part.tensors = rest_of(eq, group, *m);
+                double build = cost(optimal_expr(part, idx, sizes), sizes);
+                double gain = per_call + once / calls - build / calls;
+                if (gain <= 0.0) continue;
+                joining.push_back(m);
+                saved += gain;
+            }
+            if (joining.size() < 2 || saved <= contraction * (1.0 + 1e-12)) continue;
+
+            Equation block;
+            block.lhs = {"reused_", "j" + intermediate_key(blocks.size() + 1, idx), idx};
+            for (const Member *m : joining) {
+                Term piece;
+                piece.coeff = eq.terms[m->term].coeff * m->sign;
+                piece.tensors = rest_of(eq, group, *m);
+                piece.comment = eq.terms[m->term].comment;
+                block.terms.push_back(piece);
+                merged[m->term] = true;
+            }
+
+            // the merged term: the varying tensor, as the first member writes it, times the block
+            Term term;
+            term.tensors = group.common;
+            term.tensors.push_back(block.lhs);
+            term.perms = eq.terms[group.members[0].term].perms;
+            term.comment = std::to_string(joining.size()) + " terms in a block";
+            added.push_back(term);
+            blocks.push_back(std::move(block));
+        }
+
+        std::vector<Term> kept;
+        for (size_t n = 0; n < eq.terms.size(); n++)
+            if (!merged[n]) kept.push_back(std::move(eq.terms[n]));
+        kept.insert(kept.end(), added.begin(), added.end());
+        eq.terms = std::move(kept);
+    }
+    return blocks;
+}
+
 std::vector<Equation> merge_by_anchor(std::vector<Equation> &eqs, const Sizes &sizes, bool use_antisymmetry) {
     std::vector<Equation> sums;
 
@@ -617,7 +725,7 @@ std::vector<Equation> merge_by_anchor(std::vector<Equation> &eqs, const Sizes &s
 }
 
 std::vector<Equation> extract_intermediates(std::vector<Equation> &eqs, const Sizes &sizes, long max_temps,
-                                           bool use_antisymmetry) {
+                                           bool use_antisymmetry, const std::string &key_prefix) {
 
     // every term, with the lhs indices its tree must produce and its current candidates
     struct Slot {
@@ -675,7 +783,7 @@ std::vector<Equation> extract_intermediates(std::vector<Equation> &eqs, const Si
         const TensorRef &x0 = c0.x, &y0 = c0.y;
 
         Equation def;
-        def.lhs = {"tmps_", intermediate_key(definitions.size() + 1, c0.x_idx), c0.x_idx};
+        def.lhs = {"tmps_", key_prefix + intermediate_key(definitions.size() + 1, c0.x_idx), c0.x_idx};
         Term def_term;
         def_term.tensors = {x0, y0};
         def_term.comment = text(x0) + " " + text(y0);

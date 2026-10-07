@@ -110,10 +110,12 @@ std::vector<ExprPtr> hoisted_subtrees(const ExprPtr &root, double cap, const Siz
  * @param max_temps the most intermediates to create (-1: no limit)
  * @param use_antisymmetry also match products that differ by a permutation of an antisymmetric
  *        tensor's indices (only tensors pdaggerq marks antisymmetric); false: identical only
+ * @param key_prefix put before each intermediate's key, e.g. to keep the once-only program's
+ *        tmps_ apart from the per-call program's
  * @return the intermediates' definitions, one term each, in the order they must be computed
  */
 std::vector<Equation> extract_intermediates(std::vector<Equation> &eqs, const Sizes &sizes, long max_temps,
-                                           bool use_antisymmetry);
+                                           bool use_antisymmetry, const std::string &key_prefix = "");
 
 /**
  * compute once what does not change between calls (opt_level >= 3)
@@ -132,6 +134,27 @@ std::vector<Equation> extract_intermediates(std::vector<Equation> &eqs, const Si
  */
 std::vector<Equation> hoist_invariants(std::vector<Equation> &eqs, const Sizes &sizes, double calls,
                                        bool use_antisymmetry);
+
+/**
+ * build blocks of terms that are one varying tensor times fixed ones (opt_level >= 4, before
+ * hoist_invariants)
+ *
+ * the terms of an equation with exactly one varying tensor V, contracted the same way (up to
+ * antisymmetry), and the same permutation operator, c_k P[V F_k] with F_k a product of fixed
+ * tensors, become one term P[V B], where B = sum_k c_k F_k is a reused_ built once (in EOM-CC,
+ * a block of the similarity-transformed Hamiltonian). B may be no larger than the largest fixed
+ * tensor of the terms. a term joins if building its F_k, spread over the calls, costs less than
+ * the term does as hoisting would order it; a group is built if that saves more than the one
+ * contraction of V with B per call. does nothing when no tensor varies
+ *
+ * @param eqs the equations; terms in blocks are replaced
+ * @param sizes index extents for the cost model
+ * @param calls the number of calls the code is expected to serve
+ * @param use_antisymmetry as for extract_intermediates
+ * @return the blocks' definitions (reused_["j0001_..."]), to be computed once
+ */
+std::vector<Equation> jacobian_blocks(std::vector<Equation> &eqs, const Sizes &sizes, double calls,
+                                     bool use_antisymmetry);
 
 /**
  * merge terms that differ only in their fixed tensor (opt_level >= 4, after hoist_invariants)
