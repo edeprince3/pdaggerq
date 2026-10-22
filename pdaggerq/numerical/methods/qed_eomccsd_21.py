@@ -1,5 +1,5 @@
 from pdaggerq.numerical.solvers.eomcc import eomcc 
-from pdaggerq.numerical.codegen.autogen import eomcc_sigma
+from pdaggerq.numerical.codegen.auto_cc import eomcc_sigma
 
 class QED_EOMCCSD_21:
 
@@ -244,7 +244,7 @@ class QED_EOMCCSD_21:
     def oscillator_strengths(self):
 
         # Import pq eomcc density matrix codegen function
-        from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
+        from pdaggerq.numerical.codegen.auto_cc import eomcc_density_matrix
 
         # Generate transition density matrix equations
         T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
@@ -270,7 +270,7 @@ class QED_EOMCCSD_21:
     def opdm(self):
 
         # Import pq cc density matrix codegen function
-        from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
+        from pdaggerq.numerical.codegen.auto_cc import eomcc_density_matrix
 
         # Generate transition density matrix equations
         T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
@@ -296,7 +296,7 @@ class QED_EOMCCSD_21:
     def tpdm(self):
 
         # Import pq cc tpdm codegen function
-        from pdaggerq.numerical.codegen.autogen import eomcc_tpdm
+        from pdaggerq.numerical.codegen.auto_cc import eomcc_tpdm
 
         # Generate tpdm equations
         T = ['t1', 't2', 'tb1', 'teb11', 'teb21']
@@ -324,7 +324,7 @@ class QED_EOMCCSD_21:
     def phdm(self):
         
         # Import pq cc density matrix codegen function
-        from pdaggerq.numerical.codegen.autogen import eomcc_phdm
+        from pdaggerq.numerical.codegen.auto_cc import eomcc_phdm
         
         # Generate transition density matrix equations
         T = ['t1', 't2', 'tb1', 'teb11', 'teb21']

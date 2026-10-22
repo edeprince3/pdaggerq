@@ -1,5 +1,5 @@
 from pdaggerq.numerical.solvers.cc import cc 
-from pdaggerq.numerical.codegen.autogen import cc_residual
+from pdaggerq.numerical.codegen.auto_cc import cc_residual
 
 class QED_CCSD_21:
     def __init__(self, wfn, mol, **kwargs):
@@ -145,8 +145,8 @@ class QED_CCSD_21:
     def lambda_solver(self):
 
         # Import pq codegen functions 
-        from pdaggerq.numerical.codegen.autogen import lambda_cc_residual
-        from pdaggerq.numerical.codegen.autogen import lambda_cc_pseudoenergy
+        from pdaggerq.numerical.codegen.auto_cc import lambda_cc_residual
+        from pdaggerq.numerical.codegen.auto_cc import lambda_cc_pseudoenergy
 
         # Create an empty dictionary to hold the pq-generated equations
         local_namespace = {}

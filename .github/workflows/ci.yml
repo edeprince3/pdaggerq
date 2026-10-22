@@ -19,6 +19,8 @@ name: CI
 #                                       models.py/einsums IR layer, not a duplicate of
 #                                       tests/neo_*.py (those exercise raw pq_helper).
 #       - tests/einsums_test.py         einsums dispatch/lowering
+#       - tests/auto_v2rdm_test.py      v2RDM SDP generator: explicit states satisfy every constraint
+#                                       (auto_v2rdm_numerical_test.py needs libsdp; skipped here)
 
 on:
   push:
@@ -103,6 +105,18 @@ jobs:
         run: |
           python -m pytest -v \
             "$GITHUB_WORKSPACE/tests/pq_numerical_test.py"
+
+      - name: v2RDM SDP generator tests (tests/auto_v2rdm_test.py, tests/auto_v2rdm_numerical_test.py)
+        working-directory: ${{ runner.temp }}
+        # auto_v2rdm_test.py needs only pdaggerq: it builds the SDP for small fermion and
+        # fermion-photon problems and checks that explicit N-electron states satisfy every
+        # generated constraint (positivity blocks, contractions, traces, spin, and photon
+        # stationarity). auto_v2rdm_numerical_test.py solves an SDP end to end with
+        # libsdp.bpsdp_jax; libsdp is not installed here, so it is skipped (importorskip).
+        run: |
+          python -m pytest -v -rs \
+            "$GITHUB_WORKSPACE/tests/auto_v2rdm_test.py" \
+            "$GITHUB_WORKSPACE/tests/auto_v2rdm_numerical_test.py"
 
       - name: Generated-model library tests (tests/models_test.py, tests/einsums_test.py)
         working-directory: ${{ runner.temp }}

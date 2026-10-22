@@ -1,6 +1,6 @@
 from pdaggerq.numerical.solvers.cc_response import cc_response 
-from pdaggerq.numerical.codegen.autogen import eomcc_sigma
-from pdaggerq.numerical.codegen.autogen import cc_response_terms
+from pdaggerq.numerical.codegen.auto_cc import eomcc_sigma
+from pdaggerq.numerical.codegen.auto_cc import cc_response_terms
 
 class CCSDT_RESPONSE:
 
