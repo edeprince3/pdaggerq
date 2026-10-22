@@ -3,9 +3,9 @@ import os
 import contextlib
 
 # code generator options (the generator is pq_opt unless PDAGGERQ_CODEGEN_BACKEND
-# says otherwise; see autogen.configure_graph). opt_level = 0 evaluates the pdaggerq terms as
+# says otherwise; see auto_cc.configure_graph). opt_level = 0 evaluates the pdaggerq terms as
 # written; 1 picks each term's contraction order; 2 also shares intermediates between terms;
-# 3 also computes once what does not change between calls (EOM and lambda code); 4, autogen's
+# 3 also computes once what does not change between calls (EOM and lambda code); 4, auto_cc's
 # default, also merges terms that differ in one part. every level must pass. binarize only
 # affects pq_graph (pq_opt ignores it; at opt_level >= 1 it writes only two-operand
 # contractions). with PDAGGERQ_CODEGEN_BACKEND=pq_graph, set PDAGGERQ_CODEGEN_OPT_LEVEL too:
@@ -123,8 +123,8 @@ def test_ccsd_codegen_disk():
 
     # point the generators at the very directory we are about to import from,
     # so the test does not depend on being invoked from tests/
-    from pdaggerq.numerical.codegen import autogen
-    autogen.generated_code_dir = gen_dir
+    from pdaggerq.numerical.codegen import auto_cc
+    auto_cc.generated_code_dir = gen_dir
     
     # Add the generation directory to sys.path so Python can import from it
     if gen_dir not in sys.path:
@@ -136,7 +136,7 @@ def test_ccsd_codegen_disk():
         with contextlib.redirect_stdout(f):
 
             # Import pq codegen functions 
-            from pdaggerq.numerical.codegen.autogen import cc_residual
+            from pdaggerq.numerical.codegen.auto_cc import cc_residual
 
             T = ['t1', 't2']
             cc_residual('cc_energy', T, [['1']], 'cc_energy', write_function = True, pq_graph_options = pq_graph_options)

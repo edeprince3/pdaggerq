@@ -1,5 +1,5 @@
 from pdaggerq.numerical.solvers.cc import cc 
-from pdaggerq.numerical.codegen.autogen import bernoulli_ucc_residual
+from pdaggerq.numerical.codegen.auto_cc import bernoulli_ucc_residual
 
 class QUCCSD:
     def __init__(self, wfn, mol, **kwargs):

@@ -1,6 +1,6 @@
 from pdaggerq.numerical.solvers.cc import cc 
-from pdaggerq.numerical.codegen.autogen import cc_residual
-from pdaggerq.numerical.codegen.autogen import cc3_triples_residual
+from pdaggerq.numerical.codegen.auto_cc import cc_residual
+from pdaggerq.numerical.codegen.auto_cc import cc3_triples_residual
 
 class CC3:
     def __init__(self, wfn, mol, **kwargs):

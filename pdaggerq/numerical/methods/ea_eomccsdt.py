@@ -1,5 +1,5 @@
 from pdaggerq.numerical.solvers.eomcc import eomcc 
-from pdaggerq.numerical.codegen.autogen import eomcc_sigma
+from pdaggerq.numerical.codegen.auto_cc import eomcc_sigma
 
 class EA_EOMCCSDT:
 

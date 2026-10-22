@@ -1,5 +1,5 @@
 from pdaggerq.numerical.solvers.cc import cc 
-from pdaggerq.numerical.codegen.autogen import cc_residual
+from pdaggerq.numerical.codegen.auto_cc import cc_residual
 
 class QED_CCSD_22:
     def __init__(self, wfn, mol, **kwargs):

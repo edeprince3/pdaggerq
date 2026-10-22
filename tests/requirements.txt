@@ -5,3 +5,4 @@ pyscf
 openfermion
 openfermionpyscf
 # install psi4 from conda if available to run spin-trace tests
+# install libsdp to run the auto_v2rdm end-to-end tests (skipped without it)

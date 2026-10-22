@@ -1,5 +1,5 @@
 from pdaggerq.numerical.solvers.cc import cc 
-from pdaggerq.numerical.codegen.autogen import cc_residual
+from pdaggerq.numerical.codegen.auto_cc import cc_residual
 
 class CCSD:
     def __init__(self, wfn, mol, **kwargs):
@@ -85,8 +85,8 @@ class CCSD:
     def lambda_solver(self):
 
         # Import pq codegen functions 
-        from pdaggerq.numerical.codegen.autogen import lambda_cc_residual
-        from pdaggerq.numerical.codegen.autogen import lambda_cc_pseudoenergy
+        from pdaggerq.numerical.codegen.auto_cc import lambda_cc_residual
+        from pdaggerq.numerical.codegen.auto_cc import lambda_cc_pseudoenergy
 
         # Create an empty dictionary to hold the pq-generated equations
         local_namespace = {}
@@ -145,7 +145,7 @@ class CCSD:
     def opdm(self):
 
         # Import pq cc density matrix codegen function
-        from pdaggerq.numerical.codegen.autogen import cc_density_matrix
+        from pdaggerq.numerical.codegen.auto_cc import cc_density_matrix
 
         # Generate transition density matrix equations
         T = ['t1', 't2']
@@ -168,7 +168,7 @@ class CCSD:
     def tpdm(self):
 
         # Import pq cc tpdm codegen function
-        from pdaggerq.numerical.codegen.autogen import cc_tpdm
+        from pdaggerq.numerical.codegen.auto_cc import cc_tpdm
 
         # Generate transition density matrix equations
         T = ['t1', 't2']

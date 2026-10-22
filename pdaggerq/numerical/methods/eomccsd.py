@@ -1,5 +1,5 @@
 from pdaggerq.numerical.solvers.eomcc import eomcc 
-from pdaggerq.numerical.codegen.autogen import eomcc_sigma
+from pdaggerq.numerical.codegen.auto_cc import eomcc_sigma
 
 class EOMCCSD:
 
@@ -142,7 +142,7 @@ class EOMCCSD:
     def oscillator_strengths(self):
 
         # Import pq eomcc density matrix codegen function
-        from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
+        from pdaggerq.numerical.codegen.auto_cc import eomcc_density_matrix
            
         # Generate transition density matrix equations
         T = ['t1', 't2']
@@ -167,7 +167,7 @@ class EOMCCSD:
     def opdm(self):
 
         # Import pq cc density matrix codegen function
-        from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
+        from pdaggerq.numerical.codegen.auto_cc import eomcc_density_matrix
 
         # Generate transition density matrix equations
         T = ['t1', 't2']
@@ -192,7 +192,7 @@ class EOMCCSD:
     def tpdm(self):
 
         # Import pq cc tpdm codegen function
-        from pdaggerq.numerical.codegen.autogen import eomcc_tpdm
+        from pdaggerq.numerical.codegen.auto_cc import eomcc_tpdm
 
         # Generate tpdm equations
         T = ['t1', 't2']

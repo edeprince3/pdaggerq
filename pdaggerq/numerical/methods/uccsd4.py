@@ -1,7 +1,7 @@
 from pdaggerq.numerical.solvers.cc import cc 
-from pdaggerq.numerical.codegen.autogen import uccsd_energy
-from pdaggerq.numerical.codegen.autogen import uccsd_singles_residual
-from pdaggerq.numerical.codegen.autogen import uccsd_doubles_residual
+from pdaggerq.numerical.codegen.auto_cc import uccsd_energy
+from pdaggerq.numerical.codegen.auto_cc import uccsd_singles_residual
+from pdaggerq.numerical.codegen.auto_cc import uccsd_doubles_residual
 
 class UCCSD4:
     def __init__(self, wfn, mol, **kwargs):

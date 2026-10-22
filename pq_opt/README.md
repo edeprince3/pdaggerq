@@ -252,7 +252,7 @@ for level in range(5):
 
 ## Use in pdaggerq's numerical methods
 
-`pdaggerq/numerical/codegen/autogen.py` generates the code for the methods in
+`pdaggerq/numerical/codegen/auto_cc.py` generates the code for the methods in
 `pdaggerq/numerical/methods` with pq_opt.
 
 - **Level.** Without options it runs at `opt_level` 4. A method's `pq_graph_options` replace

@@ -1,5 +1,5 @@
 from pdaggerq.numerical.solvers.eomcc import eomcc 
-from pdaggerq.numerical.codegen.autogen import eomcc_sigma
+from pdaggerq.numerical.codegen.auto_cc import eomcc_sigma
 
 class EOMCCSDT:
 
@@ -172,7 +172,7 @@ class EOMCCSDT:
     def oscillator_strengths(self):
 
         # Import pq eomcc density matrix codegen function
-        from pdaggerq.numerical.codegen.autogen import eomcc_density_matrix
+        from pdaggerq.numerical.codegen.auto_cc import eomcc_density_matrix
            
         # Generate transition density matrix equations
         T = ['t1', 't2', 't3']
