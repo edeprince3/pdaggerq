@@ -442,6 +442,7 @@ def cc_residual(residual_name,
     spin_block = True, 
     write_function = False,
     is_qed = False,
+    unitary = False,
     pq_graph_options = None):
 
     """
@@ -455,14 +456,20 @@ def cc_residual(residual_name,
     :param spin_block: do spin block the equations?
     :param write_function: do write function to disk?
     :param is_qed: include qed-cc terms? 
+    :param unitary: use the unitary transformation e^{-(T-T^+)} H e^{T-T^+}, with the BCH series truncated
+        at four nested commutators, rather than the standard e^{-T} H e^{T}
     :param pq_graph_options: options dictionary for pq_graph
     """
 
     #if not spin_block:
     #    raise Exception("spin-orbital cc residual equations not implemented")
 
+    if unitary and is_qed:
+        raise Exception("unitary qed-cc residual equations not implemented")
+
     pq = pdaggerq.pq_helper("fermi")
     pq.set_find_paired_permutations(True)
+    pq.set_unitary_cc(unitary)
 
     # set bra
     pq.set_left_operators(L)

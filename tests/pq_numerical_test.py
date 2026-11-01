@@ -252,6 +252,24 @@ def test_ccsd_codegen():
 
         f.write(">>> TEST PASSED: CCSD\n")    
 
+@pytest.mark.ccsd_t1
+def test_ccsd_t1_transformed_codegen():
+
+    with open(LOG_FILE, "a") as f:
+        f.write(">>> Running CCSD (t1-transformed) ...\n")
+
+        with contextlib.redirect_stdout(f):
+
+            # t1 folded into the integrals, residuals derived with t2 only: same energy as CCSD
+            from pdaggerq.numerical.methods.ccsd import CCSD as CC
+            mol, wfn = setup_test()
+            mycc = CC(wfn, mol, nfzc=1, e_convergence = 1e-10, r_convergence = 1e-10, pq_graph_options = pq_graph_options, t1_transformation = True)
+            en = mycc.t_solver()
+
+            assert np.isclose(en, -75.019641774768, rtol=1e-10, atol=1e-10)
+
+        f.write(">>> TEST PASSED: CCSD (t1-transformed)\n")    
+
 @pytest.mark.uccsd3
 def test_uccsd_3_codegen():
 
