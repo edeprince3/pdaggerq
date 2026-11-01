@@ -67,8 +67,10 @@ jobs:
         # cross-call state leak trips one case mid-suite; forking gives each a
         # fresh interpreter). pyscf/openfermion/openfermionpyscf: the code generated
         # by tests/pq_graph_numerical_test.py (pq_graph/tests/*_codegen.py) imports
-        # them for reference integrals/energies.
-        run: python -m pip install pytest pytest-forked numpy pyscf openfermion openfermionpyscf
+        # them for reference integrals/energies. pytest < 9.2: pytest 9.2.0 keeps a NodeId
+        # object in each report's __dict__, which pytest-forked (1.7.5) cannot marshal back
+        # from the child, so every --forked test fails with "EXITED with status 3".
+        run: python -m pip install "pytest<9.2" pytest-forked numpy pyscf openfermion openfermionpyscf
 
       # All test steps run from a NEUTRAL directory: `python -m pytest` puts the
       # CWD on sys.path[0], and from the repo root that shadows the installed,
