@@ -14,16 +14,22 @@ class CCSD:
         self.r_convergence = kwargs.get('r_convergence', 1e-6)
         self.max_iter = kwargs.get('max_iter', 50)
 
+        # t1_transformation: fold t1 into the integrals, so the equations are derived with t2 only
+        # unitary: e^{-(T-T^+)} H e^{T-T^+}, with the BCH series truncated at four nested commutators
+        self.t1_transformation = kwargs.get('t1_transformation', False)
+        self.unitary = kwargs.get('unitary', False)
+
         # Create an empty dictionary to hold the pq-generated equations
         local_namespace = {}
         
         # Generate equations
-        T = ['t1', 't2']
+        T = ['t2'] if self.t1_transformation else ['t1', 't2']
         
         cc_energy_func = cc_residual('cc_energy',
             T,
             [['1']],
             'cc_energy',
+            unitary = self.unitary,
             pq_graph_options = self.pq_graph_options
         )
         
@@ -32,6 +38,7 @@ class CCSD:
             [['e1(i,a)']],
             't1_residual',
             indices = ['a', 'i'],
+            unitary = self.unitary,
             pq_graph_options = self.pq_graph_options
         )
         
@@ -40,6 +47,7 @@ class CCSD:
             [['e2(i,j,b,a)']],
             't2_residual',
             indices = ['a', 'b', 'i', 'j'],
+            unitary = self.unitary,
             pq_graph_options = self.pq_graph_options
         )
         
@@ -73,7 +81,9 @@ class CCSD:
             e_convergence = self.e_convergence,
             r_convergence = self.r_convergence,
             cc_energy_func = self.cc_energy["cc_energy"],
-            T_list = self.T_list
+            T_list = self.T_list,
+            t1_transformation = self.t1_transformation,
+            unitary = self.unitary
         )
         self.efzc = self.cc_solver.efzc
         self.nuclear_repulsion_energy = self.cc_solver.nuclear_repulsion_energy
@@ -82,7 +92,13 @@ class CCSD:
 
         return en
 
+    def check_lambda_support(self):
+        if self.t1_transformation or self.unitary:
+            raise NotImplementedError("lambda equations and densities are implemented only for standard, untransformed CCSD")
+
     def lambda_solver(self):
+
+        self.check_lambda_support()
 
         # Import pq codegen functions 
         from pdaggerq.numerical.codegen.auto_cc import lambda_cc_residual
@@ -144,6 +160,8 @@ class CCSD:
 
     def opdm(self):
 
+        self.check_lambda_support()
+
         # Import pq cc density matrix codegen function
         from pdaggerq.numerical.codegen.auto_cc import cc_density_matrix
 
@@ -166,6 +184,8 @@ class CCSD:
         return opdm_a, opdm_b
 
     def tpdm(self):
+
+        self.check_lambda_support()
 
         # Import pq cc tpdm codegen function
         from pdaggerq.numerical.codegen.auto_cc import cc_tpdm

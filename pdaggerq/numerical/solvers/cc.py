@@ -22,6 +22,7 @@ Solvers for CC and lambda CC. Should work for up to quadruple excitations, plus 
  
 import numpy as np
 from numpy import einsum
+import scipy.linalg
 import types
 import math
 import itertools
@@ -47,7 +48,9 @@ class cc:
         L_list = [],
         cc_pseudoenergy_func=None,
         cavity_frequency=0.07349864501573,
-        cavity_lambda=[0.0, 0.0, 0.0]):
+        cavity_lambda=[0.0, 0.0, 0.0],
+        t1_transformation=False,
+        unitary=False):
  
         """
         initialize CC class
@@ -67,6 +70,11 @@ class cc:
         :params is_qed: is this qed-cc?
         :params cavity_frequency: cavity frequency for qed-cc
         :params cavity_lambda: cavity coupling strength for qed-cc
+        :params t1_transformation: fold the t1 amplitudes into the integrals (see t1_transform_integrals).
+            The residual and energy functions must then be derived without t1; the t1 residual is
+            the singles projection of the t1-transformed Hamiltonian
+        :params unitary: with t1_transformation, the t1 part of the transformation is unitary,
+            e^{-(T1-T1^+)} H e^{T1-T1^+}, rather than e^{-T1} H e^{T1}
         """
  
         self.wfn = wfn
@@ -89,6 +97,11 @@ class cc:
  
         if self.is_qed and self.nfzc > 0:
             raise Exception("QED-CC does not work with frozen core")
+
+        self.t1_transformation = t1_transformation
+        self.unitary = unitary
+        if self.t1_transformation and self.is_qed:
+            raise Exception("the t1 transformation is not implemented for QED-CC")
  
         noa, nob, nva, nvb, self.f_aa, self.f_bb, self.g_aaaa, self.g_bbbb, self.g_abab, self.efzc  = self._integrals.get_integrals_with_spin(self.wfn, nfzc = self.nfzc)
  
@@ -221,9 +234,62 @@ class cc:
                        - 1.0 * einsum('ijij', self.g_abab[oa, ob, oa, ob]) )
  
         self.nuclear_repulsion_energy = nuclear_repulsion_energy(self.mol, self.backend)
+
+        # untransformed integrals, from which the t1-transformed ones are built
+        if self.t1_transformation:
+            if '1' not in self.T:
+                raise Exception("the t1 transformation needs t1 in T_list")
+            self.h0 = {
+                'a': self.f_aa - einsum('piqi->pq', self.g_aaaa[:, oa, :, oa]) - einsum('piqi->pq', self.g_abab[:, ob, :, ob]),
+                'b': self.f_bb - einsum('piqi->pq', self.g_bbbb[:, ob, :, ob]) - einsum('ipiq->pq', self.g_abab[oa, :, oa, :])
+            }
+            self.g0 = {
+                'aaaa': self.g_aaaa.copy(),
+                'bbbb': self.g_bbbb.copy(),
+                'abab': self.g_abab.copy()
+            }
  
         # cc energy function
         self.cc_energy = types.MethodType(cc_energy_func, self)
+
+    def t1_transform_integrals(self):
+        """
+        fold the t1 amplitudes into the integrals, H -> e^{-K} H e^{K}, where K = sum_pq k_pq p^+ q, with
+        k_ai = t1(a,i) and, for the unitary transformation, k_ia = -t1(a,i). With X = exp(-k) and Y = exp(k),
+
+            p^+ -> sum_r r^+ X_rp,  q -> sum_s Y_qs s,
+
+        so h -> X h Y and <pq||rs> -> X X <..||..> Y Y. For the standard transformation, k^2 = 0, so
+        X = 1 - k and Y = 1 + k; for the unitary one, X = Y^T is orthogonal (an orbital rotation). The
+        Fock matrices are rebuilt from the transformed integrals with the original occupied orbitals.
+        """
+
+        X = {}
+        Y = {}
+        for spin, o, v in (('a', self.oa, self.va), ('b', self.ob, self.vb)):
+            nmo = self.h0[spin].shape[0]
+            k = np.zeros((nmo, nmo))
+            k[v, o] = self.T['1'][spin + spin]
+            if self.unitary:
+                k[o, v] = -k[v, o].T
+                Y[spin] = scipy.linalg.expm(k)
+                X[spin] = Y[spin].T
+            else:
+                X[spin] = np.eye(nmo) - k
+                Y[spin] = np.eye(nmo) + k
+
+        def transform(g, X1, X2, Y1, Y2):
+            g = einsum('pqrs,Ap->Aqrs', g, X1)
+            g = einsum('Aqrs,Bq->ABrs', g, X2)
+            g = einsum('ABrs,rC->ABCs', g, Y1)
+            return einsum('ABCs,sD->ABCD', g, Y2)
+
+        oa, ob = self.oa, self.ob
+        self.g_aaaa = transform(self.g0['aaaa'], X['a'], X['a'], Y['a'], Y['a'])
+        self.g_bbbb = transform(self.g0['bbbb'], X['b'], X['b'], Y['b'], Y['b'])
+        self.g_abab = transform(self.g0['abab'], X['a'], X['b'], Y['a'], Y['b'])
+        self.f_aa = X['a'] @ self.h0['a'] @ Y['a'] + einsum('piqi->pq', self.g_aaaa[:, oa, :, oa]) + einsum('piqi->pq', self.g_abab[:, ob, :, ob])
+        self.f_bb = X['b'] @ self.h0['b'] @ Y['b'] + einsum('piqi->pq', self.g_bbbb[:, ob, :, ob]) + einsum('ipiq->pq', self.g_abab[oa, :, oa, :])
 
     def initialize_denominators(self, amp_list, denom):
         """
@@ -454,6 +520,9 @@ class cc:
  
         """
  
+        if self.t1_transformation:
+            raise NotImplementedError("lambda equations are not implemented for the t1-transformed solver")
+
         self.cc_iterations_with_spin(e_convergence=self.e_convergence, r_convergence=self.r_convergence, diis_size=self.diis_size, diis_start_cycle=self.diis_start_cycle, is_lambda = True)
         energy = self.cc_pseudoenergy()
  
@@ -528,6 +597,11 @@ class cc:
  
         diis_update = DIIS(diis_size, start_iter=diis_start_cycle)
         old_vec = np.zeros((self.amplitude_size))
+
+        # the integrals carry t1 (the residuals and energy are evaluated with the current t1)
+        t1_transform = self.t1_transformation and not is_lambda
+        if t1_transform:
+            self.t1_transform_integrals()
  
         old_energy = self.cc_energy()
  
@@ -578,6 +652,9 @@ class cc:
             amp_vec, err_vec = self.pack_diis_vectors(amps, residuals)
             new_amp_vec = diis_update.compute_new_vec(amp_vec, err_vec)
             self.unpack_amp_vector(new_amp_vec, amps)
+
+            if t1_transform:
+                self.t1_transform_integrals()
 
             # explicitly antisymmetrize amplitudes
             #self.antisymmetrize_amplitudes(amps, amps_meta)
