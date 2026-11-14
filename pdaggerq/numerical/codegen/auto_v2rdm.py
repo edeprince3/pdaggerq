@@ -24,7 +24,7 @@ format:
     every constraint is the fermion one times |A><B|, with constants multiplying the photon
     1-RDM < |A><B| >. this gives the photon extensions of D, Q, G, 3POS, and 4POS.
 
-    T1, T2, and T2' are not Gram matrices: they are positive because the three-body parts of
+    T1, T2, T2', and other blocks with anticommuted role strings (see ANTICOMMUTATOR) are not Gram matrices: they are positive because the three-body parts of
     < C C^dagger > and < C^dagger C > cancel, which needs the same photon operator in both
     terms. for C = sum x O |A><C'|, the first term carries |A><B| and the second only
     delta_AB |C'><C'|, so the dressed matrix is not positive. a photon operator Y with
@@ -45,10 +45,7 @@ import pdaggerq
 CREATOR, ANNIHILATOR = 'x', 'o'
 
 # the operators that index the rows of each block: 'x' = creator, 'o' = annihilator, with
-# creators first. a block element is X(row; col) = < O_row O_col^dagger >. for T1/T2, it
-# is the anticommutator { O_row, O_col^dagger }. T2' (T2P) adds a one-body sector to T2:
-# with C = B + sum_l y_l a*_l, B = sum x_ijk a*_i a*_j a_k, it is < C C^dagger > + < B^dagger B >,
-# i.e. the anticommutator between three-body sectors and < O_row O_col^dagger > otherwise.
+# creators first. a block element is X(row; col) = < O_row O_col^dagger >.
 # the role string '1' is the identity operator (no fermion operators); with augment_g2, G2's rows
 # are ('xo', '1'), so the G2 block of the number-conserving sectors gains rows 1 |A><C|.
 ROLES = {'D1': 'x',    'Q1': 'o',
@@ -57,7 +54,16 @@ ROLES = {'D1': 'x',    'Q1': 'o',
          'T1': 'xxx',  'T2': 'xxo',  'T2P': ('xxo', 'x'),
          'D4': 'xxxx', 'Q4': 'oooo', 'E4': 'xxxo', 'F4': 'xooo', 'G4': 'xxoo'}
 
-ANTICOMMUTATOR = ('T1', 'T2', 'T2P')
+# the role strings of a block that enter an anticommutator. with C = sum_r x_r O_r over all
+# rows and B the part of C whose rows have these role strings, the block is
+# < C C^dagger > + < B^dagger B >, which is positive for any state: the element is the
+# anticommutator { O_row, O_col^dagger } when both role strings are listed and
+# < O_row O_col^dagger > otherwise. T1 and T2 are anticommutators of one role string, and
+# T2' adds a one-body string to T2 (C = B + sum_l y_l a*_l, B = sum x_ijk a*_i a*_j a_k).
+ANTICOMMUTATOR = {'T1': ('xxx',), 'T2': ('xxo',), 'T2P': ('xxo',)}
+
+# the particle RDMs, which every other block maps onto
+PARTICLE = ('D1', 'D2', 'D3', 'D4')
 
 # the role string of the identity operator
 IDENTITY = '1'
@@ -190,6 +196,7 @@ class v2rdm_sdp():
                  f4 = False,
                  g4 = False,
                  four_pos = False,
+                 blocks = None,
                  constrain_spin = False,
                  spin_resolved_traces = True,
                  n_photon = None,
@@ -226,6 +233,14 @@ class v2rdm_sdp():
         :param d4: do enforce non-negativity of D4 and D4 -> D3 contraction (implies d3)?
         :param q4/e4/f4/g4: do enforce non-negativity of Q4/E4/F4/G4 (implies d4)?
         :param four_pos: do enforce non-negativity of D4, Q4, E4, F4, G4 and D4 -> D3 contraction?
+        :param blocks: user-defined blocks whose non-negativity is enforced, as a dict
+                       {name: roles} or {name: (roles, anticommuted)}, where roles is a role
+                       string or a tuple of them (the rows of the block), and anticommuted
+                       lists the role strings that enter the anticommutator (see ANTICOMMUTATOR).
+                       e.g. T2' is {'MYT2P': (('xxo', 'x'), ('xxo',))}. a name is an upper-case
+                       letter followed by upper-case letters or digits, not a built-in type. the
+                       particle RDMs a block maps onto must be enabled (e.g. d3 = True for a
+                       block whose elements contain D3) (optional, default None)
         :param constrain_spin: do constrain spin?
         :param spin_resolved_traces: do constrain the trace of each spin block of d2? if not, only
                                      the total trace, < N N > = N^2, is constrained.
@@ -285,10 +300,15 @@ class v2rdm_sdp():
                    'D4': d4, 'Q4': q4, 'E4': e4, 'F4': f4, 'G4': g4}
         self.types = [t for t in ROLES if enabled[t]]
 
-        # row operators of each block type
+        # row operators of each block type, and the role strings that enter an anticommutator
         self.roles = dict(ROLES)
+        self.anticommutator = dict(ANTICOMMUTATOR)
         if augment_g2:
             self.roles['G2'] = (ROLES['G2'], IDENTITY)
+        for t, spec in (blocks or {}).items():
+            roles, anticommuted = spec if isinstance(spec, tuple) and len(spec) == 2 \
+                and isinstance(spec[1], (tuple, list)) else (spec, ())
+            self.add_block_type(t, roles, anticommuted)
 
         # blocks, sectors, and offsets
         self.build_blocks()
@@ -331,7 +351,7 @@ class v2rdm_sdp():
 
         # mappings between each block and the RDMs
         for t in self.types:
-            if t[0] != 'D':
+            if t not in PARTICLE:
                 self.mapping(t)
 
         if constrain_spin :
@@ -353,6 +373,33 @@ class v2rdm_sdp():
         # number of dual variables
         self.n_dual = len(self.b)
 
+    def add_block_type(self, t, roles, anticommuted=()):
+        """
+        add a user-defined block type, whose non-negativity is enforced
+
+        :param t: the name of the type (an upper-case letter, then upper-case letters or digits)
+        :param roles: role string, or tuple of role strings, of the rows (creators 'x' before
+                      annihilators 'o', or '1' for the identity)
+        :param anticommuted: the role strings, among roles, that enter the anticommutator
+        """
+        roles = tuple(roles) if isinstance(roles, (tuple, list)) else (roles,)
+        anticommuted = tuple(anticommuted)
+        if not re.fullmatch(r'[A-Z][A-Z0-9]*', t) or t in ROLES or t == 'D0':
+            raise ValueError("block name '%s' must be an upper-case letter followed by upper-case "
+                             "letters or digits, and not a built-in type" % t)
+        for s in roles:
+            if s != IDENTITY and not re.fullmatch(r'x*o*', s):
+                raise ValueError("role string '%s' of block %s must be creators ('x') followed by "
+                                 "annihilators ('o'), or '1'" % (s, t))
+        # a sector is identified by its spins alone, so the role strings must differ in length
+        if len(set(len(s) for s in roles)) != len(roles) or not set(anticommuted) <= set(roles):
+            raise ValueError('block %s: role strings must differ in length, and anticommuted ones must be '
+                             'among them' % t)
+        self.roles[t] = roles if len(roles) > 1 else roles[0]
+        if anticommuted:
+            self.anticommutator[t] = tuple('' if s == IDENTITY else s for s in anticommuted)
+        self.types.append(t)
+
     def build_blocks(self):
         """
         build blocks, spin sectors, and offsets
@@ -364,7 +411,7 @@ class v2rdm_sdp():
 
         with a photon mode, every row of every block also carries a photon-number state A, at
         position (fermion row) * d + A, and block 'd0' holds the photon 1-RDM, < |A><B| >.
-        the exception is T1/T2/T2': their three-body parts cancel only between terms with the
+        the exception is T1/T2/T2' (any block with anticommuted role strings): their three-body parts cancel only between terms with the
         same photon operator, so they are photon-diagonal, one block per photon state A
         (e.g. 't2aaa_0', 't2aaa_1') holding < {O_r, O_c^dagger} |A><A| >.
 
@@ -401,6 +448,8 @@ class v2rdm_sdp():
                     groups.setdefault(change, []).append((roles, spins))
             for sector_list in groups.values():
                 name = t.lower() + sector_list[0][1]
+                if name in self.sectors:
+                    raise ValueError('block %s of type %s has the name of another block; rename the type' % (name, t))
                 off = 0
                 self.sectors[name] = []
                 for roles, spins in sector_list:
@@ -409,7 +458,7 @@ class v2rdm_sdp():
                     self.sector_of[(t, spins)] = (name, off, sec)
                     off += sec.size
                 self.groups.append((name, t))
-                if self.photon and t in ANTICOMMUTATOR:
+                if self.photon and t in self.anticommutator:
                     self.photon_diagonal[name] = ['%s_%i' % (name, A) for A in range(self.d)]
                     for A, copy in enumerate(self.photon_diagonal[name]):
                         add_block(copy, off, t, name, A)
@@ -435,7 +484,11 @@ class v2rdm_sdp():
         roles = next(r for r in role_strings(t, self.roles) if len(r) == len(spins))
         run = list(itertools.accumulate((int(a != b) for a, b in zip(roles, roles[1:])), initial=0))
         perm = sorted(range(len(spins)), key=lambda p: (run[p], spins[p]))
-        name, off, sec = self.sector_of[(t, ''.join(spins[p] for p in perm))]
+        key = (t, ''.join(spins[p] for p in perm))
+        if key not in self.sector_of:
+            raise ValueError('a constraint contains %s, which is not in the SDP (enable it, e.g. d3 = True '
+                             'for D3)' % t)
+        name, off, sec = self.sector_of[key]
         idx, sign = sec.pack([v[p] for p in perm], count)
         perm_sign = parity(np.array(perm)[:, None])[0]
         return name, off + idx, sign * perm_sign
@@ -619,7 +672,8 @@ class v2rdm_sdp():
                     O_row = [op(r, x) for r, x in zip(sec_r.roles, row)]
                     O_col_dagger = [op(flip(r), x) for r, x in reversed(list(zip(sec_c.roles, col)))]
                     labels = dict(zip(row + col, spins_r + spins_c))
-                    if t in ANTICOMMUTATOR and len(spins_r) == len(spins_c) == 3:
+                    anticommuted = self.anticommutator.get(t, ())
+                    if sec_r.roles in anticommuted and sec_c.roles in anticommuted:
                         terms = pdaggerq_terms(anticommutator=(O_row, O_col_dagger), spin_labels=labels)
                     elif not O_row + O_col_dagger:
                         # identity row and column: < 1 >, i.e. the photon 1-RDM (or 1)
