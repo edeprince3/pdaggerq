@@ -13,7 +13,9 @@ import sys
 import numpy as np
 import scipy.sparse as sp
 
-from pdaggerq.numerical.codegen.auto_v2rdm import v2rdm_sdp, ANTICOMMUTATOR, CREATOR
+import pytest
+
+from pdaggerq.numerical.codegen.auto_v2rdm import v2rdm_sdp, CREATOR
 
 
 def fock_operators(nmo, d=1):
@@ -82,7 +84,7 @@ def primal_from_state(sdp, psi, a, P):
                 O = sp.identity(len(psi), format='csr')
                 for role, s, p in zip(sec.roles, spins, tup):
                     O = O @ (a[(p, s)].T if role == CREATOR else a[(p, s)])
-                anticommutator = t in ANTICOMMUTATOR and len(spins) == 3
+                anticommutator = sec.roles in sdp.anticommutator.get(t, ())
                 for A in states:
                     V.append(O.T @ (P[A] @ psi))
                     W.append(O @ (P[A] @ psi) if anticommutator else 0.0 * psi)
@@ -181,6 +183,38 @@ def test_photon_exact_state_satisfies_constraints():
           spin_resolved_traces=False)
 
 
+def test_user_defined_blocks():
+    """
+    blocks given by role strings (and the role strings that enter the anticommutator): T2' given
+    this way gives the same SDP as the built-in one, and new blocks are satisfied by exact states
+    """
+    rng = np.random.default_rng(2)
+    oei = rng.normal(size=(4, 4))
+    tei = rng.normal(size=(4,) * 4)
+    builtin = v2rdm_sdp(2, 1, 4, oei, tei, q2=True, g2=True, t2_prime=True, constrain_spin=True)
+    user = v2rdm_sdp(2, 1, 4, oei, tei, q2=True, g2=True, constrain_spin=True,
+                     blocks={'U2P': (('xxo', 'x'), ('xxo',))})
+    assert builtin.block_dimensions == user.block_dimensions
+    assert (builtin.A_mat != user.A_mat).nnz == 0
+    assert np.array_equal(builtin.b, user.b) and np.array_equal(builtin.c, user.c)
+
+    # T1 with a one-body string (T1'), T2' with the one-body string anticommuted too, and a product block
+    t1p = {'T1P': (('xxx', 'x'), ('xxx',))}
+    check(4, 2, 1, q2=True, g2=True, constrain_spin=True, blocks=t1p)
+    check(4, 2, 1, n_photon=1, q2=True, g2=True, constrain_spin=True, blocks=t1p)
+    check(4, 2, 1, q2=True, g2=True, constrain_spin=True, blocks={'T2X': (('xxo', 'x'), ('xxo', 'x'))})
+    check(4, 2, 1, q2=True, g2=True, d3=True, constrain_spin=True, blocks={'P3': 'xxo'})
+
+    # the particle RDMs a block maps onto must be in the SDP
+    with pytest.raises(ValueError):
+        v2rdm_sdp(2, 1, 4, oei, tei, blocks={'P3': 'xxo'})
+    # names must not be built-in types, and role strings must differ in length
+    with pytest.raises(ValueError):
+        v2rdm_sdp(2, 1, 4, oei, tei, blocks={'T2': 'xxo'})
+    with pytest.raises(ValueError):
+        v2rdm_sdp(2, 1, 4, oei, tei, blocks={'XO': ('x', 'o')})
+
+
 def hamiltonian_matrix(a, nmo, oei, tei, d, omega, coupling, linear):
     """
     H (as in hamiltonian_expectation) as a sparse matrix in the Fock space times d photon states
@@ -255,3 +289,5 @@ if __name__ == '__main__':
     print('test_photon_exact_state_satisfies_constraints passed')
     test_photon_stationarity()
     print('test_photon_stationarity passed')
+    test_user_defined_blocks()
+    print('test_user_defined_blocks passed')
